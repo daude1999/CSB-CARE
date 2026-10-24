@@ -1,0 +1,1125 @@
+// Evantix Care data model.
+// Design rules:
+//  - Approved/published history is immutable (enforced by DB triggers in migration SQL).
+//  - Every customer-owned row carries organisationId; server-side scoping is mandatory.
+//  - Detection, substantive confirmation, applicability, revision need, approval and
+//    implementation are separate records/stages.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Identity & tenancy ─────────────────────────────
+
+enum PlatformRole {
+  NONE
+  PLATFORM_ADMIN // manages sources, jobs, master content
+  CONTENT_EDITOR // authors master templates
+  REGULATORY_REVIEWER // classifies regulatory changes, approves master templates
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  POLICY_AUTHOR
+  POLICY_REVIEWER
+  POLICY_APPROVER
+  COMPLIANCE_LEAD
+  STAFF
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  passwordHash  String?
+  platformRoles PlatformRole[] @default([])
+  isDemo        Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  deactivatedAt DateTime?
+
+  sessions         Session[]
+  memberships      Membership[]
+  notifications    Notification[]
+  acknowledgements Acknowledgement[]
+  trainingRecords  TrainingRecord[]
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrgId String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  lastSeenAt  DateTime @default(now())
+  ip          String?
+  userAgent   String?
+
+  @@index([userId])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  key       String // email or ip
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+model Organisation {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  jurisdiction String   @default("ENG")
+  isDemo       Boolean  @default(false)
+  settings     Json     @default("{}") // approval rules, escalation config
+  createdAt    DateTime @default(now())
+
+  branches    Branch[]
+  memberships Membership[]
+  policies    Policy[]
+}
+
+model ServiceType {
+  code         String              @id // e.g. RESIDENTIAL, DOMICILIARY, SUPPORTED_LIVING
+  name         String
+  jurisdiction String              @default("ENG")
+  branches     BranchServiceType[]
+}
+
+model Branch {
+  id             String              @id @default(cuid())
+  organisationId String
+  organisation   Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?
+  cqcLocationId  String?
+  createdAt      DateTime            @default(now())
+  services       BranchServiceType[]
+  memberships    Membership[]
+
+  @@index([organisationId])
+}
+
+model BranchServiceType {
+  branchId        String
+  serviceTypeCode String
+  branch          Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  serviceType     ServiceType @relation(fields: [serviceTypeCode], references: [code])
+
+  @@id([branchId, serviceTypeCode])
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organisationId String
+  branchId       String?
+  roles          OrgRole[]
+  jobTitle       String?
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch         Branch?      @relation(fields: [branchId], references: [id])
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+}
+
+// ───────────────────────────── Regulatory sources ─────────────────────────────
+
+enum SourceCategory {
+  REGULATOR
+  LEGISLATION
+  GOVERNMENT_GUIDANCE
+  CLINICAL_GUIDANCE
+  WORKFORCE
+  BEST_PRACTICE
+  HEALTH_AND_SAFETY
+  DATA_PROTECTION
+  FOOD_SAFETY
+  NHS
+}
+
+enum MonitoringMethod {
+  GOVUK_CONTENT_API // https://www.gov.uk/api/content/<path>
+  GOVUK_SEARCH_API // https://www.gov.uk/api/search.json
+  ATOM_FEED
+  RSS_FEED
+  LEGISLATION_GOV_UK // CLML XML data endpoints
+  HTML_PAGE // permitted page retrieval
+  MANUAL // manual review only, no automated retrieval
+}
+
+enum MonitoringCoverage {
+  AUTOMATED // full text retrieved and compared
+  PARTIAL // metadata/feed only, or subset of content
+  MANUAL_REVIEW_ONLY
+}
+
+enum RetrievalStatus {
+  NEVER_CHECKED
+  OK
+  DEGRADED // last run failed but previous success within freshness window
+  FAILING
+  DISABLED
+}
+
+model RegulatorySource {
+  id                   String             @id @default(cuid())
+  key                  String             @unique
+  name                 String
+  canonicalUrl         String
+  category             SourceCategory
+  jurisdiction         String             @default("ENG")
+  serviceTypes         String[]           @default([])
+  monitoringMethod     MonitoringMethod
+  coverage             MonitoringCoverage
+  config               Json               @default("{}")
+  frequencyMinutes     Int                @default(1440)
+  freshnessWindowHours Int                @default(48)
+  lastAttemptedAt      DateTime?
+  lastSuccessAt        DateTime?
+  lastContentCheckedAt DateTime?
+  lastChangeDetectedAt DateTime?
+  nextCheckAt          DateTime?
+  retrievalStatus      RetrievalStatus    @default(NEVER_CHECKED)
+  consecutiveFailures  Int                @default(0)
+  lastError            String?
+  currentContentHash   String?
+  latestPublishedAt    DateTime?
+  latestModifiedAt     DateTime?
+  licence              String?
+  reuseNotes           String?
+  monitoringNotes      String?
+  active               Boolean            @default(true)
+  isSimulated          Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  documents    SourceDocument[]
+  runs         SourceRetrievalRun[]
+  changes      RegulatoryChange[]
+  requirements RegulatoryRequirement[]
+}
+
+model SourceDocument {
+  id               String           @id @default(cuid())
+  sourceId         String
+  source           RegulatorySource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId       String // e.g. GOV.UK content_id, legislation URI, feed entry id
+  url              String
+  title            String
+  documentType     String?
+  legalStatus      LegalStatus      @default(ADVISORY_GUIDANCE)
+  firstSeenAt      DateTime         @default(now())
+  lastSeenAt       DateTime         @default(now())
+  currentVersionId String?          @unique
+  currentVersion   SourceVersion?   @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  withdrawnAt      DateTime?
+  isSimulated      Boolean          @default(false)
+
+  versions     SourceVersion[]         @relation("DocumentVersions")
+  requirements RegulatoryRequirement[]
+
+  @@unique([sourceId, externalId])
+}
+
+model SourceVersion {
+  id             String              @id @default(cuid())
+  documentId     String
+  document       SourceDocument      @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  contentHash    String
+  normalisedText String
+  sections       Json // [{ ref, heading, text }]
+  rawStorageKey  String? // original retrieved bytes in object storage
+  contentType    String?
+  retrievedAt    DateTime
+  publishedAt    DateTime? // official, as supplied by the source
+  modifiedAt     DateTime? // official, as supplied by the source
+  metadata       Json                @default("{}")
+  runId          String?
+  run            SourceRetrievalRun? @relation(fields: [runId], references: [id])
+  isSimulated    Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+
+  currentOf     SourceDocument?    @relation("CurrentVersion")
+  changesAsNew  RegulatoryChange[] @relation("ChangeNewVersion")
+  changesAsPrev RegulatoryChange[] @relation("ChangePrevVersion")
+  chunks        DocumentChunk[]
+  citations     AiCitation[]
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, contentHash])
+}
+
+enum RunTrigger {
+  SCHEDULED
+  MANUAL
+  RETRY
+  TEST
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+model SourceRetrievalRun {
+  id                  String            @id @default(cuid())
+  sourceId            String
+  source              RegulatorySource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  jobId               String?
+  trigger             RunTrigger
+  status              RunStatus         @default(RUNNING)
+  startedAt           DateTime          @default(now())
+  finishedAt          DateTime?
+  documentsDiscovered Int               @default(0)
+  documentsChecked    Int               @default(0)
+  documentsNew        Int               @default(0)
+  documentsChanged    Int               @default(0)
+  documentsFailed     Int               @default(0)
+  contentChecked      Boolean           @default(false)
+  error               String?
+  versions            SourceVersion[]
+  events              ProcessingEvent[]
+
+  @@index([sourceId, startedAt])
+}
+
+model ProcessingEvent {
+  id        String              @id @default(cuid())
+  runId     String?
+  run       SourceRetrievalRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceId  String?
+  level     String // info | warn | error
+  event     String
+  message   String
+  data      Json                @default("{}")
+  createdAt DateTime            @default(now())
+
+  @@index([runId])
+  @@index([sourceId, createdAt])
+}
+
+// ───────────────────────────── Regulatory changes ─────────────────────────────
+
+enum ChangeClassification {
+  NEW_DOCUMENT
+  POTENTIALLY_SUBSTANTIVE
+  EDITORIAL
+  UNCERTAIN
+}
+
+enum ChangeStatus {
+  NEWLY_DETECTED
+  AWAITING_CLASSIFICATION
+  POTENTIALLY_SUBSTANTIVE
+  EDITORIAL_OR_IMMATERIAL
+  UNDER_REVIEW
+  CONFIRMED_RELEVANT
+  CONFIRMED_NOT_APPLICABLE
+  IMPACT_ASSESSMENT_COMPLETED
+  POLICY_REVISION_REQUIRED
+  NO_POLICY_REVISION_REQUIRED
+  CLOSED
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model RegulatoryChange {
+  id                     String               @id @default(cuid())
+  sourceId               String
+  source                 RegulatorySource     @relation(fields: [sourceId], references: [id])
+  documentId             String
+  previousVersionId      String?
+  previousVersion        SourceVersion?       @relation("ChangePrevVersion", fields: [previousVersionId], references: [id])
+  newVersionId           String               @unique // idempotency: one change per new version
+  newVersion             SourceVersion        @relation("ChangeNewVersion", fields: [newVersionId], references: [id])
+  canonicalUrl           String
+  title                  String
+  retrievedAt            DateTime
+  officialDate           DateTime?
+  classification         ChangeClassification
+  classificationBasis    String // "rules" | "ai" | "reviewer"
+  status                 ChangeStatus         @default(NEWLY_DETECTED)
+  changedSections        Json // [{ ref, heading, kind: added|removed|modified, before, after }]
+  summary                String
+  suggestedUrgency       Urgency              @default(MEDIUM)
+  affectedCategories     String[]             @default([])
+  affectedServiceTypes   String[]             @default([])
+  affectedRequirementIds String[]             @default([])
+  aiAnalysis             Json? // validated structured output (proposal only)
+  aiProvider             String?
+  aiIsSimulated          Boolean              @default(false)
+  confidence             Float?
+  uncertainty            String?
+  reviewerId             String?
+  reviewNotes            String?
+  isSimulated            Boolean              @default(false)
+  detectedAt             DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  candidates  ChangePolicyCandidate[]
+  assessments ImpactAssessment[]
+  events      ChangeStatusEvent[]
+  citations   AiCitation[]
+
+  @@index([status])
+  @@index([sourceId])
+}
+
+model ChangeStatusEvent {
+  id        String           @id @default(cuid())
+  changeId  String
+  change    RegulatoryChange @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  from      ChangeStatus?
+  to        ChangeStatus
+  actorId   String?
+  reason    String?
+  createdAt DateTime         @default(now())
+}
+
+enum CandidateReason {
+  REQUIREMENT_LINK // deterministic: change touches a requirement linked to the policy
+  SOURCE_LINK // policy cites this source document
+  TEXT_MATCH // full-text similarity (supporting evidence only)
+  CATEGORY_MATCH
+}
+
+model ChangePolicyCandidate {
+  id             String           @id @default(cuid())
+  changeId       String
+  change         RegulatoryChange @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  policyId       String
+  policy         Policy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  organisationId String? // null for master templates
+  reason         CandidateReason
+  requirementId  String           @default("") // "" when not requirement-based
+  sectionKey     String?
+  evidence       String
+  score          Float?
+  createdAt      DateTime         @default(now())
+
+  @@unique([changeId, policyId, reason, requirementId])
+  @@index([organisationId])
+}
+
+// ───────────────────────────── Requirements register ─────────────────────────────
+
+enum LegalStatus {
+  LEGISLATION
+  STATUTORY_GUIDANCE
+  REGULATOR_GUIDANCE
+  ADVISORY_GUIDANCE
+  BEST_PRACTICE
+  INTERNAL_POLICY
+}
+
+enum VerificationStatus {
+  VERIFIED
+  UNVERIFIED
+  NEEDS_REVIEW
+}
+
+model RegulatoryRequirement {
+  id                    String             @id @default(cuid())
+  ref                   String             @unique
+  jurisdiction          String             @default("ENG")
+  title                 String
+  sourceId              String
+  source                RegulatorySource   @relation(fields: [sourceId], references: [id])
+  sourceDocumentId      String?
+  sourceDocument        SourceDocument?    @relation(fields: [sourceDocumentId], references: [id])
+  exactReference        String // e.g. "Regulation 13(2)"
+  sourceSectionRef      String? // section ref inside SourceVersion.sections
+  sourceUrl             String
+  excerpt               String
+  legalStatus           LegalStatus
+  serviceTypes          String[]           @default([])
+  applicabilityNotes    String?
+  effectiveDate         DateTime?
+  effectiveDateVerified Boolean            @default(false)
+  lastVerifiedAt        DateTime?
+  verificationStatus    VerificationStatus @default(UNVERIFIED)
+  reviewStatus          String             @default("ACTIVE") // ACTIVE | UNDER_REVIEW | RETIRED
+  version               Int                @default(1)
+  isSimulated           Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  versions       RequirementVersion[]
+  policyLinks    RequirementPolicyLink[]
+  auditQuestions AuditQuestionRequirement[]
+  trainingLinks  TrainingRequirementLink[]
+}
+
+model RequirementVersion {
+  id            String                @id @default(cuid())
+  requirementId String
+  requirement   RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  version       Int
+  snapshot      Json
+  reason        String
+  changedById   String?
+  createdAt     DateTime              @default(now())
+
+  @@unique([requirementId, version])
+}
+
+model RequirementPolicyLink {
+  id            String                @id @default(cuid())
+  requirementId String
+  requirement   RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  policyId      String
+  policy        Policy                @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  sectionKey    String? // stable section key within the policy
+  rationale     String
+  createdById   String?
+  createdAt     DateTime              @default(now())
+
+  @@unique([requirementId, policyId, sectionKey])
+  @@index([policyId])
+}
+
+// ───────────────────────────── Policies ─────────────────────────────
+
+enum PolicyKind {
+  MASTER // Evantix-maintained template (organisationId is null)
+  CUSTOMER // organisation-owned policy, optionally derived from a master
+}
+
+enum PolicyStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum VersionStatus {
+  DRAFT
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  SUPERSEDED
+  ARCHIVED
+  REJECTED
+}
+
+enum VersionOrigin {
+  SEED
+  MANUAL
+  AI_REGULATORY_REVISION
+  MASTER_SYNC
+  ROLLBACK
+}
+
+model PolicyCategory {
+  code     String   @id
+  name     String
+  policies Policy[]
+}
+
+model Policy {
+  id                          String                   @id @default(cuid())
+  kind                        PolicyKind
+  organisationId              String?
+  organisation                Organisation?            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branchId                    String?
+  templateId                  String?
+  template                    Policy?                  @relation("TemplateDerivations", fields: [templateId], references: [id])
+  derived                     Policy[]                 @relation("TemplateDerivations")
+  ref                         String
+  title                       String
+  description                 String
+  categoryCode                String
+  category                    PolicyCategory           @relation(fields: [categoryCode], references: [code])
+  serviceTypes                String[]                 @default([])
+  jurisdiction                String                   @default("ENG")
+  status                      PolicyStatus             @default(ACTIVE)
+  ownerId                     String?
+  reviewerId                  String?
+  approverId                  String?
+  reviewIntervalMonths        Int                      @default(12)
+  nextReviewDate              DateTime?
+  currentPublishedVersionId   String?                  @unique
+  currentPublishedVersion     PolicyVersion?           @relation("CurrentPublished", fields: [currentPublishedVersionId], references: [id])
+  lockVersion                 Int                      @default(0) // optimistic concurrency for publishing
+  supportingSourceDocumentIds String[]                 @default([])
+  isDemo                      Boolean                  @default(false)
+  searchVector                Unsupported("tsvector")? @map("search_vector") // generated column, see integrity migration
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+
+  versions         PolicyVersion[]         @relation("PolicyVersions")
+  requirementLinks RequirementPolicyLink[]
+  candidates       ChangePolicyCandidate[]
+  assessments      ImpactAssessment[]
+  revisions        PolicyRevision[]
+  publications     PolicyPublication[]
+  auditQuestions   AuditQuestion[]
+
+  @@unique([organisationId, ref])
+  @@index([searchVector], map: "policy_search_idx", type: Gin)
+  @@index([organisationId])
+  @@index([templateId])
+}
+
+model PolicyVersion {
+  id                     String        @id @default(cuid())
+  policyId               String
+  policy                 Policy        @relation("PolicyVersions", fields: [policyId], references: [id], onDelete: Cascade)
+  organisationId         String? // denormalised for tenant scoping
+  versionNumber          Int // monotonically increasing per policy
+  label                  String // e.g. "2.0" or "2.1-draft"
+  status                 VersionStatus @default(DRAFT)
+  origin                 VersionOrigin
+  previousVersionId      String?
+  basedOnMasterVersionId String? // for customer policies: master version this text tracks
+  changeSummary          String?
+  reasonForChange        String?
+  effectiveDate          DateTime?
+  approvedAt             DateTime?
+  publishedAt            DateTime?
+  supersededAt           DateTime?
+  createdById            String?
+  contentHash            String?
+  isSimulated            Boolean       @default(false)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  currentOf       Policy?            @relation("CurrentPublished")
+  sections        PolicySection[]
+  revisionAsDraft PolicyRevision?    @relation("RevisionDraft")
+  revisionsAsBase PolicyRevision[]   @relation("RevisionBase")
+  publication     PolicyPublication?
+  chunks          DocumentChunk[]
+  approvals       ApprovalDecision[]
+
+  @@unique([policyId, versionNumber])
+  @@index([organisationId])
+}
+
+model PolicySection {
+  id        String        @id @default(cuid())
+  versionId String
+  version   PolicyVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  key       String // stable key across versions e.g. "procedure.reporting"
+  heading   String
+  body      String
+  position  Int
+  isLocal   Boolean       @default(false) // customer-specific: contacts, routes, responsibilities; never auto-modified
+  masterKey String? // key of master section this tracks (customer policies)
+
+  @@unique([versionId, key])
+}
+
+// ───────────────────────────── Impact & revisions ─────────────────────────────
+
+enum Applicability {
+  APPLIES
+  DOES_NOT_APPLY
+  UNCERTAIN
+}
+
+enum AssessmentOutcome {
+  REVISION_RECOMMENDED
+  NO_REVISION_NEEDED
+  UNCERTAIN
+  CONFLICT_REQUIRES_EXPERT
+}
+
+enum AssessmentStatus {
+  PROPOSED
+  CONFIRMED_REVISION_REQUIRED
+  CONFIRMED_NO_REVISION
+  DISMISSED
+}
+
+model ImpactAssessment {
+  id                  String            @id @default(cuid())
+  changeId            String
+  change              RegulatoryChange  @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  policyId            String
+  policy              Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  organisationId      String?
+  policyVersionId     String // approved version assessed
+  applicability       Applicability
+  outcome             AssessmentOutcome
+  urgency             Urgency
+  rationale           String
+  needsVerification   String[]          @default([])
+  affectedSectionKeys String[]          @default([])
+  aiOutput            Json?
+  provider            String
+  isSimulated         Boolean           @default(false)
+  status              AssessmentStatus  @default(PROPOSED)
+  reviewerId          String?
+  reviewerReason      String?
+  reviewedAt          DateTime?
+  createdAt           DateTime          @default(now())
+
+  citations AiCitation[]
+  revisions PolicyRevision[]
+
+  @@unique([changeId, policyId])
+  @@index([organisationId])
+}
+
+enum RevisionKind {
+  REGULATORY
+  MASTER_SYNC
+  MANUAL
+  ROLLBACK
+}
+
+model PolicyRevision {
+  id                 String            @id @default(cuid())
+  policyId           String
+  policy             Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  organisationId     String?
+  kind               RevisionKind
+  impactAssessmentId String?
+  impactAssessment   ImpactAssessment? @relation(fields: [impactAssessmentId], references: [id])
+  baseVersionId      String?
+  baseVersion        PolicyVersion?    @relation("RevisionBase", fields: [baseVersionId], references: [id])
+  draftVersionId     String            @unique
+  draftVersion       PolicyVersion     @relation("RevisionDraft", fields: [draftVersionId], references: [id])
+  urgency            Urgency           @default(MEDIUM)
+  substantive        Boolean           @default(true) // substantive changes always require human approval
+  title              String
+  explanation        String? // AI-generated explanation (proposal)
+  validation         Json              @default("{}") // citation checks, unsupported statements, conflicts
+  edits              Json              @default("[]") // structured edits applied
+  provider           String?
+  isSimulated        Boolean           @default(false)
+  authorId           String? // person accountable for the draft (submitter); cannot approve it
+  submittedAt        DateTime?
+  closedAt           DateTime?
+  createdById        String?
+  dueAt              DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  assignments ReviewAssignment[]
+  decisions   ApprovalDecision[]
+  comments    RevisionComment[]
+  citations   AiCitation[]
+
+  @@index([organisationId])
+  @@index([policyId])
+}
+
+model ReviewAssignment {
+  id         String         @id @default(cuid())
+  revisionId String
+  revision   PolicyRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  assigneeId String
+  role       String // REVIEWER | APPROVER
+  status     String         @default("PENDING") // PENDING | COMPLETED
+  dueAt      DateTime?
+  createdAt  DateTime       @default(now())
+
+  @@unique([revisionId, assigneeId, role])
+}
+
+enum Decision {
+  APPROVE
+  REQUEST_CHANGES
+  REJECT
+}
+
+model ApprovalDecision {
+  id         String         @id @default(cuid())
+  revisionId String
+  revision   PolicyRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  versionId  String
+  version    PolicyVersion  @relation(fields: [versionId], references: [id])
+  deciderId  String
+  role       String
+  decision   Decision
+  comment    String
+  createdAt  DateTime       @default(now())
+}
+
+model RevisionComment {
+  id         String         @id @default(cuid())
+  revisionId String
+  revision   PolicyRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  authorId   String
+  sectionKey String?
+  body       String
+  createdAt  DateTime       @default(now())
+}
+
+model AiCitation {
+  id                 String            @id @default(cuid())
+  changeId           String?
+  change             RegulatoryChange? @relation(fields: [changeId], references: [id], onDelete: Cascade)
+  impactAssessmentId String?
+  impactAssessment   ImpactAssessment? @relation(fields: [impactAssessmentId], references: [id], onDelete: Cascade)
+  revisionId         String?
+  revision           PolicyRevision?   @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  assistantQueryId   String?
+  sourceVersionId    String?
+  sourceVersion      SourceVersion?    @relation(fields: [sourceVersionId], references: [id])
+  policyVersionId    String?
+  sectionRef         String?
+  supportsSectionKey String? // policy section the citation supports
+  quote              String
+  verified           Boolean
+  verificationNote   String?
+  createdAt          DateTime          @default(now())
+}
+
+// ───────────────────────────── Publishing & acknowledgement ─────────────────────────────
+
+enum PublicationStatus {
+  SCHEDULED
+  PUBLISHED
+  CANCELLED
+}
+
+model PolicyPublication {
+  id                          String            @id @default(cuid())
+  policyId                    String
+  policy                      Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  organisationId              String?
+  versionId                   String            @unique
+  version                     PolicyVersion     @relation(fields: [versionId], references: [id])
+  status                      PublicationStatus
+  scheduledFor                DateTime?
+  publishedAt                 DateTime?
+  effectiveDate               DateTime
+  publishedById               String
+  requiresAcknowledgement     Boolean           @default(true)
+  acknowledgementDueAt        DateTime?
+  implementationConfirmedAt   DateTime?
+  implementationConfirmedById String?
+  implementationNotes         String?
+  createdAt                   DateTime          @default(now())
+
+  acknowledgements Acknowledgement[]
+
+  @@index([organisationId])
+}
+
+model Acknowledgement {
+  id             String            @id @default(cuid())
+  publicationId  String
+  publication    PolicyPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  organisationId String
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dueAt          DateTime?
+  acknowledgedAt DateTime?
+  remindedAt     DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@unique([publicationId, userId])
+  @@index([organisationId, acknowledgedAt])
+}
+
+// ───────────────────────────── Audits, actions, evidence, training ─────────────────────────────
+
+model AuditTemplate {
+  id             String          @id @default(cuid())
+  organisationId String? // null = Evantix master template
+  title          String
+  description    String?
+  version        Int             @default(1)
+  status         String          @default("ACTIVE") // DRAFT | ACTIVE | RETIRED
+  needsReview    Boolean         @default(false)
+  reviewReason   String?
+  isDemo         Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  questions      AuditQuestion[]
+  audits         Audit[]
+
+  @@index([organisationId])
+}
+
+model AuditQuestion {
+  id           String                     @id @default(cuid())
+  templateId   String
+  template     AuditTemplate              @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  text         String
+  guidance     String?
+  position     Int
+  policyId     String?
+  policy       Policy?                    @relation(fields: [policyId], references: [id])
+  requirements AuditQuestionRequirement[]
+  answers      AuditAnswer[]
+}
+
+model AuditQuestionRequirement {
+  questionId    String
+  requirementId String
+  question      AuditQuestion         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  requirement   RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, requirementId])
+}
+
+model Audit {
+  id              String         @id @default(cuid())
+  organisationId  String
+  branchId        String?
+  templateId      String
+  template        AuditTemplate  @relation(fields: [templateId], references: [id])
+  templateVersion Int
+  title           String
+  status          String         @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  conductedById   String
+  startedAt       DateTime       @default(now())
+  completedAt     DateTime?
+  isDemo          Boolean        @default(false)
+  answers         AuditAnswer[]
+  findings        AuditFinding[]
+
+  @@index([organisationId])
+}
+
+model AuditAnswer {
+  id         String        @id @default(cuid())
+  auditId    String
+  audit      Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  questionId String
+  question   AuditQuestion @relation(fields: [questionId], references: [id])
+  response   String // MET | PARTIALLY_MET | NOT_MET | NOT_APPLICABLE
+  notes      String?
+
+  @@unique([auditId, questionId])
+}
+
+model AuditFinding {
+  id             String             @id @default(cuid())
+  auditId        String
+  audit          Audit              @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  organisationId String
+  questionId     String?
+  description    String
+  riskRating     String // LOW | MEDIUM | HIGH | CRITICAL
+  createdAt      DateTime           @default(now())
+  actions        ComplianceAction[]
+}
+
+model ComplianceAction {
+  id                   String        @id @default(cuid())
+  organisationId       String
+  findingId            String?
+  finding              AuditFinding? @relation(fields: [findingId], references: [id])
+  title                String
+  description          String?
+  ownerId              String
+  dueDate              DateTime
+  status               String        @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
+  completionNote       String?
+  completionEvidenceId String?
+  completedAt          DateTime?
+  verifiedById         String?
+  verifiedAt           DateTime?
+  closedAt             DateTime?
+  isDemo               Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  history              ActionEvent[]
+
+  @@index([organisationId, status])
+}
+
+model ActionEvent {
+  id        String           @id @default(cuid())
+  actionId  String
+  action    ComplianceAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  actorId   String
+  from      String?
+  to        String
+  note      String?
+  createdAt DateTime         @default(now())
+}
+
+model EvidenceDocument {
+  id             String    @id @default(cuid())
+  organisationId String
+  filename       String
+  contentType    String
+  sizeBytes      Int
+  sha256         String
+  storageKey     String
+  scanStatus     String    @default("PENDING") // PENDING | CLEAN | INFECTED | NOT_SCANNED
+  description    String?
+  linkedType     String? // AUDIT | ACTION | POLICY
+  linkedId       String?
+  uploadedById   String
+  retainUntil    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([organisationId])
+}
+
+model TrainingRequirement {
+  id             String                    @id @default(cuid())
+  organisationId String? // null = platform suggestion
+  title          String
+  description    String?
+  renewalMonths  Int?
+  requirements   TrainingRequirementLink[]
+  records        TrainingRecord[]
+}
+
+model TrainingRequirementLink {
+  trainingId    String
+  requirementId String
+  training      TrainingRequirement   @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  requirement   RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+
+  @@id([trainingId, requirementId])
+}
+
+model TrainingRecord {
+  id             String              @id @default(cuid())
+  organisationId String
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainingId     String
+  training       TrainingRequirement @relation(fields: [trainingId], references: [id])
+  completedAt    DateTime
+  expiresAt      DateTime?
+  evidenceId     String?
+
+  @@index([organisationId])
+}
+
+// ───────────────────────────── Notifications ─────────────────────────────
+
+model Notification {
+  id             String                 @id @default(cuid())
+  organisationId String?
+  userId         String
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String
+  title          String
+  body           String
+  reason         String
+  links          Json                   @default("[]") // [{label,url}]
+  actionUrl      String?
+  dueAt          DateTime?
+  dedupeKey      String                 @unique
+  readAt         DateTime?
+  createdAt      DateTime               @default(now())
+  deliveries     NotificationDelivery[]
+
+  @@index([userId, readAt])
+}
+
+model NotificationDelivery {
+  id                String       @id @default(cuid())
+  notificationId    String
+  notification      Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel           String // EMAIL
+  status            String       @default("PENDING") // PENDING | SENT | FAILED | DEAD
+  attempts          Int          @default(0)
+  lastError         String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime     @default(now())
+
+  @@unique([notificationId, channel])
+}
+
+// ───────────────────────────── Jobs, search, assistant, audit log ─────────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED // will retry
+  DEAD // exhausted retries (dead-letter)
+  CANCELLED
+}
+
+model BackgroundJob {
+  id             String    @id @default(cuid())
+  type           String
+  idempotencyKey String    @unique
+  status         JobStatus @default(QUEUED)
+  payload        Json      @default("{}")
+  result         Json?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(4)
+  runAfter       DateTime  @default(now())
+  lockedBy       String?
+  lockedUntil    DateTime?
+  lastError      String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, runAfter])
+  @@index([type, createdAt])
+}
+
+model DocumentChunk {
+  id              String                   @id @default(cuid())
+  organisationId  String? // null = shared (regulatory sources, master templates)
+  kind            String // SOURCE | POLICY
+  sourceVersionId String?
+  sourceVersion   SourceVersion?           @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade)
+  policyVersionId String?
+  policyVersion   PolicyVersion?           @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+  policyId        String?
+  sectionRef      String
+  heading         String
+  text            String
+  legalStatus     LegalStatus
+  isCurrent       Boolean                  @default(true)
+  createdAt       DateTime                 @default(now())
+  searchVector    Unsupported("tsvector")? @map("search_vector") // generated column + GIN index, see integrity migration
+
+  @@index([organisationId])
+  @@index([searchVector], map: "document_chunk_search_idx", type: Gin)
+  @@index([sourceVersionId])
+  @@index([policyVersionId])
+}
+
+model AssistantQuery {
+  id             String   @id @default(cuid())
+  organisationId String
+  userId         String
+  question       String
+  answer         Json
+  provider       String
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organisationId String?
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  data           Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([entityType, entityId])
+}
