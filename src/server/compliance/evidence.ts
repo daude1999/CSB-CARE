@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import { NotFoundError, ValidationError } from "@/lib/errors";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { sha256 } from "@/lib/text";
 import { audit } from "../audit-log";
 import { requireOrgPermission, type Ctx } from "../auth/rbac";
@@ -58,6 +58,7 @@ export async function readEvidence(ctx: Ctx, id: string) {
   const orgId = requireOrgPermission(ctx, "evidence.read");
   const doc = await db.evidenceDocument.findUnique({ where: { id } });
   if (!doc || doc.organisationId !== orgId) throw new NotFoundError("Evidence");
+  if (doc.scanStatus === "INFECTED") throw new ForbiddenError("This file failed the malware scan and cannot be downloaded");
   const bytes = await storage().get(doc.storageKey);
   await audit({ organisationId: orgId, actorId: ctx.userId, action: "evidence.downloaded", entityType: "EvidenceDocument", entityId: id });
   return { doc, bytes };

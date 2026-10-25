@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { ConflictError, ValidationError } from "@/lib/errors";
 import { getAiProvider } from "../ai";
 import { verifyQuote } from "../ai/citations";
 import type { ChangeAnalysisInput, ImpactInput } from "../ai/provider";
@@ -177,7 +178,9 @@ export async function createManualAssessment(args: {
   affectedSectionKeys: string[];
 }) {
   const policy = await db.policy.findUniqueOrThrow({ where: { id: args.policyId } });
-  if (!policy.currentPublishedVersionId) throw new Error("Policy has no published version to assess");
+  if (!policy.currentPublishedVersionId) throw new ValidationError("Policy has no published version to assess");
+  const existing = await db.impactAssessment.findUnique({ where: { changeId_policyId: { changeId: args.changeId, policyId: args.policyId } } });
+  if (existing && existing.status !== "PROPOSED") throw new ConflictError("This assessment has already been reviewed and cannot be replaced");
   return db.impactAssessment.upsert({
     where: { changeId_policyId: { changeId: args.changeId, policyId: args.policyId } },
     create: {

@@ -73,7 +73,7 @@ export async function analyseChange(changeId: string) {
   return { candidates: candidates.length, aiError };
 }
 
-const TRIAGE: Partial<Record<ChangeStatus, ChangeStatus[]>> = {
+export const TRIAGE: Partial<Record<ChangeStatus, ChangeStatus[]>> = {
   NEWLY_DETECTED: ["AWAITING_CLASSIFICATION", "UNDER_REVIEW"],
   AWAITING_CLASSIFICATION: ["POTENTIALLY_SUBSTANTIVE", "EDITORIAL_OR_IMMATERIAL", "UNDER_REVIEW"],
   POTENTIALLY_SUBSTANTIVE: ["UNDER_REVIEW", "EDITORIAL_OR_IMMATERIAL", "CONFIRMED_RELEVANT", "CONFIRMED_NOT_APPLICABLE"],

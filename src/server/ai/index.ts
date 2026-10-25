@@ -12,7 +12,7 @@ let override: LlmProvider | null | undefined;
  */
 export function getAiProvider(): LlmProvider | null {
   if (override !== undefined) return override;
-  const which = process.env.AI_PROVIDER ?? "simulated";
+  const which = process.env.AI_PROVIDER ?? (process.env.NODE_ENV === "production" ? "none" : "simulated");
   try {
     if (which === "anthropic") return new AnthropicProvider();
     if (which === "simulated") return new SimulatedProvider();

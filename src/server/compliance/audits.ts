@@ -57,7 +57,7 @@ export function auditScore(answers: { response: string }[]) {
   return Math.round((pts / applicable.length) * 100);
 }
 
-const ACTION_FLOW: Record<string, string[]> = {
+export const ACTION_FLOW: Record<string, string[]> = {
   OPEN: ["IN_PROGRESS", "COMPLETED"],
   IN_PROGRESS: ["COMPLETED"],
   COMPLETED: ["VERIFIED", "IN_PROGRESS"],
