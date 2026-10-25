@@ -2,7 +2,7 @@ import { HOMES, type PolicySpec } from "./types";
 
 export const MEDICINES: PolicySpec[] = [
   {
-    ref: "EVX-MED-001",
+    ref: "CSB-MED-001",
     title: "Medicines Management",
     category: "MEDICINES",
     summary: "safe ordering, storage, administration, recording and disposal of medicines.",
@@ -48,7 +48,7 @@ export const MEDICINES: PolicySpec[] = [
     ],
     qs: ["S8", "S1", "E2"],
     guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67", "GDN-NICE-NG5"],
-    related: ["EVX-MED-002", "EVX-MED-003", "EVX-MED-004", "EVX-MED-005", "EVX-INC-001", "EVX-DOC-001"],
+    related: ["CSB-MED-002", "CSB-MED-003", "CSB-MED-004", "CSB-MED-005", "CSB-INC-001", "CSB-DOC-001"],
     history: [
       {
         monthsAgo: 4,
@@ -62,7 +62,7 @@ export const MEDICINES: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-MED-002",
+    ref: "CSB-MED-002",
     title: "Covert Administration of Medicines",
     category: "MEDICINES",
     summary: "the safeguards required before any medicine is given hidden in food or drink.",
@@ -98,10 +98,10 @@ export const MEDICINES: PolicySpec[] = [
     ],
     qs: ["S8", "E6"],
     guidance: ["GDN-NICE-SC1", "GDN-0002"],
-    related: ["EVX-MED-001", "EVX-MCA-001", "EVX-MCA-002"],
+    related: ["CSB-MED-001", "CSB-MCA-001", "CSB-MCA-002"],
   },
   {
-    ref: "EVX-MED-003",
+    ref: "CSB-MED-003",
     title: "Controlled Drugs",
     category: "MEDICINES",
     serviceTypes: HOMES,
@@ -142,10 +142,10 @@ export const MEDICINES: PolicySpec[] = [
     ],
     qs: ["S8", "S5"],
     guidance: ["GDN-NICE-NG46", "GDN-NICE-SC1"],
-    related: ["EVX-MED-001", "EVX-INC-001"],
+    related: ["CSB-MED-001", "CSB-INC-001"],
   },
   {
-    ref: "EVX-MED-004",
+    ref: "CSB-MED-004",
     title: "When Required (PRN) Medicines",
     category: "MEDICINES",
     summary: "how medicines prescribed to be taken only when needed are offered, given and reviewed.",
@@ -176,10 +176,10 @@ export const MEDICINES: PolicySpec[] = [
     links: [["REQ-ENG-0002", "procedure.protocol"]],
     qs: ["S8", "C4"],
     guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67"],
-    related: ["EVX-MED-001", "EVX-SAF-003"],
+    related: ["CSB-MED-001", "CSB-SAF-003"],
   },
   {
-    ref: "EVX-MED-005",
+    ref: "CSB-MED-005",
     title: "Self-Administration of Medicines",
     category: "MEDICINES",
     summary: "how we support people to manage their own medicines safely.",
@@ -213,6 +213,6 @@ export const MEDICINES: PolicySpec[] = [
     ],
     qs: ["S8", "C3"],
     guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67"],
-    related: ["EVX-MED-001", "EVX-RISK-001"],
+    related: ["CSB-MED-001", "CSB-RISK-001"],
   },
 ];

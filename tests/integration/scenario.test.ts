@@ -40,7 +40,7 @@ describe("automated policy update workflow (end to end)", () => {
     const req = await db.regulatoryRequirement.create({
       data: { ref: "REQ-SCN-1", title: "Referral timescale", sourceId: source.id, sourceDocumentId: doc.id, sourceSectionRef: "reporting-concerns", exactReference: "Reporting concerns", sourceUrl: doc.url, excerpt: "Providers must notify the local authority safeguarding team within 48 hours of becoming aware of a concern.", legalStatus: "ADVISORY_GUIDANCE", isSimulated: true },
     });
-    await db.requirementPolicyLink.create({ data: { requirementId: req.id, policyId: masters["EVX-SAF-001"]!, sectionKey: "procedure.reporting", rationale: "Reporting procedure states the timescale" } });
+    await db.requirementPolicyLink.create({ data: { requirementId: req.id, policyId: masters["CSB-SAF-001"]!, sectionKey: "procedure.reporting", rationale: "Reporting procedure states the timescale" } });
 
     // ── 2. The source document changes; the change is detected and the new version recorded
     const run = await checkSource(source.id, { trigger: "SCHEDULED", http: fixtureHttp(fixtureFetch({ [URL]: { body: simulatedGuidance(2) } })) });
@@ -57,7 +57,7 @@ describe("automated policy update workflow (end to end)", () => {
     expect(change.isSimulated).toBe(true);
     expect(change.aiIsSimulated).toBe(true);
     const brookfield = await db.organisation.findUniqueOrThrow({ where: { slug: BROOKFIELD } });
-    const customerPolicy = await db.policy.findFirstOrThrow({ where: { organisationId: brookfield.id, ref: "EVX-SAF-001" } });
+    const customerPolicy = await db.policy.findFirstOrThrow({ where: { organisationId: brookfield.id, ref: "CSB-SAF-001" } });
     const flag = change.candidates.find((c) => c.policyId === customerPolicy.id);
     expect(flag?.reason).toBe("REQUIREMENT_LINK");
     expect(flag?.evidence).toMatch(/REQ-SCN-1/);

@@ -2,7 +2,7 @@ import { HOMES, type PolicySpec } from "./types";
 
 export const CARE: PolicySpec[] = [
   {
-    ref: "EVX-CP-001",
+    ref: "CSB-CP-001",
     title: "Assessment and Care Planning",
     category: "CARE",
     summary: "how we assess people's needs and write, deliver and review person-centred care plans with them.",
@@ -44,10 +44,10 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["E1", "R1", "C2", "S4"],
     guidance: ["GDN-NICE-NG86", "GDN-0001"],
-    related: ["EVX-CP-002", "EVX-CP-004", "EVX-RISK-001", "EVX-MCA-001", "EVX-RK-001"],
+    related: ["CSB-CP-002", "CSB-CP-004", "CSB-RISK-001", "CSB-MCA-001", "CSB-RK-001"],
   },
   {
-    ref: "EVX-CP-002",
+    ref: "CSB-CP-002",
     title: "Starting a Service: Referrals and Admissions",
     category: "CARE",
     summary: "how we respond to referrals and make sure a new person's care starts safely.",
@@ -81,10 +81,10 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["E1", "S2", "R2"],
     guidance: ["GDN-NICE-NG86", "GDN-0010"],
-    related: ["EVX-CP-001", "EVX-CP-006", "EVX-MED-001"],
+    related: ["CSB-CP-001", "CSB-CP-006", "CSB-MED-001"],
   },
   {
-    ref: "EVX-CP-003",
+    ref: "CSB-CP-003",
     title: "Dignity, Privacy and Independence",
     category: "CARE",
     summary: "how staff treat people with dignity, protect their privacy and support their independence.",
@@ -118,10 +118,10 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["C1", "C2", "C3"],
     guidance: ["GDN-NICE-NG86"],
-    related: ["EVX-EQ-001", "EVX-CP-001", "EVX-WF-001"],
+    related: ["CSB-EQ-001", "CSB-CP-001", "CSB-WF-001"],
   },
   {
-    ref: "EVX-CP-004",
+    ref: "CSB-CP-004",
     title: "Communication and Accessible Information",
     category: "CARE",
     summary: "how we identify, record, flag, share and meet people's information and communication needs.",
@@ -155,10 +155,10 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["R3", "C2", "R5"],
     guidance: ["GDN-NHSE-1"],
-    related: ["EVX-CP-001", "EVX-EQ-001", "EVX-CP-006"],
+    related: ["CSB-CP-001", "CSB-EQ-001", "CSB-CP-006"],
   },
   {
-    ref: "EVX-CP-005",
+    ref: "CSB-CP-005",
     title: "Visiting and Staying Connected",
     category: "CARE",
     serviceTypes: HOMES,
@@ -193,10 +193,10 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["C3", "R1", "R4"],
     guidance: ["GDN-0006"],
-    related: ["EVX-IPC-002", "EVX-EOL-001", "EVX-SAF-001"],
+    related: ["CSB-IPC-002", "CSB-EOL-001", "CSB-SAF-001"],
   },
   {
-    ref: "EVX-CP-006",
+    ref: "CSB-CP-006",
     title: "Hospital Admissions, Discharges and Transfers",
     category: "CARE",
     summary: "how we share information and keep people safe when they move between hospital, home and other services.",
@@ -230,6 +230,6 @@ export const CARE: PolicySpec[] = [
     ],
     qs: ["S2", "E3", "R2"],
     guidance: ["GDN-NICE-NG27", "GDN-NICE-NG5"],
-    related: ["EVX-CP-002", "EVX-MED-001", "EVX-MCA-003", "EVX-CP-004"],
+    related: ["CSB-CP-002", "CSB-MED-001", "CSB-MCA-003", "CSB-CP-004"],
   },
 ];

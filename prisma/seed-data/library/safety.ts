@@ -2,7 +2,7 @@ import { COMMUNITY, HOMES, type PolicySpec } from "./types";
 
 export const SAFETY: PolicySpec[] = [
   {
-    ref: "EVX-HS-001",
+    ref: "CSB-HS-001",
     title: "Health and Safety",
     category: "HEALTH_SAFETY",
     summary: "how we manage health and safety risks for the people we support, staff and visitors.",
@@ -45,10 +45,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5", "C5"],
     guidance: ["GDN-HSE-1", "GDN-HSE-3"],
-    related: ["EVX-HS-002", "EVX-HS-003", "EVX-HS-004", "EVX-HS-005", "EVX-INC-001"],
+    related: ["CSB-HS-002", "CSB-HS-003", "CSB-HS-004", "CSB-HS-005", "CSB-INC-001"],
   },
   {
-    ref: "EVX-HS-002",
+    ref: "CSB-HS-002",
     title: "Moving and Handling",
     category: "HEALTH_SAFETY",
     summary: "how we assist people to move safely, using the right techniques and equipment.",
@@ -83,7 +83,7 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5", "S4"],
     guidance: ["GDN-HSE-6"],
-    related: ["EVX-HS-001", "EVX-CLN-001", "EVX-TRN-001"],
+    related: ["CSB-HS-001", "CSB-CLN-001", "CSB-TRN-001"],
     history: [
       {
         monthsAgo: 3,
@@ -97,7 +97,7 @@ export const SAFETY: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-HS-003",
+    ref: "CSB-HS-003",
     title: "Fire Safety",
     category: "HEALTH_SAFETY",
     summary: "how we prevent fires and make sure everyone can get to safety if a fire happens.",
@@ -136,10 +136,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5"],
     guidance: ["GDN-0009"],
-    related: ["EVX-HS-001", "EVX-GOV-003"],
+    related: ["CSB-HS-001", "CSB-GOV-003"],
   },
   {
-    ref: "EVX-HS-004",
+    ref: "CSB-HS-004",
     title: "Lone Working",
     category: "HEALTH_SAFETY",
     serviceTypes: COMMUNITY,
@@ -174,10 +174,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5", "C5"],
     guidance: ["GDN-HSE-5"],
-    related: ["EVX-HS-001", "EVX-SAF-005"],
+    related: ["CSB-HS-001", "CSB-SAF-005"],
   },
   {
-    ref: "EVX-HS-005",
+    ref: "CSB-HS-005",
     title: "Premises, Equipment and Water Safety",
     category: "HEALTH_SAFETY",
     serviceTypes: HOMES,
@@ -218,10 +218,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5", "W8"],
     guidance: ["GDN-HSE-2", "GDN-HSE-1"],
-    related: ["EVX-HS-001", "EVX-HS-003", "EVX-IPC-003"],
+    related: ["CSB-HS-001", "CSB-HS-003", "CSB-IPC-003"],
   },
   {
-    ref: "EVX-FOOD-001",
+    ref: "CSB-FOOD-001",
     title: "Nutrition and Hydration",
     category: "FOOD",
     summary: "how we make sure people have enough to eat and drink, enjoy their meals and get support with eating and swallowing.",
@@ -255,10 +255,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["E4", "E1", "C2"],
     guidance: ["GDN-NICE-CG32"],
-    related: ["EVX-FOOD-002", "EVX-CLN-002", "EVX-CP-001"],
+    related: ["CSB-FOOD-002", "CSB-CLN-002", "CSB-CP-001"],
   },
   {
-    ref: "EVX-FOOD-002",
+    ref: "CSB-FOOD-002",
     title: "Food Safety, Hygiene and Allergens",
     category: "FOOD",
     summary: "how food is stored, prepared and served safely, including allergen controls.",
@@ -292,10 +292,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["S5", "E4"],
     guidance: ["GDN-FSA-1"],
-    related: ["EVX-FOOD-001", "EVX-IPC-001"],
+    related: ["CSB-FOOD-001", "CSB-IPC-001"],
   },
   {
-    ref: "EVX-DP-001",
+    ref: "CSB-DP-001",
     title: "Data Protection and Confidentiality",
     category: "DATA_PROTECTION",
     summary: "how we protect personal information and respect confidentiality.",
@@ -331,10 +331,10 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["W5", "E3"],
     guidance: ["GDN-ICO-1"],
-    related: ["EVX-DP-002", "EVX-RK-001", "EVX-WF-001"],
+    related: ["CSB-DP-002", "CSB-RK-001", "CSB-WF-001"],
   },
   {
-    ref: "EVX-DP-002",
+    ref: "CSB-DP-002",
     title: "Data Breach Management",
     category: "DATA_PROTECTION",
     summary: "how we contain, assess, report and learn from personal data breaches.",
@@ -369,6 +369,6 @@ export const SAFETY: PolicySpec[] = [
     ],
     qs: ["W5", "S1"],
     guidance: ["GDN-ICO-1"],
-    related: ["EVX-DP-001", "EVX-INC-001"],
+    related: ["CSB-DP-001", "CSB-INC-001"],
   },
 ];

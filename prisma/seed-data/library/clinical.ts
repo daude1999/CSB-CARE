@@ -2,7 +2,7 @@ import type { PolicySpec } from "./types";
 
 export const CLINICAL: PolicySpec[] = [
   {
-    ref: "EVX-CLN-001",
+    ref: "CSB-CLN-001",
     title: "Falls Prevention and Management",
     category: "CLINICAL",
     summary: "how we reduce the risk of falls and respond safely when someone falls.",
@@ -36,10 +36,10 @@ export const CLINICAL: PolicySpec[] = [
     ],
     qs: ["S4", "E5", "S1"],
     guidance: ["GDN-NICE-NG249"],
-    related: ["EVX-HS-002", "EVX-INC-001", "EVX-CLN-003", "EVX-RISK-001"],
+    related: ["CSB-HS-002", "CSB-INC-001", "CSB-CLN-003", "CSB-RISK-001"],
   },
   {
-    ref: "EVX-CLN-002",
+    ref: "CSB-CLN-002",
     title: "Pressure Ulcer Prevention and Skin Care",
     category: "CLINICAL",
     summary: "how we keep people's skin healthy and prevent, recognise and report pressure damage.",
@@ -74,10 +74,10 @@ export const CLINICAL: PolicySpec[] = [
     ],
     qs: ["S4", "E2", "E4"],
     guidance: ["GDN-NICE-CG179"],
-    related: ["EVX-FOOD-001", "EVX-CLN-003", "EVX-SAF-001"],
+    related: ["CSB-FOOD-001", "CSB-CLN-003", "CSB-SAF-001"],
   },
   {
-    ref: "EVX-CLN-003",
+    ref: "CSB-CLN-003",
     title: "Recognising and Responding to Deterioration",
     category: "CLINICAL",
     summary: "how staff spot that someone is becoming unwell and get the right help quickly.",
@@ -111,6 +111,6 @@ export const CLINICAL: PolicySpec[] = [
     ],
     qs: ["S2", "C4", "E3"],
     guidance: ["GDN-NICE-NG51"],
-    related: ["EVX-CLN-001", "EVX-MCA-003", "EVX-CP-006"],
+    related: ["CSB-CLN-001", "CSB-MCA-003", "CSB-CP-006"],
   },
 ];

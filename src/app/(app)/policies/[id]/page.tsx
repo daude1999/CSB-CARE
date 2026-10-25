@@ -41,7 +41,15 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
       <Flash searchParams={sp} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <Card title={v ? `Current version ${v.label}` : "No published version"}>
+          <Card
+            title={v ? `Current version ${v.label}` : "No published version"}
+            actions={v ? (
+              <div className="flex gap-2">
+                <a className="btn-secondary py-1.5" href={`/api/policies/${p.id}/download?format=docx`} download data-testid="download-docx">Download Word</a>
+                <a className="btn-primary py-1.5 text-white hover:text-white" href={`/api/policies/${p.id}/download?format=pdf`} download data-testid="download-pdf">Download PDF</a>
+              </div>
+            ) : null}
+          >
             {v ? (
               <>
                 <div className="mb-4 flex flex-wrap gap-2 text-xs">

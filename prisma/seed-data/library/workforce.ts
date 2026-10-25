@@ -2,7 +2,7 @@ import type { PolicySpec } from "./types";
 
 export const WORKFORCE: PolicySpec[] = [
   {
-    ref: "EVX-REC-001",
+    ref: "CSB-REC-001",
     title: "Safer Recruitment",
     category: "RECRUITMENT",
     summary: "how we recruit safely and check that staff are suitable for their roles.",
@@ -43,7 +43,7 @@ export const WORKFORCE: PolicySpec[] = [
     ],
     qs: ["S6", "W4"],
     guidance: ["GDN-0008"],
-    related: ["EVX-TRN-001", "EVX-GOV-002", "EVX-SAF-001", "EVX-EQ-001"],
+    related: ["CSB-TRN-001", "CSB-GOV-002", "CSB-SAF-001", "CSB-EQ-001"],
     history: [
       {
         monthsAgo: 8,
@@ -57,7 +57,7 @@ export const WORKFORCE: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-TRN-001",
+    ref: "CSB-TRN-001",
     title: "Induction, Training and Competence",
     category: "TRAINING",
     summary: "how we make sure staff have the induction, training and competence to provide safe, effective care.",
@@ -91,10 +91,10 @@ export const WORKFORCE: PolicySpec[] = [
     ],
     qs: ["S6", "E2"],
     guidance: ["GDN-SFC-1", "GDN-NHSE-3"],
-    related: ["EVX-TRN-002", "EVX-REC-001", "EVX-GOV-002"],
+    related: ["CSB-TRN-002", "CSB-REC-001", "CSB-GOV-002"],
   },
   {
-    ref: "EVX-TRN-002",
+    ref: "CSB-TRN-002",
     title: "Supervision and Appraisal",
     category: "TRAINING",
     summary: "how staff are supported, supervised and helped to develop.",
@@ -125,10 +125,10 @@ export const WORKFORCE: PolicySpec[] = [
     links: [["REQ-ENG-0014", "procedure.supervision"]],
     qs: ["S6", "C5", "W2"],
     guidance: ["GDN-SFC-2"],
-    related: ["EVX-TRN-001", "EVX-WF-001"],
+    related: ["CSB-TRN-001", "CSB-WF-001"],
   },
   {
-    ref: "EVX-WF-001",
+    ref: "CSB-WF-001",
     title: "Staff Code of Conduct and Professional Boundaries",
     category: "WORKFORCE",
     summary: "the standards of behaviour expected of everyone who works for us, including professional boundaries and use of social media.",
@@ -162,10 +162,10 @@ export const WORKFORCE: PolicySpec[] = [
     ],
     qs: ["C1", "W1"],
     guidance: ["GDN-NMC-1"],
-    related: ["EVX-WF-002", "EVX-SAF-001", "EVX-DP-001", "EVX-WB-001"],
+    related: ["CSB-WF-002", "CSB-SAF-001", "CSB-DP-001", "CSB-WB-001"],
   },
   {
-    ref: "EVX-WF-002",
+    ref: "CSB-WF-002",
     title: "Gifts, Gratuities and Wills",
     category: "WORKFORCE",
     summary: "what staff may and may not accept from people they support, and how offers are recorded.",
@@ -190,10 +190,10 @@ export const WORKFORCE: PolicySpec[] = [
     monitoring: "The manager reviews the gifts register quarterly.",
     links: [["REQ-ENG-0001", "procedure.wills"]],
     qs: ["S3", "W1"],
-    related: ["EVX-WF-001", "EVX-SAF-002"],
+    related: ["CSB-WF-001", "CSB-SAF-002"],
   },
   {
-    ref: "EVX-WB-001",
+    ref: "CSB-WB-001",
     title: "Whistleblowing and Speaking Up",
     category: "WHISTLEBLOWING",
     summary: "how staff can speak up about wrongdoing or poor practice and how concerns are handled.",
@@ -227,10 +227,10 @@ export const WORKFORCE: PolicySpec[] = [
       ["REQ-ENG-0004", "procedure.handling"],
     ],
     qs: ["W3", "S1"],
-    related: ["EVX-SAF-001", "EVX-WF-001"],
+    related: ["CSB-SAF-001", "CSB-WF-001"],
   },
   {
-    ref: "EVX-EQ-001",
+    ref: "CSB-EQ-001",
     title: "Equality, Diversity and Human Rights",
     category: "EQUALITY",
     summary: "how we promote equality, respect diversity and uphold people's human rights.",
@@ -266,6 +266,6 @@ export const WORKFORCE: PolicySpec[] = [
     ],
     qs: ["C2", "R5", "R6", "W4"],
     guidance: ["GDN-NHSE-1"],
-    related: ["EVX-CP-003", "EVX-CP-004", "EVX-REC-001"],
+    related: ["CSB-CP-003", "CSB-CP-004", "CSB-REC-001"],
   },
 ];

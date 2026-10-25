@@ -58,19 +58,19 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
 
   // Brookfield adopts the starter templates that fit its services, with completed local sections.
   const localText: Record<string, string> = {
-    "EVX-SAF-001": "Brookfield safeguarding lead: Morgan Manager, 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional). Local authority safeguarding team: 01632 960003 (fictional).",
-    "EVX-MED-001": "Supplying pharmacy: Brookfield Pharmacy (fictional), 01632 960010. Out of hours: NHS 111.",
-    "EVX-COM-001": "Complaints are sent to the registered manager at complaints@brookfield.demo (fictional).",
-    "EVX-IPC-001": "IPC lead: Riley Reviewer. Local health protection team: 01632 960020 (fictional).",
-    "EVX-IPC-002": "Outbreak lead: Riley Reviewer. Report suspected outbreaks to the health protection team on 01632 960020 (fictional).",
-    "EVX-MED-003": "Controlled drugs accountable officer (area team): 01632 960011 (fictional). Brookfield House CD lead: Riley Reviewer.",
-    "EVX-WB-001": "Speak up to Avery Approver, nominated individual, on 01632 960004 (fictional), or to CQC.",
-    "EVX-DP-001": "Data protection lead: Avery Approver, dataprotection@brookfield.demo (fictional).",
-    "EVX-DP-002": "Report breaches immediately to dataprotection@brookfield.demo (fictional) or the on-call manager, 01632 960002 (fictional).",
-    "EVX-HS-004": "Brookfield Home Care on-call coordinator: 01632 960030 (fictional), 24 hours a day.",
-    "EVX-SAF-005": "Office (08:00 to 18:00): 01632 960031 (fictional). On-call coordinator out of hours: 01632 960030 (fictional).",
-    "EVX-MCA-002": "DoLS team (supervisory body): 01632 960040 (fictional).",
-    "EVX-CLN-003": "GP practice: Brookfield Medical Centre (fictional), 01632 960050. Out of hours: NHS 111. Emergencies: 999.",
+    "CSB-SAF-001": "Brookfield safeguarding lead: Morgan Manager, 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional). Local authority safeguarding team: 01632 960003 (fictional).",
+    "CSB-MED-001": "Supplying pharmacy: Brookfield Pharmacy (fictional), 01632 960010. Out of hours: NHS 111.",
+    "CSB-COM-001": "Complaints are sent to the registered manager at complaints@brookfield.demo (fictional).",
+    "CSB-IPC-001": "IPC lead: Riley Reviewer. Local health protection team: 01632 960020 (fictional).",
+    "CSB-IPC-002": "Outbreak lead: Riley Reviewer. Report suspected outbreaks to the health protection team on 01632 960020 (fictional).",
+    "CSB-MED-003": "Controlled drugs accountable officer (area team): 01632 960011 (fictional). Brookfield House CD lead: Riley Reviewer.",
+    "CSB-WB-001": "Speak up to Avery Approver, nominated individual, on 01632 960004 (fictional), or to CQC.",
+    "CSB-DP-001": "Data protection lead: Avery Approver, dataprotection@brookfield.demo (fictional).",
+    "CSB-DP-002": "Report breaches immediately to dataprotection@brookfield.demo (fictional) or the on-call manager, 01632 960002 (fictional).",
+    "CSB-HS-004": "Brookfield Home Care on-call coordinator: 01632 960030 (fictional), 24 hours a day.",
+    "CSB-SAF-005": "Office (08:00 to 18:00): 01632 960031 (fictional). On-call coordinator out of hours: 01632 960030 (fictional).",
+    "CSB-MCA-002": "DoLS team (supervisory body): 01632 960040 (fictional).",
+    "CSB-CLN-003": "GP practice: Brookfield Medical Centre (fictional), 01632 960050. Out of hours: NHS 111. Emergencies: 999.",
   };
   const defaultLocal = "Policy lead for Brookfield: Morgan Manager (registered manager), 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional).";
   const brookfieldServices = ["RESIDENTIAL", "DOMICILIARY"];
@@ -80,7 +80,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
     orderBy: { ref: "asc" },
   });
   // Policies where staff were asked to acknowledge the adopted version.
-  const ackRefs = ["EVX-HS-002", "EVX-MED-004", "EVX-DP-002"];
+  const ackRefs = ["CSB-HS-002", "CSB-MED-004", "CSB-DP-002"];
   for (const [i, tpl] of templates.entries()) {
     const isPolicy = ["POLICY", "PROCEDURE", "GUIDANCE"].includes(tpl.docType);
     const local = localText[tpl.ref] ?? (isPolicy ? defaultLocal : "Brookfield logo added. Completed copies are returned to the registered manager, Morgan Manager (fictional).");
@@ -97,21 +97,21 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
     });
     if (requiresAcknowledgement) {
       const pub = await db.policyPublication.findUniqueOrThrow({ where: { versionId: v.id } });
-      const dueAt = new Date(Date.now() + (tpl.ref === "EVX-DP-002" ? -3 : 10) * 86400_000);
+      const dueAt = new Date(Date.now() + (tpl.ref === "CSB-DP-002" ? -3 : 10) * 86400_000);
       await db.policyPublication.update({ where: { id: pub.id }, data: { acknowledgementDueAt: dueAt } });
       for (const [email, userId] of Object.entries(ids)) {
-        const done = email !== "carer1@brookfield.demo" && email !== "carer2@brookfield.demo" ? true : tpl.ref === "EVX-HS-002" && email === "carer1@brookfield.demo";
+        const done = email !== "carer1@brookfield.demo" && email !== "carer2@brookfield.demo" ? true : tpl.ref === "CSB-HS-002" && email === "carer1@brookfield.demo";
         await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: org.id, userId, dueAt, acknowledgedAt: done ? new Date(Date.now() - 5 * 86400_000) : null } });
       }
     }
   }
 
   // An overdue review, so the dashboard has a real overdue item.
-  await db.policy.updateMany({ where: { organisationId: org.id, ref: "EVX-IPC-001" }, data: { nextReviewDate: new Date(Date.now() - 10 * 86400_000) } });
+  await db.policy.updateMany({ where: { organisationId: org.id, ref: "CSB-IPC-001" }, data: { nextReviewDate: new Date(Date.now() - 10 * 86400_000) } });
 
   // Example manual draft revision.
   const authorCtx = await ctxForUser(ids["author@brookfield.demo"]!, org.id);
-  const complaints = await db.policy.findFirstOrThrow({ where: { organisationId: org.id, ref: "EVX-COM-001" } });
+  const complaints = await db.policy.findFirstOrThrow({ where: { organisationId: org.id, ref: "CSB-COM-001" } });
   const rev = await createManualRevision(authorCtx, complaints.id, "DEMO: clarify acknowledgement timescale for verbal complaints");
   await editDraftSection(authorCtx, rev.id, "procedure", {
     body: "Acknowledge each complaint, whether written or verbal, within three working days. Agree with the complainant how it will be handled and when they can expect a response. Investigate fairly, respond in writing with the outcome and explain how to take the complaint further, including to the Local Government and Social Care Ombudsman where applicable.",
@@ -126,8 +126,8 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
       isDemo: true,
       questions: {
         create: [
-          { text: "Were all safeguarding concerns in the period referred within the timescale in our policy?", position: 0, policyId: masters["EVX-SAF-001"], requirements: reqSaf ? { create: { requirementId: reqSaf.id } } : undefined },
-          { text: "Is each referral recorded with the local authority reference number?", position: 1, policyId: masters["EVX-SAF-001"] },
+          { text: "Were all safeguarding concerns in the period referred within the timescale in our policy?", position: 0, policyId: masters["CSB-SAF-001"], requirements: reqSaf ? { create: { requirementId: reqSaf.id } } : undefined },
+          { text: "Is each referral recorded with the local authority reference number?", position: 1, policyId: masters["CSB-SAF-001"] },
           { text: "Have all staff completed safeguarding training within the last two years?", position: 2 },
         ],
       },
@@ -194,7 +194,7 @@ export async function seedSimulatedChange(masters: Record<string, string>) {
         versions: { create: { version: 1, snapshot: {}, reason: "Simulated demo requirement" } },
       },
     });
-    await db.requirementPolicyLink.create({ data: { requirementId: req.id, policyId: masters["EVX-SAF-001"]!, sectionKey: "procedure.reporting", rationale: "The reporting procedure repeats the referral timescale (SIMULATED link)." } });
+    await db.requirementPolicyLink.create({ data: { requirementId: req.id, policyId: masters["CSB-SAF-001"]!, sectionKey: "procedure.reporting", rationale: "The reporting procedure repeats the referral timescale (SIMULATED link)." } });
   }
   const v2 = fixtureFetch({ [`https://www.gov.uk/api/content${SIMULATED_PATH}`]: { body: simulatedGuidance(2) } });
   const summary = await checkSource(source.id, { trigger: "TEST", http: fixtureHttp(v2), force: true });
