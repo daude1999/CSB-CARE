@@ -80,7 +80,8 @@ test("detected change flows through review, drafting, approval, publication and 
 
   await approver.goto(policyHref!);
   await expect(approver.getByText("within 24 hours").first()).toBeVisible();
-  await expect(approver.getByRole("cell", { name: "superseded" }).first()).toBeVisible();
+  await approver.getByRole("tab", { name: /Version history/ }).click();
+  await expect(approver.getByTestId("version-history")).toContainText("superseded");
 
   // 5. Staff are asked to acknowledge the updated policy.
   const carer = await signIn(browser, "carer1@brookfield.demo");
