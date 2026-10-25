@@ -1,189 +1,197 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
-import { hasPlatformPermission } from "@/server/auth/rbac";
+import { hasOrgPermission } from "@/server/auth/rbac";
 import { dashboardMetrics } from "@/server/reports/metrics";
-import { Badge, Empty, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
-import { ArrowRight, CheckCircle, Info } from "@phosphor-icons/react/dist/ssr";
+import { setupChecklist } from "@/server/setup/checklist";
+import { SetupPanel } from "@/components/setup-panel";
+import { fmtDate } from "@/components/ui";
+import { CaretDown, Check, DotsThree, Info } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
-export default async function Overview() {
-  const ctx = await requireCtx();
-  const m = await dashboardMetrics(ctx);
-  const [changes, myAssignments, myAcks] = await Promise.all([
-    db.regulatoryChange.findMany({ orderBy: { detectedAt: "desc" }, take: 6, include: { source: true } }),
-    db.reviewAssignment.findMany({ where: { assigneeId: ctx.userId, status: "PENDING", revision: { closedAt: null } }, include: { revision: { include: { policy: true, draftVersion: true } } }, take: 10 }),
-    db.acknowledgement.findMany({ where: { userId: ctx.userId, acknowledgedAt: null }, include: { publication: { include: { policy: true, version: true } } }, take: 10 }),
-  ]);
-  const admin = hasPlatformPermission(ctx, "sources.manage");
-  const org = ctx.organisationId ? await db.organisation.findUnique({ where: { id: ctx.organisationId }, select: { name: true, isDemo: true } }) : null;
-  const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform";
-  const now = new Date();
-  const hour = Number(now.toLocaleString("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/London" }));
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const firstName = ctx.userName.split(/\s+/)[0];
-  const today = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
+type RowStatus = "signed" | "unread" | "read" | "updated";
 
-  // The agenda: every figure that can need someone's attention, in the order a manager would deal with it.
-  const agenda: { label: string; say: (n: number) => string; detail: string; count: number; href: string; urgent?: boolean }[] = [
-    { label: "Regulatory changes to triage", say: (n) => (n === 1 ? "A regulatory change is waiting to be triaged." : `${numberWord(n)} regulatory changes are waiting to be triaged.`), detail: "Detected on monitored sources. Decide whether each one applies.", count: m.newChanges, href: "/changes" },
-    { label: "Impact assessments awaiting a decision", say: (n) => (n === 1 ? "An impact assessment needs a decision." : `${numberWord(n)} impact assessments need a decision.`), detail: "Proposed links between a change and your policies.", count: m.awaitingAssessment, href: "/queue" },
-    { label: "Policies needing revision", say: (n) => (n === 1 ? "A policy needs revising." : `${numberWord(n)} policies need revising.`), detail: "A confirmed change, with no revision started yet.", count: m.policiesAwaitingRevision, href: "/queue" },
-    { label: "Drafts awaiting approval", say: (n) => (n === 1 ? "A draft is waiting for approval." : `${numberWord(n)} drafts are waiting for approval.`), detail: "Revised text waiting for a reviewer or approver.", count: m.draftsAwaitingApproval, href: "/queue" },
-    { label: "Policy reviews overdue", say: (n) => (n === 1 ? "A policy is past its review date." : `${numberWord(n)} policies are past their review date.`), detail: "Past their scheduled review date.", count: m.overdueReviews, href: "/policies?overdue=1", urgent: true },
-    { label: "Compliance actions overdue", say: (n) => (n === 1 ? "A compliance action is overdue." : `${numberWord(n)} compliance actions are overdue.`), detail: "Open actions past their due date.", count: m.overdueActions, href: "/actions", urgent: true },
-    { label: "Staff acknowledgements overdue", say: (n) => (n === 1 ? "A staff acknowledgement is overdue." : `${numberWord(n)} staff acknowledgements are overdue.`), detail: `${m.outstandingAcks} outstanding in total.`, count: m.overdueAcks, href: "/staff", urgent: true },
-  ];
-  const open = agenda.filter((a) => a.count > 0);
-  const clear = agenda.filter((a) => a.count === 0);
-  const items = open.reduce((n, a) => n + a.count, 0);
-  const lead = open.length
-    ? `${items === 1 ? "One item needs" : `${numberWord(items)} items need`} attention across ${open.length === 1 ? "one area" : `${numberWord(open.length).toLowerCase()} areas`}. ${open[0]!.say(open[0]!.count)}${open[1] ? ` ${open[1].say(open[1].count)}` : ""}`
-    : "Nothing is waiting. Every change has been triaged, every review is in date and staff are up to date with their reading.";
-  const monitored = m.sources.total - m.sources.manual;
+export default async function Dashboard() {
+  const ctx = await requireCtx();
+  const now = new Date();
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const orgScope = ctx.organisationId ? { organisationId: ctx.organisationId } : { organisationId: null };
+  const m = await dashboardMetrics(ctx);
+  const [org, updatedRecently, ownPolicies, publications, myAcks, changes, changesThisMonth] = await Promise.all([
+    ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId }, select: { name: true, isDemo: true } }) : null,
+    db.policyPublication.count({ where: { ...orgScope, status: "PUBLISHED", publishedAt: { gte: monthAgo } } }),
+    db.policy.count({ where: { ...orgScope, status: "ACTIVE" } }),
+    db.policyPublication.findMany({ where: { ...orgScope, status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 20, include: { policy: { include: { category: true } } } }),
+    ctx.organisationId ? db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId }, select: { publicationId: true, acknowledgedAt: true, dueAt: true } }) : [],
+    db.regulatoryChange.findMany({ orderBy: { detectedAt: "desc" }, take: 3, select: { id: true, title: true, detectedAt: true } }),
+    db.regulatoryChange.count({ where: { detectedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
+  ]);
+  const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB";
+  const firstName = ctx.userName.split(/\s+/)[0]!;
+
+  // One row per policy, newest publication first.
+  const seen = new Set<string>();
+  const latest = publications.filter((p) => !seen.has(p.policyId) && seen.add(p.policyId)).slice(0, 5);
+  const urgencies = await db.impactAssessment.findMany({ where: { policyId: { in: latest.map((p) => p.policyId) } }, orderBy: { createdAt: "desc" }, select: { policyId: true, urgency: true } });
+  const urgencyOf = new Map<string, string>();
+  for (const u of urgencies) if (!urgencyOf.has(u.policyId)) urgencyOf.set(u.policyId, u.urgency);
+  const ackOf = new Map(myAcks.map((a) => [a.publicationId, a]));
+  const statusOf = (publicationId: string, publishedAt: Date | null): RowStatus => {
+    const ack = ackOf.get(publicationId);
+    if (ack) return ack.acknowledgedAt ? "signed" : "unread";
+    return publishedAt && publishedAt >= monthAgo ? "updated" : "read";
+  };
+
+  const overdue = myAcks.filter((a) => !a.acknowledgedAt && a.dueAt && a.dueAt < now).length;
+  const due = myAcks.filter((a) => !a.acknowledgedAt).length;
+  const signed = myAcks.filter((a) => a.acknowledgedAt).length;
+  const signedShare = myAcks.length ? Math.round((signed / myAcks.length) * 100) : 100;
+
+  const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
+  const steps = canManage ? await setupChecklist(ctx.organisationId!) : [];
+  const month = now.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
 
   return (
-    <>
-      <header className="mb-8 grid gap-6 border-b border-navy-900 pb-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="max-w-3xl">
-          <p className="eyebrow">{today} · {orgName}</p>
-          <h1 className="mt-3 text-[2.5rem] leading-[1.1] tracking-[-0.02em]">{greeting}, {firstName}.</h1>
-          <p className="mt-3 max-w-2xl font-serif text-[1.15rem] leading-relaxed text-slate-700">{lead}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/queue" className="btn-primary">Open change queue <ArrowRight size={15} aria-hidden="true" /></Link>
-          <Link href="/policies/new" className="btn-secondary">Create a policy</Link>
-        </div>
-      </header>
+    <div>
+      <h1 className="rounded-t-[6px] bg-navy-900 px-4 py-3.5 text-center text-[17px] font-medium tracking-normal text-white">Compliance Dashboard</h1>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        {org?.isDemo ? (
+          <p className="flex items-center gap-1.5 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
+        ) : <span />}
+        <details className="relative">
+          <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-[6px] border border-slate-400 bg-white px-3 text-[12.5px] text-navy-900 [&::-webkit-details-marker]:hidden">Quick actions <CaretDown size={12} weight="bold" aria-hidden="true" /></summary>
+          <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col rounded-[6px] border border-slate-200 bg-white py-1 shadow-lg">
+            {[["/queue", "Open the change queue"], ["/changes", "See regulatory updates"], ["/policies/new", "Create a policy"], ["/acknowledgements", "My policies to read"], ["/reports", "Reports"]].map(([href, label]) => (
+              <Link key={href} href={href!} className="px-3 py-2 text-[13px] text-navy-900 no-underline hover:bg-slate-100">{label}</Link>
+            ))}
+          </div>
+        </details>
+      </div>
 
-      {org?.isDemo ? (
-        <p className="-mt-4 mb-8 flex items-start gap-2 text-xs leading-5 text-slate-500">
-          <Info size={15} className="mt-px shrink-0" aria-hidden="true" />
-          <span><span className="font-medium text-slate-700">Sample workspace.</span> Records are illustrative. Regulatory proposals and status indicators need human verification and are not proof of compliance.</span>
-        </p>
-      ) : null}
-
-      <section aria-labelledby="key-figures" className="mb-10">
-        <h2 id="key-figures" className="sr-only">Key figures</h2>
-        <dl className="figure-strip grid grid-cols-2 border-y border-slate-300 lg:grid-cols-4">
-          <KeyFigure label="Sources checked in window" value={`${m.sources.fresh}/${monitored}`} note={m.sources.failing + m.sources.stale ? `${m.sources.failing + m.sources.stale} failing or stale` : "All current"} warn={m.sources.failing + m.sources.stale > 0} href={admin ? "/admin/sources" : undefined} />
-          <KeyFigure label="Published this month" value={m.publishedThisMonth} note="New or revised versions issued" />
-          <KeyFigure label="Acknowledgements outstanding" value={m.outstandingAcks} note={m.overdueAcks ? `${m.overdueAcks} past due` : "None past due"} warn={m.overdueAcks > 0} href="/staff" />
-          <KeyFigure label="Reviews overdue" value={m.overdueReviews} note={m.overdueReviews ? "Past scheduled review date" : "All in date"} warn={m.overdueReviews > 0} href="/policies?overdue=1" />
-        </dl>
+      <section aria-label="Key figures" className="mt-3 flex flex-wrap gap-3">
+        <Stat value={updatedRecently} label="Policies Updated" note="In last 30 days" ring="border-amber-500 text-amber-700" href="/policies" />
+        <Stat value={m.newChanges + m.awaitingAssessment} label="Changes to Review" note="Regulatory updates waiting" ring="border-rose-600 text-rose-700" href="/changes" />
+        <Stat value={m.outstandingAcks} label="Awaiting Signature" note={m.overdueAcks ? `${m.overdueAcks} past due` : "Staff yet to read and sign"} ring="border-sky-600 text-sky-700" href="/staff" />
+        <Stat value={ownPolicies} label={ctx.organisationId ? "Own Policies" : "Templates"} note="In your library" ring="border-violet-600 text-violet-700" href="/policies" />
       </section>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <section aria-labelledby="agenda-heading">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 id="agenda-heading" className="text-xl">Agenda</h2>
-            <span className="eyebrow">{open.length ? `${open.length} open` : "All clear"}</span>
+      <section aria-labelledby="recent-heading" className="mt-3 rounded-[6px] border border-slate-200 bg-white px-3 pb-3 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="recent-heading" className="text-[14px] font-medium">Recently updated policies</h2>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-700" aria-label="Status key">
+            <li className="flex items-center gap-1.5"><StatusMark status="signed" />Signed</li>
+            <li className="flex items-center gap-1.5"><StatusMark status="unread" />Unread</li>
+            <li className="flex items-center gap-1.5"><StatusMark status="read" />Read</li>
+            <li className="flex items-center gap-1.5"><StatusMark status="updated" />Updated</li>
+          </ul>
+        </div>
+        {latest.length ? (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[680px] border-collapse text-[13px]">
+              <thead>
+                <tr className="text-left text-[12px] text-slate-700">
+                  <th className="px-2 py-2 font-medium">Status</th>
+                  <th className="px-2 py-2 font-medium">Impact</th>
+                  <th className="px-2 py-2 font-medium">Ref No.</th>
+                  <th className="w-[44%] px-2 py-2 font-medium">Title</th>
+                  <th className="px-2 py-2 font-medium">Category</th>
+                  <th className="px-2 py-2 font-medium">Last Updated</th>
+                  <th className="px-2 py-2"><span className="sr-only">Open</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {latest.map((p) => {
+                  const status = statusOf(p.id, p.publishedAt);
+                  return (
+                    <tr key={p.id} className="h-9 odd:bg-slate-50">
+                      <td className="px-2 pl-4"><StatusMark status={status} /><span className="sr-only">{status}</span></td>
+                      <td className="px-2"><ImpactBars urgency={urgencyOf.get(p.policyId)} /></td>
+                      <td className="whitespace-nowrap px-2 text-[12.5px] text-slate-700">{p.policy.ref}</td>
+                      <td className="px-2"><Link href={`/policies/${p.policyId}`} className="text-sky-800 no-underline hover:underline">{p.policy.title}</Link></td>
+                      <td className="whitespace-nowrap px-2 text-slate-700">{p.policy.category.name}</td>
+                      <td className="whitespace-nowrap px-2 text-slate-700">{fmtDate(p.publishedAt)}</td>
+                      <td className="px-2 text-right"><Link href={`/policies/${p.policyId}`} aria-label={`Open ${p.policy.title}`} className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-navy-900 hover:bg-slate-200"><DotsThree size={22} weight="bold" aria-hidden="true" /></Link></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          {open.length ? (
-            <ol className="border-t-2 border-navy-900">
-              {open.map((a, i) => (
-                <li key={a.label}>
-                  <Link href={a.href} className="group grid grid-cols-[2rem_minmax(0,1fr)_auto] items-baseline gap-x-4 border-b border-slate-200 py-4 no-underline hover:bg-white">
-                    <span className="pl-1 font-mono text-xs text-slate-400">{String(i + 1).padStart(2, "0")}</span>
-                    <span>
-                      <span className="block font-medium text-navy-900 group-hover:underline group-hover:decoration-teal-400 group-hover:decoration-2 group-hover:underline-offset-4">{a.label}</span>
-                      <span className="mt-0.5 block text-[13px] text-slate-500">{a.detail}</span>
-                    </span>
-                    <span className={`figure pr-1 text-3xl ${a.urgent ? "text-rose-700" : "text-navy-900"}`}>{a.count}</span>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <Empty>Nothing on the agenda today.</Empty>
-          )}
-          {clear.length ? (
-            <p className="mt-4 flex items-start gap-2 text-[13px] leading-5 text-slate-500">
-              <CheckCircle size={16} className="mt-px shrink-0 text-emerald-700" aria-hidden="true" />
-              <span><span className="text-slate-700">Clear:</span> {clear.map((a) => a.label.charAt(0).toLowerCase() + a.label.slice(1)).join(", ")}.</span>
-            </p>
-          ) : null}
+        ) : (
+          <p className="py-6 text-center text-sm text-slate-500">No policies have been published yet.</p>
+        )}
+        <div className="mt-3 flex justify-center"><Link href="/policies" className="rounded-[6px] border border-slate-400 px-5 py-1.5 text-[12.5px] text-navy-900 no-underline hover:border-navy-900">View all ({updatedRecently})</Link></div>
+      </section>
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <section aria-labelledby="reading-heading" className="flex min-h-[250px] flex-col rounded-[6px] border border-slate-200 bg-white px-4 py-3">
+          <h2 id="reading-heading" className="text-[15px] font-normal">My Read and Sign List</h2>
+          <div className="mt-8 flex justify-between text-center">
+            <p><span className="block text-[18px] font-medium text-rose-700">{overdue}</span><span className="block text-[11px] text-slate-600">Overdue</span></p>
+            <p><span className="block text-[18px] font-medium text-navy-900">{due}</span><span className="block text-[11px] text-slate-600">To read</span></p>
+            <p><span className="block text-[18px] font-medium text-navy-900">{signed}</span><span className="block text-[11px] text-slate-600">Signed</span></p>
+          </div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200" role="img" aria-label={`${signedShare}% signed`}>
+            <div className="h-full rounded-full bg-sky-600" style={{ width: `${signedShare}%` }} />
+          </div>
+          <div className="mt-auto flex justify-center pt-6"><Link href="/acknowledgements" className="rounded-[6px] border border-slate-400 px-6 py-1.5 text-[12.5px] text-navy-900 no-underline hover:border-navy-900">View all</Link></div>
         </section>
 
-        <div className="space-y-10">
-          <section aria-labelledby="desk-heading">
-            <h2 id="desk-heading" className="mb-3 text-xl">On your desk</h2>
-            <div className="border-t-2 border-navy-900">
-              <h3 className="eyebrow mt-4 font-sans">To review or approve</h3>
-              {myAssignments.length ? (
-                <ul className="mt-2 divide-y divide-slate-200">
-                  {myAssignments.map((a) => (
-                    <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5">
-                      <Link href={`/revisions/${a.revisionId}`} className="min-w-0 text-sm"><span className="mr-2 font-mono text-xs text-slate-500">{a.revision.policy.ref}</span>{a.revision.policy.title}</Link>
-                      <span className="flex shrink-0 items-center gap-2"><Badge>{a.role.toLowerCase()}</Badge><StatusBadge status={a.revision.draftVersion.status} /></span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">Nothing assigned to you.</p>
-              )}
-              <h3 className="eyebrow mt-6 font-sans">To read and sign</h3>
-              {myAcks.length ? (
-                <ul className="mt-2 divide-y divide-slate-200">
-                  {myAcks.map((a) => (
-                    <li key={a.id} className="flex items-baseline justify-between gap-3 py-2.5">
-                      <Link href={`/policies/${a.publication.policyId}`} className="min-w-0 text-sm"><span className="mr-2 font-mono text-xs text-slate-500">{a.publication.policy.ref}</span>{a.publication.policy.title} <span className="text-slate-500">({a.publication.version.label})</span></Link>
-                      <span className="shrink-0 text-xs text-slate-500">due {fmtDate(a.dueAt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">You are up to date.</p>
-              )}
+        <section aria-labelledby="month-heading" className="flex min-h-[250px] flex-col rounded-[6px] border border-teal-500 bg-teal-100 px-4 py-3">
+          <h2 id="month-heading" className="text-[15px] font-normal text-navy-900">This Month at CSB</h2>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-4">
+            <div className="relative flex h-[118px] w-[210px] flex-col justify-center overflow-hidden rounded-[4px] bg-navy-900 px-4 text-white" aria-hidden="true">
+              <div className="absolute inset-y-0 right-0 w-1/2 bg-teal-500 [clip-path:polygon(60%_0,100%_0,100%_100%,0_100%)]" />
+              <span className="relative text-[10px] font-medium tracking-[0.08em] text-teal-200">CSB</span>
+              <span className="relative text-[17px] font-bold leading-tight">Monthly<br />Briefing</span>
+              <span className="absolute bottom-2.5 right-3 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-navy-900">{month}</span>
             </div>
-          </section>
-
-          <section aria-labelledby="bulletin-heading">
-            <div className="mb-3 flex items-baseline justify-between">
-              <h2 id="bulletin-heading" className="text-xl">Regulatory bulletin</h2>
-              <Link href="/changes" className="text-sm">All updates</Link>
-            </div>
-            {changes.length ? (
-              <ul className="border-t-2 border-navy-900">
+            <div className="min-w-0 flex-1 basis-[160px]">
+              <p className="text-[12.5px] font-medium text-navy-900">{changesThisMonth === 1 ? "1 regulatory update" : `${changesThisMonth} regulatory updates`} this month</p>
+              <ul className="mt-1.5 space-y-1.5">
                 {changes.map((c) => (
-                  <li key={c.id} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-4 border-b border-slate-200 py-3.5">
-                    <time dateTime={c.detectedAt.toISOString()} className="pt-0.5 font-label text-[11px] uppercase leading-4 text-slate-500">{c.detectedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" })}</time>
-                    <div className="min-w-0">
-                      <Link href={`/changes/${c.id}`} className="font-serif text-[15px] font-semibold leading-snug text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{c.title.replace(/^SIMULATED:\s*/, "")}</Link>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                        <SimulatedBadge show={c.isSimulated} />
-                        <StatusBadge status={c.status} />
-                        <span className="truncate">{c.source.name}</span>
-                      </div>
-                    </div>
-                  </li>
+                  <li key={c.id} className="text-[12.5px] leading-snug"><Link href={`/changes/${c.id}`} className="text-navy-900 underline-offset-2 hover:underline">{c.title.replace(/^SIMULATED:\s*/, "")}</Link></li>
                 ))}
               </ul>
-            ) : (
-              <Empty>No changes detected yet. Changes appear here after the monitor finds a genuine content change.</Empty>
-            )}
-          </section>
-        </div>
+            </div>
+          </div>
+          <div className="mt-auto flex justify-center pt-4"><Link href="/changes" className="rounded-[6px] border border-slate-400 bg-white px-6 py-1.5 text-[12.5px] text-navy-900 no-underline hover:border-navy-900">View updates</Link></div>
+        </section>
       </div>
-    </>
+
+      {canManage ? <SetupPanel firstName={firstName} orgName={orgName} steps={steps} /> : null}
+    </div>
   );
 }
 
-function KeyFigure({ label, value, note, warn = false, href }: { label: string; value: number | string; note: string; warn?: boolean; href?: string }) {
-  const body = (
-    <>
-      <dt className="eyebrow">{label}</dt>
-      <dd className="figure mt-2 text-[2.25rem] leading-none text-navy-900">{value}</dd>
-      <dd className={`mt-2 text-xs ${warn ? "font-medium text-rose-700" : "text-slate-500"}`}>{note}</dd>
-    </>
+function Stat({ value, label, note, ring, href }: { value: number; label: string; note: string; ring: string; href: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 rounded-[6px] border border-slate-200 bg-white py-2.5 pl-2.5 pr-5 no-underline shadow-[0_1px_3px_rgb(0_0_0/0.06)] hover:border-slate-400">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[14px] font-medium ${ring}`}>{value}</span>
+      <span>
+        <span className="block text-[16px] font-medium leading-tight text-navy-900">{label}</span>
+        <span className="block text-[12px] text-slate-600">{note}</span>
+      </span>
+    </Link>
   );
-  const cls = "figure-tile block border-slate-300 px-4 py-5 no-underline [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t";
-  return href ? <Link href={href} className={`${cls} hover:bg-white`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
-const WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
-function numberWord(n: number) {
-  return WORDS[n] ?? String(n);
+function StatusMark({ status }: { status: RowStatus }) {
+  if (status === "signed") return <Check size={14} weight="bold" className="text-emerald-600" aria-hidden="true" />;
+  if (status === "unread") return <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rotate-45 bg-rose-600" />;
+  if (status === "read") return <span aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-sky-600" />;
+  return <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />;
 }
 
+function ImpactBars({ urgency }: { urgency?: string }) {
+  const level = urgency === "URGENT" || urgency === "HIGH" ? 3 : urgency === "MEDIUM" ? 2 : 1;
+  const name = level === 3 ? "High" : level === 2 ? "Medium" : "Low";
+  return (
+    <svg role="img" aria-label={`${name} impact`} width="18" height="15" viewBox="0 0 18 15">
+      {[0, 1, 2].map((i) => (
+        <rect key={i} x={i * 6} y={10 - i * 5} width="4" height={5 + i * 5} className={i < level ? "fill-sky-600" : "fill-slate-300"} />
+      ))}
+    </svg>
+  );
+}
