@@ -72,7 +72,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
           {sp.category ? <input type="hidden" name="category" value={sp.category} /> : null}
           {sp.overdue ? <input type="hidden" name="overdue" value="1" /> : null}
           <MagnifyingGlass size={16} className="text-slate-400" aria-hidden="true" />
-          <input className="w-full border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-none focus:ring-0 sm:w-64" name="q" defaultValue={sp.q} placeholder="Search by title, reference or summary" aria-label="Search policies" />
+          <input className="w-full border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-hidden focus:ring-0 sm:w-64" name="q" defaultValue={sp.q} placeholder="Search by title, reference or summary" aria-label="Search policies" />
         </form>
       </div>
 

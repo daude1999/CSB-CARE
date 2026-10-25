@@ -48,7 +48,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
             {a.template.questions.map((q, i) => {
               const ans = answers.get(q.id);
               return (
-                <li key={q.id} className="rounded border border-slate-200 p-3">
+                <li key={q.id} className="rounded-sm border border-slate-200 p-3">
                   <div className="text-sm font-medium">{i + 1}. {q.text}</div>
                   {q.guidance ? <div className="text-xs text-slate-500">{q.guidance}</div> : null}
                   <div className="mt-1 flex flex-wrap gap-1 text-xs">
@@ -79,7 +79,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
             {a.findings.length ? (
               <ul className="space-y-3 text-sm">
                 {a.findings.map((f) => (
-                  <li key={f.id} className="rounded border border-slate-200 p-2">
+                  <li key={f.id} className="rounded-sm border border-slate-200 p-2">
                     <StatusBadge status={f.riskRating} /> {f.description}
                     <ul className="mt-1 text-xs">{f.actions.map((x) => <li key={x.id}><Link href="/actions">{x.title}</Link> <StatusBadge status={x.status} /></li>)}</ul>
                     {canManageActions ? (

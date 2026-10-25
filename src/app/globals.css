@@ -1,6 +1,162 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@theme {
+  --color-navy-600: #43454a;
+  --color-navy-700: #313236;
+  --color-navy-800: #242528;
+  --color-navy-900: #1a1b1d;
+  --color-navy-950: #121314;
+
+  --color-teal-50: #ecf9fd;
+  --color-teal-100: #d2f1f9;
+  --color-teal-200: #a6e3f2;
+  --color-teal-400: #3ec1e0;
+  --color-teal-500: #22a9cb;
+  --color-teal-600: #178aa8;
+  --color-teal-700: #136f88;
+
+  --color-slate-50: #f7f6f2;
+  --color-slate-100: #efede7;
+  --color-slate-200: #e3e0d7;
+  --color-slate-300: #cfcbbf;
+  --color-slate-400: #a29d91;
+  --color-slate-500: #76726a;
+  --color-slate-600: #58554f;
+  --color-slate-700: #41403b;
+  --color-slate-800: #2c2b28;
+  --color-slate-900: #1d1c1a;
+  --color-slate-950: #10100f;
+
+  --color-paper: #f4f2ec;
+
+  --font-sans:
+    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, Segoe UI,
+    sans-serif;
+  --font-serif: 'Source Serif 4 Variable', Georgia, Cambria, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* shadcn-style semantic tokens used by the UIAble components, mapped to CSB. */
+  --color-background: #ffffff;
+  --color-foreground: #1a1b1d;
+  --color-primary: #1a1b1d;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #efede7;
+  --color-secondary-foreground: #1a1b1d;
+  --color-muted: #efede7;
+  --color-muted-foreground: #76726a;
+  --color-accent: #ecf9fd;
+  --color-accent-foreground: #136f88;
+  --color-destructive: #be123c;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1b1d;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1a1b1d;
+  --color-border: #e3e0d7;
+  --color-input: #cfcbbf;
+  --color-ring: #3ec1e0;
+
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility card {
+  @apply min-w-0 rounded-xs border border-slate-200 border-t-2 border-t-navy-900 bg-white p-5;
+  /* A card that only frames a register drops its box: the table's own rules carry it. */
+  &:has(> table.table) {
+    @apply border-0 bg-transparent p-0;
+  }
+  &:has(> div > table.table) {
+    @apply border-0 bg-transparent p-0;
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium no-underline transition disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-navy-900 text-white hover:bg-navy-700 hover:text-white;
+}
+
+@utility btn-teal {
+  @apply btn bg-teal-600 text-white hover:bg-teal-700 hover:text-white;
+}
+
+@utility btn-secondary {
+  @apply btn border border-slate-300 bg-white text-navy-900 hover:border-navy-900 hover:text-navy-900;
+}
+
+@utility btn-danger {
+  @apply btn bg-rose-700 text-white hover:bg-rose-800 hover:text-white;
+}
+
+@utility input {
+  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 focus:outline-hidden focus:ring-2 focus:ring-teal-100;
+}
+
+@utility label {
+  @apply mb-1 block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500;
+}
+
+@utility eyebrow {
+  @apply font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500;
+}
+
+@utility figure {
+  @apply font-serif font-semibold tabular-nums tracking-tight;
+}
+
+@utility table {
+  @apply w-full min-w-[720px] text-left text-sm;
+  border-collapse: separate;
+  border-spacing: 0;
+  & th {
+    @apply border-b border-t-2 border-b-slate-300 border-t-navy-900 px-3 py-2.5 text-left font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-600;
+  }
+  & td {
+    @apply border-b border-slate-200 px-3 py-3 align-top text-slate-700;
+  }
+  & tbody tr:hover td {
+    @apply bg-white;
+  }
+  & td[class~='font-mono'] {
+    white-space: nowrap;
+  }
+  /* A card that only frames a register drops its box: the table's own rules carry it. */
+  .card:has(> &table) {
+    @apply border-0 bg-transparent p-0;
+  }
+  .card:has(> div > &table) {
+    @apply border-0 bg-transparent p-0;
+  }
+}
+
+@utility muted {
+  @apply text-sm text-slate-500;
+}
+
+@utility prose-policy {
+  @apply whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800;
+}
 
 /*
  * "Board paper": the interface follows the CSB Word/PDF template. Warm paper,
@@ -12,28 +168,6 @@
   h2 { @apply font-serif text-lg font-semibold leading-snug text-navy-900; }
   h3 { @apply text-base font-semibold text-navy-900; }
   a { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
-  :focus-visible { @apply outline-none ring-2 ring-teal-400 ring-offset-2 ring-offset-paper; }
+  :focus-visible { @apply outline-hidden ring-2 ring-teal-400 ring-offset-2 ring-offset-paper; }
   ::selection { @apply bg-teal-100 text-navy-900; }
-}
-
-@layer components {
-  .card { @apply min-w-0 rounded-sm border border-slate-200 border-t-2 border-t-navy-900 bg-white p-5; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium no-underline transition disabled:opacity-50; }
-  .btn-primary { @apply btn bg-navy-900 text-white hover:bg-navy-700 hover:text-white; }
-  .btn-teal { @apply btn bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
-  .btn-secondary { @apply btn border border-slate-300 bg-white text-navy-900 hover:border-navy-900 hover:text-navy-900; }
-  .btn-danger { @apply btn bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
-  .input { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-  .label { @apply mb-1 block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500; }
-  .eyebrow { @apply font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500; }
-  .figure { @apply font-serif font-semibold tabular-nums tracking-tight; }
-  .table { @apply w-full min-w-[720px] text-left text-sm; border-collapse: separate; border-spacing: 0; }
-  .table th { @apply border-b border-t-2 border-b-slate-300 border-t-navy-900 px-3 py-2.5 text-left font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-600; }
-  .table td { @apply border-b border-slate-200 px-3 py-3 align-top text-slate-700; }
-  .table tbody tr:hover td { @apply bg-white; }
-  .table td[class~="font-mono"] { white-space: nowrap; }
-  /* A card that only frames a register drops its box: the table's own rules carry it. */
-  .card:has(> table.table), .card:has(> div > table.table) { @apply border-0 bg-transparent p-0; }
-  .muted { @apply text-sm text-slate-500; }
-  .prose-policy { @apply whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800; }
 }

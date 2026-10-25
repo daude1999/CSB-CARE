@@ -14,7 +14,7 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
   if (!hasPlatformPermission(ctx, "sources.manage")) notFound();
   const sources = await db.regulatorySource.findMany({ orderBy: [{ coverage: "asc" }, { name: "asc" }], include: { _count: { select: { documents: true, changes: true } } } });
   const workerBeat = await db.backgroundJob.findFirst({ where: { type: "maintenance.tick", status: "SUCCEEDED" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } });
-  const workerStale = !workerBeat?.finishedAt || Date.now() - workerBeat.finishedAt.getTime() > 30 * 60_000;
+  const workerStale = isStale(workerBeat?.finishedAt);
   return (
     <>
       <PageHeader eyebrow="Administration · monitored sources" title="Source Monitoring" subtitle="Registry of monitored regulatory sources. A source is only shown as monitored when it has been successfully checked within its freshness window." />
@@ -48,4 +48,9 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
       </Card>
     </>
   );
+}
+
+/** The worker counts as stopped when its last heartbeat is over 30 minutes old. */
+function isStale(lastBeat: Date | null | undefined) {
+  return !lastBeat || Date.now() - lastBeat.getTime() > 30 * 60_000;
 }

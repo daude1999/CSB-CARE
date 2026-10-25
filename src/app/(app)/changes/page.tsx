@@ -61,8 +61,8 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         <form className="mb-2 flex flex-wrap items-center gap-2" role="search">
           <input type="hidden" name="group" value={group} />
           <MagnifyingGlass size={16} className="text-slate-400" aria-hidden="true" />
-          <input className="w-44 border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-none focus:ring-0" name="q" defaultValue={sp.q} placeholder="Search updates" aria-label="Search updates" />
-          <select className="input w-auto max-w-[13rem] py-1 text-xs" name="source" defaultValue={sp.source ?? ""} aria-label="Source">
+          <input className="w-44 border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-hidden focus:ring-0" name="q" defaultValue={sp.q} placeholder="Search updates" aria-label="Search updates" />
+          <select className="input w-auto max-w-52 py-1 text-xs" name="source" defaultValue={sp.source ?? ""} aria-label="Source">
             <option value="">All sources</option>
             {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>

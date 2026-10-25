@@ -35,7 +35,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
                 const overdue = ["OPEN", "IN_PROGRESS"].includes(x.status) && x.dueDate < now;
                 const next = ACTION_FLOW[x.status] ?? [];
                 return (
-                  <li key={x.id} className="rounded border border-slate-200 p-3">
+                  <li key={x.id} className="rounded-sm border border-slate-200 p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{x.title}</span>
                       <StatusBadge status={x.status} />

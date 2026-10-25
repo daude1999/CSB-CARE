@@ -21,7 +21,7 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
         {acks.length ? (
           <ul className="space-y-3">
             {acks.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 p-3" data-testid={`ack-${a.publication.policy.ref}`}>
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-slate-200 p-3" data-testid={`ack-${a.publication.policy.ref}`}>
                 <div>
                   <Link href={`/policies/${a.publication.policy.id}`} className="font-medium">{a.publication.policy.ref} {a.publication.policy.title}</Link> <span className="text-xs text-slate-500">{a.publication.version.label}</span>
                   {a.publication.version.changeSummary ? <div className="text-xs text-slate-500">What changed: {a.publication.version.changeSummary}</div> : null}

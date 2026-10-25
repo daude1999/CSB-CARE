@@ -46,7 +46,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
         <div className="space-y-6 lg:col-span-2">
           <Card title="Proposed changes">
             {r.explanation ? (
-              <div className="mb-4 rounded bg-slate-50 p-3 text-sm">
+              <div className="mb-4 rounded-sm bg-slate-50 p-3 text-sm">
                 <div className="label flex items-center gap-2">Explanation {r.provider ? <Badge tone="amber">AI proposal ({r.provider})</Badge> : null}</div>
                 {r.explanation}
               </div>
@@ -59,7 +59,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
               <p className="muted mb-3">Edits create no new approved version; they change this draft only. Customer-specific sections are never changed automatically.</p>
               <div className="space-y-4">
                 {v.sections.map((s) => (
-                  <details key={s.key} className="border-b border-slate-200 py-3 [&[open]]:pb-5">
+                  <details key={s.key} className="border-b border-slate-200 py-3 [[open]]:pb-5">
                     <summary className="cursor-pointer font-serif text-[16px] font-semibold text-navy-900">{s.heading} {s.isLocal ? <Badge tone="teal">local</Badge> : null}</summary>
                     <form action={editSectionAction} className="mt-3 space-y-2">
                       <input type="hidden" name="revisionId" value={r.id} />
@@ -79,7 +79,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
             {r.comments.length ? (
               <ul className="mb-3 space-y-2 text-sm">
                 {r.comments.map((c) => (
-                  <li key={c.id} className="rounded bg-slate-50 p-2">
+                  <li key={c.id} className="rounded-sm bg-slate-50 p-2">
                     <div className="text-xs text-slate-500">{names.get(c.authorId) ?? "User"} · {fmtDate(c.createdAt, true)}{c.sectionKey ? ` · on ${c.sectionKey}` : ""}</div>
                     {c.body}
                   </li>
@@ -176,7 +176,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
                   <Badge tone={validation.rejected?.length ? "amber" : "green"}>{validation.applied?.length ?? 0} edit(s) applied, {validation.rejected?.length ?? 0} rejected</Badge>
                 </div>
                 {validation.applied?.map((a, i) => (
-                  <div key={i} className="rounded border border-slate-200 p-2 text-xs">
+                  <div key={i} className="rounded-sm border border-slate-200 p-2 text-xs">
                     <div className="font-medium">{a.operation} {a.sectionKey}: {a.rationale}</div>
                     <ul className="mt-1 space-y-1">
                       {a.citations.map((c, j) => <li key={j}>{c.verified ? <Badge tone="green">verified</Badge> : <Badge tone="rose">unverified</Badge>} “{c.quote}”</li>)}

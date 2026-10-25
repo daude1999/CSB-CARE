@@ -61,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-paper/90 px-4 py-2.5 backdrop-blur sm:px-6 xl:px-10">
+        <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-paper/90 px-4 py-2.5 backdrop-blur-sm sm:px-6 xl:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-9" /></Link>
             {memberships.length > 1 ? (

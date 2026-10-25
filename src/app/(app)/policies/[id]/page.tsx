@@ -107,9 +107,9 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   </ol>
                 </div>
               </nav>
-              <article className="min-w-0 rounded-sm border border-slate-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+              <article className="min-w-0 rounded-xs border border-slate-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-3 sm:px-12">
-                  <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-slate-500">{p.ref} · {v.label} · effective {fmtDate(v.effectiveDate)}</span>
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-slate-500">{p.ref} · {v.label} · effective {fmtDate(v.effectiveDate)}</span>
                   <SimulatedBadge show={v.isSimulated} />
                 </div>
                 {v.origin === "SEED" ? (
@@ -296,7 +296,7 @@ function serviceName(code: string) {
 
 function Control({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-slate-300 px-4 py-3.5 [&:not(:first-child)]:border-l max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(n+3)]:border-t sm:max-lg:[&:nth-child(3n+1)]:border-l-0 sm:max-lg:[&:nth-child(n+4)]:border-t">
+    <div className="border-slate-300 px-4 py-3.5 not-first:border-l max-sm:odd:border-l-0 max-sm:nth-[n+3]:border-t sm:max-lg:nth-[3n+1]:border-l-0 sm:max-lg:nth-[n+4]:border-t">
       <dt className="eyebrow">{label}</dt>
       <dd className="mt-1 text-sm text-navy-900">{children}</dd>
     </div>
