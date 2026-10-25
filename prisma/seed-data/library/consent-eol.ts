@@ -38,6 +38,7 @@ export const CONSENT_EOL: PolicySpec[] = [
       ["REQ-ENG-0017", "procedure.best-interests"],
     ],
     qs: ["E6", "C3"],
+    guidance: ["GDN-0002", "GDN-NICE-NG108"],
     related: ["EVX-MCA-002", "EVX-MCA-003", "EVX-SAF-003", "EVX-MED-002"],
     history: [
       {
@@ -95,6 +96,7 @@ export const CONSENT_EOL: PolicySpec[] = [
       ["REQ-ENG-0013", "statement"],
     ],
     qs: ["E6", "S3"],
+    guidance: ["GDN-0003", "GDN-0002"],
     related: ["EVX-MCA-001", "EVX-SAF-003", "EVX-INC-002"],
   },
   {
@@ -133,6 +135,7 @@ export const CONSENT_EOL: PolicySpec[] = [
       ["REQ-ENG-0011", "statement"],
     ],
     qs: ["R7", "E6", "C2"],
+    guidance: ["GDN-0002", "GDN-NICE-NG108"],
     related: ["EVX-MCA-001", "EVX-EOL-001", "EVX-CLN-003"],
   },
   {
@@ -174,6 +177,7 @@ export const CONSENT_EOL: PolicySpec[] = [
       ["REQ-ENG-0010", "procedure.care"],
     ],
     qs: ["R7", "C1", "E3"],
+    guidance: ["GDN-NICE-NG31", "GDN-NICE-NG142"],
     related: ["EVX-MCA-003", "EVX-EOL-002", "EVX-CP-005"],
   },
   {
@@ -215,6 +219,7 @@ export const CONSENT_EOL: PolicySpec[] = [
       ["REQ-ENG-0010", "statement"],
     ],
     qs: ["R7", "C1"],
+    guidance: ["GDN-0012"],
     related: ["EVX-EOL-001", "EVX-INC-002", "EVX-MED-001"],
   },
 ];

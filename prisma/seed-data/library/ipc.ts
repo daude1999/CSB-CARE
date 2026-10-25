@@ -44,6 +44,7 @@ export const IPC: PolicySpec[] = [
       ["REQ-ENG-0029", "procedure.ppe"],
     ],
     qs: ["S7", "S5"],
+    guidance: ["GDN-0004", "GDN-0006", "GDN-NICE-CG139", "GDN-NICE-QS61"],
     related: ["EVX-IPC-002", "EVX-IPC-003", "EVX-HS-001"],
     history: [
       {
@@ -97,6 +98,7 @@ export const IPC: PolicySpec[] = [
       ["REQ-ENG-0023", "escalation"],
     ],
     qs: ["S7", "E3"],
+    guidance: ["GDN-0006", "GDN-0004"],
     related: ["EVX-IPC-001", "EVX-CP-005", "EVX-GOV-003"],
   },
   {
@@ -134,6 +136,7 @@ export const IPC: PolicySpec[] = [
       ["REQ-ENG-0029", "procedure.cleaning"],
     ],
     qs: ["S7", "S5", "W8"],
+    guidance: ["GDN-0004", "GDN-0006"],
     related: ["EVX-IPC-001", "EVX-HS-001"],
   },
 ];

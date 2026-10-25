@@ -42,6 +42,7 @@ export const WORKFORCE: PolicySpec[] = [
       ["REQ-ENG-0035", "procedure.checks"],
     ],
     qs: ["S6", "W4"],
+    guidance: ["GDN-0008"],
     related: ["EVX-TRN-001", "EVX-GOV-002", "EVX-SAF-001", "EVX-EQ-001"],
     history: [
       {
@@ -89,6 +90,7 @@ export const WORKFORCE: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.competence"],
     ],
     qs: ["S6", "E2"],
+    guidance: ["GDN-SFC-1", "GDN-NHSE-3"],
     related: ["EVX-TRN-002", "EVX-REC-001", "EVX-GOV-002"],
   },
   {
@@ -122,6 +124,7 @@ export const WORKFORCE: PolicySpec[] = [
     monitoring: "Supervision completion rates are reviewed monthly at governance meetings.",
     links: [["REQ-ENG-0014", "procedure.supervision"]],
     qs: ["S6", "C5", "W2"],
+    guidance: ["GDN-SFC-2"],
     related: ["EVX-TRN-001", "EVX-WF-001"],
   },
   {
@@ -158,6 +161,7 @@ export const WORKFORCE: PolicySpec[] = [
       ["REQ-ENG-0001", "statement"],
     ],
     qs: ["C1", "W1"],
+    guidance: ["GDN-NMC-1"],
     related: ["EVX-WF-002", "EVX-SAF-001", "EVX-DP-001", "EVX-WB-001"],
   },
   {
@@ -261,6 +265,7 @@ export const WORKFORCE: PolicySpec[] = [
       ["REQ-ENG-0009", "procedure.care"],
     ],
     qs: ["C2", "R5", "R6", "W4"],
+    guidance: ["GDN-NHSE-1"],
     related: ["EVX-CP-003", "EVX-CP-004", "EVX-REC-001"],
   },
 ];

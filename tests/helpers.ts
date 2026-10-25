@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { seedBase } from "@/server/seed/base";
+import { CORE_REFS, seedBase } from "@/server/seed/base";
 import { seedDemo } from "@/server/seed/demo";
 import { ctxForUser } from "@/server/auth/session";
 import { setAiProviderForTests } from "@/server/ai";
@@ -14,8 +14,9 @@ export async function resetDb() {
   return { email };
 }
 
-export async function seedAll(opts: { simulatedChange?: boolean } = {}) {
-  const masters = await seedBase();
+/** Seeds the demo on the core library subset; pass `full: true` for the whole library (slow). */
+export async function seedAll(opts: { simulatedChange?: boolean; full?: boolean } = {}) {
+  const masters = await seedBase(opts.full ? {} : { refs: CORE_REFS });
   await seedDemo(masters, opts);
   return masters;
 }

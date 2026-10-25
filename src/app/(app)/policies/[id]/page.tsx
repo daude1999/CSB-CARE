@@ -5,6 +5,7 @@ import { orNotFound } from "@/server/auth/page-guard";
 import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
 import { getPolicy } from "@/server/policies/library";
 import { newRevisionAction, rollbackAction, confirmImplementationAction } from "../../../actions";
+import { DOC_TYPES } from "../../../../../prisma/seed-data/library/types";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   return (
     <>
       <PageHeader
-        title={<span className="flex flex-wrap items-center gap-2">{p.title} <Badge tone={p.kind === "MASTER" ? "navy" : "teal"}>{p.kind === "MASTER" ? "Evantix template" : "Organisation policy"}</Badge></span>}
+        title={<span className="flex flex-wrap items-center gap-2">{p.title} <Badge tone={p.kind === "MASTER" ? "navy" : "teal"}>{p.kind === "MASTER" ? "Evantix template" : "Organisation policy"}</Badge>{p.docType !== "POLICY" ? <Badge>{new Map<string, string>(DOC_TYPES).get(p.docType) ?? p.docType}</Badge> : null}</span>}
         subtitle={p.description}
         actions={
           canAuthor ? (

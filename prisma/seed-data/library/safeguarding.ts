@@ -44,6 +44,7 @@ export const SAFEGUARDING: PolicySpec[] = [
       ["REQ-ENG-0041", "definitions"],
     ],
     qs: ["S3", "S1", "W3"],
+    guidance: ["GDN-0001", "GDN-NICE-NG189", "GDN-SCIE-1", "GDN-0012"],
     related: ["EVX-SAF-002", "EVX-SAF-003", "EVX-WB-001", "EVX-MCA-001", "EVX-INC-002", "EVX-DP-001"],
     history: [
       {
@@ -95,6 +96,7 @@ export const SAFEGUARDING: PolicySpec[] = [
       ["REQ-ENG-0019", "procedure.support"],
     ],
     qs: ["S3", "C3"],
+    guidance: ["GDN-0001"],
     related: ["EVX-SAF-001", "EVX-WF-002", "EVX-RK-001"],
   },
   {
@@ -138,6 +140,7 @@ export const SAFEGUARDING: PolicySpec[] = [
       ["REQ-ENG-0018", "procedure.restriction"],
     ],
     qs: ["S3", "S4", "C3", "E6"],
+    guidance: ["GDN-NICE-NG11", "GDN-NICE-NG10", "GDN-RRN-1", "GDN-0014", "GDN-0002"],
     related: ["EVX-SAF-001", "EVX-MCA-001", "EVX-MCA-002", "EVX-INC-001", "EVX-CP-001"],
   },
   {
@@ -175,6 +178,7 @@ export const SAFEGUARDING: PolicySpec[] = [
       ["REQ-ENG-0023", "escalation"],
     ],
     qs: ["S4", "S3"],
+    guidance: ["GDN-0001"],
     related: ["EVX-SAF-001", "EVX-RISK-001", "EVX-INC-002"],
   },
   {
@@ -209,6 +213,7 @@ export const SAFEGUARDING: PolicySpec[] = [
     monitoring: "No-response incidents are reviewed monthly to check timeliness of response and themes, such as unnotified hospital admissions.",
     links: [["REQ-ENG-0002", "procedure.coordinator"]],
     qs: ["S4", "S2"],
+    guidance: ["GDN-NICE-NG21"],
     related: ["EVX-SAF-004", "EVX-HS-004", "EVX-INC-001"],
   },
 ];

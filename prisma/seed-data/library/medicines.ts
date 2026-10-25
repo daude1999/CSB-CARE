@@ -47,6 +47,7 @@ export const MEDICINES: PolicySpec[] = [
       ["REQ-ENG-0004", "records"],
     ],
     qs: ["S8", "S1", "E2"],
+    guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67", "GDN-NICE-NG5"],
     related: ["EVX-MED-002", "EVX-MED-003", "EVX-MED-004", "EVX-MED-005", "EVX-INC-001", "EVX-DOC-001"],
     history: [
       {
@@ -96,6 +97,7 @@ export const MEDICINES: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.giving"],
     ],
     qs: ["S8", "E6"],
+    guidance: ["GDN-NICE-SC1", "GDN-0002"],
     related: ["EVX-MED-001", "EVX-MCA-001", "EVX-MCA-002"],
   },
   {
@@ -139,6 +141,7 @@ export const MEDICINES: PolicySpec[] = [
       ["REQ-ENG-0023", "procedure.checks"],
     ],
     qs: ["S8", "S5"],
+    guidance: ["GDN-NICE-NG46", "GDN-NICE-SC1"],
     related: ["EVX-MED-001", "EVX-INC-001"],
   },
   {
@@ -172,6 +175,7 @@ export const MEDICINES: PolicySpec[] = [
     monitoring: "Medicines audits check that every PRN medicine has a current protocol and that reasons and outcomes are recorded.",
     links: [["REQ-ENG-0002", "procedure.protocol"]],
     qs: ["S8", "C4"],
+    guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67"],
     related: ["EVX-MED-001", "EVX-SAF-003"],
   },
   {
@@ -208,6 +212,7 @@ export const MEDICINES: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.assessment"],
     ],
     qs: ["S8", "C3"],
+    guidance: ["GDN-NICE-SC1", "GDN-NICE-NG67"],
     related: ["EVX-MED-001", "EVX-RISK-001"],
   },
 ];
