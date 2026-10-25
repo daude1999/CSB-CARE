@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3 text-sm">
-            <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-8" /></Link>
+            <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-10" /></Link>
             {memberships.length > 1 ? (
               <form action={switchOrgAction} className="flex items-center gap-2">
                 <select name="organisationId" defaultValue={ctx.organisationId ?? ""} className="input w-auto py-1" aria-label="Organisation">
