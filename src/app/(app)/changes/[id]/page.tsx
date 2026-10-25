@@ -89,11 +89,11 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
                         <div className="label">Before</div>
-                        <p className="prose-policy rounded bg-slate-50 p-2 text-sm">{s.before || <em className="text-slate-400">(not present)</em>}</p>
+                        <p className="prose-policy rounded-sm bg-slate-50 p-2 text-sm">{s.before || <em className="text-slate-400">(not present)</em>}</p>
                       </div>
                       <div>
                         <div className="label">After</div>
-                        <p className="prose-policy rounded bg-slate-50 p-2 text-sm">{s.after || <em className="text-slate-400">(removed)</em>}</p>
+                        <p className="prose-policy rounded-sm bg-slate-50 p-2 text-sm">{s.after || <em className="text-slate-400">(removed)</em>}</p>
                       </div>
                     </div>
                     {s.kind === "modified" ? (
@@ -135,7 +135,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                 <div className="label">Quoted source text</div>
                 <ul className="space-y-2 text-sm">
                   {c.citations.map((ct) => (
-                    <li key={ct.id} className="rounded border border-slate-200 p-2">
+                    <li key={ct.id} className="rounded-sm border border-slate-200 p-2">
                       <blockquote className="italic">“{ct.quote}”</blockquote>
                       <div className="mt-1 text-xs">{ct.verified ? <Badge tone="green">verified verbatim in stored source</Badge> : <Badge tone="rose">not found in source: disregard</Badge>} <span className="text-slate-400">{ct.sectionRef}</span></div>
                     </li>
@@ -177,7 +177,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                         </ul>
                       ) : null}
                       {a.status === "PROPOSED" && canReview && confirmed ? (
-                        <form action={reviewAssessmentAction} className="mt-3 grid gap-2 rounded bg-slate-50 p-3 md:grid-cols-4">
+                        <form action={reviewAssessmentAction} className="mt-3 grid gap-2 rounded-sm bg-slate-50 p-3 md:grid-cols-4">
                           <input type="hidden" name="assessmentId" value={a.id} />
                           <input type="hidden" name="back" value={back} />
                           <select name="decision" className="input" aria-label="Decision" defaultValue={a.outcome === "REVISION_RECOMMENDED" ? "REVISION_REQUIRED" : "NO_REVISION"}>

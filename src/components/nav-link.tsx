@@ -17,7 +17,7 @@ export function NavLink({ href, icon, children, compact = false }: { href: strin
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-3 py-[7px] pl-5 pr-3 text-[13.5px] no-underline transition-colors ${active ? "bg-white/[0.06] text-white hover:text-white" : "text-slate-400 hover:bg-white/[0.03] hover:text-white"}`}
+      className={`group relative flex items-center gap-3 py-[7px] pl-5 pr-3 text-[13.5px] no-underline transition-colors ${active ? "bg-white/6 text-white hover:text-white" : "text-slate-400 hover:bg-white/3 hover:text-white"}`}
     >
       <span aria-hidden="true" className={`absolute inset-y-1 left-0 w-[3px] rounded-r ${active ? "bg-teal-400" : "bg-transparent"}`} />
       <span aria-hidden="true" className={active ? "text-teal-400" : "text-slate-500 group-hover:text-slate-300"}>{icon}</span>

@@ -178,7 +178,7 @@ function KeyFigure({ label, value, note, warn = false, href }: { label: string; 
       <dd className={`mt-2 text-xs ${warn ? "font-medium text-rose-700" : "text-slate-500"}`}>{note}</dd>
     </>
   );
-  const cls = "block border-slate-300 px-4 py-5 no-underline [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t";
+  const cls = "block border-slate-300 px-4 py-5 no-underline not-first:border-l max-lg:nth-3:border-l-0 max-lg:nth-[n+3]:border-t";
   return href ? <Link href={href} className={`${cls} hover:bg-white`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

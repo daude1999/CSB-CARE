@@ -7,9 +7,9 @@ export function InlineDiff({ parts }: { parts: WordDiffPart[] }) {
     <p className="prose-policy">
       {parts.map((p, i) =>
         p.added ? (
-          <ins key={i} className="rounded bg-emerald-100 px-0.5 text-emerald-900 no-underline">{p.value}</ins>
+          <ins key={i} className="rounded-sm bg-emerald-100 px-0.5 text-emerald-900 no-underline">{p.value}</ins>
         ) : p.removed ? (
-          <del key={i} className="rounded bg-rose-100 px-0.5 text-rose-800">{p.value}</del>
+          <del key={i} className="rounded-sm bg-rose-100 px-0.5 text-rose-800">{p.value}</del>
         ) : (
           <span key={i}>{p.value}</span>
         ),

@@ -29,7 +29,7 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card title="Requirement">
-            <blockquote className="prose-policy rounded bg-slate-50 p-3 text-sm">{r.excerpt}</blockquote>
+            <blockquote className="prose-policy rounded-sm bg-slate-50 p-3 text-sm">{r.excerpt}</blockquote>
             {r.applicabilityNotes ? <p className="mt-3 text-sm">{r.applicabilityNotes}</p> : null}
             <p className="mt-3 text-xs"><a href={r.sourceUrl} target="_blank" rel="noreferrer noopener">Read the official source</a></p>
           </Card>

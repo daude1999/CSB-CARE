@@ -77,7 +77,7 @@ export default async function StaffPage() {
 
 function Summary({ label, value, note, warn = false }: { label: string; value: number | string; note?: string; warn?: boolean }) {
   return (
-    <div className="border-slate-300 px-4 py-4 [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t">
+    <div className="border-slate-300 px-4 py-4 not-first:border-l max-lg:nth-3:border-l-0 max-lg:nth-[n+3]:border-t">
       <dt className="eyebrow">{label}</dt>
       <dd className="figure mt-1.5 text-3xl text-navy-900">{value}</dd>
       {note ? <dd className={`mt-1 text-xs ${warn ? "font-medium text-rose-700" : "text-slate-500"}`}>{note}</dd> : null}

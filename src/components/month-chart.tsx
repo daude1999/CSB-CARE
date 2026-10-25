@@ -18,7 +18,7 @@ export function MonthChart({ data, unit, label }: { data: MonthBar[]; unit: stri
               content={({ active, payload }) => {
                 const p = active && payload?.[0] ? (payload[0].payload as MonthBar) : null;
                 return p ? (
-                  <div className="rounded-sm border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
+                  <div className="rounded-xs border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
                     <div className="font-mono uppercase tracking-[0.06em] text-slate-500">{p.label}</div>
                     <div className="mt-0.5 text-navy-900"><span className="font-serif text-base font-semibold">{p.value}</span> {unit}</div>
                   </div>

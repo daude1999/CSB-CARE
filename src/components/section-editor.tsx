@@ -18,12 +18,12 @@ export function SectionEditor({ name, initial, label }: { name: string; initial:
     immediatelyRender: false,
     extensions: [Document, Paragraph, Text, UndoRedo, CharacterCount, Placeholder.configure({ placeholder: "Write this section…" })],
     content: { type: "doc", content: initial.split("\n").map((line) => (line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" })) },
-    editorProps: { attributes: { "aria-label": label, role: "textbox", "aria-multiline": "true", class: "prose-policy min-h-40 whitespace-normal px-4 py-3 text-[15px] leading-7 focus:outline-none [&_p]:min-h-[1.75rem]" } },
+    editorProps: { attributes: { "aria-label": label, role: "textbox", "aria-multiline": "true", class: "prose-policy min-h-40 whitespace-normal px-4 py-3 text-[15px] leading-7 focus:outline-hidden [&_p]:min-h-7" } },
     onUpdate: ({ editor: e }) => setValue(e.getText({ blockSeparator: "\n" })),
   });
   const words = value.trim() ? value.trim().split(/\s+/).length : 0;
   return (
-    <div className="rounded-sm border border-slate-300 bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
+    <div className="rounded-xs border border-slate-300 bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
       <input type="hidden" name={name} value={value} />
       {editor ? <EditorContent editor={editor} /> : <textarea className="prose-policy block min-h-40 w-full border-0 px-4 py-3 text-[15px] leading-7 focus:ring-0" defaultValue={initial} readOnly aria-label={label} />}
       <div className="flex items-center justify-between border-t border-slate-200 px-4 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-slate-400">

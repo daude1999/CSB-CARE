@@ -122,7 +122,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
         </div>
         <label className="mb-2 flex items-center gap-2">
           <MagnifyingGlass size={16} className="text-slate-400" aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-none focus:ring-0" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-hidden focus:ring-0" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
         </label>
       </div>
       <p className="mb-1 font-serif text-[15px] text-slate-700">{shown.length} of {rows.length} requirements</p>
