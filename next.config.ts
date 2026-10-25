@@ -16,6 +16,8 @@ const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/client", "pino", "unpdf", "mammoth", "pdfkit"],
+  // pdfkit loads its built-in fonts by dynamic path, which file tracing misses on Vercel.
+  outputFileTracingIncludes: { "/api/policies/**": ["./node_modules/pdfkit/js/**/*"] },
   experimental: { serverActions: { bodySizeLimit: "11mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
