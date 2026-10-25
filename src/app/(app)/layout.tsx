@@ -6,10 +6,11 @@ import { logoutAction, switchOrgAction } from "../actions";
 import { Logo } from "@/components/brand";
 import { NavLink } from "@/components/nav-link";
 import { SideNav, type SideNavSection } from "@/components/side-nav";
+import { MainArea } from "@/components/main-area";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Broadcast, Buildings, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Flag, House, MagnifyingGlass, Pulse, Scales, Tray, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, BookOpenText, Books, Broadcast, Buildings, CaretDown, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Eyeglasses, Flag, House, MagnifyingGlass, Pulse, Question, Scales, ShieldCheck, SlidersHorizontal, Tray, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
 import type { ComponentType } from "react";
 
 type Icon = ComponentType<{ size?: number; weight?: "regular" | "duotone" | "bold" }>;
@@ -43,12 +44,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const at = (...hrefs: string[]) => visibleNav.filter((n) => hrefs.includes(n.href)).map(({ href, label }) => ({ href, label }));
   const canAuthor = hasOrgPermission(ctx, "policy.author") || hasPlatformPermission(ctx, "master.author");
   const sections: SideNavSection[] = [
-    { label: "Policy Hub", icon: <BookOpenText size={19} />, items: [{ href: "/", label: "Dashboard" }, { href: "/policies", label: ctx.organisationId ? "My Policies" : "Policies" }, { href: "/policies?tab=templates", label: "CSB Template Library" }, ...at("/changes", "/queue", "/requirements")], action: canAuthor ? { href: "/policies/new", label: "Upload Own Policy" } : undefined },
-    { label: "Read and Sign", icon: <Checks size={19} />, items: [{ href: "/acknowledgements", label: "Read and Sign" }] },
-    { label: "Care Operations", icon: <ClipboardText size={19} />, items: at("/audits", "/actions", "/evidence") },
-    { label: "Our Team", icon: <UsersThree size={19} />, items: at("/staff") },
-    { label: "Insights", icon: <ChartLine size={19} />, items: at("/assistant", "/reports") },
-    { label: "Administration", icon: <Buildings size={19} />, items: at("/settings", "/admin/sources", "/admin/jobs") },
+    { label: "Policy Centre", icon: <Books size={26} weight="fill" />, items: [{ href: "/", label: "Dashboard" }, { href: "/policies", label: ctx.organisationId ? "My Policies" : "Policies" }, { href: "/policies?tab=templates", label: "Template Library" }, ...at("/changes", "/queue", "/requirements")], action: canAuthor ? { href: "/policies/new", label: "Upload Custom Policy" } : undefined },
+    { label: "Reading Lists", icon: <Eyeglasses size={26} />, items: [{ href: "/acknowledgements", label: "Reading Lists" }] },
+    { label: "Resource Centre", icon: <Archive size={26} weight="fill" />, items: at("/evidence") },
+    { label: "Compliance Tools", icon: <ShieldCheck size={26} weight="fill" />, items: at("/audits", "/actions") },
+    { label: "My Staff", icon: <UsersThree size={26} weight="fill" />, items: at("/staff") },
+    { label: "Insights", icon: <ChartLine size={26} weight="bold" />, items: at("/reports", "/assistant") },
+    { label: "Administration", icon: <Buildings size={26} weight="fill" />, items: at("/settings", "/admin/sources", "/admin/jobs") },
   ].filter((section) => section.items.length > 0);
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const setupLeft = canManage ? (await setupChecklist(ctx.organisationId!)).filter((step) => !step.done).length : 0;
@@ -56,36 +58,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-col">
       {setupLeft ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-rose-100 px-4 py-1.5 text-[12.5px] text-rose-900">
-          <Warning size={16} aria-hidden="true" className="shrink-0" />
-          <span className="min-w-0 flex-1">Your organisation is not fully set up yet. {setupLeft === 1 ? "One step is" : `${setupLeft} steps are`} left on your setup checklist.</span>
-          <Link href="/" className="rounded-[4px] bg-teal-500 px-3 py-1 font-medium text-navy-950 no-underline hover:bg-teal-400 hover:text-navy-950">Finish setup</Link>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
+          <Warning size={18} weight="fill" aria-hidden="true" className="shrink-0" />
+          <span className="min-w-0 flex-1">Your organisation is not fully set up yet. Complete your setup checklist so every policy is personalised to your service.</span>
+          <Link href="/" className="rounded-[4px] bg-emerald-500 px-4 py-1 font-medium text-white no-underline hover:bg-emerald-600 hover:text-white">Complete Setup</Link>
         </div>
       ) : null}
       <div className="flex flex-1">
-      <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col bg-navy-800 md:flex">
-        <Link href="/" aria-label="CSB home" className="block bg-white px-5 py-3">
-          <Logo className="h-10 max-w-full" />
-        </Link>
-        <div className="flex min-h-[44px] items-center gap-2 bg-navy-950 px-4 text-[13px] font-medium leading-tight text-white">
-          <Buildings size={16} aria-hidden="true" className="shrink-0 text-teal-200" />
-          <span className="truncate">{orgName}</span>
+      <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col bg-navy-900 text-white md:flex">
+        <div className="flex h-[120px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 text-center">
+          <Link href="/" aria-label="CSB home" className="block"><Logo light className="h-[30px] max-w-full" /></Link>
+          <span className="text-[18px] font-medium leading-[20px]">{orgName}</span>
         </div>
         <SideNav sections={sections} />
-        <div className="border-t border-white/10 px-4 py-3 text-[10.5px] leading-relaxed text-teal-100/80">
-          Starter content is not legal advice. AI output is a proposal for human review.
-        </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2 sm:px-6">
+        <header className="sticky top-0 z-20 flex min-h-[58px] flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-[9px]">
           <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-9" /></Link>
-          <form action="/policies" method="get" role="search" className="flex min-w-0 flex-1 items-center sm:max-w-[460px]">
-            <label htmlFor="global-search" className="sr-only">Search policies</label>
-            <span aria-hidden="true" className="flex h-9 items-center rounded-l-[6px] bg-navy-900 px-2.5 text-white"><MagnifyingGlass size={15} weight="bold" /></span>
-            <input id="global-search" name="q" type="search" placeholder="Search one word, for example: falls" className="h-9 min-w-0 flex-1 border border-l-0 border-slate-300 bg-white px-3 text-[13px] focus:border-teal-500 focus:outline-none" />
-            <button type="submit" className="h-9 rounded-r-[6px] bg-navy-900 px-3.5 text-[13px] font-medium text-white hover:bg-navy-700">Search</button>
+          <form action="/policies" method="get" role="search" className="flex min-w-0 flex-1 items-center sm:max-w-[560px]">
+            <span aria-hidden="true" className="flex h-[38px] w-[64px] shrink-0 items-center justify-center gap-1 rounded-l-[6px] bg-navy-900 text-white"><SlidersHorizontal size={22} weight="bold" /><CaretDown size={11} weight="bold" /></span>
+            <label htmlFor="global-search" className="flex h-[38px] min-w-0 flex-1 items-center gap-2.5 border border-l-0 border-slate-300 bg-white pl-2.5">
+              <MagnifyingGlass size={22} aria-hidden="true" className="shrink-0 text-slate-700" />
+              <span className="sr-only">Search policies</span>
+              <input id="global-search" name="q" type="search" placeholder="Enter a single search word, for example 'Falls'" className="h-full min-w-0 flex-1 bg-transparent pr-2 text-[16px] text-slate-800 placeholder:text-slate-600 focus:outline-none" />
+            </label>
+            <button type="submit" className="h-[38px] w-[76px] shrink-0 rounded-r-[6px] border-2 border-white bg-navy-900 text-[16px] text-white outline outline-1 outline-slate-300 hover:bg-navy-700">Search</button>
           </form>
-          <div className="ml-auto flex items-center gap-1.5 text-sm">
+          <div className="ml-auto flex items-center gap-2.5">
             {memberships.length > 1 ? (
               <form action={switchOrgAction} className="mr-1 flex items-center gap-1.5">
                 <select name="organisationId" defaultValue={ctx.organisationId ?? ""} className="input w-auto py-1 text-[13px]" aria-label="Organisation">
@@ -96,21 +95,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <button className="btn-secondary py-1" type="submit">Switch</button>
               </form>
             ) : null}
-            {org?.isDemo ? <span className="mr-1 hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 font-label text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
-            <Link href="/acknowledgements" aria-label="My policies to read" title="My policies to read" className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-700 no-underline hover:border-navy-900 hover:text-navy-900">
-              <Checks size={17} aria-hidden="true" />
+            {org?.isDemo ? <span className="mr-1 hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
+            <Link href="/assistant" aria-label="Help and AI assistant" title="Help" className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
+              <Question size={30} aria-hidden="true" />
             </Link>
-            <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-700 no-underline hover:border-navy-900 hover:text-navy-900">
-              <Bell size={17} aria-hidden="true" />
-              {unread ? <span className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-[18px] text-white">{unread}</span> : null}
+            <Link href="/acknowledgements" aria-label="My policies to read" title="My policies to read" className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
+              <Checks size={28} aria-hidden="true" />
             </Link>
-            <span className="ml-1 flex items-center gap-2 rounded-full border border-slate-300 py-0.5 pl-0.5 pr-3">
-              <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-100 text-[11px] font-bold text-navy-900">{initials}</span>
-              <span className="text-[13px] text-slate-700" data-testid="current-user">{ctx.userName}</span>
-            </span>
-            <form action={logoutAction} className="ml-1">
-              <button className="btn-secondary py-1 text-xs" type="submit">Sign out</button>
-            </form>
+            <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
+              <Bell size={28} aria-hidden="true" />
+              {unread ? <span className="absolute -right-0.5 -top-1 min-w-[20px] rounded-full border-2 border-white bg-[#f06a4d] px-1 text-center text-[10px] font-bold leading-[16px] text-white">{unread}</span> : null}
+            </Link>
+            <details className="relative ml-1 border-l border-slate-200 pl-3.5">
+              <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                <span aria-hidden="true" className="flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px] border-slate-500 text-[15px] font-bold text-slate-800">{initials}</span>
+                <span className="text-[16px] text-slate-800" data-testid="current-user">{ctx.userName}</span>
+                <CaretDown size={12} weight="bold" aria-hidden="true" className="text-slate-800" />
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-44 rounded-[6px] border border-slate-200 bg-white py-1 shadow-lg">
+                <form action={logoutAction}>
+                  <button className="w-full px-3 py-2 text-left text-[14px] text-navy-900 hover:bg-slate-100" type="submit">Sign out</button>
+                </form>
+              </div>
+            </details>
           </div>
         </header>
         <nav className="overflow-x-auto border-b border-slate-200 bg-paper px-3 py-2 md:hidden" aria-label="Main">
@@ -120,7 +127,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ))}
           </div>
         </nav>
-        <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 sm:py-8 xl:px-10">{children}</main>
+        <MainArea>{children}</MainArea>
         {inlineJobsEnabled() ? <JobKicker /> : null}
       </div>
       </div>

@@ -14,16 +14,15 @@ function useIsActive() {
     const [base, query] = href.split("?");
     if (base === "/") return path === "/";
     if (!path.startsWith(base!)) return false;
-    const want = new URLSearchParams(query ?? "");
     if (!query) return !params.get("tab");
-    return [...want].every(([k, v]) => params.get(k) === v);
+    return [...new URLSearchParams(query)].every(([k, v]) => params.get(k) === v);
   };
 }
 
 /** The application sidebar: single-page rows, and sections that open to show their pages. */
 export function SideNav({ sections }: { sections: SideNavSection[] }) {
   const isActive = useIsActive();
-  const row = "flex min-h-[46px] items-center gap-3 border-t border-white/10 px-4 text-[14.5px] font-medium text-white no-underline hover:bg-white/[0.06] hover:text-white";
+  const row = "flex h-[52px] items-center gap-3 whitespace-nowrap border-b border-white/[0.08] pl-1.5 pr-4 text-[16.5px] text-white no-underline hover:bg-white/[0.06] hover:text-white";
   return (
     <nav className="flex-1 overflow-y-auto" aria-label="Main">
       {sections.map((s) => {
@@ -32,34 +31,37 @@ export function SideNav({ sections }: { sections: SideNavSection[] }) {
           const active = isActive(only.href);
           return (
             <Link key={s.label} href={only.href} aria-current={active ? "page" : undefined} className={`${row} ${active ? "bg-navy-700" : ""}`}>
-              <span aria-hidden="true" className="text-teal-200">{s.icon}</span>
+              <span aria-hidden="true" className="flex w-[28px] justify-center">{s.icon}</span>
               {s.label}
             </Link>
           );
         }
         const open = s.items.some((i) => isActive(i.href)) || (s.action ? isActive(s.action.href) : false);
         return (
-          <details key={s.label} open={open} className="group border-t border-white/10 first:border-t-0 open:bg-navy-700">
-            <summary className="flex min-h-[46px] cursor-pointer list-none items-center gap-3 px-4 text-[14.5px] font-medium text-white hover:bg-white/[0.06] [&::-webkit-details-marker]:hidden">
-              <span aria-hidden="true" className="text-teal-200">{s.icon}</span>
+          <details key={s.label} open={open} className="group border-b border-white/[0.08] open:bg-navy-700 open:pb-[18px]">
+            <summary className="flex h-[52px] cursor-pointer list-none items-center gap-3 whitespace-nowrap pl-1.5 pr-4 text-[16.5px] text-white hover:bg-white/[0.06] group-open:h-[40px] [&::-webkit-details-marker]:hidden">
+              <span aria-hidden="true" className="flex w-[28px] justify-center">{s.icon}</span>
               {s.label}
-              <CaretDown size={13} weight="bold" aria-hidden="true" className="ml-auto opacity-80 transition-transform group-open:rotate-180" />
+              <CaretDown size={12} weight="bold" aria-hidden="true" className="ml-auto transition-transform group-open:rotate-180" />
             </summary>
-            <div className="flex flex-col gap-px px-3 pb-3">
+            <div className="flex flex-col pl-[25px] pr-3 pt-1">
               {s.items.map((i) => {
                 const active = isActive(i.href);
                 return (
-                  <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={`rounded-full px-3.5 py-[7px] text-[13.5px] no-underline ${active ? "self-start bg-navy-950 font-medium text-white hover:text-white" : "text-teal-50 hover:bg-white/[0.08] hover:text-white"}`}>
+                  <Link key={i.href} href={i.href} aria-current={active ? "page" : undefined} className={`text-[15px] text-white no-underline hover:text-teal-200 ${active ? "-ml-[13px] my-[3px] self-start rounded-full bg-navy-950 px-[13px] leading-[26px] hover:text-white" : "leading-[32px]"}`}>
                     {i.label}
                   </Link>
                 );
               })}
-              {s.action ? (
-                <Link href={s.action.href} className="mt-2.5 rounded-full border border-teal-200 px-3 py-1.5 text-center text-[12.5px] font-medium text-white no-underline hover:bg-white/10 hover:text-white">
+            </div>
+            {s.action ? (
+              <>
+                <hr className="mx-[20px] mb-[18px] mt-3 border-0 border-t border-white/25" />
+                <Link href={s.action.href} className="mx-2.5 block h-[26px] rounded-full border-[1.5px] border-teal-100 text-center text-[14px] leading-[23px] text-white no-underline hover:bg-white/10 hover:text-white">
                   {s.action.label}
                 </Link>
-              ) : null}
-            </div>
+              </>
+            ) : null}
           </details>
         );
       })}
