@@ -9,9 +9,6 @@ import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { Archive, Bell, BookOpenText, Broadcast, Buildings, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Flag, House, Pulse, Scales, Tray, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import type { ComponentType } from "react";
-import { cookies } from "next/headers";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { THEME_COOKIE, parseTheme } from "@/lib/themes";
 
 type Icon = ComponentType<{ size?: number; weight?: "regular" | "duotone" | "bold" }>;
 
@@ -22,7 +19,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.notification.count({ where: { userId: ctx.userId, readAt: null } }),
     ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId } }) : null,
   ]);
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   const isPlatformAdmin = hasPlatformPermission(ctx, "sources.manage");
   const nav: { href: string; label: string; group: string; icon: Icon; show: boolean }[] = [
     { href: "/", label: "Overview", group: "Home", icon: House, show: true },
@@ -90,7 +86,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <Bell size={17} aria-hidden="true" /><span className="hidden lg:inline">Notifications</span>
               {unread ? <span className="min-w-[18px] rounded-full bg-teal-400 px-1 text-center font-mono text-[10px] font-semibold leading-[18px] text-navy-950">{unread}</span> : null}
             </Link>
-            <ThemeSwitcher initial={theme} />
             <span className="mx-2 hidden h-5 w-px bg-slate-300 sm:block" aria-hidden="true" />
             <span className="hidden items-center gap-2 sm:flex">
               <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-navy-900 font-mono text-[11px] font-medium text-white">{ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</span>

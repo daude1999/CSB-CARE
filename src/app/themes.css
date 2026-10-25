@@ -22,21 +22,24 @@
   --focus: var(--teal-400);
 }
 
-/* Care teal: deep teal chrome, soft tinted neutrals, rounded friendly shapes. */
+/* Care teal: deep teal chrome, mint signal, soft green-white page, Roboto at an 18px base (care-sector feel). */
 [data-theme="care"] {
-  --navy-950: #082a33; --navy-900: #0d3540; --navy-800: #134451; --navy-700: #1d5664; --navy-600: #2b6a78;
-  --teal-50: #effafa; --teal-100: #d5f2f2; --teal-200: #aee5e6; --teal-400: #3fb8be; --teal-500: #1a98a0; --teal-600: #0b7a83; --teal-700: #08626a;
-  --slate-50: #f6f9f9; --slate-100: #edf3f3; --slate-200: #dde6e7; --slate-300: #c5d2d4; --slate-400: #93a4a7; --slate-500: #657679;
-  --slate-600: #4c5c5f; --slate-700: #3a4749; --slate-800: #263133; --slate-900: #172022; --slate-950: #0b1112;
-  --paper: #f3f7f7;
-  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --navy-950: #002d2d; --navy-900: #0f4146; --navy-800: #17535a; --navy-700: #22656c; --navy-600: #2f7880;
+  --teal-50: #eef7f1; --teal-100: #d6f2e8; --teal-200: #a8ead8; --teal-400: #00f0c8; --teal-500: #00b89a; --teal-600: #00807a; --teal-700: #00626a;
+  --slate-50: #f6f9f8; --slate-100: #edf4f1; --slate-200: #dce7e4; --slate-300: #c3d3cf; --slate-400: #91a5a2; --slate-500: #5e7473;
+  --slate-600: #475b5b; --slate-700: #354849; --slate-800: #213234; --slate-900: #0f4146; --slate-950: #082224;
+  --paper: #eef7f1;
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
   --radius-sm: 0.5rem; --radius-md: 999px; --radius-lg: 1rem;
-  --heading-weight: 700; --heading-tracking: -0.015em;
-  --card-radius: 1rem; --card-border: transparent; --card-rule: 0px; --card-shadow: 0 1px 2px rgb(13 53 64 / 0.06), 0 4px 16px rgb(13 53 64 / 0.06);
+  --heading-weight: 700; --heading-tracking: -0.01em;
+  --card-radius: 1rem; --card-border: transparent; --card-rule: 0px; --card-shadow: 0 1px 2px rgb(15 65 70 / 0.06), 0 4px 16px rgb(15 65 70 / 0.06);
   --table-rule: 0px; --table-head-bg: var(--slate-100);
-  --focus: var(--teal-500);
+  --focus: #00f0c8;
+  --h1-size: 2.25rem; --h2-size: 1.35rem;
+  font-size: 18px;
 }
+[data-theme="care"] .btn-primary:hover { background: #002d2d; box-shadow: 0 0 0 3px #91f8ff; }
 
 /* GOV.UK Design System: black header, blue links, green actions, yellow focus, square corners. */
 [data-theme="govuk"] {

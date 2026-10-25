@@ -9,8 +9,8 @@
  */
 @layer base {
   body { @apply bg-paper font-sans text-slate-800 antialiased; font-feature-settings: "ss02"; }
-  h1 { @apply font-serif text-[1.75rem] leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
-  h2 { @apply font-serif text-lg leading-snug text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  h1 { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
+  h2 { @apply font-serif leading-snug text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h2-size, 1.125rem); }
   h3 { @apply text-base font-semibold text-navy-900; }
   a { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
