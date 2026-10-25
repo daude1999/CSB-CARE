@@ -26,7 +26,7 @@ export function SectionEditor({ name, initial, label }: { name: string; initial:
     <div className="rounded-sm border border-slate-300 bg-white focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100">
       <input type="hidden" name={name} value={value} />
       {editor ? <EditorContent editor={editor} /> : <textarea className="prose-policy block min-h-40 w-full border-0 px-4 py-3 text-[15px] leading-7 focus:ring-0" defaultValue={initial} readOnly aria-label={label} />}
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-1.5 font-mono text-[10.5px] uppercase tracking-[0.08em] text-slate-400">
+      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-1.5 font-label text-[10.5px] uppercase tracking-[0.08em] text-slate-400">
         <span>{value === initial ? "No changes" : <span className="text-teal-700">Unsaved changes</span>}</span>
         <span>{words} words</span>
       </div>

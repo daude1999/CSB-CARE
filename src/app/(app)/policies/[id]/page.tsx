@@ -109,7 +109,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               </nav>
               <article className="min-w-0 rounded-sm border border-slate-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-3 sm:px-12">
-                  <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-slate-500">{p.ref} · {v.label} · effective {fmtDate(v.effectiveDate)}</span>
+                  <span className="font-label text-[11px] uppercase tracking-[0.1em] text-slate-500">{p.ref} · {v.label} · effective {fmtDate(v.effectiveDate)}</span>
                   <SimulatedBadge show={v.isSimulated} />
                 </div>
                 {v.origin === "SEED" ? (

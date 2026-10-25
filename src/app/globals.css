@@ -1,3 +1,4 @@
+@import "./themes.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,32 +9,32 @@
  */
 @layer base {
   body { @apply bg-paper font-sans text-slate-800 antialiased; font-feature-settings: "ss02"; }
-  h1 { @apply font-serif text-[1.75rem] font-semibold leading-tight tracking-[-0.01em] text-navy-900; }
-  h2 { @apply font-serif text-lg font-semibold leading-snug text-navy-900; }
+  h1 { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
+  h2 { @apply font-serif leading-snug text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h2-size, 1.125rem); }
   h3 { @apply text-base font-semibold text-navy-900; }
   a { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
-  :focus-visible { @apply outline-none ring-2 ring-teal-400 ring-offset-2 ring-offset-paper; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   ::selection { @apply bg-teal-100 text-navy-900; }
 }
 
 @layer components {
-  .card { @apply min-w-0 rounded-sm border border-slate-200 border-t-2 border-t-navy-900 bg-white p-5; }
+  .card { @apply min-w-0 border bg-white p-5; border-color: var(--card-border); border-top: var(--card-rule) solid var(--card-rule-color); border-radius: var(--card-radius); box-shadow: var(--card-shadow); }
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium no-underline transition disabled:opacity-50; }
   .btn-primary { @apply btn bg-navy-900 text-white hover:bg-navy-700 hover:text-white; }
   .btn-teal { @apply btn bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
   .btn-secondary { @apply btn border border-slate-300 bg-white text-navy-900 hover:border-navy-900 hover:text-navy-900; }
   .btn-danger { @apply btn bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
   .input { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-  .label { @apply mb-1 block font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500; }
-  .eyebrow { @apply font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500; }
-  .figure { @apply font-serif font-semibold tabular-nums tracking-tight; }
+  .label { @apply mb-1 block font-label text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500; }
+  .eyebrow { @apply font-label text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500; }
+  .figure { @apply font-serif tabular-nums tracking-tight; font-weight: var(--heading-weight); }
   .table { @apply w-full min-w-[720px] text-left text-sm; border-collapse: separate; border-spacing: 0; }
-  .table th { @apply border-b border-t-2 border-b-slate-300 border-t-navy-900 px-3 py-2.5 text-left font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-slate-600; }
+  .table th { @apply border-b border-b-slate-300 px-3 py-2.5 text-left font-label text-[11px] font-medium uppercase tracking-[0.08em] text-slate-600; border-top: var(--table-rule) solid var(--navy-900); background: var(--table-head-bg); }
   .table td { @apply border-b border-slate-200 px-3 py-3 align-top text-slate-700; }
   .table tbody tr:hover td { @apply bg-white; }
   .table td[class~="font-mono"] { white-space: nowrap; }
   /* A card that only frames a register drops its box: the table's own rules carry it. */
-  .card:has(> table.table), .card:has(> div > table.table) { @apply border-0 bg-transparent p-0; }
+  .card:has(> table.table), .card:has(> div > table.table) { @apply border-0 bg-transparent p-0; box-shadow: none; }
   .muted { @apply text-sm text-slate-500; }
-  .prose-policy { @apply whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800; }
+  .prose-policy { @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800; font-family: var(--font-prose); }
 }

@@ -8,11 +8,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="relative hidden flex-col justify-between overflow-hidden bg-navy-950 px-12 py-12 text-white lg:flex">
         <div className="inline-flex self-start rounded-md bg-white px-4 py-3"><Logo className="h-12" /></div>
         <div className="max-w-lg">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-teal-400">Policy governance for adult social care</p>
+          <p className="font-label text-[11px] uppercase tracking-[0.16em] text-teal-400">Policy governance for adult social care</p>
           <p className="mt-5 font-serif text-[2.6rem] font-medium leading-[1.12] tracking-[-0.015em]">Every policy current. Every change traced to its source. Every reader on record.</p>
           <p className="mt-6 max-w-md text-sm leading-6 text-slate-400">CSB watches the legislation and guidance your policies rely on, proposes revisions for your people to approve, and records who has read what.</p>
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-slate-500">Care Solution Bureau</p>
+        <p className="font-label text-[11px] uppercase tracking-[0.12em] text-slate-500">Care Solution Bureau</p>
         <div aria-hidden="true" className="absolute inset-y-0 right-0 w-[3px] bg-teal-400" />
       </section>
       <div className="flex items-center justify-center px-4 py-12">

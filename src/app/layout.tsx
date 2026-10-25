@@ -5,6 +5,12 @@ import "@fontsource/ibm-plex-sans/latin-600.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
 import "@fontsource-variable/source-serif-4/opsz.css";
+import "@fontsource/roboto/latin-400.css";
+import "@fontsource/roboto/latin-500.css";
+import "@fontsource/roboto/latin-700.css";
+import "@fontsource-variable/inter/wght.css";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, parseTheme } from "@/lib/themes";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,9 +18,10 @@ export const metadata: Metadata = {
   description: "Policy and procedure management with regulatory change monitoring for adult social care.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="en-GB">
+    <html lang="en-GB" data-theme={theme}>
       <body>{children}</body>
     </html>
   );

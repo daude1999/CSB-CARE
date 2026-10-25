@@ -49,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 space-y-6 overflow-y-auto pb-4 pt-5" aria-label="Main">
           {navGroups.map(({ group, items }) => (
             <div key={group}>
-              {group !== "Home" ? <h2 className="mb-1.5 px-5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{group}</h2> : null}
+              {group !== "Home" ? <h2 className="mb-1.5 px-5 font-label text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{group}</h2> : null}
               <div>
                 {items.map((n) => <NavLink key={n.href} href={n.href} icon={<n.icon size={17} />}>{n.label}</NavLink>)}
               </div>
@@ -76,7 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ) : (
               <span className="truncate font-serif text-[15px] font-semibold text-navy-900">{orgName}</span>
             )}
-            {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-slate-600 sm:inline">Sample workspace</span> : null}
+            {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 font-label text-[10px] uppercase tracking-[0.08em] text-slate-600 sm:inline">Sample workspace</span> : null}
           </div>
           <div className="flex items-center gap-1 text-sm">
             <Link href="/acknowledgements" className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-slate-700 no-underline hover:bg-slate-100 hover:text-navy-900">
