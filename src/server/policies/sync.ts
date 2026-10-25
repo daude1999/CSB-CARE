@@ -128,7 +128,7 @@ export async function syncCustomersFromMaster(masterVersionId: string) {
       type: "revision.master_update",
       title: `Template update ready for your approval: ${p.ref} ${p.title}`,
       body: `${report.safeApplied.length + report.added.length} change(s) prepared; ${report.conflicts.length} customised section(s) need your decision. Your policy has not been changed and will not be until you approve and publish.`,
-      reason: "Your organisation uses this Evantix template.",
+      reason: "Your organisation uses this CSB template.",
       links: [{ label: "Review draft", url: `/revisions/${rev.id}` }],
       actionUrl: `/revisions/${rev.id}`,
       dedupeKey: `master-sync:${rev.id}`,

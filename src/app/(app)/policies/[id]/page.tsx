@@ -25,7 +25,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   return (
     <>
       <PageHeader
-        title={<span className="flex flex-wrap items-center gap-2">{p.title} <Badge tone={p.kind === "MASTER" ? "navy" : "teal"}>{p.kind === "MASTER" ? "Evantix template" : "Organisation policy"}</Badge>{p.docType !== "POLICY" ? <Badge>{new Map<string, string>(DOC_TYPES).get(p.docType) ?? p.docType}</Badge> : null}</span>}
+        title={<span className="flex flex-wrap items-center gap-2">{p.title} <Badge tone={p.kind === "MASTER" ? "navy" : "teal"}>{p.kind === "MASTER" ? "CSB template" : "Organisation policy"}</Badge>{p.docType !== "POLICY" ? <Badge>{new Map<string, string>(DOC_TYPES).get(p.docType) ?? p.docType}</Badge> : null}</span>}
         subtitle={p.description}
         actions={
           canAuthor ? (
@@ -109,7 +109,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
           <Card title="Linked requirements">
             {links.length ? (
               <>
-                {inherited ? <p className="muted mb-2 text-xs">Inherited from the Evantix template {p.template?.ref}.</p> : null}
+                {inherited ? <p className="muted mb-2 text-xs">Inherited from the CSB template {p.template?.ref}.</p> : null}
                 <ul className="space-y-2 text-sm">
                   {links.map((l) => (
                     <li key={l.id}>

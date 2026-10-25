@@ -22,7 +22,7 @@ async function openSimulatedChange(page: Page) {
 
 test("detected change flows through review, drafting, approval, publication and acknowledgement", async ({ browser }) => {
   // 1. A regulatory reviewer confirms the detected (simulated) change is relevant. Detection alone changes nothing.
-  const reviewer = await signIn(browser, "regulatory@evantix.demo");
+  const reviewer = await signIn(browser, "regulatory@csb.demo");
   const changeUrl = await openSimulatedChange(reviewer);
   await expect(reviewer.getByTestId("source-diff-reporting-concerns")).toContainText("24 hours");
   const triage = reviewer.getByTestId("triage-form");

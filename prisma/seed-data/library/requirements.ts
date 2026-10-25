@@ -1,7 +1,7 @@
 import type { LegalStatus } from "@prisma/client";
 
 /**
- * Starter requirements register. Every excerpt is an Evantix summary written for
+ * Starter requirements register. Every excerpt is a CSB summary written for
  * orientation, NOT a quotation, and every entry is seeded as UNVERIFIED: wording,
  * section numbers and effective dates must be checked against the official text.
  */
@@ -198,7 +198,7 @@ export const REQUIREMENTS: RequirementDef[] = [
 ];
 
 /**
- * CQC single assessment framework quality statements (titles only, with Evantix
+ * CQC single assessment framework quality statements (titles only, with CSB
  * summaries). CQC has said it is revising the framework; check the current
  * version before relying on these mappings.
  */

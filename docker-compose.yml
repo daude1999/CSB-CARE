@@ -3,12 +3,12 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: evantix
+      POSTGRES_USER: csb
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
-      POSTGRES_DB: evantix
+      POSTGRES_DB: csb
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U evantix"]
+      test: ["CMD-SHELL", "pg_isready -U csb"]
       interval: 5s
       retries: 20
 
@@ -17,7 +17,7 @@ services:
     command: migrate
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://evantix:${POSTGRES_PASSWORD:-change-me}@db:5432/evantix?schema=public
+      DATABASE_URL: postgresql://csb:${POSTGRES_PASSWORD:-change-me}@db:5432/csb?schema=public
     depends_on:
       db: { condition: service_healthy }
 
@@ -26,7 +26,7 @@ services:
     command: web
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://evantix:${POSTGRES_PASSWORD:-change-me}@db:5432/evantix?schema=public
+      DATABASE_URL: postgresql://csb:${POSTGRES_PASSWORD:-change-me}@db:5432/csb?schema=public
       STORAGE_LOCAL_DIR: /app/.data/storage
     ports: ["3000:3000"]
     volumes: [storage:/app/.data]
@@ -38,7 +38,7 @@ services:
     command: worker
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://evantix:${POSTGRES_PASSWORD:-change-me}@db:5432/evantix?schema=public
+      DATABASE_URL: postgresql://csb:${POSTGRES_PASSWORD:-change-me}@db:5432/csb?schema=public
       STORAGE_LOCAL_DIR: /app/.data/storage
     volumes: [storage:/app/.data]
     depends_on:

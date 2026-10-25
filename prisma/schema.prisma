@@ -1,4 +1,4 @@
-// Evantix Care data model.
+// CSB data model.
 // Design rules:
 //  - Approved/published history is immutable (enforced by DB triggers in migration SQL).
 //  - Every customer-owned row carries organisationId; server-side scoping is mandatory.
@@ -500,7 +500,7 @@ model RequirementPolicyLink {
 // ───────────────────────────── Policies ─────────────────────────────
 
 enum PolicyKind {
-  MASTER // Evantix-maintained template (organisationId is null)
+  MASTER // CSB-maintained template (organisationId is null)
   CUSTOMER // organisation-owned policy, optionally derived from a master
 }
 
@@ -841,7 +841,7 @@ model Acknowledgement {
 
 model AuditTemplate {
   id             String          @id @default(cuid())
-  organisationId String? // null = Evantix master template
+  organisationId String? // null = CSB master template
   title          String
   description    String?
   version        Int             @default(1)

@@ -30,8 +30,8 @@ Note: the Dockerfile has not been built in the development environment (Docker w
 
 Steps:
 
-1. Create the resource group, PostgreSQL server (database `evantix`), storage account and private container, Key Vault and container registry.
-2. `az acr build -r <registry> -t evantix-care:<version> .`
+1. Create the resource group, PostgreSQL server (database `csb`), storage account and private container, Key Vault and container registry.
+2. `az acr build -r <registry> -t csb-care:<version> .`
 3. Run migrations as a Container Apps job: same image, command `migrate`.
 4. Create the web and worker apps with the environment from `.env.example`. Set `APP_URL` to the public URL, `COOKIE_SECURE=true`, `SEED_DEMO=false`, and leave `SHOW_DEMO_LOGINS` unset.
 5. Run the seed once (job with command `seed`) to load service types, categories, the source registry, starter templates and the requirements register.

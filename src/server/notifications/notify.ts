@@ -71,7 +71,7 @@ export async function deliverNotification(deliveryId: string, attempt: number, m
   const links = (n.links as { label: string; url: string }[]).map((l) => `${l.label}: ${l.url.startsWith("/") ? `${process.env.APP_URL ?? ""}${l.url}` : l.url}`);
   const text = [n.body, "", `Why you are receiving this: ${n.reason}`, n.dueAt ? `Due: ${n.dueAt.toDateString()}` : "", ...links].filter((x) => x !== "").join("\n");
   try {
-    const res = await emailProvider().send({ to: n.user.email, subject: `[Evantix Care] ${n.title}`, text });
+    const res = await emailProvider().send({ to: n.user.email, subject: `[CSB] ${n.title}`, text });
     await db.notificationDelivery.update({ where: { id: d.id }, data: { status: "SENT", sentAt: new Date(), attempts: { increment: 1 }, providerMessageId: res.messageId, lastError: null } });
     return { sent: true };
   } catch (e) {

@@ -1,8 +1,8 @@
 # One image, two roles: the web app (default) and the background worker.
-#   docker build -t evantix-care .
-#   docker run ... evantix-care                 # web on :3000
-#   docker run ... evantix-care worker          # monitoring and job worker
-#   docker run ... evantix-care migrate         # apply database migrations
+#   docker build -t csb-care .
+#   docker run ... csb-care                 # web on :3000
+#   docker run ... csb-care worker          # monitoring and job worker
+#   docker run ... csb-care migrate         # apply database migrations
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*

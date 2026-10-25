@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const DATABASE_URL = process.env.E2E_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/evantix_e2e?schema=public";
+const DATABASE_URL = process.env.E2E_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/csb_e2e?schema=public";
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 export default defineConfig({

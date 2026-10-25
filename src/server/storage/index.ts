@@ -53,10 +53,10 @@ export function storage(): StorageProvider {
   if (process.env.STORAGE_PROVIDER === "azure") {
     const cs = process.env.AZURE_STORAGE_CONNECTION_STRING;
     if (!cs) throw new Error("STORAGE_PROVIDER=azure requires AZURE_STORAGE_CONNECTION_STRING");
-    instance = new AzureBlobStorage(cs, process.env.AZURE_STORAGE_CONTAINER ?? "evantix-private");
+    instance = new AzureBlobStorage(cs, process.env.AZURE_STORAGE_CONTAINER ?? "csb-private");
   } else {
     // Serverless hosts (Vercel) only allow writes under /tmp, which does not survive between requests.
-    const fallback = process.env.VERCEL ? join("/tmp", "evantix-storage") : join(process.cwd(), ".data", "storage");
+    const fallback = process.env.VERCEL ? join("/tmp", "csb-storage") : join(process.cwd(), ".data", "storage");
     instance = new LocalStorage(process.env.STORAGE_LOCAL_DIR ?? fallback);
   }
   return instance;

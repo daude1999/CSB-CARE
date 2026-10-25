@@ -1,3 +1,4 @@
+import { Wordmark } from "@/components/brand";
 import { loginAction } from "../actions";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -6,10 +7,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="flex min-h-screen items-center justify-center bg-navy-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="text-3xl font-semibold text-white">
-            Evantix <span className="text-teal-400">Care</span>
-          </div>
-          <p className="mt-2 text-sm text-slate-300">Policies, procedures and regulatory change, kept under review.</p>
+          <div className="flex justify-center"><Wordmark size="lg" /></div>
+          <p className="mt-4 text-sm text-slate-300">Policies, procedures and regulatory change for adult social care, kept under review.</p>
         </div>
         <form action={loginAction} className="card space-y-4">
           {sp.error ? (
@@ -28,7 +27,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <button className="btn-primary w-full" type="submit">Sign in</button>
           {process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false") ? (
             <p className="text-xs text-slate-500">
-              Demo environment: sign in as <code>manager@brookfield.demo</code>, <code>author@brookfield.demo</code>, <code>approver@brookfield.demo</code>, <code>carer1@brookfield.demo</code>, <code>regulatory@evantix.demo</code> or <code>admin@evantix.demo</code> with the password <code>DemoPassword!2026</code>.
+              Demo environment: sign in as <code>manager@brookfield.demo</code>, <code>author@brookfield.demo</code>, <code>approver@brookfield.demo</code>, <code>carer1@brookfield.demo</code>, <code>regulatory@csb.demo</code> or <code>admin@csb.demo</code> with the password <code>DemoPassword!2026</code>.
             </p>
           ) : null}
         </form>

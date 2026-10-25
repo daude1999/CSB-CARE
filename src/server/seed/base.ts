@@ -137,7 +137,7 @@ export async function seedBase(opts: { refs?: string[] } = {}) {
   return masters;
 }
 
-/** Audit tools in the library double as Evantix master audit templates. */
+/** Audit tools in the library double as CSB master audit templates. */
 async function seedAuditTemplates(templates: typeof TEMPLATES, masters: Record<string, string>) {
   for (const t of templates) {
     if (!t.auditQuestions?.length) continue;

@@ -8,7 +8,7 @@ export default defineConfig({
     globalSetup: ["tests/global-setup.ts"],
     env: {
       NODE_ENV: "test",
-      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/evantix_test?schema=public",
+      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/csb_test?schema=public",
       AI_PROVIDER: "simulated",
       STORAGE_PROVIDER: "local",
       STORAGE_LOCAL_DIR: ".data/test-storage",

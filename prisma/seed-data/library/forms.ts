@@ -2,7 +2,7 @@ import { COMMUNITY, HOMES, type ResourceSpec, type SpecSection } from "./types";
 
 const s = (key: string, heading: string, body: string): SpecSection => ({ key, heading, body });
 
-/** Forms and templates staff complete. Original Evantix wording. */
+/** Forms and templates staff complete. Original CSB wording. */
 export const FORMS: ResourceSpec[] = [
   {
     ref: "EVX-FRM-001",

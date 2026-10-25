@@ -21,9 +21,9 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   if (await db.organisation.findUnique({ where: { slug: "brookfield-demo" } })) return;
   const pw = await hashPassword(DEMO_PASSWORD);
 
-  const admin = await user("admin@evantix.demo", "Priya Admin (Platform)", ["PLATFORM_ADMIN"], pw);
-  const regulatory = await user("regulatory@evantix.demo", "Rowan Reviewer (Regulatory)", ["REGULATORY_REVIEWER"], pw);
-  const content = await user("content@evantix.demo", "Casey Content (Editor)", ["CONTENT_EDITOR"], pw);
+  const admin = await user("admin@csb.demo", "Priya Admin (Platform)", ["PLATFORM_ADMIN"], pw);
+  const regulatory = await user("regulatory@csb.demo", "Rowan Reviewer (Regulatory)", ["REGULATORY_REVIEWER"], pw);
+  const content = await user("content@csb.demo", "Casey Content (Editor)", ["CONTENT_EDITOR"], pw);
   void admin;
   void content;
 
@@ -91,7 +91,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
     const requiresAcknowledgement = ackRefs.includes(tpl.ref);
     const v = await seedPublishedVersion(p.id, org.id, sections, {
       basedOnMasterVersionId: tpl.currentPublishedVersionId,
-      changeSummary: "DEMO: adopted from Evantix starter template. Not professionally reviewed; no approval record exists.",
+      changeSummary: "DEMO: adopted from CSB starter template. Not professionally reviewed; no approval record exists.",
       publishedAt: new Date(Date.now() - (14 + (i % 9) * 9) * 86400_000),
       requiresAcknowledgement,
     });

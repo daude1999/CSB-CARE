@@ -4,7 +4,7 @@ const PASSWORD = "DemoPassword!2026";
 
 // Every page each role can reach from the navigation must render without a server error,
 // and every detail link on those pages must also render.
-const USERS = ["manager@brookfield.demo", "author@brookfield.demo", "approver@brookfield.demo", "carer1@brookfield.demo", "admin@evantix.demo", "regulatory@evantix.demo", "content@evantix.demo"];
+const USERS = ["manager@brookfield.demo", "author@brookfield.demo", "approver@brookfield.demo", "carer1@brookfield.demo", "admin@csb.demo", "regulatory@csb.demo", "content@csb.demo"];
 
 for (const email of USERS) {
   test(`all reachable pages render for ${email}`, async ({ page }) => {

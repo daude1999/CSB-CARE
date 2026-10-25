@@ -98,7 +98,7 @@ export async function adoptTemplate(ctx: Ctx, templateId: string) {
     const policy = await tx.policy.create({
       data: { kind: "CUSTOMER", organisationId: orgId, templateId, ref: tpl.ref, docType: tpl.docType, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes, jurisdiction: tpl.jurisdiction, ownerId: ctx.userId, reviewIntervalMonths: tpl.reviewIntervalMonths, supportingSourceDocumentIds: tpl.supportingSourceDocumentIds },
     });
-    const draft = await createDraftVersion(tx, { policyId: policy.id, organisationId: orgId, sections, origin: "MASTER_SYNC", createdById: ctx.userId, basedOnMasterVersionId: tpl.currentPublishedVersion!.id, reasonForChange: `Adopted from template ${tpl.ref} ${tpl.currentPublishedVersion!.label}`, changeSummary: "Adopted from Evantix template; complete the local sections before approval." });
+    const draft = await createDraftVersion(tx, { policyId: policy.id, organisationId: orgId, sections, origin: "MASTER_SYNC", createdById: ctx.userId, basedOnMasterVersionId: tpl.currentPublishedVersion!.id, reasonForChange: `Adopted from template ${tpl.ref} ${tpl.currentPublishedVersion!.label}`, changeSummary: "Adopted from CSB template; complete the local sections before approval." });
     const rev = await tx.policyRevision.create({ data: { policyId: policy.id, organisationId: orgId, kind: "MASTER_SYNC", draftVersionId: draft.id, title: `Adopt template ${tpl.ref}`, createdById: ctx.userId, authorId: ctx.userId } });
     await audit({ organisationId: orgId, actorId: ctx.userId, action: "policy.adopted_template", entityType: "Policy", entityId: policy.id, data: { templateId } }, tx);
     return { policy, revision: rev };

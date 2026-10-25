@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Evantix Care",
+  title: { default: "CSB | Care Solution Bureau", template: "%s | CSB" },
   description: "Policy and procedure management with regulatory change monitoring for adult social care.",
 };
 
