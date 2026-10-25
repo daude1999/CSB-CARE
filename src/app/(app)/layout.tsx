@@ -4,6 +4,8 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { logoutAction, switchOrgAction } from "../actions";
 import { NavLink } from "@/components/nav-link";
+import { JobKicker } from "@/components/job-kicker";
+import { inlineJobsEnabled } from "@/server/jobs/inline";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -73,6 +75,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">{children}</main>
+        {inlineJobsEnabled() ? <JobKicker /> : null}
       </div>
     </div>
   );
