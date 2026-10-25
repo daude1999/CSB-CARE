@@ -51,7 +51,7 @@ For a shareable demo, not production. The app runs on Vercel and the database on
    SHOW_DEMO_LOGINS=true
    CRON_SECRET=<any long random string>
    ```
-3. Deploy. The `vercel-build` script applies migrations, seeds the demo data only when the database has no users yet, then builds.
+3. Deploy. Functions run in London (`lhr1` in `vercel.json`) to sit next to a London Supabase database. The `vercel-build` script applies migrations, seeds the demo data only when the database has no users yet, then builds.
 
 There is no separate worker on Vercel. Instead, signed-in pages ping `/api/jobs/kick` after loading to process a few queued jobs (`INLINE_JOBS`, on by default when `VERCEL` is set), and Vercel Cron calls `/api/cron/tick` daily. Uploaded evidence is kept under `/tmp` and does not persist; use `STORAGE_PROVIDER=azure` if that matters.
 
