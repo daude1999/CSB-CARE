@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col bg-navy-950 text-slate-200 md:flex">
         <div className="border-b-4 border-teal-400 bg-white px-5 py-4">
-          <Logo className="h-11" />
+          <Logo className="h-12 max-w-full" />
         </div>
         <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main">
           {nav.filter((n) => n.show).map((n) => (
@@ -49,8 +49,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3 text-sm">
+            <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-8" /></Link>
             {memberships.length > 1 ? (
               <form action={switchOrgAction} className="flex items-center gap-2">
                 <select name="organisationId" defaultValue={ctx.organisationId ?? ""} className="input w-auto py-1" aria-label="Organisation">
@@ -83,7 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ))}
           </div>
         </nav>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-7 xl:px-8">{children}</main>
         {inlineJobsEnabled() ? <JobKicker /> : null}
       </div>
     </div>

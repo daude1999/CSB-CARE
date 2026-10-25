@@ -1,12 +1,12 @@
 import Link from "@/components/link";
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
       <div>
-        <h1>{title}</h1>
-        {subtitle ? <p className="mt-1 max-w-3xl text-sm text-slate-500">{subtitle}</p> : null}
+        <h1 className="tracking-tight">{title}</h1>
+        {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </div>
@@ -58,15 +58,16 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export function Card({ title, children, actions, className = "" }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; className?: string }) {
+  const isTable = isValidElement(children) && children.type === "table";
   return (
     <section className={`card ${className}`}>
       {title || actions ? (
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
           {title ? <h2>{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
-      {children}
+      {isTable ? <div className="min-w-0 overflow-x-auto rounded-lg">{children}</div> : children}
     </section>
   );
 }
