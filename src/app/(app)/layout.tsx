@@ -61,9 +61,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <button className="btn-secondary py-1" type="submit">Switch</button>
               </form>
             ) : (
-              <span className="font-medium text-navy-900">{org?.name ?? "CSB platform administration"}</span>
+              <span className="font-medium text-navy-900">{org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration"}</span>
             )}
-            {org?.isDemo ? <span className="rounded bg-violet-50 px-2 py-0.5 text-xs text-violet-700">Demo organisation</span> : null}
+            {org?.isDemo ? <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800">Sample workspace</span> : null}
           </div>
           <div className="flex items-center gap-4 text-sm">
             <Link href="/acknowledgements">My policies to read</Link>
@@ -76,6 +76,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </form>
           </div>
         </header>
+        <nav className="overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden" aria-label="Main">
+          <div className="flex min-w-max gap-1">
+            {nav.filter((n) => n.show).map((n) => (
+              <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
+            ))}
+          </div>
+        </nav>
         <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">{children}</main>
         {inlineJobsEnabled() ? <JobKicker /> : null}
       </div>
