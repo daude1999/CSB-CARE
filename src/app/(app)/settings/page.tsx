@@ -21,7 +21,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader eyebrow="Administration · your organisation" title="Organisation Settings" subtitle={org.name} />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-6">
           <Card title="Approval rules">
             <form action={updateOrgSettingsAction} className="space-y-2">
@@ -46,15 +46,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </Card>
         </div>
         <Card className="lg:col-span-2" title="Audit trail (latest 40)">
-          <table className="table">
+          <table className="table table-stack">
             <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th></tr></thead>
             <tbody>
               {logs.map((l) => (
                 <tr key={l.id}>
-                  <td className="whitespace-nowrap text-xs">{fmtDate(l.createdAt, true)}</td>
-                  <td className="text-xs">{l.actorId ? actors.get(l.actorId) ?? "user" : "system"}</td>
-                  <td className="font-mono text-xs">{l.action}</td>
-                  <td className="text-xs">{l.entityType}</td>
+                  <td data-label="When" className="whitespace-nowrap text-xs">{fmtDate(l.createdAt, true)}</td>
+                  <td data-label="Who" className="text-xs">{l.actorId ? actors.get(l.actorId) ?? "user" : "system"}</td>
+                  <td data-label="Action" className="font-mono text-xs">{l.action}</td>
+                  <td data-label="Record" className="text-xs">{l.entityType}</td>
                 </tr>
               ))}
             </tbody>

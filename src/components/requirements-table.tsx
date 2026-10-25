@@ -61,7 +61,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
       col.accessor("title", {
         header: "Requirement",
         cell: (c) => (
-          <div className="min-w-[16rem]">
+          <div className="sm:min-w-[16rem]">
             <Link href={`/requirements/${c.row.original.id}`} className="font-medium text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{c.getValue()}</Link>
             {c.row.original.simulated ? <span className="ml-2 rounded-[3px] px-1.5 py-0.5 font-label text-[10.5px] uppercase tracking-[0.06em] text-violet-700 ring-1 ring-inset ring-violet-200">Simulated</span> : null}
             <div className="mt-0.5 text-xs text-slate-500">{c.row.original.exactReference}</div>
@@ -127,7 +127,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
       </div>
       <p className="mb-1 font-serif text-[15px] text-slate-700">{shown.length} of {rows.length} requirements</p>
       <div className="overflow-x-auto">
-        <table className="table">
+        <table className="table table-stack">
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
@@ -147,7 +147,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr key={r.id}>{r.getVisibleCells().map((c) => <td key={c.id}>{flexRender(c.column.columnDef.cell, c.getContext())}</td>)}</tr>
+              <tr key={r.id}>{r.getVisibleCells().map((c) => <td key={c.id} data-label={typeof c.column.columnDef.header === "string" ? c.column.columnDef.header : ""} data-block={c.column.id === "title" ? "" : undefined}>{flexRender(c.column.columnDef.cell, c.getContext())}</td>)}</tr>
             ))}
           </tbody>
         </table>

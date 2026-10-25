@@ -48,8 +48,8 @@ export default async function Overview() {
       <header className="mb-8 grid gap-6 border-b border-navy-900 pb-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="max-w-3xl">
           <p className="eyebrow">{today} · {orgName}</p>
-          <h1 className="mt-3 text-[2.5rem] leading-[1.1] tracking-[-0.02em]">{greeting}, {firstName}.</h1>
-          <p className="mt-3 max-w-2xl font-serif text-[1.15rem] leading-relaxed text-slate-700">{lead}</p>
+          <h1 className="mt-3 text-[2rem] leading-[1.1] sm:text-[2.5rem] tracking-[-0.02em]">{greeting}, {firstName}.</h1>
+          <p className="mt-3 max-w-2xl font-serif text-[1.05rem] leading-relaxed sm:text-[1.15rem] text-slate-700">{lead}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/queue" className="btn-primary">Open change queue <ArrowRight size={15} aria-hidden="true" /></Link>

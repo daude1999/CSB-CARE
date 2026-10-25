@@ -42,7 +42,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
         ) : <StatusBadge status={a.status} />}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="lg:col-span-2" title={`Questions (score: ${score === null ? "not yet scored" : `${score}%`})`}>
           <ol className="space-y-4">
             {a.template.questions.map((q, i) => {

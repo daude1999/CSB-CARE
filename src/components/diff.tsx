@@ -29,7 +29,7 @@ export function PolicyDiffView({ diff, showUnchanged = false }: { diff: SectionD
         .filter((d) => showUnchanged || d.status !== "unchanged")
         .map((d) => (
           <div key={d.key} data-testid={`diff-${d.key}`} className={`rounded-lg border p-4 ${d.status === "unchanged" ? "border-slate-100 bg-slate-50" : "border-amber-200 bg-white"}`}>
-            <div className="mb-2 flex items-center gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <h3>{d.heading}</h3>
               <Badge tone={d.status === "added" ? "green" : d.status === "removed" ? "rose" : d.status === "modified" ? "amber" : "slate"}>{d.status}</Badge>
               {d.isLocal ? <Badge tone="teal">customer-specific, never auto-edited</Badge> : null}

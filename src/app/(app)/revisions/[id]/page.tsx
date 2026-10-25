@@ -42,7 +42,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
       <div className="mb-4 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-900" data-testid="draft-banner">
         {v.status === "PUBLISHED" ? "This version has been published." : "This is a draft. The approved policy remains in force until this draft is approved by someone other than its author and then published."}
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-6 lg:col-span-2">
           <Card title="Proposed changes">
             {r.explanation ? (

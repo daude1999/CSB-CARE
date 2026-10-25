@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-/** Crisp vector CSB wordmark for the shared application shell. */
-export function Logo({ className = "h-12" }: { className?: string }) {
-  return <img src="/csb-logo.svg" alt="CSB Care Solution Bureau" className={`w-auto ${className}`} width={640} height={150} />;
+/** The CSB logo, redrawn as a vector from the original artwork so it stays sharp at any size. */
+export function Logo({ className = "h-12 w-auto" }: { className?: string }) {
+  return <img src="/csb-logo.svg" alt="CSB Care Solution Bureau" className={className} width={1224} height={324} />;
 }

@@ -6,7 +6,7 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: { title: React
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-navy-900 pb-5">
       <div>
         {eyebrow ? <p className="eyebrow mb-1.5">{eyebrow}</p> : null}
-        <h1 className="text-[2rem]">{title}</h1>
+        <h1 className="text-[1.6rem] sm:text-[2rem]">{title}</h1>
         {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -77,14 +77,14 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
   return (
     <section className={`card ${className}`}>
       {title || actions ? (
-        <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3 border-b border-slate-200 pb-3">
           {title ? <h2>{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
       {isTable ? (
         <>
-          <p className="mb-2 px-1 text-xs text-slate-400 md:hidden">Swipe sideways to view all columns.</p>
+          <p className="mb-2 hidden px-1 text-xs text-slate-400 sm:block lg:hidden">Swipe sideways to view all columns.</p>
           <div className="min-w-0 overflow-x-auto">{children}</div>
         </>
       ) : children}
@@ -133,7 +133,7 @@ export function Pagination({ page, pageSize, total, base, params = {} }: { page:
     return `${base}?${q}`;
   };
   return (
-    <div className="mt-4 flex items-center justify-between text-sm">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
       <span className="text-slate-500">
         Page {page} of {pages} · {total} result(s)
       </span>
@@ -157,7 +157,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return (
     <div>
       <div className="label">{label}</div>
-      <div className="text-sm">{children}</div>
+      <div className="text-sm [overflow-wrap:anywhere]">{children}</div>
     </div>
   );
 }

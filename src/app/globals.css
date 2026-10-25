@@ -38,3 +38,30 @@
   .muted { @apply text-sm text-slate-500; }
   .prose-policy { @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800; font-family: var(--font-prose); }
 }
+
+/*
+ * Phones and tablets. Touch targets are at least 44px, form fields are 16px so
+ * iOS Safari does not zoom in on focus, and registers turn into stacked cards
+ * (each cell shows its column name from data-label) instead of scrolling sideways.
+ */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .input { min-height: 44px; }
+}
+@media (max-width: 639.98px) {
+  html { -webkit-text-size-adjust: 100%; }
+  .input, select.input, textarea.input { font-size: 16px; }
+  .table-stack { min-width: 0; }
+  .table-stack thead { @apply sr-only; }
+  .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
+  .table-stack tr { @apply mb-3 bg-white px-4 py-3; border-radius: var(--card-radius); box-shadow: var(--card-shadow); border: 1px solid var(--card-border); }
+  .table-stack tbody tr:hover td { background: transparent; }
+  .table-stack td { @apply flex items-baseline justify-between gap-4 border-0 px-0 py-1.5 text-right; }
+  .table-stack td::before { content: attr(data-label); @apply shrink-0 text-left font-label text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500; }
+  .table-stack td:first-child { @apply mb-1 block border-b border-slate-200 pb-2.5 text-left text-[15px]; }
+  .table-stack td:first-child::before { content: none; }
+  .table-stack td:empty, .table-stack td[data-label=""]:not(:first-child)::before { display: none; }
+  .table-stack td[class~="font-mono"] { white-space: normal; }
+  .table-stack td[data-block] { @apply block text-left; }
+  .table-stack td[data-block]::before { @apply mb-1 block; }
+}

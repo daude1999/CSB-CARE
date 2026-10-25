@@ -16,7 +16,7 @@ export default async function VersionPage({ params }: { params: Promise<{ id: st
   return (
     <>
       <PageHeader title={`${p.ref} ${p.title}: ${v.label}`} subtitle={v.changeSummary ?? undefined} actions={<Link className="btn-secondary" href={`/policies/${p.id}`}>Back to policy</Link>} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap gap-2"><StatusBadge status={v.status} /><Badge>{v.origin.replace(/_/g, " ").toLowerCase()}</Badge><SimulatedBadge show={v.isSimulated} /></div>
           {v.sections.map((s) => (

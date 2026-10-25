@@ -44,7 +44,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
           <p className="eyebrow">Library · {allCount} {tab === "MASTER" ? "starter documents" : "documents in use"}</p>
-          <h1 className="mt-1.5 text-[2rem]">Policies &amp; Procedures</h1>
+          <h1 className="mt-1.5 text-[1.6rem] sm:text-[2rem]">Policies &amp; Procedures</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             {tab === "MASTER"
               ? "Original CSB starter documents, citing the legislation and guidance they draw on. Adopt one, then adapt and approve it through your own governance."

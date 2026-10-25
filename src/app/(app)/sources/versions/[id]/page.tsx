@@ -15,8 +15,8 @@ export default async function SourceVersionPage({ params }: { params: Promise<{ 
   const sections = (v.sections as unknown as Section[]) ?? [];
   return (
     <>
-      <PageHeader title={<span className="flex items-center gap-2">{v.document.title} <Badge>stored version {v.versionNumber}</Badge> <SimulatedBadge show={v.isSimulated} /></span>} subtitle={<a href={v.document.url} target="_blank" rel="noreferrer noopener">{v.document.url}</a>} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <PageHeader title={<span className="flex flex-wrap items-center gap-2">{v.document.title} <Badge>stored version {v.versionNumber}</Badge> <SimulatedBadge show={v.isSimulated} /></span>} subtitle={<a href={v.document.url} target="_blank" rel="noreferrer noopener">{v.document.url}</a>} />
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="lg:col-span-2" title="Retrieved text">
           <div className="space-y-4">
             {sections.map((s) => (

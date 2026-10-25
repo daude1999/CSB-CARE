@@ -25,21 +25,21 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
         </div>
       ) : null}
       <Card>
-        <table className="table">
+        <table className="table table-stack">
           <thead><tr><th>Source</th><th>Method</th><th>Coverage</th><th>Status</th><th>Freshness</th><th>Last success</th><th>Next check</th><th>Docs / changes</th></tr></thead>
           <tbody>
             {sources.map((s) => {
               const f = freshness(s);
               return (
                 <tr key={s.id}>
-                  <td><Link href={`/admin/sources/${s.id}`} className="font-medium">{s.name}</Link> <SimulatedBadge show={s.isSimulated} />{!s.active ? <Badge>inactive</Badge> : null}<div className="font-mono text-[11px] text-slate-400">{s.key}</div></td>
-                  <td className="text-xs">{s.monitoringMethod.replace(/_/g, " ").toLowerCase()}</td>
-                  <td><StatusBadge status={s.coverage} /></td>
-                  <td><StatusBadge status={s.retrievalStatus} />{s.consecutiveFailures ? <div className="text-[11px] text-rose-600">{s.consecutiveFailures} consecutive failure(s)</div> : null}</td>
-                  <td><Badge tone={f.state === "fresh" ? "green" : f.state === "stale" || f.state === "never" ? "rose" : "slate"}>{f.label}</Badge></td>
-                  <td className="text-xs">{fmtDate(s.lastSuccessAt, true)}</td>
-                  <td className="text-xs">{s.coverage === "MANUAL_REVIEW_ONLY" ? "—" : fmtDate(s.nextCheckAt, true)}</td>
-                  <td className="text-xs">{s._count.documents} / {s._count.changes}</td>
+                  <td data-label="Source"><Link href={`/admin/sources/${s.id}`} className="font-medium">{s.name}</Link> <SimulatedBadge show={s.isSimulated} />{!s.active ? <Badge>inactive</Badge> : null}<div className="font-mono text-[11px] text-slate-400">{s.key}</div></td>
+                  <td data-label="Method" className="text-xs">{s.monitoringMethod.replace(/_/g, " ").toLowerCase()}</td>
+                  <td data-label="Coverage"><StatusBadge status={s.coverage} /></td>
+                  <td data-label="Status"><StatusBadge status={s.retrievalStatus} />{s.consecutiveFailures ? <div className="text-[11px] text-rose-600">{s.consecutiveFailures} consecutive failure(s)</div> : null}</td>
+                  <td data-label="Freshness"><Badge tone={f.state === "fresh" ? "green" : f.state === "stale" || f.state === "never" ? "rose" : "slate"}>{f.label}</Badge></td>
+                  <td data-label="Last success" className="text-xs">{fmtDate(s.lastSuccessAt, true)}</td>
+                  <td data-label="Next check" className="text-xs">{s.coverage === "MANUAL_REVIEW_ONLY" ? "—" : fmtDate(s.nextCheckAt, true)}</td>
+                  <td data-label="Docs / changes" className="text-xs">{s._count.documents} / {s._count.changes}</td>
                 </tr>
               );
             })}

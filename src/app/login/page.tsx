@@ -6,7 +6,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-navy-950 px-12 py-12 text-white lg:flex">
-        <div className="inline-flex self-start rounded-md bg-white px-4 py-3"><Logo className="h-12" /></div>
+        <div className="inline-flex self-start rounded-lg bg-white px-5 py-4"><Logo className="h-16 w-auto" /></div>
         <div className="max-w-lg">
           <p className="font-label text-[11px] uppercase tracking-[0.16em] text-teal-400">Policy governance for adult social care</p>
           <p className="mt-5 font-serif text-[2.6rem] font-medium leading-[1.12] tracking-[-0.015em]">Every policy current. Every change traced to its source. Every reader on record.</p>
@@ -17,8 +17,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <div className="flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        <div className="mb-8 lg:hidden"><div className="inline-flex rounded-md bg-white px-4 py-3 ring-1 ring-slate-200"><Logo className="h-12" /></div></div>
-        <h1 className="text-[2rem]">Sign in</h1>
+        <div className="mb-8 lg:hidden"><Logo className="h-14 w-auto" /></div>
+        <h1 className="text-[1.75rem] sm:text-[2rem]">Sign in</h1>
         <p className="mb-8 mt-2 text-sm text-slate-600">Use the email address your organisation registered with CSB.</p>
         <form action={loginAction} className="space-y-5">
           {sp.error ? (
