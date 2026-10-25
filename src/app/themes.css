@@ -1,0 +1,103 @@
+/*
+ * Theme tokens. The default (:root) is "Board paper". Each [data-theme] block
+ * overrides the same variables; tailwind.config.ts maps them onto the classes.
+ */
+:root {
+  --navy-950: #121314; --navy-900: #1a1b1d; --navy-800: #242528; --navy-700: #313236; --navy-600: #43454a;
+  --teal-50: #ecf9fd; --teal-100: #d2f1f9; --teal-200: #a6e3f2; --teal-400: #3ec1e0; --teal-500: #22a9cb; --teal-600: #178aa8; --teal-700: #136f88;
+  --slate-50: #f7f6f2; --slate-100: #efede7; --slate-200: #e3e0d7; --slate-300: #cfcbbf; --slate-400: #a29d91; --slate-500: #76726a;
+  --slate-600: #58554f; --slate-700: #41403b; --slate-800: #2c2b28; --slate-900: #1d1c1a; --slate-950: #10100f;
+  --paper: #f4f2ec;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Source Serif 4 Variable", Georgia, Cambria, serif;
+  --font-label: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-prose: var(--font-display);
+
+  --radius-sm: 0.125rem; --radius-md: 0.375rem; --radius-lg: 0.5rem;
+  --heading-weight: 600; --heading-tracking: -0.01em;
+  --card-radius: 0.125rem; --card-border: var(--slate-200); --card-rule: 2px; --card-rule-color: var(--navy-900); --card-shadow: none;
+  --table-rule: 2px; --table-head-bg: transparent;
+  --focus: var(--teal-400);
+}
+
+/* Care teal: deep teal chrome, soft tinted neutrals, rounded friendly shapes. */
+[data-theme="care"] {
+  --navy-950: #082a33; --navy-900: #0d3540; --navy-800: #134451; --navy-700: #1d5664; --navy-600: #2b6a78;
+  --teal-50: #effafa; --teal-100: #d5f2f2; --teal-200: #aee5e6; --teal-400: #3fb8be; --teal-500: #1a98a0; --teal-600: #0b7a83; --teal-700: #08626a;
+  --slate-50: #f6f9f9; --slate-100: #edf3f3; --slate-200: #dde6e7; --slate-300: #c5d2d4; --slate-400: #93a4a7; --slate-500: #657679;
+  --slate-600: #4c5c5f; --slate-700: #3a4749; --slate-800: #263133; --slate-900: #172022; --slate-950: #0b1112;
+  --paper: #f3f7f7;
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
+  --radius-sm: 0.5rem; --radius-md: 999px; --radius-lg: 1rem;
+  --heading-weight: 700; --heading-tracking: -0.015em;
+  --card-radius: 1rem; --card-border: transparent; --card-rule: 0px; --card-shadow: 0 1px 2px rgb(13 53 64 / 0.06), 0 4px 16px rgb(13 53 64 / 0.06);
+  --table-rule: 0px; --table-head-bg: var(--slate-100);
+  --focus: var(--teal-500);
+}
+
+/* GOV.UK Design System: black header, blue links, green actions, yellow focus, square corners. */
+[data-theme="govuk"] {
+  --navy-950: #0b0c0c; --navy-900: #0b0c0c; --navy-800: #222628; --navy-700: #383f43; --navy-600: #505a5f;
+  --teal-50: #e8f1f8; --teal-100: #d2e2f1; --teal-200: #a5c5e3; --teal-400: #5694ca; --teal-500: #2b7cc0; --teal-600: #003078; --teal-700: #1d70b8;
+  --slate-50: #f8f8f7; --slate-100: #f3f2f1; --slate-200: #dbdad9; --slate-300: #b1b4b6; --slate-400: #8e9295; --slate-500: #505a5f;
+  --slate-600: #454d51; --slate-700: #383f43; --slate-800: #222628; --slate-900: #0b0c0c; --slate-950: #050606;
+  --paper: #ffffff;
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
+  --radius-sm: 0; --radius-md: 0; --radius-lg: 0;
+  --heading-weight: 700; --heading-tracking: 0;
+  --card-radius: 0; --card-border: var(--slate-300); --card-rule: 0px; --card-shadow: none;
+  --table-rule: 0px;
+  --focus: #ffdd00;
+}
+[data-theme="govuk"] .btn-primary { background: #00703c; box-shadow: 0 2px 0 #002d18; }
+[data-theme="govuk"] .btn-primary:hover { background: #005a30; }
+[data-theme="govuk"] a { text-decoration-thickness: 1px; }
+
+/* IBM Carbon (g10): neutral greys, IBM blue, flat square tiles, Plex throughout. */
+[data-theme="carbon"] {
+  --navy-950: #161616; --navy-900: #161616; --navy-800: #262626; --navy-700: #393939; --navy-600: #525252;
+  --teal-50: #edf5ff; --teal-100: #d0e2ff; --teal-200: #a6c8ff; --teal-400: #4589ff; --teal-500: #0f62fe; --teal-600: #0f62fe; --teal-700: #0043ce;
+  --slate-50: #f4f4f4; --slate-100: #e8e8e8; --slate-200: #e0e0e0; --slate-300: #c6c6c6; --slate-400: #a8a8a8; --slate-500: #6f6f6f;
+  --slate-600: #525252; --slate-700: #393939; --slate-800: #262626; --slate-900: #161616; --slate-950: #0b0b0b;
+  --paper: #f4f4f4;
+  --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
+  --radius-sm: 0; --radius-md: 0; --radius-lg: 0;
+  --heading-weight: 400; --heading-tracking: 0;
+  --card-radius: 0; --card-border: transparent; --card-rule: 0px; --card-shadow: none;
+  --table-rule: 0px; --table-head-bg: var(--slate-200);
+  --focus: #0f62fe;
+}
+
+/* shadcn/ui Zinc: crisp white cards, zinc neutrals, Inter, CSB cyan kept as the accent. */
+[data-theme="zinc"] {
+  --navy-950: #09090b; --navy-900: #18181b; --navy-800: #27272a; --navy-700: #3f3f46; --navy-600: #52525b;
+  --slate-50: #fafafa; --slate-100: #f4f4f5; --slate-200: #e4e4e7; --slate-300: #d4d4d8; --slate-400: #a1a1aa; --slate-500: #71717a;
+  --slate-600: #52525b; --slate-700: #3f3f46; --slate-800: #27272a; --slate-900: #18181b; --slate-950: #09090b;
+  --paper: #fafafa;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
+  --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem;
+  --heading-weight: 600; --heading-tracking: -0.025em;
+  --card-radius: 0.75rem; --card-border: var(--slate-200); --card-rule: 0px; --card-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  --table-rule: 0px;
+  --focus: var(--teal-400);
+}
+
+/* Heavy section rules (border-navy-900) and the dashboard figure strip, per theme. */
+:root { --rule: var(--navy-900); }
+[data-theme="care"] { --rule: var(--teal-500); }
+[data-theme="carbon"] { --rule: var(--slate-300); }
+[data-theme="zinc"] { --rule: var(--slate-200); }
+:root .border-navy-900, :root .border-t-navy-900, :root .border-b-navy-900 { border-color: var(--rule); }
+
+[data-theme="care"] .figure-strip, [data-theme="carbon"] .figure-strip, [data-theme="zinc"] .figure-strip { gap: 1rem; border: 0; }
+[data-theme="care"] .figure-tile, [data-theme="carbon"] .figure-tile, [data-theme="zinc"] .figure-tile {
+  border: 1px solid var(--card-border) !important; border-radius: var(--card-radius); background: #fff; box-shadow: var(--card-shadow); padding: 1.25rem 1.25rem 1.5rem;
+}
+[data-theme="care"] .figure-tile { border-top: 4px solid var(--teal-400) !important; }
+[data-theme="carbon"] .figure-tile:hover { background: #e8e8e8; }
+[data-theme="govuk"] .figure-tile { border-color: var(--slate-300); }

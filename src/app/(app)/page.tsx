@@ -66,7 +66,7 @@ export default async function Overview() {
 
       <section aria-labelledby="key-figures" className="mb-10">
         <h2 id="key-figures" className="sr-only">Key figures</h2>
-        <dl className="grid grid-cols-2 border-y border-slate-300 lg:grid-cols-4">
+        <dl className="figure-strip grid grid-cols-2 border-y border-slate-300 lg:grid-cols-4">
           <KeyFigure label="Sources checked in window" value={`${m.sources.fresh}/${monitored}`} note={m.sources.failing + m.sources.stale ? `${m.sources.failing + m.sources.stale} failing or stale` : "All current"} warn={m.sources.failing + m.sources.stale > 0} href={admin ? "/admin/sources" : undefined} />
           <KeyFigure label="Published this month" value={m.publishedThisMonth} note="New or revised versions issued" />
           <KeyFigure label="Acknowledgements outstanding" value={m.outstandingAcks} note={m.overdueAcks ? `${m.overdueAcks} past due` : "None past due"} warn={m.overdueAcks > 0} href="/staff" />
@@ -148,7 +148,7 @@ export default async function Overview() {
               <ul className="border-t-2 border-navy-900">
                 {changes.map((c) => (
                   <li key={c.id} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-x-4 border-b border-slate-200 py-3.5">
-                    <time dateTime={c.detectedAt.toISOString()} className="pt-0.5 font-mono text-[11px] uppercase leading-4 text-slate-500">{c.detectedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" })}</time>
+                    <time dateTime={c.detectedAt.toISOString()} className="pt-0.5 font-label text-[11px] uppercase leading-4 text-slate-500">{c.detectedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" })}</time>
                     <div className="min-w-0">
                       <Link href={`/changes/${c.id}`} className="font-serif text-[15px] font-semibold leading-snug text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{c.title.replace(/^SIMULATED:\s*/, "")}</Link>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
@@ -178,7 +178,7 @@ function KeyFigure({ label, value, note, warn = false, href }: { label: string; 
       <dd className={`mt-2 text-xs ${warn ? "font-medium text-rose-700" : "text-slate-500"}`}>{note}</dd>
     </>
   );
-  const cls = "block border-slate-300 px-4 py-5 no-underline [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t";
+  const cls = "figure-tile block border-slate-300 px-4 py-5 no-underline [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t";
   return href ? <Link href={href} className={`${cls} hover:bg-white`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

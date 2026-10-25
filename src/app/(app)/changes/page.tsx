@@ -80,7 +80,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
             const stage = STAGE[c.status] ?? 0;
             return (
               <li key={c.id} className="grid gap-x-6 gap-y-3 border-b border-slate-200 py-5 md:grid-cols-[6.5rem_minmax(0,1fr)_15rem]">
-                <time dateTime={c.detectedAt.toISOString()} className="font-mono text-[11px] uppercase leading-5 text-slate-500">
+                <time dateTime={c.detectedAt.toISOString()} className="font-label text-[11px] uppercase leading-5 text-slate-500">
                   {c.detectedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" })}
                   <span className="block text-slate-400">{c.detectedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span>
                 </time>

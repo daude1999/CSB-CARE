@@ -9,6 +9,9 @@ import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { Archive, Bell, BookOpenText, Broadcast, Buildings, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Flag, House, Pulse, Scales, Tray, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import type { ComponentType } from "react";
+import { cookies } from "next/headers";
+import { ThemeSwitcher } from "@/components/theme-switcher";
+import { THEME_COOKIE, parseTheme } from "@/lib/themes";
 
 type Icon = ComponentType<{ size?: number; weight?: "regular" | "duotone" | "bold" }>;
 
@@ -19,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.notification.count({ where: { userId: ctx.userId, readAt: null } }),
     ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId } }) : null,
   ]);
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   const isPlatformAdmin = hasPlatformPermission(ctx, "sources.manage");
   const nav: { href: string; label: string; group: string; icon: Icon; show: boolean }[] = [
     { href: "/", label: "Overview", group: "Home", icon: House, show: true },
@@ -49,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 space-y-6 overflow-y-auto pb-4 pt-5" aria-label="Main">
           {navGroups.map(({ group, items }) => (
             <div key={group}>
-              {group !== "Home" ? <h2 className="mb-1.5 px-5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{group}</h2> : null}
+              {group !== "Home" ? <h2 className="mb-1.5 px-5 font-label text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{group}</h2> : null}
               <div>
                 {items.map((n) => <NavLink key={n.href} href={n.href} icon={<n.icon size={17} />}>{n.label}</NavLink>)}
               </div>
@@ -76,7 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ) : (
               <span className="truncate font-serif text-[15px] font-semibold text-navy-900">{orgName}</span>
             )}
-            {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-slate-600 sm:inline">Sample workspace</span> : null}
+            {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 font-label text-[10px] uppercase tracking-[0.08em] text-slate-600 sm:inline">Sample workspace</span> : null}
           </div>
           <div className="flex items-center gap-1 text-sm">
             <Link href="/acknowledgements" className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-slate-700 no-underline hover:bg-slate-100 hover:text-navy-900">
@@ -86,6 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <Bell size={17} aria-hidden="true" /><span className="hidden lg:inline">Notifications</span>
               {unread ? <span className="min-w-[18px] rounded-full bg-teal-400 px-1 text-center font-mono text-[10px] font-semibold leading-[18px] text-navy-950">{unread}</span> : null}
             </Link>
+            <ThemeSwitcher initial={theme} />
             <span className="mx-2 hidden h-5 w-px bg-slate-300 sm:block" aria-hidden="true" />
             <span className="hidden items-center gap-2 sm:flex">
               <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-navy-900 font-mono text-[11px] font-medium text-white">{ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</span>

@@ -18,7 +18,7 @@ export function Timeline({ children, testId }: { children: ReactNode; testId?: s
 export function TimelineItem({ mark, when, title, children, aside, last = false }: { mark: TimelineMark; when: ReactNode; title: ReactNode; children?: ReactNode; aside?: ReactNode; last?: boolean }) {
   return (
     <li className="grid grid-cols-[7rem_1.25rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[8.5rem_1.25rem_minmax(0,1fr)_auto]">
-      <div className="pt-0.5 text-right font-mono text-[11px] uppercase leading-5 text-slate-500">{when}</div>
+      <div className="pt-0.5 text-right font-label text-[11px] uppercase leading-5 text-slate-500">{when}</div>
       <div className="relative flex justify-center">
         <span aria-hidden="true" className={`relative z-10 mt-1 h-3 w-3 rounded-full border-2 ${MARKS[mark]}`} />
         {last ? null : <span aria-hidden="true" className="absolute bottom-0 top-5 w-px bg-slate-300" />}

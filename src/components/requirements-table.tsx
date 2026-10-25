@@ -63,7 +63,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
         cell: (c) => (
           <div className="min-w-[16rem]">
             <Link href={`/requirements/${c.row.original.id}`} className="font-medium text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{c.getValue()}</Link>
-            {c.row.original.simulated ? <span className="ml-2 rounded-[3px] px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.06em] text-violet-700 ring-1 ring-inset ring-violet-200">Simulated</span> : null}
+            {c.row.original.simulated ? <span className="ml-2 rounded-[3px] px-1.5 py-0.5 font-label text-[10.5px] uppercase tracking-[0.06em] text-violet-700 ring-1 ring-inset ring-violet-200">Simulated</span> : null}
             <div className="mt-0.5 text-xs text-slate-500">{c.row.original.exactReference}</div>
             <div className="text-[11px] text-slate-400">{c.row.original.source}</div>
           </div>

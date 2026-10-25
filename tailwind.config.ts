@@ -1,25 +1,32 @@
 import type { Config } from "tailwindcss";
 
+// Every colour, font and corner radius reads a CSS variable, so a theme
+// (src/app/themes.css) can restyle the whole app without touching a page.
+const scale = (name: string, steps: number[]) =>
+  Object.fromEntries(steps.map((s) => [s, `color-mix(in srgb, var(--${name}-${s}) calc(<alpha-value> * 100%), transparent)`]));
+
 export default {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Charcoal "ink" from the CSB wordmark.
-        navy: { 950: "#121314", 900: "#1a1b1d", 800: "#242528", 700: "#313236", 600: "#43454a" },
-        // CSB cyan. Reserved for signal: links, focus, the one thing that needs attention.
-        teal: { 50: "#ecf9fd", 100: "#d2f1f9", 200: "#a6e3f2", 400: "#3ec1e0", 500: "#22a9cb", 600: "#178aa8", 700: "#136f88" },
-        // Warm paper neutrals, replacing Tailwind's cool slate app-wide so every page
-        // picks up the board-paper tone without per-page edits.
-        slate: { 50: "#f7f6f2", 100: "#efede7", 200: "#e3e0d7", 300: "#cfcbbf", 400: "#a29d91", 500: "#76726a", 600: "#58554f", 700: "#41403b", 800: "#2c2b28", 900: "#1d1c1a", 950: "#10100f" },
-        paper: "#f4f2ec",
+        // Ink and dark chrome (sidebar, primary buttons).
+        navy: scale("navy", [950, 900, 800, 700, 600]),
+        // Signal colour: links, focus, the one thing that needs attention.
+        teal: scale("teal", [50, 100, 200, 400, 500, 600, 700]),
+        // Neutrals, replacing Tailwind's slate app-wide.
+        slate: scale("slate", [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+        paper: "color-mix(in srgb, var(--paper) calc(<alpha-value> * 100%), transparent)",
       },
       fontFamily: {
-        sans: ["\"IBM Plex Sans\"", "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-        serif: ["\"Source Serif 4 Variable\"", "Georgia", "Cambria", "serif"],
-        mono: ["\"IBM Plex Mono\"", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        sans: ["var(--font-sans)"],
+        // Display face for headings and figures.
+        serif: ["var(--font-display)"],
+        // Small uppercase labels and eyebrows.
+        label: ["var(--font-label)"],
+        mono: ["var(--font-mono)"],
       },
-      borderRadius: { xl: "0.5rem", "2xl": "0.625rem" },
+      borderRadius: { sm: "var(--radius-sm)", DEFAULT: "var(--radius-md)", md: "var(--radius-md)", lg: "var(--radius-lg)", xl: "var(--radius-lg)", "2xl": "var(--radius-lg)" },
     },
   },
   plugins: [],
