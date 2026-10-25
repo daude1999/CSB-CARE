@@ -15,7 +15,7 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
   const now = new Date();
   return (
     <>
-      <PageHeader title="My policies to read" subtitle="Policies published or updated that you have been asked to read and acknowledge." />
+      <PageHeader eyebrow="Read and sign" title="My policies to read" subtitle="Policies published or updated that you have been asked to read and acknowledge." />
       <Flash searchParams={sp} />
       <Card>
         {acks.length ? (

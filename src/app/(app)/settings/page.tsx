@@ -19,7 +19,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const ai = getAiProvider();
   return (
     <>
-      <PageHeader title="Organisation Settings" subtitle={org.name} />
+      <PageHeader eyebrow="Administration · your organisation" title="Organisation Settings" subtitle={org.name} />
       <Flash searchParams={sp} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6">

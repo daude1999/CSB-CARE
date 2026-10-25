@@ -17,10 +17,10 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
   const workerStale = !workerBeat?.finishedAt || Date.now() - workerBeat.finishedAt.getTime() > 30 * 60_000;
   return (
     <>
-      <PageHeader title="Source Monitoring" subtitle="Registry of monitored regulatory sources. A source is only shown as monitored when it has been successfully checked within its freshness window." />
+      <PageHeader eyebrow="Administration · monitored sources" title="Source Monitoring" subtitle="Registry of monitored regulatory sources. A source is only shown as monitored when it has been successfully checked within its freshness window." />
       <Flash searchParams={sp} />
       {workerStale ? (
-        <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div role="alert" className="mb-4 border-l-2 border-rose-500 bg-rose-50/60 px-4 py-3 text-sm text-rose-800">
           The background worker has not reported in the last 30 minutes (last heartbeat: {fmtDate(workerBeat?.finishedAt, true)}). Scheduled monitoring is not running. Start it with <code>npm run worker</code>.
         </div>
       ) : null}

@@ -12,7 +12,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const items = await db.notification.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "desc" }, take: 100 });
   return (
     <>
-      <PageHeader title="Notifications" actions={items.some((n) => !n.readAt) ? (
+      <PageHeader eyebrow="Inbox" title="Notifications" actions={items.some((n) => !n.readAt) ? (
         <form action={markNotificationsReadAction}><input type="hidden" name="back" value="/notifications" /><button className="btn-secondary" type="submit">Mark all read</button></form>
       ) : null} />
       <Flash searchParams={sp} />

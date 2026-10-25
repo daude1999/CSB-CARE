@@ -18,7 +18,7 @@ export function AssistantForm() {
       <div className="flex flex-wrap gap-2 text-xs text-slate-500">
         Try: {EXAMPLES.map((e) => <span key={e} className="rounded bg-slate-100 px-2 py-0.5">{e}</span>)}
       </div>
-      {state.error ? <div role="alert" className="rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{state.error}</div> : null}
+      {state.error ? <div role="alert" className="border-l-2 border-rose-500 bg-rose-50/60 px-4 py-3 text-sm text-rose-800">{state.error}</div> : null}
       {r ? (
         <div className="card space-y-4" data-testid="assistant-answer">
           <div className="flex flex-wrap gap-2 text-xs">

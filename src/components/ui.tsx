@@ -1,11 +1,12 @@
 import Link from "@/components/link";
 import { isValidElement, type ReactNode } from "react";
 
-export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-navy-900 pb-5">
       <div>
-        <h1 className="tracking-tight">{title}</h1>
+        {eyebrow ? <p className="eyebrow mb-1.5">{eyebrow}</p> : null}
+        <h1 className="text-[2rem]">{title}</h1>
         {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -16,7 +17,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
 const TONES = {
   slate: "bg-slate-100 text-slate-700 ring-slate-200",
   teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  navy: "bg-navy-800 text-white ring-navy-700",
+  navy: "bg-navy-900 text-white ring-navy-900",
   amber: "bg-amber-50 text-amber-800 ring-amber-200",
   rose: "bg-rose-50 text-rose-700 ring-rose-200",
   green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -26,7 +27,7 @@ export type Tone = keyof typeof TONES;
 
 export function Badge({ children, tone = "slate", title }: { children: ReactNode; tone?: Tone; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${TONES[tone]}`}>
+    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-[3px] px-1.5 py-0.5 font-mono text-[10.5px] font-medium uppercase leading-4 tracking-[0.06em] ring-1 ring-inset ${TONES[tone]}`}>
       {children}
     </span>
   );
@@ -36,7 +37,7 @@ export function SimulatedBadge({ show = true }: { show?: boolean }) {
   if (!show) return null;
   return (
     <Badge tone="violet" title="Simulated demonstration data. Not a real regulatory update.">
-      SIMULATED
+      Simulated
     </Badge>
   );
 }
@@ -57,12 +58,26 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge tone={STATUS_TONE[status] ?? "slate"}>{status.replace(/_/g, " ").toLowerCase()}</Badge>;
 }
 
+/** Underlined section switcher for list pages (replaces rows of pill buttons). */
+export function SegmentNav({ items, label }: { items: { href: string; label: ReactNode; active: boolean; count?: number }[]; label: string }) {
+  return (
+    <nav aria-label={label} className="-mb-px flex gap-6 overflow-x-auto">
+      {items.map((i) => (
+        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-sm font-medium no-underline ${i.active ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-navy-900"}`}>
+          {i.label}
+          {i.count !== undefined ? <span className="ml-1.5 font-mono text-xs font-normal text-slate-400">{i.count}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function Card({ title, children, actions, className = "" }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; className?: string }) {
   const isTable = isValidElement(children) && children.type === "table";
   return (
     <section className={`card ${className}`}>
       {title || actions ? (
-        <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-slate-200 pb-3">
           {title ? <h2>{title}</h2> : <span />}
           {actions}
         </div>
@@ -70,7 +85,7 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
       {isTable ? (
         <>
           <p className="mb-2 px-1 text-xs text-slate-400 md:hidden">Swipe sideways to view all columns.</p>
-          <div className="min-w-0 overflow-x-auto rounded-lg">{children}</div>
+          <div className="min-w-0 overflow-x-auto">{children}</div>
         </>
       ) : children}
     </section>
@@ -78,16 +93,16 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">{children}</div>;
+  return <div className="border-l-2 border-slate-300 py-2 pl-4 font-serif text-[15px] italic text-slate-500">{children}</div>;
 }
 
 export function Stat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: "navy" | "rose" | "amber" | "green"; hint?: string }) {
-  const color = { navy: "text-navy-900", rose: "text-rose-600", amber: "text-amber-600", green: "text-emerald-600" }[tone];
+  const color = { navy: "text-navy-900", rose: "text-rose-700", amber: "text-amber-700", green: "text-emerald-700" }[tone];
   const body = (
-    <div className="card h-full transition hover:border-teal-400">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`mt-2 text-3xl font-semibold ${color}`}>{value}</div>
-      {hint ? <div className="mt-1 text-xs text-slate-400">{hint}</div> : null}
+    <div className="h-full border-t-2 border-navy-900 bg-white px-4 pb-4 pt-3 transition hover:border-teal-400">
+      <div className="eyebrow">{label}</div>
+      <div className={`figure mt-2 text-4xl ${color}`}>{value}</div>
+      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
     </div>
   );
   return href ? (
@@ -104,7 +119,7 @@ export function Flash({ searchParams }: { searchParams: Record<string, string | 
   const ok = typeof searchParams.ok === "string" ? searchParams.ok : null;
   if (!error && !ok) return null;
   return (
-    <div role={error ? "alert" : "status"} className={`mb-4 rounded-lg border px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+    <div role={error ? "alert" : "status"} className={`mb-4 rounded-md border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
       {error ?? ok}
     </div>
   );
