@@ -69,7 +69,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
           This is a simulated update produced from recorded test content to demonstrate the workflow. It is not a real regulatory change and must not be relied on.
         </div>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-6 lg:col-span-2">
           <Card title="What changed in the source">
             <p className="muted mb-3">
@@ -80,7 +80,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
               <div className="space-y-4">
                 {changed.map((s) => (
                   <div key={s.ref} className="rounded-lg border border-slate-200 p-4" data-testid={`source-diff-${s.ref}`}>
-                    <div className="mb-2 flex items-center gap-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
                       <h3>{s.heading}</h3>
                       <Badge tone={s.kind === "added" ? "green" : s.kind === "removed" ? "rose" : "amber"}>{s.kind}</Badge>
                       {s.editorialOnly ? <Badge>formatting or punctuation only</Badge> : null}
@@ -110,7 +110,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
             )}
           </Card>
 
-          <Card title={<span className="flex items-center gap-2">AI analysis <Badge tone="amber">proposal, not a decision</Badge> {c.aiIsSimulated ? <SimulatedBadge /> : null}</span>}>
+          <Card title={<span className="flex flex-wrap items-center gap-2">AI analysis <Badge tone="amber">proposal, not a decision</Badge> {c.aiIsSimulated ? <SimulatedBadge /> : null}</span>}>
             {ai ? (
               <div className="space-y-3 text-sm">
                 <p className="text-xs text-slate-500">Produced by {c.aiProvider}. Confidence {Math.round((c.confidence ?? 0) * 100)}%. Verify everything against the source text before acting.</p>

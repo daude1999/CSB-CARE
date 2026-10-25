@@ -45,7 +45,7 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
           </ul>
         </section>
       ) : null}
-      <ol className="grid gap-6 lg:grid-cols-3">
+      <ol className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         {columns.map((col, n) => (
           <li key={col.title} className="min-w-0">
             <div className="flex items-end justify-between border-b-2 border-navy-900 pb-2">

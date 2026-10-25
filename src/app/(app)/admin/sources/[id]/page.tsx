@@ -28,7 +28,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
   const back = `/admin/sources/${s.id}`;
   return (
     <>
-      <PageHeader title={<span className="flex items-center gap-2">{s.name} <SimulatedBadge show={s.isSimulated} /></span>} subtitle={<a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener">{s.canonicalUrl}</a>}
+      <PageHeader title={<span className="flex flex-wrap items-center gap-2">{s.name} <SimulatedBadge show={s.isSimulated} /></span>} subtitle={<a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener">{s.canonicalUrl}</a>}
         actions={s.coverage !== "MANUAL_REVIEW_ONLY" ? (
           <form action={manualCheckAction}>
             <input type="hidden" name="sourceId" value={s.id} />
@@ -38,20 +38,20 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
         ) : null}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-6 lg:col-span-2">
           <Card title="Retrieval runs">
             {s.runs.length ? (
-              <table className="table">
+              <table className="table table-stack">
                 <thead><tr><th>Started</th><th>Trigger</th><th>Status</th><th>Checked</th><th>New</th><th>Changed</th><th>Failed</th><th>Error</th></tr></thead>
                 <tbody>
                   {s.runs.map((r) => (
                     <tr key={r.id}>
-                      <td className="text-xs">{fmtDate(r.startedAt, true)}</td>
-                      <td className="text-xs">{r.trigger.toLowerCase()}</td>
-                      <td><StatusBadge status={r.status} /></td>
-                      <td>{r.documentsChecked}</td><td>{r.documentsNew}</td><td>{r.documentsChanged}</td><td>{r.documentsFailed}</td>
-                      <td className="max-w-xs text-xs text-rose-700">{r.error}</td>
+                      <td data-label="Started" className="text-xs">{fmtDate(r.startedAt, true)}</td>
+                      <td data-label="Trigger" className="text-xs">{r.trigger.toLowerCase()}</td>
+                      <td data-label="Status"><StatusBadge status={r.status} /></td>
+                      <td data-label="Checked">{r.documentsChecked}</td><td data-label="New">{r.documentsNew}</td><td data-label="Changed">{r.documentsChanged}</td><td data-label="Failed">{r.documentsFailed}</td>
+                      <td data-label="Error" className="max-w-xs text-xs text-rose-700">{r.error}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -62,16 +62,16 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
           </Card>
           <Card title="Documents">
             {s.documents.length ? (
-              <table className="table">
+              <table className="table table-stack">
                 <thead><tr><th>Title</th><th>Legal status</th><th>Versions</th><th>Current</th><th>Last seen</th></tr></thead>
                 <tbody>
                   {s.documents.map((d) => (
                     <tr key={d.id}>
-                      <td><a href={d.url} target="_blank" rel="noreferrer noopener">{d.title}</a>{d.withdrawnAt ? <Badge tone="rose">withdrawn</Badge> : null}</td>
-                      <td className="text-xs">{d.legalStatus.replace(/_/g, " ").toLowerCase()}</td>
-                      <td>{d._count.versions}</td>
-                      <td>{d.currentVersion ? <Link href={`/sources/versions/${d.currentVersion.id}`}>v{d.currentVersion.versionNumber}</Link> : "—"}</td>
-                      <td className="text-xs">{fmtDate(d.lastSeenAt, true)}</td>
+                      <td data-label="Title"><a href={d.url} target="_blank" rel="noreferrer noopener">{d.title}</a>{d.withdrawnAt ? <Badge tone="rose">withdrawn</Badge> : null}</td>
+                      <td data-label="Legal status" className="text-xs">{d.legalStatus.replace(/_/g, " ").toLowerCase()}</td>
+                      <td data-label="Versions">{d._count.versions}</td>
+                      <td data-label="Current">{d.currentVersion ? <Link href={`/sources/versions/${d.currentVersion.id}`}>v{d.currentVersion.versionNumber}</Link> : "—"}</td>
+                      <td data-label="Last seen" className="text-xs">{fmtDate(d.lastSeenAt, true)}</td>
                     </tr>
                   ))}
                 </tbody>

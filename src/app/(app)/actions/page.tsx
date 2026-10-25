@@ -27,7 +27,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
     <>
       <PageHeader eyebrow="Care operations · corrective actions" title="Actions & Risks" subtitle="Corrective actions from audits and reviews. Completing an action requires a note; verification must be done by someone other than the owner." />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="lg:col-span-2" title={showAll ? "All actions" : "My actions"} actions={isManager ? <a href={sp.mine === "1" ? "/actions" : "/actions?mine=1"} className="text-sm">{sp.mine === "1" ? "Show all" : "Show mine"}</a> : null}>
           {actions.length ? (
             <ul className="space-y-3">

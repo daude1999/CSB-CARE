@@ -24,22 +24,22 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader eyebrow="Care operations · internal audit" title="Audits & Inspections" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <Card className="lg:col-span-2" title="Audits">
           {audits.length ? (
-            <table className="table">
+            <table className="table table-stack">
               <thead><tr><th>Audit</th><th>Branch</th><th>Status</th><th>Score</th><th>Findings</th><th>Started</th></tr></thead>
               <tbody>
                 {audits.map((a) => {
                   const score = auditScore(a.answers);
                   return (
                     <tr key={a.id}>
-                      <td><Link href={`/audits/${a.id}`}>{a.title}</Link>{a.isDemo ? <Badge tone="violet">demo</Badge> : null}<div className="text-xs text-slate-400">{a.template.title}</div></td>
-                      <td className="text-xs">{a.branchId ? branchName.get(a.branchId) : "Whole organisation"}</td>
-                      <td><StatusBadge status={a.status} /></td>
-                      <td>{score === null ? "—" : `${score}%`}</td>
-                      <td>{a._count.findings}</td>
-                      <td className="text-xs">{fmtDate(a.startedAt)}</td>
+                      <td data-label="Audit"><Link href={`/audits/${a.id}`}>{a.title}</Link>{a.isDemo ? <Badge tone="violet">demo</Badge> : null}<div className="text-xs text-slate-400">{a.template.title}</div></td>
+                      <td data-label="Branch" className="text-xs">{a.branchId ? branchName.get(a.branchId) : "Whole organisation"}</td>
+                      <td data-label="Status"><StatusBadge status={a.status} /></td>
+                      <td data-label="Score">{score === null ? "—" : `${score}%`}</td>
+                      <td data-label="Findings">{a._count.findings}</td>
+                      <td data-label="Started" className="text-xs">{fmtDate(a.startedAt)}</td>
                     </tr>
                   );
                 })}

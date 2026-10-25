@@ -2,22 +2,14 @@
 import Link from "@/components/link";
 import { usePathname } from "next/navigation";
 
-export function NavLink({ href, icon, children, compact = false }: { href: string; icon?: React.ReactNode; children: React.ReactNode; compact?: boolean }) {
+export function NavLink({ href, icon, children, large = false }: { href: string; icon?: React.ReactNode; children: React.ReactNode; large?: boolean }) {
   const path = usePathname();
   const active = href === "/" ? path === "/" : path.startsWith(href);
-  if (compact) {
-    return (
-      <Link href={href} aria-current={active ? "page" : undefined} className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm no-underline ${active ? "bg-navy-900 text-white hover:text-white" : "text-slate-700 hover:bg-slate-100 hover:text-navy-900"}`}>
-        {icon}
-        {children}
-      </Link>
-    );
-  }
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-3 py-[7px] pl-5 pr-3 text-[13.5px] no-underline transition-colors ${active ? "bg-white/[0.06] text-white hover:text-white" : "text-slate-400 hover:bg-white/[0.03] hover:text-white"}`}
+      className={`group relative flex items-center gap-3 pl-5 pr-3 no-underline ${large ? "min-h-[46px] py-2 text-[15px]" : "py-[7px] text-[13.5px]"} transition-colors ${active ? "bg-white/[0.06] text-white hover:text-white" : "text-slate-400 hover:bg-white/[0.03] hover:text-white"}`}
     >
       <span aria-hidden="true" className={`absolute inset-y-1 left-0 w-[3px] rounded-r ${active ? "bg-teal-400" : "bg-transparent"}`} />
       <span aria-hidden="true" className={active ? "text-teal-400" : "text-slate-500 group-hover:text-slate-300"}>{icon}</span>

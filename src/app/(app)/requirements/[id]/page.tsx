@@ -25,8 +25,8 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
   const training = r.trainingLinks.filter((t) => t.training.organisationId === null || t.training.organisationId === ctx.organisationId);
   return (
     <>
-      <PageHeader title={<span className="flex items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <PageHeader title={<span className="flex flex-wrap items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="space-y-6 lg:col-span-2">
           <Card title="Requirement">
             <blockquote className="prose-policy rounded bg-slate-50 p-3 text-sm">{r.excerpt}</blockquote>
@@ -51,7 +51,7 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
               <Field label="Verification"><StatusBadge status={r.verificationStatus === "VERIFIED" ? "VERIFIED_REQ" : r.verificationStatus} /></Field>
               <Field label="Legal status">{r.legalStatus.replace(/_/g, " ").toLowerCase()}</Field>
               <Field label="Jurisdiction">{r.jurisdiction === "ENG" ? "England" : r.jurisdiction}</Field>
-              <Field label="Service types">{r.serviceTypes.join(", ") || "All"}</Field>
+              <Field label="Service types">{r.serviceTypes.join(", ").replace(/_/g, " ").toLowerCase() || "All"}</Field>
               <Field label="Effective date">{r.effectiveDate ? `${fmtDate(r.effectiveDate)}${r.effectiveDateVerified ? "" : " (unverified)"}` : "Not recorded"}</Field>
               <Field label="Last verified">{fmtDate(r.lastVerifiedAt)}</Field>
               <Field label="Review status">{r.reviewStatus.toLowerCase()}</Field>

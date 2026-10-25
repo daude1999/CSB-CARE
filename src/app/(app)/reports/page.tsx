@@ -42,9 +42,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <Card title={REPORTS[kind]}>
         {rows.length ? (
           <div className="overflow-x-auto">
-            <table className="table">
+            <table className="table table-stack">
               <thead><tr>{columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-              <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} className="text-xs">{String(v)}</td>)}</tr>)}</tbody>
+              <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} data-label={columns[j]} className="text-xs">{String(v)}</td>)}</tr>)}</tbody>
             </table>
             {rows.length > 200 ? <p className="muted mt-2">Showing 200 of {rows.length} rows. Export for the full report.</p> : null}
           </div>

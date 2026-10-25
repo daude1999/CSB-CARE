@@ -10,7 +10,7 @@ import { Badge, Empty, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/com
 import { Tab, TabList, TabPanel, Tabs } from "@/components/tabs";
 import { Timeline, TimelineItem } from "@/components/timeline";
 import { ActionDialog } from "@/components/dialog";
-import { CaretRight, CheckCircle, FileDoc, FilePdf, PencilSimpleLine, Warning } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, CaretRight, CheckCircle, FileDoc, FilePdf, PencilSimpleLine, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +44,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
       <header className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="max-w-3xl">
           <p className="eyebrow"><span className="text-navy-900">{p.ref}</span> · {typeName} · {p.kind === "MASTER" ? "CSB starter template" : "Organisation policy"}</p>
-          <h1 className="mt-2 text-[2.4rem] leading-[1.1] tracking-[-0.02em]">{p.title}</h1>
+          <h1 className="mt-2 text-[1.85rem] leading-[1.1] sm:text-[2.4rem] tracking-[-0.02em]">{p.title}</h1>
           {p.description ? <p className="mt-3 max-w-2xl text-[15px] leading-6 text-slate-600">{p.description}</p> : null}
           <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <VersionLine version={v} />
@@ -52,7 +52,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
             {p.revisions.some((r) => !r.closedAt) ? <Link href={`/revisions/${p.revisions.find((r) => !r.closedAt)!.id}`} className="text-sm">Revision in progress</Link> : null}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 [&>*]:flex-1 [&>*]:whitespace-nowrap sm:[&>*]:flex-none">
           {v ? (
             <>
               <a className="btn-secondary" href={`/api/policies/${p.id}/download?format=docx`} download data-testid="download-docx"><FileDoc size={16} aria-hidden="true" />Word</a>
@@ -96,7 +96,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
 
         <TabPanel value="document">
           {v ? (
-            <div className="grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
               <nav aria-label="Contents" className="hidden lg:block">
                 <div className="sticky top-20">
                   <p className="eyebrow mb-3">Contents</p>
@@ -107,18 +107,29 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   </ol>
                 </div>
               </nav>
+              <details className="group rounded-sm border border-slate-200 bg-white lg:hidden" data-testid="mobile-contents">
+                <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between px-5 text-sm font-medium text-navy-900 [&::-webkit-details-marker]:hidden">
+                  <span>Contents <span className="ml-1 font-mono text-xs font-normal text-slate-400">{v.sections.length} sections</span></span>
+                  <CaretDown size={14} aria-hidden="true" className="transition-transform group-open:rotate-180" />
+                </summary>
+                <ol className="border-t border-slate-200 px-2 py-2 text-[15px]">
+                  {v.sections.map((s, i) => (
+                    <li key={s.key}><a href={`#${s.key}`} className="flex min-h-[44px] items-center gap-3 rounded px-3 text-slate-700 no-underline hover:bg-slate-50 hover:text-navy-900"><span className="w-5 shrink-0 font-mono text-xs text-slate-400">{i + 1}</span>{s.heading}</a></li>
+                  ))}
+                </ol>
+              </details>
               <article className="min-w-0 rounded-sm border border-slate-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-6 py-3 sm:px-12">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-5 py-3 sm:px-12">
                   <span className="font-label text-[11px] uppercase tracking-[0.1em] text-slate-500">{p.ref} · {v.label} · effective {fmtDate(v.effectiveDate)}</span>
                   <SimulatedBadge show={v.isSimulated} />
                 </div>
                 {v.origin === "SEED" ? (
-                  <div className="mx-6 mt-6 flex gap-3 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-[13px] leading-5 text-amber-950 sm:mx-12">
+                  <div className="mx-5 mt-6 flex gap-3 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-[13px] leading-5 text-amber-950 sm:mx-12">
                     <Warning size={16} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
                     <span>This is CSB starter text. It has not been professionally reviewed and has no approval record here. Adapt it and take it through approval before staff rely on it.</span>
                   </div>
                 ) : null}
-                <div className="px-6 py-8 sm:px-12 sm:py-10">
+                <div className="px-5 py-7 sm:px-12 sm:py-10">
                   <div className="mx-auto max-w-[68ch] space-y-9">
                     {v.sections.map((s, i) => (
                       <section key={s.key} id={s.key} className="scroll-mt-24">

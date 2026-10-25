@@ -31,18 +31,18 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       </div>
       <Card>
         {jobs.length ? (
-          <table className="table">
+          <table className="table table-stack">
             <thead><tr><th>Created</th><th>Type</th><th>Status</th><th>Attempts</th><th>Run after</th><th>Last error</th><th /></tr></thead>
             <tbody>
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="text-xs">{fmtDate(j.createdAt, true)}</td>
-                  <td className="font-mono text-xs">{j.type}</td>
-                  <td><StatusBadge status={j.status} /></td>
-                  <td>{j.attempts}/{j.maxAttempts}</td>
-                  <td className="text-xs">{fmtDate(j.runAfter, true)}</td>
-                  <td className="max-w-sm text-xs text-rose-700">{j.lastError}</td>
-                  <td className="flex gap-1">
+                  <td data-label="Created" className="text-xs">{fmtDate(j.createdAt, true)}</td>
+                  <td data-label="Type" className="font-mono text-xs">{j.type}</td>
+                  <td data-label="Status"><StatusBadge status={j.status} /></td>
+                  <td data-label="Attempts">{j.attempts}/{j.maxAttempts}</td>
+                  <td data-label="Run after" className="text-xs">{fmtDate(j.runAfter, true)}</td>
+                  <td data-label="Last error" className="max-w-sm text-xs text-rose-700">{j.lastError}</td>
+                  <td data-label="" className="flex gap-1">
                     {["FAILED", "DEAD", "CANCELLED"].includes(j.status) ? (
                       <form action={retryJobAction}><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="back" value={back} /><button className="btn-secondary py-1 text-xs" type="submit">Retry</button></form>
                     ) : null}
