@@ -35,6 +35,13 @@ export const CATEGORIES: [string, string][] = [
   ["CLINICAL", "Clinical care"],
   ["END_OF_LIFE", "End of life care"],
   ["WORKFORCE", "Workforce and conduct"],
+  ["DEMENTIA", "Dementia care"],
+  ["LEARNING_DISABILITY", "Learning disability and autism"],
+  ["MENTAL_HEALTH", "Mental health"],
+  ["HOME_CARE", "Home care"],
+  ["SUPPORTED_LIVING", "Supported living"],
+  ["CARE_HOMES", "Care homes"],
+  ["WELLBEING", "Activities and wellbeing"],
 ];
 
 const MONTH_MS = 30.44 * 86400_000;
@@ -96,7 +103,16 @@ export async function seedVersionHistory(policyId: string, organisationId: strin
   return last;
 }
 
-export async function seedBase() {
+/**
+ * Library entries seeded for fast tests: the documents the demo and test
+ * scenarios rely on. Pass `{ refs: CORE_REFS }` to seed only these.
+ */
+export const CORE_REFS = [
+  "EVX-SAF-001", "EVX-MED-001", "EVX-MED-004", "EVX-COM-001", "EVX-IPC-001", "EVX-HS-002", "EVX-DP-002", "EVX-GOV-001", "EVX-FRM-001", "EVX-AUD-001",
+];
+
+export async function seedBase(opts: { refs?: string[] } = {}) {
+  const templates = opts.refs ? TEMPLATES.filter((t) => opts.refs!.includes(t.ref)) : TEMPLATES;
   for (const [code, name] of SERVICE_TYPES) await db.serviceType.upsert({ where: { code }, create: { code, name }, update: { name } });
   for (const [code, name] of CATEGORIES) await db.policyCategory.upsert({ where: { code }, create: { code, name }, update: { name } });
   for (const s of SOURCES) {
@@ -108,55 +124,73 @@ export async function seedBase() {
     });
   }
   const masters: Record<string, string> = {};
-  for (const t of TEMPLATES) {
+  for (const t of templates) {
     let p = await db.policy.findFirst({ where: { organisationId: null, ref: t.ref } });
     if (!p) {
-      p = await db.policy.create({ data: { kind: "MASTER", ref: t.ref, title: t.title, description: t.description, categoryCode: t.category, serviceTypes: t.serviceTypes, reviewIntervalMonths: t.reviewIntervalMonths } });
+      p = await db.policy.create({ data: { kind: "MASTER", ref: t.ref, docType: t.docType, title: t.title, description: t.description, categoryCode: t.category, serviceTypes: t.serviceTypes, reviewIntervalMonths: t.reviewIntervalMonths } });
       await seedVersionHistory(p.id, null, t.versions, t.reviewIntervalMonths);
     }
     masters[t.ref] = p.id;
   }
   await seedRequirements(masters);
+  await seedAuditTemplates(templates, masters);
   return masters;
+}
+
+/** Audit tools in the library double as Evantix master audit templates. */
+async function seedAuditTemplates(templates: typeof TEMPLATES, masters: Record<string, string>) {
+  for (const t of templates) {
+    if (!t.auditQuestions?.length) continue;
+    if (await db.auditTemplate.findFirst({ where: { organisationId: null, title: t.title } })) continue;
+    const policyId = masters[t.ref];
+    await db.auditTemplate.create({
+      data: {
+        organisationId: null,
+        title: t.title,
+        description: `${t.description} From library document ${t.ref}.`,
+        questions: { create: t.auditQuestions.map((text, position) => ({ text, position, policyId })) },
+      },
+    });
+  }
 }
 
 async function seedRequirements(masters: Record<string, string>) {
   const sources = new Map((await db.regulatorySource.findMany({ select: { id: true, key: true } })).map((x) => [x.key, x.id]));
-  const ids = new Map<string, string>();
-  for (const r of REQUIREMENTS) {
-    const existing = await db.regulatoryRequirement.findUnique({ where: { ref: r.ref } });
-    if (existing) {
-      ids.set(r.ref, existing.id);
-      continue;
-    }
-    const sourceId = sources.get(r.source);
-    if (!sourceId) throw new Error(`Requirement ${r.ref} refers to unknown source ${r.source}`);
-    const req = await db.regulatoryRequirement.create({
-      data: {
-        ref: r.ref,
-        title: r.title,
-        sourceId,
-        exactReference: r.exactReference,
-        sourceSectionRef: r.sectionRef,
-        sourceUrl: r.url,
-        excerpt: `[Summary, not a quotation; verify against the source] ${r.summary}`,
-        legalStatus: r.legalStatus,
-        serviceTypes: r.serviceTypes ?? ["RESIDENTIAL", "NURSING", "DOMICILIARY", "SUPPORTED_LIVING"],
-        verificationStatus: "UNVERIFIED",
-        applicabilityNotes: r.applicabilityNotes ?? "Applies to providers of regulated activities in England. Effective date and wording not yet verified in this register.",
-        versions: { create: { version: 1, snapshot: { summary: r.summary }, reason: "Initial register entry" } },
-      },
-    });
-    ids.set(r.ref, req.id);
-  }
+  const existing = new Set((await db.regulatoryRequirement.findMany({ select: { ref: true } })).map((r) => r.ref));
+  const missing = REQUIREMENTS.filter((r) => !existing.has(r.ref));
+  for (const r of missing) if (!sources.get(r.source)) throw new Error(`Requirement ${r.ref} refers to unknown source ${r.source}`);
+  // Bulk inserts keep test seeding fast; the register has a few hundred entries.
+  await db.regulatoryRequirement.createMany({
+    data: missing.map((r) => ({
+      ref: r.ref,
+      title: r.title,
+      sourceId: sources.get(r.source)!,
+      exactReference: r.exactReference,
+      sourceSectionRef: r.sectionRef,
+      sourceUrl: r.url,
+      excerpt: `[Summary, not a quotation; verify against the source] ${r.summary}`,
+      legalStatus: r.legalStatus,
+      serviceTypes: r.serviceTypes ?? ["RESIDENTIAL", "NURSING", "DOMICILIARY", "SUPPORTED_LIVING"],
+      verificationStatus: "UNVERIFIED" as const,
+      applicabilityNotes: r.applicabilityNotes ?? "Applies to providers of regulated activities in England. Effective date and wording not yet verified in this register.",
+    })),
+  });
+  const ids = new Map((await db.regulatoryRequirement.findMany({ select: { id: true, ref: true } })).map((r) => [r.ref, r.id]));
+  await db.requirementVersion.createMany({
+    data: missing.map((r) => ({ requirementId: ids.get(r.ref)!, version: 1, snapshot: { summary: r.summary }, reason: "Initial register entry" })),
+  });
+  const policyIds = Object.values(masters);
+  const linked = new Set((await db.requirementPolicyLink.findMany({ where: { policyId: { in: policyIds } }, select: { requirementId: true, policyId: true, sectionKey: true } })).map((l) => `${l.requirementId}|${l.policyId}|${l.sectionKey}`));
+  const byRef = new Map(REQUIREMENTS.map((r) => [r.ref, r]));
+  const links = [];
   for (const t of TEMPLATES) {
+    const policyId = masters[t.ref];
+    if (!policyId) continue;
     for (const link of t.links) {
       const requirementId = ids.get(link.requirement)!;
-      const policyId = masters[t.ref]!;
-      const exists = await db.requirementPolicyLink.findFirst({ where: { requirementId, policyId, sectionKey: link.section } });
-      if (exists) continue;
-      const req = REQUIREMENTS.find((r) => r.ref === link.requirement)!;
-      await db.requirementPolicyLink.create({ data: { requirementId, policyId, sectionKey: link.section, rationale: `${t.ref} section "${link.section}" sets out how the provider meets ${req.exactReference}.` } });
+      if (linked.has(`${requirementId}|${policyId}|${link.section}`)) continue;
+      links.push({ requirementId, policyId, sectionKey: link.section, rationale: `${t.ref} section "${link.section}" sets out how the provider meets ${byRef.get(link.requirement)!.exactReference}.` });
     }
   }
+  await db.requirementPolicyLink.createMany({ data: links });
 }

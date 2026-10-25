@@ -1,4 +1,10 @@
 import type { MonitoringCoverage, MonitoringMethod, SourceCategory } from "@prisma/client";
+import { REQUIREMENTS } from "./library/requirements";
+
+/** Legislation provisions cited in the requirements register for a source, as monitoring config. */
+const provisionsFor = (source: string) =>
+  REQUIREMENTS.filter((r) => r.source === source && r.sectionRef && !r.sectionRef.endsWith("/contents")).map((r) => ({ uri: r.sectionRef!, title: `${r.exactReference}: ${r.title}` }));
+const govukPathsFor = (source: string) => REQUIREMENTS.filter((r) => r.source === source && r.sectionRef).map((r) => r.sectionRef!);
 
 /**
  * Official source registry. Monitoring mechanisms are recorded honestly:
@@ -64,16 +70,7 @@ export const SOURCES: SourceDef[] = [
     serviceTypes: ALL,
     monitoringMethod: "LEGISLATION_GOV_UK",
     coverage: "AUTOMATED",
-    config: {
-      provisions: [
-        { uri: "/uksi/2014/2936/regulation/12", title: "Regulation 12: Safe care and treatment" },
-        { uri: "/uksi/2014/2936/regulation/13", title: "Regulation 13: Safeguarding service users from abuse and improper treatment" },
-        { uri: "/uksi/2014/2936/regulation/16", title: "Regulation 16: Receiving and acting on complaints" },
-        { uri: "/uksi/2014/2936/regulation/17", title: "Regulation 17: Good governance" },
-        { uri: "/uksi/2014/2936/regulation/19", title: "Regulation 19: Fit and proper persons employed" },
-        { uri: "/uksi/2014/2936/regulation/20", title: "Regulation 20: Duty of candour" },
-      ],
-    },
+    config: { provisions: provisionsFor("legislation-regulated-activities-2014") },
     frequencyMinutes: 1440,
     freshnessWindowHours: 72,
     licence: OGL,
@@ -88,17 +85,42 @@ export const SOURCES: SourceDef[] = [
     serviceTypes: ALL,
     monitoringMethod: "LEGISLATION_GOV_UK",
     coverage: "PARTIAL",
-    config: {
-      provisions: [
-        { uri: "/ukpga/2005/9/section/1", title: "Mental Capacity Act 2005, section 1: The principles" },
-        { uri: "/ukpga/2014/23/section/42", title: "Care Act 2014, section 42: Enquiry by local authority" },
-      ],
-    },
+    config: { provisions: provisionsFor("legislation-mca-care-act") },
     frequencyMinutes: 1440,
     freshnessWindowHours: 72,
     licence: OGL,
     reuseNotes: "Crown copyright, OGL v3.0.",
-    monitoringNotes: "Partial: only the listed provisions are monitored.",
+    monitoringNotes: "Partial: only the provisions cited in the requirements register are monitored.",
+  },
+  {
+    key: "legislation-other",
+    name: "Other legislation cited by starter policies (health and safety, data protection, equality, employment, mental health, food, controlled drugs, CQC registration)",
+    canonicalUrl: "https://www.legislation.gov.uk/",
+    category: "LEGISLATION",
+    serviceTypes: ALL,
+    monitoringMethod: "LEGISLATION_GOV_UK",
+    coverage: "PARTIAL",
+    config: { provisions: provisionsFor("legislation-other") },
+    frequencyMinutes: 1440,
+    freshnessWindowHours: 72,
+    licence: OGL,
+    reuseNotes: "Crown copyright, OGL v3.0.",
+    monitoringNotes: "Partial: each provision cited in the requirements register is retrieved as CLML XML. Whole instruments cited only by their contents page (for example RIDDOR 2013) are reviewed manually.",
+  },
+  {
+    key: "govuk-statutory-guidance",
+    name: "GOV.UK: statutory guidance and codes of practice for adult social care",
+    canonicalUrl: "https://www.gov.uk/",
+    category: "GOVERNMENT_GUIDANCE",
+    serviceTypes: ALL,
+    monitoringMethod: "GOVUK_CONTENT_API",
+    coverage: "AUTOMATED",
+    config: { basePaths: govukPathsFor("govuk-statutory-guidance"), followLinkedDocuments: false, includePdfAttachments: false },
+    frequencyMinutes: 720,
+    freshnessWindowHours: 36,
+    licence: OGL,
+    reuseNotes: "Crown copyright content may be reused under OGL v3.0 with attribution.",
+    monitoringNotes: "Uses the GOV.UK Content API for each publication cited in the requirements register (Care Act statutory guidance, MCA and MHA codes of practice, IPC code of practice, UKHSA guidance and others). The publication page and its summary are compared; attached PDFs are not compared. Paths must be confirmed on the first live run.",
   },
   {
     key: "cqc-regulation-guidance",
@@ -113,6 +135,7 @@ export const SOURCES: SourceDef[] = [
       pages: [
         { url: "https://www.cqc.org.uk/guidance-providers/regulations/regulation-13-safeguarding-service-users-abuse-improper", title: "CQC: Regulation 13 guidance", selector: "main" },
         { url: "https://www.cqc.org.uk/guidance-providers/regulations/regulation-12-safe-care-treatment", title: "CQC: Regulation 12 guidance", selector: "main" },
+        ...REQUIREMENTS.filter((r) => r.source === "cqc-regulation-guidance").map((r) => ({ url: r.url, title: r.exactReference, selector: "main" })),
       ],
     },
     frequencyMinutes: 1440,
@@ -132,7 +155,8 @@ export const SOURCES: SourceDef[] = [
       ["fsa", "Food Standards Agency", "https://www.food.gov.uk/", "FOOD_SAFETY", "Check FSA reuse terms.", "Manual review only: the FSA ratings API covers hygiene ratings, not guidance."],
       ["cqc-home", "Care Quality Commission (news and updates)", "https://www.cqc.org.uk/", "REGULATOR", "Check CQC terms of use.", "Manual review only: news feed availability not yet verified."],
       ["cqc-assessment-framework", "Care Quality Commission: assessment framework and quality statements", "https://www.cqc.org.uk/assessment/quality-statements", "REGULATOR", "Store quality statement titles, links and Evantix summaries only. Check CQC terms of use before reproducing text.", "Manual review only. CQC has announced revisions to its assessment framework; quality statement mappings must be re-checked when the revised framework is published."],
-      ["legislation-other", "Other legislation referenced by starter policies (health and safety, data protection, equality, employment, food, controlled drugs, CQC registration)", "https://www.legislation.gov.uk/", "LEGISLATION", "Legislation text is Crown copyright, reusable under OGL v3.0.", "Manual review only: these provisions are referenced in the requirements register but not yet configured for automated retrieval. Add provisions to an automated legislation source to monitor them."],
+      ["nmc", "Nursing and Midwifery Council (NMC)", "https://www.nmc.org.uk/", "WORKFORCE", "Check NMC terms before reuse.", "Manual review only: no verified API or feed configured."],
+      ["restraint-reduction-network", "Restraint Reduction Network", "https://restraintreductionnetwork.org/", "BEST_PRACTICE", "Check RRN terms before reuse.", "Manual review only: no verified API or feed configured."],
     ] as const
   ).map(
     ([key, name, url, category, reuse, notes]): SourceDef => ({

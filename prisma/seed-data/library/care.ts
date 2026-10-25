@@ -43,6 +43,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0021", "procedure.assessment"],
     ],
     qs: ["E1", "R1", "C2", "S4"],
+    guidance: ["GDN-NICE-NG86", "GDN-0001"],
     related: ["EVX-CP-002", "EVX-CP-004", "EVX-RISK-001", "EVX-MCA-001", "EVX-RK-001"],
   },
   {
@@ -79,6 +80,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0012", "procedure.before-start"],
     ],
     qs: ["E1", "S2", "R2"],
+    guidance: ["GDN-NICE-NG86", "GDN-0010"],
     related: ["EVX-CP-001", "EVX-CP-006", "EVX-MED-001"],
   },
   {
@@ -115,6 +117,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0011", "procedure.personal-care"],
     ],
     qs: ["C1", "C2", "C3"],
+    guidance: ["GDN-NICE-NG86"],
     related: ["EVX-EQ-001", "EVX-CP-001", "EVX-WF-001"],
   },
   {
@@ -151,6 +154,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0035", "procedure.meeting"],
     ],
     qs: ["R3", "C2", "R5"],
+    guidance: ["GDN-NHSE-1"],
     related: ["EVX-CP-001", "EVX-EQ-001", "EVX-CP-006"],
   },
   {
@@ -188,6 +192,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0009", "procedure.restrictions"],
     ],
     qs: ["C3", "R1", "R4"],
+    guidance: ["GDN-0006"],
     related: ["EVX-IPC-002", "EVX-EOL-001", "EVX-SAF-001"],
   },
   {
@@ -224,6 +229,7 @@ export const CARE: PolicySpec[] = [
       ["REQ-ENG-0009", "procedure.admission"],
     ],
     qs: ["S2", "E3", "R2"],
+    guidance: ["GDN-NICE-NG27", "GDN-NICE-NG5"],
     related: ["EVX-CP-002", "EVX-MED-001", "EVX-MCA-003", "EVX-CP-004"],
   },
 ];

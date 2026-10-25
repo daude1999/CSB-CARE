@@ -549,6 +549,7 @@ model Policy {
   description                 String
   categoryCode                String
   category                    PolicyCategory           @relation(fields: [categoryCode], references: [code])
+  docType                     String                   @default("POLICY") // POLICY | PROCEDURE | FORM | CHECKLIST | RISK_ASSESSMENT | AUDIT_TOOL | TEMPLATE | GUIDANCE
   serviceTypes                String[]                 @default([])
   jurisdiction                String                   @default("ENG")
   status                      PolicyStatus             @default(ACTIVE)
@@ -578,6 +579,7 @@ model Policy {
   @@index([searchVector], map: "policy_search_idx", type: Gin)
   @@index([organisationId])
   @@index([templateId])
+  @@index([docType])
 }
 
 model PolicyVersion {

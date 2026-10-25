@@ -82,9 +82,10 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   // Policies where staff were asked to acknowledge the adopted version.
   const ackRefs = ["EVX-HS-002", "EVX-MED-004", "EVX-DP-002"];
   for (const [i, tpl] of templates.entries()) {
-    const local = localText[tpl.ref] ?? defaultLocal;
+    const isPolicy = ["POLICY", "PROCEDURE", "GUIDANCE"].includes(tpl.docType);
+    const local = localText[tpl.ref] ?? (isPolicy ? defaultLocal : "Brookfield logo added. Completed copies are returned to the registered manager, Morgan Manager (fictional).");
     const p = await db.policy.create({
-      data: { kind: "CUSTOMER", organisationId: org.id, templateId: tpl.id, ref: tpl.ref, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes.filter((t) => brookfieldServices.includes(t)), ownerId: ids["manager@brookfield.demo"], approverId: ids["approver@brookfield.demo"], isDemo: true },
+      data: { kind: "CUSTOMER", organisationId: org.id, templateId: tpl.id, ref: tpl.ref, docType: tpl.docType, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes.filter((t) => brookfieldServices.includes(t)), ownerId: ids["manager@brookfield.demo"], approverId: ids["approver@brookfield.demo"], isDemo: true },
     });
     const sections = toSectionInputs(tpl.currentPublishedVersion!.sections).map((s) => (s.isLocal ? { ...s, body: local, masterKey: null } : { ...s, masterKey: s.key }));
     const requiresAcknowledgement = ackRefs.includes(tpl.ref);

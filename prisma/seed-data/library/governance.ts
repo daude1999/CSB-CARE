@@ -38,6 +38,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0004", "procedure.learning"],
     ],
     qs: ["R4", "S1", "W7"],
+    guidance: ["GDN-0010", "GDN-0001"],
     related: ["EVX-DOC-001", "EVX-SAF-001", "EVX-GOV-001"],
     history: [
       {
@@ -81,6 +82,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.investigation"],
     ],
     qs: ["S1", "W7", "W5"],
+    guidance: ["GDN-0012"],
     related: ["EVX-INC-002", "EVX-DOC-001", "EVX-SAF-001", "EVX-HS-001"],
   },
   {
@@ -112,6 +114,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0023", "procedure.events"],
     ],
     qs: ["W5", "S1"],
+    guidance: ["GDN-0012"],
     related: ["EVX-INC-001", "EVX-EOL-002", "EVX-MCA-002", "EVX-SAF-001"],
   },
   {
@@ -149,6 +152,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0004", "records"],
     ],
     qs: ["S1", "W1"],
+    guidance: ["GDN-0013"],
     related: ["EVX-INC-001", "EVX-COM-001"],
   },
   {
@@ -226,6 +230,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.shortfalls"],
     ],
     qs: ["S6", "W5"],
+    guidance: ["GDN-NICE-NG21"],
     related: ["EVX-GOV-003", "EVX-TRN-001", "EVX-REC-001"],
   },
   {
@@ -262,6 +267,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0023", "procedure.activation"],
     ],
     qs: ["W5", "S2", "W8"],
+    guidance: ["GDN-0007"],
     related: ["EVX-GOV-002", "EVX-IPC-002", "EVX-HS-003"],
   },
   {
@@ -293,6 +299,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0004", "procedure.register"],
     ],
     qs: ["S4", "C3", "W5"],
+    guidance: ["GDN-NICE-NG86"],
     related: ["EVX-CP-001", "EVX-HS-001", "EVX-GOV-001"],
   },
   {
@@ -329,6 +336,7 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0032", "procedure.retention"],
     ],
     qs: ["W5", "E5"],
+    guidance: ["GDN-ICO-1"],
     related: ["EVX-DP-001", "EVX-CP-001"],
   },
 ];

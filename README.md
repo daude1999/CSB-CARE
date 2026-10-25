@@ -10,7 +10,7 @@ monitor sources → detect genuine change → store immutable source versions �
 
 Each stage is a separate, recorded step in both the data and the interface. Detecting a change does not mean it is substantive; a substantive change does not mean it applies to a given service; applying does not mean a policy must change; and a draft is never live until someone other than its author approves it and it is published. Approved versions are never overwritten.
 
-Evantix Care is original work. It contains no content, code or branding from QCS or any other provider. The bundled starter policies are original drafts that have **not** been professionally or legally reviewed; they are marked as such throughout the product and carry no approval record.
+Evantix Care is original work. It contains no content, code or branding from QCS or any other provider. The bundled starter library (about 120 policies and procedures plus 64 forms, templates, checklists, risk assessments and audit tools, across care homes, home care, supported living, learning disability and autism, mental health and dementia) is original drafting, cited to the legislation and national guidance it relies on (see docs/SOURCES.md). These are drafts that have **not** been professionally or legally reviewed; they are marked as such throughout the product and carry no approval record.
 
 ## What works today
 

@@ -5,7 +5,7 @@ import { canOnPolicy, hasOrgPermission, requireOnPolicy, requireOrgPermission, v
 import { createDraftVersion, toSectionInputs, type SectionInput } from "./versions";
 import { ForbiddenError } from "@/lib/errors";
 
-export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: string; kind?: "MASTER" | "CUSTOMER"; page?: number; pageSize?: number; overdueOnly?: boolean } = {}) {
+export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: string; kind?: "MASTER" | "CUSTOMER"; docType?: string; page?: number; pageSize?: number; overdueOnly?: boolean } = {}) {
   const pageSize = Math.min(opts.pageSize ?? 20, 100);
   const page = Math.max(1, opts.page ?? 1);
   const where = {
@@ -13,6 +13,7 @@ export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: stri
       visiblePolicyWhere(ctx),
       opts.kind ? { kind: opts.kind } : {},
       opts.category ? { categoryCode: opts.category } : {},
+      opts.docType ? { docType: opts.docType } : {},
       opts.q ? { OR: [{ title: { contains: opts.q, mode: "insensitive" as const } }, { ref: { contains: opts.q, mode: "insensitive" as const } }, { description: { contains: opts.q, mode: "insensitive" as const } }] } : {},
       opts.overdueOnly ? { nextReviewDate: { lt: new Date() } } : {},
       { status: "ACTIVE" as const },
@@ -95,7 +96,7 @@ export async function adoptTemplate(ctx: Ctx, templateId: string) {
   const sections = toSectionInputs(tpl.currentPublishedVersion.sections).map((s) => ({ ...s, masterKey: s.isLocal ? null : s.key }));
   return db.$transaction(async (tx) => {
     const policy = await tx.policy.create({
-      data: { kind: "CUSTOMER", organisationId: orgId, templateId, ref: tpl.ref, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes, jurisdiction: tpl.jurisdiction, ownerId: ctx.userId, reviewIntervalMonths: tpl.reviewIntervalMonths, supportingSourceDocumentIds: tpl.supportingSourceDocumentIds },
+      data: { kind: "CUSTOMER", organisationId: orgId, templateId, ref: tpl.ref, docType: tpl.docType, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes, jurisdiction: tpl.jurisdiction, ownerId: ctx.userId, reviewIntervalMonths: tpl.reviewIntervalMonths, supportingSourceDocumentIds: tpl.supportingSourceDocumentIds },
     });
     const draft = await createDraftVersion(tx, { policyId: policy.id, organisationId: orgId, sections, origin: "MASTER_SYNC", createdById: ctx.userId, basedOnMasterVersionId: tpl.currentPublishedVersion!.id, reasonForChange: `Adopted from template ${tpl.ref} ${tpl.currentPublishedVersion!.label}`, changeSummary: "Adopted from Evantix template; complete the local sections before approval." });
     const rev = await tx.policyRevision.create({ data: { policyId: policy.id, organisationId: orgId, kind: "MASTER_SYNC", draftVersionId: draft.id, title: `Adopt template ${tpl.ref}`, createdById: ctx.userId, authorId: ctx.userId } });

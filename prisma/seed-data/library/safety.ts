@@ -44,6 +44,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0013", "procedure"],
     ],
     qs: ["S5", "C5"],
+    guidance: ["GDN-HSE-1", "GDN-HSE-3"],
     related: ["EVX-HS-002", "EVX-HS-003", "EVX-HS-004", "EVX-HS-005", "EVX-INC-001"],
   },
   {
@@ -81,6 +82,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0013", "procedure.equipment"],
     ],
     qs: ["S5", "S4"],
+    guidance: ["GDN-HSE-6"],
     related: ["EVX-HS-001", "EVX-CLN-001", "EVX-TRN-001"],
     history: [
       {
@@ -133,6 +135,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0013", "procedure.checks"],
     ],
     qs: ["S5"],
+    guidance: ["GDN-0009"],
     related: ["EVX-HS-001", "EVX-GOV-003"],
   },
   {
@@ -170,6 +173,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0026", "procedure.assessment"],
     ],
     qs: ["S5", "C5"],
+    guidance: ["GDN-HSE-5"],
     related: ["EVX-HS-001", "EVX-SAF-005"],
   },
   {
@@ -213,6 +217,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0028", "procedure.maintenance"],
     ],
     qs: ["S5", "W8"],
+    guidance: ["GDN-HSE-2", "GDN-HSE-1"],
     related: ["EVX-HS-001", "EVX-HS-003", "EVX-IPC-003"],
   },
   {
@@ -249,6 +254,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0002", "procedure.swallowing"],
     ],
     qs: ["E4", "E1", "C2"],
+    guidance: ["GDN-NICE-CG32"],
     related: ["EVX-FOOD-002", "EVX-CLN-002", "EVX-CP-001"],
   },
   {
@@ -285,6 +291,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0012", "procedure.allergens"],
     ],
     qs: ["S5", "E4"],
+    guidance: ["GDN-FSA-1"],
     related: ["EVX-FOOD-001", "EVX-IPC-001"],
   },
   {
@@ -323,6 +330,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0004", "procedure.rights"],
     ],
     qs: ["W5", "E3"],
+    guidance: ["GDN-ICO-1"],
     related: ["EVX-DP-002", "EVX-RK-001", "EVX-WF-001"],
   },
   {
@@ -360,6 +368,7 @@ export const SAFETY: PolicySpec[] = [
       ["REQ-ENG-0033", "procedure.contain"],
     ],
     qs: ["W5", "S1"],
+    guidance: ["GDN-ICO-1"],
     related: ["EVX-DP-001", "EVX-INC-001"],
   },
 ];

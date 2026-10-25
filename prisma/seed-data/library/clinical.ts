@@ -35,6 +35,7 @@ export const CLINICAL: PolicySpec[] = [
       ["REQ-ENG-0023", "procedure.after-care"],
     ],
     qs: ["S4", "E5", "S1"],
+    guidance: ["GDN-NICE-NG249"],
     related: ["EVX-HS-002", "EVX-INC-001", "EVX-CLN-003", "EVX-RISK-001"],
   },
   {
@@ -72,6 +73,7 @@ export const CLINICAL: PolicySpec[] = [
       ["REQ-ENG-0001", "procedure.damage"],
     ],
     qs: ["S4", "E2", "E4"],
+    guidance: ["GDN-NICE-CG179"],
     related: ["EVX-FOOD-001", "EVX-CLN-003", "EVX-SAF-001"],
   },
   {
@@ -108,6 +110,7 @@ export const CLINICAL: PolicySpec[] = [
       ["REQ-ENG-0009", "procedure.emergency"],
     ],
     qs: ["S2", "C4", "E3"],
+    guidance: ["GDN-NICE-NG51"],
     related: ["EVX-CLN-001", "EVX-MCA-003", "EVX-CP-006"],
   },
 ];

@@ -5,7 +5,7 @@ import { claimNext, drain, enqueue, retryJob, runClaimed } from "@/server/jobs/q
 import { fixtureFetch, fixtureHttp } from "@/server/testing/fixtures";
 import { handlers } from "@/worker/handlers";
 import { resetDb } from "../helpers";
-import { seedBase } from "@/server/seed/base";
+import { CORE_REFS, seedBase } from "@/server/seed/base";
 
 const PATH = "/guidance/test-doc";
 const URL = `https://www.gov.uk/api/content${PATH}`;
@@ -27,7 +27,7 @@ async function makeSource() {
 describe("source monitoring", () => {
   beforeEach(async () => {
     await resetDb();
-    await seedBase();
+    await seedBase({ refs: CORE_REFS });
   });
 
   it("captures a baseline without raising change items, then detects a genuine change exactly once", async () => {
@@ -171,7 +171,7 @@ describe("job queue", () => {
   });
 
   it("runs the source check handler through the queue", async () => {
-    await seedBase();
+    await seedBase({ refs: CORE_REFS });
     const src = await db.regulatorySource.findUniqueOrThrow({ where: { key: "nice" } });
     await enqueue("source.check", { sourceId: src.id, trigger: "MANUAL" }, { idempotencyKey: "manual-nice" });
     const out = await drain("w", handlers);
