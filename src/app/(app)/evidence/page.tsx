@@ -14,7 +14,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   const docs = await db.evidenceDocument.findMany({ where: { organisationId: ctx.organisationId! }, orderBy: { createdAt: "desc" } });
   return (
     <>
-      <PageHeader title="Evidence Library" subtitle="Documents supporting audits, actions and policy implementation. Files are checked by type and size; malware scanning runs when a scanner is configured." />
+      <PageHeader eyebrow="Care operations · supporting records" title="Evidence Library" subtitle="Documents supporting audits, actions and policy implementation. Files are checked by type and size; malware scanning runs when a scanner is configured." />
       <Flash searchParams={sp} />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

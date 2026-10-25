@@ -4,8 +4,7 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { cancelJobAction, retryJobAction } from "../../../actions";
-import Link from "@/components/link";
-import { Card, Empty, Flash, fmtDate, PageHeader, Pagination, StatusBadge } from "@/components/ui";
+import { Card, Empty, Flash, PageHeader, Pagination, SegmentNav, StatusBadge, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 const STATUSES: JobStatus[] = ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "DEAD", "CANCELLED"];
@@ -25,13 +24,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const back = `/admin/jobs?${new URLSearchParams(Object.entries({ status, type: sp.type, page: String(page) }).filter(([, v]) => v) as [string, string][])}`;
   return (
     <>
-      <PageHeader title="Background Jobs" subtitle="Monitoring, analysis, drafting, notification and publication jobs. Failed jobs retry with backoff; jobs that exhaust their retries are moved to the dead-letter state for manual action." />
+      <PageHeader eyebrow="Administration · worker" title="Background Jobs" subtitle="Monitoring, analysis, drafting, notification and publication jobs. Failed jobs retry with backoff; jobs that exhaust their retries are moved to the dead-letter state for manual action." />
       <Flash searchParams={sp} />
-      <div className="mb-4 flex flex-wrap gap-2 text-sm">
-        <Link href="/admin/jobs" className={!status ? "btn-primary" : "btn-secondary"}>All</Link>
-        {STATUSES.map((s) => (
-          <Link key={s} href={`/admin/jobs?status=${s}`} className={status === s ? "btn-primary" : "btn-secondary"}>{s.toLowerCase()} ({counts.find((c) => c.status === s)?._count ?? 0})</Link>
-        ))}
+      <div className="mb-6 border-b border-slate-300">
+        <SegmentNav label="Job status" items={[{ href: "/admin/jobs", label: "All", active: !status }, ...STATUSES.map((s) => ({ href: `/admin/jobs?status=${s}`, label: s.toLowerCase(), active: status === s, count: counts.find((c) => c.status === s)?._count ?? 0 }))]} />
       </div>
       <Card>
         {jobs.length ? (

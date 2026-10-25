@@ -22,7 +22,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
   return (
     <>
-      <PageHeader title="Audits & Inspections" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
+      <PageHeader eyebrow="Care operations · internal audit" title="Audits & Inspections" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
       <Flash searchParams={sp} />
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2" title="Audits">

@@ -15,7 +15,7 @@ export default async function RequirementsPage({ searchParams }: { searchParams:
   });
   return (
     <>
-      <PageHeader title="Requirements Register" subtitle="Regulatory requirements mapped to policies, audit questions and training. Entries marked unverified have not yet been checked word-for-word against the official source by a qualified reviewer." />
+      <PageHeader eyebrow="Compliance · what the law and guidance ask" title="Requirements Register" subtitle="Regulatory requirements mapped to policies, audit questions and training. Entries marked unverified have not yet been checked word-for-word against the official source by a qualified reviewer." />
       <form className="mb-4 flex gap-2" role="search">
         <input className="input w-72" name="q" defaultValue={sp.q} placeholder="Search requirements" aria-label="Search requirements" />
         <button className="btn-secondary" type="submit">Search</button>

@@ -1,9 +1,8 @@
-import Link from "@/components/link";
 import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { REPORTS, reportRows, type ReportKind } from "@/server/reports/tables";
-import { Card, Empty, PageHeader } from "@/components/ui";
+import { Card, Empty, PageHeader, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +14,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { columns, rows } = await reportRows(ctx, kind);
   return (
     <>
-      <PageHeader title="Reports" subtitle="Generated from live data at the time you open them. Export as CSV for inspection packs or board reporting." actions={<a className="btn-primary" href={`/api/reports/${kind}`}>Export CSV</a>} />
-      <div className="mb-4 flex flex-wrap gap-2 text-sm">
-        {(Object.keys(REPORTS) as ReportKind[]).map((k) => <Link key={k} href={`/reports?kind=${k}`} className={k === kind ? "btn-primary" : "btn-secondary"}>{REPORTS[k]}</Link>)}
+      <PageHeader eyebrow="Insights · live from your records" title="Reports" subtitle="Generated from live data at the time you open them. Export as CSV for inspection packs or board reporting." actions={<a className="btn-primary" href={`/api/reports/${kind}`}>Export CSV</a>} />
+      <div className="mb-6 border-b border-slate-300">
+        <SegmentNav label="Report" items={(Object.keys(REPORTS) as ReportKind[]).map((k) => ({ href: `/reports?kind=${k}`, label: REPORTS[k], active: k === kind }))} />
       </div>
       <Card title={REPORTS[kind]}>
         {rows.length ? (

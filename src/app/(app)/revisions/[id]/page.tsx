@@ -33,11 +33,12 @@ export default async function RevisionPage({ params, searchParams }: { params: P
   return (
     <>
       <PageHeader
+        eyebrow="Revision · draft"
         title={<span className="flex flex-wrap items-center gap-2">{r.policy.ref} {r.policy.title} <StatusBadge status={v.status} /> <SimulatedBadge show={r.isSimulated} /></span>}
         subtitle={<>{r.title}. Draft {v.label}{r.baseVersion ? `, based on approved ${r.baseVersion.label}` : ""}. <Link href={`/policies/${r.policyId}`}>View current policy</Link></>}
       />
       <Flash searchParams={sp} />
-      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-testid="draft-banner">
+      <div className="mb-4 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-900" data-testid="draft-banner">
         {v.status === "PUBLISHED" ? "This version has been published." : "This is a draft. The approved policy remains in force until this draft is approved by someone other than its author and then published."}
       </div>
       <div className="grid gap-6 lg:grid-cols-3">

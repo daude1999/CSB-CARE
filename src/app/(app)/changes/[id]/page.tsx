@@ -59,12 +59,13 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
   return (
     <>
       <PageHeader
+        eyebrow="Regulatory update"
         title={<span className="flex flex-wrap items-center gap-2">{c.title} <SimulatedBadge show={c.isSimulated} /></span>}
         subtitle={c.summary}
       />
       <Flash searchParams={sp} />
       {c.isSimulated ? (
-        <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-800">
+        <div className="mb-4 border-l-2 border-violet-500 bg-violet-50/60 px-4 py-3 text-sm text-violet-800">
           This is a simulated update produced from recorded test content to demonstrate the workflow. It is not a real regulatory change and must not be relied on.
         </div>
       ) : null}
@@ -146,7 +147,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
 
           <Card title={ctx.organisationId ? "Impact on our policies" : "Impact on CSB templates"}>
             {!confirmed ? (
-              <div className="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="mb-3 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-800">
                 A regulatory reviewer has not yet confirmed this change as relevant. Assessments below are provisional and cannot be decided until it is.
               </div>
             ) : null}
