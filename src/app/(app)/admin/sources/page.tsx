@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { freshness } from "@/server/sources/engine";
+import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { notFound } from "next/navigation";
 import { Badge, Card, Flash, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
 
@@ -14,14 +15,18 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
   if (!hasPlatformPermission(ctx, "sources.manage")) notFound();
   const sources = await db.regulatorySource.findMany({ orderBy: [{ coverage: "asc" }, { name: "asc" }], include: { _count: { select: { documents: true, changes: true } } } });
   const workerBeat = await db.backgroundJob.findFirst({ where: { type: "maintenance.tick", status: "SUCCEEDED" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } });
-  const workerStale = !workerBeat?.finishedAt || Date.now() - workerBeat.finishedAt.getTime() > 30 * 60_000;
+  // Without a long-running worker, jobs run when pages are opened and from the daily cron.
+  const inline = inlineJobsEnabled();
+  const workerStale = !workerBeat?.finishedAt || Date.now() - workerBeat.finishedAt.getTime() > (inline ? 26 * 60 : 30) * 60_000;
   return (
     <>
       <PageHeader title="Source Monitoring" subtitle="Registry of monitored regulatory sources. A source is only shown as monitored when it has been successfully checked within its freshness window." />
       <Flash searchParams={sp} />
       {workerStale ? (
         <div role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-          The background worker has not reported in the last 30 minutes (last heartbeat: {fmtDate(workerBeat?.finishedAt, true)}). Scheduled monitoring is not running. Start it with <code>npm run worker</code>.
+          {inline
+            ? <>Background jobs have not run in the last day (last run: {fmtDate(workerBeat?.finishedAt, true)}). They run when signed-in pages are opened and from the daily schedule.</>
+            : <>The background worker has not reported in the last 30 minutes (last heartbeat: {fmtDate(workerBeat?.finishedAt, true)}). Scheduled monitoring is not running. Start it with <code>npm run worker</code>.</>}
         </div>
       ) : null}
       <Card>

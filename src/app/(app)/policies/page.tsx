@@ -65,7 +65,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
         {items.length ? (
           <table className="table">
             <thead>
-              <tr><th>Reference</th><th>Title</th><th>Category</th><th>Current version</th><th>Next review</th><th>Open work</th>{tab === "MASTER" && ctx.organisationId ? <th /> : null}</tr>
+              <tr><th>Reference</th><th>Title</th><th>Category</th><th>Current version</th><th>Next review</th><th>Open work</th><th>Download</th>{tab === "MASTER" && ctx.organisationId ? <th /> : null}</tr>
             </thead>
             <tbody>
               {items.map((p) => {
@@ -78,6 +78,15 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
                     <td>{p.currentPublishedVersion ? <span className="flex items-center gap-2">{p.currentPublishedVersion.label} {p.currentPublishedVersion.origin === "SEED" ? <Badge title="Seeded content without an approval record">seeded, unapproved</Badge> : <StatusBadge status="PUBLISHED" />}</span> : <Badge tone="amber">no published version</Badge>}</td>
                     <td className={overdue ? "font-medium text-rose-600" : ""}>{fmtDate(p.nextReviewDate)}{overdue ? " (overdue)" : ""}</td>
                     <td>{p.revisions.length ? <Badge tone="amber">{p.revisions.length} open revision(s)</Badge> : "—"}</td>
+                    <td className="whitespace-nowrap text-xs">
+                      {p.currentPublishedVersion ? (
+                        <>
+                          <a href={`/api/policies/${p.id}/download?format=docx`} download>Word</a>
+                          <span className="mx-1 text-slate-300">|</span>
+                          <a href={`/api/policies/${p.id}/download?format=pdf`} download>PDF</a>
+                        </>
+                      ) : "—"}
+                    </td>
                     {tab === "MASTER" && ctx.organisationId ? (
                       <td>
                         {adopted.has(p.id) ? <Badge tone="teal">in use</Badge> : hasOrgPermission(ctx, "policy.author") ? (
