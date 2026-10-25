@@ -131,6 +131,8 @@ export const SOURCES: SourceDef[] = [
       ["ico", "Information Commissioner's Office (ICO)", "https://ico.org.uk/", "DATA_PROTECTION", "Check ICO reuse terms.", "Manual review only: no verified API or feed configured."],
       ["fsa", "Food Standards Agency", "https://www.food.gov.uk/", "FOOD_SAFETY", "Check FSA reuse terms.", "Manual review only: the FSA ratings API covers hygiene ratings, not guidance."],
       ["cqc-home", "Care Quality Commission (news and updates)", "https://www.cqc.org.uk/", "REGULATOR", "Check CQC terms of use.", "Manual review only: news feed availability not yet verified."],
+      ["cqc-assessment-framework", "Care Quality Commission: assessment framework and quality statements", "https://www.cqc.org.uk/assessment/quality-statements", "REGULATOR", "Store quality statement titles, links and Evantix summaries only. Check CQC terms of use before reproducing text.", "Manual review only. CQC has announced revisions to its assessment framework; quality statement mappings must be re-checked when the revised framework is published."],
+      ["legislation-other", "Other legislation referenced by starter policies (health and safety, data protection, equality, employment, food, controlled drugs, CQC registration)", "https://www.legislation.gov.uk/", "LEGISLATION", "Legislation text is Crown copyright, reusable under OGL v3.0.", "Manual review only: these provisions are referenced in the requirements register but not yet configured for automated retrieval. Add provisions to an automated legislation source to monitor them."],
     ] as const
   ).map(
     ([key, name, url, category, reuse, notes]): SourceDef => ({

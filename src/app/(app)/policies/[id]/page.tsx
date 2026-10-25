@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
 import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
@@ -16,6 +17,10 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const v = p.currentPublishedVersion;
   const canAuthor = canOnPolicy(ctx, p, "author");
   const back = `/policies/${p.id}`;
+  // Organisation policies inherit requirement mappings from the template they were adopted from.
+  const inherited = !p.requirementLinks.length && p.templateId;
+  const links = inherited ? await db.requirementPolicyLink.findMany({ where: { policyId: p.templateId! }, include: { requirement: true } }) : p.requirementLinks;
+  links.sort((a, b) => a.requirement.ref.localeCompare(b.requirement.ref));
   return (
     <>
       <PageHeader
@@ -101,17 +106,20 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
             </div>
           </Card>
           <Card title="Linked requirements">
-            {p.requirementLinks.length ? (
-              <ul className="space-y-2 text-sm">
-                {p.requirementLinks.map((l) => (
-                  <li key={l.id}>
-                    <Link href={`/requirements/${l.requirementId}`}>{l.requirement.ref}</Link> {l.requirement.exactReference}
-                    <div className="text-xs text-slate-500">section: {l.sectionKey ?? "whole policy"} · <StatusBadge status={l.requirement.verificationStatus === "VERIFIED" ? "VERIFIED_REQ" : l.requirement.verificationStatus} /></div>
-                  </li>
-                ))}
-              </ul>
+            {links.length ? (
+              <>
+                {inherited ? <p className="muted mb-2 text-xs">Inherited from the Evantix template {p.template?.ref}.</p> : null}
+                <ul className="space-y-2 text-sm">
+                  {links.map((l) => (
+                    <li key={l.id}>
+                      <Link href={`/requirements/${l.requirementId}`}>{l.requirement.ref}</Link> {l.requirement.exactReference}
+                      <div className="text-xs text-slate-500">section: {l.sectionKey ? <a href={`#${l.sectionKey}`}>{l.sectionKey}</a> : "whole policy"} · <StatusBadge status={l.requirement.verificationStatus === "VERIFIED" ? "VERIFIED_REQ" : l.requirement.verificationStatus} /></div>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
-              <Empty>{p.templateId ? "Requirement mappings are inherited from the Evantix template." : "No requirements mapped."}</Empty>
+              <Empty>No requirements mapped.</Empty>
             )}
           </Card>
           <Card title="Flagged by regulatory changes">
