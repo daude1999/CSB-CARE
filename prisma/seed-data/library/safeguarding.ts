@@ -2,7 +2,7 @@ import { COMMUNITY, type PolicySpec } from "./types";
 
 export const SAFEGUARDING: PolicySpec[] = [
   {
-    ref: "EVX-SAF-001",
+    ref: "CSB-SAF-001",
     title: "Safeguarding Adults",
     category: "SAFEGUARDING",
     summary: "how staff recognise, respond to and report concerns that an adult may be experiencing abuse or neglect.",
@@ -45,7 +45,7 @@ export const SAFEGUARDING: PolicySpec[] = [
     ],
     qs: ["S3", "S1", "W3"],
     guidance: ["GDN-0001", "GDN-NICE-NG189", "GDN-SCIE-1", "GDN-0012"],
-    related: ["EVX-SAF-002", "EVX-SAF-003", "EVX-WB-001", "EVX-MCA-001", "EVX-INC-002", "EVX-DP-001"],
+    related: ["CSB-SAF-002", "CSB-SAF-003", "CSB-WB-001", "CSB-MCA-001", "CSB-INC-002", "CSB-DP-001"],
     history: [
       {
         monthsAgo: 7,
@@ -56,7 +56,7 @@ export const SAFEGUARDING: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-SAF-002",
+    ref: "CSB-SAF-002",
     title: "Handling People's Money and Preventing Financial Abuse",
     category: "SAFEGUARDING",
     summary: "how staff support people with money and property, and how we prevent, spot and respond to financial abuse.",
@@ -97,10 +97,10 @@ export const SAFEGUARDING: PolicySpec[] = [
     ],
     qs: ["S3", "C3"],
     guidance: ["GDN-0001"],
-    related: ["EVX-SAF-001", "EVX-WF-002", "EVX-RK-001"],
+    related: ["CSB-SAF-001", "CSB-WF-002", "CSB-RK-001"],
   },
   {
-    ref: "EVX-SAF-003",
+    ref: "CSB-SAF-003",
     title: "Restrictive Practices and Positive Behaviour Support",
     category: "SAFEGUARDING",
     summary: "how we support people whose behaviour may challenge, reduce restrictive practices and use any restriction lawfully and as a last resort.",
@@ -141,10 +141,10 @@ export const SAFEGUARDING: PolicySpec[] = [
     ],
     qs: ["S3", "S4", "C3", "E6"],
     guidance: ["GDN-NICE-NG11", "GDN-NICE-NG10", "GDN-RRN-1", "GDN-0014", "GDN-0002"],
-    related: ["EVX-SAF-001", "EVX-MCA-001", "EVX-MCA-002", "EVX-INC-001", "EVX-CP-001"],
+    related: ["CSB-SAF-001", "CSB-MCA-001", "CSB-MCA-002", "CSB-INC-001", "CSB-CP-001"],
   },
   {
-    ref: "EVX-SAF-004",
+    ref: "CSB-SAF-004",
     title: "Missing Person",
     category: "SAFEGUARDING",
     summary: "what to do when a person we support cannot be found or has not returned when expected.",
@@ -179,10 +179,10 @@ export const SAFEGUARDING: PolicySpec[] = [
     ],
     qs: ["S4", "S3"],
     guidance: ["GDN-0001"],
-    related: ["EVX-SAF-001", "EVX-RISK-001", "EVX-INC-002"],
+    related: ["CSB-SAF-001", "CSB-RISK-001", "CSB-INC-002"],
   },
   {
-    ref: "EVX-SAF-005",
+    ref: "CSB-SAF-005",
     title: "No Response at a Planned Visit",
     category: "SAFEGUARDING",
     serviceTypes: COMMUNITY,
@@ -214,6 +214,6 @@ export const SAFEGUARDING: PolicySpec[] = [
     links: [["REQ-ENG-0002", "procedure.coordinator"]],
     qs: ["S4", "S2"],
     guidance: ["GDN-NICE-NG21"],
-    related: ["EVX-SAF-004", "EVX-HS-004", "EVX-INC-001"],
+    related: ["CSB-SAF-004", "CSB-HS-004", "CSB-INC-001"],
   },
 ];

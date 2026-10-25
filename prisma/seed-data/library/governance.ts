@@ -2,7 +2,7 @@ import type { PolicySpec } from "./types";
 
 export const GOVERNANCE: PolicySpec[] = [
   {
-    ref: "EVX-COM-001",
+    ref: "CSB-COM-001",
     title: "Complaints",
     category: "COMPLAINTS",
     summary: "how people, families and representatives can raise a complaint and how we respond.",
@@ -39,7 +39,7 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["R4", "S1", "W7"],
     guidance: ["GDN-0010", "GDN-0001"],
-    related: ["EVX-DOC-001", "EVX-SAF-001", "EVX-GOV-001"],
+    related: ["CSB-DOC-001", "CSB-SAF-001", "CSB-GOV-001"],
     history: [
       {
         monthsAgo: 6,
@@ -50,7 +50,7 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-INC-001",
+    ref: "CSB-INC-001",
     title: "Incident Reporting and Learning",
     category: "INCIDENTS",
     summary: "how incidents, accidents and near misses are reported, investigated and learned from.",
@@ -83,10 +83,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["S1", "W7", "W5"],
     guidance: ["GDN-0012"],
-    related: ["EVX-INC-002", "EVX-DOC-001", "EVX-SAF-001", "EVX-HS-001"],
+    related: ["CSB-INC-002", "CSB-DOC-001", "CSB-SAF-001", "CSB-HS-001"],
   },
   {
-    ref: "EVX-INC-002",
+    ref: "CSB-INC-002",
     title: "Statutory Notifications to CQC",
     category: "INCIDENTS",
     summary: "which events must be notified to the Care Quality Commission, by whom and how quickly.",
@@ -115,10 +115,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["W5", "S1"],
     guidance: ["GDN-0012"],
-    related: ["EVX-INC-001", "EVX-EOL-002", "EVX-MCA-002", "EVX-SAF-001"],
+    related: ["CSB-INC-001", "CSB-EOL-002", "CSB-MCA-002", "CSB-SAF-001"],
   },
   {
-    ref: "EVX-DOC-001",
+    ref: "CSB-DOC-001",
     title: "Duty of Candour",
     category: "CANDOUR",
     summary: "how we are open and honest with people when things go wrong with their care.",
@@ -153,10 +153,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["S1", "W1"],
     guidance: ["GDN-0013"],
-    related: ["EVX-INC-001", "EVX-COM-001"],
+    related: ["CSB-INC-001", "CSB-COM-001"],
   },
   {
-    ref: "EVX-GOV-001",
+    ref: "CSB-GOV-001",
     title: "Governance and Quality Assurance",
     category: "GOVERNANCE",
     summary: "how leaders monitor and improve the quality and safety of our services.",
@@ -194,10 +194,10 @@ export const GOVERNANCE: PolicySpec[] = [
       ["REQ-ENG-0015", "procedure.rating"],
     ],
     qs: ["W5", "W7", "W1", "W2", "W6"],
-    related: ["EVX-INC-001", "EVX-COM-001", "EVX-RISK-001", "EVX-GOV-002"],
+    related: ["CSB-INC-001", "CSB-COM-001", "CSB-RISK-001", "CSB-GOV-002"],
   },
   {
-    ref: "EVX-GOV-002",
+    ref: "CSB-GOV-002",
     title: "Safe Staffing and Deployment",
     category: "GOVERNANCE",
     summary: "how we decide how many staff, with what skills, are needed and how we keep rotas safe.",
@@ -231,10 +231,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["S6", "W5"],
     guidance: ["GDN-NICE-NG21"],
-    related: ["EVX-GOV-003", "EVX-TRN-001", "EVX-REC-001"],
+    related: ["CSB-GOV-003", "CSB-TRN-001", "CSB-REC-001"],
   },
   {
-    ref: "EVX-GOV-003",
+    ref: "CSB-GOV-003",
     title: "Business Continuity and Emergency Planning",
     category: "GOVERNANCE",
     summary: "how we keep essential care running during emergencies such as severe weather, utility failure, IT outages or staff shortages.",
@@ -268,10 +268,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["W5", "S2", "W8"],
     guidance: ["GDN-0007"],
-    related: ["EVX-GOV-002", "EVX-IPC-002", "EVX-HS-003"],
+    related: ["CSB-GOV-002", "CSB-IPC-002", "CSB-HS-003"],
   },
   {
-    ref: "EVX-RISK-001",
+    ref: "CSB-RISK-001",
     title: "Risk Management and Positive Risk-Taking",
     category: "RISK",
     summary: "how risks to people and to the organisation are identified, assessed and managed.",
@@ -300,10 +300,10 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["S4", "C3", "W5"],
     guidance: ["GDN-NICE-NG86"],
-    related: ["EVX-CP-001", "EVX-HS-001", "EVX-GOV-001"],
+    related: ["CSB-CP-001", "CSB-HS-001", "CSB-GOV-001"],
   },
   {
-    ref: "EVX-RK-001",
+    ref: "CSB-RK-001",
     title: "Record Keeping",
     category: "RECORDS",
     summary: "how care records and other records are created, stored, retained and disposed of.",
@@ -337,6 +337,6 @@ export const GOVERNANCE: PolicySpec[] = [
     ],
     qs: ["W5", "E5"],
     guidance: ["GDN-ICO-1"],
-    related: ["EVX-DP-001", "EVX-CP-001"],
+    related: ["CSB-DP-001", "CSB-CP-001"],
   },
 ];

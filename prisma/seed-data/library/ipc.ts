@@ -2,7 +2,7 @@ import { HOMES, type PolicySpec } from "./types";
 
 export const IPC: PolicySpec[] = [
   {
-    ref: "EVX-IPC-001",
+    ref: "CSB-IPC-001",
     title: "Infection Prevention and Control",
     category: "IPC",
     summary: "the measures we take to prevent and control infection.",
@@ -45,7 +45,7 @@ export const IPC: PolicySpec[] = [
     ],
     qs: ["S7", "S5"],
     guidance: ["GDN-0004", "GDN-0006", "GDN-NICE-CG139", "GDN-NICE-QS61"],
-    related: ["EVX-IPC-002", "EVX-IPC-003", "EVX-HS-001"],
+    related: ["CSB-IPC-002", "CSB-IPC-003", "CSB-HS-001"],
     history: [
       {
         monthsAgo: 11,
@@ -63,7 +63,7 @@ export const IPC: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-IPC-002",
+    ref: "CSB-IPC-002",
     title: "Outbreak Management",
     category: "IPC",
     summary: "how we recognise, report and manage outbreaks of infection such as norovirus, influenza and COVID-19.",
@@ -99,10 +99,10 @@ export const IPC: PolicySpec[] = [
     ],
     qs: ["S7", "E3"],
     guidance: ["GDN-0006", "GDN-0004"],
-    related: ["EVX-IPC-001", "EVX-CP-005", "EVX-GOV-003"],
+    related: ["CSB-IPC-001", "CSB-CP-005", "CSB-GOV-003"],
   },
   {
-    ref: "EVX-IPC-003",
+    ref: "CSB-IPC-003",
     title: "Cleaning, Laundry and Waste",
     category: "IPC",
     serviceTypes: HOMES,
@@ -137,6 +137,6 @@ export const IPC: PolicySpec[] = [
     ],
     qs: ["S7", "S5", "W8"],
     guidance: ["GDN-0004", "GDN-0006"],
-    related: ["EVX-IPC-001", "EVX-HS-001"],
+    related: ["CSB-IPC-001", "CSB-HS-001"],
   },
 ];

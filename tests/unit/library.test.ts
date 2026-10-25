@@ -45,7 +45,7 @@ describe("starter policy library", () => {
       expect(t.sections.filter((s) => s.isLocal), t.ref).toHaveLength(1);
       for (const k of ["purpose", "use", "related", "review"]) expect(keys, `${t.ref} ${k}`).toContain(k);
       const related = t.sections.find((s) => s.key === "related")!.body;
-      for (const ref of related.match(/EVX-[A-Z]+-\d+/g) ?? []) expect(refs.has(ref), `${t.ref} related ${ref}`).toBe(true);
+      for (const ref of related.match(/CSB-[A-Z]+-\d+/g) ?? []) expect(refs.has(ref), `${t.ref} related ${ref}`).toBe(true);
       expect(t.versions, t.ref).toHaveLength(1);
       if (t.docType === "AUDIT_TOOL") expect(t.auditQuestions?.length ?? 0, t.ref).toBeGreaterThanOrEqual(5);
       for (const l of t.links) expect(keys, `${t.ref} link ${l.requirement}`).toContain(l.section);
@@ -84,9 +84,9 @@ describe("starter policy library", () => {
   });
 
   it("keeps the safeguarding referral timescale in exactly one section (the demo change depends on it)", () => {
-    const saf = TEMPLATES.find((t) => t.ref === "EVX-SAF-001")!;
+    const saf = TEMPLATES.find((t) => t.ref === "CSB-SAF-001")!;
     expect(saf.sections.filter((s) => /\b(48|24) hours\b/.test(s.body)).map((s) => s.key)).toEqual(["procedure.reporting"]);
-    const elsewhere = TEMPLATES.filter((t) => t.ref !== "EVX-SAF-001" && t.sections.some((s) => /\b48 hours\b/.test(s.body))).map((t) => t.ref);
+    const elsewhere = TEMPLATES.filter((t) => t.ref !== "CSB-SAF-001" && t.sections.some((s) => /\b48 hours\b/.test(s.body))).map((t) => t.ref);
     expect(elsewhere).toEqual([]);
   });
 });

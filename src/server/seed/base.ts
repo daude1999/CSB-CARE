@@ -108,7 +108,7 @@ export async function seedVersionHistory(policyId: string, organisationId: strin
  * scenarios rely on. Pass `{ refs: CORE_REFS }` to seed only these.
  */
 export const CORE_REFS = [
-  "EVX-SAF-001", "EVX-MED-001", "EVX-MED-004", "EVX-COM-001", "EVX-IPC-001", "EVX-HS-002", "EVX-DP-002", "EVX-GOV-001", "EVX-FRM-001", "EVX-AUD-001",
+  "CSB-SAF-001", "CSB-MED-001", "CSB-MED-004", "CSB-COM-001", "CSB-IPC-001", "CSB-HS-002", "CSB-DP-002", "CSB-GOV-001", "CSB-FRM-001", "CSB-AUD-001",
 ];
 
 export async function seedBase(opts: { refs?: string[] } = {}) {

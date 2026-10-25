@@ -2,7 +2,7 @@ import { HOMES, type PolicySpec } from "./types";
 
 export const CONSENT_EOL: PolicySpec[] = [
   {
-    ref: "EVX-MCA-001",
+    ref: "CSB-MCA-001",
     title: "Mental Capacity and Consent",
     category: "CONSENT",
     summary: "how we seek consent and support people to make their own decisions, and what we do when someone may lack capacity to make a specific decision.",
@@ -39,7 +39,7 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
     qs: ["E6", "C3"],
     guidance: ["GDN-0002", "GDN-NICE-NG108"],
-    related: ["EVX-MCA-002", "EVX-MCA-003", "EVX-SAF-003", "EVX-MED-002"],
+    related: ["CSB-MCA-002", "CSB-MCA-003", "CSB-SAF-003", "CSB-MED-002"],
     history: [
       {
         monthsAgo: 9,
@@ -55,7 +55,7 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
   },
   {
-    ref: "EVX-MCA-002",
+    ref: "CSB-MCA-002",
     title: "Deprivation of Liberty Safeguards",
     category: "CONSENT",
     serviceTypes: HOMES,
@@ -97,10 +97,10 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
     qs: ["E6", "S3"],
     guidance: ["GDN-0003", "GDN-0002"],
-    related: ["EVX-MCA-001", "EVX-SAF-003", "EVX-INC-002"],
+    related: ["CSB-MCA-001", "CSB-SAF-003", "CSB-INC-002"],
   },
   {
-    ref: "EVX-MCA-003",
+    ref: "CSB-MCA-003",
     title: "Advance Care Planning, Lasting Powers of Attorney and DNACPR",
     category: "CONSENT",
     summary: "how we support people to plan ahead and how staff respect advance decisions, attorneys and resuscitation decisions.",
@@ -136,10 +136,10 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
     qs: ["R7", "E6", "C2"],
     guidance: ["GDN-0002", "GDN-NICE-NG108"],
-    related: ["EVX-MCA-001", "EVX-EOL-001", "EVX-CLN-003"],
+    related: ["CSB-MCA-001", "CSB-EOL-001", "CSB-CLN-003"],
   },
   {
-    ref: "EVX-EOL-001",
+    ref: "CSB-EOL-001",
     title: "End of Life Care",
     category: "END_OF_LIFE",
     summary: "how we provide compassionate, person-centred care to people approaching the end of their life and support those close to them.",
@@ -178,10 +178,10 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
     qs: ["R7", "C1", "E3"],
     guidance: ["GDN-NICE-NG31", "GDN-NICE-NG142"],
-    related: ["EVX-MCA-003", "EVX-EOL-002", "EVX-CP-005"],
+    related: ["CSB-MCA-003", "CSB-EOL-002", "CSB-CP-005"],
   },
   {
-    ref: "EVX-EOL-002",
+    ref: "CSB-EOL-002",
     title: "Death of a Person We Support",
     category: "END_OF_LIFE",
     summary: "what staff do when a person dies, including verification, notifications and care after death.",
@@ -220,6 +220,6 @@ export const CONSENT_EOL: PolicySpec[] = [
     ],
     qs: ["R7", "C1"],
     guidance: ["GDN-0012"],
-    related: ["EVX-EOL-001", "EVX-INC-002", "EVX-MED-001"],
+    related: ["CSB-EOL-001", "CSB-INC-002", "CSB-MED-001"],
   },
 ];

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { logoutAction, switchOrgAction } from "../actions";
-import { Wordmark } from "@/components/brand";
+import { Logo } from "@/components/brand";
 import { NavLink } from "@/components/nav-link";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
@@ -35,8 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col bg-navy-950 text-slate-200 md:flex">
-        <div className="border-b border-navy-800 px-5 py-5">
-          <Wordmark />
+        <div className="border-b-4 border-teal-400 bg-white px-5 py-4">
+          <Logo className="h-11" />
         </div>
         <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main">
           {nav.filter((n) => n.show).map((n) => (

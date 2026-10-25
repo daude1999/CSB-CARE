@@ -18,7 +18,7 @@ import { setEmailProvider } from "@/server/notifications/email";
 import { notify } from "@/server/notifications/notify";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
-async function approvedRevision(policyRef = "EVX-COM-001") {
+async function approvedRevision(policyRef = "CSB-COM-001") {
   const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
   const approver = await ctxFor("approver@brookfield.demo", BROOKFIELD);
   const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: policyRef } });
@@ -92,7 +92,7 @@ describe("approval workflow controls", () => {
 
   it("requires a reason, a separate approver and rejects illegal transitions at the database level", async () => {
     const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
-    const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: "EVX-MED-001" } });
+    const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: "CSB-MED-001" } });
     await expect(createManualRevision(author, policy.id, " ")).rejects.toThrow(/reason/);
     const rev = await createManualRevision(author, policy.id, "Edit");
     await expect(submitForReview(author, rev.id)).rejects.toThrow(/identical/);
@@ -260,7 +260,7 @@ describe("customer-specific maintenance", () => {
     await publishRevision(regulatory, revision!.id);
     await drain("t", handlers);
 
-    const customer = await db.policy.findFirstOrThrow({ where: { organisationId: manager.organisationId, ref: "EVX-SAF-001" } });
+    const customer = await db.policy.findFirstOrThrow({ where: { organisationId: manager.organisationId, ref: "CSB-SAF-001" } });
     const sync = await db.policyRevision.findFirstOrThrow({ where: { policyId: customer.id, kind: "MASTER_SYNC" }, include: { draftVersion: { include: { sections: true } } } });
     const report = sync.validation as { safeApplied: { masterKey: string }[]; preservedLocal: string[] };
     expect(report.safeApplied.map((s) => s.masterKey)).toEqual(["procedure.reporting"]);

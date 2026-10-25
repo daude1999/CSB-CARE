@@ -15,7 +15,7 @@ const securityHeaders = [
 const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  serverExternalPackages: ["@prisma/client", "pino", "unpdf", "mammoth"],
+  serverExternalPackages: ["@prisma/client", "pino", "unpdf", "mammoth", "pdfkit"],
   experimental: { serverActions: { bodySizeLimit: "11mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
