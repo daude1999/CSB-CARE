@@ -39,6 +39,22 @@ Steps:
 
 The worker must be a single replica: jobs are claimed safely with row locks, so more replicas are allowed, but the scheduler tick is designed around one.
 
+## Vercel + Supabase (demo only)
+
+For a shareable demo, not production. The app runs on Vercel and the database on Supabase.
+
+1. Supabase: create a project, then copy the **Session pooler** connection string (Connect > ORMs or Connection string > Session pooler). Vercel cannot reach the IPv6-only direct connection.
+2. Vercel: import the GitHub repo and set these environment variables:
+   ```
+   DATABASE_URL=<session pooler string, with the real password>
+   AI_PROVIDER=simulated
+   SHOW_DEMO_LOGINS=true
+   CRON_SECRET=<any long random string>
+   ```
+3. Deploy. The `vercel-build` script applies migrations, seeds the demo data only when the database has no users yet, then builds.
+
+There is no separate worker on Vercel. Instead, queued jobs are processed in small batches after each signed-in request (`INLINE_JOBS`, on by default when `VERCEL` is set), and Vercel Cron calls `/api/cron/tick` daily. Uploaded evidence is kept under `/tmp` and does not persist; use `STORAGE_PROVIDER=azure` if that matters.
+
 ## Creating the first users
 
 There is no self-service sign-up in this slice. Create the first platform admin and organisation from a one-off shell in the image (`npx tsx`), using `hashPassword` from `src/server/auth/password.ts` and Prisma `user.create` / `organisation.create` / `membership.create`. An admin user-management screen is a planned next step.

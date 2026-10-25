@@ -16,7 +16,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts --if-empty && next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

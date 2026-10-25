@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { ctxFromToken, SESSION_COOKIE } from "./session";
 import type { Ctx } from "./rbac";
+import { runJobsAfterResponse } from "@/server/jobs/inline";
 
 export const getCtx = cache(async (): Promise<Ctx | null> => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -13,6 +14,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
 export async function requireCtx(): Promise<Ctx> {
   const ctx = await getCtx();
   if (!ctx) redirect("/login");
+  runJobsAfterResponse();
   return ctx;
 }
 
