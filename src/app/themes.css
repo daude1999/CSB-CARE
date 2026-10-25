@@ -22,24 +22,24 @@
   --focus: var(--teal-400);
 }
 
-/* Care teal: deep teal chrome, mint signal, soft green-white page, Roboto at an 18px base (care-sector feel). */
+/* CSB blue: deep navy chrome, the logo's cyan as the signal colour, cool white page, Roboto at an 18px base. */
 [data-theme="care"] {
-  --navy-950: #002d2d; --navy-900: #0f4146; --navy-800: #17535a; --navy-700: #22656c; --navy-600: #2f7880;
-  --teal-50: #eef7f1; --teal-100: #d6f2e8; --teal-200: #a8ead8; --teal-400: #00f0c8; --teal-500: #00b89a; --teal-600: #00807a; --teal-700: #00626a;
-  --slate-50: #f6f9f8; --slate-100: #edf4f1; --slate-200: #dce7e4; --slate-300: #c3d3cf; --slate-400: #91a5a2; --slate-500: #5e7473;
-  --slate-600: #475b5b; --slate-700: #354849; --slate-800: #213234; --slate-900: #0f4146; --slate-950: #082224;
-  --paper: #eef7f1;
+  --navy-950: #0a1c36; --navy-900: #0f2a4f; --navy-800: #143766; --navy-700: #1c4a85; --navy-600: #2a5ea3;
+  --teal-50: #edf8fd; --teal-100: #d4effa; --teal-200: #a9def3; --teal-400: #27c4ee; --teal-500: #0ea5d6; --teal-600: #0383b0; --teal-700: #076a90;
+  --slate-50: #f6f8fb; --slate-100: #eef2f7; --slate-200: #dde4ee; --slate-300: #c4cfdd; --slate-400: #92a1b5; --slate-500: #5f7086;
+  --slate-600: #475769; --slate-700: #344255; --slate-800: #222e3e; --slate-900: #0f2a4f; --slate-950: #0a1525;
+  --paper: #f4f7fb;
   --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
-  --radius-sm: 0.5rem; --radius-md: 999px; --radius-lg: 1rem;
+  --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem;
   --heading-weight: 700; --heading-tracking: -0.01em;
-  --card-radius: 1rem; --card-border: transparent; --card-rule: 0px; --card-shadow: 0 1px 2px rgb(15 65 70 / 0.06), 0 4px 16px rgb(15 65 70 / 0.06);
+  --card-radius: 0.5rem; --card-border: var(--slate-200); --card-rule: 0px; --card-shadow: 0 1px 2px rgb(15 42 79 / 0.06), 0 4px 16px rgb(15 42 79 / 0.05);
   --table-rule: 0px; --table-head-bg: var(--slate-100);
-  --focus: #00f0c8;
+  --focus: #27c4ee;
   --h1-size: 2.25rem; --h2-size: 1.35rem;
   font-size: 18px;
 }
-[data-theme="care"] .btn-primary:hover { background: #002d2d; box-shadow: 0 0 0 3px #91f8ff; }
+[data-theme="care"] .btn-primary:hover { background: #0a1c36; box-shadow: 0 0 0 3px #a9def3; }
 
 /* GOV.UK Design System: black header, blue links, green actions, yellow focus, square corners. */
 [data-theme="govuk"] {

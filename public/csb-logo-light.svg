@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="150" viewBox="0 0 640 150" role="img" aria-labelledby="title">
+  <title id="title">CSB Care Solution Bureau</title>
+  <rect x="5" y="8" width="132" height="132" rx="34" fill="#e8f8fc" stroke="#178aa8" stroke-width="8"/>
+  <text x="71" y="91" text-anchor="middle" fill="#136f88" font-family="Arial, Helvetica, sans-serif" font-size="39" font-weight="700" letter-spacing="-3">CSB</text>
+  <text x="163" y="75" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="43" font-weight="700" letter-spacing="1.2">CARE SOLUTION</text>
+  <text x="164" y="121" fill="#7fdcf5" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="600" letter-spacing="9" fill-opacity="1">BUREAU</text>
+</svg>
