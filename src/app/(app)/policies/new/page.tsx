@@ -31,7 +31,7 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
             <textarea className="input font-mono" id="content" name="content" rows={14} required defaultValue={"## Purpose\n\n## Scope\n\n## Responsibilities\n\n## Procedure\n\n## Local contacts and reporting routes\n\n## Review arrangements\n"} />
             <p className="mt-1 text-xs text-slate-500">Start each section with “## Heading”. Sections whose heading mentions local or contacts are marked as customer-specific and are never changed automatically.</p>
           </div>
-          {hasPlatformPermission(ctx, "master.author") ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="master" /> Create as an Evantix master template</label> : null}
+          {hasPlatformPermission(ctx, "master.author") ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="master" /> Create as a CSB master template</label> : null}
           <div className="md:col-span-2"><button className="btn-primary" type="submit">Create draft</button></div>
         </form>
       </Card>

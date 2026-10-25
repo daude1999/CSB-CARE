@@ -8,7 +8,7 @@ const RA_SCORING = s(
   "Rate likelihood (1 rare to 5 almost certain) and severity (1 negligible to 5 catastrophic) before and after controls. Multiply for a score out of 25: 1 to 4 low, 5 to 9 moderate, 10 to 16 high, 20 to 25 very high. A high or very high score after controls must be escalated to the manager before work continues.",
 );
 
-/** Risk assessments, checklists and audit tools. Original Evantix wording. */
+/** Risk assessments, checklists and audit tools. Original CSB wording. */
 export const RISK_ASSESSMENTS: ResourceSpec[] = [
   {
     ref: "EVX-RA-001",

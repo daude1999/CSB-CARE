@@ -1,9 +1,9 @@
 /**
- * Authoring format for the Evantix starter library. Each document is written
+ * Authoring format for the CSB starter library. Each document is written
  * once as a PolicySpec or ResourceSpec; build.ts turns them into templates with
  * generated framework/related sections and a demo version history.
  *
- * All wording is original to Evantix Care. It draws on the same public
+ * All wording is original to CSB. It draws on the same public
  * legislation, regulator guidance and national guidance that any provider
  * relies on (cited per document), but no third-party policy text is copied.
  * It is NOT professionally reviewed, legally verified or approved. Providers

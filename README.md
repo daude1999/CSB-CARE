@@ -1,4 +1,4 @@
-# Evantix Care
+# CSB
 
 Policy and procedure management for adult social care providers in England, built around an automated policy maintenance engine:
 
@@ -10,7 +10,7 @@ monitor sources → detect genuine change → store immutable source versions �
 
 Each stage is a separate, recorded step in both the data and the interface. Detecting a change does not mean it is substantive; a substantive change does not mean it applies to a given service; applying does not mean a policy must change; and a draft is never live until someone other than its author approves it and it is published. Approved versions are never overwritten.
 
-Evantix Care is original work. It contains no content, code or branding from QCS or any other provider. The bundled starter library (about 120 policies and procedures plus 64 forms, templates, checklists, risk assessments and audit tools, across care homes, home care, supported living, learning disability and autism, mental health and dementia) is original drafting, cited to the legislation and national guidance it relies on (see docs/SOURCES.md). These are drafts that have **not** been professionally or legally reviewed; they are marked as such throughout the product and carry no approval record.
+CSB is original work. It contains no content, code or branding from QCS or any other provider. The bundled starter library (about 120 policies and procedures plus 64 forms, templates, checklists, risk assessments and audit tools, across care homes, home care, supported living, learning disability and autism, mental health and dementia) is original drafting, cited to the legislation and national guidance it relies on (see docs/SOURCES.md). These are drafts that have **not** been professionally or legally reviewed; they are marked as such throughout the product and carry no approval record.
 
 ## What works today
 
@@ -52,9 +52,9 @@ Demo sign-ins (password `DemoPassword!2026`, demo data only):
 | `approver@brookfield.demo` | Policy approver (can publish) |
 | `carer1@brookfield.demo`, `carer2@brookfield.demo` | Care staff |
 | `manager@oakridge.demo` | A second organisation, to show tenant isolation |
-| `regulatory@evantix.demo` | Evantix regulatory reviewer (triages detected changes) |
-| `content@evantix.demo` | Evantix content editor (master templates) |
-| `admin@evantix.demo` | Platform admin (sources, jobs) |
+| `regulatory@csb.demo` | CSB regulatory reviewer (triages detected changes) |
+| `content@csb.demo` | CSB content editor (master templates) |
+| `admin@csb.demo` | Platform admin (sources, jobs) |
 
 The demo includes one **simulated** regulatory change (a safeguarding reporting timescale shortened from 48 to 24 hours) produced by running the real engine against recorded test content. It is labelled SIMULATED everywhere and is not real guidance. To walk the full flow: sign in as `regulatory@` and confirm the change as relevant; as `manager@`, record that the safeguarding policy needs revising; as `author@`, generate the draft and submit it; as `approver@`, approve and publish; as `carer1@`, acknowledge it.
 
@@ -64,8 +64,8 @@ Set `SEED_DEMO=false` for an environment without demo organisations.
 
 ```bash
 npm run typecheck && npm run lint
-npm test                          # 69 unit and integration tests (uses database evantix_test)
-npm run build && npm run test:e2e # browser tests (uses database evantix_e2e)
+npm test                          # 69 unit and integration tests (uses database csb_test)
+npm run build && npm run test:e2e # browser tests (uses database csb_e2e)
 ```
 
 The integration suite includes the end-to-end scenario from the specification (baseline capture, change detection, analysis, candidates, human decisions, drafting with verified citations, separation of duties, publication, acknowledgement, audit trail), tenant isolation, concurrency on publishing, scheduled publishing, rollback, notification retries, behaviour with AI unavailable, master-to-customer sync and evidence handling. The browser suite runs the same scenario through the interface and opens every reachable page as seven different roles.

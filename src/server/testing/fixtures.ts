@@ -37,7 +37,7 @@ export function simulatedGuidance(version: 1 | 2) {
     first_published_at: "2026-01-15T09:00:00Z",
     public_updated_at: version === 1 ? "2026-01-15T09:00:00Z" : "2026-10-20T09:00:00Z",
     details: {
-      body: `<h2>About this simulated guidance</h2><p>This document is a simulation created for the Evantix Care demonstration. It is not issued by any public body.</p>
+      body: `<h2>About this simulated guidance</h2><p>This document is a simulation created for the CSB demonstration. It is not issued by any public body.</p>
 <h2>Reporting concerns</h2><p>Providers must notify the local authority safeguarding team within ${hours} of becoming aware of a concern.</p><p>Where a person is in immediate danger, providers must contact the emergency services straight away.</p>
 <h2>Record keeping</h2><p>Providers should keep a record of each referral, including the reference number given by the local authority.</p>`,
       change_history:

@@ -144,7 +144,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
             ) : null}
           </Card>
 
-          <Card title={ctx.organisationId ? "Impact on our policies" : "Impact on Evantix templates"}>
+          <Card title={ctx.organisationId ? "Impact on our policies" : "Impact on CSB templates"}>
             {!confirmed ? (
               <div className="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 A regulatory reviewer has not yet confirmed this change as relevant. Assessments below are provisional and cannot be decided until it is.

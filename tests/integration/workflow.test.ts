@@ -185,7 +185,7 @@ describe("notifications", () => {
     await db.backgroundJob.updateMany({ where: { type: "notification.deliver" }, data: { runAfter: new Date() } });
     await drain("t", handlers, { types: ["notification.deliver"] });
     expect((await db.notificationDelivery.findFirstOrThrow({ where: mine })).status).toBe("SENT");
-    expect(sent.filter((x) => x === "[Evantix Care] Hello")).toHaveLength(1);
+    expect(sent.filter((x) => x === "[CSB] Hello")).toHaveLength(1);
   });
 });
 
@@ -212,7 +212,7 @@ describe("AI unavailability and safeguards", () => {
       answer: async () => ({ answer: "", citations: [{ chunkId: "invented", quote: "Regulation 99 says so" }], evidenceGaps: [] }),
       draftRevision: async () => ({ summary: "s", conflicts: [], uncertainties: [], edits: [{ operation: "modify", sectionKey: "procedure.reporting", heading: null, insertAfterKey: null, newBody: "Refer within 1 hour.", rationale: "r", citations: [{ sectionRef: "reporting-concerns", quote: "Providers must refer within 1 hour." }] }] }),
     });
-    const regulatory = await ctxFor("regulatory@evantix.demo");
+    const regulatory = await ctxFor("regulatory@csb.demo");
     const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
     const change = await db.regulatoryChange.findFirstOrThrow();
     await triageChange(regulatory, change.id, { to: "CONFIRMED_RELEVANT", reason: "relevant" });
@@ -229,7 +229,7 @@ describe("AI unavailability and safeguards", () => {
   });
 
   it("lets reviewers amend AI assessments with a recorded reason", async () => {
-    const regulatory = await ctxFor("regulatory@evantix.demo");
+    const regulatory = await ctxFor("regulatory@csb.demo");
     const change = await db.regulatoryChange.findFirstOrThrow();
     await expect(triageChange(regulatory, change.id, { to: "CONFIRMED_RELEVANT", reason: "" })).rejects.toThrow(/reason/);
     await triageChange(regulatory, change.id, { to: "UNDER_REVIEW", reason: "Checking", urgency: "URGENT" });
@@ -246,8 +246,8 @@ describe("customer-specific maintenance", () => {
     await seedAll();
   });
   it("turns a master template update into a customer draft that preserves customisations", async () => {
-    const regulatory = await ctxFor("regulatory@evantix.demo");
-    const content = await ctxFor("content@evantix.demo");
+    const regulatory = await ctxFor("regulatory@csb.demo");
+    const content = await ctxFor("content@csb.demo");
     const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
     const change = await db.regulatoryChange.findFirstOrThrow();
     await triageChange(regulatory, change.id, { to: "CONFIRMED_RELEVANT", reason: "relevant" });

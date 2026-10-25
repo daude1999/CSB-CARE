@@ -28,7 +28,7 @@ export interface TemplateDef {
   /** Full demo version history, oldest first; the last entry equals `sections`. */
   versions: TemplateVersion[];
   links: { requirement: string; section: string }[];
-  /** Audit tools only: questions seeded as an Evantix audit template. */
+  /** Audit tools only: questions seeded as a CSB audit template. */
   auditQuestions?: string[];
 }
 
@@ -64,7 +64,7 @@ function frameworkSection(ref: string, links: [string, string][], guidance: stri
   if (legal.length) body.push(`This ${what} helps the organisation meet the following legal and regulatory requirements:`, ...legal, "");
   if (guide.length) body.push("It reflects the following statutory, regulator and national guidance:", ...guide, "");
   if (qsLines.length) body.push("It supports these CQC quality statements:", ...qsLines, "");
-  body.push("These references are Evantix summaries for orientation. They are not quotations and must be checked against the current official text before approval.");
+  body.push("These references are CSB summaries for orientation. They are not quotations and must be checked against the current official text before approval.");
   return { key: "framework", heading: "Legislation, guidance and CQC quality statements", body: body.join("\n") };
 }
 
@@ -106,7 +106,7 @@ function policySections(spec: PolicySpec, titles: Map<string, string>): Template
     key: "local.contacts",
     heading: "Local contacts and reporting routes",
     isLocal: true,
-    body: `[Complete locally] List the names, roles and telephone numbers your staff should use for ${spec.localFor ?? lower}, including out-of-hours arrangements. Evantix never changes this section automatically.`,
+    body: `[Complete locally] List the names, roles and telephone numbers your staff should use for ${spec.localFor ?? lower}, including out-of-hours arrangements. CSB never changes this section automatically.`,
   });
   out.push({ key: "records", heading: "Record keeping", body: spec.records ?? "Records made under this policy are factual, dated, attributed to the person who made them and stored securely in line with the Data Protection and Confidentiality and Record Keeping policies." });
   out.push({ key: "training", heading: "Training requirements", body: spec.training ?? `Staff are introduced to this policy at induction and receive training appropriate to their role, recorded on the training matrix. Managers check understanding of ${lower} through supervision and observation of practice.` });
@@ -125,7 +125,7 @@ function resourceSections(spec: ResourceSpec, titles: Map<string, string>): Temp
     ...spec.parts,
   ];
   if (spec.questions?.length) out.push({ key: "questions", heading: "Audit questions", body: spec.questions.map((q, i) => `${i + 1}. ${q}`).join("\n") + "\n\nRecord each answer as met, partially met, not met or not applicable, with evidence. Results are an internal quality indicator, not proof of regulatory compliance." });
-  out.push({ key: "local.contacts", heading: "Local adaptations", isLocal: true, body: `[Complete locally] Note any local changes to this ${type}, such as your logo, extra fields or who it is returned to. Evantix never changes this section automatically.` });
+  out.push({ key: "local.contacts", heading: "Local adaptations", isLocal: true, body: `[Complete locally] Note any local changes to this ${type}, such as your logo, extra fields or who it is returned to. CSB never changes this section automatically.` });
   if (spec.links?.length || spec.guidance?.length || spec.qs?.length) out.push(frameworkSection(spec.ref, spec.links ?? [], spec.guidance ?? [], spec.qs ?? [], type));
   out.push(relatedSection(spec.ref, spec.policies, titles, "Related policies"));
   out.push({ key: "review", heading: "Review arrangements", body: `This ${type} is reviewed with its parent policy, and sooner if staff find it does not capture what they need.` });

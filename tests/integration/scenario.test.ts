@@ -77,7 +77,7 @@ describe("automated policy update workflow (end to end)", () => {
 
     // ── 4. Stages cannot be skipped: revision decision requires the change to be confirmed relevant
     await expect(reviewAssessment(manager, assessment.id, { decision: "REVISION_REQUIRED", reason: "x" })).rejects.toThrow(/confirmed relevant/);
-    const regulatory = await ctxFor("regulatory@evantix.demo");
+    const regulatory = await ctxFor("regulatory@csb.demo");
     await expect(triageChange(manager, changeId, { to: "CONFIRMED_RELEVANT", reason: "x" })).rejects.toThrow(/permission/);
     await triageChange(regulatory, changeId, { to: "CONFIRMED_RELEVANT", reason: "Reporting timescale shortened; affects safeguarding procedures" });
 

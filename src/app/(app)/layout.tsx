@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { logoutAction, switchOrgAction } from "../actions";
+import { Wordmark } from "@/components/brand";
 import { NavLink } from "@/components/nav-link";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
@@ -34,15 +35,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col bg-navy-950 text-slate-200 md:flex">
-        <div className="px-5 py-5 text-xl font-semibold text-white">
-          Evantix <span className="text-teal-400">Care</span>
+        <div className="border-b border-navy-800 px-5 py-5">
+          <Wordmark />
         </div>
-        <nav className="flex-1 space-y-0.5 px-3" aria-label="Main">
+        <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main">
           {nav.filter((n) => n.show).map((n) => (
             <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
           ))}
         </nav>
         <div className="border-t border-navy-800 p-4 text-xs text-slate-400">
+          <div className="mb-1 font-medium text-slate-300">CSB · Care Solution Bureau</div>
           Starter content is not legal advice. AI output is a proposal for human review.
         </div>
       </aside>
@@ -59,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <button className="btn-secondary py-1" type="submit">Switch</button>
               </form>
             ) : (
-              <span className="font-medium text-navy-900">{org?.name ?? "Evantix platform"}</span>
+              <span className="font-medium text-navy-900">{org?.name ?? "CSB platform administration"}</span>
             )}
             {org?.isDemo ? <span className="rounded bg-violet-50 px-2 py-0.5 text-xs text-violet-700">Demo organisation</span> : null}
           </div>

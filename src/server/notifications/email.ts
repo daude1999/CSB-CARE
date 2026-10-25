@@ -37,7 +37,7 @@ class SmtpEmailProvider implements EmailProvider {
   }
   async send(msg: EmailMessage) {
     const t = await this.transport;
-    const info = await t.sendMail({ from: process.env.EMAIL_FROM ?? "Evantix Care <no-reply@evantix.example>", to: msg.to, subject: msg.subject, text: msg.text });
+    const info = await t.sendMail({ from: process.env.EMAIL_FROM ?? "CSB Care Solution Bureau <no-reply@csb.example>", to: msg.to, subject: msg.subject, text: msg.text });
     return { messageId: info.messageId };
   }
 }

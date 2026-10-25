@@ -1,5 +1,5 @@
 /**
- * Original starter policy templates written for Evantix Care.
+ * Original starter policy templates written for CSB.
  * They are NOT professionally reviewed, legally verified or approved. Providers
  * must adapt and approve them through their own governance before use.
  *

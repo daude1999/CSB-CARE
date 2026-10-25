@@ -53,7 +53,7 @@ export class HttpClient {
       userAgent:
         opts.userAgent ??
         process.env.SOURCE_USER_AGENT ??
-        "EvantixCareMonitor/0.1 (+regulatory change monitoring; contact: compliance@evantix.example)",
+        "CSBCareMonitor/0.1 (+regulatory change monitoring; contact: compliance@csb.example)",
     };
   }
 
@@ -142,7 +142,7 @@ export async function isAllowedByRobots(http: HttpClient, url: string): Promise<
     const line = raw.replace(/#.*/, "").trim();
     const [k, ...rest] = line.split(":");
     const v = rest.join(":").trim();
-    if (/^user-agent$/i.test(k ?? "")) applies = v === "*" || /evantix/i.test(v);
+    if (/^user-agent$/i.test(k ?? "")) applies = v === "*" || /csb/i.test(v);
     else if (applies && /^disallow$/i.test(k ?? "") && v) disallow.push(v);
   }
   return !disallow.some((p) => u.pathname.startsWith(p));

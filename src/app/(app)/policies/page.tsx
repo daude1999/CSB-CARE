@@ -36,13 +36,13 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader
         title="Policies & Procedures"
-        subtitle="Your organisation's policy library and the Evantix starter templates. Starter templates are original content that has not been professionally reviewed; adapt and approve them before use."
+        subtitle="Your organisation's policy library and the CSB starter templates. Starter templates are original content that has not been professionally reviewed; adapt and approve them before use."
         actions={canAuthor ? <Link className="btn-primary" href="/policies/new">New policy</Link> : null}
       />
       <Flash searchParams={sp} />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         {ctx.organisationId ? <Link className={tab === "CUSTOMER" ? "btn-primary" : "btn-secondary"} href="/policies">Our policies</Link> : null}
-        <Link className={tab === "MASTER" ? "btn-primary" : "btn-secondary"} href="/policies?tab=templates">Evantix templates</Link>
+        <Link className={tab === "MASTER" ? "btn-primary" : "btn-secondary"} href="/policies?tab=templates">CSB templates</Link>
         <form className="ml-auto flex flex-wrap gap-2" role="search">
           {tab === "MASTER" ? <input type="hidden" name="tab" value="templates" /> : null}
           {docType ? <input type="hidden" name="type" value={docType} /> : null}
@@ -95,7 +95,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
             </tbody>
           </table>
         ) : (
-          <Empty>{sp.q || sp.category || sp.overdue || docType ? "No policies match these filters." : tab === "CUSTOMER" ? "Your library is empty. Adopt an Evantix template or create a policy to get started." : "No templates found."}</Empty>
+          <Empty>{sp.q || sp.category || sp.overdue || docType ? "No policies match these filters." : tab === "CUSTOMER" ? "Your library is empty. Adopt a CSB template or create a policy to get started." : "No templates found."}</Empty>
         )}
         <Pagination page={page} pageSize={pageSize} total={total} base="/policies" params={{ q: sp.q, category: sp.category, tab: sp.tab, overdue: sp.overdue, type: docType }} />
       </Card>
