@@ -1,3 +1,4 @@
+import { SectionEditor } from "@/components/section-editor";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -58,14 +59,14 @@ export default async function RevisionPage({ params, searchParams }: { params: P
               <p className="muted mb-3">Edits create no new approved version; they change this draft only. Customer-specific sections are never changed automatically.</p>
               <div className="space-y-4">
                 {v.sections.map((s) => (
-                  <details key={s.key} className="rounded border border-slate-200 p-3">
-                    <summary className="cursor-pointer text-sm font-medium">{s.heading} {s.isLocal ? <Badge tone="teal">local</Badge> : null}</summary>
-                    <form action={editSectionAction} className="mt-2 space-y-2">
+                  <details key={s.key} className="border-b border-slate-200 py-3 [&[open]]:pb-5">
+                    <summary className="cursor-pointer font-serif text-[16px] font-semibold text-navy-900">{s.heading} {s.isLocal ? <Badge tone="teal">local</Badge> : null}</summary>
+                    <form action={editSectionAction} className="mt-3 space-y-2">
                       <input type="hidden" name="revisionId" value={r.id} />
                       <input type="hidden" name="key" value={s.key} />
                       <input type="hidden" name="back" value={back} />
                       <input name="heading" className="input" defaultValue={s.heading} aria-label="Heading" />
-                      <textarea name="body" className="input min-h-40" defaultValue={s.body} aria-label={`Body of ${s.heading}`} />
+                      <SectionEditor name="body" initial={s.body} label={`Body of ${s.heading}`} />
                       <button className="btn-secondary" type="submit">Save section</button>
                     </form>
                   </details>
