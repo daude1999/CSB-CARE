@@ -16,31 +16,38 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId } }) : null,
   ]);
   const isPlatformAdmin = hasPlatformPermission(ctx, "sources.manage");
-  const nav: { href: string; label: string; show: boolean }[] = [
-    { href: "/", label: "Overview", show: true },
-    { href: "/policies", label: "Policies & Procedures", show: true },
-    { href: "/changes", label: "Regulatory Updates", show: true },
-    { href: "/queue", label: "Policy Change Queue", show: hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author") },
-    { href: "/requirements", label: "Requirements Register", show: true },
-    { href: "/audits", label: "Audits & Inspections", show: hasOrgPermission(ctx, "audit.conduct") },
-    { href: "/actions", label: "Actions & Risks", show: Boolean(ctx.organisationId) },
-    { href: "/staff", label: "Staff & Training", show: hasOrgPermission(ctx, "staff.view") },
-    { href: "/evidence", label: "Evidence Library", show: hasOrgPermission(ctx, "evidence.read") },
-    { href: "/assistant", label: "AI Assistant", show: hasOrgPermission(ctx, "assistant.use") },
-    { href: "/reports", label: "Reports", show: hasOrgPermission(ctx, "report.view") || isPlatformAdmin },
-    { href: "/admin/sources", label: "Source Monitoring", show: isPlatformAdmin },
-    { href: "/admin/jobs", label: "Background Jobs", show: isPlatformAdmin },
-    { href: "/settings", label: "Organisation Settings", show: hasOrgPermission(ctx, "org.manage") },
+  const nav: { href: string; label: string; group: string; show: boolean }[] = [
+    { href: "/", label: "Overview", group: "Home", show: true },
+    { href: "/policies", label: "Policies & Procedures", group: "Policy management", show: true },
+    { href: "/changes", label: "Regulatory Updates", group: "Policy management", show: true },
+    { href: "/queue", label: "Policy Change Queue", group: "Policy management", show: hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author") },
+    { href: "/requirements", label: "Requirements Register", group: "Policy management", show: true },
+    { href: "/audits", label: "Audits & Inspections", group: "Care operations", show: hasOrgPermission(ctx, "audit.conduct") },
+    { href: "/actions", label: "Actions & Risks", group: "Care operations", show: Boolean(ctx.organisationId) },
+    { href: "/staff", label: "Staff & Training", group: "Care operations", show: hasOrgPermission(ctx, "staff.view") },
+    { href: "/evidence", label: "Evidence Library", group: "Care operations", show: hasOrgPermission(ctx, "evidence.read") },
+    { href: "/assistant", label: "AI Assistant", group: "Insights", show: hasOrgPermission(ctx, "assistant.use") },
+    { href: "/reports", label: "Reports", group: "Insights", show: hasOrgPermission(ctx, "report.view") || isPlatformAdmin },
+    { href: "/admin/sources", label: "Source Monitoring", group: "Administration", show: isPlatformAdmin },
+    { href: "/admin/jobs", label: "Background Jobs", group: "Administration", show: isPlatformAdmin },
+    { href: "/settings", label: "Organisation Settings", group: "Administration", show: hasOrgPermission(ctx, "org.manage") },
   ];
+  const visibleNav = nav.filter((n) => n.show);
+  const navGroups = [...new Set(visibleNav.map((item) => item.group))].map((group) => ({ group, items: visibleNav.filter((item) => item.group === group) }));
   return (
     <div className="flex min-h-screen">
       <aside className="hidden w-64 shrink-0 flex-col bg-navy-950 text-slate-200 md:flex">
         <div className="border-b-4 border-teal-400 bg-white px-5 py-4">
           <Logo className="h-12 max-w-full" />
         </div>
-        <nav className="flex-1 space-y-0.5 px-3 pt-4" aria-label="Main">
-          {nav.filter((n) => n.show).map((n) => (
-            <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 pt-4" aria-label="Main">
+          {navGroups.map(({ group, items }) => (
+            <div key={group}>
+              {group !== "Home" ? <h2 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{group}</h2> : null}
+              <div className="space-y-0.5">
+                {items.map((n) => <NavLink key={n.href} href={n.href}>{n.label}</NavLink>)}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="border-t border-navy-800 p-4 text-xs text-slate-400">
@@ -79,7 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
         <nav className="overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden" aria-label="Main">
           <div className="flex min-w-max gap-1">
-            {nav.filter((n) => n.show).map((n) => (
+            {visibleNav.map((n) => (
               <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
             ))}
           </div>
