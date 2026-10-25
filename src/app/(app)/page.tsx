@@ -18,10 +18,19 @@ export default async function Overview() {
   const admin = hasPlatformPermission(ctx, "sources.manage");
   return (
     <>
-      <PageHeader title="Overview" subtitle="All figures are calculated from current records. Platform scores and statuses support professional judgement; they are not proof of regulatory compliance." />
+      <PageHeader title={`Welcome back, ${ctx.userName.split(" ")[0]}`} subtitle="Your compliance at a glance. Figures are live from your records and support, rather than replace, professional judgement." />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Sources checked within window" value={`${m.sources.fresh}/${m.sources.total - m.sources.manual}`} hint={`${m.sources.manual} manual-review-only`} href={admin ? "/admin/sources" : undefined} tone="green" />
-        <Stat label="Sources failing or stale" value={m.sources.failing + m.sources.stale} tone={m.sources.failing + m.sources.stale ? "rose" : "green"} href={admin ? "/admin/sources" : undefined} />
+        {admin ? (
+          <>
+            <Stat label="Sources checked within window" value={`${m.sources.fresh}/${m.sources.total - m.sources.manual}`} hint={`${m.sources.manual} manual-review-only`} href="/admin/sources" tone="green" />
+            <Stat label="Sources failing or stale" value={m.sources.failing + m.sources.stale} tone={m.sources.failing + m.sources.stale ? "rose" : "green"} href="/admin/sources" />
+          </>
+        ) : (
+          <>
+            <Stat label="Policies & documents in use" value={m.libraryCount} href="/policies" hint="your organisation's library" />
+            <Stat label="CSB library documents" value={m.templateCount} href="/policies?tab=templates" tone="green" hint="ready to adopt and download" />
+          </>
+        )}
         <Stat label="New changes to triage" value={m.newChanges} href="/changes" tone={m.newChanges ? "amber" : "navy"} />
         <Stat label="Assessments awaiting decision" value={m.awaitingAssessment} href="/queue" tone={m.awaitingAssessment ? "amber" : "navy"} />
         <Stat label="Policies awaiting revision" value={m.policiesAwaitingRevision} href="/queue" />

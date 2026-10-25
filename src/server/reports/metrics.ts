@@ -13,7 +13,9 @@ export async function dashboardMetrics(ctx: Ctx) {
   const stale = sources.filter((s) => ["stale", "never"].includes(freshness(s, now).state)).length;
   const manual = sources.filter((s) => s.coverage === "MANUAL_REVIEW_ONLY").length;
   const orgScope = orgId ? { organisationId: orgId } : { organisationId: null };
-  const [newChanges, awaitingAssessment, policiesAwaitingRevision, draftsAwaitingApproval, publishedThisMonth, overdueReviews, outstandingAcks, overdueAcks, overdueActions] = await Promise.all([
+  const [libraryCount, templateCount, newChanges, awaitingAssessment, policiesAwaitingRevision, draftsAwaitingApproval, publishedThisMonth, overdueReviews, outstandingAcks, overdueAcks, overdueActions] = await Promise.all([
+    orgId ? db.policy.count({ where: { organisationId: orgId, status: "ACTIVE" } }) : 0,
+    db.policy.count({ where: { kind: "MASTER", status: "ACTIVE", currentPublishedVersionId: { not: null } } }),
     db.regulatoryChange.count({ where: { status: { in: ["NEWLY_DETECTED", "AWAITING_CLASSIFICATION", "POTENTIALLY_SUBSTANTIVE"] } } }),
     db.impactAssessment.count({ where: { status: "PROPOSED", ...orgScope } }),
     db.impactAssessment.count({ where: { status: "CONFIRMED_REVISION_REQUIRED", ...orgScope, revisions: { none: {} } } }),
@@ -26,6 +28,8 @@ export async function dashboardMetrics(ctx: Ctx) {
   ]);
   return {
     sources: { total: sources.length, fresh, failing, stale, manual },
+    libraryCount,
+    templateCount,
     newChanges,
     awaitingAssessment,
     policiesAwaitingRevision,

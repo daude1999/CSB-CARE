@@ -24,7 +24,7 @@ export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: stri
     db.policy.findMany({
       where,
       include: { category: true, currentPublishedVersion: true, revisions: { where: { closedAt: null }, select: { id: true, kind: true } } },
-      orderBy: [{ kind: "desc" }, { ref: "asc" }],
+      orderBy: [{ kind: "desc" }, { title: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
