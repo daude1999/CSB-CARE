@@ -1,7 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { TEMPLATES } from "../../../prisma/seed-data/templates";
+import { TEMPLATES, type TemplateVersion } from "../../../prisma/seed-data/templates";
 import { SOURCES } from "../../../prisma/seed-data/sources";
+import { REQUIREMENTS } from "../../../prisma/seed-data/library/requirements";
 import { createDraftVersion } from "../policies/versions";
 import { indexPolicyVersion } from "../search/index-chunks";
 
@@ -30,30 +31,69 @@ export const CATEGORIES: [string, string][] = [
   ["RECORDS", "Record keeping"],
   ["EQUALITY", "Equality and human rights"],
   ["FOOD", "Food and nutrition"],
+  ["CARE", "Care planning and delivery"],
+  ["CLINICAL", "Clinical care"],
+  ["END_OF_LIFE", "End of life care"],
+  ["WORKFORCE", "Workforce and conduct"],
 ];
+
+const MONTH_MS = 30.44 * 86400_000;
+export const monthsAgo = (m: number) => new Date(Date.now() - m * MONTH_MS);
+const addMonths = (d: Date, m: number) => new Date(d.getTime() + m * MONTH_MS);
+
+type SeedSection = { key: string; heading: string; body: string; isLocal?: boolean; masterKey?: string | null };
 
 /**
  * Seeds a version as published WITHOUT an approval record. It is labelled as
- * seeded starter content; the UI shows that no approval exists.
+ * seeded starter content; the UI shows that no approval exists. Any currently
+ * published version is superseded. The caller indexes the final version.
  */
-export async function seedPublishedVersion(policyId: string, organisationId: string | null, sections: { key: string; heading: string; body: string; isLocal?: boolean; masterKey?: string | null }[], extra: { basedOnMasterVersionId?: string | null; changeSummary?: string } = {}) {
-  const v = await db.$transaction(async (tx) => {
+async function publishSeedVersion(
+  policyId: string,
+  organisationId: string | null,
+  sections: SeedSection[],
+  extra: { basedOnMasterVersionId?: string | null; changeSummary?: string; reasonForChange?: string; publishedAt?: Date; reviewIntervalMonths?: number; requiresAcknowledgement?: boolean } = {},
+) {
+  const publishedAt = extra.publishedAt ?? new Date();
+  return db.$transaction(async (tx) => {
+    const previous = await tx.policyVersion.findFirst({ where: { policyId, status: "PUBLISHED" } });
     const draft = await createDraftVersion(tx, {
       policyId,
       organisationId,
       sections,
       origin: "SEED",
+      previousVersionId: previous?.id ?? null,
       basedOnMasterVersionId: extra.basedOnMasterVersionId,
       changeSummary: extra.changeSummary ?? "Seeded starter content. Not professionally reviewed; no approval record exists.",
-      reasonForChange: "Initial seed",
+      reasonForChange: extra.reasonForChange ?? "Initial seed",
     });
-    for (const status of ["UNDER_REVIEW", "APPROVED", "PUBLISHED"] as const) await tx.policyVersion.update({ where: { id: draft.id }, data: { status, publishedAt: status === "PUBLISHED" ? new Date() : undefined, effectiveDate: status === "PUBLISHED" ? new Date() : undefined } });
-    await tx.policy.update({ where: { id: policyId }, data: { currentPublishedVersionId: draft.id, nextReviewDate: new Date(Date.now() + 365 * 86400_000) } });
-    await tx.policyPublication.create({ data: { policyId, organisationId, versionId: draft.id, status: "PUBLISHED", publishedAt: new Date(), effectiveDate: new Date(), publishedById: "seed", requiresAcknowledgement: false } });
+    if (previous) await tx.policyVersion.update({ where: { id: previous.id }, data: { status: "SUPERSEDED", supersededAt: publishedAt } });
+    for (const status of ["UNDER_REVIEW", "APPROVED", "PUBLISHED"] as const) await tx.policyVersion.update({ where: { id: draft.id }, data: { status, publishedAt: status === "PUBLISHED" ? publishedAt : undefined, effectiveDate: status === "PUBLISHED" ? publishedAt : undefined } });
+    await tx.policy.update({ where: { id: policyId }, data: { currentPublishedVersionId: draft.id, nextReviewDate: addMonths(publishedAt, extra.reviewIntervalMonths ?? 12) } });
+    await tx.policyPublication.create({ data: { policyId, organisationId, versionId: draft.id, status: "PUBLISHED", publishedAt, effectiveDate: publishedAt, publishedById: "seed", requiresAcknowledgement: extra.requiresAcknowledgement ?? false } });
     return draft;
   });
+}
+
+export async function seedPublishedVersion(policyId: string, organisationId: string | null, sections: SeedSection[], extra: Parameters<typeof publishSeedVersion>[3] = {}) {
+  const v = await publishSeedVersion(policyId, organisationId, sections, extra);
   await indexPolicyVersion(v.id);
   return v;
+}
+
+/** Seeds a demo version history (oldest first); only the final version is indexed for search. */
+export async function seedVersionHistory(policyId: string, organisationId: string | null, versions: TemplateVersion[], reviewIntervalMonths = 12) {
+  let last = null;
+  for (const v of versions) {
+    last = await publishSeedVersion(policyId, organisationId, v.sections, {
+      changeSummary: `${v.changeSummary} Seeded starter content; not professionally reviewed; no approval record exists.`,
+      reasonForChange: v.reasonForChange,
+      publishedAt: monthsAgo(v.publishedMonthsAgo),
+      reviewIntervalMonths,
+    });
+  }
+  if (last) await indexPolicyVersion(last.id);
+  return last;
 }
 
 export async function seedBase() {
@@ -71,8 +111,8 @@ export async function seedBase() {
   for (const t of TEMPLATES) {
     let p = await db.policy.findFirst({ where: { organisationId: null, ref: t.ref } });
     if (!p) {
-      p = await db.policy.create({ data: { kind: "MASTER", ref: t.ref, title: t.title, description: t.description, categoryCode: t.category, serviceTypes: t.serviceTypes } });
-      await seedPublishedVersion(p.id, null, t.sections);
+      p = await db.policy.create({ data: { kind: "MASTER", ref: t.ref, title: t.title, description: t.description, categoryCode: t.category, serviceTypes: t.serviceTypes, reviewIntervalMonths: t.reviewIntervalMonths } });
+      await seedVersionHistory(p.id, null, t.versions, t.reviewIntervalMonths);
     }
     masters[t.ref] = p.id;
   }
@@ -81,37 +121,42 @@ export async function seedBase() {
 }
 
 async function seedRequirements(masters: Record<string, string>) {
-  const leg = await db.regulatorySource.findUniqueOrThrow({ where: { key: "legislation-regulated-activities-2014" } });
-  const leg2 = await db.regulatorySource.findUniqueOrThrow({ where: { key: "legislation-mca-care-act" } });
-  const reqs = [
-    { ref: "REQ-ENG-0001", title: "Protect people from abuse and improper treatment", source: leg, sectionRef: "/uksi/2014/2936/regulation/13", exactReference: "SI 2014/2936, regulation 13", policy: "EVX-SAF-001", section: "statement", summary: "Providers must have systems and processes to prevent abuse and to investigate allegations." },
-    { ref: "REQ-ENG-0002", title: "Safe care and treatment, including proper and safe management of medicines", source: leg, sectionRef: "/uksi/2014/2936/regulation/12", exactReference: "SI 2014/2936, regulation 12", policy: "EVX-MED-001", section: "statement", summary: "Care must be provided in a safe way, including the proper and safe management of medicines." },
-    { ref: "REQ-ENG-0003", title: "Receiving and acting on complaints", source: leg, sectionRef: "/uksi/2014/2936/regulation/16", exactReference: "SI 2014/2936, regulation 16", policy: "EVX-COM-001", section: "procedure", summary: "Complaints must be investigated and proportionate action taken; an accessible system must be in place." },
-    { ref: "REQ-ENG-0004", title: "Good governance", source: leg, sectionRef: "/uksi/2014/2936/regulation/17", exactReference: "SI 2014/2936, regulation 17", policy: "EVX-GOV-001", section: "procedure", summary: "Systems must assess, monitor and improve quality and safety, and maintain accurate records." },
-    { ref: "REQ-ENG-0005", title: "Fit and proper persons employed", source: leg, sectionRef: "/uksi/2014/2936/regulation/19", exactReference: "SI 2014/2936, regulation 19", policy: "EVX-REC-001", section: "procedure", summary: "Persons employed must be of good character and have the necessary qualifications, competence, skills and experience." },
-    { ref: "REQ-ENG-0006", title: "Duty of candour", source: leg, sectionRef: "/uksi/2014/2936/regulation/20", exactReference: "SI 2014/2936, regulation 20", policy: "EVX-DOC-001", section: "procedure", summary: "Providers must act in an open and transparent way when a notifiable safety incident occurs." },
-    { ref: "REQ-ENG-0007", title: "Principles of the Mental Capacity Act", source: leg2, sectionRef: "/ukpga/2005/9/section/1", exactReference: "Mental Capacity Act 2005, section 1", policy: "EVX-MCA-001", section: "statement", summary: "Statutory principles on presumption of capacity, supported decision making, unwise decisions, best interests and least restriction." },
-    { ref: "REQ-ENG-0008", title: "Local authority safeguarding enquiries", source: leg2, sectionRef: "/ukpga/2014/23/section/42", exactReference: "Care Act 2014, section 42", policy: "EVX-SAF-001", section: "procedure.reporting", summary: "Duty on local authorities to make enquiries where an adult with care and support needs may be at risk of abuse or neglect." },
-  ];
-  for (const r of reqs) {
+  const sources = new Map((await db.regulatorySource.findMany({ select: { id: true, key: true } })).map((x) => [x.key, x.id]));
+  const ids = new Map<string, string>();
+  for (const r of REQUIREMENTS) {
     const existing = await db.regulatoryRequirement.findUnique({ where: { ref: r.ref } });
-    if (existing) continue;
+    if (existing) {
+      ids.set(r.ref, existing.id);
+      continue;
+    }
+    const sourceId = sources.get(r.source);
+    if (!sourceId) throw new Error(`Requirement ${r.ref} refers to unknown source ${r.source}`);
     const req = await db.regulatoryRequirement.create({
       data: {
         ref: r.ref,
         title: r.title,
-        sourceId: r.source.id,
+        sourceId,
         exactReference: r.exactReference,
         sourceSectionRef: r.sectionRef,
-        sourceUrl: `https://www.legislation.gov.uk${r.sectionRef}`,
+        sourceUrl: r.url,
         excerpt: `[Summary, not a quotation; verify against the source] ${r.summary}`,
-        legalStatus: "LEGISLATION",
-        serviceTypes: ["RESIDENTIAL", "NURSING", "DOMICILIARY", "SUPPORTED_LIVING"],
+        legalStatus: r.legalStatus,
+        serviceTypes: r.serviceTypes ?? ["RESIDENTIAL", "NURSING", "DOMICILIARY", "SUPPORTED_LIVING"],
         verificationStatus: "UNVERIFIED",
-        applicabilityNotes: "Applies to providers of regulated activities in England. Effective date and wording not yet verified in this register.",
+        applicabilityNotes: r.applicabilityNotes ?? "Applies to providers of regulated activities in England. Effective date and wording not yet verified in this register.",
         versions: { create: { version: 1, snapshot: { summary: r.summary }, reason: "Initial register entry" } },
       },
     });
-    await db.requirementPolicyLink.create({ data: { requirementId: req.id, policyId: masters[r.policy]!, sectionKey: r.section, rationale: `${r.policy} sets out how the provider meets ${r.exactReference}.` } });
+    ids.set(r.ref, req.id);
+  }
+  for (const t of TEMPLATES) {
+    for (const link of t.links) {
+      const requirementId = ids.get(link.requirement)!;
+      const policyId = masters[t.ref]!;
+      const exists = await db.requirementPolicyLink.findFirst({ where: { requirementId, policyId, sectionKey: link.section } });
+      if (exists) continue;
+      const req = REQUIREMENTS.find((r) => r.ref === link.requirement)!;
+      await db.requirementPolicyLink.create({ data: { requirementId, policyId, sectionKey: link.section, rationale: `${t.ref} section "${link.section}" sets out how the provider meets ${req.exactReference}.` } });
+    }
   }
 }

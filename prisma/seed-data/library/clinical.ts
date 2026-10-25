@@ -1,0 +1,113 @@
+import type { PolicySpec } from "./types";
+
+export const CLINICAL: PolicySpec[] = [
+  {
+    ref: "EVX-CLN-001",
+    title: "Falls Prevention and Management",
+    category: "CLINICAL",
+    summary: "how we reduce the risk of falls and respond safely when someone falls.",
+    purpose: "This policy describes how we help people stay mobile and independent while reducing their risk of falling, and what staff do when a fall happens.",
+    responsibilities: "Senior staff complete falls risk assessments and update care plans. All staff follow the care plan, keep environments safe and respond to falls as set out below. The manager reviews every fall.",
+    statement: "We support people to move about freely and do not restrict mobility simply to prevent falls. We assess falls risk, act on what we find and learn from every fall.",
+    procedures: [
+      {
+        key: "procedure.assessment",
+        heading: "Assessing falls risk",
+        body: "Assess falls risk at the start of a service, after any fall and at each care plan review. Consider previous falls, medicines, eyesight, footwear, continence, low blood pressure, cognition, the environment and fear of falling. Refer people to their GP or local falls service where appropriate, and ask for a medicines review if medicines may be contributing.",
+      },
+      {
+        key: "procedure.after-fall",
+        heading: "When someone has fallen",
+        body: "1. Stay calm, reassure the person and do not move them straight away.\n2. Check for injury, including head injury, pain, bleeding or a limb that looks shortened or rotated, and check whether they are conscious and breathing normally.\n3. If there is a suspected serious injury, head injury in someone taking blood thinners, or any doubt, call 999 and keep the person warm and still.\n4. If the person is uninjured, help them up using an approved technique or lifting equipment. Never lift a person manually from the floor.\n5. Monitor the person closely for the next 24 hours for delayed signs of injury.",
+      },
+      {
+        key: "procedure.after-care",
+        heading: "After a fall",
+        body: "Complete an incident report and tell the person's family and GP as agreed. Review the risk assessment and care plan. The manager decides whether a CQC notification or safeguarding referral is needed, for example after a serious injury or an unwitnessed fall in unclear circumstances.",
+      },
+    ],
+    localFor: "falls services and advice",
+    records: "Record falls risk assessments, every fall, observations afterwards and actions taken.",
+    training: "Staff learn falls prevention and post-fall management at induction, including use of lifting equipment, refreshed annually.",
+    monitoring: "Falls are analysed monthly by person, time and location to identify patterns and actions.",
+    links: [
+      ["REQ-ENG-0002", "procedure.assessment"],
+      ["REQ-ENG-0023", "procedure.after-care"],
+    ],
+    qs: ["S4", "E5", "S1"],
+    related: ["EVX-HS-002", "EVX-INC-001", "EVX-CLN-003", "EVX-RISK-001"],
+  },
+  {
+    ref: "EVX-CLN-002",
+    title: "Pressure Ulcer Prevention and Skin Care",
+    category: "CLINICAL",
+    summary: "how we keep people's skin healthy and prevent, recognise and report pressure damage.",
+    purpose: "This policy sets out how staff assess and reduce the risk of pressure ulcers and act quickly when skin damage is noticed.",
+    responsibilities: "Senior staff or nurses complete skin integrity risk assessments using a recognised tool. Care staff check skin during personal care and report changes the same day. In nursing homes, registered nurses lead wound care; in other services, community nurses are involved.",
+    statement: "Most pressure ulcers are preventable. We assess every person's risk, plan care to reduce it and treat any new skin damage as a priority.",
+    procedures: [
+      {
+        key: "procedure.assessment",
+        heading: "Assessment",
+        body: "Complete a skin integrity risk assessment at the start of the service and review it at least monthly or when the person's condition changes. Record the result and the actions in the care plan.",
+      },
+      {
+        key: "procedure.prevention",
+        heading: "Prevention",
+        body: "Follow the care plan for repositioning, pressure-relieving equipment, continence care, nutrition and hydration and skin moisturising. Check that mattresses and cushions are working and set correctly. Encourage people to move position themselves where they can.",
+      },
+      {
+        key: "procedure.damage",
+        heading: "When skin damage is found",
+        body: "Report redness that does not fade, broken skin or blisters to the person in charge immediately. Arrange a nursing assessment the same day. Record the location, size and appearance, with a photograph if the person consents and local policy allows. The manager considers whether a safeguarding referral is required, for example where damage may be linked to neglect.",
+      },
+    ],
+    localFor: "tissue viability and community nursing",
+    records: "Record risk assessments, repositioning charts, skin checks and wound assessments.",
+    training: "Care staff complete pressure ulcer prevention training at induction and annually. Nurses keep their wound care competencies current.",
+    monitoring: "New pressure ulcers are reviewed for learning and reported to governance meetings.",
+    links: [
+      ["REQ-ENG-0002", "procedure.prevention"],
+      ["REQ-ENG-0012", "procedure.prevention"],
+      ["REQ-ENG-0001", "procedure.damage"],
+    ],
+    qs: ["S4", "E2", "E4"],
+    related: ["EVX-FOOD-001", "EVX-CLN-003", "EVX-SAF-001"],
+  },
+  {
+    ref: "EVX-CLN-003",
+    title: "Recognising and Responding to Deterioration",
+    category: "CLINICAL",
+    summary: "how staff spot that someone is becoming unwell and get the right help quickly.",
+    purpose: "This policy helps staff recognise early signs that a person's health is getting worse, including sepsis, and escalate concerns without delay.",
+    responsibilities: "All staff report changes in a person's usual presentation. Senior staff and nurses take observations where trained and decide on escalation. The manager makes sure staff have equipment and training.",
+    statement: "Staff know the people they support well and are often first to notice when something is wrong. We act on 'soft signs' as well as measurements, and we always escalate when in doubt.",
+    procedures: [
+      {
+        key: "procedure.signs",
+        heading: "Recognising soft signs",
+        body: "Look out for changes such as new confusion or drowsiness, being off food or drink, reduced urine output, new breathlessness, feeling hot or cold and shivery, mottled or bluish skin, increased falls or a carer's sense that 'something is not right'. Tell the person in charge straight away.",
+      },
+      {
+        key: "procedure.observations",
+        heading: "Observations and escalation tools",
+        body: "Where staff are trained, take a set of observations and use the agreed escalation tool (for example RESTORE2 or a NEWS2 score in nursing homes). Use the SBARD structure (situation, background, assessment, recommendation, decision) when calling the GP, NHS 111 or a community team so that information is clear.",
+      },
+      {
+        key: "procedure.emergency",
+        heading: "Emergencies",
+        body: "Call 999 for life-threatening symptoms such as chest pain, difficulty breathing, unresponsiveness, signs of stroke or suspected sepsis with severe symptoms. Follow the person's advance care plan and any DNACPR or ReSPECT form. Stay with the person and pass on information to paramedics.",
+      },
+    ],
+    localFor: "GP, out-of-hours and community health services",
+    records: "Record observations, escalation calls, advice received and actions taken.",
+    training: "Staff complete training on recognising deterioration and, where relevant, on taking observations and using escalation tools, refreshed annually.",
+    monitoring: "Unplanned hospital admissions are reviewed to identify whether earlier recognition was possible.",
+    links: [
+      ["REQ-ENG-0002", "procedure.signs"],
+      ["REQ-ENG-0009", "procedure.emergency"],
+    ],
+    qs: ["S2", "C4", "E3"],
+    related: ["EVX-CLN-001", "EVX-MCA-003", "EVX-CP-006"],
+  },
+];

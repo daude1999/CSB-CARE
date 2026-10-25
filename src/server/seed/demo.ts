@@ -56,20 +56,53 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   const oakPolicy = await db.policy.create({ data: { kind: "CUSTOMER", organisationId: other.id, ref: "OAK-CONF-01", title: "Oakridge Confidential Tenancy Procedure", description: "Private to Oakridge (DEMO).", categoryCode: "DATA_PROTECTION", isDemo: true } });
   await seedPublishedVersion(oakPolicy.id, other.id, [{ key: "procedure", heading: "Procedure", body: "Oakridge-only procedure text (DEMO). This must never be visible to Brookfield users." }]);
 
-  // Brookfield adopts several templates with completed local sections.
+  // Brookfield adopts the starter templates that fit its services, with completed local sections.
   const localText: Record<string, string> = {
     "EVX-SAF-001": "Brookfield safeguarding lead: Morgan Manager, 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional). Local authority safeguarding team: 01632 960003 (fictional).",
     "EVX-MED-001": "Supplying pharmacy: Brookfield Pharmacy (fictional), 01632 960010. Out of hours: NHS 111.",
     "EVX-COM-001": "Complaints are sent to the registered manager at complaints@brookfield.demo (fictional).",
     "EVX-IPC-001": "IPC lead: Riley Reviewer. Local health protection team: 01632 960020 (fictional).",
+    "EVX-IPC-002": "Outbreak lead: Riley Reviewer. Report suspected outbreaks to the health protection team on 01632 960020 (fictional).",
+    "EVX-MED-003": "Controlled drugs accountable officer (area team): 01632 960011 (fictional). Brookfield House CD lead: Riley Reviewer.",
+    "EVX-WB-001": "Speak up to Avery Approver, nominated individual, on 01632 960004 (fictional), or to CQC.",
+    "EVX-DP-001": "Data protection lead: Avery Approver, dataprotection@brookfield.demo (fictional).",
+    "EVX-DP-002": "Report breaches immediately to dataprotection@brookfield.demo (fictional) or the on-call manager, 01632 960002 (fictional).",
+    "EVX-HS-004": "Brookfield Home Care on-call coordinator: 01632 960030 (fictional), 24 hours a day.",
+    "EVX-SAF-005": "Office (08:00 to 18:00): 01632 960031 (fictional). On-call coordinator out of hours: 01632 960030 (fictional).",
+    "EVX-MCA-002": "DoLS team (supervisory body): 01632 960040 (fictional).",
+    "EVX-CLN-003": "GP practice: Brookfield Medical Centre (fictional), 01632 960050. Out of hours: NHS 111. Emergencies: 999.",
   };
-  for (const [ref, local] of Object.entries(localText)) {
-    const tpl = await db.policy.findUniqueOrThrow({ where: { id: masters[ref]! }, include: { currentPublishedVersion: { include: { sections: true } } } });
+  const defaultLocal = "Policy lead for Brookfield: Morgan Manager (registered manager), 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional).";
+  const brookfieldServices = ["RESIDENTIAL", "DOMICILIARY"];
+  const templates = await db.policy.findMany({
+    where: { kind: "MASTER", organisationId: null, serviceTypes: { hasSome: brookfieldServices } },
+    include: { currentPublishedVersion: { include: { sections: true } } },
+    orderBy: { ref: "asc" },
+  });
+  // Policies where staff were asked to acknowledge the adopted version.
+  const ackRefs = ["EVX-HS-002", "EVX-MED-004", "EVX-DP-002"];
+  for (const [i, tpl] of templates.entries()) {
+    const local = localText[tpl.ref] ?? defaultLocal;
     const p = await db.policy.create({
-      data: { kind: "CUSTOMER", organisationId: org.id, templateId: tpl.id, ref: tpl.ref, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: ["RESIDENTIAL", "DOMICILIARY"], ownerId: ids["manager@brookfield.demo"], approverId: ids["approver@brookfield.demo"], isDemo: true },
+      data: { kind: "CUSTOMER", organisationId: org.id, templateId: tpl.id, ref: tpl.ref, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes.filter((t) => brookfieldServices.includes(t)), ownerId: ids["manager@brookfield.demo"], approverId: ids["approver@brookfield.demo"], isDemo: true },
     });
     const sections = toSectionInputs(tpl.currentPublishedVersion!.sections).map((s) => (s.isLocal ? { ...s, body: local, masterKey: null } : { ...s, masterKey: s.key }));
-    await seedPublishedVersion(p.id, org.id, sections, { basedOnMasterVersionId: tpl.currentPublishedVersionId, changeSummary: "DEMO: adopted from Evantix starter template. Not professionally reviewed; no approval record exists." });
+    const requiresAcknowledgement = ackRefs.includes(tpl.ref);
+    const v = await seedPublishedVersion(p.id, org.id, sections, {
+      basedOnMasterVersionId: tpl.currentPublishedVersionId,
+      changeSummary: "DEMO: adopted from Evantix starter template. Not professionally reviewed; no approval record exists.",
+      publishedAt: new Date(Date.now() - (14 + (i % 9) * 9) * 86400_000),
+      requiresAcknowledgement,
+    });
+    if (requiresAcknowledgement) {
+      const pub = await db.policyPublication.findUniqueOrThrow({ where: { versionId: v.id } });
+      const dueAt = new Date(Date.now() + (tpl.ref === "EVX-DP-002" ? -3 : 10) * 86400_000);
+      await db.policyPublication.update({ where: { id: pub.id }, data: { acknowledgementDueAt: dueAt } });
+      for (const [email, userId] of Object.entries(ids)) {
+        const done = email !== "carer1@brookfield.demo" && email !== "carer2@brookfield.demo" ? true : tpl.ref === "EVX-HS-002" && email === "carer1@brookfield.demo";
+        await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: org.id, userId, dueAt, acknowledgedAt: done ? new Date(Date.now() - 5 * 86400_000) : null } });
+      }
+    }
   }
 
   // An overdue review, so the dashboard has a real overdue item.
