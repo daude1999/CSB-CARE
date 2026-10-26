@@ -58,19 +58,19 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <PageHeader
+      <PageHeader back="/changes"
         eyebrow="Regulatory update"
         title={<span className="flex flex-wrap items-center gap-2">{c.title} <SimulatedBadge show={c.isSimulated} /></span>}
         subtitle={c.summary}
       />
       <Flash searchParams={sp} />
       {c.isSimulated ? (
-        <div className="mb-4 border-l-2 border-violet-500 bg-violet-50/60 px-4 py-3 text-sm text-violet-800">
+        <div className="mb-4 rounded-[3px] border-l-4 border-violet-400 bg-white px-4 py-3 text-sm text-violet-800">
           This is a simulated update produced from recorded test content to demonstrate the workflow. It is not a real regulatory change and must not be relied on.
         </div>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
           <Card title="What changed in the source">
             <p className="muted mb-3">
               Comparing stored version {c.previousVersion ? `v${c.previousVersion.versionNumber} (retrieved ${fmtDate(c.previousVersion.retrievedAt, true)})` : "(none: new document)"} with v{c.newVersion.versionNumber} (retrieved {fmtDate(c.newVersion.retrievedAt, true)}). Both versions are stored unchanged.{" "}
@@ -79,21 +79,21 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
             {changed.length ? (
               <div className="space-y-4">
                 {changed.map((s) => (
-                  <div key={s.ref} className="rounded-lg border border-slate-200 p-4" data-testid={`source-diff-${s.ref}`}>
+                  <div key={s.ref} className="rounded-[2px] bg-[#f5f9fc] p-4" data-testid={`source-diff-${s.ref}`}>
                     <div className="mb-2 flex items-center gap-2">
                       <h3>{s.heading}</h3>
                       <Badge tone={s.kind === "added" ? "green" : s.kind === "removed" ? "rose" : "amber"}>{s.kind}</Badge>
                       {s.editorialOnly ? <Badge>formatting or punctuation only</Badge> : null}
-                      <span className="font-mono text-[11px] text-slate-400">{s.ref}</span>
+                      <span className="text-[12px] text-slate-500">{s.ref}</span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
                         <div className="label">Before</div>
-                        <p className="prose-policy rounded bg-slate-50 p-2 text-sm">{s.before || <em className="text-slate-400">(not present)</em>}</p>
+                        <p className="prose-policy rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200 text-sm">{s.before || <em className="text-slate-400">(not present)</em>}</p>
                       </div>
                       <div>
                         <div className="label">After</div>
-                        <p className="prose-policy rounded bg-slate-50 p-2 text-sm">{s.after || <em className="text-slate-400">(removed)</em>}</p>
+                        <p className="prose-policy rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200 text-sm">{s.after || <em className="text-slate-400">(removed)</em>}</p>
                       </div>
                     </div>
                     {s.kind === "modified" ? (
@@ -135,7 +135,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                 <div className="label">Quoted source text</div>
                 <ul className="space-y-2 text-sm">
                   {c.citations.map((ct) => (
-                    <li key={ct.id} className="rounded border border-slate-200 p-2">
+                    <li key={ct.id} className="rounded-[2px] bg-[#f5f9fc] p-3">
                       <blockquote className="italic">“{ct.quote}”</blockquote>
                       <div className="mt-1 text-xs">{ct.verified ? <Badge tone="green">verified verbatim in stored source</Badge> : <Badge tone="rose">not found in source: disregard</Badge>} <span className="text-slate-400">{ct.sectionRef}</span></div>
                     </li>
@@ -147,7 +147,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
 
           <Card title={ctx.organisationId ? "Impact on our policies" : "Impact on CSB templates"}>
             {!confirmed ? (
-              <div className="mb-3 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-800">
+              <div className="mb-3 rounded-[3px] border-l-4 border-[#f0a92e] bg-[#fdf0d8] px-4 py-3 text-sm text-[#8a5a00]">
                 A regulatory reviewer has not yet confirmed this change as relevant. Assessments below are provisional and cannot be decided until it is.
               </div>
             ) : null}
@@ -157,7 +157,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                   const keys = a.policy.currentPublishedVersion?.sections ?? [];
                   const openRev = a.revisions.find((r) => !r.closedAt);
                   return (
-                    <div key={a.id} className="rounded-lg border border-slate-200 p-4" data-testid={`assessment-${a.policy.ref}`}>
+                    <div key={a.id} className="rounded-[2px] bg-[#f5f9fc] p-4" data-testid={`assessment-${a.policy.ref}`}>
                       <div className="flex flex-wrap items-center gap-2">
                         <Link href={`/policies/${a.policy.id}`} className="font-medium">{a.policy.ref} {a.policy.title}</Link>
                         <StatusBadge status={a.status} />
@@ -239,7 +239,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Status">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2"><StatusBadge status={c.status} /> <StatusBadge status={c.suggestedUrgency} /></div>

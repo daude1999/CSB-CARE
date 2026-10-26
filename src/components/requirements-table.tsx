@@ -56,16 +56,16 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
     () => [
       col.accessor("ref", {
         header: "Ref",
-        cell: (c) => <Link href={`/requirements/${c.row.original.id}`} className="whitespace-nowrap font-mono text-xs">{c.getValue()}</Link>,
+        cell: (c) => <Link href={`/requirements/${c.row.original.id}`} className="whitespace-nowrap text-[13px]">{c.getValue()}</Link>,
       }),
       col.accessor("title", {
         header: "Requirement",
         cell: (c) => (
           <div className="min-w-[16rem]">
-            <Link href={`/requirements/${c.row.original.id}`} className="font-medium text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{c.getValue()}</Link>
-            {c.row.original.simulated ? <span className="ml-2 rounded-[3px] px-1.5 py-0.5 font-label text-[10.5px] uppercase tracking-[0.06em] text-violet-700 ring-1 ring-inset ring-violet-200">Simulated</span> : null}
-            <div className="mt-0.5 text-xs text-slate-500">{c.row.original.exactReference}</div>
-            <div className="text-[11px] text-slate-400">{c.row.original.source}</div>
+            <Link href={`/requirements/${c.row.original.id}`} className="font-medium">{c.getValue()}</Link>
+            {c.row.original.simulated ? <span className="ml-2 rounded-full bg-violet-50 px-2.5 py-0.5 text-[12px] text-violet-700">Simulated</span> : null}
+            <div className="mt-0.5 text-[12.5px] text-slate-600">{c.row.original.exactReference}</div>
+            <div className="text-[12px] text-slate-500">{c.row.original.source}</div>
           </div>
         ),
       }),
@@ -89,7 +89,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
         cell: (c) => (
           <div className="w-36">
             <div className="flex items-baseline justify-between text-xs"><span className="text-slate-700">{c.getValue()} {c.getValue() === 1 ? "policy" : "policies"}</span><span className="text-slate-400">{c.row.original.auditQuestions} audit Qs</span></div>
-            <div className="mt-1 h-1 rounded-full bg-slate-200"><div className={`h-full rounded-full ${c.getValue() ? "bg-navy-900" : ""}`} style={{ width: `${(c.getValue() / maxPolicies) * 100}%` }} /></div>
+            <div className="mt-1 h-[6px] rounded-full bg-slate-200"><div className={`h-full rounded-full ${c.getValue() ? "bg-[#3289f8]" : ""}`} style={{ width: `${(c.getValue() / maxPolicies) * 100}%` }} /></div>
           </div>
         ),
       }),
@@ -112,20 +112,21 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-slate-300">
-        <div className="-mb-px flex gap-5 overflow-x-auto" role="group" aria-label="Legal status">
-          {[["", "All", rows.length] as const, ...Object.entries(LEGAL).filter(([k]) => counts[k]).map(([k, label]) => [k, label, counts[k]!] as const)].map(([k, label, n]) => (
-            <button key={k || "all"} type="button" onClick={() => setStatus(k)} aria-pressed={status === k} className={`shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-sm font-medium ${status === k ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-navy-900"}`}>
-              {label}<span className="ml-1.5 font-mono text-xs font-normal text-slate-400">{n}</span>
-            </button>
-          ))}
-        </div>
-        <label className="mb-2 flex items-center gap-2">
-          <MagnifyingGlass size={16} className="text-slate-400" aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 border-0 border-b border-transparent bg-transparent px-1 py-1 text-sm placeholder:text-slate-400 focus:border-navy-900 focus:outline-none focus:ring-0" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
+      <div className="flex gap-[6px] overflow-x-auto px-2 pt-1" role="group" aria-label="Legal status">
+        {[["", "All", rows.length] as const, ...Object.entries(LEGAL).filter(([k]) => counts[k]).map(([k, label]) => [k, label, counts[k]!] as const)].map(([k, label, n]) => (
+          <button key={k || "all"} type="button" onClick={() => setStatus(k)} aria-pressed={status === k} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 ${status === k ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
+            {label}<span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-slate-200 px-1.5 text-[12px] font-medium text-slate-700">{n}</span>
+          </button>
+        ))}
+      </div>
+      <div className="panel">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[14px] text-slate-700">{shown.length} of {rows.length} requirements</p>
+        <label className="flex h-[36px] items-center gap-2 rounded-[4px] border border-slate-300 bg-white px-2.5">
+          <MagnifyingGlass size={18} className="shrink-0 text-slate-600" aria-hidden="true" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} className="h-full w-60 bg-transparent text-[14px] placeholder:text-slate-500 focus:outline-none" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
         </label>
       </div>
-      <p className="mb-1 font-serif text-[15px] text-slate-700">{shown.length} of {rows.length} requirements</p>
       <div className="overflow-x-auto">
         <table className="table">
           <thead>
@@ -135,7 +136,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
                   const dir = h.column.getIsSorted();
                   return (
                     <th key={h.id} aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : "none"}>
-                      <button type="button" onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 whitespace-nowrap uppercase tracking-[0.08em] hover:text-navy-900">
+                      <button type="button" onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 whitespace-nowrap hover:text-navy-900">
                         {flexRender(h.column.columnDef.header, h.getContext())}
                         {dir === "asc" ? <CaretUp size={11} weight="bold" /> : dir === "desc" ? <CaretDown size={11} weight="bold" /> : <CaretUpDown size={11} className="text-slate-300" />}
                       </button>
@@ -152,7 +153,8 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
           </tbody>
         </table>
       </div>
-      {!shown.length ? <p className="mt-6 font-serif italic text-slate-500">No requirements match.</p> : null}
+      {!shown.length ? <p className="py-6 text-center text-[15px] text-slate-600">No requirements match.</p> : null}
+      </div>
     </div>
   );
 }

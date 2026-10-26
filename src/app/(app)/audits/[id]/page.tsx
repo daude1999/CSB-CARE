@@ -32,7 +32,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   const canManageActions = hasOrgPermission(ctx, "action.manage");
   return (
     <>
-      <PageHeader title={a.title} subtitle={`${a.template.title}, template version ${a.templateVersion}. Started ${fmtDate(a.startedAt)}.`}
+      <PageHeader back="/audits" title={a.title} subtitle={`${a.template.title}, template version ${a.templateVersion}. Started ${fmtDate(a.startedAt)}.`}
         actions={open ? (
           <form action={completeAuditAction}>
             <input type="hidden" name="auditId" value={a.id} />
@@ -42,13 +42,13 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
         ) : <StatusBadge status={a.status} />}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2" title={`Questions (score: ${score === null ? "not yet scored" : `${score}%`})`}>
           <ol className="space-y-4">
             {a.template.questions.map((q, i) => {
               const ans = answers.get(q.id);
               return (
-                <li key={q.id} className="rounded border border-slate-200 p-3">
+                <li key={q.id} className="rounded-[2px] bg-[#f5f9fc] p-3">
                   <div className="text-sm font-medium">{i + 1}. {q.text}</div>
                   {q.guidance ? <div className="text-xs text-slate-500">{q.guidance}</div> : null}
                   <div className="mt-1 flex flex-wrap gap-1 text-xs">
@@ -74,12 +74,12 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
             })}
           </ol>
         </Card>
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Findings">
             {a.findings.length ? (
               <ul className="space-y-3 text-sm">
                 {a.findings.map((f) => (
-                  <li key={f.id} className="rounded border border-slate-200 p-2">
+                  <li key={f.id} className="rounded-[2px] bg-[#f5f9fc] p-3">
                     <StatusBadge status={f.riskRating} /> {f.description}
                     <ul className="mt-1 text-xs">{f.actions.map((x) => <li key={x.id}><Link href="/actions">{x.title}</Link> <StatusBadge status={x.status} /></li>)}</ul>
                     {canManageActions ? (

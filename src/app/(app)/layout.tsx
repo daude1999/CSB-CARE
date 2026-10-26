@@ -72,13 +72,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       ) : null}
       <div className="flex flex-1">
-      <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col bg-navy-900 text-white md:flex">
+      <div className="hidden w-[220px] shrink-0 bg-navy-900 md:block">
+      <aside className="sticky top-0 flex h-screen w-[220px] flex-col bg-navy-900 text-white">
         <div className="flex h-[120px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 text-center">
           <Link href="/" aria-label="CSB home" className="block"><Logo light className="h-[30px] max-w-full" /></Link>
           <span className="text-[18px] font-medium leading-[20px]">{orgName}</span>
         </div>
         <SideNav sections={sections} />
       </aside>
+      </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex min-h-[58px] flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-[9px]">
           <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-9" /></Link>

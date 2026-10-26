@@ -10,9 +10,9 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
   const [categories, services] = await Promise.all([db.policyCategory.findMany({ orderBy: { name: "asc" } }), db.serviceType.findMany()]);
   return (
     <>
-      <PageHeader eyebrow="Library · new document" title="New policy" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
+      <PageHeader eyebrow="Library · new document" title="Upload Custom Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
       <Flash searchParams={sp} />
-      <Card>
+      <Card title="Policy details">
         <form action={createPolicyAction} className="grid gap-4 md:grid-cols-2">
           <input type="hidden" name="back" value="/policies/new" />
           <div><label className="label" htmlFor="ref">Reference</label><input className="input" id="ref" name="ref" required /></div>
@@ -28,7 +28,7 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
           </fieldset>
           <div className="md:col-span-2">
             <label className="label" htmlFor="content">Content</label>
-            <textarea className="input font-mono" id="content" name="content" rows={14} required defaultValue={"## Purpose\n\n## Scope\n\n## Responsibilities\n\n## Procedure\n\n## Local contacts and reporting routes\n\n## Review arrangements\n"} />
+            <textarea className="input" id="content" name="content" rows={14} required defaultValue={"## Purpose\n\n## Scope\n\n## Responsibilities\n\n## Procedure\n\n## Local contacts and reporting routes\n\n## Review arrangements\n"} />
             <p className="mt-1 text-xs text-slate-500">Start each section with “## Heading”. Sections whose heading mentions local or contacts are marked as customer-specific and are never changed automatically.</p>
           </div>
           {hasPlatformPermission(ctx, "master.author") ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="master" /> Create as a CSB master template</label> : null}

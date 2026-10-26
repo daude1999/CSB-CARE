@@ -45,7 +45,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <BusinessForm initial={details} action={updateBusinessDetailsAction} />
       </section>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Approval rules">
             <form action={updateOrgSettingsAction} className="space-y-2">
               <input type="hidden" name="back" value="/settings" />
