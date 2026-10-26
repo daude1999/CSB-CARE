@@ -39,3 +39,25 @@ export function TabPanel({ value, children }: { value: string; children: ReactNo
     </TabsPrimitive.Content>
   );
 }
+
+/** Square icon tiles, as on the QCS-style policy page: the active tile fills navy. */
+export function TileTabList({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <TabsPrimitive.List aria-label={label} className="flex gap-[7px] overflow-x-auto pb-1">
+      {children}
+    </TabsPrimitive.List>
+  );
+}
+
+export function TileTab({ value, icon, children, count }: { value: string; icon: ReactNode; children: ReactNode; count?: number }) {
+  return (
+    <TabsPrimitive.Trigger
+      value={value}
+      className="relative flex h-[84px] w-[92px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[4px] border border-slate-200 bg-white px-1 text-center text-[10.5px] font-medium uppercase leading-[1.2] tracking-[0.02em] text-slate-700 shadow-[0_1px_2px_rgb(0_0_0/0.06)] transition-colors hover:bg-teal-50 data-[state=active]:border-navy-900 data-[state=active]:bg-navy-900 data-[state=active]:text-white focus-visible:ring-offset-0"
+    >
+      <span aria-hidden="true" className="text-navy-900 [[data-state=active]>&]:text-white">{icon}</span>
+      {children}
+      {count ? <span className="absolute -right-1 -top-1.5 min-w-[20px] rounded-full bg-[#f06a4d] px-1 text-[10px] font-semibold leading-[18px] text-white">{count}</span> : null}
+    </TabsPrimitive.Trigger>
+  );
+}

@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
 import type { Ctx } from "../auth/rbac";
 import { getPolicy } from "../policies/library";
+import { businessDetails } from "../business";
+import { fillTags, personaliseSections } from "@/lib/business";
 import { DOC_TYPES } from "../../../prisma/seed-data/library/types";
 
 /** One paragraph-level block of a section body. */
@@ -91,6 +93,9 @@ export async function buildDocModel(ctx: Ctx, policyId: string): Promise<DocMode
       : db.requirementPolicyLink.findMany({ where: { policyId: p.templateId }, include: { requirement: true } }),
   ]);
   const name = new Map(people.map((u) => [u.id, u.name]));
+  // Organisation copies are filled in with the business details from Settings; CSB templates stay generic.
+  const details = p.organisationId ? await businessDetails(p.organisationId) : null;
+  const sections = details ? personaliseSections(v.sections, p.docType).map((s) => ({ ...s, body: fillTags(s.body, details) })) : v.sections;
   const seen = new Set<string>();
   const requirements = links
     .map((l) => l.requirement)
@@ -103,7 +108,7 @@ export async function buildDocModel(ctx: Ctx, policyId: string): Promise<DocMode
     typeLabel: new Map<string, string>(DOC_TYPES).get(p.docType) ?? humanise(p.docType),
     description: p.description,
     category: p.category.name,
-    organisation: org?.name ?? null,
+    organisation: details?.company_name || (org?.name ?? null),
     isTemplate: p.kind === "MASTER",
     version: v.label.replace(/^v/i, ""),
     status: humanise(v.status),
@@ -119,7 +124,7 @@ export async function buildDocModel(ctx: Ctx, policyId: string): Promise<DocMode
       .filter((x) => ["PUBLISHED", "SUPERSEDED", "ARCHIVED"].includes(x.status))
       .map((x) => ({ version: x.label.replace(/^v/i, ""), status: humanise(x.status), date: x.publishedAt, summary: x.changeSummary ?? x.reasonForChange ?? "" })),
     requirements,
-    sections: v.sections.map((s, i) => ({ number: i + 1, heading: s.heading, isLocal: s.isLocal, blocks: parseBody(s.body) })),
+    sections: sections.map((s, i) => ({ number: i + 1, heading: s.heading, isLocal: s.isLocal, blocks: parseBody(s.body) })),
     generatedAt: new Date(),
     generatedBy: ctx.userName,
   };

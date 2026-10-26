@@ -3,8 +3,13 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { getAiProvider } from "@/server/ai";
-import { updateOrgSettingsAction } from "../../actions";
-import { Card, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
+import { updateBusinessDetailsAction, updateOrgSettingsAction } from "../../actions";
+import { Card, Field, Flash, fmtDate } from "@/components/ui";
+import { TitleBar } from "@/components/title-bar";
+import { BusinessForm } from "@/components/business-form";
+import { businessDetails } from "@/server/business";
+import { missingDetails } from "@/lib/business";
+import { Buildings, CheckCircle, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +22,29 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const actors = new Map((await db.user.findMany({ where: { id: { in: logs.map((l) => l.actorId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const settings = (org.settings ?? {}) as { requiredApprovals?: number };
   const ai = getAiProvider();
+  const details = (await businessDetails(org.id))!;
+  const missing = missingDetails(details);
   return (
     <>
-      <PageHeader eyebrow="Administration · your organisation" title="Organisation Settings" subtitle={org.name} />
+      <TitleBar title="System Settings" back="/" />
+      <div className="bg-[#f1f2f5] px-0 pb-6 pt-3">
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <section id="business" aria-labelledby="business-heading" className="mb-4 scroll-mt-24 rounded-[3px] bg-white px-5 pb-5 pt-4">
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 pb-3">
+          <Buildings size={26} weight="fill" aria-hidden="true" className="text-navy-900" />
+          <div className="min-w-0 flex-1">
+            <h2 id="business-heading" className="text-[19px] font-normal tracking-normal text-slate-800">Business details</h2>
+            <p className="text-[13px] text-slate-600">Recorded once, used everywhere. These details fill the highlighted tags in every policy, form and Word or PDF download.</p>
+          </div>
+          {missing.length ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-[#fde1e3] px-3 py-1 text-[13px] text-[#a3242c]"><Warning size={15} weight="fill" aria-hidden="true" />{missing.length} required {missing.length === 1 ? "detail" : "details"} missing</span>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[13px] text-emerald-800"><CheckCircle size={15} weight="fill" aria-hidden="true" />Policies fully personalised</span>
+          )}
+        </div>
+        <BusinessForm initial={details} action={updateBusinessDetailsAction} />
+      </section>
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-6">
           <Card title="Approval rules">
             <form action={updateOrgSettingsAction} className="space-y-2">
@@ -60,6 +83,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </tbody>
           </table>
         </Card>
+      </div>
       </div>
     </>
   );

@@ -56,7 +56,7 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(reportingDiff.locator("ins")).toContainText(["24"]);
   await expect(author.getByTestId("validation-panel")).toContainText("verified");
 
-  await author.goto(policyHref!);
+  await author.goto(`${policyHref}?view=procedure`);
   await expect(author.getByText("within 48 hours").first()).toBeVisible();
   await expect(author.getByText("within 24 hours")).toHaveCount(0);
 
@@ -78,9 +78,9 @@ test("detected change flows through review, drafting, approval, publication and 
   await approver.getByTestId("publish-form").getByRole("button", { name: "Publish" }).click();
   await expect(approver.getByRole("status")).toContainText("Publication recorded");
 
-  await approver.goto(policyHref!);
+  await approver.goto(`${policyHref}?view=procedure`);
   await expect(approver.getByText("within 24 hours").first()).toBeVisible();
-  await approver.getByRole("tab", { name: /Version history/ }).click();
+  await approver.getByRole("tab", { name: /Versions/ }).click();
   await expect(approver.getByTestId("version-history")).toContainText("superseded");
 
   // 5. Staff are asked to acknowledge the updated policy.

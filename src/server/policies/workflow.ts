@@ -314,6 +314,20 @@ export async function acknowledge(ctx: Ctx, acknowledgementId: string) {
   return updated;
 }
 
+/** "Log Read & Sign" from a policy page: records that the signed-in user has read the policy's current publication, whether or not it was on their reading list. */
+export async function logReadAndSign(ctx: Ctx, policyId: string) {
+  if (!ctx.organisationId) throw new ForbiddenError();
+  const pub = await db.policyPublication.findFirst({ where: { policyId, organisationId: ctx.organisationId, status: "PUBLISHED" }, orderBy: { publishedAt: "desc" } });
+  if (!pub) throw new ConflictError("This policy has not been published to staff yet, so there is nothing to sign");
+  const existing = await db.acknowledgement.findUnique({ where: { publicationId_userId: { publicationId: pub.id, userId: ctx.userId } } });
+  if (existing?.acknowledgedAt) return existing;
+  const ack = existing
+    ? await db.acknowledgement.update({ where: { id: existing.id }, data: { acknowledgedAt: new Date() } })
+    : await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: ctx.organisationId, userId: ctx.userId, acknowledgedAt: new Date() } });
+  await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "policy.acknowledged", entityType: "Acknowledgement", entityId: ack.id, data: { from: "policy page" } });
+  return ack;
+}
+
 /** Separate stage: the organisation confirms it has implemented the change in practice. */
 export async function confirmImplementation(ctx: Ctx, publicationId: string, notes: string) {
   const pub = await db.policyPublication.findUnique({ where: { id: publicationId } });

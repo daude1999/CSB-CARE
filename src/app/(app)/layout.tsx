@@ -10,7 +10,7 @@ import { MainArea } from "@/components/main-area";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Books, Broadcast, Buildings, CaretDown, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Eyeglasses, Flag, House, MagnifyingGlass, Pulse, Question, Scales, ShieldCheck, SlidersHorizontal, Tray, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, CalendarDots, ChalkboardTeacher, ChatsCircle, Handshake, SquaresFour, BookOpenText, Books, Broadcast, Buildings, CaretDown, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Eyeglasses, Flag, House, MagnifyingGlass, Pulse, Question, Scales, ShieldCheck, SlidersHorizontal, Tray, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
 import type { ComponentType } from "react";
 
 type Icon = ComponentType<{ size?: number; weight?: "regular" | "duotone" | "bold" }>;
@@ -32,12 +32,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/audits", label: "Audits & Inspections", group: "Care operations", icon: ClipboardText, show: hasOrgPermission(ctx, "audit.conduct") },
     { href: "/actions", label: "Actions & Risks", group: "Care operations", icon: Flag, show: Boolean(ctx.organisationId) },
     { href: "/staff", label: "Staff & Training", group: "Care operations", icon: UsersThree, show: hasOrgPermission(ctx, "staff.view") },
+    { href: "/resource-centre", label: "Resource Centre", group: "Resources", icon: Archive, show: true },
+    { href: "/interview-prep", label: "Interview Prep", group: "Resources", icon: ChatsCircle, show: true },
     { href: "/evidence", label: "Evidence Library", group: "Care operations", icon: Archive, show: hasOrgPermission(ctx, "evidence.read") },
     { href: "/assistant", label: "AI Assistant", group: "Insights", icon: ChatTeardropText, show: hasOrgPermission(ctx, "assistant.use") },
     { href: "/reports", label: "Reports", group: "Insights", icon: ChartLine, show: hasOrgPermission(ctx, "report.view") || isPlatformAdmin },
     { href: "/admin/sources", label: "Source Monitoring", group: "Administration", icon: Pulse, show: isPlatformAdmin },
     { href: "/admin/jobs", label: "Background Jobs", group: "Administration", icon: Cpu, show: isPlatformAdmin },
-    { href: "/settings", label: "Organisation Settings", group: "Administration", icon: Buildings, show: hasOrgPermission(ctx, "org.manage") },
+    { href: "/modules", label: "Modules", group: "Administration", icon: SquaresFour, show: true },
+    { href: "/settings", label: "System Settings", group: "Administration", icon: Buildings, show: hasOrgPermission(ctx, "org.manage") },
   ];
   const visibleNav = nav.filter((n) => n.show);
   const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration";
@@ -46,11 +49,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sections: SideNavSection[] = [
     { label: "Policy Centre", icon: <Books size={26} weight="fill" />, items: [{ href: "/", label: "Dashboard" }, { href: "/policies", label: ctx.organisationId ? "My Policies" : "Policies" }, { href: "/policies?tab=templates", label: "Template Library" }, ...at("/changes", "/queue", "/requirements")], action: canAuthor ? { href: "/policies/new", label: "Upload Custom Policy" } : undefined },
     { label: "Reading Lists", icon: <Eyeglasses size={26} />, items: [{ href: "/acknowledgements", label: "Reading Lists" }] },
-    { label: "Resource Centre", icon: <Archive size={26} weight="fill" />, items: at("/evidence") },
+    { label: "Resource Centre", icon: <Archive size={26} weight="fill" />, items: [{ href: "/resource-centre", label: "CQC Registration Pack" }, { href: "/interview-prep", label: "Interview Prep" }, ...at("/evidence")] },
+    { label: "Learning Centre", icon: <ChalkboardTeacher size={26} weight="fill" />, items: [{ href: "/modules/learning", label: "Learning Centre" }], locked: true },
     { label: "Compliance Tools", icon: <ShieldCheck size={26} weight="fill" />, items: at("/audits", "/actions") },
+    { label: "Care Plan Builder", icon: <ClipboardText size={26} weight="fill" />, items: [{ href: "/modules/care-plans", label: "Care Plan Builder" }], locked: true },
     { label: "My Staff", icon: <UsersThree size={26} weight="fill" />, items: at("/staff") },
+    { label: "Rotas", icon: <CalendarDots size={26} weight="fill" />, items: [{ href: "/modules/rotas", label: "Rotas" }], locked: true },
+    { label: "HR & H&S Advice", icon: <Handshake size={26} weight="fill" />, items: [{ href: "/modules/hr-advice", label: "HR & H&S Advice" }], locked: true },
     { label: "Insights", icon: <ChartLine size={26} weight="bold" />, items: at("/reports", "/assistant") },
-    { label: "Administration", icon: <Buildings size={26} weight="fill" />, items: at("/settings", "/admin/sources", "/admin/jobs") },
+    { label: "Administration", icon: <Buildings size={26} weight="fill" />, items: at("/settings", "/modules", "/admin/sources", "/admin/jobs") },
   ].filter((section) => section.items.length > 0);
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const setupLeft = canManage ? (await setupChecklist(ctx.organisationId!)).filter((step) => !step.done).length : 0;
