@@ -7,6 +7,7 @@ import { adoptTemplateAction } from "../../actions";
 import { DOC_TYPES } from "../../../../prisma/seed-data/library/types";
 import { Empty, Flash, fmtDate, Pagination } from "@/components/ui";
 import { Check, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { PolicyAreas } from "./areas";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function PoliciesPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const ctx = await requireCtx();
   const tab = sp.tab === "templates" ? "MASTER" : ctx.organisationId ? "CUSTOMER" : "MASTER";
+  if (tab === "CUSTOMER" && !sp.view && !sp.q && !sp.category && !sp.type && !sp.overdue && !sp.page) return <PolicyAreas ctx={ctx} area={sp.area} />;
   const page = Number(sp.page ?? 1);
   const docType = DOC_TYPES.some(([code]) => code === sp.type) ? sp.type : undefined;
   const { items, total, pageSize } = await listPolicies(ctx, { q: sp.q, category: sp.category, kind: tab, docType, page, overdueOnly: sp.overdue === "1" });
