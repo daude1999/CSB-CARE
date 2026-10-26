@@ -10,15 +10,18 @@ export function AssistantForm() {
   const [state, action, pending] = useActionState<AskState, FormData>(askAction, { question: "" });
   const r = state.result;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      <div className="panel space-y-3">
+      <h2 className="text-[17px]">Ask a question</h2>
       <form action={action} className="flex gap-2">
         <input name="question" className="input" defaultValue={state.question} placeholder="Ask about your policies, requirements or recent changes" aria-label="Question" maxLength={1000} />
         <button className="btn-primary" type="submit" disabled={pending}>{pending ? "Searching…" : "Ask"}</button>
       </form>
-      <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-        Try: {EXAMPLES.map((e) => <span key={e} className="rounded bg-slate-100 px-2 py-0.5">{e}</span>)}
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+        Try: {EXAMPLES.map((e) => <span key={e} className="rounded-full bg-[#e3effb] px-2.5 py-0.5 text-[#1d4f91]">{e}</span>)}
       </div>
-      {state.error ? <div role="alert" className="border-l-2 border-rose-500 bg-rose-50/60 px-4 py-3 text-sm text-rose-800">{state.error}</div> : null}
+      </div>
+      {state.error ? <div role="alert" className="rounded-[3px] border-l-4 border-[#e4544f] bg-[#fde1e3] px-4 py-3 text-sm text-[#a3242c]">{state.error}</div> : null}
       {r ? (
         <div className="card space-y-4" data-testid="assistant-answer">
           <div className="flex flex-wrap gap-2 text-xs">
@@ -37,7 +40,7 @@ export function AssistantForm() {
             {r.citations.length ? (
               <ul className="space-y-2 text-sm">
                 {r.citations.map((c, i) => (
-                  <li key={i} className="rounded border border-slate-200 p-2">
+                  <li key={i} className="rounded-[2px] bg-[#f5f9fc] p-3">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className={c.verified ? "text-emerald-700" : "text-rose-700"}>{c.verified ? "verified quote" : "unverified: disregard"}</span>
                       <span className="text-slate-500">{c.kind === "POLICY" ? "Policy" : "Source"} · {c.legalStatus.replace(/_/g, " ").toLowerCase()} · {c.versionLabel}</span>

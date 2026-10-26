@@ -26,29 +26,28 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     <>
       <PageHeader eyebrow="Administration · worker" title="Background Jobs" subtitle="Monitoring, analysis, drafting, notification and publication jobs. Failed jobs retry with backoff; jobs that exhaust their retries are moved to the dead-letter state for manual action." />
       <Flash searchParams={sp} />
-      <div className="mb-6 border-b border-slate-300">
-        <SegmentNav label="Job status" items={[{ href: "/admin/jobs", label: "All", active: !status }, ...STATUSES.map((s) => ({ href: `/admin/jobs?status=${s}`, label: s.toLowerCase(), active: status === s, count: counts.find((c) => c.status === s)?._count ?? 0 }))]} />
-      </div>
-      <Card>
+      <SegmentNav label="Job status" items={[{ href: "/admin/jobs", label: "All", active: !status }, ...STATUSES.map((s) => ({ href: `/admin/jobs?status=${s}`, label: s.charAt(0) + s.slice(1).toLowerCase(), active: status === s, count: counts.find((c) => c.status === s)?._count ?? 0 }))]} />
+      <Card className="rounded-tl-none">
         {jobs.length ? (
           <table className="table">
             <thead><tr><th>Created</th><th>Type</th><th>Status</th><th>Attempts</th><th>Run after</th><th>Last error</th><th /></tr></thead>
             <tbody>
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="text-xs">{fmtDate(j.createdAt, true)}</td>
-                  <td className="font-mono text-xs">{j.type}</td>
+                  <td className="text-[13px]">{fmtDate(j.createdAt, true)}</td>
+                  <td className="text-[13px]">{j.type}</td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>{j.attempts}/{j.maxAttempts}</td>
-                  <td className="text-xs">{fmtDate(j.runAfter, true)}</td>
-                  <td className="max-w-sm text-xs text-rose-700">{j.lastError}</td>
-                  <td className="flex gap-1">
+                  <td className="text-[13px]">{fmtDate(j.runAfter, true)}</td>
+                  <td className="max-w-sm text-[13px] text-[#a3242c]">{j.lastError}</td>
+                  <td><div className="flex justify-end gap-1">
                     {["FAILED", "DEAD", "CANCELLED"].includes(j.status) ? (
                       <form action={retryJobAction}><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="back" value={back} /><button className="btn-secondary py-1 text-xs" type="submit">Retry</button></form>
                     ) : null}
                     {["QUEUED", "FAILED"].includes(j.status) ? (
                       <form action={cancelJobAction}><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="back" value={back} /><button className="btn-secondary py-1 text-xs" type="submit">Cancel</button></form>
                     ) : null}
+</div>
                   </td>
                 </tr>
               ))}

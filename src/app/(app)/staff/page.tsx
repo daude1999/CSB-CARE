@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { Empty, fmtDate, PageHeader } from "@/components/ui";
+import { Badge, Empty, fmtDate, PageHeader, Panel, Stat, StatRow } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -22,14 +22,17 @@ export default async function StaffPage() {
   return (
     <>
       <PageHeader eyebrow="People · reading and training" title="Staff & Training" subtitle="Who has read and signed each published policy, and whose training is in date. Figures come from recorded acknowledgements and training records." />
-      <dl className="mb-8 grid grid-cols-2 border-y border-slate-300 lg:grid-cols-4">
-        <Summary label="People" value={members.length} />
-        <Summary label="Policies read and signed" value={`${done}/${acks.length}`} note={acks.length ? `${Math.round((done / acks.length) * 100)}% complete` : "Nothing issued yet"} />
-        <Summary label="Reading overdue" value={overdueAll} note={overdueAll ? "Past the due date" : "None past due"} warn={overdueAll > 0} />
-        <Summary label="Training expired" value={expired} note={expired ? "Needs refreshing" : "All in date"} warn={expired > 0} />
-      </dl>
+      <StatRow>
+        <Stat label="People" value={members.length} hint="In this organisation" tone="violet" />
+        <Stat label="Policies Signed" value={`${acks.length ? Math.round((done / acks.length) * 100) : 100}%`} hint={`${done} of ${acks.length} read and signed`} tone="green" />
+        <Stat label="Reading Overdue" value={overdueAll} hint={overdueAll ? "Past the due date" : "None past due"} tone={overdueAll ? "rose" : "navy"} />
+        <Stat label="Training Expired" value={expired} hint={expired ? "Needs refreshing" : "All in date"} tone={expired ? "amber" : "navy"} />
+      </StatRow>
+      <Panel title="My Staff">
       {members.length ? (
-        <ul className="border-t-2 border-navy-900">
+        <>
+        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-x-8 px-4 pb-1 text-[13px] text-slate-700 md:grid"><span>Name</span><span>Reading list</span><span>Training</span></div>
+        <ul className="rows">
           {members.map((m) => {
             const mine = acks.filter((a) => a.userId === m.userId);
             const read = mine.filter((a) => a.acknowledgedAt).length;
@@ -37,50 +40,40 @@ export default async function StaffPage() {
             const pct = mine.length ? Math.round((read / mine.length) * 100) : 100;
             const tr = training.filter((t) => t.userId === m.userId);
             return (
-              <li key={m.id} className="grid gap-x-8 gap-y-3 border-b border-slate-200 py-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-                <div className="flex min-w-0 items-start gap-3">
-                  <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-900 font-mono text-xs text-white">{m.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</span>
+              <li key={m.id} className="grid items-center gap-x-8 gap-y-3 py-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span aria-hidden="true" className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-[1.5px] border-slate-500 bg-white text-[13px] font-bold text-slate-800">{m.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</span>
                   <div className="min-w-0">
-                    <div className="font-serif text-[16px] font-semibold text-navy-900">{m.user.name}</div>
-                    <div className="text-xs text-slate-500">{[m.jobTitle, m.branch?.name.replace(/\s*\(DEMO[^)]*\)/i, "")].filter(Boolean).join(" · ") || m.user.email}</div>
-                    <div className="mt-1 text-[11px] text-slate-400">{m.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</div>
+                    <div className="text-[15px] font-medium text-[#1d4f91]">{m.user.name}</div>
+                    <div className="text-[13px] text-slate-600">{[m.jobTitle, m.branch?.name.replace(/\s*\(DEMO[^)]*\)/i, "")].filter(Boolean).join(" · ") || m.user.email}</div>
+                    <div className="mt-0.5 text-[12px] text-slate-500">{m.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</div>
                   </div>
                 </div>
                 <div>
-                  <div className="flex items-baseline justify-between text-xs"><span className="text-slate-500">Policies read</span><span className="font-mono text-navy-900">{read} of {mine.length}</span></div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${m.user.name} reading progress`}>
-                    <div className={`h-full ${overdue ? "bg-rose-600" : pct === 100 ? "bg-emerald-600" : "bg-teal-500"}`} style={{ width: `${pct}%` }} />
+                  <div className="flex items-baseline justify-between text-[13px]"><span className="text-slate-600">{overdue ? <span className="font-medium text-[#a3242c]">{overdue} overdue</span> : pct === 100 ? "All signed" : "In progress"}</span><span className="text-slate-800">{read} of {mine.length}</span></div>
+                  <div className="mt-1.5 h-[12px] overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${m.user.name} reading progress`}>
+                    <div className={`h-full rounded-full ${overdue ? "bg-[#e4544f]" : pct === 100 ? "bg-[#28b463]" : "bg-[#3289f8]"}`} style={{ width: `${pct}%` }} />
                   </div>
-                  {overdue ? <div className="mt-1.5 text-xs font-medium text-rose-700">{overdue} overdue</div> : null}
                 </div>
-                <div className="text-xs">
-                  <div className="mb-1 text-slate-500">Training</div>
+                <div className="text-[13px]">
                   {tr.length ? (
                     <ul className="space-y-1">
                       {tr.map((t) => {
                         const lapsed = t.expiresAt && t.expiresAt < now;
-                        return <li key={t.id} className="text-navy-900">{t.training.title} <span className={lapsed ? "font-medium text-rose-700" : "text-slate-500"}>{lapsed ? `expired ${fmtDate(t.expiresAt)}` : t.expiresAt ? `to ${fmtDate(t.expiresAt)}` : `done ${fmtDate(t.completedAt)}`}</span></li>;
+                        return <li key={t.id} className="flex flex-wrap items-center gap-x-2 text-slate-800">{t.training.title} {lapsed ? <Badge tone="rose">Expired {fmtDate(t.expiresAt)}</Badge> : <Badge tone="green">{t.expiresAt ? `In date to ${fmtDate(t.expiresAt)}` : `Done ${fmtDate(t.completedAt)}`}</Badge>}</li>;
                       })}
                     </ul>
-                  ) : <span className="text-slate-400">No records</span>}
+                  ) : <span className="text-slate-500">No training records</span>}
                 </div>
               </li>
             );
           })}
         </ul>
+        </>
       ) : (
         <Empty>No staff.</Empty>
       )}
+      </Panel>
     </>
-  );
-}
-
-function Summary({ label, value, note, warn = false }: { label: string; value: number | string; note?: string; warn?: boolean }) {
-  return (
-    <div className="border-slate-300 px-4 py-4 [&:not(:first-child)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t">
-      <dt className="eyebrow">{label}</dt>
-      <dd className="figure mt-1.5 text-3xl text-navy-900">{value}</dd>
-      {note ? <dd className={`mt-1 text-xs ${warn ? "font-medium text-rose-700" : "text-slate-500"}`}>{note}</dd> : null}
-    </div>
   );
 }

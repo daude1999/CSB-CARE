@@ -1,34 +1,57 @@
 import Link from "@/components/link";
 import { isValidElement, type ReactNode } from "react";
+import { Info } from "@phosphor-icons/react/dist/ssr";
+import { TitleBar } from "@/components/title-bar";
 
-export function PageHeader({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+/**
+ * Every inner page opens like the dashboard: the navy title bar, then a white strip
+ * with a one-line explanation on the left and the page's actions on the right.
+ */
+export function PageHeader({ title, subtitle, actions, back = "/" }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; back?: string | null }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-navy-900 pb-5">
-      <div>
-        {eyebrow ? <p className="eyebrow mb-1.5">{eyebrow}</p> : null}
-        <h1 className="text-[2rem]">{title}</h1>
-        {subtitle ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-    </div>
+    <>
+      <TitleBar title={title} back={back ?? undefined} />
+      {subtitle || actions ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[3px] bg-white px-[15px] py-2.5">
+          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
+          {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+        </div>
+      ) : <div className="mb-3" />}
+    </>
+  );
+}
+
+/** A white panel on the grey canvas, titled like "My Reading List" on the dashboard. */
+export function Panel({ title, actions, children, className = "", label }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; label?: string }) {
+  return (
+    <section aria-label={label} className={`panel ${className}`}>
+      {title || actions ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
+          {actions}
+        </div>
+      ) : null}
+      {children}
+    </section>
   );
 }
 
 const TONES = {
-  slate: "bg-slate-100 text-slate-700 ring-slate-200",
-  teal: "bg-teal-50 text-teal-700 ring-teal-200",
-  navy: "bg-navy-900 text-white ring-navy-900",
-  amber: "bg-amber-50 text-amber-800 ring-amber-200",
-  rose: "bg-rose-50 text-rose-700 ring-rose-200",
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  violet: "bg-violet-50 text-violet-700 ring-violet-200",
+  slate: "bg-slate-100 text-slate-700",
+  teal: "bg-[#e3effb] text-[#1d4f91]",
+  navy: "bg-navy-900 text-white",
+  amber: "bg-[#fdf0d8] text-[#8a5a00]",
+  rose: "bg-[#fde1e3] text-[#a3242c]",
+  green: "bg-[#dff3e7] text-[#1c7a43]",
+  violet: "bg-violet-50 text-violet-700",
 } as const;
 export type Tone = keyof typeof TONES;
 
 export function Badge({ children, tone = "slate", title }: { children: ReactNode; tone?: Tone; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-[3px] px-1.5 py-0.5 font-label text-[10.5px] font-medium uppercase leading-4 tracking-[0.06em] ring-1 ring-inset ${TONES[tone]}`}>
-      {children}
+    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-normal leading-4 ${TONES[tone]}`}>
+      {/* Sentence case on screen; the text itself stays as written. */}
+      <span className="inline-block first-letter:uppercase">{children}</span>
     </span>
   );
 }
@@ -58,14 +81,14 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge tone={STATUS_TONE[status] ?? "slate"}>{status.replace(/_/g, " ").toLowerCase()}</Badge>;
 }
 
-/** Underlined section switcher for list pages (replaces rows of pill buttons). */
-export function SegmentNav({ items, label }: { items: { href: string; label: ReactNode; active: boolean; count?: number }[]; label: string }) {
+/** Folder tabs above a panel, the same shape as the area tabs on My Policies. */
+export function SegmentNav({ items, label, alert = false }: { items: { href: string; label: ReactNode; active: boolean; count?: number }[]; label: string; alert?: boolean }) {
   return (
-    <nav aria-label={label} className="-mb-px flex gap-6 overflow-x-auto">
+    <nav aria-label={label} className="flex gap-[6px] overflow-x-auto px-2 pt-1">
       {items.map((i) => (
-        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`shrink-0 whitespace-nowrap border-b-2 pb-2.5 text-sm font-medium no-underline ${i.active ? "border-navy-900 text-navy-900" : "border-transparent text-slate-500 hover:text-navy-900"}`}>
+        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 no-underline ${i.active ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
           {i.label}
-          {i.count !== undefined ? <span className="ml-1.5 font-mono text-xs font-normal text-slate-400">{i.count}</span> : null}
+          {i.count !== undefined ? <span className={`flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-[#f06a4d] text-white" : "bg-slate-200 text-slate-700"}`}>{i.count}</span> : null}
         </Link>
       ))}
     </nav>
@@ -77,8 +100,8 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
   return (
     <section className={`card ${className}`}>
       {title || actions ? (
-        <div className="mb-4 flex items-baseline justify-between gap-3 border-b border-slate-200 pb-3">
-          {title ? <h2>{title}</h2> : <span />}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
@@ -93,25 +116,35 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="border-l-2 border-slate-300 py-2 pl-4 font-serif text-[15px] italic text-slate-500">{children}</div>;
+  return <p className="px-4 py-6 text-center text-[15px] text-slate-600">{children}</p>;
 }
 
-export function Stat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: "navy" | "rose" | "amber" | "green"; hint?: string }) {
-  const color = { navy: "text-navy-900", rose: "text-rose-700", amber: "text-amber-700", green: "text-emerald-700" }[tone];
+const RINGS = {
+  navy: "border-[#4a7fc9] text-[#2f5fa3]",
+  rose: "border-[#e4544f] text-[#c3332c]",
+  amber: "border-[#e3934a] text-[#b35e14]",
+  green: "border-[#3fae6a] text-[#1c7a43]",
+  violet: "border-[#6d5fc0] text-[#4a3d9c]",
+} as const;
+
+/** The dashboard's key-figure card: the number in a coloured ring, a label and a short note. */
+export function Stat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: keyof typeof RINGS; hint?: string }) {
   const body = (
-    <div className="h-full border-t-2 border-navy-900 bg-white px-4 pb-4 pt-3 transition hover:border-teal-400">
-      <div className="eyebrow">{label}</div>
-      <div className={`figure mt-2 text-4xl ${color}`}>{value}</div>
-      {hint ? <div className="mt-1 text-xs text-slate-500">{hint}</div> : null}
-    </div>
+    <>
+      <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[16px] ${RINGS[tone]}`}>{value}</span>
+      <span className="min-w-0">
+        <span className="block text-[15px] leading-[19px] text-slate-900 sm:text-[18px] sm:leading-[22px]">{label}</span>
+        {hint ? <span className="hidden text-[13.5px] leading-[18px] text-slate-600 sm:block">{hint}</span> : null}
+      </span>
+    </>
   );
-  return href ? (
-    <Link href={href} className="block no-underline">
-      {body}
-    </Link>
-  ) : (
-    body
-  );
+  const cls = "flex min-h-[66px] items-center gap-2.5 rounded-[3px] bg-white py-2 pl-2.5 pr-3 sm:gap-[13px] sm:pl-[13px] sm:pr-4 no-underline shadow-[0_0_0_1px_#eef1f3]";
+  return href ? <Link href={href} className={`${cls} hover:shadow-[0_0_0_1px_#c4cfdd]`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+/** A row of key figures, as on the dashboard. */
+export function StatRow({ children, label = "Key figures" }: { children: ReactNode; label?: string }) {
+  return <section aria-label={label} className="mb-3 grid grid-cols-2 gap-2 sm:gap-[13px] xl:grid-cols-4">{children}</section>;
 }
 
 export function Flash({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
@@ -119,7 +152,7 @@ export function Flash({ searchParams }: { searchParams: Record<string, string | 
   const ok = typeof searchParams.ok === "string" ? searchParams.ok : null;
   if (!error && !ok) return null;
   return (
-    <div role={error ? "alert" : "status"} className={`mb-4 rounded-md border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+    <div role={error ? "alert" : "status"} className={`mb-3 rounded-[3px] border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
       {error ?? ok}
     </div>
   );
@@ -127,13 +160,13 @@ export function Flash({ searchParams }: { searchParams: Record<string, string | 
 
 export function Pagination({ page, pageSize, total, base, params = {} }: { page: number; pageSize: number; total: number; base: string; params?: Record<string, string | undefined> }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  if (pages <= 1) return <p className="mt-3 text-xs text-slate-400">{total} result(s)</p>;
+  if (pages <= 1) return <p className="mt-3 px-1 text-xs text-slate-500">{total} result(s)</p>;
   const href = (p: number) => {
     const q = new URLSearchParams(Object.entries({ ...params, page: String(p) }).filter(([, v]) => v) as [string, string][]);
     return `${base}?${q}`;
   };
   return (
-    <div className="mt-4 flex items-center justify-between text-sm">
+    <div className="mt-3 flex items-center justify-between px-1 text-sm">
       <span className="text-slate-500">
         Page {page} of {pages} · {total} result(s)
       </span>

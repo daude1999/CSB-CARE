@@ -1,7 +1,7 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
-import { Badge, Flash, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { Badge, Flash, fmtDate, PageHeader, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -31,51 +31,58 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader eyebrow="Revisions · draft to publication" title="Policy Change Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
       <Flash searchParams={sp} />
+      <StatRow>
+        <Stat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />
+        <Stat label="Drafts" value={columns[0]!.items.length} hint="Being written" tone="amber" />
+        <Stat label="In Review" value={columns[1]!.items.length} hint="Awaiting review and approval" tone="navy" />
+        <Stat label="Ready to Publish" value={columns[2]!.items.length} hint="Approved or scheduled" tone="green" />
+      </StatRow>
       {needsDraft.length ? (
-        <section className="mb-8 border-l-2 border-rose-600 bg-white px-5 py-4" aria-labelledby="needs-draft">
-          <h2 id="needs-draft" className="text-base">Revision required, no draft started <span className="ml-1 font-mono text-xs font-normal text-slate-500">{needsDraft.length}</span></h2>
-          <ul className="mt-2 divide-y divide-slate-200 text-sm">
+        <section className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-white px-[15px] py-3" aria-labelledby="needs-draft">
+          <h2 id="needs-draft" className="flex items-center gap-2 text-[17px]">Revision required, no draft started <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#f06a4d] px-1.5 text-[12px] font-medium text-white">{needsDraft.length}</span></h2>
+          <ul className="rows mt-2 text-[14px]">
             {needsDraft.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
-                <Link href={`/changes/${a.change.id}`}><span className="mr-2 font-mono text-xs">{a.policy.ref}</span>{a.policy.title}</Link>
-                <span className="text-xs text-slate-500">because of “{a.change.title.replace(/^SIMULATED:\s*/, "")}”</span>
+              <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+                <span className="w-[86px] shrink-0 text-slate-700">{a.policy.ref.replace(/^CSB-/, "")}</span>
+                <Link href={`/changes/${a.change.id}`} className="row-title">{a.policy.title}</Link>
+                <span className="text-[13px] text-slate-600">because of “{a.change.title.replace(/^SIMULATED:\s*/, "")}”</span>
                 <SimulatedBadge show={a.change.isSimulated} />
               </li>
             ))}
           </ul>
         </section>
       ) : null}
-      <ol className="grid gap-6 lg:grid-cols-3">
+      <ol className="grid gap-3 lg:grid-cols-3">
         {columns.map((col, n) => (
-          <li key={col.title} className="min-w-0">
-            <div className="flex items-end justify-between border-b-2 border-navy-900 pb-2">
+          <li key={col.title} className="panel min-w-0">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-[17px] ${["border-[#e3934a] text-[#b35e14]", "border-[#4a7fc9] text-[#2f5fa3]", "border-[#3fae6a] text-[#1c7a43]"][n]}`}>{col.items.length}</span>
               <div>
-                <div className="font-mono text-[11px] text-slate-400">Step {n + 1} of 3</div>
-                <h2 className="text-[17px]">{col.title}</h2>
+                <div className="text-[12px] text-slate-500">Step {n + 1} of 3</div>
+                <h2 className="text-[17px] leading-snug">{col.title}</h2>
               </div>
-              <span className="figure text-3xl leading-none text-navy-900">{col.items.length}</span>
             </div>
             {col.items.length ? (
-              <ul className="mt-3 space-y-3">
+              <ul className="rows mt-3">
                 {col.items.map((r) => (
-                  <li key={r.id} className={`border-l-2 bg-white px-4 py-3 ${["HIGH", "URGENT"].includes(r.urgency) ? "border-rose-600" : r.urgency === "MEDIUM" ? "border-amber-500" : "border-slate-300"}`} data-testid={`queue-${r.policy.ref}`}>
-                    <div className="font-mono text-[11px] text-slate-500">{r.policy.ref} · {r.draftVersion.label}</div>
-                    <Link href={`/revisions/${r.id}`} className="mt-0.5 block font-serif text-[16px] font-semibold leading-snug text-navy-900 no-underline hover:underline hover:decoration-teal-400 hover:decoration-2">{r.policy.title}</Link>
-                    <p className="mt-1 text-xs text-slate-600">{r.title}</p>
-                    {r.impactAssessment ? <p className="mt-1 text-xs text-slate-500">Prompted by: {r.impactAssessment.change.title.replace(/^SIMULATED:\s*/, "")}</p> : null}
+                  <li key={r.id} className={`border-l-4 py-3 ${["HIGH", "URGENT"].includes(r.urgency) ? "border-[#e4544f]" : r.urgency === "MEDIUM" ? "border-[#f0a92e]" : "border-slate-300"}`} data-testid={`queue-${r.policy.ref}`}>
+                    <div className="text-[12.5px] text-slate-600">{r.policy.ref} · {r.draftVersion.label}</div>
+                    <Link href={`/revisions/${r.id}`} className="row-title mt-0.5 block text-[15.5px] leading-snug">{r.policy.title}</Link>
+                    <p className="mt-1 text-[13px] text-slate-700">{r.title}</p>
+                    {r.impactAssessment ? <p className="mt-1 text-[12.5px] text-slate-600">Prompted by: {r.impactAssessment.change.title.replace(/^SIMULATED:\s*/, "")}</p> : null}
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                       <StatusBadge status={r.draftVersion.status} />
                       <Badge>{r.kind.replace(/_/g, " ").toLowerCase()}</Badge>
                       <StatusBadge status={r.urgency} />
                       <SimulatedBadge show={r.isSimulated} />
-                      {mine.has(r.id) ? <Badge tone="teal">assigned to you</Badge> : null}
+                      {mine.has(r.id) ? <Badge tone="teal">Assigned to you</Badge> : null}
                     </div>
-                    <div className="mt-2 text-[11px] text-slate-400">Opened {fmtDate(r.createdAt)}{r.dueAt ? ` · due ${fmtDate(r.dueAt)}` : ""}</div>
+                    <div className="mt-2 text-[12px] text-slate-500">Opened {fmtDate(r.createdAt)}{r.dueAt ? ` · due ${fmtDate(r.dueAt)}` : ""}</div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-sm italic text-slate-400">Nothing at this step.</p>
+              <p className="py-6 text-center text-[14px] text-slate-500">Nothing at this step.</p>
             )}
           </li>
         ))}

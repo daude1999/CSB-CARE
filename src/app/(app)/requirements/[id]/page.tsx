@@ -25,9 +25,9 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
   const training = r.trainingLinks.filter((t) => t.training.organisationId === null || t.training.organisationId === ctx.organisationId);
   return (
     <>
-      <PageHeader title={<span className="flex items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <PageHeader back="/requirements" title={<span className="flex items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
           <Card title="Requirement">
             <blockquote className="prose-policy rounded bg-slate-50 p-3 text-sm">{r.excerpt}</blockquote>
             {r.applicabilityNotes ? <p className="mt-3 text-sm">{r.applicabilityNotes}</p> : null}
@@ -45,7 +45,7 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
             ) : <Empty>None mapped.</Empty>}
           </Card>
         </div>
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Status">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Verification"><StatusBadge status={r.verificationStatus === "VERIFIED" ? "VERIFIED_REQ" : r.verificationStatus} /></Field>

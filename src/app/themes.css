@@ -36,7 +36,8 @@
   --card-radius: 0.5rem; --card-border: var(--slate-200); --card-rule: 0px; --card-shadow: 0 1px 2px rgb(15 42 79 / 0.06), 0 4px 16px rgb(15 42 79 / 0.05);
   --table-rule: 0px; --table-head-bg: var(--slate-100);
   --focus: #27c4ee;
-  --h1-size: 2.25rem; --h2-size: 1.35rem;
+  --h1-size: 20px; --h2-size: 18px;
+  --font-mono: var(--font-sans);
   font-size: 18px;
 }
 [data-theme="care"] .btn-primary:hover { background: #0a1c36; box-shadow: 0 0 0 3px #a9def3; }

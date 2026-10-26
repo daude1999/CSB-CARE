@@ -33,17 +33,17 @@ export default async function RevisionPage({ params, searchParams }: { params: P
 
   return (
     <>
-      <PageHeader
+      <PageHeader back="/queue"
         eyebrow="Revision · draft"
         title={<span className="flex flex-wrap items-center gap-2">{r.policy.ref} {r.policy.title} <StatusBadge status={v.status} /> <SimulatedBadge show={r.isSimulated} /></span>}
         subtitle={<>{r.title}. Draft {v.label}{r.baseVersion ? `, based on approved ${r.baseVersion.label}` : ""}. <Link href={`/policies/${r.policyId}`}>View current policy</Link></>}
       />
       <Flash searchParams={sp} />
-      <div className="mb-4 border-l-2 border-amber-500 bg-amber-50/60 px-4 py-3 text-sm text-amber-900" data-testid="draft-banner">
+      <div className="mb-3 rounded-[3px] border-l-4 border-[#f0a92e] bg-[#fdf0d8] px-4 py-3 text-sm text-[#8a5a00]" data-testid="draft-banner">
         {v.status === "PUBLISHED" ? "This version has been published." : "This is a draft. The approved policy remains in force until this draft is approved by someone other than its author and then published."}
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
           <Card title="Proposed changes">
             {r.explanation ? (
               <div className="mb-4 rounded bg-slate-50 p-3 text-sm">
@@ -79,7 +79,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
             {r.comments.length ? (
               <ul className="mb-3 space-y-2 text-sm">
                 {r.comments.map((c) => (
-                  <li key={c.id} className="rounded bg-slate-50 p-2">
+                  <li key={c.id} className="rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200">
                     <div className="text-xs text-slate-500">{names.get(c.authorId) ?? "User"} · {fmtDate(c.createdAt, true)}{c.sectionKey ? ` · on ${c.sectionKey}` : ""}</div>
                     {c.body}
                   </li>
@@ -99,7 +99,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Workflow">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Author">{r.authorId ? names.get(r.authorId) : "—"}</Field>
@@ -176,7 +176,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
                   <Badge tone={validation.rejected?.length ? "amber" : "green"}>{validation.applied?.length ?? 0} edit(s) applied, {validation.rejected?.length ?? 0} rejected</Badge>
                 </div>
                 {validation.applied?.map((a, i) => (
-                  <div key={i} className="rounded border border-slate-200 p-2 text-xs">
+                  <div key={i} className="rounded-[2px] bg-[#f5f9fc] p-3 text-xs">
                     <div className="font-medium">{a.operation} {a.sectionKey}: {a.rationale}</div>
                     <ul className="mt-1 space-y-1">
                       {a.citations.map((c, j) => <li key={j}>{c.verified ? <Badge tone="green">verified</Badge> : <Badge tone="rose">unverified</Badge>} “{c.quote}”</li>)}

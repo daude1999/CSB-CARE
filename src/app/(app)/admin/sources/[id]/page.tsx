@@ -28,7 +28,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
   const back = `/admin/sources/${s.id}`;
   return (
     <>
-      <PageHeader title={<span className="flex items-center gap-2">{s.name} <SimulatedBadge show={s.isSimulated} /></span>} subtitle={<a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener">{s.canonicalUrl}</a>}
+      <PageHeader back="/admin/sources" title={<span className="flex items-center gap-2">{s.name} <SimulatedBadge show={s.isSimulated} /></span>} subtitle={<a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener">{s.canonicalUrl}</a>}
         actions={s.coverage !== "MANUAL_REVIEW_ONLY" ? (
           <form action={manualCheckAction}>
             <input type="hidden" name="sourceId" value={s.id} />
@@ -38,8 +38,8 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
         ) : null}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
           <Card title="Retrieval runs">
             {s.runs.length ? (
               <table className="table">
@@ -90,7 +90,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
             )}
           </Card>
         </div>
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Card title="Status">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Retrieval"><StatusBadge status={s.retrievalStatus} /></Field>
@@ -117,7 +117,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
               <input id="fresh" className="input" type="number" min={1} name="freshnessWindowHours" defaultValue={s.freshnessWindowHours} />
               <button className="btn-secondary" type="submit">Save</button>
             </form>
-            <pre className="mt-3 overflow-x-auto rounded bg-slate-50 p-2 text-[11px]">{JSON.stringify(s.config, null, 2)}</pre>
+            <pre className="mt-3 overflow-x-auto rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200 text-[11px]">{JSON.stringify(s.config, null, 2)}</pre>
           </Card>
           <Card title="Recent changes">
             {s.changes.length ? <ul className="space-y-1 text-sm">{s.changes.map((c) => <li key={c.id}><Link href={`/changes/${c.id}`}>{c.title}</Link> <StatusBadge status={c.status} /></li>)}</ul> : <Empty>None detected.</Empty>}
