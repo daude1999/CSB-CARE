@@ -4,7 +4,8 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { AppError } from "@/lib/errors";
+import { AppError, ForbiddenError } from "@/lib/errors";
+import { BUSINESS_FIELDS } from "@/lib/business";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { requireCtx, sessionToken } from "@/server/auth/current";
@@ -14,7 +15,7 @@ import { hasOrgPermission, requireOrgPermission, requirePlatformPermission } fro
 import { triageChange, reviewAssessment } from "@/server/changes/workflow";
 import { createManualAssessment } from "@/server/impact/assess";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
-import { acknowledge, addComment, confirmImplementation, createManualRevision, createRollbackRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
+import { acknowledge, addComment, logReadAndSign, confirmImplementation, createManualRevision, createRollbackRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
 import { adoptTemplate, createPolicy } from "@/server/policies/library";
 import { requestManualCheck } from "@/server/sources/engine";
 import { cancelJob, retryJob } from "@/server/jobs/queue";
@@ -218,6 +219,9 @@ export async function createPolicyAction(fd: FormData) {
 export async function acknowledgeAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await acknowledge(ctx, str(fd, "acknowledgementId"))), "Thank you, your acknowledgement has been recorded");
 }
+export async function logReadAndSignAction(fd: FormData) {
+  await handle(fd, async (ctx) => void (await logReadAndSign(ctx, str(fd, "policyId"))), "Read and signed. Your signature has been logged");
+}
 export async function confirmImplementationAction(fd: FormData) {
   await handle(fd, (ctx) => confirmImplementation(ctx, str(fd, "publicationId"), str(fd, "notes")), "Implementation confirmed");
 }
@@ -316,6 +320,49 @@ export async function updateOrgSettingsAction(fd: FormData) {
       await audit({ organisationId: orgId, actorId: ctx.userId, action: "org.settings_updated", entityType: "Organisation", entityId: orgId, data: { requiredApprovals: n } });
     },
     "Settings saved",
+  );
+}
+
+export async function updateBusinessDetailsAction(fd: FormData) {
+  await handle(
+    fd,
+    async (ctx) => {
+      const orgId = requireOrgPermission(ctx, "org.manage");
+      const business = Object.fromEntries(BUSINESS_FIELDS.map((f) => [f.tag, str(fd, f.tag).slice(0, 300)]));
+      const org = await db.organisation.findUniqueOrThrow({ where: { id: orgId } });
+      await db.organisation.update({ where: { id: orgId }, data: { settings: { ...(org.settings as object), business } } });
+      await audit({ organisationId: orgId, actorId: ctx.userId, action: "org.business_details_updated", entityType: "Organisation", entityId: orgId, data: { fields: Object.keys(business).filter((k) => business[k]) } });
+    },
+    "Business details saved. Every policy now shows them",
+  );
+}
+
+/** Ticks or unticks one item on the CQC registration pack checklist. */
+export async function toggleRegistrationItemAction(fd: FormData) {
+  await handle(
+    fd,
+    async (ctx) => {
+      if (!ctx.organisationId) throw new ForbiddenError();
+      const item = str(fd, "item").slice(0, 60);
+      const org = await db.organisation.findUniqueOrThrow({ where: { id: ctx.organisationId } });
+      const settings = (org.settings ?? {}) as { registrationPack?: string[] };
+      const done = new Set(settings.registrationPack ?? []);
+      if (done.has(item)) done.delete(item);
+      else done.add(item);
+      await db.organisation.update({ where: { id: org.id }, data: { settings: { ...settings, registrationPack: [...done] } } });
+    },
+    "Checklist updated",
+  );
+}
+
+/** Records interest in a locked add-on module so the CSB team can follow up. */
+export async function requestModuleAction(fd: FormData) {
+  await handle(
+    fd,
+    async (ctx) => {
+      await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "module.access_requested", entityType: "Module", entityId: str(fd, "module").slice(0, 60) });
+    },
+    "Thanks. Your CSB account manager will be in touch about this module",
   );
 }
 

@@ -1,10 +1,10 @@
 "use client";
 import Link from "@/components/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown, LockSimple } from "@phosphor-icons/react";
 
 export type SideNavItem = { href: string; label: string };
-export type SideNavSection = { label: string; icon: React.ReactNode; items: SideNavItem[]; action?: SideNavItem };
+export type SideNavSection = { label: string; icon: React.ReactNode; items: SideNavItem[]; action?: SideNavItem; locked?: boolean };
 
 /** Matches a nav href against the current path and query, so "/policies" and "/policies?tab=templates" are told apart. */
 function useIsActive() {
@@ -33,6 +33,7 @@ export function SideNav({ sections }: { sections: SideNavSection[] }) {
             <Link key={s.label} href={only.href} aria-current={active ? "page" : undefined} className={`${row} ${active ? "bg-navy-700" : ""}`}>
               <span aria-hidden="true" className="flex w-[28px] justify-center">{s.icon}</span>
               {s.label}
+              {s.locked ? <span title="Locked module" className="ml-auto flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-[#f0a92e] text-navy-950"><LockSimple size={14} weight="fill" aria-label="Locked" /></span> : null}
             </Link>
           );
         }
