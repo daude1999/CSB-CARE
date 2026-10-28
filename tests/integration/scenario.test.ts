@@ -71,7 +71,7 @@ describe("automated policy update workflow (end to end)", () => {
     expect(assessment.citations.every((c) => c.verified && c.sourceVersionId === versions[1]!.id)).toBe(true);
 
     // Staff/compliance leads were told policies may be affected; nothing was changed.
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     expect(await db.notification.count({ where: { userId: manager.userId, type: "policies.potentially_affected" } })).toBe(1);
     expect((await db.policy.findUniqueOrThrow({ where: { id: customerPolicy.id } })).currentPublishedVersionId).toBe(customerPolicy.currentPublishedVersionId);
 
@@ -103,8 +103,8 @@ describe("automated policy update workflow (end to end)", () => {
     expect((await db.policy.findUniqueOrThrow({ where: { id: customerPolicy.id } })).currentPublishedVersionId).toBe(customerPolicy.currentPublishedVersionId);
 
     // ── 7. Human review: publishing before approval is impossible; author cannot approve
-    const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
-    const approver = await ctxFor("approver@brookfield.demo", BROOKFIELD);
+    const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
+    const approver = await ctxFor("approver@care-solution.demo", BROOKFIELD);
     await expect(publishRevision(manager, revision.id)).rejects.toThrow(/approved/);
     await submitForReview(author, revision.id);
     await expect(decide(author, revision.id, { decision: "APPROVE", comment: "self" })).rejects.toThrow(/own revision|not a reviewer/);
@@ -132,7 +132,7 @@ describe("automated policy update workflow (end to end)", () => {
     await expect(db.policySection.update({ where: { id: prev.sections[0]!.id }, data: { body: "tampered" } })).rejects.toThrow(/immutable/);
 
     // ── 10. Staff notified; acknowledgements tracked; emails delivered by the worker
-    const carer = await ctxFor("carer1@brookfield.demo", BROOKFIELD);
+    const carer = await ctxFor("carer1@care-solution.demo", BROOKFIELD);
     const note = await db.notification.findFirstOrThrow({ where: { userId: carer.userId, type: "policy.published" } });
     expect(note.title).toContain("[SIMULATED]");
     const pub = await db.policyPublication.findUniqueOrThrow({ where: { versionId: revision.draftVersionId }, include: { acknowledgements: true } });

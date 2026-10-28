@@ -66,6 +66,7 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
     branchId: membership?.branchId ?? null,
     orgRoles: membership?.roles ?? [],
     platformRoles: session.user.platformRoles.filter((r) => r !== "NONE"),
+    hrUserId: membership?.hrUserId ?? null,
   };
 }
 
@@ -89,5 +90,6 @@ export async function ctxForUser(userId: string, organisationId?: string | null)
     branchId: m?.branchId ?? null,
     orgRoles: m?.roles ?? [],
     platformRoles: user.platformRoles.filter((r) => r !== "NONE"),
+    hrUserId: m?.hrUserId ?? null,
   };
 }

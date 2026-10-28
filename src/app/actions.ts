@@ -66,7 +66,7 @@ async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void>, ok
 // ───────── auth
 export async function loginAction(fd: FormData) {
   const h = await headers();
-  let target = "/";
+  let target = "/overview";
   try {
     const { token, expiresAt } = await login(str(fd, "email"), str(fd, "password"), { ip: h.get("x-forwarded-for") ?? undefined, userAgent: h.get("user-agent") ?? undefined });
     (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production", path: "/", expires: expiresAt });

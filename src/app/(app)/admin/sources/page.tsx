@@ -1,6 +1,6 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { freshness } from "@/server/sources/engine";
 import { notFound } from "next/navigation";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SourcesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requireCtx();
+  const ctx = await requirePortal("admin");
   if (!hasPlatformPermission(ctx, "sources.manage")) notFound();
   const sources = await db.regulatorySource.findMany({ orderBy: [{ coverage: "asc" }, { name: "asc" }], include: { _count: { select: { documents: true, changes: true } } } });
   const workerBeat = await db.backgroundJob.findFirst({ where: { type: "maintenance.tick", status: "SUCCEEDED" }, orderBy: { finishedAt: "desc" }, select: { finishedAt: true } });

@@ -64,11 +64,32 @@ Set `SEED_DEMO=false` for an environment without demo organisations.
 
 ```bash
 npm run typecheck && npm run lint
-npm test                          # 69 unit and integration tests (uses database csb_test)
+npm test                          # unit and integration tests (uses database csb_test)
+npm run test:hr                   # the HR Hub's own domain tests
 npm run build && npm run test:e2e # browser tests (uses database csb_e2e)
 ```
 
 The integration suite includes the end-to-end scenario from the specification (baseline capture, change detection, analysis, candidates, human decisions, drafting with verified citations, separation of duties, publication, acknowledgement, audit trail), tenant isolation, concurrency on publishing, scheduled publishing, rollback, notification retries, behaviour with AI unavailable, master-to-customer sync and evidence handling. The browser suite runs the same scenario through the interface and opens every reachable page as seven different roles.
+
+## Portals (CSB All in One Platform)
+
+One sign-in opens every portal the person may use. The portal button in the header lists only those portals; the server checks the same rule on every page and HR request (`src/server/auth/portals.ts`), and anyone who types another portal's address gets a "No access" page.
+
+| Portal | Address | Status |
+| --- | --- | --- |
+| Overview | `/overview` | Working. Figures are counted from the database. |
+| Policy & Compliance | `/` and the existing policy pages, unchanged addresses | Working |
+| HR & Workforce | `/hr/...` | Working. The CSB HR Hub, moved in unchanged (see below). |
+| Reporting & Analytics | `/reports`, `/assistant` | Working |
+| Administration | `/settings`, `/modules`, `/admin/...` | Working |
+| Service Users, Rota & Visits | `/service-users`, `/rota` | Planned (Stage D). Honest "not built yet" pages with no figures. |
+
+**HR & Workforce** is the standalone CSB HR Hub (people, compliance checks, documents, training, HR tasks, imports, alerts, settings) with its screens, rules and look kept as built. Its code is in `src/hr`, its pages in `src/app/hr`, its API in `src/app/api/hr`. What changed when it moved in:
+
+- **Sign-in**: the platform session decides who you are; `Membership.hrUserId` names the HR Hub account you work as (Organisation Admin, Group HR, Branch HR or Branch Viewer, with their branch limits). No HR account means no HR portal.
+- **Data**: the HR Hub keeps its records as one document per organisation in the `HrWorkspace` table, written under a row lock, instead of the pilot's local SQLite file. Uploaded files go to `HrFile` and stay in quarantine. A later step should move these records into relational tables (the HR Hub's `supabase/migrations` design is the blueprint) so the rota can share staff records directly.
+- **Styling**: the HR Hub was built with Tailwind 4; its CSS is compiled separately into `public/hr/hr-hub.css` by `npm run build:hr-css -- <folder with Tailwind 4 installed>` and loaded only on HR pages. Portal changes are full page loads so the two style sheets never mix.
+- Demo HR accounts: `manager@care-solution.demo` (Organisation Admin), `jordan.ellis@` (Group HR), `sam.parker@` (Branch HR, Liverpool), `taylor.reed@` (Branch Viewer, Liverpool), all `@care-solution.demo` with the demo password. Existing demo databases get HR added on the next build by `prisma/seed-hr.ts`.
 
 ## Architecture
 

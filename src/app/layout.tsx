@@ -11,10 +11,10 @@ import "@fontsource/roboto/latin-700.css";
 import "@fontsource-variable/inter/wght.css";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, parseTheme } from "@/lib/themes";
-import "./globals.css";
+
 
 export const metadata: Metadata = {
-  title: { default: "CSB | Care Solution Bureau", template: "%s | CSB" },
+  title: { default: "CSB All in One Platform", template: "%s | CSB" },
   description: "Policy and procedure management with regulatory change monitoring for adult social care.",
 };
 

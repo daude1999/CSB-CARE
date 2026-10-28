@@ -8,3 +8,6 @@ test-results
 playwright-report
 tests/e2e/.auth
 tsconfig.tsbuildinfo
+
+public/pdfjs/
+.vitest.local.config.ts

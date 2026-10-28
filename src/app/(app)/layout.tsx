@@ -1,19 +1,19 @@
+import "../globals.css";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
+import { portalsFor } from "@/server/auth/portals";
+import { COMING_LATER } from "@/lib/portals";
 import { logoutAction, switchOrgAction } from "../actions";
 import { Logo } from "@/components/brand";
-import { NavLink } from "@/components/nav-link";
-import { SideNav, type SideNavSection } from "@/components/side-nav";
+import { type SideNavSection } from "@/components/side-nav";
+import { PortalMobileNav, PortalSideNav, PortalSwitcher } from "@/components/portal-switcher";
 import { MainArea } from "@/components/main-area";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, CalendarDots, ChalkboardTeacher, ChatsCircle, Handshake, SquaresFour, BookOpenText, Books, Broadcast, Buildings, CaretDown, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Eyeglasses, Flag, House, MagnifyingGlass, Pulse, Question, Scales, ShieldCheck, SlidersHorizontal, Tray, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
-import type { ComponentType } from "react";
-
-type Icon = ComponentType<{ size?: number; weight?: "regular" | "duotone" | "bold" }>;
+import { Archive, Bell, Books, Buildings, CalendarDots, CaretDown, ChartLine, ChatTeardropText, Checks, ClipboardText, Cpu, Eyeglasses, House, Info, ListChecks, MagnifyingGlass, Pulse, Question, ShieldCheck, SlidersHorizontal, SquaresFour, UserList, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -23,42 +23,55 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId } }) : null,
   ]);
   const isPlatformAdmin = hasPlatformPermission(ctx, "sources.manage");
-  const nav: { href: string; label: string; group: string; icon: Icon; show: boolean }[] = [
-    { href: "/", label: "Overview", group: "Home", icon: House, show: true },
-    { href: "/policies", label: "Policies & Procedures", group: "Policy management", icon: BookOpenText, show: true },
-    { href: "/changes", label: "Regulatory Updates", group: "Policy management", icon: Broadcast, show: true },
-    { href: "/queue", label: "Policy Change Queue", group: "Policy management", icon: Tray, show: hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author") },
-    { href: "/requirements", label: "Requirements Register", group: "Policy management", icon: Scales, show: true },
-    { href: "/audits", label: "Audits & Inspections", group: "Care operations", icon: ClipboardText, show: hasOrgPermission(ctx, "audit.conduct") },
-    { href: "/actions", label: "Actions & Risks", group: "Care operations", icon: Flag, show: Boolean(ctx.organisationId) },
-    { href: "/staff", label: "Staff & Training", group: "Care operations", icon: UsersThree, show: hasOrgPermission(ctx, "staff.view") },
-    { href: "/resource-centre", label: "Resource Centre", group: "Resources", icon: Archive, show: true },
-    { href: "/interview-prep", label: "Interview Prep", group: "Resources", icon: ChatsCircle, show: true },
-    { href: "/evidence", label: "Evidence Library", group: "Care operations", icon: Archive, show: hasOrgPermission(ctx, "evidence.read") },
-    { href: "/assistant", label: "AI Assistant", group: "Insights", icon: ChatTeardropText, show: hasOrgPermission(ctx, "assistant.use") },
-    { href: "/reports", label: "Reports", group: "Insights", icon: ChartLine, show: hasOrgPermission(ctx, "report.view") || isPlatformAdmin },
-    { href: "/admin/sources", label: "Source Monitoring", group: "Administration", icon: Pulse, show: isPlatformAdmin },
-    { href: "/admin/jobs", label: "Background Jobs", group: "Administration", icon: Cpu, show: isPlatformAdmin },
-    { href: "/modules", label: "Modules", group: "Administration", icon: SquaresFour, show: true },
-    { href: "/settings", label: "System Settings", group: "Administration", icon: Buildings, show: hasOrgPermission(ctx, "org.manage") },
-  ];
-  const visibleNav = nav.filter((n) => n.show);
+  const can = {
+    queue: hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author"),
+    audits: hasOrgPermission(ctx, "audit.conduct"),
+    actions: Boolean(ctx.organisationId),
+    staff: hasOrgPermission(ctx, "staff.view"),
+    evidence: hasOrgPermission(ctx, "evidence.read"),
+    assistant: hasOrgPermission(ctx, "assistant.use"),
+    reports: hasOrgPermission(ctx, "report.view") || isPlatformAdmin,
+    settings: hasOrgPermission(ctx, "org.manage"),
+    author: hasOrgPermission(ctx, "policy.author") || hasPlatformPermission(ctx, "master.author"),
+  };
   const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration";
-  const at = (...hrefs: string[]) => visibleNav.filter((n) => hrefs.includes(n.href)).map(({ href, label }) => ({ href, label }));
-  const canAuthor = hasOrgPermission(ctx, "policy.author") || hasPlatformPermission(ctx, "master.author");
-  const sections: SideNavSection[] = [
-    { label: "Policy Centre", icon: <Books size={26} weight="fill" />, items: [{ href: "/", label: "Dashboard" }, { href: "/policies", label: ctx.organisationId ? "My Policies" : "Policies" }, { href: "/policies?tab=templates", label: "Template Library" }, ...at("/changes", "/queue", "/requirements")], action: canAuthor ? { href: "/policies/new", label: "Upload Custom Policy" } : undefined },
-    { label: "Reading Lists", icon: <Eyeglasses size={26} />, items: [{ href: "/acknowledgements", label: "Reading Lists" }] },
-    { label: "Resource Centre", icon: <Archive size={26} weight="fill" />, items: [{ href: "/resource-centre", label: "CQC Registration Pack" }, { href: "/interview-prep", label: "Interview Prep" }, ...at("/evidence")] },
-    { label: "Learning Centre", icon: <ChalkboardTeacher size={26} weight="fill" />, items: [{ href: "/modules/learning", label: "Learning Centre" }], locked: true },
-    { label: "Compliance Tools", icon: <ShieldCheck size={26} weight="fill" />, items: at("/audits", "/actions") },
-    { label: "Care Plan Builder", icon: <ClipboardText size={26} weight="fill" />, items: [{ href: "/modules/care-plans", label: "Care Plan Builder" }], locked: true },
-    { label: "My Staff", icon: <UsersThree size={26} weight="fill" />, items: at("/staff") },
-    { label: "Rotas", icon: <CalendarDots size={26} weight="fill" />, items: [{ href: "/modules/rotas", label: "Rotas" }], locked: true },
-    { label: "HR & H&S Advice", icon: <Handshake size={26} weight="fill" />, items: [{ href: "/modules/hr-advice", label: "HR & H&S Advice" }], locked: true },
-    { label: "Insights", icon: <ChartLine size={26} weight="bold" />, items: at("/reports", "/assistant") },
-    { label: "Administration", icon: <Buildings size={26} weight="fill" />, items: at("/settings", "/modules", "/admin/sources", "/admin/jobs") },
-  ].filter((section) => section.items.length > 0);
+  const only = (label: string, icon: React.ReactNode, href: string, show = true): SideNavSection[] => (show ? [{ label, icon, items: [{ href, label }] }] : []);
+  const planned = (label: string, icon: React.ReactNode): SideNavSection => ({ label, icon, items: [], planned: true });
+
+  // Each portal's side menu. Pages keep the addresses they had before portals existed.
+  const nav: Record<string, SideNavSection[]> = {
+    overview: [...only("Overview", <House size={26} weight="fill" />, "/overview"), ...only("My Reading List", <Eyeglasses size={26} />, "/acknowledgements"), ...only("Notifications", <Bell size={26} weight="fill" />, "/notifications")],
+    policy: [
+      {
+        label: "Policy Centre",
+        icon: <Books size={26} weight="fill" />,
+        items: [
+          { href: "/", label: "Dashboard" },
+          { href: "/policies", label: ctx.organisationId ? "My Policies" : "Policies" },
+          { href: "/policies?tab=templates", label: "Template Library" },
+          { href: "/changes", label: "Regulatory Updates" },
+          ...(can.queue ? [{ href: "/queue", label: "Policy Change Queue" }] : []),
+          { href: "/requirements", label: "Requirements Register" },
+        ],
+        action: can.author ? { href: "/policies/new", label: "Upload Custom Policy" } : undefined,
+      },
+      ...only("Reading Lists", <Eyeglasses size={26} />, "/acknowledgements"),
+      ...(can.audits || can.actions || can.staff
+        ? [{ label: "Compliance Tools", icon: <ShieldCheck size={26} weight="fill" />, items: [...(can.audits ? [{ href: "/audits", label: "Audits & Inspections" }] : []), ...(can.actions ? [{ href: "/actions", label: "Actions & Risks" }] : []), ...(can.staff ? [{ href: "/staff", label: "Staff Sign-off" }] : [])] }]
+        : []),
+      { label: "Resource Centre", icon: <Archive size={26} weight="fill" />, items: [{ href: "/resource-centre", label: "CQC Registration Pack" }, { href: "/interview-prep", label: "Interview Prep" }] },
+      ...only("Evidence Library", <ClipboardText size={26} weight="fill" />, "/evidence", can.evidence),
+    ],
+    "service-users": [...only("About this portal", <Info size={26} weight="fill" />, "/service-users"), planned("Service users", <UsersThree size={26} />), planned("Enquiries", <UserList size={26} />), planned("Contacts & families", <UsersThree size={26} />), planned("Care plans", <ClipboardText size={26} />), planned("Risk assessments", <ShieldCheck size={26} />)],
+    rota: [...only("About this portal", <Info size={26} weight="fill" />, "/rota"), planned("Weekly rota", <CalendarDots size={26} />), planned("Today's visits", <ListChecks size={26} />), planned("Unassigned visits", <Warning size={26} />), planned("Visit log", <ClipboardText size={26} />), planned("Availability", <UsersThree size={26} />)],
+    reporting: [...only("Reports", <ChartLine size={26} weight="bold" />, "/reports", can.reports), ...only("AI Assistant", <ChatTeardropText size={26} weight="fill" />, "/assistant", can.assistant)],
+    admin: [
+      ...only("System Settings", <Buildings size={26} weight="fill" />, "/settings", can.settings),
+      ...only("Modules", <SquaresFour size={26} weight="fill" />, "/modules"),
+      ...only("Source Monitoring", <Pulse size={26} weight="bold" />, "/admin/sources", isPlatformAdmin),
+      ...only("Background Jobs", <Cpu size={26} weight="fill" />, "/admin/jobs", isPlatformAdmin),
+    ],
+  };
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const setupLeft = canManage ? (await setupChecklist(ctx.organisationId!)).filter((step) => !step.done).length : 0;
   const initials = ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("");
@@ -74,17 +87,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1">
       <div className="hidden w-[220px] shrink-0 bg-navy-900 md:block">
       <aside className="sticky top-0 flex h-screen w-[220px] flex-col bg-navy-900 text-white">
-        <div className="flex h-[120px] shrink-0 flex-col items-center justify-center gap-1.5 px-3 text-center">
-          <Link href="/" aria-label="CSB home" className="block"><Logo light className="h-[30px] max-w-full" /></Link>
-          <span className="text-[18px] font-medium leading-[20px]">{orgName}</span>
+        <div className="flex h-[132px] shrink-0 flex-col items-center justify-center gap-1 px-3 text-center">
+          <Link href="/overview" aria-label="CSB All in One Platform home" className="block"><Logo light className="h-[30px] max-w-full" /></Link>
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-teal-400">All in One Platform</span>
+          <span className="mt-0.5 text-[17px] font-medium leading-[20px]">{orgName}</span>
         </div>
-        <SideNav sections={sections} />
+        <PortalSideNav nav={nav} />
       </aside>
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex min-h-[58px] flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-[9px]">
-          <Link href="/" className="mr-1 block md:hidden" aria-label="CSB home"><Logo className="h-9" /></Link>
-          <form action="/policies" method="get" role="search" className="flex min-w-0 flex-1 items-center sm:max-w-[560px]">
+        <header className="sticky top-0 z-20 flex min-h-[58px] flex-wrap items-center gap-2.5 border-b border-slate-200 bg-white px-4 py-[9px]">
+          <Link href="/overview" className="mr-1 block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-9" /></Link>
+          <PortalSwitcher portals={portalsFor(ctx)} later={COMING_LATER} />
+          <form action="/policies" method="get" role="search" className="hidden min-w-0 flex-1 items-center sm:flex sm:max-w-[480px]">
             <span aria-hidden="true" className="flex h-[38px] w-[64px] shrink-0 items-center justify-center gap-1 rounded-l-[6px] bg-navy-900 text-white"><SlidersHorizontal size={22} weight="bold" /><CaretDown size={11} weight="bold" /></span>
             <label htmlFor="global-search" className="flex h-[38px] min-w-0 flex-1 items-center gap-2.5 border border-l-0 border-slate-300 bg-white pl-2.5">
               <MagnifyingGlass size={22} aria-hidden="true" className="shrink-0 text-slate-700" />
@@ -105,10 +120,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </form>
             ) : null}
             {org?.isDemo ? <span className="mr-1 hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
-            <Link href="/assistant" aria-label="Help and AI assistant" title="Help" className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
+            <Link href="/assistant" aria-label="Help and AI assistant" title="Help" className="hidden h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900 sm:flex">
               <Question size={30} aria-hidden="true" />
             </Link>
-            <Link href="/acknowledgements" aria-label="My policies to read" title="My policies to read" className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
+            <Link href="/acknowledgements" aria-label="My policies to read" title="My policies to read" className="hidden h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900 sm:flex">
               <Checks size={28} aria-hidden="true" />
             </Link>
             <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-[38px] w-[38px] items-center justify-center rounded-full text-slate-800 no-underline hover:bg-slate-100 hover:text-navy-900">
@@ -118,7 +133,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <details className="relative ml-1 border-l border-slate-200 pl-3.5">
               <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
                 <span aria-hidden="true" className="flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px] border-slate-500 text-[15px] font-bold text-slate-800">{initials}</span>
-                <span className="text-[16px] text-slate-800" data-testid="current-user">{ctx.userName}</span>
+                <span className="hidden text-[16px] text-slate-800 lg:inline" data-testid="current-user">{ctx.userName}</span>
                 <CaretDown size={12} weight="bold" aria-hidden="true" className="text-slate-800" />
               </summary>
               <div className="absolute right-0 z-30 mt-2 w-44 rounded-[6px] border border-slate-200 bg-white py-1 shadow-lg">
@@ -129,13 +144,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </details>
           </div>
         </header>
-        <nav className="overflow-x-auto border-b border-slate-200 bg-paper px-3 py-2 md:hidden" aria-label="Main">
-          <div className="flex min-w-max gap-1">
-            {visibleNav.map((n) => (
-              <NavLink key={n.href} href={n.href} compact icon={<n.icon size={15} />}>{n.label}</NavLink>
-            ))}
-          </div>
-        </nav>
+        <PortalMobileNav nav={nav} />
         <MainArea>{children}</MainArea>
         {inlineJobsEnabled() ? <JobKicker /> : null}
       </div>
