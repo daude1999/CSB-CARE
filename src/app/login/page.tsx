@@ -1,8 +1,12 @@
 import { Logo } from "@/components/brand";
 import { loginAction } from "../actions";
+import { db } from "@/lib/db";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
+  const showDemo = process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false");
+  // Databases seeded before the move to Care Solution Bureau keep their original demo addresses.
+  const d = showDemo && !(await db.organisation.findUnique({ where: { slug: "csb-demo" }, select: { id: true } })) ? "brookfield.demo" : "care-solution.demo";
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-navy-950 px-12 py-12 text-white lg:flex">
@@ -35,9 +39,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
           </div>
           <button className="btn-primary w-full" type="submit">Sign in</button>
-          {process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false") ? (
+          {showDemo ? (
             <p className="border-t border-slate-300 pt-4 text-xs leading-5 text-slate-500">
-              Demo environment (fictional people): sign in as <code>manager@care-solution.demo</code> (all portals, including HR), <code>sam.parker@care-solution.demo</code> (Liverpool HR), <code>author@care-solution.demo</code>, <code>approver@care-solution.demo</code>, <code>carer1@care-solution.demo</code>, <code>regulatory@csb.demo</code> or <code>admin@csb.demo</code> with the password <code>DemoPassword!2026</code>.
+              Demo environment (fictional people): sign in as <code>manager@{d}</code> (all portals, including HR), <code>sam.parker@{d}</code> (Liverpool HR), <code>author@{d}</code>, <code>approver@{d}</code>, <code>carer1@{d}</code>, <code>regulatory@csb.demo</code> or <code>admin@csb.demo</code> with the password <code>DemoPassword!2026</code>.
             </p>
           ) : null}
         </form>
