@@ -19,8 +19,8 @@ import { notify } from "@/server/notifications/notify";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
 async function approvedRevision(policyRef = "CSB-COM-001") {
-  const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
-  const approver = await ctxFor("approver@brookfield.demo", BROOKFIELD);
+  const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
+  const approver = await ctxFor("approver@care-solution.demo", BROOKFIELD);
   const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: policyRef } });
   const rev = await createManualRevision(author, policy.id, "Test change");
   await editDraftSection(author, rev.id, "purpose", { body: `Updated purpose ${Math.random()}` });
@@ -35,16 +35,16 @@ describe("authentication", () => {
     await seedAll({ simulatedChange: false });
   });
   it("creates sessions for valid credentials only and rate-limits failures", async () => {
-    const { token } = await login("manager@brookfield.demo", DEMO_PASSWORD);
+    const { token } = await login("manager@care-solution.demo", DEMO_PASSWORD);
     const ctx = await ctxFromToken(token);
     expect(ctx?.orgRoles).toContain("ORG_ADMIN");
     expect(await ctxFromToken("forged-token")).toBeNull();
-    await expect(login("manager@brookfield.demo", "wrong-password")).rejects.toThrow(/Invalid/);
-    for (let i = 0; i < 4; i++) await login("manager@brookfield.demo", "wrong-password").catch(() => {});
-    await expect(login("manager@brookfield.demo", DEMO_PASSWORD)).rejects.toThrow(/Too many/);
+    await expect(login("manager@care-solution.demo", "wrong-password")).rejects.toThrow(/Invalid/);
+    for (let i = 0; i < 4; i++) await login("manager@care-solution.demo", "wrong-password").catch(() => {});
+    await expect(login("manager@care-solution.demo", DEMO_PASSWORD)).rejects.toThrow(/Too many/);
   });
   it("rejects expired sessions", async () => {
-    const { token } = await login("author@brookfield.demo", DEMO_PASSWORD);
+    const { token } = await login("author@care-solution.demo", DEMO_PASSWORD);
     await db.session.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
     expect(await ctxFromToken(token)).toBeNull();
   });
@@ -56,7 +56,7 @@ describe("tenant isolation", () => {
     await seedAll();
   });
   it("never exposes another organisation's policies, drafts, search results, evidence or acknowledgements", async () => {
-    const brook = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const brook = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const oak = await ctxFor("manager@oakridge.demo", OAKRIDGE);
     const oakPolicy = await db.policy.findFirstOrThrow({ where: { organisationId: oak.organisationId } });
     await expect(getPolicy(brook, oakPolicy.id)).rejects.toThrow(/not found/);
@@ -91,14 +91,14 @@ describe("approval workflow controls", () => {
   });
 
   it("requires a reason, a separate approver and rejects illegal transitions at the database level", async () => {
-    const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
+    const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
     const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: "CSB-MED-001" } });
     await expect(createManualRevision(author, policy.id, " ")).rejects.toThrow(/reason/);
     const rev = await createManualRevision(author, policy.id, "Edit");
     await expect(submitForReview(author, rev.id)).rejects.toThrow(/identical/);
     // Direct status jump DRAFT → PUBLISHED is blocked by the database trigger.
     await expect(db.policyVersion.update({ where: { id: rev.draftVersionId }, data: { status: "PUBLISHED" } })).rejects.toThrow(/Illegal policy version transition/);
-    const staff = await ctxFor("carer1@brookfield.demo", BROOKFIELD);
+    const staff = await ctxFor("carer1@care-solution.demo", BROOKFIELD);
     await expect(editDraftSection(staff, rev.id, "purpose", { body: "x" })).rejects.toThrow(/cannot author/);
   });
 
@@ -109,7 +109,7 @@ describe("approval workflow controls", () => {
     await editDraftSection(author, rev2.id, "scope", { body: "Concurrent scope" });
     await submitForReview(author, rev2.id);
     await decide(a.approver, rev2.id, { decision: "APPROVE", comment: "ok" });
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     await publishRevision(manager, a.rev.id);
     await expect(publishRevision(manager, rev2.id)).rejects.toThrow(/republished after this draft/);
     const published = await db.policyVersion.count({ where: { policyId: a.policy.id, status: "PUBLISHED" } });
@@ -118,7 +118,7 @@ describe("approval workflow controls", () => {
 
   it("supports scheduled publication through the background worker", async () => {
     const { rev, policy } = await approvedRevision();
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const before = (await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId;
     const when = new Date(Date.now() + 60_000);
     const res = await publishRevision(manager, rev.id, { scheduleFor: when });
@@ -133,7 +133,7 @@ describe("approval workflow controls", () => {
 
   it("rolls back by creating a new approved version, never by rewriting history", async () => {
     const { rev, policy, author, approver } = await approvedRevision();
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const original = (await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId!;
     await publishRevision(manager, rev.id);
     await expect(createRollbackRevision(author, policy.id, original, "")).rejects.toThrow(/reason/);
@@ -149,14 +149,14 @@ describe("approval workflow controls", () => {
 
   it("tracks acknowledgements, overdue reminders without duplicates, and implementation confirmation", async () => {
     const { rev } = await approvedRevision();
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const { publicationId } = await publishRevision(manager, rev.id, { acknowledgementDueDays: 1 });
     await db.acknowledgement.updateMany({ where: { publicationId }, data: { dueAt: new Date(Date.now() - 1000) } });
     const n1 = await sendAcknowledgementReminders();
     const n2 = await sendAcknowledgementReminders();
     expect(n1).toBeGreaterThan(0);
     expect(n2).toBe(0);
-    const carer = await ctxFor("carer2@brookfield.demo", BROOKFIELD);
+    const carer = await ctxFor("carer2@care-solution.demo", BROOKFIELD);
     const ack = await db.acknowledgement.findFirstOrThrow({ where: { publicationId, userId: carer.userId } });
     await acknowledge(carer, ack.id);
     await expect(confirmImplementation(carer, publicationId, "done")).rejects.toThrow();
@@ -171,7 +171,7 @@ describe("notifications", () => {
     await seedAll({ simulatedChange: false });
   });
   it("deduplicates and retries failed email deliveries safely", async () => {
-    const u = await db.user.findUniqueOrThrow({ where: { email: "author@brookfield.demo" } });
+    const u = await db.user.findUniqueOrThrow({ where: { email: "author@care-solution.demo" } });
     let fail = true;
     const sent: string[] = [];
     setEmailProvider({ name: "flaky", send: async (m) => { if (fail) throw new Error("SMTP down"); sent.push(m.subject); return { messageId: "1" }; } });
@@ -196,7 +196,7 @@ describe("AI unavailability and safeguards", () => {
   });
   it("keeps the application working when AI is unavailable", async () => {
     setAiProviderForTests(null);
-    const brook = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const brook = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const r = await askAssistant(brook, "safeguarding referral");
     expect(r.aiUnavailable).toBe(true);
     expect(r.citations.length).toBeGreaterThan(0);
@@ -213,7 +213,7 @@ describe("AI unavailability and safeguards", () => {
       draftRevision: async () => ({ summary: "s", conflicts: [], uncertainties: [], edits: [{ operation: "modify", sectionKey: "procedure.reporting", heading: null, insertAfterKey: null, newBody: "Refer within 1 hour.", rationale: "r", citations: [{ sectionRef: "reporting-concerns", quote: "Providers must refer within 1 hour." }] }] }),
     });
     const regulatory = await ctxFor("regulatory@csb.demo");
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const change = await db.regulatoryChange.findFirstOrThrow();
     await triageChange(regulatory, change.id, { to: "CONFIRMED_RELEVANT", reason: "relevant" });
     const a = await db.impactAssessment.findFirstOrThrow({ where: { organisationId: manager.organisationId } });
@@ -248,7 +248,7 @@ describe("customer-specific maintenance", () => {
   it("turns a master template update into a customer draft that preserves customisations", async () => {
     const regulatory = await ctxFor("regulatory@csb.demo");
     const content = await ctxFor("content@csb.demo");
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const change = await db.regulatoryChange.findFirstOrThrow();
     await triageChange(regulatory, change.id, { to: "CONFIRMED_RELEVANT", reason: "relevant" });
     const masterAssessment = await db.impactAssessment.findFirstOrThrow({ where: { organisationId: null } });
@@ -266,16 +266,16 @@ describe("customer-specific maintenance", () => {
     expect(report.safeApplied.map((s) => s.masterKey)).toEqual(["procedure.reporting"]);
     expect(report.preservedLocal.length).toBe(1);
     expect(sync.draftVersion.sections.find((s) => s.key === "procedure.reporting")?.body).toContain("24 hours");
-    expect(sync.draftVersion.sections.find((s) => s.isLocal)?.body).toContain("Morgan Manager");
+    expect(sync.draftVersion.sections.find((s) => s.isLocal)?.body).toContain("Alex Morgan");
     expect(sync.draftVersion.status).toBe("DRAFT");
     expect((await db.policy.findUniqueOrThrow({ where: { id: customer.id } })).currentPublishedVersionId).toBe(customer.currentPublishedVersionId);
     expect(await db.notification.count({ where: { type: "revision.master_update", organisationId: manager.organisationId } })).toBeGreaterThan(0);
     // No staff notifications until the customer publishes.
-    const carer = await ctxFor("carer1@brookfield.demo", BROOKFIELD);
+    const carer = await ctxFor("carer1@care-solution.demo", BROOKFIELD);
     expect(await db.notification.count({ where: { userId: carer.userId, type: "policy.published" } })).toBe(0);
 
     // A customer can adopt a template only once.
-    const author = await ctxFor("author@brookfield.demo", BROOKFIELD);
+    const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
     await expect(adoptTemplate(author, customer.templateId!)).rejects.toThrow(/already uses/);
   });
 });
@@ -286,8 +286,8 @@ describe("audits and actions", () => {
     await seedAll();
   });
   it("enforces action lifecycle with separate verification", async () => {
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
-    const reviewer = await ctxFor("reviewer@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
+    const reviewer = await ctxFor("reviewer@care-solution.demo", BROOKFIELD);
     const oakMember = await db.user.findUniqueOrThrow({ where: { email: "manager@oakridge.demo" } });
     await expect(createAction(manager, { title: "x", ownerId: oakMember.id, dueDate: new Date() })).rejects.toThrow(/member/);
     const action = await createAction(manager, { title: "Fix", ownerId: reviewer.userId, dueDate: new Date() });
@@ -313,7 +313,7 @@ describe("audits and actions", () => {
     expect(tpl.questions.map((x) => x.text)).toEqual(before.map((x) => x.text));
   });
   it("rejects disallowed or mislabelled evidence uploads", async () => {
-    const manager = await ctxFor("manager@brookfield.demo", BROOKFIELD);
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     await expect(uploadEvidence(manager, { name: "x.exe", type: "application/x-msdownload", bytes: Buffer.from("MZ...") }, {})).rejects.toThrow(/not allowed/);
     await expect(uploadEvidence(manager, { name: "fake.pdf", type: "application/pdf", bytes: Buffer.from("<html>not a pdf</html>") }, {})).rejects.toThrow(/not allowed/);
     await expect(uploadEvidence(manager, { name: "big.txt", type: "text/plain", bytes: Buffer.alloc(11 * 1024 * 1024, 65) }, {})).rejects.toThrow(/10 MB/);

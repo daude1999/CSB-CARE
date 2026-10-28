@@ -1,7 +1,7 @@
 import Link from "@/components/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { freshness } from "@/server/sources/engine";
 import { manualCheckAction, updateSourceAction } from "../../../../actions";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function SourcePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { id } = await params;
   const sp = await searchParams;
-  const ctx = await requireCtx();
+  const ctx = await requirePortal("admin");
   if (!hasPlatformPermission(ctx, "sources.manage")) notFound();
   const s = await db.regulatorySource.findUnique({
     where: { id },

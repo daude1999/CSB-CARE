@@ -9,6 +9,8 @@ export interface Ctx {
   branchId: string | null;
   orgRoles: OrgRole[];
   platformRoles: PlatformRole[];
+  /** The HR Hub account used in HR & Workforce, when the member has HR access. */
+  hrUserId?: string | null;
 }
 
 export const ORG_PERMISSIONS = {
@@ -27,6 +29,7 @@ export const ORG_PERMISSIONS = {
   "staff.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  "operations.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "assistant.use": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF"],
 } as const satisfies Record<string, readonly OrgRole[]>;
 

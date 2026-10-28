@@ -4,7 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CaretDown, LockSimple } from "@phosphor-icons/react";
 
 export type SideNavItem = { href: string; label: string };
-export type SideNavSection = { label: string; icon: React.ReactNode; items: SideNavItem[]; action?: SideNavItem; locked?: boolean };
+export type SideNavSection = { label: string; icon: React.ReactNode; items: SideNavItem[]; action?: SideNavItem; locked?: boolean; planned?: boolean };
 
 /** Matches a nav href against the current path and query, so "/policies" and "/policies?tab=templates" are told apart. */
 function useIsActive() {
@@ -26,6 +26,14 @@ export function SideNav({ sections }: { sections: SideNavSection[] }) {
   return (
     <nav className="flex-1 overflow-y-auto" aria-label="Main">
       {sections.map((s) => {
+        if (s.planned)
+          return (
+            <div key={s.label} className={`${row} cursor-default opacity-50 hover:bg-transparent`}>
+              <span aria-hidden="true" className="flex w-[28px] justify-center">{s.icon}</span>
+              {s.label}
+              <span className="ml-auto rounded-[3px] border border-white/50 px-1.5 text-[11px] leading-[16px]">Planned</span>
+            </div>
+          );
         const only = s.items.length === 1 && !s.action ? s.items[0]! : null;
         if (only) {
           const active = isActive(only.href);

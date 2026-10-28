@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { REPORTS, reportRows, type ReportKind } from "@/server/reports/tables";
 import { reportTrends } from "@/server/reports/trends";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requireCtx();
+  const ctx = await requirePortal("reporting");
   if (!hasOrgPermission(ctx, "report.view") && !hasPlatformPermission(ctx, "sources.manage")) notFound();
   const kind = (sp.kind && sp.kind in REPORTS ? sp.kind : "policies") as ReportKind;
   const [{ columns, rows }, trends] = await Promise.all([reportRows(ctx, kind), reportTrends(ctx)]);

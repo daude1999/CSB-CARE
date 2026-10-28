@@ -33,7 +33,7 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(reviewer.getByText("confirmed relevant").first()).toBeVisible();
 
   // 2. The organisation's compliance lead decides that their safeguarding policy needs revising.
-  const manager = await signIn(browser, "manager@brookfield.demo");
+  const manager = await signIn(browser, "manager@care-solution.demo");
   await manager.goto(changeUrl);
   const assessment = manager.locator('[data-testid^="assessment-"]').filter({ hasText: "Safeguarding" }).first();
   await expect(assessment).toBeVisible();
@@ -46,7 +46,7 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(manager.getByRole("status")).toContainText("Assessment decision recorded");
 
   // 3. A policy author generates a draft. The approved policy is unchanged until approval and publication.
-  const author = await signIn(browser, "author@brookfield.demo");
+  const author = await signIn(browser, "author@care-solution.demo");
   await author.goto(changeUrl);
   await author.locator('[data-testid^="assessment-"]').filter({ hasText: "Safeguarding" }).first().getByRole("button", { name: "Generate draft revision" }).click();
   await expect(author).toHaveURL(/\/revisions\//);
@@ -66,7 +66,7 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(author.getByText("You are the author, so you cannot approve this revision.")).toBeVisible();
 
   // 4. A different person approves and publishes.
-  const approver = await signIn(browser, "approver@brookfield.demo");
+  const approver = await signIn(browser, "approver@care-solution.demo");
   await approver.goto("/notifications");
   await expect(approver.getByTestId("notification-list")).toContainText("Draft awaiting your review");
   await approver.goto(revisionUrl);
@@ -84,7 +84,7 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(approver.getByTestId("version-history")).toContainText("superseded");
 
   // 5. Staff are asked to acknowledge the updated policy.
-  const carer = await signIn(browser, "carer1@brookfield.demo");
+  const carer = await signIn(browser, "carer1@care-solution.demo");
   await carer.goto("/acknowledgements");
   const ack = carer.locator('[data-testid^="ack-"]').filter({ hasText: "Safeguarding" }).first();
   await ack.getByRole("button", { name: /I have read and understood/ }).click();
@@ -102,7 +102,7 @@ test("detected change flows through review, drafting, approval, publication and 
 test("unauthenticated users are sent to sign in, and wrong passwords are refused", async ({ page }) => {
   await page.goto("/policies");
   await expect(page).toHaveURL(/\/login/);
-  await page.getByLabel("Email").fill("manager@brookfield.demo");
+  await page.getByLabel("Email").fill("manager@care-solution.demo");
   await page.getByLabel("Password").fill("wrong-password");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("alert")).toBeVisible();

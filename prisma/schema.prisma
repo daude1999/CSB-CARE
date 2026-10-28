@@ -85,6 +85,7 @@ model Organisation {
   branches    Branch[]
   memberships Membership[]
   policies    Policy[]
+  hrWorkspace HrWorkspace?
 }
 
 model ServiceType {
@@ -124,12 +125,37 @@ model Membership {
   branchId       String?
   roles          OrgRole[]
   jobTitle       String?
+  /// The HR Hub account this member works as in HR & Workforce. Empty means no HR access.
+  hrUserId       String?
   createdAt      DateTime     @default(now())
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   branch         Branch?      @relation(fields: [branchId], references: [id])
 
   @@unique([userId, organisationId])
+  @@index([organisationId])
+}
+
+/// HR & Workforce (the CSB HR Hub) for one organisation. The HR Hub keeps its records as one document,
+/// exactly as in the standalone pilot; this row replaces the pilot's local SQLite file. Writes lock the
+/// row (SELECT ... FOR UPDATE) so two changes never overwrite each other.
+model HrWorkspace {
+  organisationId String       @id
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  state          Json
+  version        Int          @default(1)
+  updatedAt      DateTime     @updatedAt
+}
+
+/// HR Hub document files (uploads stay in quarantine). Kept in the database for the demo so they
+/// survive serverless deploys; production moves them to Blob storage behind a malware scanner.
+model HrFile {
+  key            String   @id
+  organisationId String
+  mime           String
+  bytes          Bytes
+  createdAt      DateTime @default(now())
+
   @@index([organisationId])
 }
 

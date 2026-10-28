@@ -1,0 +1,2025 @@
+/* ===== CSB HR Hub — people-first HRIS layer (prefix h-) ===== */
+.h-app {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--bg);
+}
+.h-side > * {
+  flex-shrink: 0;
+}
+.h-side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: var(--nav-bg);
+  color: var(--nav-ink);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 12px;
+  overflow-y: auto;
+}
+.h-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 14px;
+}
+.h-brand img {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #fff;
+}
+.h-brand b {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+}
+.h-brand small {
+  display: block;
+  color: var(--nav-ink-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+.h-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 0 2px 6px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  color: var(--nav-ink-muted);
+  font-size: 13px;
+}
+.h-search .cs-kbd {
+  margin-left: auto;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--nav-ink-muted);
+}
+.h-grp {
+  padding: 16px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--nav-ink-muted);
+}
+.cs .h-side a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--nav-ink);
+}
+.h-side a:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+.cs .h-side a[aria-current="page"] {
+  background: var(--nav-active);
+  color: #fff;
+}
+.h-side a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand-cyan);
+}
+.h-side a .cs-count {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nav-ink);
+}
+.h-side a .cs-count--alert {
+  background: rgba(240, 96, 107, 0.2);
+  color: #ffb3b9;
+}
+.h-me {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.h-me b {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.h-me small {
+  display: block;
+  color: var(--nav-ink-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+.h-me .i {
+  margin-left: auto;
+  color: var(--nav-ink-muted);
+}
+
+.h-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.h-top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.h-top .cs-crumbs a {
+  color: var(--ink-3);
+}
+.h-top .cs-crumbs a:hover {
+  color: var(--ink);
+}
+.h-gsearch {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 300px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.h-gsearch .cs-kbd {
+  margin-left: auto;
+}
+.h-wrap {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+}
+
+/* page header */
+.h-ph {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.h-ph h1 {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.h-ph p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.h-ph .act {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* sheet = the one surface a page sits on */
+.h-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.h-sec {
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+}
+.h-sec:first-child {
+  border-top: 0;
+}
+.h-sh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.h-sh h2 {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+.h-sh .cs-btn--link {
+  margin-left: auto;
+  font-size: 13px;
+}
+.h-sh .muted {
+  font-size: 13px;
+}
+.h-rail h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.h-rail .h-sec {
+  padding: 18px 4px;
+  border-top: 1px solid var(--border-strong);
+}
+.h-rail .h-sec:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* quick overview strip */
+.h-quick {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 24px;
+}
+.h-q {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 28px 4px 0;
+  margin-right: 28px;
+  border-right: 1px solid var(--border-strong);
+  cursor: pointer;
+}
+.h-q:last-child {
+  border-right: 0;
+}
+.h-q__ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+}
+.h-q__ic.bad {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: transparent;
+}
+.h-q__ic.warn {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: transparent;
+}
+.h-q b {
+  display: block;
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.h-q div span {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.h-q:hover div span {
+  color: var(--ink);
+}
+
+/* work items */
+.h-work {
+  display: flex;
+  flex-direction: column;
+}
+.h-wgrp {
+  padding: 10px 24px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.h-wi {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+}
+.h-wgrp + .h-wi {
+  border-top: 0;
+}
+.h-wi:hover {
+  background: var(--surface-2);
+}
+.h-wi__t {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--ink);
+}
+.h-wi__s {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 18px;
+}
+.h-wi__issues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.h-wi__ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--neutral-soft);
+  color: var(--ink-2);
+}
+.h-wi__ic.doc {
+  background: var(--accent-soft);
+  color: var(--link);
+}
+.h-wi__r {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.h-wi__r time {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.h-wi__r time.late {
+  color: var(--danger);
+  font-weight: 500;
+}
+.cs .h-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--link);
+  white-space: nowrap;
+}
+
+/* agenda */
+.h-ag {
+  display: flex;
+  flex-direction: column;
+}
+.h-ag__d {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  padding: 12px 0 6px;
+}
+.h-ag__d:first-child {
+  padding-top: 0;
+}
+.h-ag__i {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.h-ag__i:last-child {
+  border-bottom: 0;
+}
+.h-ag__bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--chart-due);
+}
+.h-ag__bar.ok {
+  background: var(--brand-cyan);
+}
+.h-ag__bar.bad {
+  background: var(--chart-over);
+}
+.h-ag__i b {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.h-ag__i small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.h-ag__i .cs-av {
+  margin-left: auto;
+}
+
+/* people mini list */
+.h-pl {
+  display: flex;
+  flex-direction: column;
+}
+.h-pi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.h-pi b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.h-pi > div {
+  flex: 1;
+  min-width: 0;
+}
+.h-pi small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 16px;
+}
+.h-pi .cs .h-go {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+/* org snapshot */
+.h-org {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.h-org > div {
+  padding: 18px 24px;
+  border-left: 1px solid var(--border);
+}
+.h-org > div:first-child {
+  border-left: 0;
+}
+.h-org h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+.h-org .muted {
+  font-size: 12px;
+}
+.h-org .row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 10px;
+}
+.h-org .row b {
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.h-org .cs-meter {
+  margin-top: 8px;
+}
+
+/* directory */
+.h-tabs {
+  display: flex;
+  gap: 24px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+.h-tabs button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.h-tabs button[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+.h-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.h-fbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.h-fbtn b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.h-dir {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.h-dir th {
+  height: 38px;
+  padding: 0 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.h-dir th:first-child,
+.h-dir td:first-child {
+  padding-left: 20px;
+}
+.h-dir td {
+  height: 56px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.h-dir tr:last-child td {
+  border-bottom: 0;
+}
+.h-dir tbody tr {
+  cursor: pointer;
+}
+.h-dir tbody tr:hover td {
+  background: var(--surface-2);
+}
+.h-emp {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.h-emp .cs-av {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+}
+.h-emp b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 19px;
+}
+.h-emp small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 16px;
+}
+.h-mgr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+.h-dir .w {
+  color: var(--ink);
+}
+
+/* profile header */
+.h-prof {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.h-prof__in {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 32px 0;
+}
+.h-id {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.h-id > .cs-av {
+  width: 80px;
+  height: 80px;
+  font-size: 26px;
+  font-weight: 600;
+}
+.h-id h1 {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.h-id .role {
+  font-size: 15px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.h-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.h-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.h-facts .i {
+  color: var(--ink-3);
+}
+.h-id .act {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-self: flex-start;
+}
+.h-ptabs {
+  display: flex;
+  gap: 28px;
+  margin-top: 22px;
+}
+.h-ptabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 13px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+}
+.h-ptabs a:hover {
+  color: var(--ink);
+}
+.h-ptabs a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--brand-cyan);
+}
+.h-ptabs .cs-count--bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.h-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.h-alert b {
+  font-weight: 600;
+}
+.h-alert .cs .h-go {
+  margin-left: auto;
+  color: var(--danger);
+}
+.h-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  align-items: start;
+}
+.h-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 24px;
+}
+.h-fields dt {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.h-fields dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.h-lock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 18px;
+}
+.h-lock .cs .h-go {
+  margin-left: auto;
+}
+.h-rows {
+  display: flex;
+  flex-direction: column;
+}
+.h-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.h-row:first-child {
+  border-top: 0;
+}
+.h-row .nm {
+  flex: 1;
+  min-width: 0;
+}
+.h-row .nm b {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.h-row .nm small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.h-row time {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.h-fic {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--neutral-soft);
+  color: var(--ink-2);
+}
+.h-sumline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.h-sumline .cs-meter {
+  width: 180px;
+}
+.h-sumline b {
+  color: var(--ink);
+}
+.h-catrow td {
+  height: 34px !important;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3) !important;
+}
+.h-q-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--link);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.h-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+/* Runtime bridge: replace legacy shell positioning and retain existing dialogs. */
+.cs .h-side nav a span,
+.cs .h-side nav a .cs-count {
+  display: inline-flex;
+}
+.cs .h-side {
+  align-items: stretch;
+}
+.cs .h-side nav a {
+  justify-content: flex-start;
+  width: auto;
+}
+.app.h-app {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  min-height: 100vh;
+  align-items: start;
+}
+.cs .h-side {
+  position: sticky;
+  inset: auto;
+  top: 0;
+  width: 232px;
+  height: 100vh;
+  min-height: 100vh;
+  align-self: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 14px 12px 12px;
+  gap: 0;
+  z-index: 30;
+}
+.cs .h-side nav {
+  display: block;
+  margin: 0;
+  gap: 0;
+}
+.cs .h-side nav a {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  height: 34px;
+  padding: 0 10px;
+  gap: 10px;
+  font-size: 14px;
+  border-radius: 7px;
+  color: var(--nav-ink);
+}
+.cs .h-side nav a[aria-current="page"] {
+  color: #fff;
+  background: var(--nav-active);
+}
+.cs .h-side nav a[aria-current="page"]::before {
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  background: var(--brand-cyan);
+}
+.cs .h-side .h-brand {
+  height: auto;
+  margin: 0;
+  padding: 4px 8px 14px;
+  gap: 10px;
+  justify-content: flex-start;
+  border-radius: 0;
+}
+.cs .h-side .h-brand img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  background: #fff;
+}
+.cs .h-side .h-brand:hover {
+  background: transparent;
+}
+.cs .h-side .h-search {
+  width: 100%;
+  flex-shrink: 0;
+  cursor: pointer;
+  text-align: left;
+  border: 0;
+  margin: 0 2px 6px;
+  max-width: calc(100% - 4px);
+}
+.cs .h-me {
+  position: static;
+  flex-shrink: 0;
+  min-height: 48px;
+  margin: auto 0 0;
+  padding: 12px 8px 2px;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.cs .h-me strong {
+  font-size: 13px;
+  color: #fff;
+  line-height: 18px;
+}
+.cs .h-me small {
+  font-size: 12px;
+  color: var(--nav-ink-muted);
+  line-height: 16px;
+}
+.cs .h-me > div {
+  min-width: 0;
+}
+.cs .h-me button {
+  margin-left: auto;
+  color: var(--nav-ink);
+}
+.cs .h-main {
+  margin: 0;
+  min-width: 0;
+  min-height: 100vh;
+  width: 100%;
+}
+.cs .h-wrap .secondary-button {
+  background: var(--surface);
+  color: var(--ink-2);
+  border-color: var(--border-strong);
+}
+.cs .h-wrap .secondary-button:hover {
+  background: var(--surface-2);
+}
+.cs .h-top {
+  padding: 0 32px;
+  height: 56px;
+  min-height: 56px;
+  z-index: 20;
+  gap: 12px;
+}
+.cs .h-top .breadcrumbs {
+  margin-right: auto;
+  font-size: 13px;
+  gap: 6px;
+}
+.cs .h-top .h-gsearch {
+  margin-left: 0;
+  width: 300px;
+  max-width: 300px;
+  background: var(--surface-2);
+  height: 32px;
+  border: 1px solid var(--border);
+  padding: 0 10px;
+  border-radius: 7px;
+  gap: 8px;
+}
+.cs .h-gsearch input {
+  width: 100%;
+  font-size: 13px;
+  background: transparent;
+  min-width: 0;
+}
+.cs .h-top .branch-select {
+  height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  padding: 0 10px;
+  gap: 6px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.cs .h-top .branch-select select {
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  width: auto;
+  max-width: 180px;
+}
+.cs .h-wrap {
+  display: block;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+  min-width: 0;
+}
+.cs .h-record-page {
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+.cs .app-footer {
+  display: none;
+}
+.cs .h-ph h1,
+.cs .page-heading h1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+}
+.cs .h-ph p,
+.cs .page-heading > div > p {
+  font-size: 14px;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+.cs .page-heading {
+  margin: 0 0 20px;
+  padding: 0;
+  min-height: 56px;
+}
+.cs .h-wrap:has(.h-directory) .page-heading { align-items:flex-end; }
+.cs .h-wrap:has(.h-directory) .page-heading button { height:32px; min-height:32px; font-size:13px; padding:0 12px; }
+.cs .h-wrap:has(.h-directory) .page-heading .primary { background:var(--primary); color:var(--on-primary); border-color:var(--primary); }
+.cs .h-directory .h-dir td:nth-child(3) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cs .h-sheet {
+  box-shadow: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+.cs .h-sh {
+  margin-bottom: 14px;
+}
+.cs .h-sh h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.2px;
+}
+.cs .h-sh .muted {
+  font-size: 13px;
+}
+.cs .h-rail .h-sh h2 {
+  font-size: 14px;
+}
+.cs .h-rail .h-sh {
+  flex-wrap: wrap;
+}
+.cs .h-quick .h-q {
+  margin-right: 28px;
+  padding: 4px 28px 4px 0;
+}
+.cs .h-quick .h-q:last-child {
+  margin: 0;
+  padding-right: 0;
+}
+.cs .h-quick b {
+  font-size: 20px;
+  line-height: 24px;
+}
+.cs .h-work-head {
+  padding-bottom: 0;
+}
+.cs .h-work-head .h-sh {
+  margin-bottom: 6px;
+}
+.cs .h-work-tabs {
+  padding: 0;
+  gap: 24px;
+  border-bottom: 0;
+}
+.cs .h-work .h-wi {
+  padding: 14px 24px;
+  gap: 14px;
+}
+.cs .h-go {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--link);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.cs .h-go:hover {
+  text-decoration: underline;
+}
+.cs .h-wi__t {
+  font-size: 14px;
+  font-weight: 600;
+}
+.cs .h-wi__s {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.cs .h-wi__issues .cs-badge {
+  font-size: 12px;
+  min-height: 22px;
+}
+.cs .h-rail .h-pi {
+  min-width: 0;
+}
+.cs .h-pi .h-go {
+  font-size: 12px;
+}
+.cs .h-pi b {
+  font-size: 13px;
+}
+.cs .h-pi small {
+  font-size: 12px;
+}
+.cs .h-rail .h-ag__i {
+  min-height: 48px;
+}
+.cs .h-ag__i > div {
+  min-width: 0;
+  flex: 1;
+}
+.cs .h-ag__i b {
+  font-size: 13px;
+}
+.cs .h-ag__i small {
+  font-size: 12px;
+}
+.cs .h-rail .h-ag__i .cs-av {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+.cs .h-snapshot {
+  margin-top: 28px;
+}
+.cs .h-snapshot > .h-sec {
+  padding-bottom: 0;
+}
+.cs .h-org .cs-meter-wrap {
+  margin-top: 8px;
+}
+.cs .h-org .row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.cs .h-dir {
+  width: 100%;
+  min-width: 1080px;
+  table-layout: fixed;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.cs .h-dir th {
+  height: 38px;
+  padding: 0 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+  background: var(--surface-2);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.cs .h-dir td {
+  height: 56px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.cs .h-dir th:first-child,
+.cs .h-dir td:first-child {
+  padding-left: 20px;
+}
+.cs .h-dir tr:last-child td {
+  border-bottom: 0;
+}
+.cs .h-dir tbody tr:hover td {
+  background: var(--surface-2);
+}
+.cs .h-dir .person-cell {
+  text-align: left;
+  padding: 0;
+  width: auto;
+  gap: 12px;
+  min-width: 0;
+  background: none;
+}
+.cs .h-dir .person-cell strong {
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cs .h-dir .person-cell small {
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 16px;
+}
+.cs .h-dir .person-cell .cs-av {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+}
+.cs .h-mgr {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.cs .h-mgr .cs-av {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+.cs .h-tabs button {
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.cs .h-tabs button[aria-selected="true"] {
+  color: var(--ink);
+}
+.cs .h-tabs button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cs .h-directory .table-toolbar {
+  gap: 8px;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+.cs .h-directory .table-toolbar > .local-search {
+  min-width: 150px;
+  flex: 1;
+  max-width: 300px;
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  padding: 0 10px;
+  gap: 8px;
+}
+.cs .h-directory .local-search input {
+  font-size: 13px;
+  padding: 0;
+  min-width: 0;
+  background: transparent;
+}
+.cs .h-directory select {
+  height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  padding: 0 8px;
+  font-size: 13px;
+  background: var(--surface);
+  max-width: 125px;
+  min-width: 0;
+  color: var(--ink-2);
+}
+.cs .h-directory .table-toolbar .secondary-button {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.cs .h-dir th:nth-child(1) {
+  width: 21%;
+}
+.cs .h-dir th:nth-child(2) {
+  width: 8%;
+}
+.cs .h-dir th:nth-child(3) {
+  width: 14%;
+}
+.cs .h-dir th:nth-child(4) {
+  width: 9%;
+}
+.cs .h-dir th:nth-child(5) {
+  width: 13%;
+}
+.cs .h-dir th:nth-child(6) {
+  width: 10%;
+}
+.cs .h-dir th:nth-child(7) {
+  width: 13%;
+}
+.cs .h-dir th:nth-child(8) {
+  width: 10%;
+}
+.cs .h-dir th:last-child {
+  width: 36px;
+}
+.cs .h-requirements th:nth-child(1),
+.cs .h-documents th:nth-child(1) {
+  width: 28%;
+}
+.cs .h-requirements th:nth-child(2),
+.cs .h-documents th:nth-child(2) {
+  width: 16%;
+}
+.cs .h-requirements th:nth-child(3),
+.cs .h-documents th:nth-child(3) {
+  width: 12%;
+}
+.cs .h-requirements th:nth-child(4),
+.cs .h-documents th:nth-child(4) {
+  width: 12%;
+}
+.cs .h-requirements th:nth-child(5),
+.cs .h-documents th:nth-child(5) {
+  width: 18%;
+}
+.cs .h-requirements th:nth-child(6),
+.cs .h-documents th:nth-child(6) {
+  width: 14%;
+}
+.cs .h-dir td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cs .h-dir .person-cell span {
+  min-width: 0;
+}
+.cs .h-dir .person-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 190px;
+}
+.cs .h-directory-tools {
+  border-bottom: 1px solid var(--border);
+}
+.cs .h-directory-tools > summary {
+  font-size: 12px;
+  color: var(--ink-3);
+  padding: 6px 20px;
+  cursor: pointer;
+}
+.cs .h-directory-tools .filter-row {
+  border: 0;
+  padding: 12px 20px;
+  background: var(--surface-2);
+  display: flex;
+  flex-wrap: wrap;
+}
+.cs .h-directory .pagination {
+  padding: 12px 20px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--border);
+}
+.cs .h-directory .sort-button {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.cs .h-record .h-prof {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  background: var(--surface);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+.cs .h-prof .h-id {
+  gap: 20px;
+  align-items: center;
+}
+.cs .h-id > .cs-av {
+  width: 80px;
+  height: 80px;
+  font-size: 26px;
+  flex: none;
+}
+.cs .h-id h1 {
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.cs .h-id .role {
+  font-size: 15px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.cs .h-facts {
+  font-size: 13px;
+  max-width: 680px;
+}
+.cs .h-facts .cs-av {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+.cs .h-id .act {
+  flex-shrink: 0;
+  gap: 8px;
+  margin-left: auto;
+}
+.cs .h-ptabs {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  margin: 22px 0 0;
+  gap: 28px;
+  border: 0;
+  display: flex;
+  overflow: auto;
+}
+.cs .h-ptabs button {
+  padding: 0 0 13px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--ink-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  white-space: nowrap;
+  border-radius: 0;
+  background: none;
+  font-weight: 500;
+}
+.cs .h-ptabs button[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--brand-cyan);
+}
+.cs .h-ptabs .cs-count--bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.cs .h-record-body {
+  padding-top: 28px;
+}
+.cs .h-record .record-overview-grid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  margin: 0;
+}
+.cs .h-fields {
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 24px;
+  background: none;
+  border: 0;
+}
+.cs .h-fields > div {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.cs .h-fields dt {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.cs .h-fields dd {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 20px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.cs .h-personal summary {
+  list-style: none;
+  cursor: pointer;
+}
+.cs .h-personal summary::-webkit-details-marker {
+  display: none;
+}
+.cs .h-lock .h-go {
+  margin-left: auto;
+}
+.cs .h-lock {
+  margin-top: 18px;
+}
+.cs .h-personal .h-private-fields {
+  padding-top: 18px;
+}
+.cs .h-doc-title {
+  padding: 0;
+  display: block;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+}
+.cs .h-doc-title:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
+.cs .h-row {
+  min-width: 0;
+}
+.cs .h-row .nm small {
+  font-size: 12px;
+}
+.cs .h-row time {
+  font-size: 12px;
+}
+.cs .h-rail-checks {
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+.cs .h-rail-checks .h-row {
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 10px 0;
+  gap: 8px;
+}
+.cs .h-rail-checks .nm {
+  overflow-wrap: anywhere;
+}
+.cs .h-alert {
+  margin-bottom: 20px;
+}
+.cs .h-alert .h-go {
+  margin-left: auto;
+  color: var(--link);
+}
+.cs .h-more {
+  position: relative;
+}
+.cs .h-more summary {
+  list-style: none;
+}
+.cs .h-more summary::-webkit-details-marker {
+  display: none;
+}
+.cs .h-menu {
+  position: absolute;
+  right: 0;
+  top: 38px;
+  z-index: 10;
+  min-width: 180px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-pop);
+}
+.cs .h-menu > * {
+  display: flex;
+  padding: 8px;
+  width: 100%;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  align-items: center;
+  gap: 8px;
+}
+.cs .h-menu > *:hover {
+  background: var(--surface-2);
+}
+.cs .h-table-head {
+  padding: 12px 20px;
+}
+.cs .h-table-head .h-sh {
+  margin: 0;
+  min-height: 32px;
+}
+.cs .h-small-meter {
+  width: 180px;
+  flex-shrink: 0;
+  margin: 0 8px;
+}
+.cs .h-cell-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  display: block;
+}
+.cs .h-cell-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: block;
+}
+.cs .h-doc-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+.cs .h-doc-filters input {
+  border: 0;
+  padding: 0;
+  width: 180px;
+  min-width: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  outline: none;
+}
+.cs .h-doc-filters select {
+  height: 32px;
+  max-width: 110px;
+  font-size: 13px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-2);
+}
+.cs .h-documents .h-emp {
+  gap: 12px;
+}
+.cs .h-documents .h-emp b {
+  font-size: 14px;
+  font-weight: 500;
+}
+.cs .h-q-file {
+  font-size: 12px;
+  color: var(--link);
+  font-family: var(--font-mono);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 250px;
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+  background: none;
+}
+.cs .h-late {
+  color: var(--danger);
+}
+.cs .h-requirements td.h-late {
+  color: var(--danger);
+}
+.cs .h-timeline {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cs .h-timeline li {
+  display: flex;
+  gap: 10px;
+  padding: 0 0 22px;
+  margin: 0;
+  font-size: 13px;
+  background: none;
+  border: 0;
+}
+.cs .h-timeline li:last-child {
+  padding-bottom: 0;
+}
+.cs .h-timeline p {
+  font-size: 13px;
+}
+.cs .h-timeline time {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.cs .h-employment-history article {
+  margin-bottom: 18px;
+}
+.cs .h-note {
+  font-size: 12px;
+  line-height: 18px;
+}
+@media (max-width: 1250px) {
+  .cs .h-id {
+    flex-wrap: wrap;
+  }
+  .cs .h-id .act {
+    margin-left: 100px;
+    align-self: auto;
+  }
+  .cs .h-doc-filters {
+    flex-wrap: wrap;
+  }
+  .cs .h-table-head .h-sh {
+    flex-wrap: wrap;
+  }
+  .cs .h-grid,
+  .cs .h-record .record-overview-grid {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+  }
+  .cs .h-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cs .h-wi__r {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+}
+@media (max-width: 1000px) {
+  .app.h-app {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .cs .h-side {
+    width: 200px;
+  }
+  .cs .h-top {
+    padding: 0 24px;
+  }
+  .cs .h-gsearch {
+    max-width: 200px;
+  }
+  .cs .h-wrap {
+    padding: 24px;
+  }
+  .cs .h-prof__in {
+    padding: 24px 24px 0;
+  }
+  .cs .h-grid,
+  .cs .h-record .record-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cs .h-rail {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .cs .h-rail .h-sec {
+    padding: 18px 4px;
+    border-top: 1px solid var(--border-strong);
+  }
+  .cs .h-org {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .cs .h-quick {
+    flex-wrap: wrap;
+    row-gap: 16px;
+  }
+  .cs .h-quick .h-q {
+    flex: 1 1 40%;
+    margin-right: 0;
+    border-right: 0;
+  }
+  .cs .h-main .breadcrumbs {
+    display: flex;
+  }
+}
+@media (max-width: 767px) {
+  .app.h-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cs .h-side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 232px;
+    transform: translateX(-100%);
+    transition: transform 0.15s;
+    z-index: 40;
+  }
+  .cs .h-side.visible {
+    transform: translateX(0);
+  }
+  .cs .h-top {
+    padding: 0 16px;
+    gap: 8px;
+  }
+  .cs .h-top .breadcrumbs {
+    display: none;
+  }
+  .cs .h-top .h-gsearch {
+    width: auto;
+    max-width: none;
+    flex: 1;
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+  .cs .h-top .branch-select {
+    border: 0;
+    padding: 0;
+    background: none;
+  }
+  .cs .h-top .branch-select > svg {
+    display: none;
+  }
+  .cs .h-top .branch-select select {
+    max-width: 110px;
+    font-size: 12px;
+  }
+  .cs .h-wrap {
+    padding: 24px 16px;
+  }
+  .cs .h-ph {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cs .h-ph .act {
+    margin: 0;
+    flex-wrap: wrap;
+  }
+  .cs .h-ph h1 {
+    font-size: 24px;
+  }
+  .cs .h-grid {
+    gap: 24px;
+  }
+  .cs .h-rail {
+    display: block;
+  }
+  .cs .h-wi {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .cs .h-work .h-wi {
+    padding: 14px 16px;
+  }
+  .cs .h-wi__r,
+  .cs .h-wi > .h-go {
+    grid-column: 2;
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .cs .h-quick .h-q {
+    padding-right: 8px;
+    gap: 8px;
+  }
+  .cs .h-quick b {
+    font-size: 20px;
+  }
+  .cs .h-quick span {
+    font-size: 12px;
+  }
+  .cs .h-work-head {
+    padding: 18px 16px 0;
+  }
+  .cs .h-work-head .h-sh {
+    flex-wrap: wrap;
+  }
+  .cs .h-work-tabs {
+    gap: 16px;
+    overflow: auto;
+  }
+  .cs .h-work-tabs button {
+    font-size: 13px;
+  }
+  .cs .h-org > div {
+    padding: 18px 16px;
+  }
+  .cs .h-snapshot > .h-sec {
+    padding: 18px 16px 0;
+  }
+  .cs .h-snapshot .h-sh {
+    flex-wrap: wrap;
+  }
+  .cs .h-id > .cs-av {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
+  }
+  .cs .h-prof__in {
+    padding: 24px 16px 0;
+  }
+  .cs .h-prof .h-id {
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .cs .h-id > div:not(.act) {
+    flex: 1;
+    min-width: 0;
+  }
+  .cs .h-id h1 {
+    font-size: 24px;
+  }
+  .cs .h-id .act {
+    margin: 0;
+    flex-wrap: wrap;
+    flex-basis: 100%;
+  }
+  .cs .h-facts {
+    font-size: 12px;
+    gap: 8px;
+  }
+  .cs .h-ptabs {
+    gap: 24px;
+  }
+  .cs .h-fields {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 16px;
+  }
+  .cs .h-sec {
+    padding: 18px 16px;
+  }
+  .cs .h-alert {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .cs .h-alert > span {
+    flex: 1;
+  }
+  .cs .h-alert .h-go {
+    margin-left: 26px;
+  }
+  .cs .h-row time {
+    display: none;
+  }
+  .cs .h-row {
+    flex-wrap: wrap;
+  }
+  .cs .h-lock {
+    align-items: flex-start;
+  }
+  .cs .h-lock > span:not(.h-go) {
+    flex: 1;
+  }
+  .cs .h-lock .h-go {
+    align-self: center;
+  }
+  .cs .h-table-head {
+    padding: 12px 16px;
+  }
+  .cs .h-doc-filters {
+    margin: 0;
+    flex: 1 1 100%;
+  }
+  .cs .h-doc-filters .cs-input {
+    width: 100%;
+  }
+  .cs .h-doc-filters input {
+    width: 100%;
+  }
+  .cs .h-directory .h-tabs {
+    overflow: auto;
+    gap: 20px;
+    white-space: nowrap;
+  }
+  .cs .h-directory .local-search {
+    max-width: none !important;
+    flex: 1 1 100% !important;
+  }
+  .cs .h-directory .table-toolbar > select {
+    flex: 1 1 40%;
+    max-width: none;
+  }
+  .cs .h-dir {
+    min-width: 950px;
+  }
+  .cs .h-directory-tools .filter-row {
+    align-items: flex-start;
+  }
+  .cs .h-directory .save-view {
+    margin: 0;
+    flex-wrap: wrap;
+  }
+  .cs .h-directory .pagination {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .cs .h-small-meter {
+    width: 120px;
+  }
+  .cs .h-table-head .h-sh {
+    gap: 8px;
+  }
+  .cs .h-note {
+    align-items: flex-start;
+  }
+  .cs .h-note > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}

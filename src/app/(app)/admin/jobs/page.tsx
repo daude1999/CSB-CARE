@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { JobStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { cancelJobAction, retryJobAction } from "../../../actions";
 import { Card, Empty, Flash, PageHeader, Pagination, SegmentNav, StatusBadge, fmtDate } from "@/components/ui";
@@ -11,7 +11,7 @@ const STATUSES: JobStatus[] = ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "DEAD
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requireCtx();
+  const ctx = await requirePortal("admin");
   if (!hasPlatformPermission(ctx, "jobs.manage")) notFound();
   const status = STATUSES.includes(sp.status as JobStatus) ? (sp.status as JobStatus) : undefined;
   const page = Math.max(1, Number(sp.page ?? 1));

@@ -1,0 +1,26 @@
+/* The platform's portal button inside the HR Hub top bar. Uses the HR Hub's own tokens. */
+.portal-switch { position: relative; flex-shrink: 0; }
+.portal-switch > summary { display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 12px 0 7px; border: 1.5px solid var(--ink); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 15px; font-weight: 600; white-space: nowrap; cursor: pointer; list-style: none; }
+.portal-switch > summary::-webkit-details-marker { display: none; }
+.portal-switch > summary:hover { background: var(--surface-2); }
+.portal-switch[open] > summary svg { transform: rotate(180deg); }
+.portal-switch__code { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; background: var(--ink); color: var(--white); font-size: 11px; font-weight: 700; }
+.portal-switch__code.is-planned { background: #cbd2dc; }
+.portal-switch__menu { position: absolute; top: 46px; left: 0; z-index: 60; width: 500px; max-width: calc(100vw - 24px); padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 16px 44px rgb(15 23 42 / 0.25); }
+.portal-switch__label { margin: 8px 10px 4px; color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.portal-switch__menu ul { margin: 0; padding: 0; list-style: none; }
+.portal-switch__menu a { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.portal-switch__menu a:hover { background: var(--surface-2); }
+.portal-switch__menu a.is-current { background: var(--surface-selected); outline: 1px solid #cfe7f5; }
+.portal-switch__menu .portal-switch__code { width: 32px; height: 32px; border-radius: 7px; font-size: 11.5px; }
+.portal-switch__text { display: flex; min-width: 0; flex-direction: column; }
+.portal-switch__text strong { font-size: 14.5px; font-weight: 600; }
+.portal-switch__text small { color: var(--ink-3); font-size: 12.5px; }
+.portal-switch__tag { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #e3f4ea; color: #1f7a4d; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.portal-switch__tag.is-planned { border: 1px dashed #9aa4b2; background: #eceff3; color: #5b6577; }
+:root[data-theme="dark"] .portal-switch__code.is-planned, .dark .portal-switch__code.is-planned { background: #3a4556; }
+@media (max-width: 640px) {
+  .portal-switch__name { display: none; }
+  .portal-switch__menu { position: fixed; top: 58px; left: 12px; right: 12px; width: auto; }
+  .portal-switch__text small { display: none; }
+}

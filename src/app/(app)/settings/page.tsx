@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { getAiProvider } from "@/server/ai";
 import { updateBusinessDetailsAction, updateOrgSettingsAction } from "../../actions";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requireCtx();
+  const ctx = await requirePortal("admin");
   if (!hasOrgPermission(ctx, "org.manage")) notFound();
   const org = await db.organisation.findUniqueOrThrow({ where: { id: ctx.organisationId! }, include: { branches: { include: { services: { include: { serviceType: true } } } } } });
   const logs = await db.auditLog.findMany({ where: { organisationId: org.id }, orderBy: { createdAt: "desc" }, take: 40 });

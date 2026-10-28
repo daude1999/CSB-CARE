@@ -1,8 +1,12 @@
 import { Logo } from "@/components/brand";
 import { loginAction } from "../actions";
+import { db } from "@/lib/db";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
+  const showDemo = process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false");
+  // Databases seeded before the move to Care Solution Bureau keep their original demo addresses.
+  const d = showDemo && !(await db.organisation.findUnique({ where: { slug: "csb-demo" }, select: { id: true } })) ? "brookfield.demo" : "care-solution.demo";
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <section className="relative hidden flex-col justify-between overflow-hidden bg-navy-950 px-12 py-12 text-white lg:flex">
@@ -19,7 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="w-full max-w-sm">
         <div className="mb-8 lg:hidden"><div className="inline-flex rounded-md bg-white px-4 py-3 ring-1 ring-slate-200"><Logo className="h-12" /></div></div>
         <h1 className="text-[2rem]">Sign in</h1>
-        <p className="mb-8 mt-2 text-sm text-slate-600">Use the email address your organisation registered with CSB.</p>
+        <p className="mb-8 mt-2 text-sm text-slate-600">One sign-in for every portal of the CSB All in One Platform.</p>
         <form action={loginAction} className="space-y-5">
           {sp.error ? (
             <div role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -35,9 +39,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
           </div>
           <button className="btn-primary w-full" type="submit">Sign in</button>
-          {process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false") ? (
+          {showDemo ? (
             <p className="border-t border-slate-300 pt-4 text-xs leading-5 text-slate-500">
-              Demo environment: sign in as <code>manager@brookfield.demo</code>, <code>author@brookfield.demo</code>, <code>approver@brookfield.demo</code>, <code>carer1@brookfield.demo</code>, <code>regulatory@csb.demo</code> or <code>admin@csb.demo</code> with the password <code>DemoPassword!2026</code>.
+              Demo environment (fictional people): sign in as <code>manager@{d}</code> (all portals, including HR), <code>sam.parker@{d}</code> (Liverpool HR), <code>author@{d}</code>, <code>approver@{d}</code>, <code>carer1@{d}</code>, <code>regulatory@csb.demo</code> or <code>admin@csb.demo</code> with the password <code>DemoPassword!2026</code>.
             </p>
           ) : null}
         </form>

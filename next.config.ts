@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+// The development server evaluates code for fast refresh; production builds never need 'unsafe-eval'.
+const devEval = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
+
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -8,8 +11,15 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   {
     key: "Content-Security-Policy",
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    // blob: in connect-src lets the HR Hub PDF preview read the document it has already downloaded.
+    value: `default-src 'self'; script-src 'self' 'unsafe-inline'${devEval}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
   },
+];
+
+// HR & Workforce (the HR Hub) kept these headers in its standalone build: personal data is never cached or indexed.
+const hrHeaders = [
+  { key: "Cache-Control", value: "no-store" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
 ];
 
 const config: NextConfig = {
@@ -20,7 +30,11 @@ const config: NextConfig = {
   outputFileTracingIncludes: { "/api/policies/**": ["./node_modules/pdfkit/js/**/*"] },
   experimental: { serverActions: { bodySizeLimit: "11mb" }, optimizePackageImports: ["@phosphor-icons/react"] },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/hr/:path*", headers: hrHeaders },
+      { source: "/api/hr/:path*", headers: hrHeaders },
+    ];
   },
 };
 

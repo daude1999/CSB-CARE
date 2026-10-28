@@ -27,5 +27,5 @@ export async function ctxFor(email: string, orgSlug?: string) {
   return ctxForUser(u.id, org ? org.id : undefined);
 }
 
-export const BROOKFIELD = "brookfield-demo";
+export const BROOKFIELD = "csb-demo";
 export const OAKRIDGE = "oakridge-demo";

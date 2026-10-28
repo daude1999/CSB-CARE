@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "@/components/link";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { requestModuleAction } from "../../../actions";
 import { Flash } from "@/components/ui";
 import { TitleBar } from "@/components/title-bar";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function ModulePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  await requireCtx();
+  await requirePortal("admin");
   const m = MODULES.find((x) => x.slug === slug);
   if (!m) notFound();
   return (

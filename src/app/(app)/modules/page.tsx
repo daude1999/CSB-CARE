@@ -1,5 +1,5 @@
 import Link from "@/components/link";
-import { requireCtx } from "@/server/auth/current";
+import { requirePortal } from "@/server/auth/portals";
 import { TitleBar } from "@/components/title-bar";
 import { MODULES } from "@/content/modules";
 import { ModuleIcon } from "./icons";
@@ -8,7 +8,7 @@ import { CheckCircle, LockSimple } from "@phosphor-icons/react/dist/ssr";
 export const dynamic = "force-dynamic";
 
 export default async function ModulesPage() {
-  await requireCtx();
+  await requirePortal("admin");
   return (
     <div>
       <TitleBar title="CSB Modules" back="/" />
