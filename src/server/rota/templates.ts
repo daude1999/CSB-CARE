@@ -157,6 +157,20 @@ export async function duplicateTemplate(ctx: Ctx, id: string) {
   });
 }
 
+/** Duplicate Templates: each copy starts disabled so it is never built until someone checks and enables it. */
+export async function duplicateTemplates(ctx: Ctx, templateIds: string[]) {
+  const results: { id: string; ok: boolean; message?: string }[] = [];
+  for (const id of [...new Set(templateIds)]) {
+    try {
+      await duplicateTemplate(ctx, id);
+      results.push({ id, ok: true });
+    } catch (e) {
+      results.push({ id, ok: false, message: (e as Error).message });
+    }
+  }
+  return results;
+}
+
 /** Bulk time change for templates ("nudge"), validated per template. */
 export async function nudgeTemplates(ctx: Ctx, templateIds: string[], minutes: number) {
   if (!Number.isInteger(minutes) || minutes === 0 || Math.abs(minutes) > 240) throw new ValidationError("Move times by 1 to 240 minutes");
@@ -254,28 +268,149 @@ export async function setTemplateCarer(ctx: Ctx, templateId: string, version: nu
   return db.$transaction(async (tx) => {
     const t = await loadTemplate(tx, scope, templateId);
     if (t.version !== version) throw new ConflictError("This template changed since you opened it. Reload and try again.");
-    if (slot === "SECOND" && t.carersRequired < 2) throw new ValidationError("This template needs one carer");
-    const field = slot === "PRIMARY" ? "preferredStaff1Id" : slot === "SECOND" ? "preferredStaff2Id" : "shadowStaffId";
-    if (staffId) {
-      const s = await tx.staffMember.findFirst({ where: { id: staffId, organisationId: scope.organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false } });
-      if (!s) throw new NotFoundError("Staff member");
-      const others = [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId].filter((x, i) => x && ["preferredStaff1Id", "preferredStaff2Id", "shadowStaffId"][i] !== field);
-      if (others.includes(staffId)) throw new ValidationError("This carer is already on this visit");
-      const clash = await tx.visitTemplate.findFirst({
-        where: {
-          organisationId: scope.organisationId,
-          enabled: true,
-          id: { not: t.id },
-          OR: [{ preferredStaff1Id: staffId }, { preferredStaff2Id: staffId }, { shadowStaffId: staffId }],
-          cycleWeeks: { hasSome: t.cycleWeeks },
-          weekdays: { hasSome: t.weekdays },
-          startMinute: { lt: t.startMinute + t.durationMin },
-        },
-        include: { serviceUser: { select: { firstName: true, lastName: true } } },
-      });
-      if (clash && clash.startMinute + clash.durationMin > t.startMinute) throw new ValidationError(`${s.displayName} already has ${clash.serviceUser.firstName} ${clash.serviceUser.lastName} at an overlapping time in this pattern`);
-    }
-    await tx.visitTemplate.update({ where: { id: t.id }, data: { [field]: staffId, version: { increment: 1 } } });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "template.carer.changed", entityType: "VisitTemplate", entityId: t.id, data: { slot, staffId } }, tx);
+    await setCarerInTx(tx, scope, ctx.userId, t, slot, staffId);
   });
+}
+
+async function setCarerInTx(tx: Prisma.TransactionClient, scope: Scope, actorId: string, t: VisitTemplate, slot: "PRIMARY" | "SECOND" | "SHADOW", staffId: string | null) {
+  if (slot === "SECOND" && t.carersRequired < 2) throw new ValidationError("This template needs one carer");
+  const field = slot === "PRIMARY" ? "preferredStaff1Id" : slot === "SECOND" ? "preferredStaff2Id" : "shadowStaffId";
+  if (staffId) {
+    const s = await tx.staffMember.findFirst({ where: { id: staffId, organisationId: scope.organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false } });
+    if (!s) throw new NotFoundError("Staff member");
+    const others = [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId].filter((x, i) => x && ["preferredStaff1Id", "preferredStaff2Id", "shadowStaffId"][i] !== field);
+    if (others.includes(staffId)) throw new ValidationError("This carer is already on this visit");
+    const clash = await tx.visitTemplate.findFirst({
+      where: {
+        organisationId: scope.organisationId,
+        enabled: true,
+        id: { not: t.id },
+        OR: [{ preferredStaff1Id: staffId }, { preferredStaff2Id: staffId }, { shadowStaffId: staffId }],
+        cycleWeeks: { hasSome: t.cycleWeeks },
+        weekdays: { hasSome: t.weekdays },
+        startMinute: { lt: t.startMinute + t.durationMin },
+      },
+      include: { serviceUser: { select: { firstName: true, lastName: true } } },
+    });
+    if (clash && clash.startMinute + clash.durationMin > t.startMinute) throw new ValidationError(`${s.displayName} already has ${clash.serviceUser.firstName} ${clash.serviceUser.lastName} at an overlapping time in this pattern`);
+  }
+  await tx.visitTemplate.update({ where: { id: t.id }, data: { [field]: staffId, version: { increment: 1 } } });
+  await audit({ organisationId: scope.organisationId, actorId, action: "template.carer.changed", entityType: "VisitTemplate", entityId: t.id, data: { slot, staffId } }, tx);
+}
+
+export type TemplateBulkAction =
+  | { kind: "assign"; staffId: string; slot: "PRIMARY" | "SECOND" | "SHADOW" }
+  | { kind: "unassign"; slot: "PRIMARY" | "SECOND" | "SHADOW" }
+  | { kind: "editTime"; startMinute: number }
+  | { kind: "editDuration"; minutes: number }
+  | { kind: "editService"; callTypeId: string }
+  | { kind: "lock"; on: boolean }
+  | { kind: "alert"; on: boolean }
+  | { kind: "doubleUp"; carers: 1 | 2 };
+
+/**
+ * The Daily Templates bulk actions that change a field (OnePlan's Reassign, Unassign, Edit Time, Edit Duration, Edit
+ * Service Name, Add/Remove Lock, Add/Remove Alert, Convert To Double Up, Revert To Single). Each template is checked
+ * and saved on its own, so one refusal never undoes the others. Built visits are unchanged until the change is applied.
+ */
+export async function bulkTemplates(ctx: Ctx, templateIds: string[], action: TemplateBulkAction) {
+  const scope = await rotaScope(ctx, "rota.edit");
+  if (!templateIds.length) throw new ValidationError("Select at least one template");
+  if (templateIds.length > 500) throw new ValidationError("Select at most 500 templates at a time");
+  if (action.kind === "editTime" && (!Number.isInteger(action.startMinute) || action.startMinute < 0 || action.startMinute > 1439)) throw new ValidationError("Enter a start time");
+  if (action.kind === "editDuration" && (!Number.isInteger(action.minutes) || action.minutes < 5 || action.minutes > 1440)) throw new ValidationError("A visit lasts 5 minutes to 24 hours");
+  if (action.kind === "editService" && !(await db.callType.findFirst({ where: { id: action.callTypeId, organisationId: scope.organisationId, active: true } }))) throw new NotFoundError("Service call");
+  const results: { id: string; ok: boolean; message?: string }[] = [];
+  for (const id of [...new Set(templateIds)]) {
+    try {
+      await db.$transaction(async (tx) => {
+        const t = await loadTemplate(tx, scope, id);
+        if (action.kind === "assign" || action.kind === "unassign") {
+          await setCarerInTx(tx, scope, ctx.userId, t, action.slot, action.kind === "assign" ? action.staffId : null);
+          return;
+        }
+        let patch: Prisma.VisitTemplateUpdateInput;
+        switch (action.kind) {
+          case "editTime":
+            if (t.timeLocked) throw new ValidationError("Time is locked");
+            patch = { startMinute: action.startMinute };
+            break;
+          case "editDuration":
+            if (t.timeLocked) throw new ValidationError("Time is locked");
+            patch = { durationMin: action.minutes };
+            break;
+          case "editService":
+            patch = { callType: { connect: { id: action.callTypeId } } };
+            break;
+          case "lock":
+            patch = { timeLocked: action.on };
+            break;
+          case "alert":
+            patch = { alertOnLate: action.on };
+            break;
+          case "doubleUp":
+            patch = action.carers === 2 ? { carersRequired: 2 } : { carersRequired: 1, preferredStaff2Id: null };
+            break;
+        }
+        await tx.visitTemplate.update({ where: { id }, data: { ...patch, version: { increment: 1 } } });
+        await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: `template.bulk.${action.kind}`, entityType: "VisitTemplate", entityId: id, data: { ...action } }, tx);
+      });
+      results.push({ id, ok: true });
+    } catch (e) {
+      results.push({ id, ok: false, message: (e as Error).message });
+    }
+  }
+  return results;
+}
+
+export interface TemplateFilters {
+  week?: number;
+  day?: number;
+  serviceUserId?: string;
+  staffId?: string;
+  areaId?: string;
+  callTypeId?: string;
+  state?: "on" | "off" | "all";
+  noCarer?: boolean;
+  q?: string;
+}
+
+/** The Daily Templates list: templates for one cycle week and weekday (or all), scoped to the caller's areas. */
+export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
+  const scope = await rotaScope(ctx);
+  const q = f.q?.trim();
+  const where: Prisma.VisitTemplateWhereInput = {
+    organisationId: scope.organisationId,
+    ...(scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {}),
+    AND: [
+      ...(f.serviceUserId ? [{ serviceUserId: f.serviceUserId }] : []),
+      ...(f.areaId ? [{ areaId: f.areaId }] : []),
+      ...(f.callTypeId ? [{ callTypeId: f.callTypeId }] : []),
+      ...(f.staffId ? [{ OR: [{ preferredStaff1Id: f.staffId }, { preferredStaff2Id: f.staffId }, { shadowStaffId: f.staffId }] }] : []),
+      ...(f.week ? [{ cycleWeeks: { has: f.week } }] : []),
+      ...(f.day ? [{ weekdays: { has: f.day } }] : []),
+      ...(f.state === "off" ? [{ enabled: false }] : f.state === "all" ? [] : [{ enabled: true }]),
+      ...(f.noCarer ? [{ OR: [{ preferredStaff1Id: null }, { carersRequired: 2, preferredStaff2Id: null }] }] : []),
+      ...(q ? [{ OR: [{ serviceUser: { firstName: { contains: q, mode: "insensitive" as const } } }, { serviceUser: { lastName: { contains: q, mode: "insensitive" as const } } }, { serviceUser: { reference: { contains: q, mode: "insensitive" as const } } }, { callType: { name: { contains: q, mode: "insensitive" as const } } }] }] : []),
+    ],
+  };
+  const rows = await db.visitTemplate.findMany({
+    where,
+    include: {
+      serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, riskLevel: true } },
+      callType: { select: { name: true } },
+      _count: { select: { tasks: true } },
+    },
+    orderBy: [{ startMinute: "asc" }, { serviceUser: { lastName: "asc" } }],
+    take: 1000,
+  });
+  const areaIds = [...new Set(rows.map((r) => r.areaId).filter((x): x is string => !!x))];
+  const routeIds = [...new Set(rows.map((r) => r.runRouteTemplateId).filter((x): x is string => !!x))];
+  const [areas, routes] = await Promise.all([
+    areaIds.length ? db.area.findMany({ where: { organisationId: scope.organisationId, id: { in: areaIds } }, select: { id: true, name: true, colour: true } }) : [],
+    routeIds.length ? db.runRouteTemplate.findMany({ where: { organisationId: scope.organisationId, id: { in: routeIds } }, select: { id: true, name: true, colour: true, textColour: true } }) : [],
+  ]);
+  const areaById = new Map(areas.map((a) => [a.id, a]));
+  const routeById = new Map(routes.map((r) => [r.id, r]));
+  return rows.map((t) => ({ ...t, area: t.areaId ? areaById.get(t.areaId) ?? null : null, runRoute: t.runRouteTemplateId ? routeById.get(t.runRouteTemplateId) ?? null : null }));
 }

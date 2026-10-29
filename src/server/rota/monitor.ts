@@ -93,7 +93,7 @@ export async function monitorBoard(ctx: Ctx, opts: { areaId?: string; now?: Date
         serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, postcode: true, phone: true } },
         callType: { select: { name: true } },
         area: { select: { id: true, name: true, colour: true } },
-        assignments: { where: { removedAt: null }, select: { id: true, slot: true, staffId: true, staff: { select: { id: true, displayName: true, workPhone: true } } }, orderBy: { slot: "asc" } },
+        assignments: { where: { removedAt: null }, select: { id: true, slot: true, staffId: true, acknowledgedAt: true, staff: { select: { id: true, displayName: true, workPhone: true } } }, orderBy: { slot: "asc" } },
         clocks: { orderBy: { at: "asc" } },
       },
       orderBy: { scheduledStart: "asc" },

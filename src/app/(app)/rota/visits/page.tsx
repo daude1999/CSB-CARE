@@ -102,24 +102,36 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               <label><span className="sr-only">Bulk action</span>
                 <select name="kind" className="input w-[200px]" required defaultValue="">
                   <option value="" disabled>Bulk actions…</option>
-                  <option value="assign">Reassign visits</option>
-                  <option value="unassign">Unassign visits</option>
-                  <option value="nudge">Nudge times</option>
-                  <option value="lock">Add rota lock</option>
-                  <option value="unlock">Remove rota lock</option>
+                  <option value="cancel">Cancel Visits</option>
+                  <option value="activate">Activate Visits</option>
+                  <option value="assign">Reassign Visits</option>
+                  <option value="unassign">Unassign Visits</option>
+                  <option value="lock">Add Rota Lock(s)</option>
+                  <option value="unlock">Remove Rota Lock(s)</option>
+                  <option value="editTime">Edit Times</option>
+                  <option value="editDuration">Edit Duration</option>
+                  <option value="editService">Edit Service Name</option>
+                  <option value="addAlert">Add Alerts</option>
+                  <option value="removeAlert">Remove Alerts</option>
+                  <option value="shadow">Add Shadow Shifts</option>
+                  <option value="doubleUp">Convert To Double Up</option>
+                  <option value="single">Revert Double Up To Single</option>
+                  <option value="nudge">Nudge Times</option>
                   {canPublish ? <option value="publish">Publish to carers</option> : null}
-                  <option value="cancel">Cancel visits</option>
                 </select>
               </label>
               <button className="btn-primary bg-[#13703c]">Go</button>
               <details className="relative">
                 <summary className="cursor-pointer pb-2 text-[13.5px] text-[#1d4f91]">Action options</summary>
                 <div className="absolute left-0 z-20 mt-1 grid w-[300px] gap-2 rounded border border-slate-200 bg-white p-3 shadow-lg">
-                  <label><span className="label text-[12px]">Carer (reassign)</span><select name="staffId" className="input"><option value="">Choose…</option>{lk.staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select></label>
+                  <label><span className="label text-[12px]">Team member (reassign, shadow)</span><select name="staffId" className="input"><option value="">Choose…</option>{lk.staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select></label>
                   <label><span className="label text-[12px]">Slot</span><select name="slot" className="input"><option value="PRIMARY">Carer 1</option><option value="SECOND">Carer 2</option><option value="SHADOW">Shadow</option></select></label>
                   <label className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept warnings</label>
                   <label><span className="label text-[12px]">Minutes (nudge)</span><input type="number" name="minutes" min={-240} max={240} step={5} defaultValue={15} className="input" /></label>
-                  <label><span className="label text-[12px]">Reason (cancel)</span><input name="reason" className="input" /></label>
+                  <label><span className="label text-[12px]">New start time (edit times)</span><input type="time" name="time" className="input" /></label>
+                  <label><span className="label text-[12px]">Duration in minutes (edit duration)</span><input type="number" name="duration" min={5} max={1440} step={5} className="input" /></label>
+                  <label><span className="label text-[12px]">Service call (edit service name)</span><select name="callTypeId" className="input"><option value="">Choose…</option>{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                  <label><span className="label text-[12px]">Reason (cancel, activate, unassign)</span><input name="reason" className="input" /></label>
                 </div>
               </details>
             </form>

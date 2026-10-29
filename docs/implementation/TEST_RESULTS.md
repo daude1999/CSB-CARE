@@ -84,3 +84,16 @@ The owner asked for the Rota dashboard, Daily Rota and Advanced Rota (the calend
 | `npm run test:e2e` (full) | 28 passed, 2 failed. The failures were a stale build (the monitor was renamed after the build) and an ambiguous bulk-action label in the test. After a rebuild and fixing the test, `tests/e2e/rota.spec.ts` ran 14 of 14 passed. One more fix was needed during that rerun: the reports test now filters `role=alert` by its text, because Next's route announcer also has that role |
 
 Our screenshots of the restructured screens are `screenshots/oneplan-structure_*.png`.
+
+## OnePlan screens and behaviour checkpoint (29 Oct 2026)
+
+The owner asked that the logic behind each screen match OnePlan too, not only the layout. The Monitor, Build Rota (All Rotas list plus the Add New Rota form) and Daily Templates were rebuilt to OnePlan's layout. The Daily Rota and Daily Templates bulk-action lists now follow OnePlan's order. Advanced Rota now lets you drag a card to another team member to reassign it, through the eligibility check.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 21 files, 175 tests passed. Adds `tests/integration/rota-bulk.test.ts` (6): visit bulk edit time, duration, alerts and double-up; activate needs a reason; carers refused; template list by week and day; template bulk changes respecting the time lock, with an audit entry for each; duplicates start disabled; All Rotas order and the current-week flag |
+| `npm run build` | pass |
+| `npx playwright test tests/e2e/rota.spec.ts` | 14 of 14 passed after two test fixes. The Build Rota test now checks the Add New Rota form. The screen-size test now waits for the page heading instead of the old title bar, which the OnePlan-style pages no longer have. The phone-width run caught the Monitor's search row overflowing at 390px, which was fixed before the passing run |
+
+Not built yet, and listed in KNOWN_LIMITATIONS: OnePlan's bulk actions that would fake attendance (Clock In/Out Scheduled, Complete Visits, Reassign and Complete), send messages (Send Push Message), change pay or chargeable status, delete visits outright (we cancel with a reason), or use run routes and printable rotas.

@@ -19,7 +19,7 @@ import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
-import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
+import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
@@ -134,8 +134,9 @@ export async function bulkVisitsAction(fd: FormData) {
     let action: BulkAction;
     switch (kind) {
       case "assign":
+      case "shadow":
         if (!str(fd, "staffId")) throw new ValidationError("Choose a carer");
-        action = { kind, staffId: str(fd, "staffId"), slot: slot(fd), acceptWarnings: bool(fd, "acceptWarnings") };
+        action = { kind: "assign", staffId: str(fd, "staffId"), slot: kind === "shadow" ? "SHADOW" : slot(fd), acceptWarnings: bool(fd, "acceptWarnings") };
         break;
       case "unassign":
         action = { kind, slot: slot(fd), reason: str(fd, "reason") || "Removed in bulk by the office" };
@@ -152,6 +153,27 @@ export async function bulkVisitsAction(fd: FormData) {
         break;
       case "publish":
         action = { kind };
+        break;
+      case "activate":
+        action = { kind, reason: str(fd, "reason") };
+        break;
+      case "editTime":
+        action = { kind, startMinute: minuteOf(fd, "time", "New start time") };
+        break;
+      case "editDuration":
+        action = { kind, minutes: int(fd, "duration", "Duration") };
+        break;
+      case "editService":
+        if (!str(fd, "callTypeId")) throw new ValidationError("Choose a service call");
+        action = { kind, callTypeId: str(fd, "callTypeId") };
+        break;
+      case "addAlert":
+      case "removeAlert":
+        action = { kind: "alert", on: kind === "addAlert" };
+        break;
+      case "doubleUp":
+      case "single":
+        action = { kind: "doubleUp", carers: kind === "doubleUp" ? 2 : 1 };
         break;
       default:
         throw new ValidationError("Choose what to do with the selected visits");
@@ -205,7 +227,21 @@ export async function templateBulkAction(fd: FormData) {
     const list = ids(fd, "templateIds");
     if (!list.length) throw new ValidationError("Select at least one template");
     const kind = str(fd, "kind");
-    const results = kind === "enable" || kind === "disable" ? await setTemplatesEnabled(ctx, list, kind === "enable") : kind === "nudge" ? await nudgeTemplates(ctx, list, int(fd, "minutes", "Minutes")) : null;
+    const tslot = (): "PRIMARY" | "SECOND" | "SHADOW" => (str(fd, "slot") === "SECOND" ? "SECOND" : str(fd, "slot") === "SHADOW" ? "SHADOW" : "PRIMARY");
+    let action: TemplateBulkAction | null = null;
+    if (kind === "assign") {
+      if (!str(fd, "staffId")) throw new ValidationError("Choose a team member");
+      action = { kind, staffId: str(fd, "staffId"), slot: tslot() };
+    } else if (kind === "unassign") action = { kind, slot: tslot() };
+    else if (kind === "editTime") action = { kind, startMinute: minuteOf(fd, "time", "New start time") };
+    else if (kind === "editDuration") action = { kind, minutes: int(fd, "duration", "Duration") };
+    else if (kind === "editService") {
+      if (!str(fd, "callTypeId")) throw new ValidationError("Choose a service call");
+      action = { kind, callTypeId: str(fd, "callTypeId") };
+    } else if (kind === "lock" || kind === "unlock") action = { kind: "lock", on: kind === "lock" };
+    else if (kind === "addAlert" || kind === "removeAlert") action = { kind: "alert", on: kind === "addAlert" };
+    else if (kind === "doubleUp" || kind === "single") action = { kind: "doubleUp", carers: kind === "doubleUp" ? 2 : 1 };
+    const results = kind === "enable" || kind === "disable" ? await setTemplatesEnabled(ctx, list, kind === "enable") : kind === "nudge" ? await nudgeTemplates(ctx, list, int(fd, "minutes", "Minutes")) : kind === "duplicate" ? await duplicateTemplates(ctx, list) : action ? await bulkTemplates(ctx, list, action) : null;
     if (!results) throw new ValidationError("Choose what to do with the selected templates");
     const refused = results.filter((r) => !r.ok);
     if (refused.length === results.length) throw new ValidationError(`None updated: ${refused[0]?.message}`);
@@ -231,7 +267,7 @@ export async function confirmBuildAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const cycle = optInt(fd, "cycleWeek");
     await confirmBuild(ctx, { weekStart: str(fd, "weekStart"), areaIds: ids(fd, "areaIds"), cycleWeek: cycle });
-    return `/rota/build?week=${str(fd, "weekStart")}`;
+    return "/rota/build";
   }, "Rota built. Check it, then publish it to carers.");
 }
 

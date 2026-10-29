@@ -312,3 +312,33 @@ export async function deleteBuild(ctx: Ctx, buildId: string, reason: string) {
     return { removed: visits.length };
   });
 }
+
+/** Every rota build for the organisation, newest week first, for the All Rotas list. */
+export async function listBuilds(ctx: Ctx) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const builds = await db.rotaBuild.findMany({ where: { organisationId: scope.organisationId }, orderBy: [{ weekStart: "desc" }, { builtAt: "desc" }], take: 300 });
+  const pending = builds.length
+    ? await db.visit.groupBy({ by: ["rotaBuildId"], where: { rotaBuildId: { in: builds.map((b) => b.id) }, publishedAt: null, status: { not: "CANCELLED" } }, _count: { _all: true } })
+    : [];
+  const thisMonday = mondayOf(londonDate());
+  return builds.map((b) => {
+    const weekStart = fromDbDate(b.weekStart);
+    return {
+      id: b.id,
+      weekStart,
+      weekEnd: addDays(weekStart, 6),
+      current: weekStart === thisMonday,
+      future: weekStart > thisMonday,
+      cycleWeek: b.cycleWeek,
+      areaIds: b.areaIds,
+      status: b.status,
+      builtById: b.builtById,
+      builtAt: b.builtAt,
+      deletedById: b.deletedById,
+      deletedAt: b.deletedAt,
+      visitCount: b.visitCount,
+      unassignedSlots: b.unassignedSlots,
+      unpublished: pending.find((p) => p.rotaBuildId === b.id)?._count._all ?? 0,
+    };
+  });
+}

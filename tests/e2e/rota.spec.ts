@@ -56,8 +56,12 @@ test.describe("Rostering & Care Management", () => {
     await signIn(page, "manager@care-solution.demo");
     // The demo seed already builds next week, so preview the week after.
     await page.goto(`/rota/build?week=${mondayWeeksAhead(2)}`);
-    await expect(page.getByRole("heading", { name: "2. Before you build" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Build \d+ visits for Week \d$/ })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Add New Rota" })).toBeVisible();
+    await expect(page.getByLabel("Week Setting")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Build New Rota" })).toBeVisible();
+    await page.getByRole("link", { name: "No, cancel for now" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "All Rotas" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Yes", exact: true })).toBeVisible();
   });
 
   test("a carer cannot open the office rota or the monitor, and sees their own visits", async ({ page }) => {
@@ -87,7 +91,7 @@ test.describe("Rostering & Care Management", () => {
       await page.setViewportSize({ width, height: 1000 });
       for (const path of ["/rota", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
         await page.goto(path);
-        await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
+        await expect(page.locator("main h1").first()).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow, `${path} at ${width}px`).toBeLessThanOrEqual(1);
         await page.screenshot({ path: `${SHOTS}/${name}${path.replaceAll(/[/?=]/g, "_")}.png`, fullPage: false });

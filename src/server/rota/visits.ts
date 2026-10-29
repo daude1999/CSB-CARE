@@ -183,7 +183,13 @@ export type BulkAction =
   | { kind: "cancel"; reason: string }
   | { kind: "nudge"; minutes: number }
   | { kind: "lock"; locked: boolean }
-  | { kind: "publish" };
+  | { kind: "publish" }
+  | { kind: "activate"; reason: string }
+  | { kind: "editTime"; startMinute: number }
+  | { kind: "editDuration"; minutes: number }
+  | { kind: "editService"; callTypeId: string }
+  | { kind: "alert"; on: boolean }
+  | { kind: "doubleUp"; carers: 1 | 2 };
 
 export interface BulkResult {
   visitId: string;
@@ -201,6 +207,10 @@ export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkActio
   if (!visitIds.length) throw new ValidationError("Select at least one visit");
   if (visitIds.length > 500) throw new ValidationError("Select at most 500 visits at a time");
   if (action.kind === "nudge" && (!Number.isInteger(action.minutes) || action.minutes === 0 || Math.abs(action.minutes) > 240)) throw new ValidationError("Move times by 1 to 240 minutes");
+  if (action.kind === "editTime" && (!Number.isInteger(action.startMinute) || action.startMinute < 0 || action.startMinute > 1439)) throw new ValidationError("Enter a start time");
+  if (action.kind === "editDuration" && (!Number.isInteger(action.minutes) || action.minutes < 5 || action.minutes > 1440)) throw new ValidationError("A visit lasts 5 minutes to 24 hours");
+  if (action.kind === "activate" && action.reason.trim().length < 3) throw new ValidationError("Give a reason for activating");
+  if (action.kind === "editService" && !(await db.callType.findFirst({ where: { id: action.callTypeId, organisationId: scope.organisationId, active: true } }))) throw new NotFoundError("Service call");
   const refs = new Map((await db.visit.findMany({ where: { id: { in: visitIds }, organisationId: scope.organisationId }, select: { id: true, reference: true } })).map((v) => [v.id, v.reference]));
   const results: BulkResult[] = [];
   for (const visitId of visitIds) {
@@ -236,6 +246,32 @@ export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkActio
             await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "PUBLISHED", actorId: ctx.userId } });
             break;
           }
+          case "activate": {
+            const v = await lockVisit(tx, scope, visitId);
+            if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be activated");
+            await transition(tx, scope, ctx.userId, visitId, "SCHEDULED", action.reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, notDeliveredReason: null, manuallyChanged: true });
+            break;
+          }
+          case "editTime": {
+            const v = await lockVisit(tx, scope, visitId);
+            const start = londonToUtc(londonDate(v.scheduledStart), action.startMinute);
+            await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledStart: start, scheduledEnd: new Date(start.getTime() + (v.scheduledEnd.getTime() - v.scheduledStart.getTime())) }, { source: "bulk" });
+            break;
+          }
+          case "editDuration": {
+            const v = await lockVisit(tx, scope, visitId);
+            await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledEnd: new Date(v.scheduledStart.getTime() + action.minutes * 60000) }, { source: "bulk" });
+            break;
+          }
+          case "editService":
+            await updateVisitInTx(tx, scope, ctx.userId, visitId, { callTypeId: action.callTypeId }, { source: "bulk" });
+            break;
+          case "alert":
+            await updateVisitInTx(tx, scope, ctx.userId, visitId, { alertOnLate: action.on }, { source: "bulk" });
+            break;
+          case "doubleUp":
+            await updateVisitInTx(tx, scope, ctx.userId, visitId, { carersRequired: action.carers }, { source: "bulk" });
+            break;
         }
       });
       results.push({ visitId, reference, ok: true });

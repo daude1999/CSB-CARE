@@ -1,224 +1,226 @@
 import { notFound } from "next/navigation";
+import { CheckCircle, Hammer, ProhibitInset } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
-import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
-import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, mondayOf, dbDate } from "@/lib/london";
+import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { previewBuild, type BuildPlan } from "@/server/rota/build";
+import { listBuilds, previewBuild, type BuildPlan } from "@/server/rota/build";
 import { memberNames, rotaLookups } from "@/server/rota/queries";
 import { confirmBuildAction, deleteBuildAction, publishBuildAction } from "@/app/rota-actions";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
-import { Stepper } from "@/components/rota-ui";
+import { Flash, fmtDate } from "@/components/ui";
+import { SearchTable } from "@/components/search-table";
 
 export const dynamic = "force-dynamic";
 
+const dmy = (iso: string) => iso.split("-").reverse().join("/");
+
+/**
+ * Build Rota, laid out as the office knows it from OnePlan: the All Rotas list with a Build Rota button, which opens
+ * the Add New Rota form over the list. Our form checks the week first and shows what will be created before it saves.
+ */
 export default async function BuildRotaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "rota.build")) notFound();
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const thisMonday = mondayOf(londonDate());
+  const adding = one("new") === "1" || !!one("week");
   const week = (() => {
     const w = one("week");
     return w && isIsoDate(w) ? mondayOf(w) : addDays(thisMonday, 7);
   })();
   const areaIds = ([] as string[]).concat(sp.areas ?? []).filter(Boolean);
   const cycle = one("cycle") ? Number(one("cycle")) : undefined;
-  const lk = await rotaLookups(ctx);
+  const [lk, builds] = await Promise.all([rotaLookups(ctx), listBuilds(ctx)]);
+  const names = await memberNames(ctx, builds.flatMap((b) => [b.builtById, b.deletedById]));
+  const areaName = new Map(lk.areas.map((a) => [a.id, a.name]));
+
   let plan: BuildPlan | null = null;
   let planError: string | null = null;
-  try {
-    plan = await previewBuild(ctx, { weekStart: week, areaIds, cycleWeek: cycle });
-  } catch (e) {
-    if (!(e instanceof AppError)) throw e;
-    planError = e.message;
+  if (adding) {
+    try {
+      plan = await previewBuild(ctx, { weekStart: week, areaIds, cycleWeek: cycle });
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+      planError = e.message;
+    }
   }
-  const builds = await db.rotaBuild.findMany({ where: { organisationId: lk.scope.organisationId, weekStart: dbDate(week) }, orderBy: { builtAt: "desc" } });
-  const unpublished = builds.length
-    ? await db.visit.groupBy({ by: ["rotaBuildId"], where: { rotaBuildId: { in: builds.map((b) => b.id) }, publishedAt: null, status: { not: "CANCELLED" } }, _count: true })
-    : [];
-  const names = await memberNames(ctx, builds.flatMap((b) => [b.builtById, b.deletedById]));
   const past = week < thisMonday;
-  const params = { week, cycle: one("cycle") };
-  const back = `/rota/build?week=${week}`;
+  const back = "/rota/build";
   const days = plan ? [...new Set(plan.visits.map((v) => v.date))].sort() : [];
-  const areaName = new Map(lk.areas.map((a) => [a.id, a.name]));
+
+  const rows = builds.map((b) => {
+    const areas = b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "Other area").join(", ") : "All areas";
+    const built = `${londonTime(b.builtAt)} ${fmtDate(b.builtAt).replace(/\s/g, " ")}`;
+    return {
+      key: b.id,
+      text: `${dmy(b.weekStart)} ${dmy(b.weekEnd)} week ${b.cycleWeek} ${areas} ${names.get(b.builtById) ?? ""}`,
+      tone: b.status === "DELETED" ? "[&>td]:bg-slate-100 [&>td]:text-slate-500" : b.current ? "[&>td]:bg-[#e3f3df]" : "",
+      cells: [
+        <span key="s" className="tabular-nums">{dmy(b.weekStart)}</span>,
+        <span key="e" className="tabular-nums">{dmy(b.weekEnd)}</span>,
+        b.current ? "Yes" : "No",
+        <Link key="w" href={`/rota/visits?date=${b.weekStart}`}>Week {b.cycleWeek} Rota</Link>,
+        areas,
+        <span key="c"><span className="tabular-nums">{built}</span><span className="block text-[12.5px] text-slate-500">{names.get(b.builtById) ?? "A former member"}</span></span>,
+        b.status === "DELETED" ? (
+          <span key="st" className="text-[13px]">Deleted{b.deletedAt ? ` ${fmtDate(b.deletedAt)}` : ""}</span>
+        ) : b.unpublished ? (
+          <span key="st" className="text-[13px] font-medium text-[#8a5a00]">{b.unpublished} not published</span>
+        ) : (
+          <span key="st" className="inline-flex items-center gap-1 text-[13px] text-[#2e7d32]"><CheckCircle size={18} weight="fill" aria-hidden />Published</span>
+        ),
+        b.status === "BUILT" ? (
+          <span key="a" className="flex flex-wrap items-start gap-1.5">
+            {b.unpublished ? (
+              <form action={publishBuildAction}>
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="buildId" value={b.id} />
+                <button className="btn-primary py-1 text-[13px]">Publish</button>
+              </form>
+            ) : null}
+            {b.future ? (
+              <details className="relative">
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-[3px] bg-[#d9473f] px-2.5 py-1 text-[13px] font-medium text-white hover:bg-[#b93a33]"><ProhibitInset size={15} aria-hidden />Delete</summary>
+                <form action={deleteBuildAction} className="absolute right-0 z-10 mt-1 w-64 space-y-2 rounded border border-slate-300 bg-white p-2.5 shadow-lg">
+                  <input type="hidden" name="back" value={back} />
+                  <input type="hidden" name="buildId" value={b.id} />
+                  <label className="block text-[13px]"><span className="label">Reason for deleting Week {b.cycleWeek} ({dmy(b.weekStart)})</span><input name="reason" required minLength={3} className="input py-1.5" /></label>
+                  <button className="btn-secondary w-full py-1">Delete {b.visitCount} visits</button>
+                </form>
+              </details>
+            ) : null}
+          </span>
+        ) : "",
+      ],
+    };
+  });
 
   return (
     <>
-      <PageHeader
-        title="Build Rota"
-        back="/rota"
-        subtitle="Turns the rota templates for one week into dated visits. Every proposed carer is checked first; anyone who cannot work a visit is left off and the slot stays unassigned. Nothing is saved until you confirm, and a week can never be built twice."
-      />
       <Flash searchParams={sp as Record<string, string | undefined>} />
+      <div inert={adding}>
+        <section className="panel" aria-labelledby="all-rotas">
+          <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+            <h1 id="all-rotas" className="text-[20px] font-normal text-navy-900">All Rotas</h1>
+            <Link href="/rota/build?new=1" className="btn-primary inline-flex items-center gap-1.5 bg-[#13703c] hover:bg-[#0f5c31]"><Hammer size={16} weight="fill" aria-hidden />Build Rota</Link>
+          </div>
+          <SearchTable
+            label="All rotas"
+            tall
+            columns={["Start Date", "End Date", "Current Rota", "Week", "Areas", "Created", "Build Status", ""]}
+            rows={rows}
+            empty="No rota has been built yet. Press Build Rota to build the first week from your templates."
+          />
+          <p className="mt-2 text-[12.5px] text-slate-500">Only weeks that have not started can be deleted, and only while none of their visits has started, been changed by hand or had anything recorded.</p>
+        </section>
+      </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <Card title="1. Choose the week">
-            <Stepper base="/rota/build" params={params} param="week" prev={addDays(week, -7)} next={addDays(week, 7)} label={`w/c ${fmtLondonDate(week, { day: "numeric", month: "short", year: "numeric" })}`} />
-            <form method="get" className="mt-3 space-y-2.5">
-              <input type="hidden" name="week" value={week} />
-              <fieldset>
-                <legend className="label">Areas (none ticked means all yours)</legend>
-                <div className="grid grid-cols-2 gap-1">
-                  {lk.areas.map((a) => (
-                    <label key={a.id} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="areas" value={a.id} defaultChecked={areaIds.includes(a.id)} className="h-4 w-4" /> {a.name}</label>
+      {adding ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 px-4 py-8">
+          <div role="dialog" aria-modal="true" aria-labelledby="add-rota" className="mx-auto max-w-[680px] overflow-hidden rounded-[4px] bg-[#13a05a] text-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/25 bg-[#0f8a4c] px-4 py-3">
+              <h2 id="add-rota" className="text-[20px] font-normal">Add New Rota</h2>
+              <Link href="/rota/build" aria-label="Close" className="text-[22px] leading-none text-white/80 no-underline hover:text-white">×</Link>
+            </div>
+            <div className="space-y-3 px-4 py-4 text-[15px]">
+              <p>You have chosen to build a new rota. The system builds a one week rota, Monday to Sunday, from the week you choose.</p>
+              <p>Before you build a rota, please double check the following:</p>
+              {plan ? (
+                <ul className="list-disc space-y-1 pl-6">
+                  {plan.checklist.map((c) => (
+                    <li key={c.label}>
+                      <span className="font-medium">{c.label}</span> <span className={c.ok ? "text-white/85" : "rounded-[3px] bg-white px-1 text-[13px] font-medium text-[#8a5a00]"}>{c.ok ? "(done)" : "(check)"}</span>
+                      <span className="block text-[13.5px] text-white/85">{c.detail}</span>
+                    </li>
                   ))}
+                  <li>Holidays are recorded (<Link href="/workforce/absences" className="text-white underline">check here</Link>), and the templates are right (<Link href="/rota/templates" className="text-white underline">check here</Link>).</li>
+                </ul>
+              ) : null}
+              {planError ? <p role="alert" className="rounded-[3px] bg-white px-3 py-2 text-[14px] text-[#a3242c]">{planError}</p> : null}
+
+              <form method="get" className="space-y-2.5 rounded-[3px] bg-white/10 p-3">
+                <div className="grid grid-cols-1 items-center gap-x-3 gap-y-2 sm:grid-cols-[150px_1fr]">
+                  <label htmlFor="b-week" className="font-semibold sm:text-right"><span aria-hidden className="text-[#ffd7d7]">* </span>Start</label>
+                  <input id="b-week" name="week" type="date" required defaultValue={week} className="input text-navy-900" autoFocus />
+                  <label htmlFor="b-cycle" className="font-semibold sm:text-right"><span aria-hidden className="text-[#ffd7d7]">* </span>Week Setting</label>
+                  <select id="b-cycle" name="cycle" defaultValue={one("cycle") ?? ""} className="input text-navy-900">
+                    <option value="">Work it out from the cycle start{plan ? ` (Week ${plan.cycleWeek})` : ""}</option>
+                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>Week {n}</option>)}
+                  </select>
+                  <span className="font-semibold sm:text-right">Areas</span>
+                  <fieldset className="flex flex-wrap gap-x-4 gap-y-1">
+                    <legend className="sr-only">Areas (none ticked means all yours)</legend>
+                    {lk.areas.map((a) => (
+                      <label key={a.id} className="flex items-center gap-1.5 text-[14px]"><input type="checkbox" name="areas" value={a.id} defaultChecked={areaIds.includes(a.id)} className="h-4 w-4" /> {a.name}</label>
+                    ))}
+                  </fieldset>
                 </div>
-              </fieldset>
-              <label className="block">
-                <span className="label">Cycle week</span>
-                <select name="cycle" defaultValue={one("cycle") ?? ""} className="input">
-                  <option value="">Work it out from the cycle start</option>
-                  {[1, 2, 3, 4].map((n) => <option key={n} value={n}>Week {n}</option>)}
-                </select>
-              </label>
-              <button className="btn-secondary">Preview</button>
-            </form>
-          </Card>
+                <p className="text-[13px] text-white/85">The start is moved to the Monday of the week you pick. No areas ticked means all your areas.</p>
+                <button className="rounded-[3px] border border-white px-3 py-1.5 text-[14px] hover:bg-white/10">Check this week</button>
+              </form>
 
-          {plan ? (
-            <Card title="2. Before you build">
-              <ul className="space-y-2">
-                {plan.checklist.map((c) => (
-                  <li key={c.label} className="flex gap-2 text-[14px]">
-                    <span aria-hidden="true" className={`mt-0.5 h-4 w-4 shrink-0 rounded-full ${c.ok ? "bg-[#3fae6a]" : "bg-[#e3934a]"}`} />
-                    <span><span className="font-medium">{c.label}</span><span className="sr-only">{c.ok ? " (done)" : " (check)"}</span><span className="block text-slate-600">{c.detail}</span></span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-[12.5px] text-slate-500">Holiday and sickness requests are decided in <Link href="/workforce/absences">Workforce absences</Link>.</p>
-            </Card>
-          ) : null}
+              {plan ? (
+                <div className="rounded-[3px] bg-white p-3 text-navy-900">
+                  <p className="text-[14.5px]">
+                    Week {plan.cycleWeek} rota for <span className="font-semibold">{fmtLondonDate(week, { day: "numeric", month: "long", year: "numeric" })}</span>: <span className="font-semibold">{plan.visits.length}</span> visits to create ({(plan.forecastMinutes / 60).toFixed(1)} care hours)
+                    {plan.alreadyBuilt ? `, ${plan.alreadyBuilt} already built` : ""}{plan.skipped.length ? `, ${plan.skipped.length} skipped` : ""}.
+                    {plan.unassignedSlots ? <span className="text-[#a3242c]"> {plan.unassignedSlots} carer slots will be left empty because nobody eligible was found.</span> : null}
+                    {plan.flaggedSlots ? ` ${plan.flaggedSlots} are allocated with warnings.` : ""}
+                  </p>
+                  {plan.visits.length || plan.skipped.length ? (
+                    <details className="mt-2 text-[14px]">
+                      <summary className="cursor-pointer font-medium">See what will be created</summary>
+                      <div className="mt-2 max-h-[340px] space-y-3 overflow-auto">
+                        {days.map((d) => (
+                          <table key={d} className="table text-[13px]">
+                            <caption className="py-1 text-left font-semibold">{fmtLondonDate(d, { weekday: "long", day: "numeric", month: "short" })}</caption>
+                            <thead><tr><th>Time</th><th>Service user</th><th>Call</th><th>Carers</th></tr></thead>
+                            <tbody>
+                              {plan!.visits.filter((v) => v.date === d).map((v) => (
+                                <tr key={`${v.templateId}-${d}`}>
+                                  <td className="tabular-nums">{londonTime(v.start)}–{londonTime(v.end)}</td>
+                                  <td>{v.serviceUserName}</td>
+                                  <td>{v.callType}</td>
+                                  <td>{v.slots.map((s) => (s.state === "UNASSIGNED" ? `Unassigned${s.staffName ? ` (${s.staffName} not eligible)` : ""}` : `${s.staffName}${s.state === "FLAGGED" ? " (warning)" : ""}`) + (s.slot === "SHADOW" ? " · shadow" : "")).join(", ")}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ))}
+                        {plan.skipped.length ? (
+                          <ul className="space-y-1 text-[13px]">
+                            {plan.skipped.map((s) => <li key={`${s.templateId}-${s.date}`}>Skipped {fmtLondonDate(s.date)} · {s.serviceUserName}: {s.reason}</li>)}
+                          </ul>
+                        ) : null}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              ) : null}
 
-          {plan ? (
-            <Card title="3. Confirm">
-              <dl className="grid grid-cols-2 gap-2 text-[14px]">
-                <dt className="text-slate-600">Visits to create</dt><dd className="text-right tabular-nums">{plan.visits.length}</dd>
-                <dt className="text-slate-600">Already built</dt><dd className="text-right tabular-nums">{plan.alreadyBuilt}</dd>
-                <dt className="text-slate-600">Skipped</dt><dd className="text-right tabular-nums">{plan.skipped.length}</dd>
-                <dt className="text-slate-600">Carer slots left empty</dt><dd className={`text-right tabular-nums ${plan.unassignedSlots ? "text-[#a3242c]" : ""}`}>{plan.unassignedSlots}</dd>
-                <dt className="text-slate-600">Allocated with warnings</dt><dd className="text-right tabular-nums">{plan.flaggedSlots}</dd>
-                <dt className="text-slate-600">Planned care hours</dt><dd className="text-right tabular-nums">{(plan.forecastMinutes / 60).toFixed(1)}</dd>
-              </dl>
-              {past ? (
-                <p className="mt-3 text-[14px] text-[#8a5a00]">This week has started or passed, so it cannot be built.</p>
-              ) : plan.visits.length ? (
-                <form action={confirmBuildAction} className="mt-3">
-                  <input type="hidden" name="back" value={`${back}${cycle ? `&cycle=${cycle}` : ""}${areaIds.map((a) => `&areas=${a}`).join("")}`} />
+              {plan && past ? (
+                <p className="font-medium">This week has started or passed, so it cannot be built.</p>
+              ) : plan && plan.visits.length ? (
+                <form action={confirmBuildAction}>
+                  <input type="hidden" name="back" value={`/rota/build?week=${week}${cycle ? `&cycle=${cycle}` : ""}${areaIds.map((a) => `&areas=${a}`).join("")}`} />
                   <input type="hidden" name="weekStart" value={week} />
                   {cycle ? <input type="hidden" name="cycleWeek" value={cycle} /> : null}
                   {areaIds.map((a) => <input key={a} type="hidden" name="areaIds" value={a} />)}
-                  <button className="btn-primary w-full">Build {plan.visits.length} visits for Week {plan.cycleWeek}</button>
-                  <p className="mt-2 text-[12.5px] text-slate-500">Visits are saved unpublished. Carers see them only after you publish.</p>
+                  <button className="inline-flex items-center gap-1.5 rounded-[3px] border border-white bg-white px-3 py-1.5 text-[14.5px] font-medium text-[#0f6e3b] hover:bg-[#eafbf0]"><Hammer size={15} weight="fill" aria-hidden />Build New Rota</button>
+                  <p className="mt-1.5 text-[13px] text-white/85">Visits are saved unpublished. Carers see them only after you publish the rota from the list.</p>
                 </form>
-              ) : (
-                <p className="mt-3 text-[14px] text-slate-600">Nothing new to build for this week.</p>
-              )}
-            </Card>
-          ) : null}
-        </div>
-
-        <div className="space-y-3">
-          {planError ? <div role="alert" className="rounded-[3px] border-l-4 border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{planError}</div> : null}
-
-          <Card title={`Builds for w/c ${fmtLondonDate(week, { day: "numeric", month: "short" })}`}>
-            {builds.length ? (
-              <ul className="rows">
-                {builds.map((b) => {
-                  const pending = unpublished.find((u) => u.rotaBuildId === b.id)?._count ?? 0;
-                  return (
-                    <li key={b.id} className="py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-navy-900">Week {b.cycleWeek} · {b.visitCount} visits</span>
-                        {b.status === "DELETED" ? <Badge>Deleted</Badge> : pending ? <Badge tone="amber">{pending} not published</Badge> : <Badge tone="green">Published</Badge>}
-                        {b.unassignedSlots ? <Badge tone="rose">{b.unassignedSlots} empty slots at build</Badge> : null}
-                      </div>
-                      <p className="text-[13px] text-slate-600">
-                        Built by {names.get(b.builtById) ?? "a former member"} on {fmtDate(b.builtAt, true)} · {b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "other area").join(", ") : "all areas"}
-                        {b.deletedAt ? ` · deleted by ${names.get(b.deletedById ?? "") ?? "a former member"} on ${fmtDate(b.deletedAt, true)}` : ""}
-                      </p>
-                      {b.status === "BUILT" ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <Link href={`/rota/visits?date=${fromDbDate(b.weekStart)}`} className="btn-secondary py-1">Check visits</Link>
-                          {pending ? (
-                            <form action={publishBuildAction}>
-                              <input type="hidden" name="back" value={back} />
-                              <input type="hidden" name="buildId" value={b.id} />
-                              <button className="btn-primary py-1">Publish to carers</button>
-                            </form>
-                          ) : null}
-                          <form action={deleteBuildAction} className="flex items-center gap-2">
-                            <input type="hidden" name="back" value={back} />
-                            <input type="hidden" name="buildId" value={b.id} />
-                            <input name="reason" required minLength={3} className="input w-48 py-1.5 text-[14px]" placeholder="Reason to delete" aria-label="Reason to delete this build" />
-                            <button className="btn-secondary py-1">Delete build</button>
-                          </form>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <Empty>This week has not been built yet.</Empty>
-            )}
-            <p className="mt-2 text-[12.5px] text-slate-500">A build can be deleted only while none of its visits has started, been changed by hand or had anything recorded.</p>
-          </Card>
-
-          {plan ? (
-            <Card title={`Preview: ${plan.visits.length} new visits`}>
-              {plan.visits.length ? (
-                <div className="space-y-4">
-                  {days.map((d) => {
-                    const list = plan!.visits.filter((v) => v.date === d);
-                    return (
-                      <section key={d} aria-label={fmtLondonDate(d)}>
-                        <h3 className="mb-1 text-[14.5px] font-semibold text-navy-900">{fmtLondonDate(d, { weekday: "long", day: "numeric", month: "short" })} <span className="font-normal text-slate-500">· {list.length} visits</span></h3>
-                        <table className="table">
-                          <thead><tr><th>Time</th><th>Service user</th><th>Call</th><th>Carers</th></tr></thead>
-                          <tbody>
-                            {list.map((v) => (
-                              <tr key={`${v.templateId}-${d}`}>
-                                <td className="tabular-nums">{londonTime(v.start)}–{londonTime(v.end)}</td>
-                                <td>{v.serviceUserName}</td>
-                                <td>{v.callType}</td>
-                                <td>
-                                  <span className="flex flex-wrap gap-1">
-                                    {v.slots.map((s) => (
-                                      <span key={s.slot} title={s.reason} className={`rounded-[3px] px-1.5 text-[12.5px] ${s.state === "UNASSIGNED" ? "border border-dashed border-[#e4544f] text-[#a3242c]" : s.state === "FLAGGED" ? "bg-[#fdf0d8] text-[#8a5a00]" : "bg-[#e3effb] text-[#1d4f91]"}`}>
-                                        {s.state === "UNASSIGNED" ? `Unassigned${s.staffName ? ` (${s.staffName} not eligible)` : ""}` : s.staffName}
-                                        {s.slot === "SHADOW" ? " · shadow" : ""}
-                                      </span>
-                                    ))}
-                                  </span>
-                                  {v.slots.some((s) => s.reason) ? <span className="mt-0.5 block text-[12px] text-slate-500">{v.slots.filter((s) => s.reason).map((s) => s.reason).join("; ")}</span> : null}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </section>
-                    );
-                  })}
-                </div>
-              ) : (
-                <Empty>{plan.alreadyBuilt ? `All ${plan.alreadyBuilt} visits for this week are already built.` : "No templates fall in this week."}</Empty>
-              )}
-              {plan.skipped.length ? (
-                <details className="mt-3">
-                  <summary className="cursor-pointer text-[14px] font-medium text-navy-900">{plan.skipped.length} skipped</summary>
-                  <ul className="mt-2 space-y-1 text-[13.5px]">
-                    {plan.skipped.map((s) => <li key={`${s.templateId}-${s.date}`}>{fmtLondonDate(s.date)} · {s.serviceUserName}: {s.reason}</li>)}
-                  </ul>
-                </details>
+              ) : plan ? (
+                <p className="font-medium">Nothing new to build for this week.</p>
               ) : null}
-            </Card>
-          ) : null}
+            </div>
+            <div className="flex justify-end border-t border-white/25 bg-[#0f8a4c] px-4 py-3">
+              <Link href="/rota/build" className="rounded-[3px] border border-white px-3 py-1.5 text-[14px] text-white no-underline hover:bg-white/10">No, cancel for now</Link>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : null}
     </>
   );
 }

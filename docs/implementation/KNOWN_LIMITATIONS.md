@@ -27,3 +27,13 @@ Written plainly so nothing below is mistaken for working software.
 - Planner drag-and-drop moves a visit between carers on the same day only. Moving to another day is done on the visit page.
 - Daily Visits shows at most 1,000 visits and the planner 3,000 per week; both say so when they cut the list.
 - Build Rota never builds the same template visit twice. To start a week again, delete its build; this is refused if any visit has started, is in the past, was changed by hand or has records, and then individual visits must be cancelled instead.
+
+## OnePlan bulk actions not copied (29 Oct 2026)
+
+These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
+- **Clock In Scheduled, Clock Out Scheduled, Complete Visits, Reassign and Complete.** They would record attendance nobody gave, which breaks call-monitoring evidence. Office corrections on the visit page record who corrected what, and why.
+- **Send Push Message.** Outbound messages need review first.
+- **Update Pay Status, Update Chargeable Status.** Pay and charging come from the finance module's timesheets and invoices.
+- **Delete Visits, Delete Template.** We cancel or disable with a reason instead, so the history stays. A whole future build can still be deleted from All Rotas.
+- **Reset Visits, Edit Rota Type, Update Template CPLI, Make New, Add Shifts To Live Rota, Export To CSV.** Not built yet. Export is available from Rota Reports, and built visits are updated from a template's own page.
+- **Add To / Remove From Run Route, Live Run Routes, Template Run Routes, Printable Rota.** Not built yet.
