@@ -10,7 +10,6 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { requireCtx, sessionToken } from "@/server/auth/current";
 import { login, logout, SESSION_COOKIE, switchOrganisation } from "@/server/auth/session";
-import type { Ctx } from "@/server/auth/rbac";
 import { hasOrgPermission, requireOrgPermission, requirePlatformPermission } from "@/server/auth/rbac";
 import { triageChange, reviewAssessment } from "@/server/changes/workflow";
 import { createManualAssessment } from "@/server/impact/assess";
@@ -23,46 +22,12 @@ import { cancelJob, retryJob } from "@/server/jobs/queue";
 import { addFinding, answerQuestion, completeAudit, createAction, startAudit, transitionAction } from "@/server/compliance/audits";
 import { uploadEvidence } from "@/server/compliance/evidence";
 import { audit } from "@/server/audit-log";
-import { AiUnavailableError } from "@/server/ai/provider";
 import type { ChangeStatus, Urgency } from "@prisma/client";
 import { askAssistant, type AssistantResult } from "@/server/search/assistant";
 
 export type AskState = { question: string; result?: AssistantResult; error?: string };
 
-function str(fd: FormData, k: string) {
-  const v = fd.get(k);
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function safeBack(v: FormDataEntryValue | null, fallback = "/") {
-  return typeof v === "string" && v.startsWith("/") && !v.startsWith("//") ? v : fallback;
-}
-
-function withParam(url: string, key: string, value: string) {
-  const [path, query = ""] = url.split("?");
-  const q = new URLSearchParams(query);
-  q.delete("ok");
-  q.delete("error");
-  q.set(key, value);
-  return `${path}?${q}`;
-}
-
-async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void>, ok: string) {
-  const back = safeBack(fd.get("back"));
-  let target: string;
-  try {
-    const ctx = await requireCtx();
-    const next = await fn(ctx);
-    target = withParam(next ?? back, "ok", ok);
-  } catch (e) {
-    if (isRedirectError(e)) throw e;
-    const msg = e instanceof AppError || e instanceof AiUnavailableError ? e.message : "Something went wrong. The error has been logged.";
-    if (!(e instanceof AppError)) logger.error({ err: (e as Error).message, stack: (e as Error).stack }, "action failed");
-    target = withParam(back, "error", msg);
-  }
-  revalidatePath("/", "layout");
-  redirect(target);
-}
+import { handle, str } from "./action-kit";
 
 // ───────── auth
 export async function loginAction(fd: FormData) {

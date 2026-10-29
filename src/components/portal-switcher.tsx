@@ -6,7 +6,7 @@ import { CaretDown, List, SignOut, Swap, X } from "@phosphor-icons/react";
 import { portalForPath, type Portal } from "@/lib/portals";
 import { useIsActive } from "@/components/side-nav";
 
-export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean };
+export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean; /** Starts a labelled group of pages in the sidebar. */ group?: string };
 export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
@@ -19,7 +19,7 @@ function PortalAnchor({ portal, className, current, style, children }: { portal:
 
 /** Every portal this person may open, with the current portal's pages listed underneath it. */
 /** The order of the approved design; a portal missing from the list keeps its place at the end. */
-const ORDER = ["overview", "policy", "hr", "service-users", "rota", "reporting", "admin"];
+const ORDER = ["overview", "policy", "rota", "hr", "reporting", "admin"];
 const rank = (id: string) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
 
 function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>> }) {
@@ -44,6 +44,20 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
               {pages.length ? (
                 <ul className="relative mb-[8px] ml-[8px] mt-[4px] space-y-px border-l border-white/[0.14] pl-[6px]">
                   {pages.map((i) => {
+                    const heading = i.group ? <li key={`g-${i.group}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{i.group}</li> : null;
+                    const row = renderItem(i);
+                    return heading ? [heading, row] : row;
+                  })}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+
+  function renderItem(i: ShellItem) {
                     if (i.planned)
                       return (
                         <li key={i.label} className="shell-page cursor-default text-white/45">
@@ -61,15 +75,7 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
                         </Link>
                       </li>
                     );
-                  })}
-                </ul>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
+  }
 }
 
 /** The organisation card: switching is offered only when the person belongs to more than one organisation. */

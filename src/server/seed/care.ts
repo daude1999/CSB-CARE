@@ -90,6 +90,10 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
   for (const s of carersIn("portsmouth")) await db.staffArea.create({ data: { organisationId, staffId: s.id, areaId: areas["Portsmouth Central"]! } });
   for (const s of carersIn("tower-hamlets")) await db.staffArea.create({ data: { organisationId, staffId: s.id, areaId: areas["Tower Hamlets East"]! } });
 
+  // Gender for matching people's carer preferences (a Rostering setting, recorded by coordinators).
+  const female = new Set(["Amelia", "Isla", "Mia", "Ava", "Grace", "Freya", "Lily", "Sophie", "Evie", "Ella", "Poppy", "Daisy", "Florence", "Alice", "Ruby", "Matilda", "Rosie", "Esme", "Chloe", "Sienna", "Emma", "Zara"]);
+  for (const c of carers) await db.rotaStaffProfile.create({ data: { staffId: c.id, organisationId, gender: female.has(c.displayName.split(" ")[0]!) ? "FEMALE" : "MALE", drives: true, maxWeeklyMinutes: 40 * 60 } });
+
   const sus: { id: string; area: string }[] = [];
   for (const [i, [first, last, area, gender, risk]] of PEOPLE.entries()) {
     const a = areaDefs.find((x) => x[0] === area)!;
@@ -128,9 +132,11 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
   }
 
   // Templates: a pattern that repeats every week of the 4-week cycle, with the double-ups the risk needs.
+  const inArea = new Map<string, string[]>();
+  for (const sa of await db.staffArea.findMany({ where: { organisationId } })) inArea.set(sa.areaId, [...(inArea.get(sa.areaId) ?? []), sa.staffId]);
   const pick = (area: string, n: number) => {
-    const pool = carers.filter((c) => (area.startsWith("Liverpool") ? c.hrBranchKey === "liverpool" : area.startsWith("Portsmouth") ? c.hrBranchKey === "portsmouth" : c.hrBranchKey === "tower-hamlets"));
-    return pool.length ? pool[n % pool.length]!.id : null;
+    const pool = inArea.get(areas[area]!) ?? [];
+    return pool.length ? pool[n % pool.length]! : null;
   };
   const tpl = async (su: { id: string; area: string }, i: number, call: string, startMinute: number, durationMin: number, carersRequired: number, taskIds: string[], offset: number) => {
     await db.visitTemplate.create({
@@ -145,7 +151,7 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
         durationMin,
         carersRequired,
         preferredStaff1Id: pick(su.area, i + offset),
-        preferredStaff2Id: carersRequired === 2 ? pick(su.area, i + offset + 3) : null,
+        preferredStaff2Id: carersRequired === 2 && pick(su.area, i + offset + 1) !== pick(su.area, i + offset) ? pick(su.area, i + offset + 1) : null,
         medicationRequired: taskIds.includes(tasks.meds),
         effectiveFrom: dbDate(addDays(mondayOf(today), -28)),
         createdById: people.manager,

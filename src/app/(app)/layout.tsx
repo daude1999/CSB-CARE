@@ -8,10 +8,11 @@ import { logoutAction, switchOrgAction } from "../actions";
 import { Logo, Monogram } from "@/components/brand";
 import { MobileMenu, SearchShortcut, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { MainArea } from "@/components/main-area";
+import { rotaItems } from "@/components/rota-nav";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, Info, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UserCircle, UsersThree, Warning, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, Info, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -34,7 +35,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration";
   const page = (href: string, label: string, icon: React.ReactNode, show = true): ShellItem[] => (show ? [{ href, label, icon }] : []);
-  const planned = (label: string, icon: React.ReactNode): ShellItem => ({ href: `#${label}`, label, icon, planned: true });
   const i = { size: 15 } as const;
 
   // Each portal's pages, listed under it in the sidebar when it is open. Pages keep the addresses they had before portals existed.
@@ -54,11 +54,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...page("/resource-centre", "Resource Centre", <Archive {...i} />),
       ...page("/interview-prep", "Interview Prep", <ChatTeardropText {...i} />),
     ],
-    "service-users": [...page("/service-users", "About this portal", <Info {...i} />), planned("Service users", <UsersThree {...i} />), planned("Care plans", <ClipboardText {...i} />), planned("Risk assessments", <ShieldCheck {...i} />)],
-    rota: [...page("/rota", "About this portal", <Info {...i} />), planned("Weekly rota", <CalendarDots {...i} />), planned("Today's visits", <ListChecks {...i} />), planned("Visit log", <ClipboardText {...i} />)],
+    rota: rotaItems(ctx, i),
     reporting: [...page("/reports", "Reports", <ChartLine {...i} />, can.reports), ...page("/assistant", "AI Assistant", <ChatTeardropText {...i} />, can.assistant)],
+    hr: [...page("/workforce/absences", "Holidays & Sickness", <CalendarDots {...i} />, Boolean(ctx.hrUserId)), ...page("/workforce/availability", "Availability", <ClockCounterClockwise {...i} />, Boolean(ctx.hrUserId))],
     admin: [
       ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
+      ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
+      ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
       ...page("/modules", "Modules", <SquaresFour {...i} />),
       ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
       ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),
@@ -66,7 +68,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   const portalIcon: Record<string, React.ReactNode> = {
     overview: <House size={20} />,
-    "service-users": <UserCircle size={20} />,
     policy: <ShieldCheck size={20} />,
     rota: <CalendarDots size={20} />,
     hr: <UsersThree size={20} />,
