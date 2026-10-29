@@ -7,6 +7,8 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings, isCareRole } from "@/server/rota/settings";
 import { complianceOn } from "@/server/workforce/eligibility";
+import { readinessFor } from "@/server/readiness";
+import { ReadinessBadge } from "@/components/readiness-ui";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +37,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   let rows = staff.filter((s) => !careOnly || isCareRole(settings, s.jobTitle)).map((s) => ({ s, c: complianceOn(s.compliance, today) }));
   if (sp.problems === "1") rows = rows.filter((r) => r.c.problems.length > 0);
   const visits = new Map(booked.map((b) => [b.staffId, b._count]));
+  const readiness = hasOrgPermission(ctx, "readiness.view") ? await readinessFor(db, org, rows.map((r) => r.s.id)) : null;
 
   return (
     <>
@@ -54,7 +57,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
       <Card>
         {rows.length ? (
           <table className="table">
-            <thead><tr><th>Name</th><th>Areas</th><th>DBS</th><th>Right to work</th><th>Training</th><th>Rota</th><th>Visits this week</th><th>Sign-in</th></tr></thead>
+            <thead><tr><th>Name</th><th>Areas</th><th>DBS</th><th>Right to work</th><th>Training</th>{readiness ? <th>Readiness</th> : null}<th>Rota</th><th>Visits this week</th><th>Sign-in</th></tr></thead>
             <tbody>
               {rows.map(({ s, c }) => (
                 <tr key={s.id}>
@@ -63,6 +66,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
                   <td><Check g={c.dbs} /></td>
                   <td><Check g={c.rtw} /></td>
                   <td>{c.training.required ? <span className={c.training.problems.length ? "text-[#a3242c]" : ""} title={c.training.problems.join("; ")}>{c.training.required - c.training.problems.length} of {c.training.required}</span> : <span className="text-slate-500">None</span>}</td>
+                  {readiness ? <td>{readiness.get(s.id) ? <span title={readiness.get(s.id)!.reasons.join("; ")}><ReadinessBadge status={readiness.get(s.id)!.status} /></span> : "—"}</td> : null}
                   <td>{(s.profile?.rotaEnabled ?? isCareRole(settings, s.jobTitle)) ? "On" : <Badge>Off</Badge>}</td>
                   <td className="tabular-nums">{visits.get(s.id) ?? 0}</td>
                   <td>{s.userId ? <Badge tone="teal">Linked</Badge> : <span className="text-slate-500">None</span>}</td>

@@ -119,7 +119,7 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
   const staff = await myStaff(ctx);
   const scope: Scope = { organisationId: staff.organisationId, areaIds: null, branchIds: null };
   const at = new Date();
-  return db.$transaction(async (tx) => {
+  const outcome = await db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
     // A carer cannot tell another carer's visit from one that does not exist.
     if (!v.publishedAt || !(await tx.visitAssignment.findFirst({ where: { visitId: v.id, staffId: staff.id, removedAt: null } }))) throw new NotFoundError("Visit");
@@ -133,13 +133,22 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
       const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: v.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
       const r = (await readinessFor(tx, scope.organisationId, [staff.id], { date: londonDate(at), careTaskIds, serviceUserId: v.serviceUserId })).get(staff.id);
       if (r && r.blockedForContext) {
-        const hard = r.components.some((c) => c.hardStop && (!c.taskLevel || c.careTaskIds.some((t) => careTaskIds.includes(t)) || c.serviceUserIds.includes(v.serviceUserId)) && ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE", "PENDING_VERIFICATION"].includes(c.state)) || r.restrictions.length > 0;
-        await raiseAlert(tx, { organisationId: scope.organisationId, kind: "READINESS", severity: hard ? "CRITICAL" : "WARNING", visitId: v.id, staffId: staff.id, message: `${staff.displayName} ${hard ? "was refused clock-in" : "clocked in with a readiness warning"} on ${v.reference}: ${r.reasons.join("; ")}`, dedupeKey: `readiness:${v.id}:${staff.id}:${hard ? "block" : "warn"}`, actionUrl: `/rota/visits/${v.id}` });
-        if (hard) throw new ValidationError(`You cannot clock in to this visit: ${r.reasons[0] ?? "a readiness requirement is not met"}. The office has been alerted.`);
+        const applies = (c: { taskLevel: boolean; careTaskIds: string[]; serviceUserIds: string[] }) => !c.taskLevel || c.careTaskIds.some((t) => careTaskIds.includes(t)) || c.serviceUserIds.includes(v.serviceUserId);
+        const restrictionBites = r.restrictions.some((x) => x.kind === "GENERAL" || (x.kind === "TASK" && !!x.careTaskId && careTaskIds.includes(x.careTaskId)) || (x.kind === "SERVICE_USER" && x.serviceUserId === v.serviceUserId));
+        const hard = r.components.some((c) => c.hardStop && applies(c) && ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE", "PENDING_VERIFICATION"].includes(c.state)) || restrictionBites;
+        const alert = { organisationId: scope.organisationId, kind: "READINESS" as const, severity: hard ? ("CRITICAL" as const) : ("WARNING" as const), visitId: v.id, staffId: staff.id, message: `${staff.displayName} ${hard ? "was refused clock-in" : "clocked in with a readiness warning"} on ${v.reference}: ${r.reasons.join("; ")}`, dedupeKey: `readiness:${v.id}:${staff.id}:${hard ? "block" : "warn"}`, actionUrl: `/rota/visits/${v.id}` };
+        // A refusal is decided here but recorded after this transaction ends, so the office alert is not rolled back with it.
+        if (hard) return { refused: `You cannot clock in to this visit: ${r.reasons[0] ?? "a readiness requirement is not met"}. The office has been alerted.`, alert };
+        await raiseAlert(tx, alert);
       }
     }
-    return applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note });
+    return { refused: null, result: await applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note }) };
   });
+  if (outcome.refused !== null) {
+    await db.$transaction((tx) => raiseAlert(tx, outcome.alert));
+    throw new ValidationError(outcome.refused);
+  }
+  return outcome.result;
 }
 
 /** The carer could not deliver the visit at the door (no answer, refused). The office is alerted at once. */

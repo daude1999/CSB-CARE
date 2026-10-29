@@ -149,7 +149,10 @@ describe("carer clocking", () => {
   });
 
   it("corrects a clock time with a new row, keeping the original", async () => {
-    const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, status: "COMPLETED", scheduledStart: { lt: new Date(Date.now() - 2 * 3600_000) } }, include: { clocks: true }, orderBy: { scheduledStart: "desc" } });
+    // A completed visit whose clock-out is well after the corrected time (seeded history includes some short visits).
+    const recent = await db.visit.findMany({ where: { organisationId: orgId, status: "COMPLETED", scheduledStart: { lt: new Date(Date.now() - 2 * 3600_000) } }, include: { clocks: true }, orderBy: { scheduledStart: "desc" }, take: 50 });
+    const v = recent.find((x) => x.clocks.some((k) => k.kind === "OUT" && k.at.getTime() > x.scheduledStart.getTime() + 10 * MIN) && x.clocks.filter((k) => k.kind === "IN").length === 1);
+    if (!v) throw new Error("No suitable completed visit in the seed");
     const original = v.clocks.find((x) => x.kind === "IN")!;
     const c = await coordinator();
     const date = fromDbDate(v.date);

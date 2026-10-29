@@ -109,3 +109,23 @@ Build environment without access to Prisma's engine downloads: Prisma ran on its
 | `npm run test:hr` | 14 passed, 0 failed |
 | `npm run build` | pass |
 | `npm run test:e2e` (local csb_e2e) | 30 passed, 0 failed |
+
+## V1 baseline (cloud, 29 Oct 2026 22:08, branch feature/v1-complete at 139a2cf)
+
+Standard Prisma engines (local PostgreSQL 16). The readiness WIP was in the tree.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 23 files, 197 passed, 1 failed: `attendance.test.ts` "clocks in from the carer's own sign-in" (the demo carer's infection-control record was left awaiting verification by the readiness seed, so clock-in was refused). A second run showed a time-of-day dependent failure in "corrects a clock time" (it picked a short seeded visit) |
+| `npm run test:hr` | pass |
+
+## V1 item 1: staff readiness (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 24 files, 208 passed. Adds `tests/integration/readiness.test.ts` (10): second-person verification and immutability, expiry, unverified evidence not counting, exceptions (90-day limit, permission, forbidden requirements), clock-in refused on a hard stop with the alert kept, publish re-check flags without reassigning, branch-scope refusal, audited evidence export, requirement versioning |
+| `npm run test:hr` | pass |
+| `npm run build` | pass |
+| `npm run test:e2e` | 31 passed. Adds `tests/e2e/v1.spec.ts`: the manager filters the readiness queue to "Pending verification", opens the person and verifies the evidence; the matrix renders |

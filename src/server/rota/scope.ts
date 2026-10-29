@@ -69,18 +69,16 @@ export function assertInScope(scope: Scope, rec: { organisationId: string; areaI
  * an area outside the caller's scope matches nobody.
  */
 export function staffDirectoryWhere(scope: Scope, f: { area?: string; status?: string; q?: string }): Prisma.StaffMemberWhereInput {
+  // Every limit is its own AND clause so a search can never replace the branch or area clause.
+  const and: Prisma.StaffMemberWhereInput[] = [];
+  if (scope.branchIds) and.push({ OR: [{ branchId: { in: scope.branchIds } }, { branchId: null }] });
+  if (f.area) and.push(scope.areaIds && !scope.areaIds.includes(f.area) ? { id: { in: [] } } : { areas: { some: { areaId: f.area } } });
+  else if (scope.areaIds) and.push({ OR: [{ areas: { some: { areaId: { in: scope.areaIds } } } }, { areas: { none: {} } }] });
+  if (f.q) and.push({ OR: [{ displayName: { contains: f.q, mode: "insensitive" } }, { staffNumber: { contains: f.q, mode: "insensitive" } }, { jobTitle: { contains: f.q, mode: "insensitive" } }] });
   return {
     organisationId: scope.organisationId,
     hrMissing: false,
-    ...(scope.branchIds ? { AND: [{ OR: [{ branchId: { in: scope.branchIds } }, { branchId: null }] }] } : {}),
     ...(f.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING"] } }),
-    ...(f.area
-      ? scope.areaIds && !scope.areaIds.includes(f.area)
-        ? { id: { in: [] } }
-        : { areas: { some: { areaId: f.area } } }
-      : scope.areaIds
-        ? { OR: [{ areas: { some: { areaId: { in: scope.areaIds } } } }, { areas: { none: {} } }] }
-        : {}),
-    ...(f.q ? { OR: [{ displayName: { contains: f.q, mode: "insensitive" } }, { staffNumber: { contains: f.q, mode: "insensitive" } }, { jobTitle: { contains: f.q, mode: "insensitive" } }] } : {}),
+    ...(and.length ? { AND: and } : {}),
   };
 }

@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Bank, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, ShieldWarning, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, Bank, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, SealCheck, ShieldWarning, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -37,6 +37,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
       [
         ["/rota/service-users", "Service Users", <UsersThree key="i" {...i} />, "serviceUser.view", true],
         ["/rota/staff", "Team Members", <IdentificationBadge key="i" {...i} />, "staff.directory", true],
+        ["/rota/readiness", "Staff Readiness", <SealCheck key="i" {...i} />, "readiness.view", true],
         ["/rota/care-plans", "Care Plans", <ClipboardText key="i" {...i} />, "serviceUser.view", true],
         ["/rota/risks", "Risk Assessments", <ShieldWarning key="i" {...i} />, "serviceUser.view", true],
         ["/rota/incidents", "Incidents", <FirstAidKit key="i" {...i} />, ["incident.manage", "incident.report"], true],

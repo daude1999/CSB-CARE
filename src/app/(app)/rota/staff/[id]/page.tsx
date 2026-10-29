@@ -5,13 +5,15 @@ import { AppError } from "@/lib/errors";
 import { addDays, dbDate, fmtLondonDate, isIsoDate, londonDate, londonToUtc, londonTime, parseHhmm } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { rotaScope } from "@/server/rota/scope";
+import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings } from "@/server/rota/settings";
 import { suName } from "@/server/rota/queries";
 import { checkStaffEligibility, complianceOn, type EligibilityResult } from "@/server/workforce/eligibility";
 import { rotaProfileAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
+import { ReadinessPanel } from "@/components/readiness-ui";
+import { listRequirements, staffReadiness } from "@/server/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +24,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "staff.directory")) notFound();
   const scope = await rotaScope(ctx, "staff.directory");
-  const s = await db.staffMember.findFirst({ where: { id, organisationId: scope.organisationId }, include: { profile: true, compliance: { orderBy: [{ category: "asc" }, { name: "asc" }] }, areas: true, branch: true, absences: { where: { endsAt: { gte: new Date() } }, orderBy: { startsAt: "asc" }, take: 10 } } });
+  const s = await db.staffMember.findFirst({ where: { ...staffDirectoryWhere(scope, { status: "all" }), id }, include: { profile: true, compliance: { orderBy: [{ category: "asc" }, { name: "asc" }] }, areas: true, branch: true, absences: { where: { endsAt: { gte: new Date() } }, orderBy: { startsAt: "asc" }, take: 10 } } });
   if (!s) notFound();
   const today = londonDate();
   const c = complianceOn(s.compliance, today);
@@ -32,6 +34,16 @@ export default async function StaffMemberPage({ params, searchParams }: { params
     rotaSettings(db, scope.organisationId),
   ]);
   const canEdit = hasOrgPermission(ctx, "rota.edit");
+  // Readiness: evaluated from evidence on every view; the forms are shown only to people the server will let act.
+  const canReadiness = hasOrgPermission(ctx, "readiness.view");
+  const [readiness, requirements, careTasks, serviceUsers] = canReadiness
+    ? await Promise.all([
+        staffReadiness(ctx, s.id),
+        listRequirements(ctx),
+        db.careTask.findMany({ where: { organisationId: scope.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+        db.serviceUser.findMany({ where: { organisationId: scope.organisationId, status: { in: ["ACTIVE", "PAUSED"] } }, select: { id: true, firstName: true, lastName: true, preferredName: true }, orderBy: { lastName: "asc" }, take: 500 }),
+      ])
+    : [null, [], [], []];
   // The eligibility checker: any date and time, judged with the same rules as allocation.
   let check: EligibilityResult | null = null;
   let checkError: string | null = null;
@@ -56,6 +68,17 @@ export default async function StaffMemberPage({ params, searchParams }: { params
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">
+          {readiness ? (
+            <ReadinessPanel
+              profile={readiness}
+              back={back}
+              requirements={requirements}
+              careTasks={careTasks}
+              serviceUsers={serviceUsers.map((u) => ({ id: u.id, name: suName(u) }))}
+              can={{ record: hasOrgPermission(ctx, "readiness.record"), verify: hasOrgPermission(ctx, "readiness.verify"), exception: hasOrgPermission(ctx, "readiness.exception"), evidence: hasOrgPermission(ctx, "readiness.evidence") }}
+              me={ctx.userId}
+            />
+          ) : null}
           <Card title="From HR & Workforce">
             <dl className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
               <Field label="Employment">{s.employmentStatus.toLowerCase()}</Field>

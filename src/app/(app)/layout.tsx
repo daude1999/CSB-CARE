@@ -62,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...page("/admin/branches", "Branches", <Buildings {...i} />, can.settings),
       ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
       ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
+      ...page("/admin/readiness", "Staff Readiness Matrix", <ListChecks {...i} />, hasOrgPermission(ctx, "readiness.manage")),
       ...page("/modules", "Modules", <SquaresFour {...i} />),
       ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
       ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),

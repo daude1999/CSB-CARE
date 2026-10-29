@@ -76,10 +76,12 @@ export async function seedReadinessDemo(organisationId: string, people: { manage
   const trainingKeys = [...byKey.values()].filter((r) => r.category === "TRAINING").map((r) => r.key);
   const practical = new Set([...byKey.values()].filter((r) => r.requiresPractical).map((r) => r.key));
 
+  // The people left short on purpose have no sign-in, so the demo carer logins stay Ready and can clock in.
+  const pool = staff.filter((s) => !s.userId);
   for (const [i, s] of staff.entries()) {
-    const pendingOne = i === 1; // evidence submitted, nobody has verified it yet
-    const expiredOne = i === 2; // safeguarding ran out last month
-    const noAssessment = i === 3; // course done, practical sign-off outstanding
+    const pendingOne = s.id === pool[0]?.id; // evidence submitted, nobody has verified it yet
+    const expiredOne = s.id === pool[1]?.id; // safeguarding ran out last month
+    const noAssessment = s.id === pool[2]?.id; // course done, practical sign-off outstanding
     const medsCompetent = i % 3 !== 0; // most, not all, may support medication
     for (const key of trainingKeys) {
       const req = byKey.get(key)!;
@@ -97,5 +99,5 @@ export async function seedReadinessDemo(organisationId: string, people: { manage
   }
   // One time-limited exception for the person whose practical sign-off is outstanding: shadowing until the assessment date.
   const mh = byKey.get("moving-handling");
-  if (mh && staff[3]) await grantException(manager, staff[3].id, { requirementId: mh.id, reason: "DEMO: observed assessment booked with the moving and handling trainer next week", compensatingControls: "Double-up visits only until assessed; no hoist transfers alone", expiresAt: addDays(today, 14) });
+  if (mh && pool[2]) await grantException(manager, pool[2].id, { requirementId: mh.id, reason: "DEMO: observed assessment booked with the moving and handling trainer next week", compensatingControls: "Double-up visits only until assessed; no hoist transfers alone", expiresAt: addDays(today, 14) });
 }

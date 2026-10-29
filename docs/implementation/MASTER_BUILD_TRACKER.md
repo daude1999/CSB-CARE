@@ -1,5 +1,22 @@
 # Master build tracker — five-module CSB CRM
 
+## Version 1 (branch `feature/v1-complete`, owner's "COMPLETE VERSION 1" brief, 29 Oct 2026)
+
+Backlog: `V1_BACKLOG.md`. Audits: `v1-audit/`. The build moved from the laptop session to a cloud session at 22:01 on 29 Oct at the owner's choice; work continues on the same branch.
+
+| # | Item | State | Notes |
+|---|---|---|---|
+| 0 | Baseline | Done | See TEST_RESULTS "V1 baseline (cloud)". Readiness WIP broke one attendance test (demo carer left "pending"); fixed in the seed |
+| 1 | Staff readiness screens | Done | /admin/readiness (matrix, versions, retire), readiness section on /rota/staff/[id] (status, evidence, record/verify/assess/restrict/exception/review), /rota/readiness queue, CSV at /api/readiness/[staffId], readiness column on Team Members, readiness in the allocation picker. Clock-in refusal now records its alert after the refused transaction (it was rolled back before). Search on staff lists could widen the area scope; fixed |
+| 2 | Policy assignment and acknowledgement | In progress | |
+
+### Decisions taken without asking (the brief says record and continue)
+
+- The misleading `/staff` figures are replaced in item 2, when that page is rebuilt as Staff Sign-off, rather than patched in item 1.
+- A restriction only blocks clock-in when it applies to the visit (all work, the visit's task or the visit's person). Before, any restriction blocked every clock-in.
+- Item 11 (design polish): the navigation and motion pass merged to `main` on 29 Oct (PR #25) already covers transitions, sidebar states and reduced motion. Route `loading.tsx` files are not added: they broke client navigation in production before (see UI_MOTION_AND_NAVIGATION.md).
+
+
 Branch: `claude/project-thread-7d06tt` (daude1999/csb-care). Never merged to `main` without the owner's explicit "merge".
 Brief: the owner's "Master autonomous CRM implementation" message of 29 October 2026 (project thread "Build the five-module CSB CRM").
 

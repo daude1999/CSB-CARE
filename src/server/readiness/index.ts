@@ -6,7 +6,7 @@ import { dbDate, isIsoDate, londonDate } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
-import { evaluateReadiness, READINESS_LABEL, type ReadinessContext, type ReadinessResult, type ReadinessStatus } from "./evaluate";
+import { evaluateReadiness, type ReadinessContext, type ReadinessResult, type ReadinessStatus } from "./evaluate";
 import { loadReadinessFacts } from "./facts";
 import { raiseReviewFlag } from "./flags";
 
@@ -390,5 +390,17 @@ export async function staffEvidenceRows(ctx: Ctx, staffId: string): Promise<{ co
     for (const e of c.evidence) rows.push([r.staff.displayName, r.staff.jobTitle, c.category, c.name, c.state, c.message, c.dueDate ?? "", e.kind, e.summary, e.verifiedBy ?? ""]);
   }
   for (const x of r.restrictions.filter((x) => !x.liftedAt)) rows.push([r.staff.displayName, r.staff.jobTitle, "RESTRICTION", x.kind, "ACTIVE", x.reason, iso(x.endsAt) ?? "", "RESTRICTION", `From ${iso(x.startsAt)}`, r.names.get(x.createdById) ?? ""]);
+  await audit({ organisationId: r.staff.organisationId, actorId: ctx.userId, action: "readiness.evidence.exported", entityType: "StaffMember", entityId: r.staff.id, data: { rows: rows.length } });
   return { columns: ["Staff member", "Job title", "Category", "Requirement", "State", "Detail", "Due", "Evidence", "Evidence detail", "Verified or approved by"], rows };
+}
+
+/** Training evidence waiting for a second person, for the people in the caller's scope. */
+export async function pendingVerifications(ctx: Ctx, take = 50) {
+  const scope = await rotaScope(ctx, "readiness.view");
+  return db.staffTrainingRecord.findMany({
+    where: { organisationId: scope.organisationId, verificationStatus: "SUBMITTED", staff: staffDirectoryWhere(scope, {}) },
+    include: { staff: { select: { id: true, displayName: true } }, requirement: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+    take,
+  });
 }

@@ -7,6 +7,7 @@ import { getVisit } from "@/server/rota/visits";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
+import { READINESS_LABEL } from "@/server/readiness";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
 import { officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
@@ -120,7 +121,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
-                              {c.name} — {STATE_LABEL[c.state]}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}
+                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}
                             </option>
                           ))}
                         </select>
@@ -132,7 +133,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 );
               })}
             </ul>
-            <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
           </Card>
 
           <Card title="Tasks">
