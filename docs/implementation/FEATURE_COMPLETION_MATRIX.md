@@ -18,9 +18,9 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 11 | Unassigned visits | /rota/unassigned | ✓ | update | ✓ | ✓ | ✓ | ✓ | e2e | suggestions for the first 25 |
 | 12 | Double-ups | visit page | ✓ | ✓ | n/a | two distinct carers | ✓ | ✓ | int | |
 | 13 | Run routes | — | ✗ | | | | | | | |
-| 14 | ECM / clocking | — | ✗ | | | | | | | append-only clock table and trigger exist |
-| 15 | Live call monitor | — | ✗ | | | | | | | settings stored, no sweep job |
-| 16 | Carer mobile | /carer | ◐ | read + acknowledge | n/a | ✓ | own visits only | ✓ | int (access) | no clocking, GPS, NFC or offline |
+| 14 | ECM / clocking | /carer, /rota/visits/[id] | ✓ | create + correct | n/a | ✓ (zod, order of events, short-visit note) | own visits only; office needs rota.clockCorrect | ✓ | int + manual browser | append-only; corrections supersede; no GPS/NFC |
+| 15 | Live call monitor | /rota/monitor | ✓ | read + check now | area | n/a | rota.monitor | runs recorded | int + e2e | late, missed, overrun, not delivered; alert latency |
+| 16 | Carer mobile | /carer | ◐ | read, acknowledge, clock, not delivered | n/a | ✓ | own visits only | ✓ | int + e2e | no task recording, GPS, NFC or offline |
 | 17 | Tasks and notes | — | ✗ | | | | | | | call types and care tasks reference lists exist |
 | 18 | Incidents | — | ✗ | | | | | | | |
 | 19 | Timesheets | — | ✗ | | | | | | | |

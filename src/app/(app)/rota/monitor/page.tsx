@@ -99,7 +99,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
         <div className="min-w-0 space-y-3">
           <Card title={`Needs action now (${action.length})`}>
             {action.length ? (
-              <div className="min-w-0 overflow-x-auto">
+              <div className="relative min-w-0 overflow-x-auto">
                 <table className="table">
                   <thead><tr><th>Due</th><th>Service user</th><th>Carers</th><th>State</th><th><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>

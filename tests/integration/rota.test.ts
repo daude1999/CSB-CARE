@@ -147,7 +147,7 @@ describe("assignment", () => {
     const v = await futureVisit({ assignments: { none: { slot: "SHADOW" } } });
     const staff = await db.staffMember.findMany({ where: { organisationId: orgId, employmentStatus: "ACTIVE", hrMissing: false } });
     let pick: { id: string; state: string } | null = null;
-    for (const s of staff) {
+    for (const s of staff.filter((x) => !v.assignments.some((a) => a.staffId === x.id))) {
       const r = await checkStaffEligibility(ctx, { staffId: s.id, start: v.scheduledStart, end: v.scheduledEnd, slot: "SHADOW", visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId });
       if (r.state === "REQUIRES_REVIEW") {
         pick = { id: s.id, state: r.state };

@@ -27,3 +27,14 @@ Only commands that actually ran are recorded here.
 An earlier full e2e run in the same session had 20 passed and 4 failed. The fixes were: page overflow at 834 px and 390 px (grid columns, scrolling table wrapper), a strict-mode alert selector, Build Rota defaulting to a week the seed has already built, and sign-in at phone width, where the sidebar is hidden. All of them were re-run after fixing.
 
 Screenshots captured by the e2e run at 1440, 834 and 390 px are in `docs/implementation/screenshots/`. Each one was checked for horizontal page overflow (≤ 1 px) by the test.
+
+## Call monitoring and clocking checkpoint (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 15 files, 144 tests passed. Adds `tests/integration/attendance.test.ts` (7). One older rota test had picked a carer already on the visit, depending on the time of day; the test now excludes them |
+| `npm run build` | pass |
+| `npm run test:e2e` (full) | 24 passed, 1 failed: `/rota/monitor` overflowed at 390 px because a screen-reader-only table heading escaped the scroll box. Fixed with `relative` on the wrapper |
+| `npx playwright test tests/e2e/rota.spec.ts` after the fix | 9 passed |
+| Manual browser check, carer at 390 px | Clocked in and out of a real visit; clocking out of a short visit was refused until a note was added; the clock rows and the SHORT_VISIT note were stored |

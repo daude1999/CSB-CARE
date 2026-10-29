@@ -14,8 +14,8 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 4 Service users | Done (core) | `src/server/care/service-users.ts`: register, create, edit (version check), status flow incl. ending care, contacts, absences (cancel built visits), carer preferences (re-check), key safe (encrypted, audited reveal) |
 | 5 Rota engine | Done | templates, build (preview/confirm/publish/delete, advisory lock, no duplicates), visits (edit, cancel, reinstate, double-up, bulk), one assignment path with row locks + DB exclusion constraint |
 | 6 Rota screens | Done (core) | /rota (Today), /rota/visits, /rota/visits/[id], /rota/unassigned, /rota/planner (drag + confirm), /rota/templates (+new, [id], planner), /rota/build, /rota/service-users (+new, [id]), /rota/staff (+[id]), /rota/settings, /admin/areas |
-| 7 Call monitoring | Not started | Settings stored; sweep job and monitor screen to do |
-| 8 Carer mobile | Partly done | /carer "My Visits" with acknowledgement. Clocking, GPS, NFC and offline not built |
+| 7 Call monitoring | Done | `src/server/rota/monitor.ts`: sweep in `maintenance.tick` (late alert, then missed once, overrun), /rota/monitor with Check now, last-check time and alert latency |
+| 8 Carer mobile | Mostly done | /carer: My Visits, acknowledgement, clock in/out (server time, nonce against double submit), short-visit note, "Could not deliver". Office entries and corrections on the visit page (`attendance.ts`). No GPS, NFC, offline or task recording |
 | 9 Care plans, risks, incidents | Not started | Schema + care-plan immutability trigger done |
 | 10 Finance | Not started | Schema + frozen-run triggers done |
 | 11 Reporting and admin | Not started | |
@@ -28,8 +28,8 @@ Rota core first: staff link, templates, Build Rota, daily visits, planner. Carer
 ## Next actions
 
 1. Open the review PR (done once this checkpoint is pushed) and keep it green. Never merge without the owner's "merge".
-2. Call monitoring: sweep job in the worker queue for late and missed calls, plus the /rota/monitor screen.
-3. Carer clocking (manual clock in/out on /carer, append-only), clearly labelled as without GPS or NFC.
+2. Carer task recording (VisitTaskOutcome) and visit notes from the phone.
+3. Timesheets from clock records.
 4. Care plans, risks, tasks and notes, incidents.
 5. Timesheets, rates, invoicing and payroll prep (separation of duties, never issued automatically).
 6. Rostering reports.
