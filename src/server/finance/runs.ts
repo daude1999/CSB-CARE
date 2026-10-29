@@ -204,7 +204,7 @@ export async function voidRun(ctx: Ctx, kind: "pay" | "invoice", id: string, rea
     const run = kind === "pay" ? await tx.payRun.findFirst({ where: { id, organisationId } }) : await tx.invoiceRun.findFirst({ where: { id, organisationId } });
     if (!run) throw new NotFoundError(kind === "pay" ? "Pay run" : "Invoice run");
     if (run.status === "VOID") throw new ValidationError("Already void");
-    const data = { status: "VOID" as const, voidedById: ctx.userId, voidedAt: new Date(), ...(kind === "pay" ? { voidReason: reason.trim() } : {}) };
+    const data = { status: "VOID" as const, voidedById: ctx.userId, voidedAt: new Date(), voidReason: reason.trim() };
     if (kind === "pay") await tx.payRun.update({ where: { id: run.id }, data });
     else await tx.invoiceRun.update({ where: { id: run.id }, data });
     await audit({ organisationId, actorId: ctx.userId, action: `finance.${kind}run.voided`, entityType: kind === "pay" ? "PayRun" : "InvoiceRun", entityId: run.id, data: { reason: reason.trim(), wasApproved: run.status === "APPROVED" } }, tx);

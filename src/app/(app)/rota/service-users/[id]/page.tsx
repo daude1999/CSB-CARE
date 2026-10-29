@@ -75,7 +75,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
               {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
               {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
-              <p className="mt-3 text-[12.5px] text-slate-500">Care plans and risk assessments are planned and not built yet.</p>
+              <p className="mt-3 text-[12.5px] text-slate-500"><Link href={`/rota/care-plans/${su.id}`}>Care plan</Link> · <Link href={`/rota/risks?su=${su.id}`}>Risk assessments</Link></p>
             </Card>
             <Card title="Next visits" actions={<Link href={`${base}?tab=visits`} className="btn-secondary py-1">All visits</Link>}>
               {visits.length ? (

@@ -41,3 +41,23 @@ export function assertInScope(scope: Scope, rec: { organisationId: string; areaI
   if (!rec || rec.organisationId !== scope.organisationId) throw new NotFoundError(what);
   if (!inScope(scope, rec.areaId)) throw new ForbiddenError(`This ${what.toLowerCase()} is outside your areas`);
 }
+
+/**
+ * The staff a rota user may list. An area filter from the page narrows the caller's own scope and can never widen it:
+ * an area outside the caller's scope matches nobody.
+ */
+export function staffDirectoryWhere(scope: Scope, f: { area?: string; status?: string; q?: string }): Prisma.StaffMemberWhereInput {
+  return {
+    organisationId: scope.organisationId,
+    hrMissing: false,
+    ...(f.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING"] } }),
+    ...(f.area
+      ? scope.areaIds && !scope.areaIds.includes(f.area)
+        ? { id: { in: [] } }
+        : { areas: { some: { areaId: f.area } } }
+      : scope.areaIds
+        ? { OR: [{ areas: { some: { areaId: { in: scope.areaIds } } } }, { areas: { none: {} } }] }
+        : {}),
+    ...(f.q ? { OR: [{ displayName: { contains: f.q, mode: "insensitive" } }, { staffNumber: { contains: f.q, mode: "insensitive" } }, { jobTitle: { contains: f.q, mode: "insensitive" } }] } : {}),
+  };
+}

@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { addDays, dbDate, londonDate, mondayOf } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { rotaScope } from "@/server/rota/scope";
+import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings, isCareRole } from "@/server/rota/settings";
 import { complianceOn } from "@/server/workforce/eligibility";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
@@ -26,13 +25,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   const settings = await rotaSettings(db, org);
   const today = londonDate();
   const wk = mondayOf(today);
-  const where: Prisma.StaffMemberWhereInput = {
-    organisationId: org,
-    hrMissing: false,
-    ...(sp.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING"] } }),
-    ...(sp.area ? { areas: { some: { areaId: sp.area } } } : scope.areaIds ? { OR: [{ areas: { some: { areaId: { in: scope.areaIds } } } }, { areas: { none: {} } }] } : {}),
-    ...(sp.q ? { OR: [{ displayName: { contains: sp.q, mode: "insensitive" } }, { staffNumber: { contains: sp.q, mode: "insensitive" } }, { jobTitle: { contains: sp.q, mode: "insensitive" } }] } : {}),
-  };
+  const where = staffDirectoryWhere(scope, { area: sp.area, status: sp.status, q: sp.q });
   const [staff, areas, booked] = await Promise.all([
     db.staffMember.findMany({ where, include: { profile: true, compliance: true, areas: { include: { area: { select: { name: true, colour: true } } } }, branch: { select: { name: true } } }, orderBy: { displayName: "asc" } }),
     db.area.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),

@@ -183,6 +183,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                     </label>
                   ) : null}
                   <label className="col-span-2"><span className="label">Reason</span><input name="reason" required minLength={3} placeholder="e.g. carer phoned in, phone battery flat" className="input" /></label>
+                  <label className="col-span-2 md:col-span-4"><span className="label">Clock-out note (needed when the visit was shorter than planned)</span><input name="note" maxLength={2000} placeholder="What the carer said about the visit" className="input" /></label>
                 </div>
                 <button className="btn-secondary mt-2">Record clock time</button>
                 <p className="mt-1 text-[12.5px] text-slate-500">Entries are permanent. A wrong entry is fixed by recording a replacement, and both stay on the visit.</p>

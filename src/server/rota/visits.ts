@@ -91,7 +91,7 @@ const newVisitSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose a date"),
   startMinute: z.coerce.number().int().min(0).max(1439),
   durationMin: z.coerce.number().int().min(5).max(1440),
-  carersRequired: z.coerce.number().int().min(1).max(2),
+  carersRequired: z.coerce.number().int().min(1).max(2).default(1),
   medicationRequired: z.boolean().default(false),
   timeLocked: z.boolean().default(false),
   notes: z.string().max(2000).optional(),

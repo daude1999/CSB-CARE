@@ -156,6 +156,8 @@ const officeSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose the date"),
   time: z.string().refine((t) => parseHhmm(t) !== null, "Times must be like 09:00"),
   reason: z.string().trim().min(3, "Give a reason for entering this by hand"),
+  /** Shown on the visit as a clock-out note; required when the recorded visit is short or the organisation demands one. */
+  note: z.string().trim().max(2000).optional(),
   supersedesId: z.string().optional(),
 });
 
@@ -170,6 +172,6 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
     const v = await lockVisit(tx, scope, visitId);
     if (Math.abs(at.getTime() - v.scheduledStart.getTime()) > 24 * 3600000) throw new ValidationError("That time is more than a day away from the visit");
     const settings = await rotaSettings(tx, scope.organisationId);
-    return applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, supersedesId: p.data.supersedesId || null });
+    return applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, note: p.data.note || undefined, supersedesId: p.data.supersedesId || null });
   });
 }

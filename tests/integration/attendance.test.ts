@@ -83,6 +83,29 @@ describe("call sweep", () => {
   });
 });
 
+describe("office clock-out notes", () => {
+  it("lets the office record a short clock-out only with a note, and keeps the note on the visit", async () => {
+    // A past, published, scheduled visit nobody has clocked: the seed's history week leaves some unclocked.
+    const v = await db.visit.findFirst({
+      where: { organisationId: orgId, status: { in: ["SCHEDULED", "MISSED"] }, scheduledEnd: { lt: new Date(Date.now() - 2 * 3600_000) }, clocks: { none: {} }, assignments: { some: { removedAt: null } } },
+      include: { assignments: { where: { removedAt: null } } },
+      orderBy: { scheduledStart: "desc" },
+    });
+    if (!v) return; // nothing suitable in this seed run
+    const staffId = v.assignments[0]!.staffId;
+    const date = fromDbDate(v.date);
+    const start = londonMinute(v.scheduledStart);
+    const c = await coordinator();
+    await officeClock(c, v.id, { staffId, kind: "IN", date, time: hhmm(start), reason: "Carer phoned in" });
+    // Clocking out after five minutes makes the visit short: the office must say why, like the carer would.
+    await expect(officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 5), reason: "Carer phoned in" })).rejects.toThrow(/shorter than planned/);
+    const r = await officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 5), reason: "Carer phoned in", note: "Person was out at a hospital appointment; carer left a note" });
+    expect(r.short).toBe(true);
+    const note = await db.visitNote.findFirst({ where: { visitId: v.id, category: "SHORT_VISIT" } });
+    expect(note?.text).toContain("hospital appointment");
+  });
+});
+
 describe("carer clocking", () => {
   it("clocks in from the carer's own sign-in, refuses repeats and early clock-ins, and needs a note on a short visit", async () => {
     const [v] = await ameliaVisits();

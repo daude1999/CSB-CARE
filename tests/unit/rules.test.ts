@@ -131,4 +131,9 @@ describe("misc", () => {
     expect(auditScore([{ response: "MET" }, { response: "NOT_MET" }, { response: "NOT_APPLICABLE" }])).toBe(50);
     expect(auditScore([])).toBeNull();
   });
+  it("audit score is withheld while any question is unanswered, so nothing defaults to met", () => {
+    expect(auditScore([{ response: "MET" }], 20)).toBeNull();
+    expect(auditScore([{ response: "MET" }, { response: "NOT_APPLICABLE" }], 2)).toBe(100);
+    expect(auditScore([{ response: "NOT_APPLICABLE" }], 1)).toBeNull();
+  });
 });

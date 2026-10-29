@@ -26,10 +26,16 @@ export async function answerQuestion(ctx: Ctx, auditId: string, questionId: stri
   const a = await db.audit.findUnique({ where: { id: auditId } });
   if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
   if (a.status !== "IN_PROGRESS") throw new ConflictError("Audit is completed");
-  if (!RESPONSES.includes(response as never)) throw new ValidationError("Invalid response");
+  if (!RESPONSES.includes(response as never)) throw new ValidationError("Choose a response: met, partially met, not met or not applicable");
   const q = await db.auditQuestion.findUnique({ where: { id: questionId } });
   if (!q || q.templateId !== a.templateId) throw new NotFoundError("Question");
-  return db.auditAnswer.upsert({ where: { auditId_questionId: { auditId, questionId } }, create: { auditId, questionId, response, notes }, update: { response, notes } });
+  const cleanNotes = notes?.trim() || null;
+  // The current answer is replaced; the history of every answer is kept in AuditAnswerEvent (append-only).
+  return db.$transaction(async (tx) => {
+    const row = await tx.auditAnswer.upsert({ where: { auditId_questionId: { auditId, questionId } }, create: { auditId, questionId, response, notes: cleanNotes }, update: { response, notes: cleanNotes } });
+    await tx.auditAnswerEvent.create({ data: { auditId, questionId, actorId: ctx.userId, response, notes: cleanNotes } });
+    return row;
+  });
 }
 
 export async function addFinding(ctx: Ctx, auditId: string, input: { description: string; riskRating: string; questionId?: string }) {
@@ -41,16 +47,34 @@ export async function addFinding(ctx: Ctx, auditId: string, input: { description
   return db.auditFinding.create({ data: { auditId, organisationId: orgId, description: input.description, riskRating: input.riskRating, questionId: input.questionId } });
 }
 
-export async function completeAudit(ctx: Ctx, auditId: string) {
-  const orgId = requireOrgPermission(ctx, "audit.conduct");
-  const a = await db.audit.findUnique({ where: { id: auditId } });
-  if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
-  await db.audit.update({ where: { id: auditId }, data: { status: "COMPLETED", completedAt: new Date() } });
-  await audit({ organisationId: orgId, actorId: ctx.userId, action: "audit.completed", entityType: "Audit", entityId: auditId });
+/** How far an audit has got: every question of its template must have a recorded answer before it can be completed. */
+export function auditProgress(questionIds: string[], answers: { questionId: string }[]) {
+  const answered = new Set(answers.map((x) => x.questionId));
+  const missing = questionIds.filter((id) => !answered.has(id));
+  return { total: questionIds.length, answered: questionIds.length - missing.length, missing };
 }
 
-/** Score = share of applicable questions answered MET. Shown as an internal indicator, never as proof of compliance. */
-export function auditScore(answers: { response: string }[]) {
+export async function completeAudit(ctx: Ctx, auditId: string) {
+  const orgId = requireOrgPermission(ctx, "audit.conduct");
+  const a = await db.audit.findUnique({ where: { id: auditId }, include: { answers: { select: { questionId: true } }, template: { select: { questions: { select: { id: true } } } } } });
+  if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
+  if (a.status !== "IN_PROGRESS") throw new ConflictError("Audit is already completed");
+  const progress = auditProgress(a.template.questions.map((q) => q.id), a.answers);
+  if (progress.missing.length) {
+    throw new ValidationError(`${progress.missing.length} of ${progress.total} question${progress.total === 1 ? "" : "s"} ${progress.missing.length === 1 ? "has" : "have"} no answer. Every question needs a recorded answer (or "not applicable") before the audit can be completed.`);
+  }
+  await db.$transaction(async (tx) => {
+    await tx.audit.update({ where: { id: auditId }, data: { status: "COMPLETED", completedAt: new Date(), completedById: ctx.userId } });
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: "audit.completed", entityType: "Audit", entityId: auditId, data: { answered: progress.answered, total: progress.total } }, tx);
+  });
+}
+
+/**
+ * Score = share of applicable questions answered MET (partially met counts half). Not scored while any question is
+ * unanswered: an unanswered question is never treated as met. Shown as an internal indicator, never as proof of compliance.
+ */
+export function auditScore(answers: { response: string }[], totalQuestions?: number) {
+  if (totalQuestions !== undefined && answers.length < totalQuestions) return null;
   const applicable = answers.filter((a) => a.response !== "NOT_APPLICABLE");
   if (!applicable.length) return null;
   const pts = applicable.reduce((n, a) => n + (a.response === "MET" ? 1 : a.response === "PARTIALLY_MET" ? 0.5 : 0), 0);

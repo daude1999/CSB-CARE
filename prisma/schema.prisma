@@ -935,8 +935,10 @@ model Audit {
   conductedById   String
   startedAt       DateTime       @default(now())
   completedAt     DateTime?
+  completedById   String?
   isDemo          Boolean        @default(false)
   answers         AuditAnswer[]
+  answerEvents    AuditAnswerEvent[]
   findings        AuditFinding[]
 
   @@index([organisationId])
@@ -952,6 +954,20 @@ model AuditAnswer {
   notes      String?
 
   @@unique([auditId, questionId])
+}
+
+/// Every answer ever recorded, in order. Append-only (database trigger); the current answer is AuditAnswer.
+model AuditAnswerEvent {
+  id         String   @id @default(cuid())
+  auditId    String
+  audit      Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  questionId String
+  actorId    String
+  response   String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([auditId, questionId, createdAt])
 }
 
 model AuditFinding {
