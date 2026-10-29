@@ -15,6 +15,8 @@ export default function HrLayout({ children }: { children: React.ReactNode }) {
     <>
       {/* eslint-disable-next-line @next/next/no-css-tags -- the HR Hub style sheet is built with Tailwind 4, outside this app's Tailwind 3 pipeline */}
       <link rel="stylesheet" href="/hr/hr-hub.css" precedence="default" />
+      {/* eslint-disable-next-line @next/next/no-css-tags -- module colour on the HR Hub top bar, after the HR Hub sheet */}
+      <link rel="stylesheet" href="/hr/hr-module-colour.css" precedence="default" />
       {children}
     </>
   );

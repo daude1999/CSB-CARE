@@ -29,6 +29,24 @@ test.describe("Overview", () => {
     expect(barColour).toBe(tileColour);
   });
 
+  test("every module's page banner uses its Overview tile colour", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    const banners: [string, string, string][] = [
+      ["reporting", "/reports", "[data-testid=title-bar]"],
+      ["admin", "/settings", "[data-testid=title-bar]"],
+      ["rota", "/rota", "[data-testid=title-bar]"],
+      ["service-users", "/service-users", "[data-testid=title-bar]"],
+      ["hr", "/hr/dashboard", "header.h-top"],
+    ];
+    for (const [id, path, banner] of banners) {
+      await page.goto("/overview");
+      const tileColour = await page.getByTestId(`tile-${id}`).locator(".ov-tile-head").evaluate((el) => getComputedStyle(el).backgroundColor);
+      await page.goto(path);
+      const bannerColour = await page.locator(banner).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(bannerColour, `${id} banner on ${path}`).toBe(tileColour);
+    }
+  });
+
   test("care staff only see the modules they can use", async ({ page }) => {
     await signIn(page, "carer1@care-solution.demo");
     await page.goto("/overview");
