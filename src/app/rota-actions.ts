@@ -7,6 +7,7 @@ import { handle, str } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
+import { resolveAlert } from "@/server/rota/alerts";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
@@ -282,4 +283,8 @@ export async function unlinkLoginAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await unlinkLogin(ctx, str(fd, "staffId"), str(fd, "reason"));
   }, "Sign-in unlinked");
+}
+
+export async function resolveAlertAction(fd: FormData) {
+  return handle(fd, (ctx) => resolveAlert(ctx, str(fd, "alertId"), str(fd, "resolution")), "Alert closed");
 }
