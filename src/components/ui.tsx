@@ -13,7 +13,7 @@ export function PageHeader({ title, subtitle, actions, back = "/" }: { title: Re
       <TitleBar title={title} back={back ?? undefined} />
       {subtitle || actions ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[3px] bg-white px-[15px] py-2.5">
-          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
+          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 basis-[18rem] items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
           {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
         </div>
       ) : <div className="mb-3" />}

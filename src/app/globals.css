@@ -27,12 +27,16 @@
   initial-value: #0f2a4f;
 }
 
+/*
+ * The HR Hub's screens (inside `.cs`, src/hr) keep their own type and element styles, so the platform's element
+ * rules and the few class names both use stop at its edge. `:where()` adds no specificity, so nothing else changes.
+ */
 @layer base {
   body { @apply bg-paper font-sans text-slate-800 antialiased; font-feature-settings: "ss02"; }
-  h1 { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
-  h2 { @apply font-serif leading-snug text-slate-800; font-weight: 400; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
-  h3 { @apply text-base font-semibold text-navy-900; }
-  a { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
+  h1:where(:not(.cs *)) { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
+  h2:where(:not(.cs *)) { @apply font-serif leading-snug text-slate-800; font-weight: 400; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
+  h3:where(:not(.cs *)) { @apply text-base font-semibold text-navy-900; }
+  a:where(:not(.cs *)) { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   ::selection { @apply bg-teal-100 text-navy-900; }
 }
@@ -40,8 +44,8 @@
 @layer components {
   /* The compliance-centre look shared by every page: white panels on a soft grey canvas under a navy title bar. */
   .page-canvas { @apply min-h-full rounded-[6px] bg-[#f1f2f5] pb-5; }
-  .panel { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
-  .card { @apply panel; }
+  .panel:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
+  .card:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] px-3.5 py-[7px] text-[14px] font-normal no-underline disabled:opacity-50; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
   .btn:active:not(:disabled) { transform: translateY(1px); }
   .btn-primary { @apply btn border-[1.5px] border-navy-900 bg-navy-900 text-white hover:bg-navy-700 hover:text-white; }
@@ -49,7 +53,7 @@
   .btn-secondary { @apply btn border-[1.5px] border-slate-500 bg-white text-slate-800 hover:border-navy-900 hover:text-navy-900; }
   .btn-danger { @apply btn border-[1.5px] border-rose-700 bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
   .input { @apply w-full rounded-[4px] border border-slate-300 bg-white px-3 py-2 text-[15px] text-slate-800 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-  .label { @apply mb-1 block text-[13px] font-medium text-slate-700; }
+  .label:where(:not(.cs *)) { @apply mb-1 block text-[13px] font-medium text-slate-700; }
   .eyebrow { @apply text-[13px] font-normal text-slate-600; }
   .figure { @apply font-sans tabular-nums; font-weight: 400; }
   /* Registers read like the dashboard's policy table: plain headings, soft blue rows. */
@@ -63,10 +67,10 @@
   .table td a { @apply font-medium text-[#1d4f91] no-underline hover:underline; }
   .table td[class~="font-mono"] { white-space: nowrap; }
   /* A list of records: one soft blue row each, same as the dashboard table. */
-  .rows > li { @apply rounded-[2px] bg-[#f5f9fc] px-4; }
-  .rows > li + li { @apply mt-[3px]; }
+  .rows:where(:not(.cs *)) > li { @apply rounded-[2px] bg-[#f5f9fc] px-4; }
+  .rows:where(:not(.cs *)) > li + li { @apply mt-[3px]; }
   .row-title { @apply font-medium text-[#1d4f91] no-underline hover:text-[#1d4f91] hover:underline; }
-  .muted { @apply text-sm text-slate-500; }
+  .muted:where(:not(.cs *)) { @apply text-sm text-slate-500; }
   .prose-policy { @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800; font-family: var(--font-prose); }
 
   /*
@@ -121,7 +125,7 @@
   /* One composited pulse for the whole placeholder, not one animation per bar. */
   .skeleton-page { animation: fade-in var(--motion-base) linear backwards; }
   .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out var(--motion-base) infinite; }
-  .skeleton { border-radius: 4px; background: #e6e9ee; }
+  .skeleton:where(:not(.cs *)) { border-radius: 4px; background: #e6e9ee; }
 
   /* Pop-overs built on <details> (menus, quick actions, the organisation switcher). */
   .menu-pop, details[open] > summary ~ .absolute { animation: pop-in var(--motion-fast) var(--ease-out) backwards; transform-origin: top; }

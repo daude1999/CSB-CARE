@@ -6,14 +6,16 @@ import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
 import { Logo, Monogram } from "@/components/brand";
-import { MobileMenu, SearchShortcut, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
+import { MobileMenu, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
+import { ShellSearch } from "@/components/shell-search";
+import { hrItems } from "@/components/hr-nav";
 import { MainArea } from "@/components/main-area";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -57,7 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ],
     rota: rotaItems(ctx, i),
     reporting: [...page("/reports", "Reports", <ChartLine {...i} />, can.reports), ...page("/assistant", "AI Assistant", <ChatTeardropText {...i} />, can.assistant)],
-    hr: [...page("/workforce/absences", "Holidays & Sickness", <CalendarDots {...i} />, Boolean(ctx.hrUserId)), ...page("/workforce/availability", "Availability", <ClockCounterClockwise {...i} />, Boolean(ctx.hrUserId))],
+    hr: hrItems(ctx, i),
     admin: [
       ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
       ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
@@ -107,15 +109,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <NavigationProgress renderKey={String(Date.now())} />
             <MobileMenu {...shell} />
             <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
-            <form action="/policies" method="get" role="search" className="hidden min-w-0 flex-1 sm:block sm:max-w-[776px]">
-              <label htmlFor="global-search" className="shell-search">
-                <MagnifyingGlass size={17} aria-hidden="true" className="shrink-0 text-[#3a4b5e]" />
-                <span className="sr-only">Search policies</span>
-                <input id="global-search" name="q" type="search" placeholder="Search policies, categories, keywords…" className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0b1530] placeholder:text-[#5f6b7a] focus:outline-none" />
-                <kbd className="hidden rounded-[4px] border border-[#dcd9d2] bg-white px-1.5 text-[10.5px] leading-[18px] text-[#3a4b5e] lg:inline">⌘ K</kbd>
-              </label>
-              <SearchShortcut targetId="global-search" />
-            </form>
+            <ShellSearch />
             <div className="ml-auto flex items-center gap-4">
               {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
               <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">

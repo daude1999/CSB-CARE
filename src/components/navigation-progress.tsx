@@ -2,7 +2,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { pageTarget } from "@/lib/navigation";
-import { portalById, portalForPath } from "@/lib/portals";
+import { crossesHubEdge, portalById, portalForPath } from "@/lib/portals";
 
 /**
  * Navigation feedback for the whole shell. A click on any link to another page, or the submission of a form that
@@ -86,14 +86,25 @@ export function NavigationProgress({ renderKey }: { renderKey: string }) {
   const s = useNavigationState();
 
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
+    const clicked = (e: MouseEvent) => {
       const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!a) return;
-      const href = pageTarget(
+      if (!a) return null;
+      return pageTarget(
         { href: a.href, target: a.getAttribute("target"), optOut: a.hasAttribute("download") || a.hasAttribute("data-no-progress"), button: e.button, modified: e.metaKey || e.ctrlKey || e.shiftKey || e.altKey, defaultPrevented: e.defaultPrevented },
         new URL(window.location.href),
       );
+    };
+    const onClick = (e: MouseEvent) => {
+      const href = clicked(e);
       if (href) startNavigation(href, "link");
+    };
+    // A link into or out of the HR Hub is kept from Next.js (which would open it in place) so the browser loads a
+    // fresh page, and the HR Hub's style sheet never stays behind on another page. Capture phase, before React.
+    const onEdge = (e: MouseEvent) => {
+      const href = clicked(e);
+      if (!href || !crossesHubEdge(window.location.pathname, href.split("?")[0])) return;
+      e.stopPropagation();
+      startNavigation(href, "link");
     };
     const onSubmit = (e: SubmitEvent) => {
       const form = e.target as HTMLFormElement;
@@ -107,10 +118,12 @@ export function NavigationProgress({ renderKey }: { renderKey: string }) {
     // Coming back through the browser's history cache must not show a page as still loading.
     const onShow = () => endNavigation();
     // Bubble phase on window, so this runs after React and Next.js have handled the event.
+    window.addEventListener("click", onEdge, true);
     window.addEventListener("click", onClick);
     window.addEventListener("submit", onSubmit);
     window.addEventListener("pageshow", onShow);
     return () => {
+      window.removeEventListener("click", onEdge, true);
       window.removeEventListener("click", onClick);
       window.removeEventListener("submit", onSubmit);
       window.removeEventListener("pageshow", onShow);

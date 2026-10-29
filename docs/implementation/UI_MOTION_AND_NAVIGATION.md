@@ -71,19 +71,11 @@ The HR Hub cannot read the platform sheet, so `public/hr/hr-motion.css` repeats 
 
 ## HR portal boundary
 
-Kept as it was: the HR Hub is opened with a full page load from the platform (`PortalAnchor` renders a plain `<a>`
-for `separateApp` portals) and every HR portal-switcher entry is a plain `<a>`. Client navigation into or out of HR
-was not introduced, because the HR Hub's Tailwind 4 sheet and the platform's Tailwind 3 sheet would both be loaded
-into one document. A browser test checks that after HR → Rostering the HR sheet is not in the page.
-
-What was added on each side of the boundary:
-- Platform → HR: the same immediate feedback as any other module (HR row lights up in its colour, bar runs) until
-  the browser unloads the page. No placeholder is drawn, because the next page is a different app.
-- HR → platform: `src/hr/components/portal-switcher.tsx` marks the chosen entry as opening and sets
-  `data-portal-leaving` on `<html>`; `public/hr/hr-motion.css` draws a bar in the destination module's colour.
-  Coming back with Back clears both.
-- Arriving in HR: the HR content area rises in once (`.h-main > main`).
-- The HR Hub's own screens, styles and internal navigation are otherwise unchanged; `hr-hub.css` is untouched.
+Superseded on 29 Oct 2026 by `HR_IN_PLATFORM_SHELL.md`: the HR Hub's screens now sit inside the platform's sidebar,
+top bar and module title bar. Entering and leaving HR is still a full page load (now enforced for every link by the
+shell's `onEdge` click handler in `src/components/navigation-progress.tsx`), so the HR sheet never stays behind on
+another page. `src/hr/components/portal-switcher.tsx` and `public/hr/hr-motion.css` were removed with the HR top bar;
+moving between HR screens now gets the platform's content entrance.
 
 ## Accessibility
 
@@ -166,5 +158,4 @@ navigation; it now waits for the colour to settle (`toHaveCSS`), because the col
   appears at once.
 - The colour blend needs `@property` (all current browsers); older ones switch colour at once.
 - "Dismiss" on a stalled page cannot cancel a request already sent; if it completes later the new page appears.
-- HR's own internal navigation (between HR screens) has no entrance animation, by design: the HR Hub is out of
-  scope for restructuring.
+- (Resolved by `HR_IN_PLATFORM_SHELL.md`: HR screens now use the platform's content entrance.)

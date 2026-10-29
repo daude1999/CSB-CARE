@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { portalById, portalForPath } from "@/lib/portals";
+import { crossesHubEdge, portalById, portalForPath } from "@/lib/portals";
 import { MOTION, prefersReducedMotion } from "@/lib/motion";
 import { usePendingHref } from "@/components/navigation-progress";
 import { SkeletonFor } from "@/components/skeletons";
@@ -45,7 +45,8 @@ export function MainArea({ children }: { children: React.ReactNode }) {
   useEffect(() => setBlend(true), []);
 
   const pending = usePendingHref()?.split("?")[0] ?? null;
-  const leaving = pending !== null && pending !== path && !portalById(portalForPath(pending)).separateApp;
+  // A page across the HR Hub's edge arrives with a full page load, which the browser shows itself.
+  const leaving = pending !== null && pending !== path && !crossesHubEdge(path, pending);
   const waiting = useAfter(leaving ? pending : null, SKELETON_AFTER_MS);
   const target = waiting ?? path;
 

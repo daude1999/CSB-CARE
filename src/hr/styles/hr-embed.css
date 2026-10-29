@@ -1,0 +1,49 @@
+/* The HR Hub inside the platform's sidebar and top bar (src/app/(app)/hr): its root replaces the old app frame and
+   sits on the platform's grey page canvas, under the module title bar. */
+.cs.h-embed {
+  display: block;
+  min-width: 0;
+  background: transparent;
+}
+.cs.h-embed .boot {
+  min-height: 320px;
+}
+
+/* One primary button style across the HR Hub: the dark one its newer screens already use (the older screens had a
+   cyan one, e.g. Documents > Upload document and Settings > Save policies). */
+.cs .primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  font-weight: 500;
+  box-shadow: var(--shadow-xs);
+}
+.cs .primary:hover {
+  background: var(--primary);
+  filter: brightness(1.12);
+}
+
+/* Training borrowed the People directory's fixed column widths, so its headings overlapped and requirement names
+   broke mid-word. It sizes its own columns. */
+.cs .h-dir.h-dir--fit {
+  min-width: 720px;
+  table-layout: auto;
+}
+.cs .h-dir.h-dir--fit th:nth-child(n) {
+  width: auto;
+  white-space: nowrap;
+}
+
+/* The compliance register fits a 1440px screen: tighter cell padding, and longer text may wrap (dates do not).
+   Narrower screens still scroll sideways. */
+.cs .bounded-register .table-scroll table {
+  white-space: normal;
+}
+.cs .bounded-register .table-scroll table th,
+.cs .bounded-register .table-scroll table td {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.cs .bounded-register .table-scroll table td:is(:nth-child(5), :nth-child(7)) {
+  white-space: nowrap;
+}

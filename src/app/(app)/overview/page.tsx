@@ -80,11 +80,7 @@ function LiveTile({ spec, n, figures, note }: { spec: TileSpec; n: number; figur
           </p>
         )) : <p className="py-1 text-[12.5px] text-[#4f5b6c]">{note}</p>}
       </div>
-      {portal.separateApp ? (
-        <a href={portal.home} className="ov-cta" style={{ color: portal.colour }}>{cta} <ArrowRight size={14} weight="bold" aria-hidden="true" /></a>
-      ) : (
-        <Link href={portal.home} className="ov-cta" style={{ color: portal.colour }}>{cta} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
-      )}
+      <Link href={portal.home} className="ov-cta" style={{ color: portal.colour }}>{cta} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
     </article>
   );
 }
