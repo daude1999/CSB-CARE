@@ -27,8 +27,8 @@ test.describe("Overview", () => {
     const tileColour = await page.getByTestId("tile-policy").locator(".ov-tile-head").evaluate((el) => getComputedStyle(el).backgroundColor);
     await page.getByTestId("tile-policy").getByRole("link", { name: "Open Policy & Compliance" }).click();
     await expect(page).toHaveURL(/\/$/);
-    const barColour = await page.getByRole("heading", { level: 1, name: "Compliance Centre Dashboard" }).evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(barColour).toBe(tileColour);
+    // The banner blends from the Overview colour into the module's over a quarter of a second, so wait for it to settle.
+    await expect(page.getByRole("heading", { level: 1, name: "Compliance Centre Dashboard" })).toHaveCSS("background-color", tileColour);
   });
 
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {

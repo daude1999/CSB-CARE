@@ -8,6 +8,7 @@ import { logoutAction, switchOrgAction } from "../actions";
 import { Logo, Monogram } from "@/components/brand";
 import { MobileMenu, SearchShortcut, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { MainArea } from "@/components/main-area";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
@@ -91,6 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   return (
     <div className="flex min-h-screen flex-col">
+      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-[14px] text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       {setupLeft ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
           <Warning size={18} weight="fill" aria-hidden="true" className="shrink-0" />
@@ -102,6 +104,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ShellSidebar {...shell} />
         <div className="shell-main flex min-w-0 flex-1 flex-col">
           <header className="shell-topbar sticky top-0 z-20 flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
+            <NavigationProgress renderKey={String(Date.now())} />
             <MobileMenu {...shell} />
             <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
             <form action="/policies" method="get" role="search" className="hidden min-w-0 flex-1 sm:block sm:max-w-[776px]">

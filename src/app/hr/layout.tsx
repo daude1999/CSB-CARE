@@ -17,6 +17,8 @@ export default function HrLayout({ children }: { children: React.ReactNode }) {
       <link rel="stylesheet" href="/hr/hr-hub.css" precedence="default" />
       {/* eslint-disable-next-line @next/next/no-css-tags -- module colour on the HR Hub top bar, after the HR Hub sheet */}
       <link rel="stylesheet" href="/hr/hr-module-colour.css" precedence="default" />
+      {/* eslint-disable-next-line @next/next/no-css-tags -- the platform's motion timings, in the HR Hub's own classes, after the HR Hub sheet */}
+      <link rel="stylesheet" href="/hr/hr-motion.css" precedence="default" />
       {children}
     </>
   );
