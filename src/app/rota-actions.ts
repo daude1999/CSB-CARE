@@ -8,6 +8,7 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
+import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
@@ -304,4 +305,84 @@ export async function rotaProfileAction(fd: FormData) {
       notes: str(fd, "notes") || null,
     });
   }, "Rota details saved. Future visits were re-checked.");
+}
+
+// ── Service users ──────────────────────────────────────────────────────────
+
+function serviceUserInput(fd: FormData) {
+  const risk = str(fd, "riskLevel");
+  return {
+    firstName: str(fd, "firstName"),
+    lastName: str(fd, "lastName"),
+    preferredName: str(fd, "preferredName"),
+    dateOfBirth: str(fd, "dateOfBirth"),
+    nhsNumber: str(fd, "nhsNumber"),
+    gender: str(fd, "gender"),
+    areaId: str(fd, "areaId"),
+    addressLine1: str(fd, "addressLine1"),
+    addressLine2: str(fd, "addressLine2"),
+    town: str(fd, "town"),
+    postcode: str(fd, "postcode"),
+    phone: str(fd, "phone"),
+    accessNotes: str(fd, "accessNotes"),
+    carerGenderPreference: (["FEMALE", "MALE"] as const).find((g) => g === str(fd, "carerGenderPreference")) ?? "ANY",
+    firstLanguage: str(fd, "firstLanguage"),
+    communicationNeeds: str(fd, "communicationNeeds"),
+    carePreferences: str(fd, "carePreferences"),
+    riskLevel: (["LOW", "MEDIUM", "HIGH"] as const).find((r) => r === risk) ?? null,
+    riskSummary: str(fd, "riskSummary"),
+  };
+}
+
+export async function createServiceUserAction(fd: FormData) {
+  return handle(fd, async (ctx) => `/rota/service-users/${(await createServiceUser(ctx, serviceUserInput(fd))).id}`, "Service user added. Their status is Assessment until care starts.");
+}
+
+export async function updateServiceUserAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await updateServiceUser(ctx, str(fd, "serviceUserId"), int(fd, "version", "Version"), serviceUserInput(fd));
+  }, "Details saved");
+}
+
+export async function serviceUserStatusAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const to = (["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED", "ENDED"] as const).find((s) => s === str(fd, "to"));
+    if (!to) throw new ValidationError("Choose a status");
+    const r = await setServiceUserStatus(ctx, str(fd, "serviceUserId"), to, str(fd, "reason"), str(fd, "endDate") || undefined);
+    return { ok: to === "ENDED" ? `Care ended. Templates switched off and ${r.cancelled} future visit${r.cancelled === 1 ? "" : "s"} cancelled.` : "Status changed" };
+  }, "Status changed");
+}
+
+export async function addContactAction(fd: FormData) {
+  return handle(fd, (ctx) => addContact(ctx, str(fd, "serviceUserId"), { kind: str(fd, "kind"), name: str(fd, "name"), relationship: str(fd, "relationship"), phone: str(fd, "phone"), email: str(fd, "email"), isEmergency: bool(fd, "isEmergency"), canReceiveUpdates: bool(fd, "canReceiveUpdates") }), "Contact added");
+}
+
+export async function removeContactAction(fd: FormData) {
+  return handle(fd, (ctx) => removeContact(ctx, str(fd, "serviceUserId"), str(fd, "contactId")), "Contact removed");
+}
+
+export async function addAbsenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await addAbsence(ctx, str(fd, "serviceUserId"), { reason: str(fd, "reason"), from: str(fd, "from"), to: str(fd, "to") || undefined, note: str(fd, "note") });
+    return { ok: `Absence recorded. ${r.cancelled} built visit${r.cancelled === 1 ? "" : "s"} in the period cancelled.` };
+  }, "Absence recorded");
+}
+
+export async function cancelAbsenceAction(fd: FormData) {
+  return handle(fd, (ctx) => cancelAbsence(ctx, str(fd, "serviceUserId"), str(fd, "absenceId")), "Absence ended. Reinstate any cancelled visits that are still needed.");
+}
+
+export async function carerPreferenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const rating = str(fd, "rating");
+    await setCarerPreference(ctx, str(fd, "serviceUserId"), { staffId: str(fd, "staffId"), rating: rating ? Number(rating) : null, blocked: bool(fd, "blocked"), reason: str(fd, "reason") });
+  }, "Preference saved. Future visits with this carer were re-checked.");
+}
+
+export async function removeCarerPreferenceAction(fd: FormData) {
+  return handle(fd, (ctx) => removeCarerPreference(ctx, str(fd, "serviceUserId"), str(fd, "staffId")), "Preference removed");
+}
+
+export async function keySafeAction(fd: FormData) {
+  return handle(fd, (ctx) => setKeySafe(ctx, str(fd, "serviceUserId"), str(fd, "code")), "Key safe code saved (encrypted)");
 }
