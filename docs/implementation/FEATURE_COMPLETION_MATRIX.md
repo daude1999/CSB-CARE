@@ -27,7 +27,7 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 20 | Rates | /rota/finance/rates | ✓ | funders, rate cards, bands, bank holidays, settings, package funders, staff pay cards | tabs | ✓ (zod) | finance.manage | ✓ | int + unit | money in pence; bands locked once used in a run |
 | 21 | Finance and invoicing | /rota/finance, /rota/finance/invoices | ✓ | prepare, approve (second person), void, CSV | week | ✓ | finance.manage/approve; creator cannot approve (DB trigger too) | ✓ | int + e2e | numbered on approval; never sent or issued |
 | 22 | Payroll preparation | /rota/finance/payroll | ✓ | prepare, approve (second person), void, CSV | week | ✓ | finance.manage/approve; creator cannot approve (DB trigger too) | ✓ | int + e2e | gross hours and pay only; nothing is paid |
-| 23 | Reports | — | ✗ | | | | | | | |
+| 23 | Reports | /rota/reports | ✓ | read + CSV | report, dates (≤ 92 days), area | ✓ (zod, range checks) | rota.view; CSV needs report.export; area scope | export audited | int + e2e | delivery, hours by person, carer attendance, unfilled, alerts; worked out live from corrected clock times; no medication figures |
 | 24 | Settings | /rota/settings, /admin/areas | ✓ | ✓ | n/a | ✓ (zod) | rota.settings, org.manage | ✓ | int | areas, call types, care tasks, member areas |
 
 ## Supporting features

@@ -18,8 +18,8 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 8 Carer mobile | Mostly done | /carer: My Visits, acknowledgement, clock in/out (server time, nonce against double submit), short-visit note, "Could not deliver". Office entries and corrections on the visit page (`attendance.ts`). No GPS, NFC, offline or task recording |
 | 9 Care plans, risks, incidents | Done | `src/server/care/{care-plans,risks,incidents}.ts`. Versioned plans with second-person approval and carer read confirmation; risk register with reviews and archive; incidents with manager triage, notifiable reminder and close. Demo records seeded through the services |
 | 10 Finance | Done (preparation) | `src/server/finance/{pricing,rates,timesheets,runs}.ts`. Rates and funders, timesheets from clock records, pay and invoice runs with second-person approval (database trigger too), CSV export. Never pays, issues or sends |
-| 11 Reporting and admin | Not started | |
-| 12 Final QA | In progress | vitest 161, HR 14, e2e 27/27; screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
+| 11 Reporting and admin | In progress | Rota Reports built (`src/server/rota/reports.ts`, /rota/reports, CSV at /api/rota/reports): delivery by day, hours by person, carer attendance, unfilled visits, call alerts. Reporting & Analytics module and Administration still to do |
+| 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)
 
@@ -28,10 +28,9 @@ Rota core first: staff link, templates, Build Rota, daily visits, planner. Carer
 ## Next actions
 
 1. Keep PR #24 green. Never merge without the owner's "merge".
-2. Rostering reports (/rota/reports).
-3. Run routes and travel.
-4. Task recording and notes from the carer phone; mileage claim entry.
-5. Reporting & Analytics and Administration modules.
+2. Run routes and travel.
+3. Task recording and notes from the carer phone; mileage claim entry.
+4. Reporting & Analytics and Administration modules.
 
 Docs: ARCHITECTURE_DECISIONS.md, FEATURE_COMPLETION_MATRIX.md, KNOWN_LIMITATIONS.md and TEST_RESULTS.md are current as of this checkpoint.
 

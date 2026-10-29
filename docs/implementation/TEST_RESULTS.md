@@ -60,3 +60,14 @@ Care plan, risk and incident screenshots at 1440 and 390 px (`c1440_*`, `c390_*`
 | `npm run test:e2e` (full) | 27 passed, 0 failed. Adds the finance test (the preparer sees no Approve button; a second person approves and downloads the CSV) and the five finance pages to the overflow check at 1440, 834 and 390 px |
 
 Finance screenshots (`*_rota_finance*`, `f1440_*`, `f390_*`) are in `screenshots/`, taken from the local demo database as the finance officer.
+
+## Rota reports checkpoint (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 19 files, 166 tests passed. Adds `tests/integration/rota-reports.test.ts` (5): delivery totals match the visit records, an office clock correction changes the carer report, people/coverage/alerts agree with the records, refusal of bad ranges, another organisation's area, carers and CSV without `report.export`, and an audited CSV export |
+| `npm run build` | pass |
+| `npm run test:e2e` (full) | 27 passed, 1 failed: the new reports test used an ambiguous "To" label (it also matched the Area list). After the fix, `tests/e2e/rota.spec.ts` was re-run: 12 of 12 passed |
+
+Report screenshots (`r1440_*`, `r390_*`, `*_rota_reports*`) are in `screenshots/`.

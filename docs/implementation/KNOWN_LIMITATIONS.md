@@ -10,7 +10,7 @@ Written plainly so nothing below is mistaken for working software.
 - eMAR and medication. Visits show a "medication prompt" flag only. No medication-compliance figures are shown anywhere.
 - Finance prepares figures only. Nothing is ever paid, invoiced, submitted to HMRC or sent to a funder. Pay runs show gross pay before deductions; tax and National Insurance are left to the payroll provider. The CSV is for import into other systems.
 - Mileage claims have no entry screen yet. Pay runs include approved claims if any exist, but the demo has none.
-- Rostering reports and the wider Reporting and Administration modules.
+- The wider Reporting & Analytics and Administration modules. Rota Reports (/rota/reports) are built; they are worked out live, at most 92 days at a time, and do not include charts or scheduled emails.
 
 ## Data and environment
 - The demo funders are fictional councils, and one package is left unfunded on purpose so the invoice run shows an exception.

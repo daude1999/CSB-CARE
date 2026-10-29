@@ -58,7 +58,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
     [
       "Reports & settings",
       [
-        ["/rota/reports", "Rota Reports", <ChartLine key="i" {...i} />, "rota.view", false],
+        ["/rota/reports", "Rota Reports", <ChartLine key="i" {...i} />, "rota.view", true],
         ["/rota/settings", "Rostering Settings", <GearSix key="i" {...i} />, "rota.settings", true],
       ],
     ],

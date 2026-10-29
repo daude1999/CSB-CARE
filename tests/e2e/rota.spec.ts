@@ -83,12 +83,12 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices"]) {
+      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow, `${path} at ${width}px`).toBeLessThanOrEqual(1);
-        await page.screenshot({ path: `${SHOTS}/${name}${path.replaceAll("/", "_")}.png`, fullPage: false });
+        await page.screenshot({ path: `${SHOTS}/${name}${path.replaceAll(/[/?=]/g, "_")}.png`, fullPage: false });
       }
     });
   }
@@ -127,6 +127,21 @@ test.describe("Rostering & Care Management", () => {
     const res = await page.request.get((await csv.getAttribute("href"))!);
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toContain("text/csv");
+  });
+
+  test("reports: switch report, change the dates, and download the CSV", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota/reports");
+    await expect(page.getByRole("heading", { level: 2, name: "Visit delivery by day" })).toBeVisible();
+    await expect(page.locator("tfoot td").first()).toHaveText("Total");
+    await page.getByRole("navigation", { name: "Reports" }).getByRole("link", { name: "Carer attendance" }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "Carer attendance" })).toBeVisible();
+    await page.getByLabel("To", { exact: true }).fill("2020-01-01");
+    await page.getByRole("button", { name: "Show report" }).click();
+    await expect(page.getByRole("alert")).toContainText("The end date must be on or after the start date");
+    const res = await page.request.get((await page.getByRole("link", { name: "Download CSV" }).getAttribute("href"))!);
+    expect(res.status()).toBe(200);
+    expect(await res.text()).toMatch(/^Date,Planned,Completed/);
   });
 
   test("keyboard: a visit can be opened and reassigned without a mouse", async ({ page }) => {
