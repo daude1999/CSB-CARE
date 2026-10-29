@@ -138,7 +138,7 @@ describe("assignment", () => {
     });
     await expect(assignCarer(ctx, { visitId: other.id, slot: "PRIMARY", staffId: busy, acceptWarnings: true })).rejects.toThrow(/Already booked/);
     // Going round the service: the exclusion constraint still refuses the overlapping booking.
-    await expect(db.visitAssignment.create({ data: { organisationId: orgId, visitId: other.id, slot: "PRIMARY", staffId: busy, startsAt: other.scheduledStart, endsAt: other.scheduledEnd, assignedById: ctx.userId } })).rejects.toThrow();
+    await expect(db.visitAssignment.create({ data: { organisationId: orgId, visitId: other.id, slot: "PRIMARY", staffId: busy, startsAt: other.scheduledStart, endsAt: other.scheduledEnd, eligibility: "ELIGIBLE", assignedById: ctx.userId } })).rejects.toThrow(/overlap|exclusion|conflict/i);
     await db.visit.delete({ where: { id: other.id } });
   });
 
