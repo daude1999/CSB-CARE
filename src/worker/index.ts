@@ -22,6 +22,7 @@ async function loop() {
       if (Date.now() - lastTick >= TICK_MS) {
         const slot = Math.floor(Date.now() / TICK_MS);
         await enqueue("maintenance.tick", {}, { idempotencyKey: `tick:${slot}`, maxAttempts: 1 });
+        await enqueue("rota.sweep", {}, { idempotencyKey: `sweep:${slot}`, maxAttempts: 1 });
         lastTick = Date.now();
       }
       const done = await drain(workerId, handlers, { max: 20 });

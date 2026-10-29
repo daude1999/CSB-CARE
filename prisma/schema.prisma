@@ -2166,8 +2166,18 @@ model RotaAlert {
   resolvedAt     DateTime?
   resolvedById   String?
   resolution     String?
+  /// Exceptions register: who is dealing with it, by when, and whether it went to a manager.
+  ownerId         String?
+  ownerAssignedAt DateTime?
+  deadline        DateTime?
+  escalatedAt     DateTime?
+  /// NONE | ESCALATED | RESOLVED_AFTER_ESCALATION
+  escalationState String    @default("NONE")
+  escalationNote  String?
+  evidenceNote    String?
 
   @@index([organisationId, resolvedAt])
+  @@index([organisationId, deadline])
 }
 
 /// One run of the call-monitoring sweep, so the monitor can show how fresh its figures are.

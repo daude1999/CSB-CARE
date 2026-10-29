@@ -2,6 +2,7 @@ import type { AlertSeverity, Prisma } from "@prisma/client";
 import { londonTime, londonDate } from "@/lib/london";
 import { rotaSettings } from "@/server/rota/settings";
 import { evaluate, loadFacts, loadPreferenceFacts } from "./eligibility";
+import { exceptionDeadline } from "@/server/rota/exceptions";
 
 type Db = Prisma.TransactionClient;
 
@@ -17,12 +18,12 @@ export async function rotaRecipients(tx: Db, organisationId: string) {
  */
 export async function raiseAlert(
   tx: Db,
-  a: { organisationId: string; kind: string; severity?: AlertSeverity; visitId?: string | null; staffId?: string | null; assignmentId?: string | null; message: string; dedupeKey: string; conditionAt?: Date; actionUrl?: string; notify?: boolean },
+  a: { organisationId: string; kind: string; severity?: AlertSeverity; visitId?: string | null; staffId?: string | null; assignmentId?: string | null; message: string; dedupeKey: string; conditionAt?: Date; actionUrl?: string; notify?: boolean; deadline?: Date | null },
 ) {
   const existing = await tx.rotaAlert.findUnique({ where: { dedupeKey: a.dedupeKey } });
   if (existing) return { created: false, alert: existing };
   const alert = await tx.rotaAlert.create({
-    data: { organisationId: a.organisationId, kind: a.kind, severity: a.severity ?? "WARNING", visitId: a.visitId ?? null, staffId: a.staffId ?? null, assignmentId: a.assignmentId ?? null, message: a.message, dedupeKey: a.dedupeKey, conditionAt: a.conditionAt ?? null },
+    data: { organisationId: a.organisationId, kind: a.kind, severity: a.severity ?? "WARNING", visitId: a.visitId ?? null, staffId: a.staffId ?? null, assignmentId: a.assignmentId ?? null, message: a.message, dedupeKey: a.dedupeKey, conditionAt: a.conditionAt ?? null, deadline: a.deadline === undefined ? exceptionDeadline(a.kind) : a.deadline },
   });
   if (a.notify !== false) {
     for (const userId of await rotaRecipients(tx, a.organisationId)) {

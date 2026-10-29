@@ -162,7 +162,8 @@ describe("E8: reminders, escalation and evidence integrity", () => {
     const m = await manager();
     const p = await publishedPolicy("CSB-HS-002");
     const pub = await currentPub(p.id);
-    const open = await db.acknowledgement.findFirstOrThrow({ where: { publicationId: pub.id, acknowledgedAt: null, supersededAt: null, state: "ASSIGNED" } });
+    // A row for a staff member, so the readiness test below can read the exemption through the staff record.
+    const open = await db.acknowledgement.findFirstOrThrow({ where: { publicationId: pub.id, acknowledgedAt: null, supersededAt: null, state: "ASSIGNED", staffMemberId: { not: null } } });
     await exemptRow(m, open.id, "On long-term leave until March");
     expect(ackBucket(await db.acknowledgement.findUniqueOrThrow({ where: { id: open.id } })).bucket).toBe("exempted");
     const rule = await db.policyAssignmentRule.findFirstOrThrow({ where: { policyId: p.id, withdrawnAt: null } });

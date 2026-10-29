@@ -48,4 +48,19 @@ test.describe("Version 1", () => {
     expect(csv.status()).toBe(200);
     expect(await csv.text()).toContain("Staff member,Sign-in,Job title");
   });
+
+  test("exceptions: the coordinator takes an open exception and resolves it with evidence", async ({ page }) => {
+    await signIn(page, "coordinator@care-solution.demo");
+    await page.goto("/rota/exceptions");
+    await expect(page.getByRole("heading", { level: 1, name: "Exceptions" })).toBeVisible();
+    await page.getByRole("link", { name: /^All/ }).click();
+    await expect(page).toHaveURL(/state=all/);
+    await page.getByRole("link", { name: /^Open/ }).click();
+    const first = page.locator("ul.rows > li").first();
+    await expect(first).toBeVisible();
+    await first.getByLabel("What was done").fill("Rang the family and the carer; visit rearranged");
+    await first.getByLabel("Evidence").fill("Office call log");
+    await first.getByRole("button", { name: "Resolve" }).click();
+    await expect(page.getByRole("status")).toContainText("Exception resolved");
+  });
 });

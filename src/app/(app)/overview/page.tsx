@@ -142,7 +142,7 @@ export default async function Overview() {
     if (m.overdueActions) attention.push({ text: `${m.overdueActions} ${m.overdueActions === 1 ? "action is" : "actions are"} past their due date`, where: "Policy & Compliance · Actions & Risks", href: "/actions", colour: policy.colour });
   }
   if (rota && rotaFigures?.unassignedToday) attention.push({ text: `${rotaFigures.unassignedToday} ${rotaFigures.unassignedToday === 1 ? "visit slot is" : "visit slots are"} unassigned today`, where: "Rostering & Care Management · Unassigned", href: "/rota/visits?unassigned=1", colour: rota.colour });
-  if (rota && rotaFigures?.openAlerts) attention.push({ text: `${rotaFigures.openAlerts} rota ${rotaFigures.openAlerts === 1 ? "alert needs" : "alerts need"} attention`, where: "Rostering & Care Management · Today", href: "/rota", colour: rota.colour });
+  if (rota && rotaFigures?.openAlerts) attention.push({ text: `${rotaFigures.openAlerts} rota ${rotaFigures.openAlerts === 1 ? "alert needs" : "alerts need"} attention`, where: "Rostering & Care Management · Exceptions", href: "/rota/exceptions", colour: rota.colour });
   if (hrPortal && hr?.overdue) attention.push({ text: `${hr.overdue} HR ${hr.overdue === 1 ? "check is" : "checks are"} overdue`, where: "HR & Workforce", href: hrPortal.home, colour: hrPortal.colour });
 
   const first = ctx.userName.split(/\s+/)[0];

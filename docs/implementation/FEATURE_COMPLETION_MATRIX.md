@@ -20,6 +20,7 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 13 | Run routes | — | ✗ | | | | | | | |
 | 14 | ECM / clocking | /carer, /rota/visits/[id] | ✓ | create + correct | n/a | ✓ (zod, order of events, short-visit note) | own visits only; office needs rota.clockCorrect | ✓ | int + manual browser | append-only; corrections supersede; no GPS/NFC |
 | 15 | Live call monitor | /rota/monitor | ✓ | read + check now | area | n/a | rota.monitor | runs recorded | int + e2e | late, missed, overrun, not delivered; alert latency |
+| 15b | Exceptions register | /rota/exceptions | ✓ | assign owner, escalate, resolve | state, type, severity, area, owner | ✓ | rota.monitor to view, rota.edit to act; area scope | ✓ | int + e2e | escalation in-app only; deadline per type |
 | 16 | Carer mobile | /carer | ◐ | read, acknowledge, clock, not delivered | n/a | ✓ | own visits only | ✓ | int + e2e | no task recording, GPS, NFC or offline |
 | 17 | Tasks and notes | — | ✗ | | | | | | | call types and care tasks reference lists exist |
 | 18 | Incidents | /rota/incidents | ✓ | ✓ | ✓ | ✓ | report vs manage; reporters see own | ✓ | int + e2e | in-app alerts; never sends statutory notifications |

@@ -14,6 +14,8 @@ Written plainly so nothing below is mistaken for working software.
 
 - Policy acknowledgement assessments are a manager's recorded pass or fail, not an online quiz. Reminders and escalations for overdue acknowledgements are in-app only; no email or text goes to staff who have no sign-in, so their manager sees them as outstanding on Staff Sign-off.
 
+- Exception deadlines are fixed per type and cannot yet be changed in Settings. Escalation goes to care managers and organisation admins inside the platform only.
+
 ## Data and environment
 - The demo funders are fictional councils, and one package is left unfunded on purpose so the invoice run shows an exception.
 - The seed builds last week as history (completed visits, timesheets, draft runs) through a seed-only option on Build Rota. Users cannot build a past week.

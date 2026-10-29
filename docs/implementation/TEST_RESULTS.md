@@ -139,3 +139,13 @@ Standard Prisma engines (local PostgreSQL 16). The readiness WIP was in the tree
 | `npm run test:hr` | pass |
 | `npm run build` | pass |
 | `npm run test:e2e` | 32 passed. Adds the Staff Sign-off flow to `tests/e2e/v1.spec.ts` (add an organisation-wide assignment on a policy, download the CSV) |
+
+## V1 item 3: exceptions register (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 26 files, 222 passed, 1 failed: `signoff.test.ts` "feeds policy readiness requirements from the same states" depended on which row an earlier test happened to exempt (one without a staff link). The earlier test now exempts a staff-linked row; `npx vitest run tests/integration/signoff.test.ts` then passed 10/10. Adds `tests/integration/exceptions.test.ts` (5): owner assignment with in-app notice, escalation once with a note and no outbound job, resolution with evidence, overdue escalation from the sweep once, `rota.sweep` separate from the maintenance tick, branch scope |
+| `npm run test:hr` | pass |
+| `npm run build` | pass |
+| `npm run test:e2e` | 33 passed. Adds the exceptions flow (coordinator resolves an open exception with evidence) |

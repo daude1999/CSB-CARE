@@ -8,6 +8,7 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
+import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { sweepNow } from "@/server/rota/monitor";
@@ -703,4 +704,18 @@ export async function approveRunAction(fd: FormData) {
 
 export async function voidRunAction(fd: FormData) {
   return handle(fd, (ctx) => voidRun(ctx, str(fd, "kind") === "invoice" ? "invoice" : "pay", str(fd, "runId"), str(fd, "reason")), "Run voided");
+}
+
+// ── Exceptions register ───────────────────────────────────────────────────
+
+export async function assignExceptionOwnerAction(fd: FormData) {
+  return handle(fd, (ctx) => assignExceptionOwner(ctx, str(fd, "alertId"), str(fd, "ownerId")), "Owner assigned");
+}
+
+export async function escalateExceptionAction(fd: FormData) {
+  return handle(fd, (ctx) => escalateException(ctx, str(fd, "alertId"), str(fd, "note")), "Escalated to the care managers");
+}
+
+export async function resolveExceptionAction(fd: FormData) {
+  return handle(fd, (ctx) => resolveException(ctx, str(fd, "alertId"), { resolution: str(fd, "resolution"), evidenceNote: str(fd, "evidenceNote") || undefined }), "Exception resolved");
 }
