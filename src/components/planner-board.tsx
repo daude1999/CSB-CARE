@@ -34,7 +34,7 @@ const TONE: Record<PlannerChip["tone"], string> = {
  * the move goes through the same server-side assignment and eligibility check as every other allocation, and a refusal
  * is shown with its reason. Without a mouse, open the visit (Enter on the chip) and choose the carer there.
  */
-export function PlannerBoard({ days, rows, action, back, canEdit }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; back: string; canEdit: boolean }) {
+export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer" }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string }) {
   const form = useRef<HTMLFormElement>(null);
   const [drag, setDrag] = useState<{ chip: PlannerChip; day: number } | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -44,15 +44,15 @@ export function PlannerBoard({ days, rows, action, back, canEdit }: { days: { da
     <div className="overflow-x-auto">
       <form ref={form} action={action} className="hidden">
         <input type="hidden" name="back" value={pending ? `${back}${back.includes("?") ? "&" : "?"}move=${pending.chip.visitId}~${pending.chip.slot}~${pending.staffId}~${pending.chip.lockVersion}` : back} />
-        <input type="hidden" name="visitId" value={pending?.chip.visitId ?? ""} />
+        <input type="hidden" name={idName} value={pending?.chip.visitId ?? ""} />
         <input type="hidden" name="slot" value={pending?.chip.slot ?? ""} />
         <input type="hidden" name="staffId" value={pending?.staffId ?? ""} />
-        <input type="hidden" name="lockVersion" value={pending?.chip.lockVersion ?? ""} />
+        <input type="hidden" name={versionName} value={pending?.chip.lockVersion ?? ""} />
       </form>
       <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-[12.5px]">
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 z-10 w-[190px] bg-white px-2 py-2 text-left text-[13px] font-normal text-slate-600">Carer</th>
+            <th scope="col" className="sticky left-0 z-10 w-[190px] bg-white px-2 py-2 text-left text-[13px] font-normal text-slate-600">{rowLabel}</th>
             {days.map((d) => (
               <th key={d.date} scope="col" className={`px-1 py-2 text-left text-[13px] font-medium ${d.today ? "text-[#1d4f91]" : "text-slate-700"}`}>{d.label}</th>
             ))}

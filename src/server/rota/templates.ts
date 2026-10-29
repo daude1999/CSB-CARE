@@ -244,3 +244,38 @@ export async function applyTemplateChanges(ctx: Ctx, templateId: string, templat
   await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "template.applied", entityType: "VisitTemplate", entityId: templateId, data: { applied: results.filter((r) => r.ok).length, refused: results.filter((r) => !r.ok).length } });
   return results;
 }
+
+/**
+ * Moves one slot of a template to another carer (Template Planner). Refused when that carer already has a switched-on
+ * template overlapping it on a shared cycle week and day. Built visits are unchanged; Build Rota re-checks everyone.
+ */
+export async function setTemplateCarer(ctx: Ctx, templateId: string, version: number, slot: "PRIMARY" | "SECOND" | "SHADOW", staffId: string | null) {
+  const scope = await rotaScope(ctx, "rota.edit");
+  return db.$transaction(async (tx) => {
+    const t = await loadTemplate(tx, scope, templateId);
+    if (t.version !== version) throw new ConflictError("This template changed since you opened it. Reload and try again.");
+    if (slot === "SECOND" && t.carersRequired < 2) throw new ValidationError("This template needs one carer");
+    const field = slot === "PRIMARY" ? "preferredStaff1Id" : slot === "SECOND" ? "preferredStaff2Id" : "shadowStaffId";
+    if (staffId) {
+      const s = await tx.staffMember.findFirst({ where: { id: staffId, organisationId: scope.organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false } });
+      if (!s) throw new NotFoundError("Staff member");
+      const others = [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId].filter((x, i) => x && ["preferredStaff1Id", "preferredStaff2Id", "shadowStaffId"][i] !== field);
+      if (others.includes(staffId)) throw new ValidationError("This carer is already on this visit");
+      const clash = await tx.visitTemplate.findFirst({
+        where: {
+          organisationId: scope.organisationId,
+          enabled: true,
+          id: { not: t.id },
+          OR: [{ preferredStaff1Id: staffId }, { preferredStaff2Id: staffId }, { shadowStaffId: staffId }],
+          cycleWeeks: { hasSome: t.cycleWeeks },
+          weekdays: { hasSome: t.weekdays },
+          startMinute: { lt: t.startMinute + t.durationMin },
+        },
+        include: { serviceUser: { select: { firstName: true, lastName: true } } },
+      });
+      if (clash && clash.startMinute + clash.durationMin > t.startMinute) throw new ValidationError(`${s.displayName} already has ${clash.serviceUser.firstName} ${clash.serviceUser.lastName} at an overlapping time in this pattern`);
+    }
+    await tx.visitTemplate.update({ where: { id: t.id }, data: { [field]: staffId, version: { increment: 1 } } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "template.carer.changed", entityType: "VisitTemplate", entityId: t.id, data: { slot, staffId } }, tx);
+  });
+}
