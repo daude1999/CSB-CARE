@@ -58,10 +58,24 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("button", { name: /^Build \d+ visits for Week \d$/ })).toBeVisible();
   });
 
-  test("a carer cannot open the office rota", async ({ page }) => {
+  test("a carer cannot open the office rota or the monitor, and sees their own visits", async ({ page }) => {
     await signIn(page, "carer@care-solution.demo");
     await page.goto("/rota/visits");
     await expect(page.getByRole("heading", { level: 1, name: "Daily Visits" })).toHaveCount(0);
+    await page.goto("/rota/monitor");
+    await expect(page.getByRole("heading", { level: 1, name: "Live Call Monitor" })).toHaveCount(0);
+    await page.goto("/carer");
+    await expect(page.getByRole("heading", { level: 1, name: "My Visits" })).toBeVisible();
+    await expect(page.getByText(/Location and NFC checks are not used/)).toBeVisible();
+  });
+
+  test("the monitor checks calls on demand and reports when it last checked", async ({ page }) => {
+    await signIn(page, "coordinator@care-solution.demo");
+    await page.goto("/rota/monitor");
+    await expect(page.getByRole("heading", { level: 1, name: "Live Call Monitor" })).toBeVisible();
+    await page.getByRole("button", { name: "Check now" }).click();
+    await expect(page.getByRole("status")).toContainText(/Checked \d+ visits?/);
+    await expect(page.getByText(/Last checked at/)).toBeVisible();
   });
 
   for (const [name, width] of [["desktop", 1440], ["tablet", 834], ["phone", 390]] as const) {
@@ -69,7 +83,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff"]) {
+      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

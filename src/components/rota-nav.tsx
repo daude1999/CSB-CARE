@@ -18,7 +18,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
         ["/rota/visits", "Daily Visits", <ListChecks key="i" {...i} />, "rota.view", true],
         ["/rota/planner", "Rota Planner", <CalendarDots key="i" {...i} />, "rota.view", true],
         ["/rota/unassigned", "Unassigned Visits", <WarningOctagon key="i" {...i} />, "rota.view", true],
-        ["/rota/monitor", "Live Call Monitor", <Pulse key="i" {...i} />, "rota.monitor", false],
+        ["/rota/monitor", "Live Call Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
         ["/rota/routes", "Run Routes", <Path key="i" {...i} />, "rota.view", false],
       ],
     ],

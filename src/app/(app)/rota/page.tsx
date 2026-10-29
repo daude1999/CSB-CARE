@@ -52,8 +52,8 @@ export default async function RotaToday({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Today"
         back="/"
-        subtitle={`${fmtLondonDate(today, { weekday: "long", day: "numeric", month: "long" })}. What needs the office now: visits not started on time, empty carer slots and allocations that need checking. Late and missed calls are worked out from planned times; the live call monitor is not built yet.`}
-        actions={<Link href="/rota/visits" className="btn-secondary">All of today’s visits</Link>}
+        subtitle={`${fmtLondonDate(today, { weekday: "long", day: "numeric", month: "long" })}. What needs the office now: visits not started on time, empty carer slots and allocations that need checking. The Live Call Monitor follows calls as carers clock in and out.`}
+        actions={<><Link href="/rota/monitor" className="btn-secondary">Live Call Monitor</Link><Link href="/rota/visits" className="btn-secondary">All of today’s visits</Link></>}
       />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">

@@ -9,6 +9,8 @@ import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
+import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
+import { sweepNow } from "@/server/rota/monitor";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
@@ -464,4 +466,30 @@ export async function acknowledgeMyVisitsAction(fd: FormData) {
     const n = await acknowledgeMyVisits(ctx);
     return { ok: n ? `Thanks. ${n} visit${n === 1 ? "" : "s"} marked as seen.` : "You had already seen all your visits." };
   }, "Done");
+}
+
+export async function clockMineAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const kind = str(fd, "kind") === "OUT" ? "OUT" : "IN";
+    const r = await clockMine(ctx, str(fd, "visitId"), kind, { nonce: str(fd, "nonce"), note: str(fd, "note") });
+    return { ok: kind === "IN" ? "Clocked in" : r.status === "COMPLETED" ? "Clocked out. Visit complete." : "Clocked out" };
+  }, "Recorded");
+}
+
+export async function notDeliveredMineAction(fd: FormData) {
+  return handle(fd, (ctx) => notDeliveredMine(ctx, str(fd, "visitId"), str(fd, "reason")), "The office has been told");
+}
+
+export async function officeClockAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await officeClock(ctx, str(fd, "visitId"), Object.fromEntries(fd));
+    return { ok: r.short ? "Clock time recorded. The visit was shorter than planned and has been flagged." : "Clock time recorded" };
+  }, "Clock time recorded");
+}
+
+export async function sweepNowAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await sweepNow(ctx);
+    return { ok: `Checked ${r.processed} visit${r.processed === 1 ? "" : "s"}. ${r.alertsRaised} new alert${r.alertsRaised === 1 ? "" : "s"}.` };
+  }, "Checked");
 }

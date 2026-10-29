@@ -5,6 +5,7 @@ import { deliverNotification } from "@/server/notifications/notify";
 import { performPublication, publishDueScheduled, sendAcknowledgementReminders } from "@/server/policies/workflow";
 import { syncCustomersFromMaster } from "@/server/policies/sync";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
+import { sweepCalls } from "@/server/rota/monitor";
 import type { RunTrigger } from "@prisma/client";
 
 export const handlers: Record<string, JobHandler> = {
@@ -31,6 +32,7 @@ export const handlers: Record<string, JobHandler> = {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();
     const reminders = await sendAcknowledgementReminders();
-    return { scheduledChecks: scheduled.length, publications, reminders };
+    const calls = await sweepCalls();
+    return { scheduledChecks: scheduled.length, publications, reminders, calls };
   },
 };

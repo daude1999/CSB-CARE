@@ -4,11 +4,12 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
+import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
 import { db } from "@/lib/db";
-import { fmtLondonDate, fromDbDate, hhmm, londonMinute, londonTime } from "@/lib/london";
-import { assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
+import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
+import { officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 
@@ -40,6 +41,10 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const date = fromDbDate(v.date);
   const back = `/rota/visits/${v.id}`;
   const who = (u: string | null | undefined) => (u ? names.get(u) ?? "Former member" : "System");
+  const inForce = new Set(effectiveClocks(v.clocks).map((c) => c.id));
+  const carerName = (staffId: string | null) => v.assignments.find((a) => a.staffId === staffId)?.staff.displayName ?? "Carer";
+  const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
+  const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
 
   return (
     <>
@@ -143,12 +148,14 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
             ) : <Empty>No tasks on this visit.</Empty>}
           </Card>
 
+          <section id="attendance" aria-label="Attendance">
           <Card title="Attendance and notes">
             {v.clocks.length || v.visitNotes.length ? (
               <ul className="rows">
                 {v.clocks.map((c) => (
-                  <li key={c.id} className="py-2 text-[14px]">
-                    <span className="font-medium">{c.kind === "IN" ? "Clocked in" : "Clocked out"}</span> at {londonTime(c.at)} · {c.method.toLowerCase()} · recorded by {who(c.recordedById)}
+                  <li key={c.id} className={`py-2 text-[14px] ${inForce.has(c.id) ? "" : "text-slate-500 line-through decoration-slate-400"}`}>
+                    <span className="font-medium">{carerName(c.staffId)} {c.kind === "IN" ? "clocked in" : "clocked out"}</span> at {londonTime(c.at)} · {c.method === "OFFICE" ? "entered by the office" : "from the carer's phone"} · recorded by {who(c.recordedById)}
+                    {inForce.has(c.id) ? null : <span className="ml-1 no-underline">(replaced)</span>}
                     {c.reason ? <span className="block text-[13px] text-slate-600">Reason: {c.reason}</span> : null}
                   </li>
                 ))}
@@ -160,7 +167,29 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 ))}
               </ul>
             ) : <Empty>Nothing recorded yet. Clock records and notes are kept permanently once made.</Empty>}
+            {canClock ? (
+              <form action={officeClockAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Record a clock time">
+                <input type="hidden" name="back" value={`${back}#attendance`} />
+                <input type="hidden" name="visitId" value={v.id} />
+                <h3 className="mb-2 text-[14px] font-semibold">Record a clock time for a carer</h3>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <label className="col-span-2 md:col-span-1"><span className="label">Carer</span><select name="staffId" required className="input">{live.map((a) => <option key={a.id} value={a.staffId}>{a.staff.displayName}</option>)}</select></label>
+                  <label><span className="label">Clock</span><select name="kind" className="input"><option value="IN">In</option><option value="OUT">Out</option></select></label>
+                  <label><span className="label">Date</span><input type="date" name="date" defaultValue={date} required className="input" /></label>
+                  <label><span className="label">Time</span><input type="time" name="time" defaultValue={hhmm(nowMinute)} required className="input" /></label>
+                  {v.clocks.some((c) => inForce.has(c.id)) ? (
+                    <label className="col-span-2"><span className="label">Replaces (optional)</span>
+                      <select name="supersedesId" className="input"><option value="">Nothing, this is a new record</option>{v.clocks.filter((c) => inForce.has(c.id)).map((c) => <option key={c.id} value={c.id}>{carerName(c.staffId)} {c.kind === "IN" ? "in" : "out"} at {londonTime(c.at)}</option>)}</select>
+                    </label>
+                  ) : null}
+                  <label className="col-span-2"><span className="label">Reason</span><input name="reason" required minLength={3} placeholder="e.g. carer phoned in, phone battery flat" className="input" /></label>
+                </div>
+                <button className="btn-secondary mt-2">Record clock time</button>
+                <p className="mt-1 text-[12.5px] text-slate-500">Entries are permanent. A wrong entry is fixed by recording a replacement, and both stay on the visit.</p>
+              </form>
+            ) : null}
           </Card>
+          </section>
         </div>
 
         <div className="space-y-3">
