@@ -68,6 +68,16 @@
    * Policy Library workspace (docs/design/policy-library-reference.png). Scoped to [data-surface="policy-library"]
    * so the other pages and themes are unchanged. Serif display face, Inter for the interface, warm neutrals.
    */
+  /* Overview: one coloured tile per module, from the approved mock-up. */
+  .ov-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; background: #f8f7f4; min-height: 100%; }
+  .ov-root a { text-decoration: none; }
+  .ov-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
+  .ov-tile { @apply flex flex-col overflow-hidden rounded-[10px] border border-[#ebe8e2] bg-white; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 20px rgb(11 21 48 / 0.05); }
+  .ov-tile-head { @apply flex min-h-[48px] items-center gap-[10px] px-[14px] py-[11px] text-white; }
+  .ov-tile-planned li { color: #5f6b7a; }
+  .ov-num { @apply flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold; background: rgb(255 255 255 / 0.22); }
+  .ov-figures { @apply mx-[14px] mt-1.5 rounded-[7px] px-3 py-2.5; }
+  .ov-cta { @apply flex w-fit items-center gap-1.5 px-4 pb-3.5 pt-3 text-[13px] font-semibold hover:underline; }
   .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
