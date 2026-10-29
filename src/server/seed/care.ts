@@ -94,7 +94,7 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
   const female = new Set(["Amelia", "Isla", "Mia", "Ava", "Grace", "Freya", "Lily", "Sophie", "Evie", "Ella", "Poppy", "Daisy", "Florence", "Alice", "Ruby", "Matilda", "Rosie", "Esme", "Chloe", "Sienna", "Emma", "Zara"]);
   for (const c of carers) await db.rotaStaffProfile.create({ data: { staffId: c.id, organisationId, gender: female.has(c.displayName.split(" ")[0]!) ? "FEMALE" : "MALE", drives: true, maxWeeklyMinutes: 40 * 60 } });
 
-  const sus: { id: string; area: string }[] = [];
+  const sus: { id: string; area: string; gender: string }[] = [];
   for (const [i, [first, last, area, gender, risk]] of PEOPLE.entries()) {
     const a = areaDefs.find((x) => x[0] === area)!;
     const su = await db.serviceUser.create({
@@ -128,17 +128,29 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
         packages: { create: { organisationId, reference: `PKG-${101 + i}`, startDate: dbDate(addDays(today, -120 - i * 9)), commissionedMinutesPerWeek: risk === "HIGH" ? 7 * (45 + 30 + 30 + 30) * 2 : 7 * (45 + 30 + 30), requirements: risk === "HIGH" ? "Four calls a day, two carers at every call for hoist transfers." : "Three calls a day, one carer." } },
       },
     });
-    sus.push({ id: su.id, area });
+    sus.push({ id: su.id, area, gender });
   }
 
   // Templates: a pattern that repeats every week of the 4-week cycle, with the double-ups the risk needs.
   const inArea = new Map<string, string[]>();
   for (const sa of await db.staffArea.findMany({ where: { organisationId } })) inArea.set(sa.areaId, [...(inArea.get(sa.areaId) ?? []), sa.staffId]);
-  const pick = (area: string, n: number) => {
-    const pool = inArea.get(areas[area]!) ?? [];
-    return pool.length ? pool[n % pool.length]! : null;
+  // Every template repeats daily, so one day's calendar per carer is enough to keep the demo pattern free of clashes
+  // (15 minutes' travel between calls). Real rotas are still checked by the eligibility rules at build time.
+  // Like a coordinator would, prefer carers whose HR checks are all in order and who match the person's preference;
+  // fall back to anyone free, so some allocations still show warnings or refusals in the demo.
+  const ready = new Set((await db.staffMember.findMany({ where: { organisationId, compliance: { none: { required: true, OR: [{ verified: false }, { hasEvidence: false }, { dueDate: { lt: new Date() } }] } } }, select: { id: true } })).map((s) => s.id));
+  const genderOf = new Map((await db.rotaStaffProfile.findMany({ where: { organisationId } })).map((p) => [p.staffId, p.gender]));
+  const busy = new Map<string, [number, number][]>();
+  const pick = (su: { area: string; gender: string }, n: number, start: number, end: number, not: string | null = null) => {
+    const pool = inArea.get(areas[su.area]!) ?? [];
+    const free = (id: string) => id !== not && !(busy.get(id) ?? []).some(([a, b]) => start < b + 15 && a < end + 15);
+    const rotated = pool.map((_, k) => pool[(n + k) % pool.length]!);
+    const id = rotated.find((x) => free(x) && ready.has(x) && (su.gender === "ANY" || genderOf.get(x) === su.gender)) ?? rotated.find(free) ?? null;
+    if (id) busy.set(id, [...(busy.get(id) ?? []), [start, end]]);
+    return id;
   };
-  const tpl = async (su: { id: string; area: string }, i: number, call: string, startMinute: number, durationMin: number, carersRequired: number, taskIds: string[], offset: number) => {
+  const tpl = async (su: { id: string; area: string; gender: string }, i: number, call: string, startMinute: number, durationMin: number, carersRequired: number, taskIds: string[], offset: number) => {
+    const first = pick(su, i + offset, startMinute, startMinute + durationMin);
     await db.visitTemplate.create({
       data: {
         organisationId,
@@ -150,8 +162,8 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
         startMinute,
         durationMin,
         carersRequired,
-        preferredStaff1Id: pick(su.area, i + offset),
-        preferredStaff2Id: carersRequired === 2 && pick(su.area, i + offset + 1) !== pick(su.area, i + offset) ? pick(su.area, i + offset + 1) : null,
+        preferredStaff1Id: first,
+        preferredStaff2Id: carersRequired === 2 ? pick(su, i + offset + 1, startMinute, startMinute + durationMin, first) : null,
         medicationRequired: taskIds.includes(tasks.meds),
         effectiveFrom: dbDate(addDays(mondayOf(today), -28)),
         createdById: people.manager,
