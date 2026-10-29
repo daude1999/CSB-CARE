@@ -359,9 +359,12 @@ export async function requestModuleAction(fd: FormData) {
   await handle(
     fd,
     async (ctx) => {
-      await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "module.access_requested", entityType: "Module", entityId: str(fd, "module").slice(0, 60) });
+      const slug = str(fd, "module").slice(0, 60);
+      const team = await db.user.findMany({ where: { platformRoles: { has: "PLATFORM_ADMIN" }, deactivatedAt: null }, select: { id: true } });
+      await db.notification.createMany({ data: team.map((u) => ({ userId: u.id, type: "module.access_requested", title: `Module request: ${slug}`, body: `${ctx.userName} asked about the ${slug} module.`, reason: "You look after customer module requests.", actionUrl: "/modules", dedupeKey: `module-request:${ctx.organisationId}:${slug}:${u.id}` })), skipDuplicates: true });
+      await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "module.access_requested", entityType: "Module", entityId: slug });
     },
-    "Thanks. Your CSB account manager will be in touch about this module",
+    "Request sent to the CSB team inside the platform. They will contact you about this module.",
   );
 }
 

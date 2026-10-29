@@ -5,13 +5,13 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getTimesheet } from "@/server/finance/timesheets";
 import { memberNames } from "@/server/rota/queries";
-import { adjustLineAction, decideTimesheetAction, submitTimesheetAction } from "@/app/rota-actions";
+import { adjustLineAction, decideTimesheetAction, submitTimesheetAction, verifyLinesAction } from "@/app/rota-actions";
 import { Card, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { TimesheetBadge, hours } from "@/components/finance-ui";
 
 export const dynamic = "force-dynamic";
 
-const ACTION: Record<string, string> = { "finance.timesheet.adjusted": "Line adjusted", "finance.timesheet.submitted": "Submitted", "finance.timesheet.approved": "Approved", "finance.timesheet.rejected": "Rejected" };
+const ACTION: Record<string, string> = { "finance.timesheet.verified": "Lines checked", "finance.timesheet.adjusted": "Line adjusted", "finance.timesheet.submitted": "Submitted", "finance.timesheet.approved": "Approved", "finance.timesheet.rejected": "Rejected" };
 
 export default async function TimesheetPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -19,7 +19,8 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
   const { timesheet: t, staff, history } = await orNotFound(getTimesheet(ctx, id));
   const canPrepare = (hasOrgPermission(ctx, "rota.edit") || hasOrgPermission(ctx, "finance.manage")) && (t.status === "DRAFT" || t.status === "REJECTED");
   const canDecide = hasOrgPermission(ctx, "finance.approve") && t.status === "SUBMITTED" && t.submittedById !== ctx.userId;
-  const names = await memberNames(ctx, [t.generatedById, t.submittedById, t.decidedById, ...history.map((h) => h.actorId)]);
+  const names = await memberNames(ctx, [t.generatedById, t.submittedById, t.decidedById, ...history.map((h) => h.actorId), ...t.lines.map((l) => l.verifiedById)]);
+  const unchecked = t.lines.filter((l) => l.exception && !l.verifiedAt).length;
   const who = (u: string | null) => (u ? names.get(u) ?? "Former member" : "—");
   const back = `/rota/finance/timesheets/${t.id}`;
   const week = fromDbDate(t.periodStart);
@@ -43,6 +44,17 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                     <td className="text-right tabular-nums font-medium">{l.payableMinutes}m</td>
                     <td className="min-w-[200px]">
                       {l.exception ? <span className="text-[13px]">{l.exception}</span> : null}
+                      {l.exception ? (l.verifiedAt ? <span className="block text-[12.5px] text-[#1f6b3a]">Checked by {who(l.verifiedById)} {fmtDate(l.verifiedAt, true)}{l.verificationNote ? `: ${l.verificationNote}` : ""}</span> : <span className="block text-[12.5px] font-medium text-[#8a5a00]">Not checked yet</span>) : null}
+                      {canPrepare && l.exception && !l.verifiedAt ? (
+                        <form action={verifyLinesAction} className="mt-1 flex flex-wrap items-end gap-2">
+                          <input type="hidden" name="back" value={back} />
+                          <input type="hidden" name="timesheetId" value={t.id} />
+                          <input type="hidden" name="version" value={t.version} />
+                          <input type="hidden" name="lineId" value={l.id} />
+                          <input name="note" required minLength={3} className="input w-48 py-1" placeholder="How you checked it" aria-label={`How you checked the ${l.description} line`} />
+                          <button className="btn-secondary py-1">Mark checked</button>
+                        </form>
+                      ) : null}
                       {canPrepare ? (
                         <details className="mt-1">
                           <summary className="cursor-pointer text-[13px] text-navy-700">Change payable minutes</summary>
@@ -74,7 +86,17 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                 <input type="hidden" name="version" value={t.version} />
                 {t.decisionNote ? <p className="text-[13.5px] text-[#a3242c]">Rejected: {t.decisionNote}</p> : null}
                 <p className="text-[14px]">Check the marked lines, change any payable minutes with a reason, then submit.</p>
+                {unchecked ? <p className="text-[13.5px] font-medium text-[#8a5a00]">{unchecked} line{unchecked === 1 ? "" : "s"} with exceptions not checked yet. Submitting is refused until they are.</p> : null}
                 <button className="btn-primary">Submit for approval</button>
+              </form>
+            ) : null}
+            {canPrepare && unchecked > 1 ? (
+              <form action={verifyLinesAction} className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="timesheetId" value={t.id} />
+                <input type="hidden" name="version" value={t.version} />
+                <label className="block"><span className="label">Check all {unchecked} lines: how you checked them</span><input name="note" required minLength={3} className="input" placeholder="e.g. confirmed with the carer and the call log" /></label>
+                <button className="btn-secondary">Mark all checked</button>
               </form>
             ) : null}
             {t.status === "SUBMITTED" ? (

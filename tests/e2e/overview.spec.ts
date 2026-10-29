@@ -35,6 +35,7 @@ test.describe("Overview", () => {
     await signIn(page, "manager@care-solution.demo");
     const banners: [string, string, string][] = [
       ["reporting", "/reports", "[data-testid=title-bar]"],
+      ["reporting", "/analytics", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],

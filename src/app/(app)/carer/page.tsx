@@ -5,7 +5,7 @@ import { requirePortal } from "@/server/auth/portals";
 import { myVisits } from "@/server/rota/carer";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
-import { acknowledgeMyVisitsAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
+import { acknowledgeMyVisitsAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
@@ -65,6 +65,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
                     {mine ? <TaskControls v={v} /> : null}
+                    {mine ? <CorrectionControls v={v} now={now} /> : null}
                     {mine ? <NoteControls v={v} staffId={staff.id} /> : null}
                   </li>
                 );
@@ -179,6 +180,33 @@ function NoteControls({ v, staffId }: { v: MyVisit; staffId: string }) {
           <label className="block"><span className="label">Kind of note</span><select name="category" className="input">{Object.entries(NOTE_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
           <label className="block"><span className="label">Note</span><textarea name="text" required minLength={3} rows={3} className="input" /></label>
           <button className="btn-secondary">Save note</button>
+        </form>
+      </details>
+    </div>
+  );
+}
+
+/** A carer who forgot to clock, or clocked at the wrong time, asks the office to put it right. The office decides. */
+function CorrectionControls({ v, now }: { v: MyVisit; now: number }) {
+  if (["CANCELLED", "NOT_DELIVERED"].includes(v.status) || v.scheduledStart.getTime() > now) return null;
+  const date = fromDbDate(v.date);
+  return (
+    <div className="mt-2">
+      {v.correctionRequests.map((r) => (
+        <p key={r.id} className="text-[13.5px] text-slate-700">You asked to change your {r.kind === "IN" ? "clock-in" : "clock-out"} to {londonTime(r.requestedTime)}: {r.status === "PENDING" ? "waiting for the office" : r.status === "APPROVED" ? "approved" : `rejected${r.decisionNote ? ` (${r.decisionNote})` : ""}`}.</p>
+      ))}
+      <details className="mt-1">
+        <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Ask the office to correct a time</summary>
+        <form action={requestClockCorrectionAction} className="mt-2 space-y-2">
+          <input type="hidden" name="back" value="/carer" />
+          <input type="hidden" name="visitId" value={v.id} />
+          <div className="grid grid-cols-3 gap-2">
+            <label><span className="label">Which</span><select name="kind" className="input"><option value="IN">Clock in</option><option value="OUT">Clock out</option></select></label>
+            <label><span className="label">Date</span><input type="date" name="date" defaultValue={date} required className="input" /></label>
+            <label><span className="label">Time</span><input type="time" name="time" required className="input" /></label>
+          </div>
+          <label className="block"><span className="label">What happened</span><input name="reason" required minLength={5} className="input" placeholder="e.g. phone had no signal when I arrived" /></label>
+          <button className="btn-secondary">Send to the office</button>
         </form>
       </details>
     </div>

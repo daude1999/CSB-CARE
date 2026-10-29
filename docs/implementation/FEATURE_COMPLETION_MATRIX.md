@@ -49,3 +49,13 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | Policy assignment rules | /staff/policy/[id] | ✓ | create, withdraw | n/a | ✓ (zod) | signoff.manage; branch-limited members only target their branches | ✓ | int + e2e | withdrawing removes outstanding rows not covered by another rule |
 | Staff Sign-off | /staff, /staff/person/[key], /api/staff-signoff | ✓ | read, exempt, assess, correct, CSV | person, policy, branch, role, state, overdue | ✓ | signoff.manage to act; branch scope | ✓ (export audited) | int + e2e | acknowledgement is not training and the page says so |
 | Read and acknowledge | /acknowledgements, /policies/[id] | ✓ | open, acknowledge | state | fixed wording | own rows only | ✓ events append-only | int + e2e | assessment step where the rule asks for one |
+| Clock correction requests | /carer, /rota/visits/[id] | ✓ | request, approve, reject | n/a | ✓ (zod, 24-hour window) | carer own visits; rota.clockCorrect to decide; requester cannot decide (DB trigger) | ✓ | int + e2e | approval supersedes the carer's record |
+| Timesheet attendance checks | /rota/finance/timesheets/[id] | ✓ | check per line or all | n/a | ✓ | rota.edit or finance.manage; not your own timesheet | ✓ | int | submit refused while exception lines are unchecked |
+
+## Version 1 additions (Administration, Reporting)
+
+| Feature | Route | State | CRUD | Filters | Validation | Permissions | Audit | Tests | Note |
+|---|---|---|---|---|---|---|---|---|---|
+| Users and invitations | /admin/users, /account/[token] | ✓ | invite, revoke, edit roles and branches, deactivate, reactivate, reset link | status, name or email | ✓ (zod, 12-character passwords) | org.manage; one admin always remains | ✓ | int + e2e | links handed over by the admin, nothing emailed |
+| Audit log viewer | /admin/audit, /api/admin/audit | ✓ | read, CSV | who, action, record type, dates; paged | ✓ | org.manage; own organisation only | export audited | int + e2e | |
+| Analytics | /analytics, /api/analytics | ✓ | read, CSV | branch, dates, area | ✓ (dates, branch) | analytics.view plus each measure's module permission | export audited | int + e2e | 14 measures with definitions |

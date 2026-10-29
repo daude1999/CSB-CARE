@@ -11,7 +11,7 @@ import { PLAN_SECTIONS, approvePlan, draftFingerprint, saveDraft, startDraft, su
 import { createRisk } from "@/server/care/risks";
 import { closeIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { addBand, addBankHoliday, createRateCard, saveFunder, setPackageFunder, updateFinanceSettings } from "@/server/finance/rates";
-import { bulkTimesheets, generateTimesheets } from "@/server/finance/timesheets";
+import { bulkTimesheets, generateTimesheets, verifyLines } from "@/server/finance/timesheets";
 import { prepareInvoiceRun, preparePayRun } from "@/server/finance/runs";
 import type { Ctx } from "@/server/auth/rbac";
 import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
@@ -313,6 +313,10 @@ async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ct
   // Last week: timesheets prepared and submitted by the coordinator, approved by finance; draft runs prepared by finance.
   const lastWeek = addDays(mondayOf(today), -7);
   await generateTimesheets(coordinator, lastWeek);
+  // The office checks every line with an exception before submitting, as a coordinator would after phoning round.
+  for (const t of await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(lastWeek), status: "DRAFT", exceptions: { gt: 0 } } })) {
+    await verifyLines(coordinator, t.id, t.version, "exceptions", "Checked against the office call log");
+  }
   await bulkTimesheets(coordinator, lastWeek, "submit");
   if (financeUserId) {
     const finance = await ctxForUser(financeUserId, organisationId);

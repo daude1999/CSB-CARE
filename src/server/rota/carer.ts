@@ -25,6 +25,7 @@ export async function myVisits(ctx: Ctx) {
       callType: { select: { name: true } },
       tasks: { orderBy: { position: "asc" }, select: { id: true, name: true, outcomes: { where: { staffId: staff.id }, select: { outcome: true, note: true, at: true } } } },
       visitNotes: { orderBy: { createdAt: "desc" }, select: { id: true, category: true, text: true, createdAt: true, staffId: true } },
+      correctionRequests: { where: { staffId: staff.id, origin: "CARER" }, orderBy: { createdAt: "desc" }, select: { id: true, kind: true, requestedTime: true, status: true, decisionNote: true } },
       assignments: { where: { removedAt: null }, select: { id: true, slot: true, staffId: true, acknowledgedAt: true, staff: { select: { displayName: true } } } },
       clocks: { where: { staffId: staff.id }, select: { id: true, kind: true, at: true, supersedesId: true }, orderBy: { at: "asc" } },
     },

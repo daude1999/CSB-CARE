@@ -161,3 +161,15 @@ One full run covered both items; each item's own tests were run first.
 | `npm run test:hr` | pass |
 | `npm run build` | pass |
 | `npm run test:e2e` | 35 passed. Adds: the carer writes a handover note and the coordinator finds it on Visit Notes; the coordinator replaces a person's care package |
+
+## V1 items 6, 7 and 8: attendance verification, user administration and audit log, analytics (30 Oct 2026)
+
+One full run covered all three items; each item's own tests were run first.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 31 files, 246 passed. Adds `tests/integration/corrections.test.ts` (4: carer request, second person decides, approved time recorded as an office entry, rejection needs a reason, database guards on decided requests and checked timesheet lines, submit refused while exception lines are unchecked), `tests/integration/admin-users.test.ts` (7: invite link redeemed once, expiry, deactivation removes access and restores roles on reactivation, the last organisation admin kept, reset links, audit page and CSV scoped to the organisation) and `tests/integration/kpis.test.ts` (4: figures counted from records, branch scope, CSV) |
+| `npm run test:hr` | 14 passed |
+| `npm run build` | pass |
+| `npm run test:e2e` | 37 passed, 1 failed: the clock-correction test. The visit page's rejection message never showed because a redirect back to `…#corrections` put `?error=` inside the fragment. `withParam` now keeps the fragment after the query (`tests/unit/action-kit.test.ts`, 2 passed). Two test fixes: the alert is matched by text (Next's route announcer also has `role=alert`), and the requested time is inside the visit. The requester's name on the visit page now shows (it read "Former member"). After a rebuild, `npx playwright test tests/e2e/v1.spec.ts -g "clock corrections"` passed, including the approval path |

@@ -95,4 +95,67 @@ test.describe("Version 1", () => {
     await expect(page.getByRole("status")).toContainText("Care package recorded");
     await expect(page.getByText("PKG-E2E")).toBeVisible();
   });
+
+  test("clock corrections: the carer asks for a corrected time and a coordinator approves it", async ({ page }) => {
+    await signIn(page, "carer@care-solution.demo");
+    await page.goto("/carer");
+    await page.getByText("Ask the office to correct a time").first().click();
+    const form = page.locator("form:has(input[name=reason][placeholder*=signal])").first();
+    await form.locator("select[name=kind]").selectOption("IN");
+    await form.locator("input[name=time]").fill("07:05");
+    await form.locator("input[name=reason]").fill("Phone had no signal when I arrived");
+    await form.getByRole("button", { name: "Send to the office" }).click();
+    await expect(page.getByRole("status")).toContainText("Request sent to the office");
+    await page.context().clearCookies();
+    await signIn(page, "coordinator@care-solution.demo");
+    await page.goto("/rota/exceptions?kind=CLOCK_CORRECTION");
+    await page.locator("ul.rows a.row-title").first().click();
+    const req = page.locator("section[aria-label='Clock correction requests']");
+    await expect(req.getByText("Phone had no signal when I arrived")).toBeVisible();
+    await req.getByRole("button", { name: "Reject" }).first().click();
+    await expect(page.getByRole("alert").filter({ hasText: "Say why" })).toBeVisible();
+    await req.getByRole("button", { name: "Approve" }).first().click();
+    await expect(page.getByRole("status")).toContainText("Decision recorded");
+    await expect(req.getByText("Approved").first()).toBeVisible();
+  });
+
+  test("users: the admin invites a coordinator, who sets a password from the one-time link and signs in", async ({ page, browser }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/admin/users");
+    await expect(page.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
+    const invite = page.locator("form:has(input[name=email])");
+    await invite.locator("input[name=name]").fill("Pilot Coordinator");
+    const email = `pilot-${Date.now()}@example.test`;
+    await invite.locator("input[name=email]").fill(email);
+    await invite.locator("input[value=CARE_COORDINATOR]").check();
+    await invite.getByRole("button", { name: "Create invitation link" }).click();
+    const link = (await page.getByTestId("one-time-link").textContent())!.trim();
+    const other = await browser.newPage();
+    await other.goto(link.replace(/^https?:\/\/[^/]+/, ""));
+    await other.getByLabel("Password", { exact: true }).fill("pilot password for testing");
+    await other.getByLabel("Type it again").fill("pilot password for testing");
+    await other.getByRole("button", { name: "Create my account" }).click();
+    await expect(other).toHaveURL(/\/login/);
+    await other.getByLabel("Email").fill(email);
+    await other.getByLabel("Password").fill("pilot password for testing");
+    await other.getByRole("button", { name: "Sign in" }).click();
+    await expect(other.getByTestId("current-user")).toBeVisible();
+    await other.close();
+    await page.goto("/admin/audit?action=admin.member");
+    await expect(page.getByRole("cell", { name: "admin.member.joined" }).first()).toBeVisible();
+  });
+
+  test("analytics: the manager reads the measures with their definitions and narrows to one branch", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/analytics");
+    await expect(page.getByRole("heading", { level: 1, name: "Analytics" })).toBeVisible();
+    await expect(page.locator("tr[data-kpi=visits-delivered]")).toContainText("Completed visits as a share");
+    await page.locator("select[name=branch]").selectOption({ label: "Liverpool" });
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page).toHaveURL(/branch=/);
+    await expect(page.getByText(/^Liverpool ·/)).toBeVisible();
+    const csv = await page.request.get(`/api/analytics?${new URL(page.url()).searchParams}`);
+    expect(csv.status()).toBe(200);
+    expect(await csv.text()).toContain("Definition");
+  });
 });

@@ -9,7 +9,8 @@ Written plainly so nothing below is mistaken for working software.
 - eMAR and medication. Visits show a "medication prompt" flag only. No medication-compliance figures are shown anywhere.
 - Finance prepares figures only. Nothing is ever paid, invoiced, submitted to HMRC or sent to a funder. Pay runs show gross pay before deductions; tax and National Insurance are left to the payroll provider. The CSV is for import into other systems.
 - Mileage claims have no entry screen yet. Pay runs include approved claims if any exist, but the demo has none.
-- The wider Reporting & Analytics and Administration modules. Rota Reports (/rota/reports) are built; they are worked out live, at most 92 days at a time, and do not include charts or scheduled emails.
+- Reporting & Analytics has no charts by month or scheduled reports yet. Analytics covers at most a year at a time and Rota Reports 92 days.
+- Invitations and password resets are not emailed: the admin copies a one-time link and gives it to the person.
 
 - Policy acknowledgement assessments are a manager's recorded pass or fail, not an online quiz. Reminders and escalations for overdue acknowledgements are in-app only; no email or text goes to staff who have no sign-in, so their manager sees them as outstanding on Staff Sign-off.
 

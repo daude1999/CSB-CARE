@@ -193,6 +193,16 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
     const v = await lockVisit(tx, scope, visitId);
     if (Math.abs(at.getTime() - v.scheduledStart.getTime()) > 24 * 3600000) throw new ValidationError("That time is more than a day away from the visit");
     const settings = await rotaSettings(tx, scope.organisationId);
-    return applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, note: p.data.note || undefined, supersedesId: p.data.supersedesId || null });
+    const r = await applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, note: p.data.note || undefined, supersedesId: p.data.supersedesId || null });
+    // Recorded as an approved request too, so office entries and carers' requests share one trail.
+    await tx.clockCorrectionRequest.create({ data: { organisationId: scope.organisationId, visitId: v.id, staffId: p.data.staffId, kind: p.data.kind, requestedTime: at, reason: p.data.reason, origin: "OFFICE", status: "APPROVED", requestedById: ctx.userId, decidedById: ctx.userId, decidedAt: new Date(), clockId: r.clock.id } });
+    return r;
   });
+}
+
+/** Records an approved correction request as an office entry. The caller has checked scope and separation of duties. */
+export async function clockFromRequest(tx: Tx, scope: Scope, visitId: string, c: Omit<ClockInput, "method">) {
+  const v = await lockVisit(tx, scope, visitId);
+  const settings = await rotaSettings(tx, scope.organisationId);
+  return applyClock(tx, scope, v, settings, { ...c, method: "OFFICE" });
 }

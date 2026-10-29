@@ -19,12 +19,15 @@ export function safeBack(v: FormDataEntryValue | null, fallback = "/") {
 }
 
 export function withParam(url: string, key: string, value: string) {
-  const [path, query = ""] = url.split("?");
+  // Keep a #fragment after the query, or the message would land inside it and never reach the page.
+  const hashAt = url.indexOf("#");
+  const hash = hashAt >= 0 ? url.slice(hashAt) : "";
+  const [path, query = ""] = (hashAt >= 0 ? url.slice(0, hashAt) : url).split("?");
   const q = new URLSearchParams(query);
   q.delete("ok");
   q.delete("error");
   q.set(key, value);
-  return `${path}?${q}`;
+  return `${path}?${q}${hash}`;
 }
 
 /** `fn` may return where to go next, or `{ to, ok }` when the confirmation depends on what happened (e.g. bulk results). */

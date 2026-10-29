@@ -13,11 +13,12 @@ import { acknowledgeMyVisits } from "@/server/rota/carer";
 import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
+import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
 import { addBand, addBankHoliday, createRateCard, removeBand, removeBankHoliday, saveFunder, setPackageFunder, setStaffPayCard, updateFinanceSettings } from "@/server/finance/rates";
-import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet } from "@/server/finance/timesheets";
+import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet, verifyLines } from "@/server/finance/timesheets";
 import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
@@ -762,4 +763,26 @@ export async function updatePackageAction(fd: FormData) {
 
 export async function endPackageAction(fd: FormData) {
   return handle(fd, (ctx) => endPackage(ctx, str(fd, "packageId"), { endDate: str(fd, "endDate"), reason: str(fd, "reason") }), "Care package ended");
+}
+
+// ── Attendance verification ───────────────────────────────────────────────
+
+export async function requestClockCorrectionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await requestClockCorrection(ctx, str(fd, "visitId"), { kind: str(fd, "kind") === "OUT" ? "OUT" : "IN", date: str(fd, "date"), time: str(fd, "time"), reason: str(fd, "reason") });
+  }, "Request sent to the office");
+}
+
+export async function decideClockCorrectionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await decideClockCorrection(ctx, str(fd, "requestId"), str(fd, "decision") === "APPROVED" ? "APPROVED" : "REJECTED", str(fd, "note"));
+  }, "Decision recorded");
+}
+
+export async function verifyLinesAction(fd: FormData) {
+  const ids = fd.getAll("lineId").filter((x): x is string => typeof x === "string" && !!x);
+  return handle(fd, async (ctx) => {
+    const n = await verifyLines(ctx, str(fd, "timesheetId"), Number(str(fd, "version")), ids.length ? ids : "exceptions", str(fd, "note"));
+    return { ok: `${n} line${n === 1 ? "" : "s"} checked` };
+  }, "Lines checked");
 }

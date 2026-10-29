@@ -34,6 +34,8 @@ export const ORG_PERMISSIONS = {
   "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** Reporting & Analytics measures; each measure also needs its own module's permission. */
+  "analytics.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER", "CARE_MANAGER", "FINANCE_OFFICER"],
   "operations.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "assistant.use": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "FINANCE_OFFICER"],
 

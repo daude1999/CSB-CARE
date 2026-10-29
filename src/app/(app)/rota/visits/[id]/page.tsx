@@ -4,6 +4,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
+import { CLOCK_KIND_LABEL, listCorrectionRequests } from "@/server/rota/corrections";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
@@ -11,7 +12,7 @@ import { rotaSettings } from "@/server/rota/settings";
 import { READINESS_LABEL } from "@/server/readiness";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
-import { addVisitNoteAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
+import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 
@@ -35,10 +36,11 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const editable = canEdit && v.status === "SCHEDULED";
   const assignable = canEdit && ["SCHEDULED", "MISSED"].includes(v.status);
   const slots: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), "SHADOW"];
+  const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
   const [candidates, lk, names] = await Promise.all([
     assignable ? Promise.all(slots.map(async (s) => [s, await visitCandidates(ctx, v, s)] as const)) : Promise.resolve([]),
     editable ? rotaLookups(ctx) : Promise.resolve(null),
-    memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId)]),
+    memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId), ...requests.flatMap((r) => [r.requestedById, r.decidedById])]),
   ]);
   const date = fromDbDate(v.date);
   const back = `/rota/visits/${v.id}`;
@@ -46,6 +48,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const inForce = new Set(effectiveClocks(v.clocks).map((c) => c.id));
   const carerName = (staffId: string | null) => v.assignments.find((a) => a.staffId === staffId)?.staff.displayName ?? "Carer";
   const canNote = hasOrgPermission(ctx, "rota.edit");
+  const canDecideRequests = hasOrgPermission(ctx, "rota.clockCorrect");
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
 
@@ -150,6 +153,37 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               </ul>
             ) : <Empty>No tasks on this visit.</Empty>}
           </Card>
+
+          {requests.length ? (
+            <section id="corrections" aria-label="Clock correction requests">
+              <Card title="Clock correction requests">
+                <ul className="rows">
+                  {requests.map((r) => (
+                    <li key={r.id} className="py-2 text-[14px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{carerName(r.staffId)}: {CLOCK_KIND_LABEL[r.kind]} at {londonTime(r.requestedTime)} {fmtDate(r.requestedTime)}</span>
+                        <Badge tone={r.status === "PENDING" ? "amber" : r.status === "APPROVED" ? "green" : "slate"}>{r.status === "PENDING" ? "Waiting" : r.status === "APPROVED" ? "Approved" : "Rejected"}</Badge>
+                        {r.origin === "OFFICE" ? <span className="text-[12.5px] text-slate-500">entered by the office</span> : null}
+                      </div>
+                      <p className="text-[13.5px] text-slate-700">{r.reason} · asked by {who(r.requestedById)} {fmtDate(r.createdAt, true)}</p>
+                      {r.decidedById && r.origin !== "OFFICE" ? <p className="text-[13px] text-slate-600">Decided by {who(r.decidedById)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : null}
+                      {r.status === "PENDING" && canDecideRequests ? (
+                        r.requestedById === ctx.userId ? <p className="text-[13px] text-slate-600">You asked for this, so someone else must decide it.</p> : (
+                          <form action={decideClockCorrectionAction} className="mt-1 flex flex-wrap items-end gap-2">
+                            <input type="hidden" name="back" value={`${back}#corrections`} />
+                            <input type="hidden" name="requestId" value={r.id} />
+                            <input name="note" className="input w-56 py-1" placeholder="Note (needed to reject)" aria-label="Decision note" />
+                            <button className="btn-primary py-1" name="decision" value="APPROVED">Approve</button>
+                            <button className="btn-secondary py-1" name="decision" value="REJECTED">Reject</button>
+                          </form>
+                        )
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          ) : null}
 
           <section id="attendance" aria-label="Attendance">
           <Card title="Attendance and notes">

@@ -99,6 +99,7 @@ model Organisation {
   serviceUsers          ServiceUser[]
   areas                 Area[]
   visits                Visit[]
+  accountTokens AccountToken[]
 }
 
 model ServiceType {
@@ -155,6 +156,9 @@ model Membership {
   areas          MembershipArea[]
   /// Branches this member may work in. None means every branch in the organisation (the single-branch default).
   branches       MembershipBranch[]
+  /// Set when an administrator deactivates the member: roles are cleared and kept here for reactivation.
+  deactivatedAt           DateTime?
+  rolesBeforeDeactivation OrgRole[]  @default([])
 
   @@unique([userId, organisationId])
   @@index([organisationId])
@@ -1968,6 +1972,7 @@ model Visit {
   @@index([organisationId, status, date])
   @@index([serviceUserId, date])
   @@index([templateId, date])
+  correctionRequests ClockCorrectionRequest[]
 }
 
 enum AssignmentSlot {
@@ -2349,6 +2354,36 @@ model TimesheetLine {
   payableMinutes   Int
   /// Why this line is not straightforward (no clock out, short visit, office-corrected…).
   exception        String?
+  /// Attendance verification: a line with an exception is checked by the office before the timesheet is submitted.
+  verifiedById     String?
+  verifiedAt       DateTime?
+  verificationNote String?
+}
+
+/// A request to correct a clock time. A carer's request is decided by someone else (database trigger); office
+/// entries are recorded as approved requests (origin OFFICE) so every hand-entered time has one trail.
+model ClockCorrectionRequest {
+  id             String    @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  staffId        String
+  kind           ClockKind
+  requestedTime  DateTime
+  reason         String
+  /// CARER | OFFICE
+  origin         String    @default("CARER")
+  /// PENDING | APPROVED | REJECTED
+  status         String    @default("PENDING")
+  requestedById  String
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  clockId        String?
+  createdAt      DateTime  @default(now())
+
+  @@index([organisationId, status])
+  @@index([visitId])
 }
 
 enum ClaimStatus {
@@ -2768,4 +2803,28 @@ model AcknowledgementEvent {
 
   @@index([acknowledgementId, at])
   @@index([organisationId, type, at])
+}
+
+/// One-time link for joining an organisation (INVITE) or choosing a new password (RESET). Only the hash is stored;
+/// the administrator gives the link to the person. Nothing is emailed.
+model AccountToken {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  /// INVITE | RESET
+  kind           String
+  email          String
+  name           String?
+  userId         String?
+  roles          OrgRole[]    @default([])
+  branchIds      String[]     @default([])
+  jobTitle       String?
+  tokenHash      String       @unique
+  createdById    String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organisationId, kind])
 }

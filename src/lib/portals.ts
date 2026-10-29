@@ -28,7 +28,7 @@ export const PORTALS: readonly Portal[] = [
   { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/", colour: "#1f5fd1", tint: "#eaf1fd" },
   { id: "rota", name: "Rostering & Care Management", code: "RC", summary: "Service users, rota, visits, call monitoring, care records, finance", home: "/rota", colour: "#6b46c9", tint: "#f1ecfc" },
   { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", separateApp: true, colour: "#c92a54", tint: "#fdebef" },
-  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Reports and the AI assistant", home: "/reports", colour: "#0b6f99", tint: "#e5f4fa" },
+  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Measures, reports and the AI assistant", home: "/analytics", colour: "#0b6f99", tint: "#e5f4fa" },
   { id: "admin", name: "Administration & Settings", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#4b5666", tint: "#eef0f3" },
 ];
 
@@ -42,6 +42,7 @@ const PREFIXES: [string, PortalId][] = [
   ["/workforce", "hr"],
   ["/hr", "hr"],
   ["/reports", "reporting"],
+  ["/analytics", "reporting"],
   ["/assistant", "reporting"],
   ["/settings", "admin"],
   ["/modules", "admin"],

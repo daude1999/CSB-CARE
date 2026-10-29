@@ -306,8 +306,8 @@ export async function deleteBuild(ctx: Ctx, buildId: string, reason: string) {
   return db.$transaction(async (tx) => {
     const b = await tx.rotaBuild.findFirst({ where: { id: buildId, organisationId: scope.organisationId, status: "BUILT" } });
     if (!b) throw new ValidationError("Build not found");
-    const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id }, select: { id: true, reference: true, status: true, manuallyChanged: true, scheduledStart: true, _count: { select: { clocks: true, visitNotes: true, taskOutcomes: true } } } });
-    const blockers = visits.filter((v) => v.status !== "SCHEDULED" || v.manuallyChanged || v.scheduledStart <= new Date() || v._count.clocks || v._count.visitNotes || v._count.taskOutcomes);
+    const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id }, select: { id: true, reference: true, status: true, manuallyChanged: true, scheduledStart: true, _count: { select: { clocks: true, visitNotes: true, taskOutcomes: true, correctionRequests: true } } } });
+    const blockers = visits.filter((v) => v.status !== "SCHEDULED" || v.manuallyChanged || v.scheduledStart <= new Date() || v._count.clocks || v._count.visitNotes || v._count.taskOutcomes || v._count.correctionRequests);
     if (blockers.length) throw new ValidationError(`Cannot delete: ${blockers.length} visit${blockers.length === 1 ? " has" : "s have"} started, been changed by hand or been recorded (e.g. ${blockers.slice(0, 3).map((v) => v.reference).join(", ")}). Cancel individual visits instead.`);
     // Their CREATED events go with them (the event trigger allows deletion only by cascade from a removed visit).
     await tx.visit.deleteMany({ where: { id: { in: visits.map((v) => v.id) } } });

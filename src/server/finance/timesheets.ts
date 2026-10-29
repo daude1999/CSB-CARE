@@ -81,8 +81,15 @@ export async function generateTimesheets(ctx: Ctx, weekStart: string) {
       });
       const totals = { scheduledMinutes: lines.reduce((n, l) => n + l.scheduledMinutes, 0), deliveredMinutes: lines.reduce((n, l) => n + l.deliveredMinutes, 0), payableMinutes: lines.reduce((n, l) => n + l.payableMinutes, 0), exceptions: lines.filter((l) => l.exception).length };
       if (existing) {
+        // Checks already made stay with a line whose figures and exception have not changed.
+        const before = await tx.timesheetLine.findMany({ where: { timesheetId: existing.id, verifiedAt: { not: null } } });
+        const kept = new Map(before.map((l) => [`${l.visitId}|${l.exception}|${l.payableMinutes}`, l]));
+        const withChecks = lines.map((l) => {
+          const k = kept.get(`${l.visitId}|${l.exception}|${l.payableMinutes}`);
+          return k ? { ...l, verifiedById: k.verifiedById, verifiedAt: k.verifiedAt, verificationNote: k.verificationNote } : l;
+        });
         await tx.timesheetLine.deleteMany({ where: { timesheetId: existing.id } });
-        await tx.timesheet.update({ where: { id: existing.id }, data: { ...totals, status: "DRAFT", generatedById: ctx.userId, generatedAt: new Date(), submittedById: null, submittedAt: null, version: { increment: 1 }, lines: { create: lines } } });
+        await tx.timesheet.update({ where: { id: existing.id }, data: { ...totals, status: "DRAFT", generatedById: ctx.userId, generatedAt: new Date(), submittedById: null, submittedAt: null, version: { increment: 1 }, lines: { create: withChecks } } });
         refreshed++;
       } else {
         await tx.timesheet.create({ data: { organisationId, staffId, periodStart: dbDate(start), periodEnd: dbDate(end), generatedById: ctx.userId, ...totals, lines: { create: lines } } });
@@ -131,7 +138,8 @@ export async function adjustLine(ctx: Ctx, timesheetId: string, version: number,
     if (t.status !== "DRAFT" && t.status !== "REJECTED") throw new ValidationError("Only a draft or rejected timesheet can be changed");
     const line = await tx.timesheetLine.findFirst({ where: { id: lineId, timesheetId: t.id } });
     if (!line) throw new NotFoundError("Timesheet line");
-    await tx.timesheetLine.update({ where: { id: line.id }, data: { payableMinutes: minutes, exception: [line.exception, `Adjusted from ${line.payableMinutes} to ${minutes} min: ${reason.trim()}`].filter(Boolean).join("; ") } });
+    // A change with a reason is the office's check of that line.
+    await tx.timesheetLine.update({ where: { id: line.id }, data: { payableMinutes: minutes, exception: [line.exception, `Adjusted from ${line.payableMinutes} to ${minutes} min: ${reason.trim()}`].filter(Boolean).join("; "), ...(line.verifiedAt ? {} : { verifiedById: ctx.userId, verifiedAt: new Date(), verificationNote: reason.trim() }) } });
     const sum = await tx.timesheetLine.aggregate({ where: { timesheetId: t.id }, _sum: { payableMinutes: true } });
     await tx.timesheet.update({ where: { id: t.id }, data: { payableMinutes: sum._sum.payableMinutes ?? 0, version: { increment: 1 } } });
     await audit({ organisationId, actorId: ctx.userId, action: "finance.timesheet.adjusted", entityType: "Timesheet", entityId: t.id, data: { lineId: line.id, from: line.payableMinutes, to: minutes, reason: reason.trim() } }, tx);
@@ -143,8 +151,30 @@ export async function submitTimesheet(ctx: Ctx, id: string, version: number) {
   return db.$transaction(async (tx) => {
     const t = await lockTimesheet(tx, ctx, organisationId, id, version);
     if (t.status !== "DRAFT" && t.status !== "REJECTED") throw new ValidationError("Only a draft or rejected timesheet can be submitted");
+    const unchecked = await tx.timesheetLine.count({ where: { timesheetId: t.id, exception: { not: null }, verifiedAt: null } });
+    if (unchecked) throw new ValidationError(`${unchecked} line${unchecked === 1 ? "" : "s"} with exceptions still need checking before this can be submitted`);
     await tx.timesheet.update({ where: { id: t.id }, data: { status: "SUBMITTED", submittedById: ctx.userId, submittedAt: new Date(), decidedById: null, decidedAt: null, decisionNote: null, version: { increment: 1 } } });
     await audit({ organisationId, actorId: ctx.userId, action: "finance.timesheet.submitted", entityType: "Timesheet", entityId: t.id, data: { payableMinutes: t.payableMinutes, exceptions: t.exceptions } }, tx);
+  });
+}
+
+/**
+ * Attendance verification: the office confirms lines with exceptions against what happened (a call, the carer's
+ * account, the family). Nobody checks their own timesheet. The check stays on the line and in the audit log.
+ */
+export async function verifyLines(ctx: Ctx, timesheetId: string, version: number, which: string[] | "exceptions", note: string) {
+  const organisationId = requireAny(ctx, PREPARE);
+  if (note.trim().length < 3) throw new ValidationError("Say how the lines were checked");
+  return db.$transaction(async (tx) => {
+    const t = await lockTimesheet(tx, ctx, organisationId, timesheetId, version);
+    if (t.status !== "DRAFT" && t.status !== "REJECTED") throw new ValidationError("Only a draft or rejected timesheet can be checked");
+    if (await tx.staffMember.findFirst({ where: { id: t.staffId, userId: ctx.userId } })) throw new ForbiddenError("You cannot check your own timesheet");
+    const lines = await tx.timesheetLine.findMany({ where: { timesheetId: t.id, verifiedAt: null, ...(which === "exceptions" ? { exception: { not: null } } : { id: { in: which } }) }, select: { id: true } });
+    if (!lines.length) throw new ValidationError("Nothing left to check on this timesheet");
+    await tx.timesheetLine.updateMany({ where: { id: { in: lines.map((l) => l.id) } }, data: { verifiedById: ctx.userId, verifiedAt: new Date(), verificationNote: note.trim() } });
+    await tx.timesheet.update({ where: { id: t.id }, data: { version: { increment: 1 } } });
+    await audit({ organisationId, actorId: ctx.userId, action: "finance.timesheet.verified", entityType: "Timesheet", entityId: t.id, data: { lines: lines.length, note: note.trim() } }, tx);
+    return lines.length;
   });
 }
 
