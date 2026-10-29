@@ -8,6 +8,7 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
+import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
@@ -385,4 +386,28 @@ export async function removeCarerPreferenceAction(fd: FormData) {
 
 export async function keySafeAction(fd: FormData) {
   return handle(fd, (ctx) => setKeySafe(ctx, str(fd, "serviceUserId"), str(fd, "code")), "Key safe code saved (encrypted)");
+}
+
+// ── Reference lists ────────────────────────────────────────────────────────
+
+export async function saveAreaAction(fd: FormData) {
+  return handle(fd, (ctx) => saveArea(ctx, { id: str(fd, "areaId") || undefined, name: str(fd, "name"), colour: str(fd, "colour"), branchId: str(fd, "branchId") || null }), "Area saved");
+}
+export async function areaActiveAction(fd: FormData) {
+  return handle(fd, (ctx) => setAreaActive(ctx, str(fd, "areaId"), str(fd, "active") === "1"), "Area updated");
+}
+export async function memberAreasAction(fd: FormData) {
+  return handle(fd, (ctx) => setMemberAreas(ctx, str(fd, "membershipId"), ids(fd, "areaIds")), "Coordinator areas saved");
+}
+export async function createCallTypeAction(fd: FormData) {
+  return handle(fd, (ctx) => createCallType(ctx, { name: str(fd, "name"), defaultDurationMin: str(fd, "defaultDurationMin"), monitored: bool(fd, "monitored"), chargeable: bool(fd, "chargeable") }), "Call type added");
+}
+export async function callTypeActiveAction(fd: FormData) {
+  return handle(fd, (ctx) => setCallTypeActive(ctx, str(fd, "id"), str(fd, "active") === "1"), "Call type updated");
+}
+export async function createCareTaskAction(fd: FormData) {
+  return handle(fd, (ctx) => createCareTask(ctx, { name: str(fd, "name"), description: str(fd, "description") }), "Task added");
+}
+export async function careTaskActiveAction(fd: FormData) {
+  return handle(fd, (ctx) => setCareTaskActive(ctx, str(fd, "id"), str(fd, "active") === "1"), "Task updated");
 }
