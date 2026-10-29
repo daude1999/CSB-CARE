@@ -83,7 +83,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff"]) {
+      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -92,6 +92,22 @@ test.describe("Rostering & Care Management", () => {
       }
     });
   }
+
+  test("care records: open a care plan from the register, then report an incident that a manager can see", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota/care-plans");
+    await page.locator("tbody tr", { hasNotText: "No plan in use" }).locator("a[href^='/rota/care-plans/']").first().click();
+    await expect(page.getByRole("heading", { level: 2, name: /^Version \d+$/ }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "About me" })).toBeVisible();
+
+    await page.goto("/rota/incidents/new");
+    await page.getByLabel("Category").selectOption("Fall");
+    await page.getByLabel("How serious").selectOption("LOW");
+    await page.getByLabel("What happened").fill("Browser test: slipped on a wet floor in the kitchen, no injury seen.");
+    await page.getByRole("button", { name: "Send report" }).click();
+    await expect(page.getByRole("status")).toContainText(/Reported as INC-/);
+    await expect(page.getByRole("heading", { level: 2, name: "Timeline" })).toBeVisible();
+  });
 
   test("keyboard: a visit can be opened and reassigned without a mouse", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");

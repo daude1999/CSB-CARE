@@ -8,7 +8,7 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 1 | Today | /rota | ✓ | read | n/a | n/a | ✓ | n/a | e2e | late starts, cover gaps, review list, next two hours, next week's build, open alerts |
 | 2 | Service users | /rota/service-users | ✓ | ✓ | ✓ | ✓ | ✓ sensitive fields gated | ✓ | int + e2e | contacts, absences, preferences, key safe, status flow |
 | 3 | Care packages | — | ✗ | | | | | | | the service user's visit pattern lives in templates for now |
-| 4 | Care plans and risks | — | ✗ | | | | | | | schema only |
+| 4 | Care plans and risks | /rota/care-plans, /rota/risks, /carer/care-plan/[id] | ✓ | ✓ | ✓ | ✓ | edit, approve (second person), carer own people only | ✓ | int + e2e | approved versions frozen by trigger |
 | 5 | Recurring templates (1–4 week cycle) | /rota/templates | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | int | carer clash refused, bulk enable/disable/nudge, duplicate, apply to built visits |
 | 6 | Template planner | /rota/templates/planner | ✓ | update | ✓ | ✓ | ✓ | ✓ | manual browser check | drag a template to another carer |
 | 7 | Build Rota | /rota/build | ✓ | ✓ | areas, cycle | ✓ | rota.build | ✓ | int + e2e | preview, checklist, confirm, publish, delete |
@@ -22,7 +22,7 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 15 | Live call monitor | /rota/monitor | ✓ | read + check now | area | n/a | rota.monitor | runs recorded | int + e2e | late, missed, overrun, not delivered; alert latency |
 | 16 | Carer mobile | /carer | ◐ | read, acknowledge, clock, not delivered | n/a | ✓ | own visits only | ✓ | int + e2e | no task recording, GPS, NFC or offline |
 | 17 | Tasks and notes | — | ✗ | | | | | | | call types and care tasks reference lists exist |
-| 18 | Incidents | — | ✗ | | | | | | | |
+| 18 | Incidents | /rota/incidents | ✓ | ✓ | ✓ | ✓ | report vs manage; reporters see own | ✓ | int + e2e | in-app alerts; never sends statutory notifications |
 | 19 | Timesheets | — | ✗ | | | | | | | |
 | 20 | Rates | — | ✗ | | | | | | | |
 | 21 | Finance and invoicing | — | ✗ | | | | | | | never issued automatically |

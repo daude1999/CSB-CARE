@@ -15,7 +15,7 @@ export default async function CarePlansPage({ searchParams }: { searchParams: Pr
   const ctx = await requireRotaPage("serviceUser.view");
   const { rows, totals } = await carePlanRegister(ctx, { q: sp.q?.trim() || undefined, filter: sp.show });
   const href = (show: string) => `/rota/care-plans?${new URLSearchParams({ ...(show ? { show } : {}), ...(sp.q ? { q: sp.q } : {}) })}`;
-  const count: Record<string, number> = { "": totals.all, none: totals.none, overdue: totals.overdue, review: totals.review };
+  const count: Record<string, number> = { "": totals.all, none: totals.none, overdue: totals.overdue, review: totals.review, draft: totals.draft };
 
   return (
     <>

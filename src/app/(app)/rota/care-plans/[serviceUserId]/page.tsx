@@ -96,7 +96,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
           )}
         </div>
 
-        <aside className="space-y-3" aria-label="Plan status and versions">
+        <aside className="order-first space-y-3 lg:order-none" aria-label="Plan status and versions">
           <Card title="Next step">
             {!open && canEdit ? (
               <form action={startDraftAction}>

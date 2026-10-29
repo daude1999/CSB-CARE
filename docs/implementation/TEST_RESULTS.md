@@ -38,3 +38,14 @@ Screenshots captured by the e2e run at 1440, 834 and 390 px are in `docs/impleme
 | `npm run test:e2e` (full) | 24 passed, 1 failed: `/rota/monitor` overflowed at 390 px because a screen-reader-only table heading escaped the scroll box. Fixed with `relative` on the wrapper |
 | `npx playwright test tests/e2e/rota.spec.ts` after the fix | 9 passed |
 | Manual browser check, carer at 390 px | Clocked in and out of a real visit; clocking out of a short visit was refused until a note was added; the clock rows and the SHORT_VISIT note were stored |
+
+## Care records checkpoint (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 16 files, 152 tests passed. Adds `tests/integration/care-records.test.ts` (8): demo seed, draft, stale save refused, empty sections refused, second-person approval, supersede on approval, database freeze of approved plans, carer read and confirm, risk review and archive, cross-tenant refusal, carer incident reporting, notifiable close |
+| `npm run build` | pass |
+| `npm run test:e2e` (full) | 26 passed, 0 failed |
+
+Care plan, risk and incident screenshots at 1440 and 390 px (`c1440_*`, `c390_*`) were taken from the local demo database and checked for page overflow.

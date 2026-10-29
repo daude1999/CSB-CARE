@@ -83,7 +83,7 @@ export async function carePlanRegister(ctx: Ctx, f: { q?: string; filter?: strin
     return { ...p, active, pending, overdue };
   });
   const filtered = rows.filter((r) => (f.filter === "none" ? !r.active : f.filter === "overdue" ? r.overdue : f.filter === "review" ? r.pending?.status === "IN_REVIEW" : f.filter === "draft" ? r.pending?.status === "DRAFT" : true));
-  return { rows: filtered, totals: { all: rows.length, none: rows.filter((r) => !r.active).length, overdue: rows.filter((r) => r.overdue).length, review: rows.filter((r) => r.pending?.status === "IN_REVIEW").length } };
+  return { rows: filtered, totals: { all: rows.length, none: rows.filter((r) => !r.active).length, overdue: rows.filter((r) => r.overdue).length, review: rows.filter((r) => r.pending?.status === "IN_REVIEW").length, draft: rows.filter((r) => r.pending?.status === "DRAFT").length } };
 }
 
 /** Starts a new draft, copied from the active version if there is one. Only one draft or review can be open at a time. */

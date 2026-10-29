@@ -16,10 +16,10 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 6 Rota screens | Done (core) | /rota (Today), /rota/visits, /rota/visits/[id], /rota/unassigned, /rota/planner (drag + confirm), /rota/templates (+new, [id], planner), /rota/build, /rota/service-users (+new, [id]), /rota/staff (+[id]), /rota/settings, /admin/areas |
 | 7 Call monitoring | Done | `src/server/rota/monitor.ts`: sweep in `maintenance.tick` (late alert, then missed once, overrun), /rota/monitor with Check now, last-check time and alert latency |
 | 8 Carer mobile | Mostly done | /carer: My Visits, acknowledgement, clock in/out (server time, nonce against double submit), short-visit note, "Could not deliver". Office entries and corrections on the visit page (`attendance.ts`). No GPS, NFC, offline or task recording |
-| 9 Care plans, risks, incidents | Not started | Schema + care-plan immutability trigger done |
+| 9 Care plans, risks, incidents | Done | `src/server/care/{care-plans,risks,incidents}.ts`. Versioned plans with second-person approval and carer read confirmation; risk register with reviews and archive; incidents with manager triage, notifiable reminder and close. Demo records seeded through the services |
 | 10 Finance | Not started | Schema + frozen-run triggers done |
 | 11 Reporting and admin | Not started | |
-| 12 Final QA | In progress | vitest 137, HR 14, e2e 24 (rota spec 8/8 after fixes); screenshots at 1440/834/390 in docs/implementation/screenshots. See TEST_RESULTS.md |
+| 12 Final QA | In progress | vitest 152, HR 14, e2e 26/26; screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)
 
@@ -30,7 +30,7 @@ Rota core first: staff link, templates, Build Rota, daily visits, planner. Carer
 1. Open the review PR (done once this checkpoint is pushed) and keep it green. Never merge without the owner's "merge".
 2. Carer task recording (VisitTaskOutcome) and visit notes from the phone.
 3. Timesheets from clock records.
-4. Care plans, risks, tasks and notes, incidents.
+4. Tasks and notes from the phone.
 5. Timesheets, rates, invoicing and payroll prep (separation of duties, never issued automatically).
 6. Rostering reports.
 

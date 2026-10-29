@@ -5,7 +5,8 @@ Written plainly so nothing below is mistaken for working software.
 ## Not built yet (marked "Planned" in the sidebar)
 - GPS, NFC and offline use on the carer page. Clock times are the server's time when the button is pressed, and the page says so. Task recording and notes from the phone (apart from the clock-out note) are not built.
 - Run routes and travel optimisation.
-- Care plans, risk assessments, tasks and notes, and incidents. The schema exists, including the care-plan immutability trigger, but there are no screens.
+- Visit task recording and general notes from the phone. Care plans, risk assessments and incidents are built.
+- Incidents: the "may need notifying" flag is a reminder only. The platform never sends notifications to CQC or a local authority.
 - eMAR and medication. Visits show a "medication prompt" flag only. No medication-compliance figures are shown anywhere.
 - Timesheets, rates, invoicing and payroll preparation. The schema and frozen-run triggers exist, but there are no screens. Nothing is ever issued automatically.
 - Rostering reports and the wider Reporting and Administration modules.
