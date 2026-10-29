@@ -1,10 +1,12 @@
 "use client";
 import Link from "@/components/link";
-import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CaretDown, List, SignOut, Swap, X } from "@phosphor-icons/react";
 import { portalForPath, type Portal } from "@/lib/portals";
-import { useIsActive } from "@/components/side-nav";
+import { mostSpecificActive, splitHref } from "@/lib/navigation";
+import { MOTION } from "@/lib/motion";
+import { usePendingHref } from "@/components/navigation-progress";
 
 export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean; /** Starts a labelled group of pages in the sidebar. */ group?: string };
 export type ShellPortal = Portal & { icon: React.ReactNode };
@@ -13,7 +15,7 @@ export type ShellOrganisation = { name: string; branch: string | null; options: 
 
 /** A portal with its own look (the HR Hub) loads as a fresh page so the two style sheets never mix. */
 function PortalAnchor({ portal, className, current, style, children }: { portal: ShellPortal; className: string; current: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
-  const props = { className, style, "data-portal-home": "", "aria-current": current ? ("page" as const) : undefined };
+  const props = { className, style, "data-portal-home": "", "data-portal": portal.id, "aria-current": current ? ("page" as const) : undefined };
   return portal.separateApp ? <a href={portal.home} {...props}>{children}</a> : <Link href={portal.home} {...props}>{children}</Link>;
 }
 
@@ -22,35 +24,64 @@ function PortalAnchor({ portal, className, current, style, children }: { portal:
 const ORDER = ["overview", "policy", "rota", "hr", "reporting", "admin"];
 const rank = (id: string) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
 
+/**
+ * The sidebar follows the page being opened, not only the page on screen: the moment a link is clicked the chosen
+ * module lights up and its pages open, while the content area keeps the old page until the new one arrives.
+ * aria-current stays on the page actually shown, so assistive technology is never told about a page that has not loaded.
+ */
 function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>> }) {
   const path = usePathname();
+  const params = useSearchParams();
+  const pendingHref = usePendingHref();
+  const target = pendingHref ? splitHref(pendingHref) : { path, params };
   const ordered = [...portals].sort((a, b) => rank(a.id) - rank(b.id));
-  const isActive = useIsActive();
-  const currentId = portalForPath(path);
-  // Only the most specific matching entry is highlighted, so "/rota" (Today) is not lit on "/rota/visits".
-  const activeHref = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned && isActive(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const currentId = portalForPath(target.path);
+  const shownId = portalForPath(path);
+  const hrefs = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned).map((i) => i.href);
+  // Only the most specific matching entry is highlighted, so "/rota" (dashboard) is not lit on "/rota/visits".
+  const activeHref = mostSpecificActive(hrefs, target.path, target.params);
+  const shownHref = mostSpecificActive(hrefs, path, params);
+
+  // When the module changes, the old module's pages fold away while the new one's open; on first paint nothing moves.
+  const [sections, setSections] = useState({ open: currentId, closing: null as string | null, moved: false });
+  if (sections.open !== currentId) setSections({ open: currentId, closing: sections.open, moved: true });
+  useEffect(() => {
+    if (!sections.closing) return;
+    const t = setTimeout(() => setSections((s) => ({ ...s, closing: null })), MOTION.slow + 40);
+    return () => clearTimeout(t);
+  }, [sections.closing]);
+
+  // Bring the current page into view once, when the sidebar first appears (a full page load, or the phone menu opening).
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = nav.current;
+    const active = el?.querySelector<HTMLElement>('[data-nav-active="true"]');
+    if (!el || !active) return;
+    const top = active.offsetTop - el.offsetTop;
+    if (top < el.scrollTop || top + active.offsetHeight > el.scrollTop + el.clientHeight) el.scrollTop = Math.max(0, top - el.clientHeight / 3);
+  }, []);
+
   return (
-    <nav aria-label="Main" className="shell-scroll min-h-0 flex-1 overflow-y-auto px-[10px] pb-[12px]">
+    <nav ref={nav} aria-label="Main" className="shell-scroll min-h-0 flex-1 overflow-y-auto px-[10px] pb-[12px]">
       <ul data-testid="portal-switcher" className="space-y-[3px]">
         {ordered.map((p) => {
           const current = p.id === currentId;
-          const pages = current ? (items[p.id] ?? []) : [];
+          const closing = !current && p.id === sections.closing;
+          const pages = current || closing ? (items[p.id] ?? []) : [];
           return (
             <li key={p.id}>
-              <PortalAnchor portal={p} current={current && path === p.home} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
-                <span aria-hidden="true" className="absolute bottom-[10px] left-0 top-[10px] w-[3px] rounded-full" style={{ background: p.colour, opacity: current ? 0 : 1 }} />
+              <PortalAnchor portal={p} current={p.id === shownId && path === p.home} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
+                <span aria-hidden="true" className="shell-portal-marker absolute bottom-[10px] left-0 top-[10px] w-[3px] rounded-full" style={{ background: p.colour, opacity: current ? 0 : 1 }} />
                 <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
                 <span className={`min-w-0 truncate ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
                 {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
               </PortalAnchor>
               {pages.length ? (
-                <ul className="relative mb-[8px] ml-[8px] mt-[4px] space-y-px border-l border-white/[0.14] pl-[6px]">
-                  {pages.map((i) => {
-                    const heading = i.group ? <li key={`g-${i.group}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{i.group}</li> : null;
-                    const row = renderItem(i);
-                    return heading ? [heading, row] : row;
-                  })}
-                </ul>
+                <div className="shell-section mb-[8px] mt-[4px]" data-state={closing ? "closing" : sections.moved ? "opening" : "open"} inert={closing || undefined} data-testid={current ? "portal-pages" : undefined}>
+                  <div>
+                    <PageList pages={pages} activeHref={current ? activeHref : undefined} shownHref={shownHref} accent={p.colour} />
+                  </div>
+                </div>
               ) : null}
             </li>
           );
@@ -58,25 +89,62 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
       </ul>
     </nav>
   );
+}
+
+/** One module's pages, with a single marker on the guide line that glides to the active page. */
+function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]; activeHref?: string; shownHref?: string; accent: string }) {
+  const list = useRef<HTMLUListElement>(null);
+  const marker = useRef<HTMLLIElement>(null);
+  const placed = useRef(false);
+  useLayoutEffect(() => {
+    const m = marker.current;
+    const row = activeHref ? list.current?.querySelector<HTMLElement>('[data-nav-active="true"]') : null;
+    if (!m) return;
+    if (!row) {
+      m.style.opacity = "0";
+      return;
+    }
+    // The first placement jumps straight to the row; later ones glide.
+    if (!placed.current) m.style.transition = "none";
+    m.style.transform = `translateY(${row.offsetTop}px)`;
+    m.style.height = `${row.offsetHeight}px`;
+    m.style.opacity = "1";
+    if (!placed.current) {
+      void m.offsetHeight;
+      m.style.transition = "";
+      placed.current = true;
+    }
+  }, [activeHref, pages]);
+  return (
+    <ul ref={list} className="relative ml-[8px] space-y-px border-l border-white/[0.14] pl-[6px]">
+      {pages.map((i) => {
+        const heading = i.group ? <li key={`g-${i.group}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{i.group}</li> : null;
+        const row = renderItem(i);
+        return heading ? [heading, row] : row;
+      })}
+      {/* Last, so it never shifts the rows' spacing or the first heading's "first:" style. */}
+      <li ref={marker} aria-hidden="true" className="shell-marker" style={{ background: `color-mix(in srgb, ${accent} 45%, #ffffff)` }} />
+    </ul>
+  );
 
   function renderItem(i: ShellItem) {
-                    if (i.planned)
-                      return (
-                        <li key={i.label} className="shell-page cursor-default text-white/45">
-                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-                          <span className="min-w-0 truncate">{i.label}</span>
-                          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
-                        </li>
-                      );
-                    const active = i.href === activeHref;
-                    return (
-                      <li key={i.href}>
-                        <Link href={i.href} aria-current={active ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
-                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-                          <span className="min-w-0 truncate">{i.label}</span>
-                        </Link>
-                      </li>
-                    );
+    if (i.planned)
+      return (
+        <li key={i.label} className="shell-page cursor-default text-white/45">
+          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+          <span className="min-w-0 truncate">{i.label}</span>
+          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
+        </li>
+      );
+    const active = i.href === activeHref;
+    return (
+      <li key={i.href}>
+        <Link href={i.href} data-nav-active={active ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
+          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+          <span className="min-w-0 truncate">{i.label}</span>
+        </Link>
+      </li>
+    );
   }
 }
 
@@ -105,12 +173,12 @@ function OrganisationCard({ org, switchAction }: { org: ShellOrganisation; switc
         </span>
         <CaretDown size={12} weight="bold" aria-hidden="true" className="text-white/80 transition-transform group-open:rotate-180" />
       </summary>
-      <form action={switchAction} className="space-y-2 border-t border-white/[0.12] px-3 pb-3 pt-2">
+      <form action={switchAction} className="menu-pop space-y-2 border-t border-white/[0.12] px-3 pb-3 pt-2">
         <label className="sr-only" htmlFor="shell-org">Organisation</label>
         <select id="shell-org" name="organisationId" defaultValue={org.currentId ?? ""} className="w-full rounded-[6px] border border-white/25 bg-[#0c2a44] px-2 py-1.5 text-[13px] text-white">
           {org.options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
-        <button type="submit" className="w-full rounded-[6px] bg-white/[0.12] py-1.5 text-[13px] text-white hover:bg-white/20">Switch</button>
+        <button type="submit" className="w-full rounded-[6px] bg-white/[0.12] py-1.5 text-[13px] text-white transition-colors hover:bg-white/20">Switch</button>
       </form>
     </details>
   );
@@ -134,7 +202,7 @@ function SidebarBody({ portals, items, org, person, switchAction, signOutAction,
           </span>
         </div>
         <form action={signOutAction}>
-          <button type="submit" className="flex w-full items-center gap-3 rounded-[6px] px-2 py-2 text-left text-[14px] text-white hover:bg-white/[0.08]">
+          <button type="submit" className="flex w-full items-center gap-3 rounded-[6px] px-2 py-2 text-left text-[14px] text-white transition-colors hover:bg-white/[0.08]">
             <SignOut size={18} aria-hidden="true" />Sign out
           </button>
         </form>
@@ -168,25 +236,35 @@ export function ShellSidebar(props: SidebarProps) {
 export function MobileMenu(props: SidebarProps) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
+  const pendingHref = usePendingHref();
   const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => setOpen(false), [path]);
+  // Close as soon as a page is chosen, so the progress bar and the arriving page are in view.
+  useEffect(() => setOpen(false), [path, pendingHref]);
+  // The menu's contents stay mounted while it slides away, then leave the page.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      setMounted(true);
+      d.showModal();
+    }
     if (!open && d.open) d.close();
+    if (open) return;
+    const t = setTimeout(() => setMounted(false), MOTION.base + 20);
+    return () => clearTimeout(t);
   }, [open]);
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-[6px] text-[#0b1530] hover:bg-black/5 md:hidden" aria-label="Open menu" aria-haspopup="dialog">
         <List size={22} aria-hidden="true" />
       </button>
-      <dialog ref={dialog} onClose={() => setOpen(false)} aria-label="Menu" className="m-0 h-full max-h-none w-[280px] max-w-[85vw] p-0 backdrop:bg-black/40">
+      <dialog ref={dialog} onClose={() => setOpen(false)} aria-label="Menu" className="shell-drawer m-0 h-full max-h-none w-[280px] max-w-[85vw] p-0">
         <div className="shell-sidebar flex h-full flex-col">
           <button type="button" onClick={() => setOpen(false)} className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/10" aria-label="Close menu">
             <X size={18} aria-hidden="true" />
           </button>
-          {open ? <SidebarBody {...props} /> : null}
+          {open || mounted ? <SidebarBody {...props} /> : null}
         </div>
       </dialog>
     </>
