@@ -8,10 +8,13 @@ Written plainly so nothing below is mistaken for working software.
 - Visit task recording and general notes from the phone. Care plans, risk assessments and incidents are built.
 - Incidents: the "may need notifying" flag is a reminder only. The platform never sends notifications to CQC or a local authority.
 - eMAR and medication. Visits show a "medication prompt" flag only. No medication-compliance figures are shown anywhere.
-- Timesheets, rates, invoicing and payroll preparation. The schema and frozen-run triggers exist, but there are no screens. Nothing is ever issued automatically.
+- Finance prepares figures only. Nothing is ever paid, invoiced, submitted to HMRC or sent to a funder. Pay runs show gross pay before deductions; tax and National Insurance are left to the payroll provider. The CSV is for import into other systems.
+- Mileage claims have no entry screen yet. Pay runs include approved claims if any exist, but the demo has none.
 - Rostering reports and the wider Reporting and Administration modules.
 
 ## Data and environment
+- The demo funders are fictional councils, and one package is left unfunded on purpose so the invoice run shows an exception.
+- The seed builds last week as history (completed visits, timesheets, draft runs) through a seed-only option on Build Rota. Users cannot build a past week.
 - **Synthetic demo data only.** Seeded attendance history (completed visits in the past) is generated, not real.
 - The HR fixtures contain two different people called Amelia Hart. This is correct data, but confusing in lists; job titles tell them apart.
 - Some HR fixtures deliberately lack evidence, so about 21 carer slots a week stay empty and some allocations show "needs review". This exercises the warnings.

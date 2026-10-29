@@ -83,7 +83,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents"]) {
+      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -107,6 +107,26 @@ test.describe("Rostering & Care Management", () => {
     await page.getByRole("button", { name: "Send report" }).click();
     await expect(page.getByRole("status")).toContainText(/Reported as INC-/);
     await expect(page.getByRole("heading", { level: 2, name: "Timeline" })).toBeVisible();
+  });
+
+  test("finance: whoever prepared a pay run cannot approve it; a second person approves and can download the CSV", async ({ page }) => {
+    await signIn(page, "finance@care-solution.demo");
+    await page.goto("/rota/finance/payroll");
+    await page.locator("table a[href^='/rota/finance/payroll/']").first().click();
+    await expect(page.getByText("You prepared this run, so someone else must approve it.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Approve run" })).toHaveCount(0);
+    const runUrl = page.url();
+
+    await page.context().clearCookies();
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto(runUrl);
+    await page.getByRole("button", { name: "Approve run" }).click();
+    await expect(page.getByRole("status")).toBeVisible();
+    const csv = page.getByRole("link", { name: "Download CSV" });
+    await expect(csv).toBeVisible();
+    const res = await page.request.get((await csv.getAttribute("href"))!);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("text/csv");
   });
 
   test("keyboard: a visit can be opened and reassigned without a mouse", async ({ page }) => {

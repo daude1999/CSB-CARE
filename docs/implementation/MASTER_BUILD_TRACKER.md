@@ -17,9 +17,9 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 7 Call monitoring | Done | `src/server/rota/monitor.ts`: sweep in `maintenance.tick` (late alert, then missed once, overrun), /rota/monitor with Check now, last-check time and alert latency |
 | 8 Carer mobile | Mostly done | /carer: My Visits, acknowledgement, clock in/out (server time, nonce against double submit), short-visit note, "Could not deliver". Office entries and corrections on the visit page (`attendance.ts`). No GPS, NFC, offline or task recording |
 | 9 Care plans, risks, incidents | Done | `src/server/care/{care-plans,risks,incidents}.ts`. Versioned plans with second-person approval and carer read confirmation; risk register with reviews and archive; incidents with manager triage, notifiable reminder and close. Demo records seeded through the services |
-| 10 Finance | Not started | Schema + frozen-run triggers done |
+| 10 Finance | Done (preparation) | `src/server/finance/{pricing,rates,timesheets,runs}.ts`. Rates and funders, timesheets from clock records, pay and invoice runs with second-person approval (database trigger too), CSV export. Never pays, issues or sends |
 | 11 Reporting and admin | Not started | |
-| 12 Final QA | In progress | vitest 152, HR 14, e2e 26/26; screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
+| 12 Final QA | In progress | vitest 161, HR 14, e2e 27/27; screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)
 
@@ -27,12 +27,11 @@ Rota core first: staff link, templates, Build Rota, daily visits, planner. Carer
 
 ## Next actions
 
-1. Open the review PR (done once this checkpoint is pushed) and keep it green. Never merge without the owner's "merge".
-2. Carer task recording (VisitTaskOutcome) and visit notes from the phone.
-3. Timesheets from clock records.
-4. Tasks and notes from the phone.
-5. Timesheets, rates, invoicing and payroll prep (separation of duties, never issued automatically).
-6. Rostering reports.
+1. Keep PR #24 green. Never merge without the owner's "merge".
+2. Rostering reports (/rota/reports).
+3. Run routes and travel.
+4. Task recording and notes from the carer phone; mileage claim entry.
+5. Reporting & Analytics and Administration modules.
 
 Docs: ARCHITECTURE_DECISIONS.md, FEATURE_COMPLETION_MATRIX.md, KNOWN_LIMITATIONS.md and TEST_RESULTS.md are current as of this checkpoint.
 

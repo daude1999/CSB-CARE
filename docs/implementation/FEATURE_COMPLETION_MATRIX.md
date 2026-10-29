@@ -23,10 +23,10 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 16 | Carer mobile | /carer | ◐ | read, acknowledge, clock, not delivered | n/a | ✓ | own visits only | ✓ | int + e2e | no task recording, GPS, NFC or offline |
 | 17 | Tasks and notes | — | ✗ | | | | | | | call types and care tasks reference lists exist |
 | 18 | Incidents | /rota/incidents | ✓ | ✓ | ✓ | ✓ | report vs manage; reporters see own | ✓ | int + e2e | in-app alerts; never sends statutory notifications |
-| 19 | Timesheets | — | ✗ | | | | | | | |
-| 20 | Rates | — | ✗ | | | | | | | |
-| 21 | Finance and invoicing | — | ✗ | | | | | | | never issued automatically |
-| 22 | Payroll preparation | — | ✗ | | | | | | | |
+| 19 | Timesheets | /rota/finance/timesheets | ✓ | generate, adjust (reason), submit, approve/reject, bulk | week, status | ✓ (zod, version check) | finance.view/manage/approve; submitter cannot decide | ✓ | int + e2e | built from effective clock records; exceptions listed |
+| 20 | Rates | /rota/finance/rates | ✓ | funders, rate cards, bands, bank holidays, settings, package funders, staff pay cards | tabs | ✓ (zod) | finance.manage | ✓ | int + unit | money in pence; bands locked once used in a run |
+| 21 | Finance and invoicing | /rota/finance, /rota/finance/invoices | ✓ | prepare, approve (second person), void, CSV | week | ✓ | finance.manage/approve; creator cannot approve (DB trigger too) | ✓ | int + e2e | numbered on approval; never sent or issued |
+| 22 | Payroll preparation | /rota/finance/payroll | ✓ | prepare, approve (second person), void, CSV | week | ✓ | finance.manage/approve; creator cannot approve (DB trigger too) | ✓ | int + e2e | gross hours and pay only; nothing is paid |
 | 23 | Reports | — | ✗ | | | | | | | |
 | 24 | Settings | /rota/settings, /admin/areas | ✓ | ✓ | n/a | ✓ (zod) | rota.settings, org.manage | ✓ | int | areas, call types, care tasks, member areas |
 

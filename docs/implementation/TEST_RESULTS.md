@@ -49,3 +49,14 @@ Screenshots captured by the e2e run at 1440, 834 and 390 px are in `docs/impleme
 | `npm run test:e2e` (full) | 26 passed, 0 failed |
 
 Care plan, risk and incident screenshots at 1440 and 390 px (`c1440_*`, `c390_*`) were taken from the local demo database and checked for page overflow.
+
+## Finance preparation checkpoint (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 18 files, 161 tests passed. Adds `tests/integration/finance.test.ts` (6: demo seed, timesheet generation and exceptions, separation of duties on timesheets and runs, database freeze of approved runs, one run per week, CSV formula neutralising, cross-tenant refusal) and `tests/unit/pricing.test.ts` (3: band choice, bank holidays, rounding) |
+| `npm run build` | pass |
+| `npm run test:e2e` (full) | 27 passed, 0 failed. Adds the finance test (the preparer sees no Approve button; a second person approves and downloads the CSV) and the five finance pages to the overflow check at 1440, 834 and 390 px |
+
+Finance screenshots (`*_rota_finance*`, `f1440_*`, `f390_*`) are in `screenshots/`, taken from the local demo database as the finance officer.
