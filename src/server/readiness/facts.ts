@@ -25,15 +25,23 @@ export async function loadReadinessFacts(tx: Db, organisationId: string, staffId
   const publishedPolicies: ReadinessFacts["publishedPolicies"] = [];
   const acknowledgements: ReadinessFacts["acknowledgements"] = [];
   if (policyIds.length) {
-    const policies = await tx.policy.findMany({ where: { id: { in: policyIds }, organisationId, currentPublishedVersionId: { not: null } }, select: { id: true, currentPublishedVersion: { select: { publication: { select: { id: true } } } } } });
-    for (const p of policies) if (p.currentPublishedVersion?.publication) publishedPolicies.push({ id: p.id, publicationId: p.currentPublishedVersion.publication.id });
-    if (userIds.length && publishedPolicies.length) {
-      const acks = await tx.acknowledgement.findMany({ where: { organisationId, userId: { in: userIds }, publicationId: { in: publishedPolicies.map((p) => p.publicationId) } }, select: { id: true, userId: true, publicationId: true, acknowledgedAt: true, publication: { select: { policyId: true } } } });
+    // The version that counts is the latest material publication; a wording-only update keeps earlier acknowledgements.
+    for (const policyId of policyIds) {
+      const p = await tx.policy.findFirst({ where: { id: policyId, organisationId }, select: { id: true } });
+      const pub = p ? await tx.policyPublication.findFirst({ where: { policyId, status: "PUBLISHED", materialRevision: true }, orderBy: { publishedAt: "desc" }, select: { id: true } }) : null;
+      if (pub) publishedPolicies.push({ id: policyId, publicationId: pub.id });
+    }
+    if (publishedPolicies.length) {
+      const acks = await tx.acknowledgement.findMany({
+        where: { organisationId, supersededAt: null, publicationId: { in: publishedPolicies.map((p) => p.publicationId) }, OR: [{ staffMemberId: { in: staffIds } }, ...(userIds.length ? [{ userId: { in: userIds } }] : [])] },
+        select: { id: true, userId: true, staffMemberId: true, publicationId: true, state: true },
+      });
       for (const s of staffRows) {
-        if (!s.userId) continue;
         for (const p of publishedPolicies) {
-          const a = acks.find((x) => x.userId === s.userId && x.publicationId === p.publicationId);
-          acknowledgements.push({ staffId: s.id, policyId: p.id, acknowledged: Boolean(a?.acknowledgedAt), publicationId: a ? p.publicationId : null, acknowledgementId: a?.id ?? null });
+          const a = acks.find((x) => x.publicationId === p.publicationId && (x.staffMemberId === s.id || (!!s.userId && x.userId === s.userId)));
+          // Acknowledged, assessment passed or exempted with a reason counts; an outstanding assessment does not.
+          const met = !!a && (a.state === "ACKNOWLEDGED" || a.state === "ASSESSMENT_PASSED" || a.state === "EXEMPTED");
+          acknowledgements.push({ staffId: s.id, policyId: p.id, acknowledged: met, publicationId: a ? p.publicationId : null, acknowledgementId: a?.id ?? null });
         }
       }
     }

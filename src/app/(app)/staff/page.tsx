@@ -1,79 +1,116 @@
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
+import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { Badge, Empty, fmtDate, PageHeader, Panel, Stat, StatRow } from "@/components/ui";
+import { ACK_NOT_TRAINING, parseSignoffFilters, signoffCounts, signoffLookups, signoffRows, type SignoffRow } from "@/server/policies/assignment";
+import { AckBadge, personKey, SignoffFilterForm, SignoffSummary, signoffHref } from "@/components/signoff-ui";
+import { Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffPage() {
+const PAGE = 300;
+
+/** Groups rows for the "by person" and "by policy" views; the figures are counted from the same rows as the list. */
+function group(rows: SignoffRow[], key: (r: SignoffRow) => string) {
+  const m = new Map<string, SignoffRow[]>();
+  for (const r of rows) m.set(key(r), [...(m.get(key(r)) ?? []), r]);
+  return [...m.entries()];
+}
+const tally = (rows: SignoffRow[]) => ({ assigned: rows.filter((r) => r.b.bucket !== "withdrawn").length, done: rows.filter((r) => r.b.bucket === "acknowledged").length, outstanding: rows.filter((r) => r.b.outstanding).length, overdue: rows.filter((r) => r.b.overdue).length, cannotSign: rows.some((r) => r.b.cannotSign) });
+
+/**
+ * Staff Sign-off: who has been asked to read which policy version, who has opened and acknowledged it, what is overdue
+ * and who cannot sign because they have no login. Counts, lists, drill-downs and the CSV come from one set of rows.
+ */
+export default async function StaffSignoffPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
   const ctx = await requireCtx();
   if (!hasOrgPermission(ctx, "staff.view")) notFound();
-  const orgId = ctx.organisationId!;
-  const now = new Date();
-  const [members, acks, training] = await Promise.all([
-    db.membership.findMany({ where: { organisationId: orgId }, include: { user: { select: { id: true, name: true, email: true } }, branch: { select: { name: true } } }, orderBy: { createdAt: "asc" } }),
-    db.acknowledgement.findMany({ where: { organisationId: orgId }, select: { userId: true, acknowledgedAt: true, dueAt: true } }),
-    db.trainingRecord.findMany({ where: { organisationId: orgId }, include: { training: { select: { title: true } } }, orderBy: { completedAt: "desc" } }),
-  ]);
-  const done = acks.filter((a) => a.acknowledgedAt).length;
-  const overdueAll = acks.filter((a) => !a.acknowledgedAt && a.dueAt && a.dueAt < now).length;
-  const expired = training.filter((t) => t.expiresAt && t.expiresAt < now).length;
+  const f = parseSignoffFilters(sp);
+  const view = sp.view === "policies" || sp.view === "rows" ? sp.view : "people";
+  const [all, lookups] = await Promise.all([signoffRows(ctx, { ...f, status: undefined }), signoffLookups(ctx)]);
+  const rows = f.status ? all.filter((r) => (f.status === "overdue" ? r.b.overdue : f.status === "cannot_sign" ? r.b.cannotSign : r.b.bucket === f.status)) : all;
+  const c = signoffCounts(all);
+  const base = "/staff";
+  const fv = { ...f, view };
+  const csv = signoffHref("/api/staff-signoff", f);
+
   return (
     <>
-      <PageHeader eyebrow="People · reading and training" title="Staff & Training" subtitle="Who has read and signed each published policy, and whose training is in date. Figures come from recorded acknowledgements and training records." />
-      <StatRow>
-        <Stat label="People" value={members.length} hint="In this organisation" tone="violet" />
-        <Stat label="Policies Signed" value={`${acks.length ? Math.round((done / acks.length) * 100) : 100}%`} hint={`${done} of ${acks.length} read and signed`} tone="green" />
-        <Stat label="Reading Overdue" value={overdueAll} hint={overdueAll ? "Past the due date" : "None past due"} tone={overdueAll ? "rose" : "navy"} />
-        <Stat label="Training Expired" value={expired} hint={expired ? "Needs refreshing" : "All in date"} tone={expired ? "amber" : "navy"} />
-      </StatRow>
-      <Panel title="My Staff">
-      {members.length ? (
-        <>
-        <div className="hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)] gap-x-8 px-4 pb-1 text-[13px] text-slate-700 md:grid"><span>Name</span><span>Reading list</span><span>Training</span></div>
-        <ul className="rows">
-          {members.map((m) => {
-            const mine = acks.filter((a) => a.userId === m.userId);
-            const read = mine.filter((a) => a.acknowledgedAt).length;
-            const overdue = mine.filter((a) => !a.acknowledgedAt && a.dueAt && a.dueAt < now).length;
-            const pct = mine.length ? Math.round((read / mine.length) * 100) : 100;
-            const tr = training.filter((t) => t.userId === m.userId);
-            return (
-              <li key={m.id} className="grid items-center gap-x-8 gap-y-3 py-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span aria-hidden="true" className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border-[1.5px] border-slate-500 bg-white text-[13px] font-bold text-slate-800">{m.user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("")}</span>
-                  <div className="min-w-0">
-                    <div className="text-[15px] font-medium text-[#1d4f91]">{m.user.name}</div>
-                    <div className="text-[13px] text-slate-600">{[m.jobTitle, m.branch?.name.replace(/\s*\(DEMO[^)]*\)/i, "")].filter(Boolean).join(" · ") || m.user.email}</div>
-                    <div className="mt-0.5 text-[12px] text-slate-500">{m.roles.map((r) => r.replace(/_/g, " ").toLowerCase()).join(", ")}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-baseline justify-between text-[13px]"><span className="text-slate-600">{overdue ? <span className="font-medium text-[#a3242c]">{overdue} overdue</span> : pct === 100 ? "All signed" : "In progress"}</span><span className="text-slate-800">{read} of {mine.length}</span></div>
-                  <div className="mt-1.5 h-[12px] overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${m.user.name} reading progress`}>
-                    <div className={`h-full rounded-full ${overdue ? "bg-[#e4544f]" : pct === 100 ? "bg-[#28b463]" : "bg-[#3289f8]"}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <div className="text-[13px]">
-                  {tr.length ? (
-                    <ul className="space-y-1">
-                      {tr.map((t) => {
-                        const lapsed = t.expiresAt && t.expiresAt < now;
-                        return <li key={t.id} className="flex flex-wrap items-center gap-x-2 text-slate-800">{t.training.title} {lapsed ? <Badge tone="rose">Expired {fmtDate(t.expiresAt)}</Badge> : <Badge tone="green">{t.expiresAt ? `In date to ${fmtDate(t.expiresAt)}` : `Done ${fmtDate(t.completedAt)}`}</Badge>}</li>;
-                      })}
-                    </ul>
-                  ) : <span className="text-slate-500">No training records</span>}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        </>
-      ) : (
-        <Empty>No staff.</Empty>
-      )}
-      </Panel>
+      <PageHeader title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
+      <Flash searchParams={sp} />
+      <SignoffFilterForm f={f} view={view} branches={lookups.branches} roles={lookups.roles} policies={lookups.policies} base={base} />
+      <SignoffSummary c={c} base={base} f={fv} />
+      <SegmentNav label="Views" items={[
+        { href: signoffHref(base, { ...fv, view: "people" }), label: "By person", active: view === "people" },
+        { href: signoffHref(base, { ...fv, view: "policies" }), label: "By policy", active: view === "policies" },
+        { href: signoffHref(base, { ...fv, view: "rows" }), label: "Every assignment", active: view === "rows", count: rows.length },
+      ]} />
+      <Card>
+        {!rows.length ? <Empty>{all.length ? "Nothing matches these filters." : "No policy has been assigned yet. Publish a policy, or add assignment rules on a policy's sign-off page."}</Empty> : view === "people" ? (
+          <table className="table">
+            <thead><tr><th>Person</th><th>Role</th><th>Branch</th><th className="text-right">Assigned</th><th className="text-right">Acknowledged</th><th className="text-right">Outstanding</th><th className="text-right">Overdue</th></tr></thead>
+            <tbody>
+              {group(rows, personKey).map(([k, rs]) => {
+                const t = tally(rs);
+                const r0 = rs[0]!;
+                return (
+                  <tr key={k}>
+                    <td><Link href={`/staff/person/${k}`} className="row-title">{r0.person}</Link>{t.cannotSign ? <span className="ml-2"><AckBadge bucket="not_opened" cannotSign /></span> : null}</td>
+                    <td>{r0.staffMember?.jobTitle ?? "Office member"}</td>
+                    <td>{r0.staffMember?.branch?.name ?? "—"}</td>
+                    <td className="text-right tabular-nums">{t.assigned}</td>
+                    <td className="text-right tabular-nums">{t.done}</td>
+                    <td className="text-right tabular-nums">{t.outstanding}</td>
+                    <td className={`text-right tabular-nums ${t.overdue ? "text-[#a3242c]" : ""}`}>{t.overdue}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : view === "policies" ? (
+          <table className="table">
+            <thead><tr><th>Policy</th><th>Version</th><th className="text-right">Assigned</th><th className="text-right">Acknowledged</th><th className="text-right">Completion</th><th className="text-right">Overdue</th></tr></thead>
+            <tbody>
+              {group(rows, (r) => r.publication.policyId).map(([id, rs]) => {
+                const t = tally(rs);
+                const p = rs[0]!.publication;
+                const req = rs.filter((r) => r.b.bucket !== "withdrawn" && r.b.bucket !== "exempted").length;
+                return (
+                  <tr key={id}>
+                    <td><Link href={`/staff/policy/${id}`} className="row-title">{p.policy.ref} {p.policy.title}</Link></td>
+                    <td>{p.version.label}</td>
+                    <td className="text-right tabular-nums">{t.assigned}</td>
+                    <td className="text-right tabular-nums">{t.done}</td>
+                    <td className="text-right tabular-nums">{req ? `${Math.round((t.done / req) * 100)}%` : "—"}</td>
+                    <td className={`text-right tabular-nums ${t.overdue ? "text-[#a3242c]" : ""}`}>{t.overdue}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <>
+            <table className="table">
+              <thead><tr><th>Person</th><th>Policy</th><th>Version</th><th>Status</th><th>Due</th><th>Opened</th><th>Acknowledged</th></tr></thead>
+              <tbody>
+                {rows.slice(0, PAGE).map((r) => (
+                  <tr key={r.id}>
+                    <td><Link href={`/staff/person/${personKey(r)}`}>{r.person}</Link></td>
+                    <td><Link href={`/staff/policy/${r.publication.policyId}`}>{r.publication.policy.ref} {r.publication.policy.title}</Link></td>
+                    <td>{r.publication.version.label}</td>
+                    <td><AckBadge bucket={r.b.bucket} overdue={r.b.overdue} cannotSign={r.b.cannotSign} /></td>
+                    <td className="tabular-nums">{fmtDate(r.dueAt)}</td>
+                    <td className="tabular-nums">{fmtDate(r.openedAt, true)}</td>
+                    <td className="tabular-nums">{fmtDate(r.acknowledgedAt, true)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > PAGE ? <p className="mt-2 text-[13px] text-slate-600">Showing the first {PAGE} of {rows.length}. Narrow the filters or export the CSV for all of them.</p> : null}
+          </>
+        )}
+      </Card>
     </>
   );
 }

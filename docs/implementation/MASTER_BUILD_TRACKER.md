@@ -8,12 +8,15 @@ Backlog: `V1_BACKLOG.md`. Audits: `v1-audit/`. The build moved from the laptop s
 |---|---|---|---|
 | 0 | Baseline | Done | See TEST_RESULTS "V1 baseline (cloud)". Readiness WIP broke one attendance test (demo carer left "pending"); fixed in the seed |
 | 1 | Staff readiness screens | Done | /admin/readiness (matrix, versions, retire), readiness section on /rota/staff/[id] (status, evidence, record/verify/assess/restrict/exception/review), /rota/readiness queue, CSV at /api/readiness/[staffId], readiness column on Team Members, readiness in the allocation picker. Clock-in refusal now records its alert after the refused transaction (it was rolled back before). Search on staff lists could widen the area scope; fixed |
-| 2 | Policy assignment and acknowledgement | In progress | |
+| 2 | Policy assignment and acknowledgement | Done | Assignment rules (organisation, branch, role, job title, team, person) on /staff/policy/[id]; rows for staff with or without a sign-in, linked when a sign-in is attached; states assigned → opened → acknowledged (→ assessment passed/failed), exempted, withdrawn, superseded; fixed wording stored with each acknowledgement; reminders from 3 days before due, escalation after 7 days overdue (2 for priority 1) in-app only; correction supersedes the old row; Staff Sign-off rebuilt (people, policies, rows) with a 21-column audited CSV; a non-material republish keeps existing acknowledgements. Database trigger freezes acknowledged rows and makes events append-only |
 
 ### Decisions taken without asking (the brief says record and continue)
 
 - The misleading `/staff` figures are replaced in item 2, when that page is rebuilt as Staff Sign-off, rather than patched in item 1.
 - A restriction only blocks clock-in when it applies to the visit (all work, the visit's task or the visit's person). Before, any restriction blocked every clock-in.
+- Acknowledgement assessments are recorded by a manager (pass or fail with a note), not an online quiz; nobody may assess their own row. A quiz builder is not in V1.
+- A publication is "material" unless the publisher unticks the box; only a material publication asks staff to sign again. Readiness checks use the latest material publication.
+- When a policy has assignment rules, they decide who signs, even if the policy's "requires acknowledgement" flag is off; without rules the old behaviour (everyone in the organisation) stays.
 - Item 11 (design polish): the navigation and motion pass merged to `main` on 29 Oct (PR #25) already covers transitions, sidebar states and reduced motion. Route `loading.tsx` files are not added: they broke client navigation in production before (see UI_MOTION_AND_NAVIGATION.md).
 
 

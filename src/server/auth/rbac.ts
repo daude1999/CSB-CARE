@@ -30,6 +30,8 @@ export const ORG_PERMISSIONS = {
   "evidence.upload": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR"],
   "evidence.read": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER"],
   "staff.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
+  /** Assign policies to staff, exempt, record assessments and correct acknowledgements. */
+  "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
   "operations.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],

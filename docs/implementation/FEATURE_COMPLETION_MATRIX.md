@@ -40,3 +40,11 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | Staff absences (HR-controlled, separation of duties) | /workforce/absences | ✓ | int |
 | Weekly availability | /workforce/availability | ✓ | manual browser check |
 | Alerts (flag, never reassign) | /rota | ✓ | int |
+
+## Version 1 additions (Policy & Compliance)
+
+| Feature | Route | State | CRUD | Filters | Validation | Permissions | Audit | Tests | Note |
+|---|---|---|---|---|---|---|---|---|---|
+| Policy assignment rules | /staff/policy/[id] | ✓ | create, withdraw | n/a | ✓ (zod) | signoff.manage; branch-limited members only target their branches | ✓ | int + e2e | withdrawing removes outstanding rows not covered by another rule |
+| Staff Sign-off | /staff, /staff/person/[key], /api/staff-signoff | ✓ | read, exempt, assess, correct, CSV | person, policy, branch, role, state, overdue | ✓ | signoff.manage to act; branch scope | ✓ (export audited) | int + e2e | acknowledgement is not training and the page says so |
+| Read and acknowledge | /acknowledgements, /policies/[id] | ✓ | open, acknowledge | state | fixed wording | own rows only | ✓ events append-only | int + e2e | assessment step where the rule asks for one |

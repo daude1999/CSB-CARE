@@ -22,7 +22,7 @@ export default async function Dashboard() {
     db.policyPublication.count({ where: { ...orgScope, status: "PUBLISHED", publishedAt: { gte: monthAgo } } }),
     db.policy.count({ where: { ...orgScope, status: "ACTIVE" } }),
     db.policyPublication.findMany({ where: { ...orgScope, status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 20, include: { policy: { include: { category: true } } } }),
-    ctx.organisationId ? db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId }, select: { publicationId: true, acknowledgedAt: true, dueAt: true } }) : [],
+    ctx.organisationId ? db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId, supersededAt: null, state: { notIn: ["WITHDRAWN", "EXEMPTED"] } }, select: { publicationId: true, acknowledgedAt: true, dueAt: true } }) : [],
   ]);
   const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB";
   const firstName = ctx.userName.split(/\s+/)[0]!;

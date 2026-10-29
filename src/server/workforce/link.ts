@@ -1,3 +1,4 @@
+import { linkAcknowledgements } from "@/server/policies/assignment";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/server/audit-log";
@@ -21,6 +22,8 @@ export async function linkLogin(ctx: Ctx, input: { staffId: string; userId: stri
     if (membership.user.deactivatedAt) throw new ValidationError("That sign-in is deactivated");
     if (await tx.staffMember.findFirst({ where: { organisationId, userId: input.userId } })) throw new ConflictError("That sign-in is already linked to another member of staff");
     await tx.staffMember.update({ where: { id: staff.id }, data: { userId: input.userId, linkedById: ctx.userId, linkedAt: new Date() } });
+    // Policies assigned to the person before they had a sign-in can now be acknowledged.
+    await linkAcknowledgements(tx, organisationId, staff.id, input.userId);
     if (input.grantCarerRole && !membership.roles.includes("CARER")) await tx.membership.update({ where: { id: membership.id }, data: { roles: { push: "CARER" } } });
     await audit({ organisationId, actorId: ctx.userId, action: "workforce.login.linked", entityType: "StaffMember", entityId: staff.id, data: { userId: input.userId, carerRoleGranted: !!input.grantCarerRole && !membership.roles.includes("CARER") } }, tx);
   });

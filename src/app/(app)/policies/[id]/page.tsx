@@ -2,6 +2,7 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
+import { markOpened } from "@/server/policies/assignment";
 import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
 import { getPolicy } from "@/server/policies/library";
 import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction } from "../../../actions";
@@ -23,6 +24,8 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const sp = await searchParams;
   const ctx = await requireCtx();
   const p = await orNotFound(getPolicy(ctx, id));
+  // The first open of an outstanding reading assignment is recorded (opening is not acknowledgement).
+  await markOpened(ctx, p.id);
   const v = p.currentPublishedVersion;
   const canAuthor = canOnPolicy(ctx, p, "author");
   const back = `/policies/${p.id}`;

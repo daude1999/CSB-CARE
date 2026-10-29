@@ -144,6 +144,7 @@ export async function publishAction(fd: FormData) {
         scheduleFor: when ? new Date(when) : null,
         effectiveDate: eff ? new Date(eff) : undefined,
         requireAcknowledgement: fd.get("requireAcknowledgement") === "on",
+        materialRevision: fd.get("materialRevision") === "on",
         acknowledgementDueDays: Number(str(fd, "ackDays") || 14),
       });
     },

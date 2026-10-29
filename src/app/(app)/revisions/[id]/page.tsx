@@ -146,6 +146,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
                 <label className="label" htmlFor="effectiveDate">Effective date</label>
                 <input id="effectiveDate" type="date" name="effectiveDate" className="input" />
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requireAcknowledgement" defaultChecked={r.policy.kind === "CUSTOMER"} /> Staff must acknowledge</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="materialRevision" defaultChecked /> Material change: staff read and acknowledge this version again (untick for wording-only changes; earlier acknowledgements stay as evidence)</label>
                 <input type="number" name="ackDays" min={1} max={90} defaultValue={14} className="input" aria-label="Acknowledgement due in days" />
                 <button className="btn-primary" type="submit">Publish</button>
               </form>

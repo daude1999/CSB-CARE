@@ -31,4 +31,21 @@ test.describe("Version 1", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Staff Readiness Matrix" })).toBeVisible();
     await expect(page.getByRole("cell", { name: /Safeguarding adults/ }).first()).toBeVisible();
   });
+
+  test("staff sign-off: the manager targets a policy, drills down and exports reconciled evidence", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/staff");
+    await expect(page.getByRole("heading", { level: 1, name: "Staff Sign-off" })).toBeVisible();
+    await expect(page.getByText(/not training and does not show competence/).first()).toBeVisible();
+    await page.getByRole("link", { name: "By policy" }).click();
+    await page.locator("table a.row-title").first().click();
+    await expect(page.getByRole("heading", { name: "Who must read it" })).toBeVisible();
+    const form = page.locator("form:has(select[name=scope])");
+    await form.locator("select[name=scope]").selectOption("ORG");
+    await form.getByRole("button", { name: "Add assignment" }).click();
+    await expect(page.getByRole("status")).toContainText("Assignment added");
+    const csv = await page.request.get("/api/staff-signoff");
+    expect(csv.status()).toBe(200);
+    expect(await csv.text()).toContain("Staff member,Sign-in,Job title");
+  });
 });

@@ -1,3 +1,4 @@
+import { enqueue } from "@/server/jobs/queue";
 import { createHash } from "node:crypto";
 import type { EmploymentStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -87,6 +88,7 @@ export interface ProjectionResult {
   changedStaffIds: string[];
 }
 
+const hashOf = (id: string, at: Date) => `${id.slice(-6)}-${at.getTime()}`;
 const toDate = (s: string | null) => (s ? new Date(`${s}T00:00:00Z`) : null);
 
 export async function projectWorkforce(tx: Prisma.TransactionClient, organisationId: string, state: State, opts: { actorId?: string | null; reason?: string } = {}): Promise<ProjectionResult> {
@@ -99,6 +101,7 @@ export async function projectWorkforce(tx: Prisma.TransactionClient, organisatio
   const result: ProjectionResult = { created: 0, updated: 0, unchanged: 0, missing: 0, changedStaffIds: [] };
   const now = new Date();
   const seen = new Set<string>();
+  const reconcile: string[] = [];
 
   for (const e of state.employees) {
     seen.add(e.id);
@@ -145,6 +148,8 @@ export async function projectWorkforce(tx: Prisma.TransactionClient, organisatio
     result.changedStaffIds.push(staff.id);
     // A change of role or branch changes which requirements apply: a manager must look again before the person is
     // treated as ready for the new duties.
+    // New starters and role or branch moves get the policies their assignment rules now cover (and lose ones they no longer do).
+    if (!current || current.jobTitle !== p.jobTitle || current.hrBranchKey !== p.hrBranchKey) reconcile.push(staff.id);
     if (current && (current.jobTitle !== p.jobTitle || current.hrBranchKey !== p.hrBranchKey)) {
       await raiseReviewFlag(tx, organisationId, staff.id, current.jobTitle !== p.jobTitle ? `Role changed in HR from ${current.jobTitle} to ${p.jobTitle}` : "Branch changed in HR", opts.actorId ?? null);
     }
@@ -165,6 +170,8 @@ export async function projectWorkforce(tx: Prisma.TransactionClient, organisatio
     );
   }
   if (result.changedStaffIds.length) await reviewStaffImpact(tx, organisationId, result.changedStaffIds, { source: "HR record changed" });
+  // Through the job queue, a few seconds after this transaction commits.
+  for (const staffId of reconcile) await enqueue("ack.reconcile", { organisationId, staffId }, { idempotencyKey: `ack.reconcile:${staffId}:${hashOf(staffId, now)}`, runAfter: new Date(now.getTime() + 5000), maxAttempts: 3 });
   return result;
 }
 

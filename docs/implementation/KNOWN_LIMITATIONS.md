@@ -12,6 +12,8 @@ Written plainly so nothing below is mistaken for working software.
 - Mileage claims have no entry screen yet. Pay runs include approved claims if any exist, but the demo has none.
 - The wider Reporting & Analytics and Administration modules. Rota Reports (/rota/reports) are built; they are worked out live, at most 92 days at a time, and do not include charts or scheduled emails.
 
+- Policy acknowledgement assessments are a manager's recorded pass or fail, not an online quiz. Reminders and escalations for overdue acknowledgements are in-app only; no email or text goes to staff who have no sign-in, so their manager sees them as outstanding on Staff Sign-off.
+
 ## Data and environment
 - The demo funders are fictional councils, and one package is left unfunded on purpose so the invoice run shows an exception.
 - The seed builds last week as history (completed visits, timesheets, draft runs) through a seed-only option on Build Rota. Users cannot build a past week.

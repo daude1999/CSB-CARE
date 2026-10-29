@@ -129,3 +129,13 @@ Standard Prisma engines (local PostgreSQL 16). The readiness WIP was in the tree
 | `npm run test:hr` | pass |
 | `npm run build` | pass |
 | `npm run test:e2e` | 31 passed. Adds `tests/e2e/v1.spec.ts`: the manager filters the readiness queue to "Pending verification", opens the person and verifies the evidence; the matrix renders |
+
+## V1 item 2: policy assignment and acknowledgement (29 Oct 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 25 files, 218 passed. Adds `tests/integration/signoff.test.ts` (10): rule targeting (organisation, branch, role, job title, person), staff without a sign-in get rows and are linked when a sign-in is attached, fixed wording stored, frozen acknowledged rows (database trigger), assessment by a second person, exemption, correction supersedes, reminders then escalation in-app only, a non-material republish keeps acknowledgements, branch-limited managers kept to their branches, audited CSV |
+| `npm run test:hr` | pass |
+| `npm run build` | pass |
+| `npm run test:e2e` | 32 passed. Adds the Staff Sign-off flow to `tests/e2e/v1.spec.ts` (add an organisation-wide assignment on a policy, download the CSV) |

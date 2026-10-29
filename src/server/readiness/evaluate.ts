@@ -146,11 +146,11 @@ function evaluateRequirement(facts: ReadinessFacts, staff: StaffFacts, item: Ret
     const published = facts.publishedPolicies.find((p) => p.id === req.policyId);
     if (!published) return { ...base, state: "MET", message: `${req.name}: the policy has no published version yet, so nothing is outstanding`, dueDate: null, evidence };
     const ack = facts.acknowledgements.find((a) => a.staffId === staff.id && a.policyId === req.policyId);
-    if (!staff.userId) return { ...base, state: "MISSING", message: `${req.name}: this person has no sign-in linked, so they cannot read and acknowledge the policy`, dueDate: null, evidence };
     if (ack?.acknowledged && ack.publicationId === published.publicationId) {
       evidence.push({ kind: "ACKNOWLEDGEMENT", id: ack.acknowledgementId ?? ack.policyId, summary: "Current published version read and acknowledged", at: null });
       return { ...base, state: "MET", message: `${req.name}: current version acknowledged`, dueDate: null, evidence };
     }
+    if (!staff.userId) return { ...base, state: "MISSING", message: `${req.name}: this person has no sign-in linked, so they cannot read and acknowledge the policy`, dueDate: null, evidence };
     return { ...base, state: "MISSING", message: ack?.acknowledged ? `${req.name}: a newer version was published and has not been acknowledged` : `${req.name}: the current version has not been acknowledged`, dueDate: null, evidence };
   }
 

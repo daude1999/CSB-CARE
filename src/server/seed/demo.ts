@@ -1,3 +1,4 @@
+import { ACK_WORDING } from "@/server/policies/assignment";
 import type { OrgRole, PlatformRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { hashPassword } from "../auth/password";
@@ -118,7 +119,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
       await db.policyPublication.update({ where: { id: pub.id }, data: { acknowledgementDueAt: dueAt } });
       for (const [email, userId] of Object.entries(ids)) {
         const done = email !== "carer1@care-solution.demo" && email !== "carer2@care-solution.demo" ? true : tpl.ref === "CSB-HS-002" && email === "carer1@care-solution.demo";
-        await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: org.id, userId, dueAt, acknowledgedAt: done ? new Date(Date.now() - 5 * 86400_000) : null } });
+        await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: org.id, userId, dueAt, acknowledgedAt: done ? new Date(Date.now() - 5 * 86400_000) : null, state: done ? "ACKNOWLEDGED" : "ASSIGNED", wording: done ? ACK_WORDING : null } });
       }
     }
   }

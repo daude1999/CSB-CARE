@@ -1,3 +1,4 @@
+import { ackBucket, BUCKET_LABEL } from "@/server/policies/assignment";
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { hasOrgPermission, hasPlatformPermission, type Ctx } from "../auth/rbac";
@@ -28,10 +29,13 @@ export async function reportRows(ctx: Ctx, kind: string): Promise<{ columns: str
       if (!orgId) return { columns: ["Note"], rows: [["Select an organisation"]] };
       // Branch-limited managers see acknowledgements of members based in their branches (and members without a branch).
       const branchLimit = ctx.branchIds ? { user: { memberships: { some: { organisationId: orgId, OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] } } } } : {};
-      const acks = await db.acknowledgement.findMany({ where: { organisationId: orgId, ...branchLimit }, include: { user: { select: { name: true } }, publication: { include: { policy: { select: { ref: true, title: true } }, version: { select: { label: true } } } } }, orderBy: { createdAt: "desc" } });
+      const acks = await db.acknowledgement.findMany({ where: { organisationId: orgId, supersededAt: null, ...branchLimit }, include: { user: { select: { name: true } }, staffMember: { select: { displayName: true } }, publication: { include: { policy: { select: { ref: true, title: true } }, version: { select: { label: true } } } } }, orderBy: { createdAt: "desc" } });
       return {
-        columns: ["Staff member", "Policy", "Version", "Due", "Acknowledged", "Overdue"],
-        rows: acks.map((a) => [a.user.name, `${a.publication.policy.ref} ${a.publication.policy.title}`, a.publication.version.label, d(a.dueAt), d(a.acknowledgedAt), !a.acknowledgedAt && a.dueAt && a.dueAt < new Date() ? "yes" : "no"]),
+        columns: ["Staff member", "Policy", "Version", "State", "Due", "Acknowledged", "Overdue"],
+        rows: acks.map((a) => {
+          const b = ackBucket(a);
+          return [a.staffMember?.displayName ?? a.user?.name ?? "", `${a.publication.policy.ref} ${a.publication.policy.title}`, a.publication.version.label, BUCKET_LABEL[b.bucket], d(a.dueAt), d(a.acknowledgedAt), b.overdue ? "yes" : "no"];
+        }),
       };
     }
     case "changes": {

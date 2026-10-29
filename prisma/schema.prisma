@@ -95,6 +95,7 @@ model Organisation {
   hrWorkspace           HrWorkspace?
   staff                 StaffMember[]
   readinessRequirements ReadinessRequirement[]
+  policyAssignmentRules PolicyAssignmentRule[]
   serviceUsers          ServiceUser[]
   areas                 Area[]
   visits                Visit[]
@@ -635,6 +636,7 @@ model Policy {
   revisions        PolicyRevision[]
   publications     PolicyPublication[]
   auditQuestions   AuditQuestion[]
+  assignmentRules  PolicyAssignmentRule[]
 
   @@unique([organisationId, ref])
   @@index([searchVector], map: "policy_search_idx", type: Gin)
@@ -871,6 +873,8 @@ model PolicyPublication {
   effectiveDate               DateTime
   publishedById               String
   requiresAcknowledgement     Boolean           @default(true)
+  /// A material change needs fresh acknowledgement; a non-material one (wording, links) keeps the previous evidence.
+  materialRevision            Boolean           @default(true)
   acknowledgementDueAt        DateTime?
   implementationConfirmedAt   DateTime?
   implementationConfirmedById String?
@@ -883,19 +887,51 @@ model PolicyPublication {
 }
 
 model Acknowledgement {
-  id             String            @id @default(cuid())
-  publicationId  String
-  publication    PolicyPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  organisationId String
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dueAt          DateTime?
-  acknowledgedAt DateTime?
-  remindedAt     DateTime?
-  createdAt      DateTime          @default(now())
+  id                 String                 @id @default(cuid())
+  publicationId      String
+  publication        PolicyPublication      @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  organisationId     String
+  /// The sign-in that can acknowledge. Null for staff with no linked sign-in: they are listed as "cannot sign", never dropped.
+  userId             String?
+  user               User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The person (HR projection) the assignment is for, when they have a staff record.
+  staffMemberId      String?
+  staffMember        StaffMember?           @relation(fields: [staffMemberId], references: [id])
+  ruleId             String?
+  rule               PolicyAssignmentRule?  @relation(fields: [ruleId], references: [id])
+  mandatory          Boolean                @default(true)
+  state              AcknowledgementState   @default(ASSIGNED)
+  dueAt              DateTime?
+  openedAt           DateTime?
+  acknowledgedAt     DateTime?
+  /// The exact statement agreed to, stored with the time.
+  wording            String?
+  remindedAt         DateTime?
+  escalatedAt        DateTime?
+  requiresAssessment Boolean                @default(false)
+  assessedAt         DateTime?
+  assessedById       String?
+  assessmentMethod   String?
+  assessmentScore    Int?
+  assessmentPassMark Int?
+  assessmentNote     String?
+  exemptedAt         DateTime?
+  exemptedById       String?
+  exemptionReason    String?
+  withdrawnAt        DateTime?
+  withdrawnById      String?
+  withdrawnReason    String?
+  /// A correction is a new row; the original is kept and marked superseded.
+  supersedesId       String?
+  supersededAt       DateTime?
+  createdAt          DateTime               @default(now())
+  events             AcknowledgementEvent[]
 
-  @@unique([publicationId, userId])
+  // One current row per publication and person is enforced by partial unique indexes in the migration.
+  @@index([publicationId, userId])
+  @@index([publicationId, staffMemberId])
   @@index([organisationId, acknowledgedAt])
+  @@index([organisationId, state])
 }
 
 // ───────────────────────────── Audits, actions, evidence, training ─────────────────────────────
@@ -1264,6 +1300,7 @@ model StaffMember {
   assessments        CompetencyAssessment[]
   restrictions       StaffRestriction[]
   exceptions         ReadinessException[]
+  acknowledgements   Acknowledgement[]
   readinessFlags     StaffReadinessFlag[]
   readinessSnapshots StaffReadinessSnapshot[]
 
@@ -2654,4 +2691,71 @@ model StaffReadinessSnapshot {
   trigger        String
 
   @@index([organisationId, staffId, evaluatedAt])
+}
+
+// ───────────────────────────── Policy assignment and acknowledgement (Appendix E) ─────────────────────────────
+
+enum PolicyAssignmentScope {
+  ORG
+  BRANCH
+  ROLE
+  JOB_TITLE
+  STAFF
+}
+
+enum AcknowledgementState {
+  ASSIGNED
+  OPENED
+  IN_PROGRESS
+  ACKNOWLEDGED
+  ASSESSMENT_REQUIRED
+  ASSESSMENT_PASSED
+  ASSESSMENT_FAILED
+  EXEMPTED
+  WITHDRAWN
+}
+
+/// Who must read and acknowledge a policy. Resolved to staff (HR projection) and their linked sign-ins; withdrawn with a reason, never deleted.
+model PolicyAssignmentRule {
+  id                 String                @id @default(cuid())
+  organisationId     String
+  organisation       Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  policyId           String
+  policy             Policy                @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  scope              PolicyAssignmentScope
+  branchId           String?
+  orgRole            OrgRole?
+  jobTitle           String?
+  staffMemberId      String?
+  mandatory          Boolean               @default(true)
+  /// 1 = high risk (overdue items escalate first), 3 = routine.
+  priority           Int                   @default(2)
+  dueDays            Int                   @default(14)
+  /// After acknowledging, a manager-recorded knowledge check or discussion is required.
+  requiresAssessment Boolean               @default(false)
+  ownerId            String
+  createdById        String
+  createdAt          DateTime              @default(now())
+  withdrawnAt        DateTime?
+  withdrawnById      String?
+  withdrawnReason    String?
+  acknowledgements   Acknowledgement[]
+
+  @@index([organisationId, policyId])
+}
+
+/// Append-only history of one acknowledgement: assigned, opened, reminded, escalated, acknowledged, assessed, exempted, withdrawn, corrected.
+model AcknowledgementEvent {
+  id                String          @id @default(cuid())
+  organisationId    String
+  acknowledgementId String
+  acknowledgement   Acknowledgement @relation(fields: [acknowledgementId], references: [id], onDelete: Cascade)
+  type              String
+  actorId           String?
+  note              String?
+  data              Json?
+  at                DateTime        @default(now())
+
+  @@index([acknowledgementId, at])
+  @@index([organisationId, type, at])
 }

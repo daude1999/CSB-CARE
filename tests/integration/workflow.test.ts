@@ -152,8 +152,8 @@ describe("approval workflow controls", () => {
     const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const { publicationId } = await publishRevision(manager, rev.id, { acknowledgementDueDays: 1 });
     await db.acknowledgement.updateMany({ where: { publicationId }, data: { dueAt: new Date(Date.now() - 1000) } });
-    const n1 = await sendAcknowledgementReminders();
-    const n2 = await sendAcknowledgementReminders();
+    const n1 = (await sendAcknowledgementReminders()).sent;
+    const n2 = (await sendAcknowledgementReminders()).sent;
     expect(n1).toBeGreaterThan(0);
     expect(n2).toBe(0);
     const carer = await ctxFor("carer2@care-solution.demo", BROOKFIELD);
