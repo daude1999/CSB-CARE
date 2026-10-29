@@ -12,7 +12,7 @@ import { rotaItems } from "@/components/rota-nav";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, Info, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
