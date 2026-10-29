@@ -23,8 +23,9 @@ export function canUsePortal(ctx: Ctx, id: PortalId): boolean {
   }
 }
 
+/** The portals this person may open, each with the home page they can actually use (CSB staff outside an organisation have no System Settings). */
 export function portalsFor(ctx: Ctx): Portal[] {
-  return PORTALS.filter((p) => canUsePortal(ctx, p.id));
+  return PORTALS.filter((p) => canUsePortal(ctx, p.id)).map((p) => (p.id === "admin" && !hasOrgPermission(ctx, "org.manage") ? { ...p, home: "/modules" } : p));
 }
 
 /** Page guard: people outside a portal get the "no access" page, whatever address they typed. */

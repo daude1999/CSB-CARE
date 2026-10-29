@@ -14,7 +14,7 @@ for (const email of USERS) {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByTestId("current-user")).toBeVisible();
     // Each portal has its own side menu, so collect the menu of every portal this person may open.
-    const portals = await page.locator("[data-testid=portal-switcher] a").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
+    const portals = await page.locator("[data-testid=portal-switcher] a[data-portal-home]").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
     const nav: string[] = [];
     for (const home of portals.filter((h) => !h.startsWith("/hr"))) {
       await page.goto(home);

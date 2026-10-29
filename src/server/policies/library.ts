@@ -4,6 +4,7 @@ import { audit } from "../audit-log";
 import { canOnPolicy, hasOrgPermission, requireOnPolicy, requireOrgPermission, visiblePolicyWhere, type Ctx } from "../auth/rbac";
 import { createDraftVersion, toSectionInputs, type SectionInput } from "./versions";
 import { ForbiddenError } from "@/lib/errors";
+import { notify } from "../notifications/notify";
 
 export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: string; kind?: "MASTER" | "CUSTOMER"; docType?: string; page?: number; pageSize?: number; overdueOnly?: boolean } = {}) {
   const pageSize = Math.min(opts.pageSize ?? 20, 100);
@@ -124,4 +125,53 @@ export async function getRevision(ctx: Ctx, revisionId: string) {
     throw new ForbiddenError("Drafts are visible to authors, reviewers and approvers only");
   }
   return r;
+}
+
+const REVIEW_ROLES = ["POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD"] as const;
+
+/** Names the person responsible for a policy's next review. The policy and the reviewer must both belong to the caller's organisation. */
+export async function assignPolicyReviewer(ctx: Ctx, policyId: string, reviewerId: string) {
+  const orgId = requireOrgPermission(ctx, "policy.author");
+  const policy = await db.policy.findFirst({ where: { id: policyId, organisationId: orgId, kind: "CUSTOMER" } });
+  if (!policy) throw new NotFoundError("Policy");
+  if (policy.status !== "ACTIVE") throw new ConflictError("Archived policies cannot be assigned for review. Restore it first.");
+  const member = await db.membership.findFirst({ where: { organisationId: orgId, userId: reviewerId, roles: { hasSome: [...REVIEW_ROLES] } }, include: { user: { select: { name: true } } } });
+  if (!member) throw new ValidationError("Choose a reviewer, approver or compliance lead from your organisation");
+  await db.$transaction(async (tx) => {
+    await tx.policy.update({ where: { id: policy.id }, data: { reviewerId } });
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: "policy.reviewer_assigned", entityType: "Policy", entityId: policy.id, data: { reviewerId, previousReviewerId: policy.reviewerId } }, tx);
+  });
+  await notify({
+    organisationId: orgId,
+    userIds: [reviewerId],
+    type: "policy.review_assigned",
+    title: `Assigned for review: ${policy.ref} ${policy.title}`,
+    body: `${ctx.userName} has asked you to review this policy.${policy.nextReviewDate ? ` Its next review is due ${policy.nextReviewDate.toDateString()}.` : ""}`,
+    reason: "You were named as this policy's reviewer.",
+    links: [{ label: "Open the policy", url: `/policies?selected=${policy.id}` }],
+    actionUrl: `/policies?selected=${policy.id}`,
+    dueAt: policy.nextReviewDate,
+    dedupeKey: `review-assigned:${policy.id}:${Date.now()}`,
+  });
+  return member.user.name;
+}
+
+/**
+ * Archives or restores a policy. Versions are untouched (they are immutable); only the policy's status changes,
+ * with the reason kept in the audit log. Refused while a revision or a scheduled publication is in progress.
+ */
+export async function setPolicyArchived(ctx: Ctx, policyId: string, archive: boolean, reason: string) {
+  const orgId = requireOrgPermission(ctx, "org.manage");
+  if (reason.trim().length < 5) throw new ValidationError(archive ? "Give a reason for archiving" : "Give a reason for restoring");
+  const policy = await db.policy.findFirst({ where: { id: policyId, organisationId: orgId, kind: "CUSTOMER" }, include: { revisions: { where: { closedAt: null }, select: { id: true } }, publications: { where: { status: "SCHEDULED" }, select: { id: true } } } });
+  if (!policy) throw new NotFoundError("Policy");
+  if (archive && policy.revisions.length) throw new ConflictError("This policy has a revision in progress. Finish or withdraw it before archiving.");
+  if (archive && policy.publications.length) throw new ConflictError("This policy has a scheduled publication. Cancel it before archiving.");
+  const from = archive ? "ACTIVE" : "ARCHIVED";
+  await db.$transaction(async (tx) => {
+    // Only moves from the expected state, so two people acting at once cannot both succeed.
+    const { count } = await tx.policy.updateMany({ where: { id: policy.id, organisationId: orgId, status: from }, data: { status: archive ? "ARCHIVED" : "ACTIVE" } });
+    if (!count) throw new ConflictError(archive ? "This policy is already archived" : "This policy is not archived");
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: archive ? "policy.archived" : "policy.restored", entityType: "Policy", entityId: policy.id, data: { reason: reason.trim() } }, tx);
+  });
 }

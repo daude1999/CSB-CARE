@@ -1,105 +1,200 @@
 "use client";
 import Link from "@/components/link";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { CaretDown } from "@phosphor-icons/react";
-import { portalById, portalForPath, type Portal } from "@/lib/portals";
-import { SideNav, type SideNavItem, type SideNavSection } from "@/components/side-nav";
-import { NavLink } from "@/components/nav-link";
+import { CaretDown, List, SignOut, Swap, X } from "@phosphor-icons/react";
+import { portalForPath, type Portal } from "@/lib/portals";
+import { useIsActive } from "@/components/side-nav";
 
-type Later = { code: string; name: string; summary: string; planned: string };
+export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean };
+export type ShellPortal = Portal & { icon: React.ReactNode };
+export type ShellPerson = { name: string; initials: string; role: string };
+export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
 
-function Badge({ code, dim = false, size = 26 }: { code: string; dim?: boolean; size?: number }) {
+/** A portal with its own look (the HR Hub) loads as a fresh page so the two style sheets never mix. */
+function PortalAnchor({ portal, className, current, children }: { portal: ShellPortal; className: string; current: boolean; children: React.ReactNode }) {
+  const props = { className, "data-portal-home": "", "aria-current": current ? ("page" as const) : undefined };
+  return portal.separateApp ? <a href={portal.home} {...props}>{children}</a> : <Link href={portal.home} {...props}>{children}</Link>;
+}
+
+/** Every portal this person may open, with the current portal's pages listed underneath it. */
+/** The order of the approved design; a portal missing from the list keeps its place at the end. */
+const ORDER = ["overview", "policy", "hr", "service-users", "rota", "reporting", "admin"];
+const rank = (id: string) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
+
+function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>> }) {
+  const path = usePathname();
+  const ordered = [...portals].sort((a, b) => rank(a.id) - rank(b.id));
+  const isActive = useIsActive();
+  const currentId = portalForPath(path);
   return (
-    <span aria-hidden="true" style={{ width: size, height: size }} className={`flex shrink-0 items-center justify-center rounded-[5px] text-[11.5px] font-bold text-white ${dim ? "bg-slate-300" : "bg-navy-900"}`}>
-      {code}
-    </span>
+    <nav aria-label="Main" className="shell-scroll min-h-0 flex-1 overflow-y-auto px-[10px] pb-[12px]">
+      <ul data-testid="portal-switcher" className="space-y-[3px]">
+        {ordered.map((p) => {
+          const current = p.id === currentId;
+          const pages = current ? (items[p.id] ?? []) : [];
+          return (
+            <li key={p.id}>
+              <PortalAnchor portal={p} current={current && path === p.home} className={`shell-portal ${current ? "shell-portal-current" : ""}`}>
+                <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
+                <span className={`min-w-0 truncate ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
+                {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
+              </PortalAnchor>
+              {pages.length ? (
+                <ul className="relative mb-[8px] ml-[8px] mt-[4px] space-y-px border-l border-white/[0.14] pl-[6px]">
+                  {pages.map((i) => {
+                    if (i.planned)
+                      return (
+                        <li key={i.label} className="shell-page cursor-default text-white/45">
+                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+                          <span className="min-w-0 truncate">{i.label}</span>
+                          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
+                        </li>
+                      );
+                    const active = isActive(i.href);
+                    return (
+                      <li key={i.href}>
+                        <Link href={i.href} aria-current={active ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
+                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+                          <span className="min-w-0 truncate">{i.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
-function Status({ planned }: { planned?: string }) {
-  return planned ? (
-    <span className="ml-auto whitespace-nowrap rounded-full border border-dashed border-slate-400 bg-slate-100 px-2 text-[11.5px] font-medium leading-[20px] text-slate-600">Planned · {planned}</span>
-  ) : (
-    <span className="ml-auto whitespace-nowrap rounded-full bg-[#e3f4ea] px-2 text-[11.5px] font-medium leading-[20px] text-[#1f7a4d]">Working now</span>
-  );
-}
-
-/** A link to a portal. A portal with its own look (the HR Hub) loads as a fresh page so the two style sheets never mix. */
-function PortalAnchor({ portal, className, children }: { portal: Portal; className: string; children: React.ReactNode }) {
-  return portal.separateApp ? <a href={portal.home} className={className}>{children}</a> : <Link href={portal.home} className={className}>{children}</Link>;
-}
-
-/** The portal button in the global header. It lists only the portals this person may open (decided on the server). */
-export function PortalSwitcher({ portals, later }: { portals: Portal[]; later: readonly Later[] }) {
-  const current = portalById(portalForPath(usePathname()));
-  return (
-    <details className="group relative shrink-0" data-testid="portal-switcher">
-      <summary className="flex h-[40px] cursor-pointer list-none items-center gap-2 rounded-[6px] border-[1.5px] border-navy-900 bg-white pl-[7px] pr-3 text-[15.5px] font-medium text-navy-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-        <Badge code={current.code} />
-        <span className="max-w-[160px] truncate sm:max-w-none" data-testid="current-portal">{current.name}</span>
-        <CaretDown size={11} weight="bold" aria-hidden="true" className="transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="fixed inset-x-2 top-[58px] z-40 max-h-[calc(100vh-70px)] overflow-y-auto rounded-[8px] border border-slate-200 bg-white p-2 shadow-[0_16px_44px_rgb(10_28_54/0.28)] sm:absolute sm:inset-x-auto sm:left-0 sm:top-[46px] sm:w-[520px]">
-        <p className="mx-2.5 mb-1 mt-2 text-[11.5px] font-medium uppercase tracking-[0.08em] text-slate-500">Switch portal</p>
-        <ul>
-          {portals.map((p) => {
-            const on = p.id === current.id;
-            return (
-              <li key={p.id}>
-                <PortalAnchor portal={p} className={`flex items-center gap-3 rounded-[6px] px-2.5 py-2 no-underline hover:bg-slate-50 ${on ? "bg-[#edf8fd] outline outline-1 outline-teal-100" : ""}`}>
-                  <Badge code={p.code} dim={Boolean(p.planned)} size={32} />
-                  <span className="min-w-0">
-                    <span className="block text-[15px] font-medium text-navy-900" aria-current={on ? "page" : undefined}>{p.name}</span>
-                    <span className="hidden text-[12.5px] text-slate-500 sm:block">{p.summary}</span>
-                  </span>
-                  <Status planned={p.planned} />
-                </PortalAnchor>
-              </li>
-            );
-          })}
-        </ul>
-        {later.length ? (
-          <>
-            <p className="mx-2.5 mb-1 mt-2 text-[11.5px] font-medium uppercase tracking-[0.08em] text-slate-500">Coming later</p>
-            {later.map((l) => (
-              <div key={l.code} className="flex items-center gap-3 px-2.5 py-2">
-                <Badge code={l.code} dim size={32} />
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-medium text-navy-900">{l.name}</span>
-                  <span className="hidden text-[12.5px] text-slate-500 sm:block">{l.summary}</span>
-                </span>
-                <Status planned={l.planned} />
-              </div>
-            ))}
-          </>
-        ) : null}
+/** The organisation card: switching is offered only when the person belongs to more than one organisation. */
+function OrganisationCard({ org, switchAction }: { org: ShellOrganisation; switchAction: (fd: FormData) => Promise<void> }) {
+  const place = org.branch ? `${org.name} · ${org.branch}` : org.name;
+  const shown = org.branch ?? org.name;
+  if (org.options.length < 2) {
+    return (
+      <div className="flex items-center gap-3 rounded-[8px] border border-white/[0.16] px-3 py-2.5">
+        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/40 text-white/90"><Swap size={14} /></span>
+        <span className="min-w-0">
+          <span className="block text-[12.5px] text-white/70">Organisation</span>
+          <span className="line-clamp-2 block text-[12.5px] leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
+        </span>
       </div>
+    );
+  }
+  return (
+    <details className="group relative rounded-[8px] border border-white/[0.16]">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/40 text-white/90"><Swap size={14} /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12.5px] text-white/70">Switch Organisation</span>
+          <span className="line-clamp-2 block text-[12.5px] leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
+        </span>
+        <CaretDown size={12} weight="bold" aria-hidden="true" className="text-white/80 transition-transform group-open:rotate-180" />
+      </summary>
+      <form action={switchAction} className="space-y-2 border-t border-white/[0.12] px-3 pb-3 pt-2">
+        <label className="sr-only" htmlFor="shell-org">Organisation</label>
+        <select id="shell-org" name="organisationId" defaultValue={org.currentId ?? ""} className="w-full rounded-[6px] border border-white/25 bg-[#0c2a44] px-2 py-1.5 text-[13px] text-white">
+          {org.options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+        <button type="submit" className="w-full rounded-[6px] bg-white/[0.12] py-1.5 text-[13px] text-white hover:bg-white/20">Switch</button>
+      </form>
     </details>
   );
 }
 
-/** The side menu for whichever portal the current page belongs to. */
-export function PortalSideNav({ nav }: { nav: Partial<Record<string, SideNavSection[]>> }) {
-  const current = portalById(portalForPath(usePathname()));
+function SidebarBody({ portals, items, org, person, switchAction, signOutAction, logo }: SidebarProps) {
   return (
     <>
-      <p className="border-t border-white/10 px-[14px] pb-1.5 pt-2.5 text-[11.5px] font-medium uppercase tracking-[0.1em] text-white/60" data-testid="portal-title">{current.name}</p>
-      <SideNav sections={nav[current.id] ?? []} />
+      <div className="shrink-0 px-[18px] pb-5 pt-[18px]">
+        <Link href="/overview" aria-label="CSB All in One Platform home" className="block w-fit no-underline">{logo}</Link>
+        <p className="mt-2 text-[14px] leading-tight text-white">Care Solution Bureau CIC</p>
+      </div>
+      <PortalNav portals={portals} items={items} />
+      <div className="shrink-0 space-y-3 border-t border-white/[0.08] px-3 pb-4 pt-3">
+        {org ? <OrganisationCard org={org} switchAction={switchAction} /> : null}
+        <div className="flex items-center gap-3 px-1">
+          <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white/[0.92] text-[13px] font-semibold text-[#092135]">{person.initials}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-[14px] text-white" data-testid="current-user">{person.name}</span>
+            <span className="block truncate text-[12.5px] text-white/70">{person.role}</span>
+          </span>
+        </div>
+        <form action={signOutAction}>
+          <button type="submit" className="flex w-full items-center gap-3 rounded-[6px] px-2 py-2 text-left text-[14px] text-white hover:bg-white/[0.08]">
+            <SignOut size={18} aria-hidden="true" />Sign out
+          </button>
+        </form>
+      </div>
     </>
   );
 }
 
-/** Phone layout: the current portal's pages as a row that scrolls sideways. */
-export function PortalMobileNav({ nav }: { nav: Partial<Record<string, SideNavSection[]>> }) {
-  const current = portalById(portalForPath(usePathname()));
-  const items: SideNavItem[] = (nav[current.id] ?? []).filter((s) => !s.planned).flatMap((s) => s.items);
+type SidebarProps = {
+  portals: ShellPortal[];
+  items: Partial<Record<string, ShellItem[]>>;
+  org: ShellOrganisation | null;
+  person: ShellPerson;
+  switchAction: (fd: FormData) => Promise<void>;
+  signOutAction: () => Promise<void>;
+  logo: React.ReactNode;
+};
+
+/** The application sidebar from the approved design: portals, the current portal's pages, organisation and account. */
+export function ShellSidebar(props: SidebarProps) {
   return (
-    <nav className="overflow-x-auto border-b border-slate-200 bg-paper px-3 py-2 md:hidden" aria-label="Main">
-      <div className="flex min-w-max gap-1">
-        {items.map((n) => (
-          <NavLink key={n.href} href={n.href} compact>{n.label}</NavLink>
-        ))}
-      </div>
-    </nav>
+    <div className="shell-sidebar hidden w-[212px] shrink-0 md:block">
+      <aside className="sticky top-0 flex h-screen flex-col">
+        <SidebarBody {...props} />
+      </aside>
+    </div>
   );
+}
+
+/** Phones and small tablets: the same sidebar, opened from a menu button as a dialog. */
+export function MobileMenu(props: SidebarProps) {
+  const [open, setOpen] = useState(false);
+  const path = usePathname();
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    const d = dialog.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-[6px] text-[#0b1530] hover:bg-black/5 md:hidden" aria-label="Open menu" aria-haspopup="dialog">
+        <List size={22} aria-hidden="true" />
+      </button>
+      <dialog ref={dialog} onClose={() => setOpen(false)} aria-label="Menu" className="m-0 h-full max-h-none w-[280px] max-w-[85vw] p-0 backdrop:bg-black/40">
+        <div className="shell-sidebar flex h-full flex-col">
+          <button type="button" onClick={() => setOpen(false)} className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-white hover:bg-white/10" aria-label="Close menu">
+            <X size={18} aria-hidden="true" />
+          </button>
+          {open ? <SidebarBody {...props} /> : null}
+        </div>
+      </dialog>
+    </>
+  );
+}
+
+/** Ctrl+K or ⌘K jumps to the global search, as the shortcut hint in the search box says. */
+export function SearchShortcut({ targetId }: { targetId: string }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        (document.getElementById(targetId) as HTMLInputElement | null)?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [targetId]);
+  return null;
 }
