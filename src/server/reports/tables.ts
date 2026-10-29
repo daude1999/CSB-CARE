@@ -26,7 +26,9 @@ export async function reportRows(ctx: Ctx, kind: string): Promise<{ columns: str
     }
     case "acknowledgements": {
       if (!orgId) return { columns: ["Note"], rows: [["Select an organisation"]] };
-      const acks = await db.acknowledgement.findMany({ where: { organisationId: orgId }, include: { user: { select: { name: true } }, publication: { include: { policy: { select: { ref: true, title: true } }, version: { select: { label: true } } } } }, orderBy: { createdAt: "desc" } });
+      // Branch-limited managers see acknowledgements of members based in their branches (and members without a branch).
+      const branchLimit = ctx.branchIds ? { user: { memberships: { some: { organisationId: orgId, OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] } } } } : {};
+      const acks = await db.acknowledgement.findMany({ where: { organisationId: orgId, ...branchLimit }, include: { user: { select: { name: true } }, publication: { include: { policy: { select: { ref: true, title: true } }, version: { select: { label: true } } } } }, orderBy: { createdAt: "desc" } });
       return {
         columns: ["Staff member", "Policy", "Version", "Due", "Acknowledged", "Overdue"],
         rows: acks.map((a) => [a.user.name, `${a.publication.policy.ref} ${a.publication.policy.title}`, a.publication.version.label, d(a.dueAt), d(a.acknowledgedAt), !a.acknowledgedAt && a.dueAt && a.dueAt < new Date() ? "yes" : "no"]),

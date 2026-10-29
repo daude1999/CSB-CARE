@@ -121,6 +121,7 @@ model Branch {
   staff          StaffMember[]
   areas          Area[]
   serviceUsers   ServiceUser[]
+  grants         MembershipBranch[]
 
   @@unique([organisationId, hrBranchKey])
   @@index([organisationId])
@@ -150,9 +151,23 @@ model Membership {
   branch         Branch?          @relation(fields: [branchId], references: [id])
   /// Areas a care coordinator is limited to. None means every area in the organisation.
   areas          MembershipArea[]
+  /// Branches this member may work in. None means every branch in the organisation (the single-branch default).
+  branches       MembershipBranch[]
 
   @@unique([userId, organisationId])
   @@index([organisationId])
+}
+
+/// An explicit, audited grant of access to a branch. Scope is derived from these on every request.
+model MembershipBranch {
+  membershipId String
+  branchId     String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  grantedAt    DateTime   @default(now())
+  grantedById  String?
+
+  @@id([membershipId, branchId])
 }
 
 /// HR & Workforce (the CSB HR Hub) for one organisation. The HR Hub keeps its records as one document,

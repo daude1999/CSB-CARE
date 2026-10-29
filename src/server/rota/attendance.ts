@@ -116,7 +116,7 @@ async function applyClock(tx: Tx, scope: Scope, visit: Visit, settings: RotaSett
 /** A carer clocks themselves in or out now. Their staff identity comes from the linked sign-in, never the form. */
 export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, input: { nonce?: string; note?: string }) {
   const staff = await myStaff(ctx);
-  const scope: Scope = { organisationId: staff.organisationId, areaIds: null };
+  const scope: Scope = { organisationId: staff.organisationId, areaIds: null, branchIds: null };
   const at = new Date();
   return db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
@@ -133,7 +133,7 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
 /** The carer could not deliver the visit at the door (no answer, refused). The office is alerted at once. */
 export async function notDeliveredMine(ctx: Ctx, visitId: string, reason: string) {
   const staff = await myStaff(ctx);
-  const scope: Scope = { organisationId: staff.organisationId, areaIds: null };
+  const scope: Scope = { organisationId: staff.organisationId, areaIds: null, branchIds: null };
   if (reason.trim().length < 3) throw new ValidationError("Say what happened");
   return db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);

@@ -24,6 +24,13 @@ export function requireAny(ctx: Ctx, perms: OrgPermission[]) {
 
 const PREPARE: OrgPermission[] = ["rota.edit", "finance.manage"];
 
+/** Branch-limited members only see timesheets of staff in their branches (staff without a branch stay visible). */
+async function staffInBranches(ctx: Ctx, organisationId: string): Promise<Prisma.TimesheetWhereInput> {
+  if (!ctx.branchIds) return {};
+  const ids = await db.staffMember.findMany({ where: { organisationId, OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] }, select: { id: true } });
+  return { staffId: { in: ids.map((x) => x.id) } };
+}
+
 export function weekOf(weekStart: string) {
   if (!isIsoDate(weekStart) || isoWeekday(weekStart) !== 1) throw new ValidationError("Choose a week starting on a Monday");
   return { start: weekStart, end: addDays(weekStart, 6) };
@@ -91,7 +98,7 @@ export async function listTimesheets(ctx: Ctx, weekStart: string, status?: strin
   const organisationId = requireAny(ctx, [...PREPARE, "finance.view"]);
   const { start, end } = weekOf(weekStart);
   const s = (["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"] as TimesheetStatus[]).find((x) => x === status);
-  const rows = await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(start), periodEnd: dbDate(end), ...(s ? { status: s } : {}) }, orderBy: [{ status: "asc" }, { exceptions: "desc" }] });
+  const rows = await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(start), periodEnd: dbDate(end), ...(s ? { status: s } : {}), ...(await staffInBranches(ctx, organisationId)) }, orderBy: [{ status: "asc" }, { exceptions: "desc" }] });
   const staff = await db.staffMember.findMany({ where: { organisationId, id: { in: rows.map((r) => r.staffId) } }, select: { id: true, displayName: true, jobTitle: true } });
   const names = new Map(staff.map((x) => [x.id, x]));
   return rows.map((r) => ({ ...r, staff: names.get(r.staffId) ?? null }));
@@ -99,16 +106,16 @@ export async function listTimesheets(ctx: Ctx, weekStart: string, status?: strin
 
 export async function getTimesheet(ctx: Ctx, id: string) {
   const organisationId = requireAny(ctx, [...PREPARE, "finance.view"]);
-  const t = await db.timesheet.findFirst({ where: { id, organisationId }, include: { lines: { orderBy: [{ date: "asc" }, { description: "asc" }] } } });
+  const t = await db.timesheet.findFirst({ where: { id, organisationId, ...(await staffInBranches(ctx, organisationId)) }, include: { lines: { orderBy: [{ date: "asc" }, { description: "asc" }] } } });
   if (!t) throw new NotFoundError("Timesheet");
   const staff = await db.staffMember.findFirst({ where: { id: t.staffId, organisationId }, select: { id: true, displayName: true, jobTitle: true } });
   const history = await db.auditLog.findMany({ where: { organisationId, entityType: "Timesheet", entityId: t.id }, orderBy: { createdAt: "asc" } });
   return { timesheet: t, staff, history };
 }
 
-async function lockTimesheet(tx: Tx, organisationId: string, id: string, version: number) {
+async function lockTimesheet(tx: Tx, ctx: Ctx, organisationId: string, id: string, version: number) {
   await tx.$queryRaw`SELECT id FROM "Timesheet" WHERE id = ${id} AND "organisationId" = ${organisationId} FOR UPDATE`;
-  const t = await tx.timesheet.findFirst({ where: { id, organisationId } });
+  const t = await tx.timesheet.findFirst({ where: { id, organisationId, ...(await staffInBranches(ctx, organisationId)) } });
   if (!t) throw new NotFoundError("Timesheet");
   if (t.version !== version) throw new ConflictError("This timesheet changed since you opened it. Reload and try again.");
   return t;
@@ -120,7 +127,7 @@ export async function adjustLine(ctx: Ctx, timesheetId: string, version: number,
   if (!Number.isInteger(minutes) || minutes < 0 || minutes > 24 * 60) throw new ValidationError("Payable minutes must be a whole number between 0 and 1440");
   if (reason.trim().length < 3) throw new ValidationError("Give a reason for the change");
   return db.$transaction(async (tx) => {
-    const t = await lockTimesheet(tx, organisationId, timesheetId, version);
+    const t = await lockTimesheet(tx, ctx, organisationId, timesheetId, version);
     if (t.status !== "DRAFT" && t.status !== "REJECTED") throw new ValidationError("Only a draft or rejected timesheet can be changed");
     const line = await tx.timesheetLine.findFirst({ where: { id: lineId, timesheetId: t.id } });
     if (!line) throw new NotFoundError("Timesheet line");
@@ -134,7 +141,7 @@ export async function adjustLine(ctx: Ctx, timesheetId: string, version: number,
 export async function submitTimesheet(ctx: Ctx, id: string, version: number) {
   const organisationId = requireAny(ctx, PREPARE);
   return db.$transaction(async (tx) => {
-    const t = await lockTimesheet(tx, organisationId, id, version);
+    const t = await lockTimesheet(tx, ctx, organisationId, id, version);
     if (t.status !== "DRAFT" && t.status !== "REJECTED") throw new ValidationError("Only a draft or rejected timesheet can be submitted");
     await tx.timesheet.update({ where: { id: t.id }, data: { status: "SUBMITTED", submittedById: ctx.userId, submittedAt: new Date(), decidedById: null, decidedAt: null, decisionNote: null, version: { increment: 1 } } });
     await audit({ organisationId, actorId: ctx.userId, action: "finance.timesheet.submitted", entityType: "Timesheet", entityId: t.id, data: { payableMinutes: t.payableMinutes, exceptions: t.exceptions } }, tx);
@@ -146,7 +153,7 @@ export async function decideTimesheet(ctx: Ctx, id: string, version: number, dec
   const organisationId = requireOrgPermission(ctx, "finance.approve");
   if (decision === "REJECTED" && note.trim().length < 3) throw new ValidationError("Say what needs correcting");
   return db.$transaction(async (tx) => {
-    const t = await lockTimesheet(tx, organisationId, id, version);
+    const t = await lockTimesheet(tx, ctx, organisationId, id, version);
     if (t.status !== "SUBMITTED") throw new ValidationError("Only a submitted timesheet can be approved or rejected");
     if (t.submittedById === ctx.userId) throw new ForbiddenError("You submitted this timesheet, so someone else must decide it");
     await tx.timesheet.update({ where: { id: t.id }, data: { status: decision, decidedById: ctx.userId, decidedAt: new Date(), decisionNote: note.trim() || null, version: { increment: 1 } } });
@@ -158,7 +165,7 @@ export async function decideTimesheet(ctx: Ctx, id: string, version: number, dec
 export async function bulkTimesheets(ctx: Ctx, weekStart: string, kind: "submit" | "approve") {
   const { start } = weekOf(weekStart);
   const organisationId = kind === "submit" ? requireAny(ctx, PREPARE) : requireOrgPermission(ctx, "finance.approve");
-  const rows = await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(start), status: kind === "submit" ? "DRAFT" : "SUBMITTED" } });
+  const rows = await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(start), status: kind === "submit" ? "DRAFT" : "SUBMITTED", ...(await staffInBranches(ctx, organisationId)) } });
   let done = 0;
   const refused: string[] = [];
   for (const t of rows) {

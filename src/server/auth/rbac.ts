@@ -6,7 +6,10 @@ export interface Ctx {
   userId: string;
   userName: string;
   organisationId: string | null;
+  /** The member's home branch (where they are based), used for targeting; not an access limit. */
   branchId: string | null;
+  /** Branches this member may work in (MembershipBranch grants); null = every branch in the organisation. */
+  branchIds: string[] | null;
   orgRoles: OrgRole[];
   platformRoles: PlatformRole[];
   /** The HR Hub account used in HR & Workforce, when the member has HR access. */

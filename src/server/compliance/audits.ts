@@ -14,17 +14,27 @@ export async function startAudit(ctx: Ctx, templateId: string, input: { title: s
   if (tpl.status !== "ACTIVE") throw new ConflictError("Template is not active");
   if (input.branchId) {
     const b = await db.branch.findUnique({ where: { id: input.branchId } });
-    if (!b || b.organisationId !== orgId) throw new NotFoundError("Branch");
-  }
+    if (!b || b.organisationId !== orgId || (ctx.branchIds && !ctx.branchIds.includes(b.id))) throw new NotFoundError("Branch");
+  } else if (ctx.branchIds) throw new ValidationError("Choose one of your branches for this audit");
   const a = await db.audit.create({ data: { organisationId: orgId, branchId: input.branchId ?? null, templateId, templateVersion: tpl.version, title: input.title || tpl.title, conductedById: ctx.userId } });
   await audit({ organisationId: orgId, actorId: ctx.userId, action: "audit.started", entityType: "Audit", entityId: a.id });
   return a;
 }
 
+/** Audits a branch-limited member may see: their branches' audits and organisation-wide ones. */
+export function auditBranchWhere(ctx: Ctx) {
+  return ctx.branchIds ? { OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] } : {};
+}
+
+async function visibleAudit(ctx: Ctx, orgId: string, auditId: string) {
+  const a = await db.audit.findFirst({ where: { id: auditId, organisationId: orgId, ...auditBranchWhere(ctx) } });
+  if (!a) throw new NotFoundError("Audit");
+  return a;
+}
+
 export async function answerQuestion(ctx: Ctx, auditId: string, questionId: string, response: string, notes?: string) {
   const orgId = requireOrgPermission(ctx, "audit.conduct");
-  const a = await db.audit.findUnique({ where: { id: auditId } });
-  if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
+  const a = await visibleAudit(ctx, orgId, auditId);
   if (a.status !== "IN_PROGRESS") throw new ConflictError("Audit is completed");
   if (!RESPONSES.includes(response as never)) throw new ValidationError("Choose a response: met, partially met, not met or not applicable");
   const q = await db.auditQuestion.findUnique({ where: { id: questionId } });
@@ -40,8 +50,8 @@ export async function answerQuestion(ctx: Ctx, auditId: string, questionId: stri
 
 export async function addFinding(ctx: Ctx, auditId: string, input: { description: string; riskRating: string; questionId?: string }) {
   const orgId = requireOrgPermission(ctx, "audit.conduct");
-  const a = await db.audit.findUnique({ where: { id: auditId } });
-  if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
+  const a = await visibleAudit(ctx, orgId, auditId);
+  if (a.status !== "IN_PROGRESS") throw new ConflictError("Findings are added while the audit is in progress");
   if (!RISK.includes(input.riskRating as never)) throw new ValidationError("Invalid risk rating");
   if (!input.description.trim()) throw new ValidationError("Describe the finding");
   return db.auditFinding.create({ data: { auditId, organisationId: orgId, description: input.description, riskRating: input.riskRating, questionId: input.questionId } });
@@ -56,8 +66,8 @@ export function auditProgress(questionIds: string[], answers: { questionId: stri
 
 export async function completeAudit(ctx: Ctx, auditId: string) {
   const orgId = requireOrgPermission(ctx, "audit.conduct");
-  const a = await db.audit.findUnique({ where: { id: auditId }, include: { answers: { select: { questionId: true } }, template: { select: { questions: { select: { id: true } } } } } });
-  if (!a || a.organisationId !== orgId) throw new NotFoundError("Audit");
+  const a = await db.audit.findFirst({ where: { id: auditId, organisationId: orgId, ...auditBranchWhere(ctx) }, include: { answers: { select: { questionId: true } }, template: { select: { questions: { select: { id: true } } } } } });
+  if (!a) throw new NotFoundError("Audit");
   if (a.status !== "IN_PROGRESS") throw new ConflictError("Audit is already completed");
   const progress = auditProgress(a.template.questions.map((q) => q.id), a.answers);
   if (progress.missing.length) {

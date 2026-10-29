@@ -59,6 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hr: [...page("/workforce/absences", "Holidays & Sickness", <CalendarDots {...i} />, Boolean(ctx.hrUserId)), ...page("/workforce/availability", "Availability", <ClockCounterClockwise {...i} />, Boolean(ctx.hrUserId))],
     admin: [
       ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
+      ...page("/admin/branches", "Branches", <Buildings {...i} />, can.settings),
       ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
       ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
       ...page("/modules", "Modules", <SquaresFour {...i} />),

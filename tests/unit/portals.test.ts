@@ -7,7 +7,7 @@ import { canUsePortal, portalsFor } from "@/server/auth/portals";
 import { PORTALS, portalForPath } from "@/lib/portals";
 import { withBase } from "@/hr/nav";
 
-const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, orgRoles: [], platformRoles: [], hrUserId: null, ...over });
+const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, branchIds: null, orgRoles: [], platformRoles: [], hrUserId: null, ...over });
 
 describe("portal access", () => {
   it("gives a manager every portal, HR included when they have an HR account", () => {

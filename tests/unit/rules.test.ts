@@ -7,7 +7,7 @@ import { diffPolicySections } from "@/server/policies/versions";
 import { backoffMs } from "@/server/jobs/queue";
 import { auditScore } from "@/server/compliance/audits";
 
-const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, orgRoles: [], platformRoles: [], ...over });
+const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, branchIds: null, orgRoles: [], platformRoles: [], ...over });
 
 describe("authorisation", () => {
   it("separates author and approver permissions", () => {

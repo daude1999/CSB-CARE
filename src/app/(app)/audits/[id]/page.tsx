@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { auditProgress, auditScore } from "@/server/compliance/audits";
+import { auditBranchWhere, auditProgress, auditScore } from "@/server/compliance/audits";
 import { answerAction, completeAuditAction, createActionAction, findingAction } from "../../../actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -16,7 +16,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   const ctx = await requireCtx();
   if (!hasOrgPermission(ctx, "audit.conduct")) notFound();
   const a = await db.audit.findFirst({
-    where: { id, organisationId: ctx.organisationId! },
+    where: { id, organisationId: ctx.organisationId!, ...auditBranchWhere(ctx) },
     include: {
       template: { include: { questions: { orderBy: { position: "asc" }, include: { policy: { select: { id: true, ref: true } }, requirements: { include: { requirement: { select: { id: true, ref: true } } } } } } } },
       answers: true,

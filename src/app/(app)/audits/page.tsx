@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { auditScore } from "@/server/compliance/audits";
+import { auditBranchWhere, auditScore } from "@/server/compliance/audits";
 import { startAuditAction } from "../../actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow, StatusBadge } from "@/components/ui";
 
@@ -16,8 +16,8 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const orgId = ctx.organisationId!;
   const [templates, audits, branches] = await Promise.all([
     db.auditTemplate.findMany({ where: { OR: [{ organisationId: null }, { organisationId: orgId }], status: "ACTIVE" }, include: { _count: { select: { questions: true } } }, orderBy: { title: "asc" } }),
-    db.audit.findMany({ where: { organisationId: orgId }, orderBy: { startedAt: "desc" }, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true, _count: { select: { questions: true } } } } } }),
-    db.branch.findMany({ where: { organisationId: orgId }, orderBy: { name: "asc" } }),
+    db.audit.findMany({ where: { organisationId: orgId, ...auditBranchWhere(ctx) }, orderBy: { startedAt: "desc" }, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true, _count: { select: { questions: true } } } } } }),
+    db.branch.findMany({ where: { organisationId: orgId, ...(ctx.branchIds ? { id: { in: ctx.branchIds } } : {}) }, orderBy: { name: "asc" } }),
   ]);
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
   const scores = audits.map((a) => auditScore(a.answers, a.template._count.questions)).filter((x): x is number => x !== null);
