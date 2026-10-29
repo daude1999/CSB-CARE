@@ -149,3 +149,15 @@ Standard Prisma engines (local PostgreSQL 16). The readiness WIP was in the tree
 | `npm run test:hr` | pass |
 | `npm run build` | pass |
 | `npm run test:e2e` | 33 passed. Adds the exceptions flow (coordinator resolves an open exception with evidence) |
+
+## V1 items 4 and 5: carer tasks and notes, care packages (30 Oct 2026)
+
+One full run covered both items; each item's own tests were run first.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 28 files, 231 passed. Adds `tests/integration/visit-record.test.ts` (4: clock-in needed, reason for not done or refused, once per task with the database refusing a second row and any edit, other visits and tasks refused, notes by carer and office, concern raises an exception with a deadline, handover shown on the next visit, Visit Notes filters) and `tests/integration/packages.test.ts` (4: replacement ends the old package the day before, one active package enforced by the database, validation, ended packages frozen, funder left to finance, coverage against templates, branch scope) |
+| `npm run test:hr` | pass |
+| `npm run build` | pass |
+| `npm run test:e2e` | 35 passed. Adds: the carer writes a handover note and the coordinator finds it on Visit Notes; the coordinator replaces a person's care package |

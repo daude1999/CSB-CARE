@@ -7,7 +7,7 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Today | /rota | ✓ | read | n/a | n/a | ✓ | n/a | e2e | late starts, cover gaps, review list, next two hours, next week's build, open alerts |
 | 2 | Service users | /rota/service-users | ✓ | ✓ | ✓ | ✓ | ✓ sensitive fields gated | ✓ | int + e2e | contacts, absences, preferences, key safe, status flow |
-| 3 | Care packages | — | ✗ | | | | | | | the service user's visit pattern lives in templates for now |
+| 3 | Care packages | /rota/service-users/[id]?tab=package | ✓ | create, edit, end, replace | n/a | ✓ (zod, dates, one active) | serviceUser.edit; funder needs finance.manage; area scope | ✓ | int + e2e | commissioned vs planned hours |
 | 4 | Care plans and risks | /rota/care-plans, /rota/risks, /carer/care-plan/[id] | ✓ | ✓ | ✓ | ✓ | edit, approve (second person), carer own people only | ✓ | int + e2e | approved versions frozen by trigger |
 | 5 | Recurring templates (1–4 week cycle) | /rota/templates | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | int | carer clash refused, bulk enable/disable/nudge, duplicate, apply to built visits |
 | 6 | Template planner | /rota/templates/planner | ✓ | update | ✓ | ✓ | ✓ | ✓ | manual browser check | drag a template to another carer |
@@ -21,8 +21,8 @@ Column checks against CLAUDE.md's "feature is done" list: CRUD with persistence,
 | 14 | ECM / clocking | /carer, /rota/visits/[id] | ✓ | create + correct | n/a | ✓ (zod, order of events, short-visit note) | own visits only; office needs rota.clockCorrect | ✓ | int + manual browser | append-only; corrections supersede; no GPS/NFC |
 | 15 | Live call monitor | /rota/monitor | ✓ | read + check now | area | n/a | rota.monitor | runs recorded | int + e2e | late, missed, overrun, not delivered; alert latency |
 | 15b | Exceptions register | /rota/exceptions | ✓ | assign owner, escalate, resolve | state, type, severity, area, owner | ✓ | rota.monitor to view, rota.edit to act; area scope | ✓ | int + e2e | escalation in-app only; deadline per type |
-| 16 | Carer mobile | /carer | ◐ | read, acknowledge, clock, not delivered | n/a | ✓ | own visits only | ✓ | int + e2e | no task recording, GPS, NFC or offline |
-| 17 | Tasks and notes | — | ✗ | | | | | | | call types and care tasks reference lists exist |
+| 16 | Carer mobile | /carer | ✓ | read, acknowledge, clock, not delivered, tasks, notes | n/a | ✓ | own visits only | ✓ | int + e2e | no GPS, NFC or offline |
+| 17 | Tasks and notes | /carer, /rota/visits/[id], /rota/notes | ✓ | create (append-only) | dates, kind, text | ✓ | carer own visits; office rota.edit; area scope | ✓ | int + e2e | concerns raise exceptions |
 | 18 | Incidents | /rota/incidents | ✓ | ✓ | ✓ | ✓ | report vs manage; reporters see own | ✓ | int + e2e | in-app alerts; never sends statutory notifications |
 | 19 | Timesheets | /rota/finance/timesheets | ✓ | generate, adjust (reason), submit, approve/reject, bulk | week, status | ✓ (zod, version check) | finance.view/manage/approve; submitter cannot decide | ✓ | int + e2e | built from effective clock records; exceptions listed |
 | 20 | Rates | /rota/finance/rates | ✓ | funders, rate cards, bands, bank holidays, settings, package funders, staff pay cards | tabs | ✓ (zod) | finance.manage | ✓ | int + unit | money in pence; bands locked once used in a run |

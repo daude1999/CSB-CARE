@@ -124,7 +124,7 @@ export async function prepareInvoiceRun(ctx: Ctx, weekStart: string) {
       const what = `${day} ${name} · ${v.callType.name}`;
       if (v.status === "MISSED") { exceptions.push({ kind: "MISSED", message: `${what}: missed, not charged`, ref: v.id }); continue; }
       if (v.status === "SCHEDULED" || v.status === "IN_PROGRESS") { exceptions.push({ kind: "UNFINISHED", message: `${what}: still ${v.status === "SCHEDULED" ? "not started" : "in progress"}, not charged`, ref: v.id }); continue; }
-      const pkg = v.serviceUser.packages.find((p) => p.startDate <= v.date && (!p.endDate || p.endDate >= v.date) && p.status !== "ENDED");
+      const pkg = v.serviceUser.packages.find((p) => p.startDate <= v.date && (p.endDate ? p.endDate >= v.date : p.status === "ACTIVE"));
       const funder = pkg?.funder;
       if (!funder) { exceptions.push({ kind: "NO_FUNDER", message: `${what}: no funded care package on this date`, ref: v.serviceUser.id }); continue; }
       if (v.status === "CANCELLED") {

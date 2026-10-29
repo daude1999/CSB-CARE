@@ -3,9 +3,8 @@
 Written plainly so nothing below is mistaken for working software.
 
 ## Not built yet (marked "Planned" in the sidebar)
-- GPS, NFC and offline use on the carer page. Clock times are the server's time when the button is pressed, and the page says so. Task recording and notes from the phone (apart from the clock-out note) are not built.
+- GPS, NFC and offline use on the carer page. Clock times are the server's time when the button is pressed, and the page says so.
 - Run routes and travel optimisation.
-- Visit task recording and general notes from the phone. Care plans, risk assessments and incidents are built.
 - Incidents: the "may need notifying" flag is a reminder only. The platform never sends notifications to CQC or a local authority.
 - eMAR and medication. Visits show a "medication prompt" flag only. No medication-compliance figures are shown anywhere.
 - Finance prepares figures only. Nothing is ever paid, invoiced, submitted to HMRC or sent to a funder. Pay runs show gross pay before deductions; tax and National Insurance are left to the payroll provider. The CSV is for import into other systems.

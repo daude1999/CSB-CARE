@@ -63,4 +63,36 @@ test.describe("Version 1", () => {
     await first.getByRole("button", { name: "Resolve" }).click();
     await expect(page.getByRole("status")).toContainText("Exception resolved");
   });
+
+  test("visit notes: the carer writes a handover note and the office finds it on Visit Notes", async ({ page }) => {
+    await signIn(page, "carer@care-solution.demo");
+    await page.goto("/carer");
+    await page.getByText("Add a note").first().click();
+    const form = page.locator("form:has(textarea[name=text])").first();
+    await form.locator("select[name=category]").selectOption("HANDOVER");
+    await form.locator("textarea[name=text]").fill("Front door sticks; lift and push");
+    await form.getByRole("button", { name: "Save note" }).click();
+    await expect(page.getByRole("status")).toContainText("Note added");
+    await page.context().clearCookies();
+    await signIn(page, "coordinator@care-solution.demo");
+    await page.goto("/rota/notes?category=HANDOVER");
+    await expect(page.getByRole("heading", { level: 1, name: "Visit Notes" })).toBeVisible();
+    await expect(page.getByText("Front door sticks; lift and push")).toBeVisible();
+  });
+
+  test("care packages: the coordinator replaces a person's package and sees it against the planned visits", async ({ page }) => {
+    await signIn(page, "coordinator@care-solution.demo");
+    await page.goto("/rota/service-users");
+    await page.locator("table tbody a").first().click();
+    await page.getByRole("link", { name: "Care package", exact: true }).click();
+    await expect(page.getByText(/Repeating visits plan/).first()).toBeVisible();
+    const form = page.locator("form:has(input[name=serviceUserId])");
+    await form.locator("input[name=reference]").fill("PKG-E2E");
+    await form.locator("input[name=hoursPerWeek]").fill("10.5");
+    const start = new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10);
+    await form.locator("input[name=startDate]").fill(start);
+    await form.getByRole("button", { name: "Record package" }).click();
+    await expect(page.getByRole("status")).toContainText("Care package recorded");
+    await expect(page.getByText("PKG-E2E")).toBeVisible();
+  });
 });

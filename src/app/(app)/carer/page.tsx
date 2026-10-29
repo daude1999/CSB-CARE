@@ -5,7 +5,8 @@ import { requirePortal } from "@/server/auth/portals";
 import { myVisits } from "@/server/rota/carer";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
-import { acknowledgeMyVisitsAction, clockMineAction, notDeliveredMineAction } from "@/app/rota-actions";
+import { acknowledgeMyVisitsAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
+import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
@@ -22,7 +23,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     if (e instanceof ForbiddenError) return <><PageHeader title="My Visits" back="/overview" /><Card><Empty>{e.message}</Empty></Card></>;
     throw e;
   }
-  const { staff, settings, visits } = data;
+  const { staff, settings, visits, lastHandover } = data;
   const now = Date.now();
   const today = londonDate();
   const days = [...new Set(visits.map((v) => fromDbDate(v.date)))];
@@ -30,7 +31,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="My Visits" back="/overview" subtitle={`${staff.displayName}. Your published visits. Clock in when you arrive and out when you leave; the time is taken from our server when you press the button. Location and NFC checks are not used, and the page needs a signal (there is no offline mode). Task recording from the phone is not built yet.`} />
+      <PageHeader title="My Visits" back="/overview" subtitle={`${staff.displayName}. Your published visits. Clock in when you arrive and out when you leave; the time is taken from our server when you press the button. Location and NFC checks are not used, and the page needs a signal (there is no offline mode). Record each task after you clock in; task records and notes cannot be changed once saved.`} />
       <Flash searchParams={sp} />
       {unseen ? (
         <form action={acknowledgeMyVisitsAction} className="panel mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -58,10 +59,13 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     {partner ? <p className="text-[13.5px]">With {partner.staff.displayName}</p> : null}
                     {mine?.slot === "SHADOW" ? <p className="text-[13.5px]">You are shadowing on this visit.</p> : null}
                     {v.serviceUser.accessNotes ? <p className="mt-1 text-[13.5px] text-slate-700">Getting in: {v.serviceUser.accessNotes}</p> : null}
+                    {lastHandover.get(v.serviceUserId) && lastHandover.get(v.serviceUserId)!.visitId !== v.id ? <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-[13.5px] text-slate-800">Handover from the last visit: {lastHandover.get(v.serviceUserId)!.text}</p> : null}
                     {v.tasks.length ? <p className="mt-1 text-[13.5px] text-slate-700">Tasks: {v.tasks.map((t) => t.name).join(", ")}</p> : null}
                     {v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; eMAR is not in use.</p> : null}
                     <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
+                    {mine ? <TaskControls v={v} /> : null}
+                    {mine ? <NoteControls v={v} staffId={staff.id} /> : null}
                   </li>
                 );
               })}
@@ -120,6 +124,63 @@ function ClockControls({ v, now, doorstep }: { v: MyVisit; now: number; doorstep
           </form>
         </details>
       ) : null}
+    </div>
+  );
+}
+
+/** After clocking in, the carer records each task once: done, not done or refused (with a reason). */
+function TaskControls({ v }: { v: MyVisit }) {
+  if (!v.tasks.length || ["CANCELLED", "NOT_DELIVERED"].includes(v.status)) return null;
+  const clockedIn = effectiveClocks(v.clocks).some((c) => c.kind === "IN");
+  const open = v.tasks.filter((t) => !t.outcomes.length);
+  const done = v.tasks.filter((t) => t.outcomes.length);
+  return (
+    <div className="mt-2">
+      {done.length ? (
+        <ul className="text-[13.5px] text-slate-700">
+          {done.map((t) => <li key={t.id}>{t.name}: <span className="font-medium">{OUTCOME_LABEL[t.outcomes[0]!.outcome]}</span>{t.outcomes[0]!.note ? ` (${t.outcomes[0]!.note})` : ""}</li>)}
+        </ul>
+      ) : null}
+      {clockedIn && open.length ? (
+        <form action={recordTasksMineAction} className="mt-2 space-y-2 rounded-md border border-slate-200 p-2.5" aria-label="Record tasks">
+          <input type="hidden" name="back" value="/carer" />
+          <input type="hidden" name="visitId" value={v.id} />
+          {open.map((t) => (
+            <fieldset key={t.id} className="space-y-1">
+              <legend className="text-[14px] font-medium">{t.name}</legend>
+              <div className="flex flex-wrap gap-3 text-[14px]">
+                {(["DONE", "NOT_DONE", "REFUSED"] as const).map((o) => <label key={o} className="flex items-center gap-1.5"><input type="radio" name={`outcome_${t.id}`} value={o} />{OUTCOME_LABEL[o]}</label>)}
+              </div>
+              <input name={`note_${t.id}`} className="input py-1.5 text-[14px]" placeholder="Reason if not done or refused" aria-label={`Note for ${t.name}`} />
+            </fieldset>
+          ))}
+          <button className="btn-primary w-full sm:w-auto">Save tasks</button>
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+/** Notes on the visit: the carer's own and the office's. Concerns go straight to the office. */
+function NoteControls({ v, staffId }: { v: MyVisit; staffId: string }) {
+  if (["CANCELLED"].includes(v.status)) return null;
+  return (
+    <div className="mt-2">
+      {v.visitNotes.length ? (
+        <ul className="space-y-1 text-[13.5px]">
+          {v.visitNotes.map((n) => <li key={n.id}><span className="text-slate-500">{NOTE_LABEL[n.category] ?? n.category}{n.staffId === staffId ? " (you)" : ""} · {londonTime(n.createdAt)}:</span> {n.text}</li>)}
+        </ul>
+      ) : null}
+      <details className="mt-1">
+        <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Add a note</summary>
+        <form action={addVisitNoteAction} className="mt-2 space-y-2">
+          <input type="hidden" name="back" value="/carer" />
+          <input type="hidden" name="visitId" value={v.id} />
+          <label className="block"><span className="label">Kind of note</span><select name="category" className="input">{Object.entries(NOTE_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+          <label className="block"><span className="label">Note</span><textarea name="text" required minLength={3} rows={3} className="input" /></label>
+          <button className="btn-secondary">Save note</button>
+        </form>
+      </details>
     </div>
   );
 }

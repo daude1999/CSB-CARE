@@ -4,13 +4,14 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
+import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
 import { READINESS_LABEL } from "@/server/readiness";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
-import { officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
+import { addVisitNoteAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 
@@ -44,6 +45,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const who = (u: string | null | undefined) => (u ? names.get(u) ?? "Former member" : "System");
   const inForce = new Set(effectiveClocks(v.clocks).map((c) => c.id));
   const carerName = (staffId: string | null) => v.assignments.find((a) => a.staffId === staffId)?.staff.displayName ?? "Carer";
+  const canNote = hasOrgPermission(ctx, "rota.edit");
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
 
@@ -142,7 +144,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 {v.tasks.map((t) => (
                   <li key={t.id} className="flex items-center justify-between py-2 text-[14px]">
                     <span>{t.name}</span>
-                    <span className="text-slate-500">{t.outcomes[0] ? `${t.outcomes[0].outcome.toLowerCase().replace("_", " ")} · ${fmtDate(t.outcomes[0].at, true)}` : "Not recorded"}</span>
+                    <span className="text-right text-slate-500">{t.outcomes.length ? t.outcomes.map((o) => <span key={o.id} className="block">{OUTCOME_LABEL[o.outcome]} · {carerName(o.staffId)} · {fmtDate(o.at, true)}{o.note ? <span className="block text-[13px] text-slate-600">{o.note}</span> : null}</span>) : "Not recorded"}</span>
                   </li>
                 ))}
               </ul>
@@ -162,12 +164,24 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 ))}
                 {v.visitNotes.map((n) => (
                   <li key={n.id} className="py-2 text-[14px]">
-                    <span className="text-[12.5px] text-slate-500">{n.category.toLowerCase()} note · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
+                    <span className="text-[12.5px] text-slate-500">{NOTE_LABEL[n.category] ?? `${n.category.toLowerCase().replace("_", " ")} note`} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
                     <p>{n.text}</p>
                   </li>
                 ))}
               </ul>
             ) : <Empty>Nothing recorded yet. Clock records and notes are kept permanently once made.</Empty>}
+            {canNote ? (
+              <form action={addVisitNoteAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Add a note">
+                <input type="hidden" name="back" value={`${back}#attendance`} />
+                <input type="hidden" name="visitId" value={v.id} />
+                <div className="grid gap-2 md:grid-cols-[12rem_1fr_auto] md:items-end">
+                  <label><span className="label">Kind of note</span><select name="category" className="input">{Object.entries(NOTE_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+                  <label><span className="label">Note</span><textarea name="text" required minLength={3} rows={2} className="input" /></label>
+                  <button className="btn-secondary">Add note</button>
+                </div>
+                <p className="mt-1 text-[12.5px] text-slate-600">Notes cannot be edited or deleted once saved. A concern alerts the coordinators inside the platform.</p>
+              </form>
+            ) : null}
             {canClock ? (
               <form action={officeClockAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Record a clock time">
                 <input type="hidden" name="back" value={`${back}#attendance`} />

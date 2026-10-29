@@ -150,7 +150,7 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         <Counter href={`/rota/visits?${q({ view: "review" })}`} label="Rota Conflicts" value={d.counters.rotaConflicts} note="Visits on this date with an allocation to review" />
         <Counter href="/rota/templates/planner" label="Template Conflicts" value={d.counters.templateConflicts} note="Template slots with no carer, or a carer who has left" />
         <Counter href="/workforce/absences" label="Holidays Due" value={d.counters.holidaysDue} note="Approved absences starting in the next 14 days" />
-        <Counter href={`/rota/visits?${q({})}`} label="Visit Notes" value={d.counters.notes} note="Notes carers wrote on this date" />
+        <Counter href={`/rota/notes?from=${date}&to=${date}`} label="Visit Notes" value={d.counters.notes} note="Notes carers wrote on this date" />
       </section>
     </>
   );

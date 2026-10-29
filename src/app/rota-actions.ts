@@ -10,6 +10,8 @@ import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
+import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
+import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
@@ -718,4 +720,46 @@ export async function escalateExceptionAction(fd: FormData) {
 
 export async function resolveExceptionAction(fd: FormData) {
   return handle(fd, (ctx) => resolveException(ctx, str(fd, "alertId"), { resolution: str(fd, "resolution"), evidenceNote: str(fd, "evidenceNote") || undefined }), "Exception resolved");
+}
+
+// ── Visit tasks and notes ─────────────────────────────────────────────────
+
+/** Task outcomes arrive as outcome_<taskId> and note_<taskId>; tasks left blank are not recorded. */
+export async function recordTasksMineAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const rows: { visitTaskId: string; outcome: "DONE" | "NOT_DONE" | "REFUSED"; note?: string }[] = [];
+    for (const [k, val] of fd.entries()) {
+      if (!k.startsWith("outcome_") || typeof val !== "string" || !val) continue;
+      if (val !== "DONE" && val !== "NOT_DONE" && val !== "REFUSED") throw new ValidationError("Choose done, not done or refused");
+      const id = k.slice("outcome_".length);
+      rows.push({ visitTaskId: id, outcome: val, note: str(fd, `note_${id}`) || undefined });
+    }
+    const r = await recordTaskOutcomes(ctx, str(fd, "visitId"), rows);
+    return { ok: `${r.recorded} task${r.recorded === 1 ? "" : "s"} recorded` };
+  }, "Tasks recorded");
+}
+
+export async function addVisitNoteAction(fd: FormData) {
+  const category = str(fd, "category");
+  return handle(fd, async (ctx) => {
+    await addVisitNote(ctx, str(fd, "visitId"), { text: str(fd, "text"), category: category === "HANDOVER" || category === "CONCERN" ? category : "GENERAL" });
+  }, "Note added");
+}
+
+// ── Care packages ─────────────────────────────────────────────────────────
+
+function packageInput(fd: FormData): PackageInput {
+  return { reference: str(fd, "reference"), commissionedMinutesPerWeek: str(fd, "hoursPerWeek") ? Math.round(Number(str(fd, "hoursPerWeek")) * 60) : null, startDate: str(fd, "startDate"), endDate: str(fd, "endDate") || undefined, requirements: str(fd, "requirements"), funderId: fd.has("funderId") ? str(fd, "funderId") || undefined : undefined };
+}
+
+export async function createPackageAction(fd: FormData) {
+  return handle(fd, async (ctx) => { await createPackage(ctx, str(fd, "serviceUserId"), packageInput(fd)); }, "Care package recorded");
+}
+
+export async function updatePackageAction(fd: FormData) {
+  return handle(fd, async (ctx) => { await updatePackage(ctx, str(fd, "packageId"), packageInput(fd)); }, "Care package updated");
+}
+
+export async function endPackageAction(fd: FormData) {
+  return handle(fd, (ctx) => endPackage(ctx, str(fd, "packageId"), { endDate: str(fd, "endDate"), reason: str(fd, "reason") }), "Care package ended");
 }
