@@ -4,6 +4,8 @@ import { NotFoundError } from "@/lib/errors";
 import { addDays, isoWeekday, londonDate, londonMinute, londonTime, mondayOf, londonToUtc } from "@/lib/london";
 import { requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { isCareRole, rotaSettings } from "@/server/rota/settings";
+import { evaluateReadiness, type ReadinessStatus } from "@/server/readiness/evaluate";
+import { loadReadinessFacts } from "@/server/readiness/facts";
 
 /**
  * The one eligibility service. Every scheduling path (manual assignment, planner moves, bulk reassignment,
@@ -28,6 +30,8 @@ export interface EligibilityResult {
   warnings: Reason[];
   compliance: ComplianceSummary;
   restrictions: string[];
+  /** Staff readiness (training, competency, policy, restrictions) judged for the visit's date and tasks. */
+  readiness: { status: ReadinessStatus; reasons: string[] } | null;
 }
 
 export interface EligibilityInput {
@@ -39,6 +43,8 @@ export interface EligibilityInput {
   serviceUserId?: string | null;
   areaId?: string | null;
   timeLocked?: boolean;
+  /** The care tasks on the visit, so task-level readiness (medication, moving and handling) is judged. */
+  careTaskIds?: string[];
 }
 
 type Db = Tx | Prisma.TransactionClient;
@@ -53,7 +59,7 @@ const staffInclude = {
 export async function loadFacts(tx: Db, organisationId: string, staffIds: string[], from: Date, to: Date) {
   const weekFrom = londonToUtc(mondayOf(londonDate(from)), 0);
   const weekTo = londonToUtc(addDays(mondayOf(londonDate(to)), 7), 0);
-  const [staff, absences, availability, assignments] = await Promise.all([
+  const [staff, absences, availability, assignments, readiness] = await Promise.all([
     tx.staffMember.findMany({ where: { organisationId, id: { in: staffIds } }, include: staffInclude }),
     tx.staffAbsence.findMany({ where: { organisationId, staffId: { in: staffIds }, status: { in: ["APPROVED", "REQUESTED"] }, startsAt: { lt: to }, endsAt: { gt: from } } }),
     tx.staffAvailability.findMany({ where: { organisationId, staffId: { in: staffIds } } }),
@@ -61,8 +67,9 @@ export async function loadFacts(tx: Db, organisationId: string, staffIds: string
       where: { organisationId, staffId: { in: staffIds }, blocking: true, startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } },
       select: { id: true, staffId: true, visitId: true, slot: true, startsAt: true, endsAt: true, visit: { select: { reference: true } } },
     }),
+    loadReadinessFacts(tx, organisationId, staffIds),
   ]);
-  return { staff, absences, availability, assignments };
+  return { staff, absences, availability, assignments, readiness };
 }
 export type Facts = Awaited<ReturnType<typeof loadFacts>>;
 
@@ -111,7 +118,7 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   const restrictions: string[] = [];
   const s = facts.staff.find((x) => x.id === input.staffId);
   const none: ComplianceSummary = { dbs: "Unknown", rightToWork: "Unknown", training: "Unknown" };
-  if (!s) return { staffId: input.staffId, state: "NOT_ELIGIBLE", blocking: [{ code: "NOT_FOUND", message: "This person is not on your organisation's staff list" }], warnings: [], compliance: none, restrictions };
+  if (!s) return { staffId: input.staffId, state: "NOT_ELIGIBLE", blocking: [{ code: "NOT_FOUND", message: "This person is not on your organisation's staff list" }], warnings: [], compliance: none, restrictions, readiness: null };
   const date = londonDate(input.start);
 
   // 1–4. Employment, role, rota participation.
@@ -188,8 +195,31 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   // 14. Time lock.
   if (input.timeLocked) restrictions.push("The visit time is locked: the carer may change, the time may not");
 
+  // 15. Staff readiness: training, competency, policy acknowledgement, restrictions and exceptions, judged for the
+  // visit's date, tasks and service user. DBS and right to work were judged above, so their components are skipped here.
+  let readiness: EligibilityResult["readiness"] = null;
+  const rf = facts.readiness?.staff.find((x) => x.id === s.id);
+  if (rf && facts.readiness) {
+    const r = evaluateReadiness(facts.readiness.facts, rf, { date, careTaskIds: input.careTaskIds ?? [], serviceUserId: input.serviceUserId ?? null });
+    readiness = { status: r.status, reasons: r.reasons };
+    const unmet = (state: string) => ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE", "PENDING_VERIFICATION"].includes(state);
+    const taskIds = new Set(input.careTaskIds ?? []);
+    for (const c of r.components) {
+      if (c.category === "CHECK") continue;
+      const bites = !c.taskLevel || c.careTaskIds.some((t) => taskIds.has(t)) || (input.serviceUserId ? c.serviceUserIds.includes(input.serviceUserId) : false);
+      if (!bites) continue;
+      if (unmet(c.state)) applyRule(c.hardStop ? "BLOCK" : "REVIEW", { code: c.state === "PENDING_VERIFICATION" ? "READINESS_PENDING" : "READINESS", message: c.message }, out);
+      else if (c.state === "RESTRICTED" && c.taskLevel) out.warnings.push({ code: "READINESS_RESTRICTED", message: c.message });
+    }
+    for (const x of r.restrictions) {
+      const bites = x.kind === "GENERAL" || (x.kind === "TASK" && x.careTaskId && taskIds.has(x.careTaskId)) || (x.kind === "SERVICE_USER" && input.serviceUserId && x.serviceUserId === input.serviceUserId);
+      if (bites) out.blocking.push({ code: "RESTRICTION", message: `Restricted: ${x.reason}` });
+    }
+    for (const f of r.openFlags) out.warnings.push({ code: "READINESS_REVIEW", message: `Readiness review required: ${f.reason}` });
+  }
+
   const state: EligibilityState = out.blocking.length ? "NOT_ELIGIBLE" : out.warnings.length ? "REQUIRES_REVIEW" : "ELIGIBLE";
-  return { staffId: s.id, state, blocking: out.blocking, warnings: out.warnings, compliance, restrictions };
+  return { staffId: s.id, state, blocking: out.blocking, warnings: out.warnings, compliance, restrictions, readiness };
 }
 
 /** Eligibility for one person and one time window, for coordinators. */

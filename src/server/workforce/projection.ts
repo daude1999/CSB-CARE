@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { checkCategory, type Employee, type State } from "@/hr/lib/domain";
 import { audit } from "@/server/audit-log";
 import { reviewStaffImpact } from "./impact";
+import { raiseReviewFlag } from "@/server/readiness/flags";
 
 /**
  * Projects HR & Workforce employees (HrWorkspace.state, the source of truth) into relational StaffMember rows.
@@ -90,7 +91,7 @@ const toDate = (s: string | null) => (s ? new Date(`${s}T00:00:00Z`) : null);
 
 export async function projectWorkforce(tx: Prisma.TransactionClient, organisationId: string, state: State, opts: { actorId?: string | null; reason?: string } = {}): Promise<ProjectionResult> {
   const [existing, branches] = await Promise.all([
-    tx.staffMember.findMany({ where: { organisationId }, select: { id: true, hrEmployeeId: true, hrHash: true, hrMissing: true } }),
+    tx.staffMember.findMany({ where: { organisationId }, select: { id: true, hrEmployeeId: true, hrHash: true, hrMissing: true, jobTitle: true, hrBranchKey: true } }),
     tx.branch.findMany({ where: { organisationId, hrBranchKey: { not: null } }, select: { id: true, hrBranchKey: true } }),
   ]);
   const byHrId = new Map(existing.map((s) => [s.hrEmployeeId, s]));
@@ -142,6 +143,11 @@ export async function projectWorkforce(tx: Prisma.TransactionClient, organisatio
     if (current) result.updated++;
     else result.created++;
     result.changedStaffIds.push(staff.id);
+    // A change of role or branch changes which requirements apply: a manager must look again before the person is
+    // treated as ready for the new duties.
+    if (current && (current.jobTitle !== p.jobTitle || current.hrBranchKey !== p.hrBranchKey)) {
+      await raiseReviewFlag(tx, organisationId, staff.id, current.jobTitle !== p.jobTitle ? `Role changed in HR from ${current.jobTitle} to ${p.jobTitle}` : "Branch changed in HR", opts.actorId ?? null);
+    }
   }
 
   // HR never deletes employees (it archives them), but if one disappears the identity is kept for history.

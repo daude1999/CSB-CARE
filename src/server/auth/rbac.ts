@@ -61,6 +61,19 @@ export const ORG_PERMISSIONS = {
   /** Linking a sign-in to a staff identity: an explicit, audited administrator action. */
   "workforce.link": ["ORG_ADMIN"],
   "report.export": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "FINANCE_OFFICER"],
+
+  // Staff readiness (training, competency, policy acknowledgement, restrictions). Rota users see status and reasons;
+  // evidence detail is for managers and compliance.
+  "readiness.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "readiness.evidence": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
+  /** Enter training evidence for someone (verified by a second person). */
+  "readiness.record": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  /** Verify evidence, record competency assessments, add restrictions, raise and clear reviews. */
+  "readiness.verify": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
+  /** Grant a time-limited exception. */
+  "readiness.exception": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Maintain the requirements matrix. */
+  "readiness.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
 } as const satisfies Record<string, readonly OrgRole[]>;
 
 export const PLATFORM_PERMISSIONS = {

@@ -1,4 +1,3 @@
-import "server-only";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";

@@ -44,7 +44,7 @@ export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds
   const now = opts.now ?? new Date();
   const assignments = await tx.visitAssignment.findMany({
     where: { organisationId, staffId: { in: staffIds }, removedAt: null, startsAt: { gt: now }, visit: { status: "SCHEDULED" } },
-    include: { visit: { select: { id: true, reference: true, serviceUserId: true, areaId: true, timeLocked: true, scheduledStart: true, scheduledEnd: true } }, staff: { select: { displayName: true } } },
+    include: { visit: { select: { id: true, reference: true, serviceUserId: true, areaId: true, timeLocked: true, scheduledStart: true, scheduledEnd: true, tasks: { select: { careTaskId: true } } } }, staff: { select: { displayName: true } } },
     orderBy: { startsAt: "asc" },
     take: 2000,
   });
@@ -57,7 +57,7 @@ export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds
   let cleared = 0;
   for (const a of assignments) {
     if (!prefsCache.has(a.visit.serviceUserId)) prefsCache.set(a.visit.serviceUserId, await loadPreferenceFacts(tx, organisationId, a.visit.serviceUserId));
-    const r = evaluate(settings, facts, { staffId: a.staffId, start: a.visit.scheduledStart, end: a.visit.scheduledEnd, slot: a.slot, visitId: a.visitId, serviceUserId: a.visit.serviceUserId, areaId: a.visit.areaId }, prefsCache.get(a.visit.serviceUserId) ?? null);
+    const r = evaluate(settings, facts, { staffId: a.staffId, start: a.visit.scheduledStart, end: a.visit.scheduledEnd, slot: a.slot, visitId: a.visitId, serviceUserId: a.visit.serviceUserId, areaId: a.visit.areaId, careTaskIds: a.visit.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x) }, prefsCache.get(a.visit.serviceUserId) ?? null);
     const reason = r.blocking[0]?.message ?? null;
     if (reason && a.reviewReason !== reason) {
       await tx.visitAssignment.update({ where: { id: a.id }, data: { reviewReason: reason, reviewFlaggedAt: now } });

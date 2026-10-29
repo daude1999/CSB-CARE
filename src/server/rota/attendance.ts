@@ -2,7 +2,8 @@ import type { ClockKind, ClockMethod, Prisma, RotaSettings, Visit, VisitClock, V
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { isIsoDate, londonTime, londonToUtc, parseHhmm } from "@/lib/london";
+import { isIsoDate, londonDate, londonTime, londonToUtc, parseHhmm } from "@/lib/london";
+import { readinessFor } from "@/server/readiness";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { raiseAlert } from "@/server/workforce/impact";
@@ -126,6 +127,17 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
     const opensAt = v.scheduledStart.getTime() - (settings.blockEarlyClockIn ? settings.earlyBeforeMin : OPEN_BEFORE_MIN) * 60000;
     if (kind === "IN" && at.getTime() < opensAt) throw new ValidationError(`You can clock in from ${londonTime(new Date(opensAt))}`);
     if (kind === "IN" && at.getTime() > v.scheduledEnd.getTime() + OPEN_AFTER_MIN * 60000) throw new ValidationError("This visit is too far in the past to clock in. Ask the office to record it.");
+    if (kind === "IN") {
+      // Readiness is checked again at the door: a certificate that expired since allocation, a new restriction or an
+      // authorisation withdrawn is not ignored. Hard stops refuse the clock-in and alert the office; anything else is flagged.
+      const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: v.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
+      const r = (await readinessFor(tx, scope.organisationId, [staff.id], { date: londonDate(at), careTaskIds, serviceUserId: v.serviceUserId })).get(staff.id);
+      if (r && r.blockedForContext) {
+        const hard = r.components.some((c) => c.hardStop && (!c.taskLevel || c.careTaskIds.some((t) => careTaskIds.includes(t)) || c.serviceUserIds.includes(v.serviceUserId)) && ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE", "PENDING_VERIFICATION"].includes(c.state)) || r.restrictions.length > 0;
+        await raiseAlert(tx, { organisationId: scope.organisationId, kind: "READINESS", severity: hard ? "CRITICAL" : "WARNING", visitId: v.id, staffId: staff.id, message: `${staff.displayName} ${hard ? "was refused clock-in" : "clocked in with a readiness warning"} on ${v.reference}: ${r.reasons.join("; ")}`, dedupeKey: `readiness:${v.id}:${staff.id}:${hard ? "block" : "warn"}`, actionUrl: `/rota/visits/${v.id}` });
+        if (hard) throw new ValidationError(`You cannot clock in to this visit: ${r.reasons[0] ?? "a readiness requirement is not met"}. The office has been alerted.`);
+      }
+    }
     return applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note });
   });
 }

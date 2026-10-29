@@ -89,14 +89,15 @@ model Organisation {
   settings     Json     @default("{}") // approval rules, escalation config
   createdAt    DateTime @default(now())
 
-  branches     Branch[]
-  memberships  Membership[]
-  policies     Policy[]
-  hrWorkspace  HrWorkspace?
-  staff        StaffMember[]
-  serviceUsers ServiceUser[]
-  areas        Area[]
-  visits       Visit[]
+  branches              Branch[]
+  memberships           Membership[]
+  policies              Policy[]
+  hrWorkspace           HrWorkspace?
+  staff                 StaffMember[]
+  readinessRequirements ReadinessRequirement[]
+  serviceUsers          ServiceUser[]
+  areas                 Area[]
+  visits                Visit[]
 }
 
 model ServiceType {
@@ -137,7 +138,7 @@ model BranchServiceType {
 }
 
 model Membership {
-  id             String           @id @default(cuid())
+  id             String             @id @default(cuid())
   userId         String
   organisationId String
   branchId       String?
@@ -145,10 +146,10 @@ model Membership {
   jobTitle       String?
   /// The HR Hub account this member works as in HR & Workforce. Empty means no HR access.
   hrUserId       String?
-  createdAt      DateTime         @default(now())
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branch         Branch?          @relation(fields: [branchId], references: [id])
+  createdAt      DateTime           @default(now())
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation   Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch         Branch?            @relation(fields: [branchId], references: [id])
   /// Areas a care coordinator is limited to. None means every area in the organisation.
   areas          MembershipArea[]
   /// Branches this member may work in. None means every branch in the organisation (the single-branch default).
@@ -939,19 +940,19 @@ model AuditQuestionRequirement {
 }
 
 model Audit {
-  id              String         @id @default(cuid())
+  id              String             @id @default(cuid())
   organisationId  String
   branchId        String?
   templateId      String
-  template        AuditTemplate  @relation(fields: [templateId], references: [id])
+  template        AuditTemplate      @relation(fields: [templateId], references: [id])
   templateVersion Int
   title           String
-  status          String         @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  status          String             @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
   conductedById   String
-  startedAt       DateTime       @default(now())
+  startedAt       DateTime           @default(now())
   completedAt     DateTime?
   completedById   String?
-  isDemo          Boolean        @default(false)
+  isDemo          Boolean            @default(false)
   answers         AuditAnswer[]
   answerEvents    AuditAnswerEvent[]
   findings        AuditFinding[]
@@ -1251,14 +1252,20 @@ model StaffMember {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  profile      RotaStaffProfile?
-  compliance   StaffCompliance[]
-  areas        StaffArea[]
-  absences     StaffAbsence[]
-  availability StaffAvailability[]
-  assignments  VisitAssignment[]
-  preferences  CarerPreference[]
-  payRates     StaffPayRate[]
+  profile            RotaStaffProfile?
+  compliance         StaffCompliance[]
+  areas              StaffArea[]
+  absences           StaffAbsence[]
+  availability       StaffAvailability[]
+  assignments        VisitAssignment[]
+  preferences        CarerPreference[]
+  payRates           StaffPayRate[]
+  trainingRecords    StaffTrainingRecord[]
+  assessments        CompetencyAssessment[]
+  restrictions       StaffRestriction[]
+  exceptions         ReadinessException[]
+  readinessFlags     StaffReadinessFlag[]
+  readinessSnapshots StaffReadinessSnapshot[]
 
   @@unique([organisationId, hrEmployeeId])
   @@unique([organisationId, userId])
@@ -2413,4 +2420,238 @@ model PayLine {
   ratePence   Int
   amountPence Int
   bandLabel   String
+}
+
+// ───────────────────────────── Staff readiness (training, competency, policy, restrictions) ─────────────────────────────
+// Identity, employment and recruitment checks (DBS, right to work) stay in HR & Workforce and reach here through
+// StaffCompliance. Everything below is keyed on StaffMember.id and evaluated by src/server/readiness. A status is never
+// stored as the truth: it is worked out from these records every time, and every status cites them as evidence.
+
+enum ReadinessCategory {
+  TRAINING
+  COMPETENCY
+  POLICY
+  QUALIFICATION
+}
+
+enum RequirementClassification {
+  MANDATORY_ROLE
+  AGENCY_POLICY
+  CONTRACT
+  RECOMMENDED
+}
+
+enum ReadinessScopeKind {
+  ALL
+  JOB_TITLE
+  BRANCH
+  CARE_TASK
+  SERVICE_USER
+}
+
+enum RequirementStatus {
+  ACTIVE
+  RETIRED
+}
+
+/// One requirement in the organisation's training/competency/policy matrix. Versioned: a change retires this row and creates its successor.
+model ReadinessRequirement {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  organisation      Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  key               String
+  name              String
+  description       String?
+  category          ReadinessCategory
+  classification    RequirementClassification @default(MANDATORY_ROLE)
+  sourceAuthority   String?
+  sourceRef         String?
+  sourceVersion     String?
+  /// Course completion alone is not enough: an observed competency assessment is also required.
+  requiresPractical Boolean                   @default(false)
+  renewalMonths     Int?
+  warningDays       Int                       @default(30)
+  /// Not met = allocation is blocked (true) or flagged for review (false).
+  hardStop          Boolean                   @default(true)
+  /// Whether a manager may record a time-limited exception. Off for legal requirements.
+  exceptionAllowed  Boolean                   @default(true)
+  /// POLICY requirements: the policy whose current published version must be acknowledged.
+  policyId          String?
+  status            RequirementStatus         @default(ACTIVE)
+  version           Int                       @default(1)
+  supersedesId      String?
+  effectiveFrom     DateTime                  @db.Date
+  effectiveTo       DateTime?                 @db.Date
+  createdById       String
+  createdAt         DateTime                  @default(now())
+  scopes            ReadinessScope[]
+  records           StaffTrainingRecord[]
+  assessments       CompetencyAssessment[]
+  exceptions        ReadinessException[]
+
+  @@unique([organisationId, key, version])
+  @@index([organisationId, status])
+}
+
+/// Who a requirement applies to. Any matching scope applies. CARE_TASK and SERVICE_USER scopes are task-level: they bite when a visit involves that task or person.
+model ReadinessScope {
+  id            String               @id @default(cuid())
+  requirementId String
+  requirement   ReadinessRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  kind          ReadinessScopeKind
+  jobTitle      String?
+  branchId      String?
+  careTaskId    String?
+  serviceUserId String?
+
+  @@index([requirementId])
+}
+
+enum TrainingVerification {
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+/// A training completion, qualification or certificate for one requirement. Immutable once verified or rejected; a correction is a new row that supersedes it.
+model StaffTrainingRecord {
+  id                 String               @id @default(cuid())
+  organisationId     String
+  staffId            String
+  staff              StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId      String
+  requirement        ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  provider           String?
+  completedAt        DateTime             @db.Date
+  expiresAt          DateTime?            @db.Date
+  result             String?
+  evidenceId         String?
+  evidenceNote       String?
+  assessmentType     String?
+  assessor           String?
+  enteredById        String
+  verificationStatus TrainingVerification @default(SUBMITTED)
+  verifiedById       String?
+  verifiedAt         DateTime?
+  verificationNote   String?
+  exemptionRationale String?
+  supersedesId       String?
+  createdAt          DateTime             @default(now())
+
+  @@index([organisationId, staffId])
+  @@index([requirementId])
+}
+
+enum AssessmentMethod {
+  OBSERVED
+  SIMULATED
+  DISCUSSION
+  WRITTEN
+}
+
+enum CompetencyOutcome {
+  COMPETENT
+  COMPETENT_WITH_RESTRICTIONS
+  NOT_YET_COMPETENT
+}
+
+/// An observed or discussed practical competency assessment by a named assessor. Append-only; the latest decides.
+model CompetencyAssessment {
+  id               String               @id @default(cuid())
+  organisationId   String
+  staffId          String
+  staff            StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId    String
+  requirement      ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  careTaskId       String?
+  method           AssessmentMethod
+  observedEvidence String
+  assessorId       String
+  assessorRole     String?
+  outcome          CompetencyOutcome
+  restrictions     String?
+  remedialAction   String?
+  assessedAt       DateTime             @db.Date
+  reviewDue        DateTime?            @db.Date
+  createdAt        DateTime             @default(now())
+
+  @@index([organisationId, staffId])
+}
+
+enum RestrictionKind {
+  TASK
+  SERVICE_USER
+  GENERAL
+}
+
+/// A limit on what a generally employed worker may do, with its reason. Lifted, never deleted.
+model StaffRestriction {
+  id             String          @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  kind           RestrictionKind
+  careTaskId     String?
+  serviceUserId  String?
+  reason         String
+  startsAt       DateTime        @db.Date
+  endsAt         DateTime?       @db.Date
+  createdById    String
+  createdAt      DateTime        @default(now())
+  liftedById     String?
+  liftedAt       DateTime?
+  liftedReason   String?
+
+  @@index([organisationId, staffId])
+}
+
+/// A manager's time-limited exception to one requirement, with compensating controls. Never on requirements that forbid it.
+model ReadinessException {
+  id                   String               @id @default(cuid())
+  organisationId       String
+  staffId              String
+  staff                StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId        String
+  requirement          ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  reason               String
+  compensatingControls String
+  approvedById         String
+  expiresAt            DateTime             @db.Date
+  createdAt            DateTime             @default(now())
+  revokedById          String?
+  revokedAt            DateTime?
+  revokedReason        String?
+
+  @@index([organisationId, staffId])
+}
+
+/// "Review required": a change that needs a manager to look again (role or branch change, long absence, incident, retired requirement). Cleared with an outcome, never deleted.
+model StaffReadinessFlag {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  reason         String
+  raisedById     String?
+  raisedAt       DateTime    @default(now())
+  clearedById    String?
+  clearedAt      DateTime?
+  outcome        String?
+
+  @@index([organisationId, staffId, clearedAt])
+}
+
+/// The result of an evaluation at a point in time, kept so dashboards reconcile with history. Never the source of truth.
+model StaffReadinessSnapshot {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  evaluatedAt    DateTime    @default(now())
+  status         String
+  components     Json
+  reasons        Json
+  trigger        String
+
+  @@index([organisationId, staffId, evaluatedAt])
 }
