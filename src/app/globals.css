@@ -46,4 +46,71 @@
   .row-title { @apply font-medium text-[#1d4f91] no-underline hover:text-[#1d4f91] hover:underline; }
   .muted { @apply text-sm text-slate-500; }
   .prose-policy { @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800; font-family: var(--font-prose); }
+
+  /*
+   * Application shell from the approved Policy Library design (docs/design/policy-library-reference.png):
+   * flat deep-navy sidebar, warm off-white top bar. Colours are fixed here rather than themed so the shell
+   * matches the reference in every theme; page content keeps using the theme tokens.
+   */
+  .shell-sidebar { background: #092135; color: #fff; font-family: "Inter Variable", var(--font-sans); }
+  .shell-sidebar a { text-decoration: none; }
+  .shell-portal { @apply flex h-[38px] items-center gap-[10px] rounded-[6px] px-[10px] text-[13.5px] tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; }
+  .shell-portal-current { background: #17527b; }
+  .shell-portal-current:hover { background: #1b5d8a; }
+  .shell-page { @apply flex h-[29px] items-center gap-[8px] rounded-[6px] px-[7px] text-[12.5px] leading-none text-[#d6e0ea] hover:bg-white/[0.06] hover:text-white; }
+  .shell-page-active { background: #0d385e; color: #fff; }
+  .shell-scroll { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.2) transparent; }
+  .shell-main { background: #f8f7f4; }
+  .shell-topbar { background: #f6f5f3; font-family: "Inter Variable", var(--font-sans); }
+  .shell-search { @apply flex h-[32px] items-center gap-[10px] rounded-[6px] border border-[#e3e0d9] bg-[#fcfcfa] px-[12px] focus-within:border-[#0369d5] focus-within:ring-2 focus-within:ring-[#0369d5]/20; }
+
+  /*
+   * Policy Library workspace (docs/design/policy-library-reference.png). Scoped to [data-surface="policy-library"]
+   * so the other pages and themes are unchanged. Serif display face, Inter for the interface, warm neutrals.
+   */
+  .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
+  .pl-root a { text-decoration: none; }
+  .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
+  .pl-serif { font-family: "Source Serif 4 Variable", Georgia, serif; }
+  .pl-hero { @apply relative overflow-hidden px-[16px] md:px-[33px]; background: #f5f4f1; min-height: 152px; padding-top: 18px; padding-bottom: 34px; }
+  .pl-h1 { font-family: "Source Serif 4 Variable", Georgia, serif; font-size: 46px; line-height: 50px; font-weight: 600; letter-spacing: -0.012em; color: #0b1530; }
+  .pl-card { @apply relative z-10 rounded-[10px] bg-white; margin: -18px 16px 0 18px; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 24px rgb(11 21 48 / 0.05); border: 1px solid #efece6; }
+  .pl-tab { @apply relative flex h-[47px] items-center px-[24px] text-[14.5px] text-[#2b3b52] hover:text-[#0b1530]; }
+  .pl-tab[aria-current="page"] { color: #030825; font-weight: 600; }
+  .pl-tab[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: #0369d5; border-radius: 2px 2px 0 0; }
+  .pl-btn-primary { @apply inline-flex h-[32px] items-center gap-[7px] rounded-[6px] px-[12px] text-[12.5px] font-medium text-white; background: #013a72; }
+  .pl-btn-primary:hover { background: #022f5c; color: #fff; }
+  .pl-btn-secondary { @apply inline-flex h-[32px] items-center gap-[7px] rounded-[6px] border border-[#dcd9d2] bg-white px-[12px] text-[12.5px] font-medium text-[#1f2d42] hover:border-[#0369d5] hover:text-[#0646b1]; }
+  .pl-input { @apply flex h-[32px] items-center gap-2 rounded-[6px] border border-[#e3e0d9] bg-white px-3 focus-within:border-[#0369d5]; }
+  .pl-select { @apply relative flex h-[32px] items-center rounded-[6px] border border-[#e3e0d9] bg-white focus-within:border-[#0369d5]; }
+  .pl-select::after { content: ""; position: absolute; right: 12px; top: 12px; width: 7px; height: 7px; border-right: 1.5px solid #3a4b5e; border-bottom: 1.5px solid #3a4b5e; transform: rotate(45deg); pointer-events: none; }
+  .pl-icon-btn { @apply flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-[6px] text-[#1f2d42] hover:bg-[#f1efea]; }
+  .pl-panel { @apply rounded-[8px] border border-[#ebe8e2]; background: #fbfaf8; }
+  .pl-tree-row { @apply flex h-[32px] items-center gap-2 rounded-[6px] pr-2 text-[14px] text-[#0b1530] hover:bg-[#f1efea]; }
+  .pl-tree-row[aria-current="true"] { background: #e5ecf0; font-weight: 500; }
+  .pl-tree-sub { @apply flex h-[28px] items-center gap-2 rounded-[6px] pl-2 pr-2 text-[13px] text-[#1f2d42] hover:bg-[#f1efea]; }
+  .pl-tree-sub[aria-current="true"] { background: #e4effb; color: #0b1530; font-weight: 500; }
+  .pl-count { @apply ml-auto text-[12.5px] tabular-nums; color: #7f8a98; }
+  .pl-row { @apply relative flex gap-[14px] rounded-[8px] border border-transparent px-[18px] py-[16px]; }
+  .pl-row:hover { background: #fafbfc; }
+  .pl-row-selected, .pl-row-selected:hover { background: #f4f9fc; border-color: #d9e8f5; }
+  .pl-row-title { font-family: "Source Serif 4 Variable", Georgia, serif; font-size: 16px; line-height: 21px; font-weight: 600; color: #0b1530; }
+  .pl-row-title:hover { color: #0646b1; }
+  .pl-row-title::before { content: ""; position: absolute; inset: 0; border-radius: 8px; }
+  .pl-row :is(a, button, summary, form):not(.pl-row-title) { position: relative; z-index: 1; }
+  .pl-insp-tab { @apply relative flex h-[40px] flex-1 items-center justify-center whitespace-nowrap px-2 text-[13.5px] text-[#26364e] hover:text-[#0b1530]; }
+  .pl-insp-tab[data-state="active"] { color: #0646b1; font-weight: 600; }
+  .pl-insp-tab[data-state="active"]::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: -1px; height: 2px; background: #0369d5; }
+  .pl-viewer { @apply flex flex-col overflow-hidden rounded-[6px] border border-[#e3e0d9]; height: 306px; background: #f2f1ef; }
+  .pl-viewer:fullscreen { height: 100vh; border-radius: 0; }
+  .pl-viewer-bar { @apply flex h-[40px] shrink-0 items-center gap-1 border-b border-[#e3e0d9] px-2; background: #f6f5f3; }
+  .pl-tool { @apply flex h-[28px] w-[28px] items-center justify-center rounded-[5px] text-[#1f2d42] hover:bg-[#e9e7e2] disabled:opacity-40; }
+  .pl-tool-sep { @apply mx-1 h-4 w-px bg-[#dcd9d2]; }
+  .pl-tool-count { @apply min-w-[48px] rounded-[5px] border border-[#e3e0d9] bg-white px-2 text-center text-[12.5px] leading-[26px] tabular-nums text-[#1f2d42]; }
+  .pl-viewer-page { @apply overflow-auto py-4; background: #e4e4e4; }
+  .pl-dl { @apply grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[13px]; }
+  .pl-dl dt { color: #646e7f; }
+  .pl-dl dd { color: #2f3d52; min-width: 0; }
+  .pl-menu-item { @apply flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] text-[#1f2d42] hover:bg-[#f4f9fc] hover:text-[#0b1530]; }
 }
+

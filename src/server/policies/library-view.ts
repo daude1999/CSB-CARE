@@ -93,12 +93,15 @@ export function parseLibraryQuery(sp: Record<string, string | string[] | undefin
   const raw = Object.fromEntries(["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "sort", "layout", "page", "selected", "pane"].map((k) => [k, one(k) || undefined]));
   if (!raw.quick && one("overdue") === "1") raw.quick = "overdue";
   const p = QuerySchema.parse(raw);
-  const area = POLICY_AREAS.some((a) => a.key === p.area) ? p.area : undefined;
+  const category = p.category && /^[A-Z_]{2,40}$/.test(p.category) ? p.category : undefined;
+  const areaDef = POLICY_AREAS.find((a) => a.key === p.area);
+  // A category chosen from the filter bar wins over an area it doesn't belong to.
+  const area = areaDef && (!category || areaDef.categories.some((c) => c === category)) ? areaDef.key : undefined;
   return {
     tab: p.tab ?? (hasOrganisation ? "policies" : "templates"),
     q: p.q || undefined,
     area,
-    category: p.category && /^[A-Z_]{2,40}$/.test(p.category) ? p.category : undefined,
+    category,
     status: p.status,
     owner: p.owner,
     type: p.type && DOC_TYPE_NAMES.has(p.type) ? p.type : undefined,

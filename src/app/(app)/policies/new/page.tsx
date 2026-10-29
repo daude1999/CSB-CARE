@@ -10,7 +10,7 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
   const [categories, services] = await Promise.all([db.policyCategory.findMany({ orderBy: { name: "asc" } }), db.serviceType.findMany()]);
   return (
     <>
-      <PageHeader eyebrow="Library · new document" title="Upload Custom Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
+      <PageHeader eyebrow="Library · new document" title="Create Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
       <Flash searchParams={sp} />
       <Card title="Policy details">
         <form action={createPolicyAction} className="grid gap-4 md:grid-cols-2">
