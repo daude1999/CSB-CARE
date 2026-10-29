@@ -2,15 +2,9 @@ import "server-only";
 import { getCtx } from "@/server/auth/current";
 import { canUsePortal } from "@/server/auth/portals";
 import type { User } from "./domain";
+import { HttpError } from "./http-error";
 
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+export { HttpError } from "./http-error";
 
 /** Today's date in London. CSB_DEMO_TODAY pins it for repeatable tests, as in the standalone pilot. */
 export function today() {

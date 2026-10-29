@@ -1427,8 +1427,17 @@ CREATE TRIGGER visit_template_guard BEFORE INSERT OR UPDATE ON "VisitTemplate"
 -- Delivery records are append-only: corrections are new rows with a reason.
 CREATE TRIGGER visit_clock_immutable BEFORE UPDATE OR DELETE ON "VisitClock"
   FOR EACH ROW EXECUTE FUNCTION evx_immutable();
+-- Visit history may only disappear with its visit, and a visit can only be deleted while it has no clock records
+-- (a never-started visit from a build that is being withdrawn).
+CREATE OR REPLACE FUNCTION csb_visit_event_guard() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP = 'DELETE' AND NOT EXISTS (SELECT 1 FROM "Visit" WHERE id = OLD."visitId") THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'VisitEvent rows are immutable (%)', TG_OP;
+END $$ LANGUAGE plpgsql;
 CREATE TRIGGER visit_event_immutable BEFORE UPDATE OR DELETE ON "VisitEvent"
-  FOR EACH ROW EXECUTE FUNCTION evx_immutable();
+  FOR EACH ROW EXECUTE FUNCTION csb_visit_event_guard();
 CREATE TRIGGER visit_note_immutable BEFORE UPDATE OR DELETE ON "VisitNote"
   FOR EACH ROW EXECUTE FUNCTION evx_immutable();
 CREATE TRIGGER visit_task_outcome_immutable BEFORE UPDATE OR DELETE ON "VisitTaskOutcome"
