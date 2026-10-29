@@ -6,7 +6,7 @@ CSB ("CSB All In One Platform", Care Solution Bureau CIC) is a multi-tenant B2B 
 
 ## Current scope
 
-The current focus is **Policy & Compliance → Policy Library** only. The plan is in `docs/POLICY_COMPLIANCE_IMPLEMENTATION_PLAN.md`. Rota, Service Users and wider HR development are out of scope until the owner says otherwise. Don't start building until the owner has approved the plan.
+The current focus is **Policy & Compliance → Policy Library** only. The plan is in `docs/POLICY_COMPLIANCE_IMPLEMENTATION_PLAN.md`. Rota, Service Users and wider HR development are out of scope until the owner says otherwise. Don't change application code for it until the owner replies exactly "APPROVED — BUILD POLICY LIBRARY". Then build on a feature branch.
 
 ## Technology stack (mandatory)
 
@@ -94,7 +94,7 @@ Expect the database to reject invalid transitions, and update the triggers in a 
   - Actions & Risks: ownership, deadlines and verification.
   - Staff Sign-off: reading assignments and overdue acknowledgements.
   - Evidence Library: secure files linked to compliance records.
-- The approved Policy Library reference (the My Policies area-tab design, `qcs-replica/my-policies-prototype-opened.png` in the project files) sets the visual standard. Match it for the Policy Library, and keep its craftsmanship elsewhere without copying its layout. Always use the official CSB logo and existing theme tokens.
+- The approved Policy Library reference is `docs/design/policy-library-reference.png` (1536 × 1024). It is the visual source of truth, not just inspiration, so match its layout, proportions, type, spacing and components as closely as practical. Use real, authorised data, never the sample names in the image. Keep its craftsmanship elsewhere without copying its three-column layout. Always use the official CSB logo assets in `public/brand/` and `public/csb-logo*`, never a redrawn logo.
 - A feature is done only when it has its full workflow:
   - create, read, update and complete actions, with real persistence
   - search, filters and navigation

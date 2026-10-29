@@ -1,258 +1,410 @@
-# Policy & Compliance: Policy Library implementation plan
+# Policy Library rebuild: plan for approval (v2)
 
-Status: **draft for owner approval**. No application code has been changed. Prepared 29 October 2026 against `main` at `6d4eb04` (PR #19 merged).
+Status: **waiting for the owner to reply "APPROVED — BUILD POLICY LIBRARY".** No application code has been changed.
 
-Scope: Policy & Compliance → Policy Library. That covers My Policies, the Policy Index, the CSB Template Library, the policy record page, creating a policy, review-due management and the hand-offs to the workflows the library depends on. Regulatory Updates, the Change Queue, Requirements, Audits, Actions, Staff Sign-off and Evidence come in only where the library links to them. They are planned separately.
+Prepared 29 Oct 2026 against GitHub `main` at `6d4eb04` (confirmed with `git fetch`).
+
+**Visual source of truth:** `docs/design/policy-library-reference.png` (1536 × 1024), supplied by the owner on 29 Oct 2026. It replaces the My Policies design assumed in v1 of this plan. Since the owner asked for no new schema purely for visuals, v1's proposed `PolicyReview` table is withdrawn.
+
+This document is the required first response. Its sections are:
+1. Repository audit
+2. Screenshot design breakdown
+3. Functional gap analysis
+4. Architecture plan
+5. Test-first plan
+6. Proposed file-change list
+7. Risks
+
+§8 lists the decisions needed, and §9 records Phase 5 design planning for the other sections.
 
 ---
 
-## 1. Business purpose
+## 1. Repository audit
 
-The Policy Library is where a care provider keeps the policies, procedures, forms and tools its services operate under. It must let people:
+### 1.1 Stack and conventions (verified)
+- Next.js 15.5 App Router, React 19, TypeScript 5.9 (strict), Tailwind 3.4 driven by CSS variables (`tailwind.config.ts`, `src/app/themes.css`), Prisma 6.19, PostgreSQL 16, Vitest 3, Playwright 1.63.
+- Already installed and reusable: Phosphor icons, `pdfjs-dist` (assets copied to `public/pdfjs` by `postinstall`; used by `src/hr/components/pdf-preview.tsx`), `pdfkit` / `docx` (board-paper exports), `mammoth`, `zod`, Radix Dialog and Tabs, `@tanstack/react-table`, Source Serif 4 and Inter variable fonts. **No new dependencies are needed.**
+- Mutations are server actions in `src/app/actions.ts` through `handle()`, which re-checks the session, catches `AppError`s and redirects with `?ok=` or `?error=`. Domain logic lives in `src/server/*`.
 
-1. **Find** the right document quickly, by area of care, type, reference or words in the text.
-2. **Trust** what they see: whether the text is approved, which version is live, when it was last reviewed, when it is next due, and whether a change is in progress.
-3. **Inspect** a document in context: its text, procedure and forms, the regulations it maps to, version history, sign-off records and any regulatory change that has flagged it.
-4. **Act**:
-   - adopt a CSB template
-   - create a local policy
-   - start a revision
-   - record a review with no change
-   - assign an owner
-   - download it as a CSB board paper
-   - read and sign it
-   - archive it
+### 1.2 Files the brief named, as they actually are
+| File | Today |
+| --- | --- |
+| `src/app/(app)/layout.tsx` (154 lines) | The shell. Navy 220 px sidebar with logo, "All in One Platform" and the organisation name, then **per-portal** side menus (`PortalSideNav`). A header with a **portal switcher button**, a global policy search (GET `/policies?q=`), the org switcher (only with more than one membership), a "Sample workspace" tag, help, reading list, notifications and a user menu with sign out. Also the setup banner and the inline-jobs kicker. |
+| `src/components/portal-switcher.tsx` | Header portal menu, plus `PortalSideNav` and `PortalMobileNav`. HR opens as a full page load (`separateApp`). |
+| `src/components/brand.tsx` | `<Logo>` renders `/csb-logo.svg` or `/csb-logo-light.svg` (the "CSB / Care Solution Bureau" lockup). The **original** CSB monogram (cyan "CSB") is in `public/brand/csb-monogram.png` and `csb-monogram-embedded.svg`, and the full original lockup is in `public/brand/csb-logo.png`. |
+| `src/app/globals.css`, `src/app/themes.css` | Five themes (`board`, `care` [default], `govuk`, `carbon`, `zinc`) that change tokens only. `care` uses navy `#0f2a4f`, cyan `#0ea5d6`, **Roboto at an 18 px root size**, and `--font-display` set to sans. Components: `.panel`, `.btn-*`, `.input`, `.table`, `.rows`. |
+| `src/app/(app)/policies/page.tsx` (177) | `?view=index` is the Policy Index (search, type and area filters, overdue, pagination 20). `?tab=templates` is the Template Library with **Adopt**. With no params it renders `areas.tsx`. |
+| `src/app/(app)/policies/areas.tsx` (101) | "My Policies", the 26 Oct design: 9 area tabs (`src/lib/policy-areas.ts`), collapsible category groups and an "Updated" pill (published in the last 30 days). |
+| `src/app/(app)/policies/[id]/page.tsx` (535) | The full policy record: 9 tile tabs (Review Sheet, Policy Text, Procedure, Forms, All Policy, Versions, Regulation Map, Read & Sign, Reg. Flags). Downloads, Log Read & Sign, Start revision, rollback, implementation confirmation. **Kept unchanged** (deep links and e2e tests use it). |
+| `src/app/(app)/policies/new/page.tsx` | Titled "Upload Custom Policy", but it is really a text form (`## Heading` sections) that creates a draft and revision through `createPolicy`. **There is no file upload.** |
+| `src/server/auth/rbac.ts` | `Ctx`, `ORG_PERMISSIONS`, `PLATFORM_PERMISSIONS`, `canOnPolicy`, `requireOnPolicy`, `visiblePolicyWhere` (own organisation plus `kind: MASTER`). |
+| `src/server/auth/portals.ts` | `canUsePortal`, `portalsFor`, page guard. This is the single rule for portal access. |
 
-   Each of these goes through the existing governed workflow (draft → review → approval → publication → acknowledgement), never around it.
+### 1.3 How policy data is stored
+- **`Policy`**: `kind` MASTER (CSB template, `organisationId` null) or CUSTOMER. Fields: `templateId`, `ref`, `docType`, `categoryCode` (flat `PolicyCategory`; the 9 "areas" are grouped in code by `POLICY_AREAS`), `serviceTypes[]`, `status` ACTIVE or ARCHIVED, `ownerId`, `reviewerId`, `approverId`, `reviewIntervalMonths`, `nextReviewDate`, `currentPublishedVersionId`, `lockVersion`, and `search_vector` (title and description only, via trigger `policy_tsv`).
+- **`PolicyVersion` / `PolicySection`**: immutable once out of draft (triggers `policy_version_guard`, `policy_section_guard`). `origin` is SEED, MANUAL, AI_REGULATORY_REVISION, MASTER_SYNC or ROLLBACK. Section bodies are indexed for full-text search in `DocumentChunk`.
+- **`PolicyRevision`** (draft, submitted, closed) → `ReviewAssignment`, `ApprovalDecision` (immutable), `RevisionComment`, `AiCitation`.
+- **`PolicyPublication`** (scheduled or published, acknowledgement due date, implementation confirmation) → **`Acknowledgement`** (per user).
+- Links: `RequirementPolicyLink` (customer policies inherit them from their template), `ChangePolicyCandidate` (regulatory flags), `ImpactAssessment`.
 
-Two audiences use it:
-- **Managers and compliance leads**, who keep the library current and inspection-ready.
-- **Care staff**, who need to read and sign what applies to them.
+### 1.4 Demo data facts that shape the design (from a local seed of the current code)
+- The Care Solution Bureau demo organisation has **167 policies**. **Every one has `ownerId` set, none has `reviewerId`, and 166 of the 167 published versions are `SEED` starter text with no approval record.** So a truthful screen will mostly show "Starter text · not approved", not the screenshot's "Published / Approved" (see D4).
+- No policies are archived. The 9 areas cover 27 categories. The branches are Liverpool, Portsmouth and Tower Hamlets. Memberships carry `branchId` for staff only.
 
-## 2. Visual source of truth
+### 1.5 What must be preserved
+- Every existing address and deep link:
+  - `/policies/[id]` (and its `?view=` tabs), `/policies/[id]/versions/[vid]` and `/revisions/[id]`
+  - `/policies?tab=templates`, `?view=index`, `?q=` (header search), `?category=`, `?type=`, `?overdue=1` and `?area=`
+  - `/policies/new` and `/api/policies/[id]/download`
+- The workflows: adopt template, manual revision, AI-drafted revision, review and decide (separation of duties, configured number of approvers), immediate and scheduled publication with optimistic concurrency, rollback as a new version, master → customer sync, read & sign, implementation confirmation, reminders.
+- Tenant isolation (`tests/integration/workflow.test.ts` "never exposes another organisation's…"), portal access rules, the HR Hub's own shell and CSS, and theme switching.
 
-- **Reference:** the "My Policies" area-tab design that the owner approved on 26 Oct 2026 ("dashboard and my policies look perfect"). It is saved in the project files at `qcs-replica/my-policies-prototype-opened.png` and live at `/policies`. **To be confirmed by the owner (see §11, decision D1).**
-- **Elements to keep from it:**
-  - the navy title bar with Back
-  - the row of area tabs with icon, label and update-count badge
-  - collapsible category groups, each with an "Updates" ring and a document count
-  - dense document rows (reference, title link, type, last-updated date, "Updated" pill)
-  - the top search with a single field and a Search button
-  - the "Policy Index" secondary action
-- **Applies to:** the Policy Library pages only. Other modules keep the same craftsmanship (type scale, colour tokens, density, focus states) but get their own layouts.
+### 1.6 What a redesign could break
+1. **The shell is shared by every non-HR page.** Restyling it changes the Dashboard, Regulatory Updates, Audits and so on. Portal navigation moves from the header button into the sidebar. `PortalMobileNav`, `pages.spec.ts` (which walks `aside` links) and the `portal-switcher` test id would all be affected.
+2. `MainArea` decides the "wide" layout using `path === "/policies"` with only `area` params. That has to change.
+3. The header search posts `q` to `/policies`, so the new page must honour `?q=`.
+4. The dashboard links to `/policies` and `/policies/new`. The sidebar label "Upload Custom Policy" would be renamed.
+5. Theme tokens: the screenshot is not the `care` theme (it uses a serif display face, a 16 px base and warmer neutrals). Changing `care` globally would restyle every page (see D2).
+6. The `e2e/scenario.spec.ts` sign-in test opens `/policies`, and `pages.spec.ts` asserts that every reachable page returns a status below 400.
 
-## 3. What exists today (inventory)
+---
 
-### 3.1 Routes
+## 2. Screenshot design breakdown
 
-| Route | File | What it does |
+Measurements are in screenshot pixels at 1536 × 1024 (CSS px at 1×). Colours were sampled from the image and will be fine-tuned in the overlay pass.
+
+### 2.1 Regions
+| Region | Box (x, y, w, h) | Notes |
 | --- | --- | --- |
-| `/policies` (no filters) | `src/app/(app)/policies/areas.tsx` | **My Policies**: 9 area tabs (`src/lib/policy-areas.ts`). Each tab lists category groups in `<details>`, and each row shows ref, title, type, last published date and an "Updated" pill if published in the last 30 days. Customer policies only. |
-| `/policies?view=index` | `src/app/(app)/policies/page.tsx` | **Policy Index**: search on title, ref and description (`ILIKE`). Filters for document type, area of care and "overdue for review". Paginated 20 per page. Shows version state (approved, starter text not approved, or no published version), review date and open revisions. |
-| `/policies?tab=templates` | same | **Template Library** (CSB master templates) with an **Adopt** action. |
-| `/policies/new` | `policies/new/page.tsx` | "Upload Custom Policy". In practice this is a Markdown-style textarea (`## Heading` sections) that creates a draft and a revision. |
-| `/policies/[id]` | `policies/[id]/page.tsx` (535 lines) | **Policy record** with tile tabs: Review Sheet, Policy Text (personalised with business details), Procedure, Forms/Related, All Policy, Versions, Regulation Map, Read & Sign, Reg. Flags. Actions: Download Word/PDF, Log Read & Sign, Start revision (dialog), rollback, confirm implementation. |
-| `/policies/[id]/versions/[vid]` | `versions/[vid]/page.tsx` | One historical version. |
-| `/revisions/[id]` | `revisions/[id]/page.tsx` | Draft editing, comments, submit, decide, publish. |
-| `/acknowledgements` | `acknowledgements/page.tsx` | "My Reading List" for the signed-in user. |
-| `/api/policies/[id]/download` | route handler | Branded DOCX or PDF of the current published version, with an audit entry. |
+| Sidebar | 0, 0, 212, 1024 | `#092135` flat navy, full height, sticky |
+| Top bar | 212, 0, 1324, 56 | warm off-white `#f6f5f3`, no bottom border, search box at 244–1020 × 13–43 |
+| Hero | 212, 56, 1324, ~134 | `#f5f4f1`. Breadcrumb at y≈78, H1 baseline y≈140, subtitle y≈156. Decorative interior photo on the right (≈1000–1536). Three-line serif tagline at x≈1268. |
+| Workspace card | 230, 190, 1290, 813 | white, radius ≈8, soft shadow, sits partly over the hero |
+| Tabs row | 245–1504, 190–237 | tabs at x 245 / 340 / 447 / 548, active underline 3 px `#0369d5` |
+| Filter row | 250–1500, 252–284 | search 238 w, Categories 186 w, Statuses 156 w, Owners 157 w, More Filters 120 w, kebab at 1487. Controls 32 h, radius 6. |
+| Category Explorer | 245, 300, 229, 508 | panel `#fbfaf8`, 1 px border, radius 6 |
+| Quick Filters | 245, 820, 229, 158 | separate panel |
+| Policy Register | 486, 300, 512, ~690 | header 300–360, rows ≈118 h |
+| Policy Inspector | 1010, 300, 494, ~690 | header 300–380, tabs 380–418, viewer 435–775, Key Information 788–912, action bar 935–967 |
 
-### 3.2 Server logic (reuse, don't duplicate)
+Column gutters are 12 px. Grid: `229px | 512px | 494px` inside 24 px card padding, which scales as `minmax(220px,15%) minmax(440px,1fr) minmax(440px,32%)` above 1280 px.
 
-- `src/server/policies/library.ts`: `listPolicies`, `getPolicy`, `createPolicy`, `adoptTemplate`, `getRevision`.
-- `src/server/policies/workflow.ts`: `createManualRevision`, `createRollbackRevision`, `editDraftSection`, `addComment`, `submitForReview`, `decide`, `publishRevision` / `performPublication` (sets `nextReviewDate` and uses the `lockVersion` concurrency check), `acknowledge`, `logReadAndSign`, `confirmImplementation`, `sendAcknowledgementReminders`, `publishDueScheduled`.
-- `src/server/policies/versions.ts` (section hashing, diffs), `sync.ts` (master → customer three-way merge), `revise.ts` (AI drafting from an impact assessment).
-- `src/server/documents/*`: board-paper Word and PDF rendering.
-- `src/server/auth/rbac.ts`: `canOnPolicy`, `requireOnPolicy`, `visiblePolicyWhere`, and the `policy.read/author/review/approve/publish` permissions.
-- `src/lib/business.ts`: personalises policy text with the organisation's business details.
+### 2.2 Tokens (new and scoped; see D2)
+| Token | Value | Used for |
+| --- | --- | --- |
+| `--pl-sidebar` | `#092135` | sidebar background |
+| `--pl-sidebar-active` | `#17527b` | active portal row (radius 6) |
+| `--pl-sidebar-sub-active` | `#0d385e` | active sub-item |
+| `--pl-sidebar-text` / `-muted` | `#ffffff` / `#c9d6e3` | labels |
+| `--pl-canvas` | `#f8f7f4` | page and top bar background (warm) |
+| `--pl-hero` | `#f5f4f1` | hero band |
+| `--pl-surface` | `#ffffff` | workspace card |
+| `--pl-panel` | `#fbfaf8` | explorer, register and inspector panels |
+| `--pl-border` | `#e7e4de` | hairlines (sampled ≈ `#e4e4e4`–`#ebe8e2`) |
+| `--pl-ink` | `#0b1530` | titles and H1 |
+| `--pl-ink-2` | `#2f3d52` | body |
+| `--pl-ink-3` | `#646e7f` | meta and labels (the sampled `#6b7586` darkened slightly to pass AA on the panel tint) |
+| `--pl-accent` | `#0369d5` | active tab underline and focus |
+| `--pl-accent-ink` | `#0646b1` | active tab text, links |
+| `--pl-primary` | `#013a72` | primary buttons (Create Policy, Assign for Review) |
+| `--pl-secondary-bg` / `-ink` | `#ecf4f9` / `#143a87` | secondary tinted button |
+| `--pl-selected` | `#f4f9fc` | selected register row and active tree node (`#e4effb`) |
+| Status pills (background / text) | Published `#d6fcee` / `#157a3e` (the sampled `#1ca654` darkened to pass AA at 4.9:1), Under review `#e4f0fe` / `#0454d8`, Review due `#fef1d7` / `#b2510d`, Overdue `#fde4e4` / `#b42318`, Starter or not approved `#eef0f3` / `#4a5564`, Draft `#f1ecfb` / `#5b3fa8` | 20 h, radius 4, 12 px medium |
+| Icon tiles | blue `#ebf2f7` + stroke `#154e96`. Amber `#fdf3e4` + stroke `#933f16` (used only when a review is due or overdue). | 48 px (inspector 56 px), radius 8 |
 
-### 3.3 Data (Prisma)
+### 2.3 Typography
+- **Display (serif):** Source Serif 4 Variable (already installed), the closest licensed match to the screenshot's transitional serif. H1 44/48 weight 600 tracking −0.01em, register heading 20 weight 600, row title 16.5 weight 600, inspector title 19 weight 600, "Key Information" 15 weight 600, tagline 20/26 weight 400.
+- **UI (sans):** Inter Variable (installed). 14 px base for controls, 13 px row meta, 12 px descriptions and pills, sidebar 14.5 px with 13.5 px sub-items.
+- Page scale: **16 px root inside this page** (the `care` theme uses 18 px, so sizes are set in px on the scoped wrapper).
 
-`Policy` (with `kind` MASTER or CUSTOMER, `organisationId`, `templateId`, `ref`, `docType`, `categoryCode`, `serviceTypes`, `status` ACTIVE or ARCHIVED, `ownerId`, `reviewerId`, `approverId`, `reviewIntervalMonths`, `nextReviewDate`, `currentPublishedVersionId`, `lockVersion`, and an **unused-by-the-library** `search_vector`) → `PolicyVersion` → `PolicySection` (`isLocal`, `masterKey`). Changes go through `PolicyRevision` → `ApprovalDecision` → `PolicyPublication` → `Acknowledgement`. `RequirementPolicyLink` and `ChangePolicyCandidate` connect policies to the regulatory side. Database triggers enforce immutability, the state machine and at most one published version.
+### 2.4 Component structure
+```
+AppShell (restyled)
+├─ Sidebar: Logo (original monogram) · "Care Solution Bureau CIC" · collapse button
+│   ├─ Portal rows (Overview, Policy & Compliance▾, HR & Workforce, Service Users, Rota & Visits, Reporting & Analytics, Administration)
+│   │   └─ Policy & Compliance sub-nav (vertical guide line): Compliance Dashboard, Policy Library, Regulatory Updates,
+│   │      Requirements Register, Policy Change Queue, Staff Sign-off, Audits & Inspections, Actions & Risks,
+│   │      Evidence Library, Compliance Reports
+│   ├─ Organisation card ("Switch Organisation", org/branch name)
+│   └─ User block (initials, name, job title) · Sign out
+├─ TopBar: global search (⌘K) · notifications bell (badge) · Help
+└─ PolicyLibraryPage
+    ├─ Hero: Breadcrumb · H1 · subtitle · decorative image + tagline
+    └─ WorkspaceCard
+        ├─ LibraryTabs (Policies · Templates · Archived · Review Calendar) + [Upload Policy] [Create Policy]
+        ├─ FilterBar (search · category · status · owner · More filters · ⋮)
+        ├─ CategoryExplorer (tree) + QuickFilters
+        ├─ PolicyRegister (header: count, sort, list/grid) → PolicyRow × n → Pagination
+        └─ PolicyInspector (header · tabs · DocumentViewer | Overview | History | SignOff | LinkedItems · KeyInformation · ActionBar)
+```
 
-### 3.4 Tests that cover the library today
+---
 
-- `tests/unit/library.test.ts` checks the integrity of the starter content (references, sections, citations, history).
-- `tests/integration/workflow.test.ts` covers:
-  - tenant isolation of policies, drafts, search, evidence and acknowledgements
-  - separation of duties and illegal transitions
-  - publish concurrency, scheduled publishing and rollback
-  - acknowledgements and reminders, and master → customer sync
-- `tests/e2e/scenario.spec.ts` runs the full change → draft → approve → publish → acknowledge flow in the browser. `tests/e2e/pages.spec.ts` renders every reachable page for seven roles.
-- **Not covered:** library filters and search, the area view, adopting a template through the UI, creating a policy through the UI, download permissions, review-due behaviour, and phone or keyboard layout.
+## 3. Functional gap analysis
 
-### 3.5 Baseline, run in an isolated container on 29 Oct 2026 (local Postgres 16, throwaway `csb_test` and `csb_e2e` databases)
+Legend: ✅ supported today · 🟡 data exists, UI needed (no schema change) · 🔴 not supported (smallest safe option proposed, or shown truthfully).
 
+| Screenshot element | Today | Proposal (truthful label) |
+| --- | --- | --- |
+| Sidebar with portals and expanded P&C sub-nav | 🟡 Same routes, but a different shell pattern | Rebuild `PortalSideNav` as the screenshot's hierarchy using `portalsFor(ctx)`. Planned portals (Service Users, Rota) appear with a "Planned" tag and open their honest placeholder pages. |
+| Original CSB logo, "Care Solution Bureau CIC" | ✅ Assets exist | Use `public/brand/csb-monogram-embedded.svg` (original cyan monogram) plus the "Care Solution Bureau CIC" text. A white monogram isn't in the repo and won't be invented (D3). |
+| P&C items: Compliance Dashboard `/`, Policy Library `/policies`, Regulatory Updates `/changes`, Requirements Register `/requirements`, Change Queue `/queue`, Staff Sign-off `/staff`, Audits `/audits`, Actions `/actions`, Evidence `/evidence`, Compliance Reports `/reports` | ✅ All exist | Same permission conditions as today. Template Library moves to the page's Templates tab. Reading List, Resource Centre and Interview Prep aren't in the screenshot, so they move under Overview / Resources and stay reachable (D5). |
+| "Switch Organisation · CSB Liverpool" | 🟡 Org switching exists. Branch is on the membership. | The card shows the current organisation and, where set, the member's branch. It opens the existing org switch when the user has more than one membership, and otherwise is a static label with no fake control. **Branch switching isn't supported**, so it isn't offered. |
+| User block (name, role), Sign out | ✅ | Name from `ctx`, job title from `Membership.jobTitle`, falling back to the role name. Existing `logoutAction`. |
+| Global search with ⌘K | 🟡 Header search exists | Keep GET `/policies?q=`. ⌘K / Ctrl+K focuses the field (small client hook). |
+| Bell with badge, Help | ✅ | Existing notifications count and `/assistant`. |
+| Breadcrumb, H1, subtitle | ✅ (static) | As shown. |
+| Hero photo and tagline "Safe People / Safer Care / Stronger Communities" | 🔴 No image asset. Tagline not verified as CSB's. | Needs an owner-supplied, licensed photo and confirmation of the tagline (D6). Until then: the hero band, a decorative CSS botanical line-art SVG drawn in-house, and the tagline only once confirmed. |
+| Tab **Policies** | ✅ | The organisation's CUSTOMER policies (ACTIVE). |
+| Tab **Templates** | ✅ | CSB MASTER templates with Adopt (existing `adoptTemplateAction`, permission `policy.author`). The inspector works for templates too (read-only, through `visiblePolicyWhere`). |
+| Tab **Archived** | 🟡 `PolicyStatus.ARCHIVED` exists with no action | Lists real ARCHIVED policies. **Archive / restore** is the smallest safe addition: no schema change, `status` update + `AuditLog` entry (reason in `data`), blocked while a revision is open, permission `policy.author` + `org.manage`. Optional in this phase (D7). Without it, the tab shows an honest empty state. |
+| Tab **Review Calendar** | 🟡 `nextReviewDate` exists | Month-by-month agenda of reviews due (overdue first), each opening the inspector. Read-only and real. |
+| **Upload Policy** button | 🔴 No file import | Either leave it out in this phase, or build `.docx` import (mammoth, already installed: upload → sections preview → draft through `createPolicy`, with the original stored through the existing storage provider and malware hook). Recommendation: **leave it out now and add it as a follow-up with tests** (D8). It must never link to the text form. |
+| **Create Policy** button | ✅ | `/policies/new`, renamed "Create Policy" everywhere (page title, sidebar action, dashboard link). |
+| Search policies (in workspace) | 🟡 `ILIKE` on title, ref, description | Title, ref and description, plus published section text through `DocumentChunk` full-text search (already indexed), scoped by `visiblePolicyWhere`. |
+| All Categories | ✅ | Area → category select (same taxonomy as the explorer). |
+| All Statuses | 🟡 Derived | **Published** (approved version live), **Not yet approved** (starter text), **Draft** (no published version), **Under review** (revision submitted, awaiting decision), **Review due** (next review within 60 days, see D9), **Overdue**. |
+| All Owners | 🟡 `ownerId` set, no filter | Members of the organisation who own at least one policy. **Changing an owner is not in this phase.** The data has owners but no UI to change them (follow-up). |
+| More Filters | 🟡 | Document type (`DOC_TYPES`) and service type (`serviceTypes`). |
+| ⋮ (filter row) | ✅ | "Export current list (CSV)", which reuses `reportRows(ctx, "policies")` filtered. Shown only with `report.view`. |
+| Category tree with nested subcategories and counts | 🟡 | Level 1 = the 9 `POLICY_AREAS`, level 2 = their `PolicyCategory` rows. Counts come from one `groupBy` per tab and status. Only areas and categories with documents are shown. **No new taxonomy** (the screenshot's "Adults / Children / Prevent" don't exist in our data). |
+| Quick Filters (Due for review, Overdue, Recently updated, Awaiting approval) with counts | 🟡 | Due = next review in the coming 60 days. Overdue = `nextReviewDate < now`. Recently updated = published in the last 30 days. Awaiting approval = open revision with `submittedAt` set and not closed. All counted on the server. |
+| "Policies (n)", Sort | 🟡 | Sort: Last updated (latest publication, else `updatedAt`), Title, Reference, Next review. |
+| List / grid toggle | 🟡 | Both are real views of the same records (rows or cards). The choice is kept in the URL. |
+| Row: icon, title, ref, version, Area > Category, description, status pill, owner, review date, ⋮ | 🟡 / ✅ | All from data. Owner shown as initials (no photos stored). The row ⋮ menu offers Open full record, Download Word, Download PDF and, with permission, Create revision. |
+| Selected row | 🟡 | `?selected=<id>` in the URL. The link uses `scroll={false}` so the register keeps its place. |
+| Inspector header: icon, title, ref, status pill, version, close ✕, ⋯ | ✅ | ✕ removes `selected`. The ⋯ menu offers Open full record, Download Word or PDF, Print, and Archive (if D7). |
+| **Document** tab with page viewer (outline, page n / N, zoom, fit, download, print, fullscreen) | 🟡 PDF render exists (`renderPdf`), pdf.js exists | Render the **real board-paper PDF** of the current published version with pdf.js (pattern from `src/hr/components/pdf-preview.tsx`) and its text layer for selection and screen readers. The outline lists the sections and jumps to their pages. Download and print use the same file, and fullscreen uses the Fullscreen API. The route gains `?disposition=inline`. An "Open accessible text" link goes to `/policies/[id]?view=text`. No published version means an honest empty state. |
+| **Overview** tab | ✅ | Purpose (description + "Purpose" section), document type, area and category, services, template origin, owner, review interval, next review, open revisions. |
+| **History** tab | ✅ | Published and superseded versions: label, date, origin, change summary, reason, approvers, with links to `/policies/[id]/versions/[vid]`. |
+| **Sign-off** tab | ✅ | With `staff.view`: coverage for the latest publication (assigned, signed, outstanding, overdue, with names and dates). Others see **only their own** status and the existing **Log Read & Sign**. |
+| **Linked Items** tab | ✅ | Mapped requirements (inherited from the template when the organisation has none), regulatory change flags (`ChangePolicyCandidate`), impact assessments, related forms and policies (from the `related` section), and the source template. Each links to its existing page. |
+| Key Information (Owner, Category, Last Updated, Next Review (+ months), Approval Status, Applicable To) | 🟡 | "Approval status" = Approved / Not yet approved / Awaiting approval. **"Applicable To" shows the policy's service types** (that is the recorded fact; we don't record staff audiences). |
+| **Assign for Review** | 🟡 `reviewerId` exists, no UI | The smallest truthful version: "Assign reviewer" dialog. Choose a member with a review role, which sets `Policy.reviewerId`, writes an audit entry and sends a notification. Server-checked (`policy.author` or `org.manage`), with the member validated against the organisation. Label "Assign for Review" kept if D10 is approved, otherwise "Assign reviewer". |
+| **Create Revision** | ✅ | The existing `newRevisionAction` dialog (reason required). |
+| **Manage Sign-off** | ✅ | Opens the Sign-off tab. For managers it links to `/staff` (Staff Sign-off). |
+| Action bar ⋯ | ✅ | Open full record, Restore previous version (links to the full record's Versions tab, where rollback exists today). |
+
+**No new database tables or columns are needed.** The only data writes added are: `Policy.reviewerId` (assign reviewer), and `Policy.status` (archive / restore, if D7 is approved), each with an `AuditLog` entry and a notification.
+
+---
+
+## 4. Architecture plan
+
+### 4.1 Routing and URL state
+- `/policies` becomes the Policy Library workspace. All state is in the URL, so it can be shared, survives refresh and works with Back:
+  `tab` (policies | templates | archived | calendar), `q`, `area`, `category`, `status`, `owner`, `type`, `service`, `quick` (due | overdue | recent | awaiting), `sort`, `layout` (list | grid), `page`, `selected`, `pane` (document | overview | history | signoff | linked).
+- **Legacy params are mapped on the server, with no redirects needed:**
+  - `view=index` → default
+  - `tab=templates` → templates
+  - `overdue=1` → `quick=overdue`
+  - `type` and `category` → as before
+  - `area` → area node
+  - `q` (header search) → `q`
+- `/policies/[id]`, `/policies/[id]/versions/[vid]`, `/policies/new` and `/revisions/[id]` are **unchanged**, apart from renaming the `/policies/new` title to "Create Policy".
+
+### 4.2 Data flow
+```
+page.tsx (server component)
+  ├─ requireCtx() ─────────────────────────────────────────── session → Ctx (organisationId from session only)
+  ├─ parseLibraryQuery(searchParams)  zod → LibraryQuery (unknown values dropped, never trusted for tenancy)
+  ├─ src/server/policies/library-view.ts
+  │    ├─ libraryTree(ctx, q)        groupBy counts per area/category within visiblePolicyWhere + tab filter
+  │    ├─ quickFilterCounts(ctx, q)  4 counts, same scope
+  │    ├─ listLibrary(ctx, q)        page of rows + derived status + owner names (one query + 2 lookups)
+  │    ├─ ownerOptions(ctx)          members of ctx.organisationId who own policies
+  │    └─ reviewCalendar(ctx, q)     for tab=calendar
+  └─ <Suspense> PolicyInspector(selected)
+       └─ inspectPolicy(ctx, id, pane)   uses getPolicy (canOnPolicy "read") → 404 if not visible
+             └─ client <DocumentViewer src="/api/policies/{id}/download?format=pdf&disposition=inline">
+Server actions (src/app/actions.ts → handle()):
+  assignReviewerAction  → assignPolicyReviewer(ctx, policyId, userId)   [zod; same-org member check; audit; notify]
+  archivePolicyAction / restorePolicyAction (if D7) → setPolicyArchived(ctx, policyId, reason)
+  newRevisionAction, adoptTemplateAction, logReadAndSignAction — existing, unchanged
+```
+- All queries take `ctx` and start from `visiblePolicyWhere(ctx)`, or `organisationId: ctx.organisationId` for organisation-only data (owners, acknowledgements, coverage). A template from another organisation can't exist (masters have `organisationId: null`). Customer policies of other organisations never match.
+- Status is derived in one pure function `policyStatus(policy, now)` (unit-tested), so the register, inspector, filters and counts always agree.
+- Page queries move out of the page into `src/server/policies/library-view.ts`. That closes v1 finding G3, where pages queried Prisma directly.
+
+### 4.3 Client and server split
+- Server components: shell, hero, tabs, filters (GET forms and links), explorer, register, inspector panes.
+- Client islands only where needed: `DocumentViewer` (pdf.js), the ⌘K hook, explorer expand/collapse with keyboard (roving tabindex, `aria-expanded`, tree semantics), dropdown menus (Radix-free `<details>` pattern or the existing Radix Dialog for modal actions), and the inspector close/Escape.
+- Loading: `src/app/(app)/policies/loading.tsx` for the whole page, plus a `<Suspense>` skeleton for the inspector. Errors: a segment `error.tsx` with retry. The viewer shows "Couldn't load the document. Download it instead." when the PDF fails.
+
+### 4.4 Styling
+- New tokens are scoped to `[data-surface="policy-library"]` and the restyled shell. That keeps the five existing themes working for other pages and avoids a global 18 px → 16 px change (D2).
+- Fonts: Source Serif 4 for display and Inter for UI (both already loaded in `src/app/layout.tsx`).
+- No new UI kit. Small local components go in `src/components/library/*`.
+
+### 4.5 Responsive behaviour
+| Width | Layout |
+| --- | --- |
+| ≥ 1440 | As the screenshot: three columns |
+| 1280–1439 | Three columns, narrower explorer (200 px), inspector 40% |
+| 1024–1279 (laptop 1366 × 768 uses three columns at a reduced height, with the inspector viewer scrolling) | Explorer collapses into a "Categories" button (drawer). Register + inspector. |
+| 768–1023 (tablet) | Register full width. The inspector opens as a right-hand sheet over the register, and ✕ or Escape returns you to the same place. Sidebar becomes an off-canvas menu. |
+| < 768 (phone 390 × 844) | Filters in a sheet. Rows are stacked cards. Selecting a policy opens `/policies/[id]` (the existing full record). Top bar shows the logo, a search button and a menu button. |
+
+---
+
+## 5. Test-first plan
+
+### 5.1 How to run locally (verified in this container)
+```bash
+cp .env.example .env
+npm ci
+# PostgreSQL 16 running locally with user postgres/postgres; create throwaway DBs:
+createdb csb_test && createdb csb_e2e
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/csb_e2e?schema=public npx prisma migrate deploy   # once, see note
+npm run typecheck && npm run lint && npm run test:hr
+npm test            # resets csb_test only
+npm run build && npm run test:e2e   # resets csb_e2e only
+```
+`npm test` and `npm run test:e2e` reset **only** the dedicated local test databases through their global setup. That is the repository's designed behaviour, and it is never pointed at Supabase or any shared database. No `db:reset` was run.
+
+### 5.2 Baseline (29 Oct 2026, `main` 6d4eb04, this container, local PostgreSQL 16)
 | Command | Result |
 | --- | --- |
-| `npm run typecheck` | passed (0 errors) |
-| `npm run lint` | passed (0 problems) |
-| `npm test` | 10 files, **93/93 passed** |
-| `npm run test:hr` | **14/14 passed** |
-| `npm run build` | passed |
-| `npm run test:e2e` | **8 passed, 1 failed** (see below) |
+| `npm run typecheck` | ✅ pass |
+| `npm run lint` | ✅ pass |
+| `npm run test:hr` | ✅ 14 / 14 |
+| `npm test` | ✅ 93 / 93 (10 files) |
+| `npm run build` | ✅ pass |
+| `npm run test:e2e` | ❌ **8 passed, 1 failed (already failing on `main`)**: `pages.spec.ts` "all reachable pages render for admin@csb.demo" because `/settings` returns 404 for the platform admin, who has no organisation. The first attempt timed out because Playwright starts the server before global setup migrates an empty `csb_e2e`. Migrating once beforehand fixes it. |
 
-Browser-test notes from that run:
-- **Existing failure on `main`**: `pages.spec.ts` "all reachable pages render for admin@csb.demo" fails because the platform admin, who has no organisation, is sent to `/settings`, which returns 404. This isn't related to the Policy Library. It should be fixed in its own small PR, either by changing the `/settings` guard or the test's portal home, before P1 so the suite starts green.
-- **Harness quirk**: the first run timed out because Playwright starts the web server before global setup migrates `csb_e2e`, and `/login` returns 500 on an empty database. Running `DATABASE_URL=…/csb_e2e npx prisma migrate deploy` once beforehand fixes it. P0 should make global setup handle this, or document it in the README.
+The pre-existing failure gets a separate small fix PR first (D11) so the library work starts from green.
 
-## 4. Gaps and issues found
+### 5.3 Functional acceptance tests (expected outcomes)
+"Int" = Vitest integration against `csb_test` with real triggers. "E2E" = Playwright against `csb_e2e`.
 
-| # | Finding | Impact |
-| --- | --- | --- |
-| G1 | "Upload Custom Policy" doesn't upload anything. It is a Markdown textarea. | The label misleads. Providers expect to bring in their existing Word policies. `mammoth` is already installed (used in `sources/extract.ts`). |
-| G2 | Library search uses `ILIKE` on title, ref and description only. The `Policy.search_vector` full-text column and `DocumentChunk` index exist but aren't used, so words in the policy body aren't searchable from the library. | Staff can't find "what do I do if…" content. |
-| G3 | The pages query Prisma directly (`policies/page.tsx` group-bys, `areas.tsx` `findMany`) instead of going through `src/server/policies`. Scoping is correct today (`organisationId: ctx.organisationId`), but the logic is duplicated and untested. | Regression risk for tenant isolation, and hard to test. |
-| G4 | "Updates" means "published in the last 30 days" for everyone. It doesn't mean "changed since *you* last signed". | The badge count isn't actionable for a given person. |
-| G5 | There's no way to record "reviewed, no changes needed". "Last reviewed" on the Review Sheet is really the last *publication* date, so the only way to reset `nextReviewDate` is to publish a new version. | The annual review cycle can't be done properly, and the overdue list stays wrong. |
-| G6 | `ownerId`, `reviewerId` and `approverId` exist, but there's no UI to set them. The Review Sheet falls back to the hard-coded text "Registered manager" when there's no owner. | Accountability isn't recorded, and the fallback shows an invented value. |
-| G7 | `PolicyStatus.ARCHIVED` exists, but there's no archive or restore action. | Retired policies can't be removed from the library with an audit trail. |
-| G8 | Read & Sign is self-service (`logReadAndSign`). The Policy Library can't assign reading to particular roles, branches or people, and shows no per-policy sign-off coverage (who is overdue) for managers. | Managers can't evidence that staff have read key policies. (Staff Sign-off is its own module; the library needs the per-policy view and a link to it.) |
-| G9 | There are no `loading.tsx` files and no sort options (always ordered by reference). The 535-line policy page mixes data loading and presentation. | Perceived slowness and maintainability. |
-| G10 | The area view hides master templates and doesn't show service-type applicability (care home, home care and so on). Care Solution Bureau is domiciliary care only. | It shows documents that don't apply to the service. |
-| G11 | Server action inputs use ad-hoc `str()` parsing with no zod schemas. | Weaker validation on new inputs. |
-
-## 5. Proposed design
-
-The approved reference layout stays. Each change below is functional, not decorative.
-
-### 5.1 My Policies (`/policies`)
-- Keep the title bar, area tabs, category groups and dense rows exactly as approved.
-- **Search bar** above the tabs. It uses full-text search over title, reference, summary and published section text (G2). Results show as a flat list with the matching snippet highlighted.
-- The **"Updates" badge per person** counts documents with a publication the viewer hasn't acknowledged, or that changed since their last acknowledgement. Hovering the badge explains what it counts (G4).
-- **Row status pills**, real states only: `Updated` (unread change), `Review overdue`, `Draft in progress`, `Not yet approved` (starter text).
-- **Service filter**: a "Show only documents for my services" toggle, defaulting to on. It uses `Policy.serviceTypes` against the organisation's branch service types (G10).
-- **Empty states**: an area with no documents links to the matching templates. With no search results, show "Clear search".
-- **Phone**: area tabs become a horizontal scroller, and rows show ref, title and pill with type and date on a second line.
-
-### 5.2 Policy Index (`/policies?view=index`)
-- The management view: a sortable table (ref, title, type, area, owner, version state, last reviewed, next review, open revisions, sign-off coverage %).
-- Filters: type, area, status (approved / starter / draft / archived), owner, "overdue", "due in 30/60/90 days" and "no owner".
-- Bulk select, used only for *Assign owner* and *Export CSV*. There are no bulk publish or approve actions, because separation of duties applies to each policy.
-- Filter state is kept in the URL so views can be shared and bookmarked.
-
-### 5.3 Template Library (`/policies?tab=templates`)
-- Same structure as the index, filtered to CSB masters. It shows "In your library", "Adopt" and "Newer CSB version available" (from `basedOnMasterVersionId` against the template's current version), which links to the existing master-sync draft.
-- Before adopting, a preview panel shows the template's sections and marks which ones are local (filled in by the provider).
-
-### 5.4 Policy record (`/policies/[id]`)
-- Keep the tile tabs and Review Sheet design. Split the page into server-loaded sections (`getPolicyRecord` in `src/server/policies`) and small presentational components.
-- **Review Sheet** changes:
-  - "Last reviewed" uses the new review record (G5).
-  - Owner, reviewer and approver can be edited by people with `policy.author`, and the "Registered manager" fallback is removed (G6).
-  - A "Record review" action has two outcomes: *No changes needed*, which records a review and moves `nextReviewDate` on, or *Changes needed*, which starts a revision.
-- **Read & Sign tab**: for managers, a sign-off coverage table (assigned, signed, overdue) for the current publication, with "Send reminder" (using the existing reminder job). Staff see only their own status.
-- **Archive / restore** in an overflow menu with a required reason. It's blocked while a revision is open, it's audited, and archived policies are hidden from My Policies but appear in the index with the Archived filter (G7).
-- The existing Start revision, rollback, confirm implementation, download and read & sign actions stay as they are.
-
-### 5.5 Create policy (`/policies/new`)
-- Rename it to **"Add a policy"**, with two routes:
-  1. **Write**: the current section editor, with proper section rows instead of `## Heading` parsing.
-  2. **Import Word document**: upload a `.docx`, which is converted with `mammoth` into sections the user checks before the draft is created. The original file is stored as evidence through the existing storage provider and malware-scan hook.
-- Both routes create a draft and revision through `createPolicy`, so nothing is live until it's approved and published.
-
-## 6. Requirements
-
-### 6.1 Functional
-- F1 Full-text search across title, ref, description and published section text, within the user's visible policies only.
-- F2 Per-user unread or changed counts on area tabs, groups and rows.
-- F3 Record a review with no change: stores who, when and a note, moves `nextReviewDate` on, audits it and doesn't create a version.
-- F4 Assign or change owner, reviewer and approver (they must be members of the same organisation with suitable roles).
-- F5 Archive and restore with a reason. Not allowed while a revision is open.
-- F6 Sign-off coverage per publication, with reminders.
-- F7 Import from .docx into a draft.
-- F8 Filters for status, owner and due window. Sortable columns. CSV export of the current filter.
-- F9 Service-type applicability filter.
-- F10 All existing workflows keep working unchanged: adopt, revise, AI-drafted revision, review and approve, publish (immediate or scheduled), rollback, master sync, download, read & sign, implementation confirmation.
-
-### 6.2 Non-functional
-- Tenant isolation on every query, enforced in `src/server/policies` and covered by integration tests.
-- Server-side permission checks on every action and download.
-- zod schemas for every new action input.
-- Library pages render in under 1 s with about 200 documents on the demo database. Queries are indexed (`organisationId`, `docType`, `search_vector`).
-- WCAG 2.2 AA: keyboard access to tabs, groups and dialogs, visible focus, labelled controls, contrast checked.
-- Responsive at 1440, 834 and 390 px with no horizontal scroll.
-- Every state change is written to `AuditLog`.
-
-## 7. Data model changes (to be approved, all additive)
-
-| Change | Why it's needed | Migration safety |
-| --- | --- | --- |
-| New `PolicyReview` table (`id`, `policyId`, `organisationId`, `versionId`, `outcome` NO_CHANGE / CHANGE_REQUIRED, `note`, `reviewedById`, `reviewedAt`), immutable by trigger | F3 and G5. A review with no change must be recorded without creating a version. | New table only, with no backfill needed. "Last reviewed" falls back to the publication date when there are no reviews. |
-| `Policy.archivedAt`, `archivedById`, `archiveReason` (nullable) | F5. Who archived a policy, when and why. | Nullable columns, no default rewrite. |
-| Optional: `ReadingAssignment` (policy, role or branch or user, due date) | Only if the owner wants assigned reading in this phase (D4). Otherwise it's deferred to Staff Sign-off. | New table. |
-
-No existing column is changed or removed. Full-text search uses the existing `search_vector` column and `DocumentChunk` index. The migration must also extend the immutability triggers to `PolicyReview`.
-
-## 8. Implementation phases
-
-Each phase is its own branch and PR, with tests, before/after screenshots and the owner's approval before merge.
-
-| Phase | Content | Depends on |
-| --- | --- | --- |
-| **P0 Groundwork** | Move the library queries from pages into `src/server/policies/library.ts` (`listLibrary`, `libraryCounts`, `areaView`, `getPolicyRecord`). Add zod schemas for library actions. Add integration tests that pin current behaviour, including tenant isolation of the new functions. Split the policy page into components. **No visible change.** | none |
-| **P1 Find** | Full-text search (F1), per-user updates (F2), service filter (F9), index sorting and filters (F8), loading and empty states. | P0 |
-| **P2 Govern** | `PolicyReview` + "Record review" (F3), owner assignment (F4), archive and restore (F5), Review Sheet fixes. | P0, migration approval |
-| **P3 Sign-off** | Per-publication coverage and reminders on the policy record (F6), and links to Staff Sign-off. | P0 |
-| **P4 Add a policy** | Section editor and .docx import (F7). | P0 |
-| **P5 Polish and proof** | Visual comparison with the reference at three widths, keyboard and accessibility pass, browser tests for every flow, updated demo seed. | P1–P4 |
-
-## 9. Risks
-
-| Risk | Mitigation |
-| --- | --- |
-| Breaking the approved look while refactoring | P0 makes no visual change. Playwright screenshots before and after are compared against the reference. |
-| Tenant leakage through new aggregate queries (counts, search) | All queries live in server functions that take `ctx` and use `visiblePolicyWhere` / `organisationId`. A cross-tenant integration test is required for each one. |
-| DB triggers rejecting new flows (archive during publication, reviews) | Design the transitions against the existing state machine. Integration tests run against real Postgres with the triggers in place. |
-| `main` auto-deploys and `vercel-build` runs migrations on the live demo | Only additive migrations. Merge only with approval, and never just before a demo. |
-| .docx import of untrusted files | Size and type limits, the existing malware hook, plain-text extraction only (no HTML injection), and the user checks the result before the draft is created. |
-| Performance of full-text search on the free Supabase tier | Use the existing GIN index, limit to 20 results with pagination, and measure on the demo data. |
-| The reference image is the wrong one | Owner to confirm (D1) before P1. |
-
-## 10. Acceptance criteria and test strategy
-
-### 10.1 Acceptance-test matrix
-
-| ID | Scenario | Expected | Test level |
+| # | Test | Expected outcome | Level |
 | --- | --- | --- | --- |
-| A1 | Manager opens My Policies | Area tabs, groups and rows match the reference. Counts come from the database. | e2e + screenshot |
-| A2 | Search "missing person" | Returns SAF-004 and FRM-014 with snippets. Never returns another organisation's policies. | integration + e2e |
-| A3 | Org A user searches for a ref that exists only in Org B | No result, and the URL for that policy returns 404 | integration |
-| A4 | Carer with an unread new publication | The area and group badges show 1, and the row shows "Updated". After Log Read & Sign the badges clear. | integration + e2e |
-| A5 | Index filters: overdue, owner, status, due in 30 days, sorting | Correct subsets, with state kept in the URL | integration + e2e |
-| A6 | Record review "no changes" | Review stored, `nextReviewDate` moved on, no new version, audit entry, Review Sheet updated | integration + e2e |
-| A7 | Staff member tries to record a review or assign an owner, using a forged form post | Refused on the server, with no change in the database | integration |
-| A8 | Assign an owner from another organisation (forged id) | Rejected with a ValidationError | integration |
-| A9 | Archive a policy that has an open revision | Blocked with a clear message | integration |
-| A10 | Archive and restore | Hidden from My Policies, shown under the Archived filter, audited both ways | integration + e2e |
-| A11 | Coverage table | Assigned, signed and overdue counts match the acknowledgements. "Send reminder" doesn't create duplicates. | integration |
-| A12 | Import a .docx | Sections extracted, user confirms, draft and revision created, nothing published | integration + e2e |
-| A13 | Oversized or wrong-type file | Rejected with a message, nothing stored | integration |
-| A14 | Existing flows (adopt, revise, AI draft, approve, publish, rollback, master sync, download, read & sign) | Unchanged. The existing suites stay green. | existing integration + e2e |
-| A15 | Separation of duties | The author still can't approve their own draft, including drafts that started as imports | integration |
-| A16 | Layout at 1440, 834 and 390 px | No horizontal scroll, all actions reachable | e2e screenshots |
-| A17 | Keyboard only | Tabs, groups, filters, dialogs and row links can all be used, with focus visible | e2e |
-| A18 | Area or search with no results | A helpful empty state with the next action | e2e |
+| 1 | Manager views organisation-owned policies | Policies tab lists only their organisation's ACTIVE customer policies. The total matches the DB count. Tree and quick-filter counts equal the filtered totals. | Int + E2E |
+| 2 | Access authorised master templates | Templates tab lists MASTER templates. "In your library" shows for adopted ones. Adopt is visible only with `policy.author`, and adopting creates a draft + revision (existing flow). A carer sees templates read-only. | Int + E2E |
+| 3 | Search and filter | `q` matches title, ref, description and published body text. Category, status, owner, type, service, quick filters and sort each return the right subset and order. Combined filters intersect. Unknown values are ignored without an error. The header search lands on the same results. | Int + E2E |
+| 4 | Open a selected policy | Clicking a row sets `selected`, highlights it (`aria-current`) and shows the inspector, while the register keeps its scroll position. ✕ or Escape closes it and focus returns to the row. | E2E |
+| 5 | Switch inspector tabs | Each pane shows its data (§3). Tabs follow the ARIA tabs pattern (arrow keys, Home/End) and the pane is in the URL. | E2E |
+| 6 | Real version history | History lists exactly the PUBLISHED and SUPERSEDED versions in descending order, with labels, dates, change summaries and approvers. After the scenario's publish, the new version appears at the top. | Int + E2E |
+| 7 | Acknowledgement status | A manager sees signed and outstanding counts and names for the latest publication. A carer sees only their own status, and after **Log Read & Sign** it shows "Signed {date}". A carer cannot see other staff (and a forged `pane=signoff` reveals nothing extra). | Int + E2E |
+| 8 | Existing routes and deep links | `/policies/[id]` (all `?view=` tabs), `/policies/[id]/versions/[vid]`, `/revisions/[id]`, `/policies/new`, downloads, and the legacy `/policies?view=index`, `?tab=templates`, `?overdue=1`, `?type=`, `?category=`, `?area=` and `?q=` all return 200 and show the equivalent state. | E2E |
+| 9 | Permissions for creating, revising and assigning | Create Policy, Create Revision and Assign for Review show only for permitted roles. **Forged server-action posts** by a carer are refused (`ForbiddenError`) with no DB change and no audit row. | Int + E2E |
+| 10 | Tenant isolation | An Oakridge user: (a) never sees CSB policies in lists, counts, search, owners or calendar; (b) `?selected=<CSB id>` shows a "not found" inspector; (c) `/api/policies/<CSB id>/download` (both dispositions) → 404; (d) `assignReviewer` with a CSB policy, or with a CSB user as reviewer, → refused. | Int + E2E |
+| 11 | Empty library, invalid references, backend errors | A new organisation sees a "no policies yet" state with Create and Templates actions. `?selected=garbage` gives an inspector "not found" while the register still works. A forced PDF render failure shows the viewer error with a Download fallback. DB unavailable gives the segment error page with retry. | Int + E2E |
+| 12 | Approval and publication preserved | The existing `workflow.test.ts` and `scenario.spec.ts` pass unchanged. Starting a revision from the inspector produces the same draft as from the full record. Separation of duties is still enforced. | Int + E2E |
+| 13 | Assign reviewer | Sets `reviewerId`, audit `policy.reviewer_assigned`, notifies the reviewer, and Key Information shows the name. Assigning a STAFF-only member is rejected. Concurrent assignment: the last write wins and both are audited. | Int |
+| 14 | Archive / restore (only if D7) | Blocked with an open revision. Archived policies leave Policies and appear in Archived. Restore reverses it. Both are audited with a reason. | Int + E2E |
+| 15 | Derived status | `policyStatus()` returns the right state for each combination (seed, approved, draft only, submitted revision, due, overdue), with a priority order. | Unit |
+| 16 | Query parsing | `parseLibraryQuery` (zod) accepts valid params, drops unknown ones, caps the page at 1–500, and never reads organisation or tenant ids. | Unit |
 
-### 10.2 Test layers
-- **Unit (Vitest)**: zod schemas, due-window calculation, search query building, .docx-to-sections mapping.
-- **Integration (Vitest + real Postgres `csb_test`)**: every new server function, including tenant isolation, permission refusal, concurrency (two people recording a review or archiving at once) and trigger behaviour.
-- **Browser (Playwright, `csb_e2e`)**: a library spec covering A1, A2, A4, A5, A6, A10, A12, A16, A17 and A18, plus the existing scenario and every-page suites.
-- **Visual**: Playwright screenshots at three widths, compared against the reference and attached to each PR.
+### 5.4 Visual comparison
+- **Fixtures:** a test-only seed (`tests/e2e/fixtures/policy-library.ts`, run from e2e global setup into `csb_e2e` only) creates a deterministic "Care Solution Bureau CIC" visual organisation. It has 48 policies whose titles, owners, refs and statuses mirror the screenshot (for example Safeguarding Adults Policy, owner Sarah Wilson, Published v2.1). It uses the real taxonomy, so the tree shows "Safeguarding > Safeguarding" rather than "Adults" (an expected, documented difference). Dates are relative to the run, and date text is masked in the diff. Production screens never use fixtures.
+- **Capture:** Playwright, Chromium, `deviceScaleFactor: 1`, fonts loaded, animations off, at 1536 × 1024 (comparison), 1366 × 768, 768 × 1024 and 390 × 844 (review).
+- **Compare:** `scripts/visual/compare-policy-library.mjs` (dev-only, no new dependency, using a Playwright page with canvas) produces:
+  1. side-by-side PNG
+  2. 50% overlay PNG
+  3. per-pixel difference heat map
+  4. a region report: the boxes in §2.1 measured from the DOM against the reference, giving Δx, Δy and Δw per region, and font-size and colour checks for H1, tabs, row title and pills
+- **Threshold:** each major region's position and size within ±4 px, and token colours within ΔE ≤ 3. Remaining differences (photo, record text, taxonomy names) are listed with reasons. Material discrepancies are fixed **before** asking for design approval.
+- The outputs are attached to the PR and saved to the project files.
 
-### 10.3 Commands per PR
-`npm run typecheck`, `npm run lint`, `npm test`, `npm run test:hr`, `npm run build`, `npm run test:e2e`. Run them only against local throwaway databases, and report the actual results.
+### 5.5 Accessibility and regression
+- Automated checks: keyboard-only walk of the shell, tabs, tree (arrow keys), filters, register, inspector tabs and dialogs. Visible focus everywhere (3 px `--pl-accent`). Landmarks and names (`nav`, `search`, `main`, `aside`, `role=tree`, `role=tablist`). Contrast for pills and meta text at AA (≥ 4.5:1; `#646e7f` on the `#fbfaf8` panel is 4.9:1, and every status pill is ≥ 4.6:1). No horizontal overflow at 390 px. Reduced-motion respected.
+- Loading and error states are captured in the screenshots.
+- Role sweep: the existing `pages.spec.ts` for all seven roles, plus the new library spec run as manager, author, approver, carer and Oakridge manager.
 
-### 10.4 Baseline rule
-§3.5 records the baseline at the time of planning: 1 browser test was already failing. Each phase PR states its own before and after results. If browser tests can't run in a given environment, the PR says so instead of assuming they pass.
+### 5.6 Definition of done
+1. The overlay report meets §5.4 at 1536 × 1024, and screenshots exist at all four sizes.
+2. Every visible control does something real, or isn't shown.
+3. All data comes from authorised records.
+4. Tests 1–16 pass, and the existing suites are at baseline or better.
+5. `typecheck` and `lint` are clean.
+6. No changes outside the files listed in §6.
+7. Nothing is merged without the owner's approval.
 
-## 11. Decisions needed before development starts
+---
 
-| # | Decision | Recommendation |
+## 6. Proposed file-change list
+
+| File | Change | Why |
 | --- | --- | --- |
-| D1 | Confirm the approved Policy Library reference image | The My Policies design approved on 26 Oct (`qcs-replica/my-policies-prototype-opened.png`) |
-| D2 | Approve the additive schema changes in §7 (`PolicyReview`, archive fields) | Approve. They are needed for a real review cycle and an archive trail. |
-| D3 | Approve the phase order and the rule of one PR per phase | P0 → P1 → P2 → P3 → P4 → P5 |
-| D4 | Assigned reading: in the library now, or in the Staff Sign-off module later? | Later. The library shows coverage and reminders only. |
-| D5 | Default the service filter to the organisation's services (domiciliary care for CSB)? | Yes |
-| D6 | When can merges to `main` happen, given that it updates the live demo? | Only on your explicit "merge", and never on a demo day |
+| `src/app/(app)/layout.tsx` | Restyle the shell to the screenshot: sidebar with portal rows and P&C sub-nav, org card, user block and sign out in the sidebar; slim top bar (search ⌘K, bell, help). The org switch and setup banner stay. | Shell fidelity |
+| `src/components/portal-switcher.tsx` | `PortalSideNav` renders the portal hierarchy, and `PortalMobileNav` becomes an off-canvas menu. The header `PortalSwitcher` is retired (portals now live in the sidebar). The `data-testid` values are kept where tests use them. | Shell |
+| `src/components/side-nav.tsx` | Sub-nav guide-line styling and active state | Shell |
+| `src/components/brand.tsx` | Add a `Monogram` export (original `csb-monogram-embedded.svg`) | Original logo |
+| `src/components/main-area.tsx` | "Wide" (no grey canvas) for the new `/policies` workspace | Layout |
+| `src/app/globals.css` | Scoped `[data-surface="policy-library"]` and shell tokens and classes (§2.2) | Tokens without a global theme change |
+| `src/app/(app)/policies/page.tsx` | Replaced by the workspace page (hero, tabs, filters, explorer, register, inspector). It reads the URL via zod and maps legacy params. | Main deliverable |
+| `src/app/(app)/policies/areas.tsx` | **Removed** (superseded by the explorer). `src/lib/policy-areas.ts` is kept as the taxonomy source. | Replaced design |
+| `src/app/(app)/policies/loading.tsx`, `error.tsx` (new) | Loading skeleton and error with retry | States |
+| `src/components/library/*` (new, about 10 small files) | `Hero`, `LibraryTabs`, `FilterBar`, `CategoryTree` (client), `QuickFilters`, `PolicyRegister`, `PolicyRow`/`PolicyCard`, `StatusPill`, `PolicyInspector` + panes, `KeyInformation`, `ActionBar`, `DocumentViewer` (client), `ReviewCalendar` | Small, testable components |
+| `src/server/policies/library-view.ts` (new) | `parseLibraryQuery`, `policyStatus`, `libraryTree`, `quickFilterCounts`, `listLibrary`, `ownerOptions`, `reviewCalendar`, `inspectPolicy` | Server-side scoping and reuse |
+| `src/server/policies/library.ts` | Add `assignPolicyReviewer` (and `setPolicyArchived` if D7). `listPolicies` is kept for other callers. | New governed writes |
+| `src/server/search/index-chunks.ts` | Small exported helper to find policy ids matching the body text, scoped to visible policies | Body-text search |
+| `src/app/actions.ts` | `assignReviewerAction` (+ archive/restore if D7), with zod parsing | Mutations |
+| `src/app/api/policies/[id]/download/route.ts` | Accept `disposition=inline` for the viewer, and keep `attachment` as the default. Audit only for downloads, not previews. | Document viewer |
+| `src/app/(app)/policies/new/page.tsx` | Title becomes "Create Policy". Copy explains that it creates a draft from text. | Truthful label |
+| `src/app/(app)/page.tsx` | Dashboard link text "Create a policy" (already). Check its links to `/policies?…` still map. | Deep links |
+| `tests/unit/library-view.test.ts` (new) | Tests 15–16 | Unit |
+| `tests/integration/library.test.ts` (new) | Tests 1–3, 6–7, 9–14 | Integration |
+| `tests/e2e/library.spec.ts` (new), `tests/e2e/fixtures/policy-library.ts` (new), `tests/e2e/global-setup.ts` | Tests 1–14 in the browser, the visual fixture org, and migrate-before-server fix | E2E |
+| `tests/e2e/pages.spec.ts` | Update the sidebar locator if the shell's markup changes (same coverage) | Shell change |
+| `scripts/visual/compare-policy-library.mjs` (new) | Side-by-side, overlay, diff and region report | Visual check |
+| `docs/design/policy-library-reference.png` | Already added (reference) | Baseline |
+| `public/brand/policy-library-hero.*` (only after D6) | Owner-supplied licensed image | Hero |
+
+**Not touched:** `src/hr/**`, `src/app/hr/**`, Service Users, Rota, `prisma/schema.prisma` (no schema change), migrations, other Policy & Compliance pages (apart from inheriting the shell), `src/app/themes.css`.
+
+---
+
+## 7. Risks
+
+| Area | Risk | Mitigation |
+| --- | --- | --- |
+| Security | New aggregate queries (tree counts, quick filters, owners, calendar, body search) leak other tenants' data | Every function takes `ctx` and composes `visiblePolicyWhere`. Owner and coverage queries also pin `organisationId: ctx.organisationId`. Test 10 covers every function. |
+| Security | The inline PDF route exposes a document without permission | It reuses `buildDocModel(ctx, id)`, which already checks `canOnPolicy` read. `Cache-Control: private, no-store`. 404 for any failure. |
+| Security | Forged form posts (assign reviewer, archive) | zod parsing. `policyId` ownership is re-checked on the server. The reviewer must be a member of `ctx.organisationId` with a review role. Organisation ids are never read from input. |
+| Data integrity | Archive while a revision or publication is in flight | Refuse while there is an open revision or a scheduled publication. Single transaction plus audit. No version rows touched (immutability triggers stay intact). |
+| Data integrity | Status labels that overstate approval | One `policyStatus()` with the rule "Published" only when the live version has an approval record. Starter text always says "Not yet approved". |
+| Regression | The shell restyle changes every non-HR page | It is a shell-only change (no page markup), with screenshots of the Dashboard, Regulatory Updates, Queue, Audits and Settings before and after. `pages.spec.ts` covers all roles, and the HR shell is unaffected (separate layout). |
+| Regression | Legacy `/policies` params and the header search | Explicit mapping plus test 8. |
+| Regression | Removing the 26 Oct My Policies design | It's superseded by owner instruction. The area taxonomy is kept in the explorer. |
+| Accessibility | A canvas PDF viewer is unreadable for screen readers | pdf.js text layer, an outline with real headings, and an "Open accessible text" link to the HTML record. |
+| Accessibility | A three-column density that's too small | 12 px minimum text, AA contrast, 32 px minimum targets (44 px on touch), zoom to 200% without loss. |
+| Performance | PDF rendered on every inspector open (pdfkit) | Rendered only when the Document pane is active, `no-store`, measured on the demo data. Caching per version id is a follow-up if it's slow. |
+| Performance | Free-tier Supabase with several group-bys per request | Indexed columns, parallel queries, about 6 queries per page view, measured with 200 policies. |
+| Visual | The hero photo and tagline can't be matched without an asset | D6. The difference is documented in the comparison report. |
+| Delivery | `main` auto-deploys to the live demo | Feature branch `feature/policy-library`, PR only, merge only on the owner's word. |
+
+---
+
+## 8. Decisions needed
+
+| # | Question | Recommendation |
+| --- | --- | --- |
+| D1 | Reference image | ✅ Resolved: `docs/design/policy-library-reference.png` |
+| D2 | Apply the screenshot's look to the shell for **all** non-HR pages, keeping other pages' content unchanged? | Yes, with tokens scoped to the shell and library so other themes and pages don't shift |
+| D3 | Logo: use the original cyan CSB monogram from the repo (no white version exists) | Yes, use the original. Supply a white version if you prefer it on navy. |
+| D4 | Demo data: 166 of 167 demo policies are unapproved starter text, so most rows will honestly show "Not yet approved". OK, or should the demo seed record real approvals by the demo approver for a subset? | Keep it truthful. Optionally seed approvals for about 20 policies through the real workflow (labelled demo). |
+| D5 | Reading List, Resource Centre and Interview Prep aren't in the screenshot's sidebar | Keep them reachable under Overview (Reading List) and a "Resources" row |
+| D6 | Hero photo and tagline "Safe People, Safer Care, Stronger Communities": supply a licensed photo and confirm the tagline | Until supplied: a plain hero band with an in-house line-art accent, and no tagline |
+| D7 | Include archive / restore now (no schema change, audited)? | Yes. It makes the Archived tab real. |
+| D8 | Upload Policy (.docx import) now, or a follow-up? | Follow-up. Hide the button until it's built and tested. |
+| D9 | "Due for review" window | 60 days |
+| D10 | "Assign for Review" means "assign the policy's reviewer" (sets `reviewerId` and notifies) | Yes |
+| D11 | Fix the existing `/settings` 404 e2e failure in a separate small PR first | Yes |
+
+---
+
+## 9. Phase 5: future Policy & Compliance sections (design planning only)
+
+Each section gets its own layout built around its job. None reuses the three-column library layout.
+
+| Section | Primary job | Proposed structure |
+| --- | --- | --- |
+| Regulatory Updates `/changes` | Understand a source change and record an applicability decision | A two-pane review desk: a change queue on the left (source, detected date, classification, status), and the change workspace with a section-level redline of source vX→vY, the AI analysis with verified quotes, and an "Applies to us?" decision form with reason. |
+| Requirements Register `/requirements` | Traceability | A matrix: requirements as rows (legal status, source) against columns for linked policies, audit questions and evidence, with coverage gaps highlighted. A detail drawer shows the requirement text history. |
+| Policy Change Queue `/queue` | Move drafts through review, approval and publication | A board by stage (Drafting → In review → Approved → Scheduled → Published), filtered to "my work". Cards show due dates, urgency and assigned people. |
+| Audits & Inspections `/audits` | Conduct a structured assessment | A guided runner: a question list with progress, an answer panel, finding capture with severity, evidence attach, and a summary with actions raised. |
+| Actions & Risks `/actions` | Accountability | A register by owner and deadline with severity, overdue escalation, and completion evidence with **independent verification** as a separate step. |
+| Staff Sign-off `/staff` | Acknowledgement coverage | A coverage grid of policies × staff (or roles and branches), overdue lists, reminders, and per-person reading history. |
+| Evidence Library `/evidence` | Secure evidence management | A file register with scan status, retention, and "supports" links to requirements, audits and actions. Preview with access logging. |
