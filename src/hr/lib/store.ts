@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { State } from "./domain";
 import { upgradeFixtures } from "./upgrade-fixtures";
 import { HttpError } from "./auth";
+import { projectWorkforce } from "@/server/workforce/projection";
 
 /**
  * The HR Hub's records for one organisation, stored in the platform database (HrWorkspace).
@@ -29,15 +30,23 @@ export async function read(organisationId: string): Promise<State> {
   return transaction(organisationId, (s) => Object.assign(s, upgradeFixtures(s)));
 }
 
-/** Runs one HR change with the organisation's row locked, so two changes never overwrite each other. */
-export async function transaction<T>(organisationId: string, fn: (state: State) => T): Promise<T> {
-  return db.$transaction(async (tx) => {
-    const state = await load(tx, organisationId, true);
-    const upgraded = (state.fixtureVersion || 1) < CURRENT_FIXTURE ? upgradeFixtures(state) : state;
-    const result = fn(upgraded);
-    await save(tx, organisationId, upgraded);
-    return result;
-  });
+/**
+ * Runs one HR change with the organisation's row locked, so two changes never overwrite each other.
+ * The shared workforce identity (StaffMember) is projected in the same transaction, so every HR change that
+ * creates, edits, imports, archives or moves an employee reaches Rostering at once, or not at all.
+ */
+export async function transaction<T>(organisationId: string, fn: (state: State) => T, opts: { actorId?: string | null } = {}): Promise<T> {
+  return db.$transaction(
+    async (tx) => {
+      const state = await load(tx, organisationId, true);
+      const upgraded = (state.fixtureVersion || 1) < CURRENT_FIXTURE ? upgradeFixtures(state) : state;
+      const result = fn(upgraded);
+      await save(tx, organisationId, upgraded);
+      await projectWorkforce(tx, organisationId, upgraded, { actorId: opts.actorId });
+      return result;
+    },
+    { timeout: 30_000 },
+  );
 }
 
 /** Creates an organisation's HR workspace from a starting document (used by seeding). */

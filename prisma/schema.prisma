@@ -30,6 +30,10 @@ enum OrgRole {
   POLICY_APPROVER
   COMPLIANCE_LEAD
   STAFF
+  CARE_MANAGER
+  CARE_COORDINATOR
+  CARER
+  FINANCE_OFFICER
 }
 
 model User {
@@ -82,10 +86,14 @@ model Organisation {
   settings     Json     @default("{}") // approval rules, escalation config
   createdAt    DateTime @default(now())
 
-  branches    Branch[]
-  memberships Membership[]
-  policies    Policy[]
-  hrWorkspace HrWorkspace?
+  branches     Branch[]
+  memberships  Membership[]
+  policies     Policy[]
+  hrWorkspace  HrWorkspace?
+  staff        StaffMember[]
+  serviceUsers ServiceUser[]
+  areas        Area[]
+  visits       Visit[]
 }
 
 model ServiceType {
@@ -105,7 +113,13 @@ model Branch {
   createdAt      DateTime            @default(now())
   services       BranchServiceType[]
   memberships    Membership[]
+  /// The HR Hub's own id for this branch inside HrWorkspace.state. Set explicitly (seed or Administration), never matched by name.
+  hrBranchKey    String?
+  staff          StaffMember[]
+  areas          Area[]
+  serviceUsers   ServiceUser[]
 
+  @@unique([organisationId, hrBranchKey])
   @@index([organisationId])
 }
 
@@ -119,7 +133,7 @@ model BranchServiceType {
 }
 
 model Membership {
-  id             String       @id @default(cuid())
+  id             String           @id @default(cuid())
   userId         String
   organisationId String
   branchId       String?
@@ -127,10 +141,12 @@ model Membership {
   jobTitle       String?
   /// The HR Hub account this member works as in HR & Workforce. Empty means no HR access.
   hrUserId       String?
-  createdAt      DateTime     @default(now())
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branch         Branch?      @relation(fields: [branchId], references: [id])
+  createdAt      DateTime         @default(now())
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch         Branch?          @relation(fields: [branchId], references: [id])
+  /// Areas a care coordinator is limited to. None means every area in the organisation.
+  areas          MembershipArea[]
 
   @@unique([userId, organisationId])
   @@index([organisationId])
@@ -1150,4 +1166,1217 @@ model AuditLog {
 
   @@index([organisationId, createdAt])
   @@index([entityType, entityId])
+}
+
+// ───────────────────────────── Workforce (shared staff identity) ─────────────────────────────
+// HR & Workforce (the HR Hub's HrWorkspace.state) is the source of truth for employees. StaffMember is the
+// relational identity every other module points at, projected from HR in the same transaction as each HR change
+// (src/server/workforce/projection.ts). Rostering never edits the projected fields.
+
+enum EmploymentStatus {
+  ACTIVE
+  ONBOARDING
+  ARCHIVED
+}
+
+enum CarerGender {
+  FEMALE
+  MALE
+  OTHER
+  UNDISCLOSED
+}
+
+model StaffMember {
+  id               String           @id @default(cuid())
+  organisationId   String
+  organisation     Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  /// The HR Hub employee id. One-to-one with the HR employee; never changes.
+  hrEmployeeId     String
+  hrVersion        Int
+  /// Hash of the projected content, so unchanged employees are not rewritten.
+  hrHash           String
+  /// The HR employee no longer exists in the HR document. Kept so delivered visits keep their carer.
+  hrMissing        Boolean          @default(false)
+  staffNumber      String
+  displayName      String
+  preferredName    String?
+  jobTitle         String
+  employmentStatus EmploymentStatus
+  hrBranchKey      String
+  branchId         String?
+  branch           Branch?          @relation(fields: [branchId], references: [id])
+  startDate        DateTime?        @db.Date
+  leavingDate      DateTime?        @db.Date
+  workEmail        String?
+  workPhone        String?
+  /// The login linked through the explicit, audited administrator workflow. Never set by matching e-mail.
+  userId           String?
+  linkedById       String?
+  linkedAt         DateTime?
+  projectedAt      DateTime
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  profile      RotaStaffProfile?
+  compliance   StaffCompliance[]
+  areas        StaffArea[]
+  absences     StaffAbsence[]
+  availability StaffAvailability[]
+  assignments  VisitAssignment[]
+  preferences  CarerPreference[]
+  payRates     StaffPayRate[]
+
+  @@unique([organisationId, hrEmployeeId])
+  @@unique([organisationId, userId])
+  @@unique([id, organisationId])
+  @@index([organisationId, employmentStatus])
+}
+
+/// What eligibility needs from each HR check. No certificate numbers, documents or notes.
+model StaffCompliance {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  hrCheckId      String
+  /// DBS, Right to work, Training or another HR category.
+  category       String
+  name           String
+  required       Boolean
+  recurring      Boolean
+  dueDate        DateTime?   @db.Date
+  verified       Boolean
+  hasEvidence    Boolean
+
+  @@unique([staffId, hrCheckId])
+  @@index([organisationId])
+}
+
+/// Rostering-owned settings for a staff member. No row means the defaults.
+model RotaStaffProfile {
+  staffId          String       @id
+  staff            StaffMember  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  organisationId   String
+  /// Null means the default: on for care roles, off for everyone else.
+  rotaEnabled      Boolean?
+  gender           CarerGender?
+  drives           Boolean      @default(false)
+  maxWeeklyMinutes Int?
+  notes            String?
+  updatedById      String?
+  updatedAt        DateTime     @updatedAt
+}
+
+model Area {
+  id             String           @id @default(cuid())
+  organisationId String
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branchId       String?
+  branch         Branch?          @relation(fields: [branchId], references: [id])
+  name           String
+  colour         String           @default("#6b46c9")
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  staff          StaffArea[]
+  members        MembershipArea[]
+  serviceUsers   ServiceUser[]
+  visits         Visit[]
+
+  @@unique([organisationId, name])
+}
+
+model StaffArea {
+  staffId        String
+  areaId         String
+  organisationId String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  area           Area        @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, areaId])
+}
+
+model MembershipArea {
+  membershipId String
+  areaId       String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  area         Area       @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([membershipId, areaId])
+}
+
+enum AbsenceKind {
+  HOLIDAY
+  SICKNESS
+  COMPASSIONATE
+  TRAINING
+  UNPAID
+  OTHER
+}
+
+enum AbsenceStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+/// Holidays and sickness. Controlled by HR & Workforce; Rostering reads them.
+model StaffAbsence {
+  id             String        @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  kind           AbsenceKind
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AbsenceStatus @default(REQUESTED)
+  reason         String?
+  requestedById  String
+  requestedAt    DateTime      @default(now())
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  version        Int           @default(1)
+
+  @@index([organisationId, staffId, startsAt])
+}
+
+enum AvailabilityKind {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+/// A weekly working pattern. Controlled by HR & Workforce.
+model StaffAvailability {
+  id             String           @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  /// ISO weekday: 1 Monday … 7 Sunday.
+  weekday        Int
+  startMinute    Int
+  endMinute      Int
+  kind           AvailabilityKind @default(AVAILABLE)
+  effectiveFrom  DateTime         @db.Date
+  effectiveTo    DateTime?        @db.Date
+  note           String?
+  createdById    String
+  createdAt      DateTime         @default(now())
+
+  @@index([organisationId, staffId])
+}
+
+// ───────────────────────────── Service users and care records ─────────────────────────────
+
+enum ServiceUserStatus {
+  ENQUIRY
+  ASSESSMENT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum GenderPreference {
+  ANY
+  FEMALE
+  MALE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model ServiceUser {
+  id                    String            @id @default(cuid())
+  organisationId        String
+  organisation          Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branchId              String?
+  branch                Branch?           @relation(fields: [branchId], references: [id])
+  areaId                String?
+  area                  Area?             @relation(fields: [areaId], references: [id])
+  reference             String
+  firstName             String
+  lastName              String
+  preferredName         String?
+  dateOfBirth           DateTime?         @db.Date
+  gender                String?
+  pronouns              String?
+  nhsNumber             String?
+  status                ServiceUserStatus @default(ENQUIRY)
+  startDate             DateTime?         @db.Date
+  endDate               DateTime?         @db.Date
+  endReason             String?
+  addressLine1          String?
+  addressLine2          String?
+  town                  String?
+  postcode              String?
+  phone                 String?
+  email                 String?
+  /// How to get in, parking, pets. Shown to carers on their own visits.
+  accessNotes           String?
+  /// AES-256-GCM ciphertext. Revealed only with serviceUser.keysafe, and every reveal is audited.
+  keySafeCipher         String?
+  keySafeUpdatedAt      DateTime?
+  carerGenderPreference GenderPreference  @default(ANY)
+  firstLanguage         String?
+  communicationNeeds    String?
+  carePreferences       String?
+  riskLevel             RiskLevel?
+  riskSummary           String?
+  version               Int               @default(1)
+  createdById           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  contacts         ServiceUserContact[]
+  absences         ServiceUserAbsence[]
+  packages         CarePackage[]
+  carePlans        CarePlan[]
+  risks            RiskAssessment[]
+  incidents        Incident[]
+  templates        VisitTemplate[]
+  visits           Visit[]
+  carerPreferences CarerPreference[]
+
+  @@unique([organisationId, reference])
+  @@unique([id, organisationId])
+  @@index([organisationId, status])
+  @@index([organisationId, lastName])
+}
+
+enum ContactKind {
+  NEXT_OF_KIN
+  FAMILY
+  LPA_HEALTH
+  LPA_FINANCE
+  GP
+  PHARMACY
+  SOCIAL_WORKER
+  DISTRICT_NURSE
+  OTHER
+}
+
+model ServiceUserContact {
+  id                String      @id @default(cuid())
+  organisationId    String
+  serviceUserId     String
+  serviceUser       ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  kind              ContactKind
+  name              String
+  relationship      String?
+  phone             String?
+  email             String?
+  address           String?
+  isEmergency       Boolean     @default(false)
+  canReceiveUpdates Boolean     @default(false)
+  notes             String?
+  createdAt         DateTime    @default(now())
+
+  @@index([serviceUserId])
+}
+
+enum ServiceUserAbsenceReason {
+  HOSPITAL
+  RESPITE
+  HOLIDAY
+  OTHER
+}
+
+/// Periods when the person does not need visits (hospital, respite, holiday). Builds skip them.
+model ServiceUserAbsence {
+  id             String                   @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser              @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  reason         ServiceUserAbsenceReason
+  startsAt       DateTime
+  endsAt         DateTime?
+  note           String?
+  createdById    String
+  createdAt      DateTime                 @default(now())
+  cancelledAt    DateTime?
+  cancelledById  String?
+
+  @@index([organisationId, serviceUserId, startsAt])
+}
+
+enum PackageStatus {
+  ACTIVE
+  ENDED
+}
+
+model CarePackage {
+  id                         String        @id @default(cuid())
+  organisationId             String
+  serviceUserId              String
+  serviceUser                ServiceUser   @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  funderId                   String?
+  funder                     Funder?       @relation(fields: [funderId], references: [id])
+  reference                  String?
+  commissionedMinutesPerWeek Int?
+  startDate                  DateTime      @db.Date
+  endDate                    DateTime?     @db.Date
+  status                     PackageStatus @default(ACTIVE)
+  /// Visit requirements in plain words (e.g. "4 calls a day, double-up for hoist transfers").
+  requirements               String?
+  createdAt                  DateTime      @default(now())
+
+  @@index([organisationId, serviceUserId])
+}
+
+/// A coordinator's record of continuity: preferred or blocked carers for a person.
+model CarerPreference {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  rating         Int?
+  blocked        Boolean     @default(false)
+  reason         String?
+  updatedById    String
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([serviceUserId, staffId])
+}
+
+enum CarePlanStatus {
+  DRAFT
+  IN_REVIEW
+  ACTIVE
+  SUPERSEDED
+}
+
+/// A person-centred care plan. Versions are immutable once they leave draft (database trigger).
+model CarePlan {
+  id               String                    @id @default(cuid())
+  organisationId   String
+  serviceUserId    String
+  serviceUser      ServiceUser               @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  version          Int
+  status           CarePlanStatus            @default(DRAFT)
+  summary          String?
+  reviewDue        DateTime?                 @db.Date
+  createdById      String
+  createdAt        DateTime                  @default(now())
+  submittedById    String?
+  submittedAt      DateTime?
+  approvedById     String?
+  approvedAt       DateTime?
+  supersededAt     DateTime?
+  sections         CarePlanSection[]
+  acknowledgements CarePlanAcknowledgement[]
+
+  @@unique([serviceUserId, version])
+  @@index([organisationId, status])
+}
+
+model CarePlanSection {
+  id         String   @id @default(cuid())
+  carePlanId String
+  carePlan   CarePlan @relation(fields: [carePlanId], references: [id], onDelete: Cascade)
+  key        String
+  title      String
+  body       String
+  outcomes   String?
+  position   Int
+
+  @@unique([carePlanId, key])
+}
+
+/// A carer confirming they have read the current care plan.
+model CarePlanAcknowledgement {
+  id             String   @id @default(cuid())
+  organisationId String
+  carePlanId     String
+  carePlan       CarePlan @relation(fields: [carePlanId], references: [id], onDelete: Cascade)
+  staffId        String
+  userId         String
+  acknowledgedAt DateTime @default(now())
+
+  @@unique([carePlanId, staffId])
+}
+
+enum RiskType {
+  ENVIRONMENT
+  MOVING_HANDLING
+  FALLS
+  PRESSURE_SKIN
+  MEDICATION_SUPPORT
+  NUTRITION
+  LONE_WORKING
+  OTHER
+}
+
+enum RecordStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model RiskAssessment {
+  id             String       @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser  @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  type           RiskType
+  title          String
+  hazards        String
+  controls       String
+  level          RiskLevel
+  reviewDue      DateTime     @db.Date
+  status         RecordStatus @default(ACTIVE)
+  assessedById   String
+  assessedAt     DateTime     @default(now())
+  archivedById   String?
+  archivedAt     DateTime?
+  version        Int          @default(1)
+
+  @@index([organisationId, serviceUserId])
+}
+
+enum IncidentSeverity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  CLOSED
+}
+
+model Incident {
+  id              String           @id @default(cuid())
+  organisationId  String
+  reference       String
+  serviceUserId   String?
+  serviceUser     ServiceUser?     @relation(fields: [serviceUserId], references: [id])
+  staffId         String?
+  visitId         String?
+  occurredAt      DateTime
+  category        String
+  severity        IncidentSeverity
+  description     String
+  immediateAction String?
+  safeguarding    Boolean          @default(false)
+  /// Flags that a statutory notification may be needed. The platform never sends one itself.
+  notifiable      Boolean          @default(false)
+  status          IncidentStatus   @default(OPEN)
+  reportedById    String
+  reportedAt      DateTime         @default(now())
+  investigatorId  String?
+  outcome         String?
+  closedById      String?
+  closedAt        DateTime?
+  version         Int              @default(1)
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+}
+
+// ───────────────────────────── Rostering ─────────────────────────────
+
+enum ComplianceRule {
+  BLOCK
+  REVIEW
+  IGNORE
+}
+
+/// One row per organisation: how the rota and call monitoring behave.
+model RotaSettings {
+  organisationId          String         @id
+  cycleLength             Int            @default(4)
+  /// The Monday of a "Week 1" of the cycle.
+  anchorMonday            DateTime       @db.Date
+  buildAheadWeeks         Int            @default(2)
+  lateAfterMin            Int            @default(10)
+  missedAfterMin          Int            @default(30)
+  earlyBeforeMin          Int            @default(10)
+  blockEarlyClockIn       Boolean        @default(false)
+  shortVisitPercent       Int            @default(75)
+  requireNoteOnShortVisit Boolean        @default(true)
+  dbsRule                 ComplianceRule @default(BLOCK)
+  rightToWorkRule         ComplianceRule @default(BLOCK)
+  trainingRule            ComplianceRule @default(REVIEW)
+  /// Job titles (from HR) that count as care roles.
+  careRoleTitles          String[]       @default([])
+  minPreferenceRating     Int?
+  geofenceMetres          Int            @default(150)
+  carerDaysForward        Int            @default(7)
+  carerDaysBack           Int            @default(1)
+  mandatoryClockOutNote   Boolean        @default(false)
+  doorstepCancel          Boolean        @default(true)
+  /// The target time from "visit became late or missed" to "coordinator alerted", in seconds.
+  alertLatencyTargetSec   Int            @default(300)
+  updatedById             String?
+  updatedAt               DateTime       @updatedAt
+}
+
+model CallType {
+  id                 String          @id @default(cuid())
+  organisationId     String
+  name               String
+  defaultDurationMin Int             @default(30)
+  monitored          Boolean         @default(true)
+  chargeable         Boolean         @default(true)
+  active             Boolean         @default(true)
+  templates          VisitTemplate[]
+  visits             Visit[]
+
+  @@unique([organisationId, name])
+}
+
+model CareTask {
+  id             String         @id @default(cuid())
+  organisationId String
+  name           String
+  description    String?
+  active         Boolean        @default(true)
+  templates      TemplateTask[]
+
+  @@unique([organisationId, name])
+}
+
+enum RotaType {
+  NORMAL
+  ALTERNATE
+}
+
+/// A recurring visit: which cycle weeks and weekdays, when, how long, how many carers.
+model VisitTemplate {
+  id                 String         @id @default(cuid())
+  organisationId     String
+  serviceUserId      String
+  serviceUser        ServiceUser    @relation(fields: [serviceUserId], references: [id])
+  callTypeId         String
+  callType           CallType       @relation(fields: [callTypeId], references: [id])
+  areaId             String?
+  /// Cycle weeks 1–4 this visit happens in.
+  cycleWeeks         Int[]
+  /// ISO weekdays 1 (Monday) … 7 (Sunday).
+  weekdays           Int[]
+  /// Local (Europe/London) wall-clock start, minutes after midnight.
+  startMinute        Int
+  durationMin        Int
+  carersRequired     Int            @default(1)
+  preferredStaff1Id  String?
+  preferredStaff2Id  String?
+  shadowStaffId      String?
+  timeLocked         Boolean        @default(false)
+  medicationRequired Boolean        @default(false)
+  alertOnLate        Boolean        @default(true)
+  rotaType           RotaType       @default(NORMAL)
+  runRouteTemplateId String?
+  enabled            Boolean        @default(true)
+  effectiveFrom      DateTime       @db.Date
+  effectiveTo        DateTime?      @db.Date
+  notes              String?
+  version            Int            @default(1)
+  createdById        String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  tasks              TemplateTask[]
+  visits             Visit[]
+
+  @@index([organisationId, serviceUserId])
+  @@index([organisationId, enabled])
+}
+
+model TemplateTask {
+  templateId String
+  careTaskId String
+  template   VisitTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  careTask   CareTask      @relation(fields: [careTaskId], references: [id])
+
+  @@id([templateId, careTaskId])
+}
+
+enum RotaBuildStatus {
+  BUILT
+  DELETED
+}
+
+model RotaBuild {
+  id              String          @id @default(cuid())
+  organisationId  String
+  weekStart       DateTime        @db.Date
+  cycleWeek       Int
+  areaIds         String[]
+  status          RotaBuildStatus @default(BUILT)
+  builtById       String
+  builtAt         DateTime        @default(now())
+  visitCount      Int
+  skippedCount    Int             @default(0)
+  unassignedSlots Int
+  forecastMinutes Int
+  summary         Json            @default("{}")
+  deletedById     String?
+  deletedAt       DateTime?
+  visits          Visit[]
+
+  @@index([organisationId, weekStart])
+}
+
+enum VisitStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+  CANCELLED
+  NOT_DELIVERED
+}
+
+model Visit {
+  id                 String         @id @default(cuid())
+  organisationId     String
+  organisation       Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  reference          String
+  serviceUserId      String
+  serviceUser        ServiceUser    @relation(fields: [serviceUserId], references: [id])
+  callTypeId         String
+  callType           CallType       @relation(fields: [callTypeId], references: [id])
+  areaId             String?
+  area               Area?          @relation(fields: [areaId], references: [id])
+  templateId         String?
+  template           VisitTemplate? @relation(fields: [templateId], references: [id])
+  rotaBuildId        String?
+  rotaBuild          RotaBuild?     @relation(fields: [rotaBuildId], references: [id])
+  runRouteId         String?
+  runRoute           RunRoute?      @relation(fields: [runRouteId], references: [id])
+  runOrder           Int?
+  /// The local (Europe/London) date the visit starts on.
+  date               DateTime       @db.Date
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  carersRequired     Int            @default(1)
+  status             VisitStatus    @default(SCHEDULED)
+  statusChangedAt    DateTime       @default(now())
+  actualStart        DateTime?
+  actualEnd          DateTime?
+  cancelReason       String?
+  cancelledById      String?
+  cancelledAt        DateTime?
+  notDeliveredReason String?
+  rotaType           RotaType       @default(NORMAL)
+  timeLocked         Boolean        @default(false)
+  medicationRequired Boolean        @default(false)
+  alertOnLate        Boolean        @default(true)
+  chargeable         Boolean        @default(true)
+  payable            Boolean        @default(true)
+  /// Changed by hand after it was built, so template changes never overwrite it.
+  manuallyChanged    Boolean        @default(false)
+  /// Carers can see the visit once it is published (builds publish automatically; drafts never reach the phone).
+  publishedAt        DateTime?
+  notes              String?
+  lockVersion        Int            @default(1)
+  createdById        String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  assignments  VisitAssignment[]
+  tasks        VisitTask[]
+  clocks       VisitClock[]
+  visitNotes   VisitNote[]
+  events       VisitEvent[]
+  taskOutcomes VisitTaskOutcome[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, date])
+  @@index([organisationId, status, date])
+  @@index([serviceUserId, date])
+  @@index([templateId, date])
+}
+
+enum AssignmentSlot {
+  PRIMARY
+  SECOND
+  SHADOW
+}
+
+/// A carer in one slot of a visit. Removing a carer keeps the row (removedAt) for history.
+model VisitAssignment {
+  id               String         @id @default(cuid())
+  organisationId   String
+  visitId          String
+  visit            Visit          @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  slot             AssignmentSlot
+  staffId          String
+  staff            StaffMember    @relation(fields: [staffId], references: [id])
+  /// Copied from the visit by a database trigger; used by the no-double-booking exclusion constraint.
+  startsAt         DateTime
+  endsAt           DateTime
+  /// Maintained by trigger: true while this assignment occupies the carer's time.
+  blocking         Boolean        @default(true)
+  eligibility      String
+  warningsAccepted String[]       @default([])
+  assignedById     String
+  assignedAt       DateTime       @default(now())
+  acknowledgedAt   DateTime?
+  removedAt        DateTime?
+  removedById      String?
+  removeReason     String?
+  /// Set when an HR or absence change means this allocation must be reviewed by a coordinator.
+  reviewReason     String?
+  reviewFlaggedAt  DateTime?
+
+  @@index([organisationId, staffId, startsAt])
+  @@index([visitId])
+}
+
+model VisitTask {
+  id         String             @id @default(cuid())
+  visitId    String
+  visit      Visit              @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  careTaskId String?
+  name       String
+  position   Int
+  outcomes   VisitTaskOutcome[]
+
+  @@index([visitId])
+}
+
+enum TaskOutcome {
+  DONE
+  NOT_DONE
+  REFUSED
+}
+
+model VisitTaskOutcome {
+  id             String      @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visitTaskId    String
+  visitTask      VisitTask   @relation(fields: [visitTaskId], references: [id], onDelete: Cascade)
+  outcome        TaskOutcome
+  note           String?
+  staffId        String?
+  recordedById   String
+  at             DateTime    @default(now())
+
+  @@index([visitId])
+}
+
+enum ClockKind {
+  IN
+  OUT
+}
+
+enum ClockMethod {
+  APP
+  APP_QR
+  OFFICE
+}
+
+/// Append-only clock events (database trigger). Corrections are new rows that supersede earlier ones, with a reason.
+model VisitClock {
+  id             String      @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  staffId        String?
+  kind           ClockKind
+  at             DateTime
+  method         ClockMethod
+  latitude       Float?
+  longitude      Float?
+  accuracyM      Float?
+  /// One-time token from the device, so a replayed request is refused.
+  nonce          String?     @unique
+  recordedById   String
+  reason         String?
+  supersedesId   String?
+  createdAt      DateTime    @default(now())
+
+  @@index([visitId])
+}
+
+model VisitNote {
+  id             String   @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  authorUserId   String
+  staffId        String?
+  category       String   @default("GENERAL")
+  text           String
+  createdAt      DateTime @default(now())
+
+  @@index([visitId])
+}
+
+/// Append-only history of a visit: status changes, exceptions, office interventions.
+model VisitEvent {
+  id             String       @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  type           String
+  fromStatus     VisitStatus?
+  toStatus       VisitStatus?
+  actorId        String?
+  reason         String?
+  data           Json         @default("{}")
+  createdAt      DateTime     @default(now())
+
+  @@index([visitId, createdAt])
+}
+
+enum RouteKind {
+  CARER
+  AREA
+}
+
+model RunRouteTemplate {
+  id             String    @id @default(cuid())
+  organisationId String
+  name           String
+  kind           RouteKind @default(CARER)
+  staffId        String?
+  areaId         String?
+  colour         String    @default("#6b46c9")
+  textColour     String    @default("#ffffff")
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  @@unique([organisationId, name])
+}
+
+model RunRoute {
+  id             String    @id @default(cuid())
+  organisationId String
+  name           String
+  kind           RouteKind @default(CARER)
+  staffId        String?
+  areaId         String?
+  weekStart      DateTime  @db.Date
+  colour         String    @default("#6b46c9")
+  textColour     String    @default("#ffffff")
+  templateId     String?
+  createdById    String
+  createdAt      DateTime  @default(now())
+  visits         Visit[]
+
+  @@unique([organisationId, weekStart, name])
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+/// An operational alert for coordinators (late, missed, unassigned, HR impact). Resolved, never deleted.
+model RotaAlert {
+  id             String        @id @default(cuid())
+  organisationId String
+  kind           String
+  severity       AlertSeverity @default(WARNING)
+  visitId        String?
+  staffId        String?
+  assignmentId   String?
+  message        String
+  dedupeKey      String        @unique
+  raisedAt       DateTime      @default(now())
+  /// When the condition first became true (for alert latency).
+  conditionAt    DateTime?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolution     String?
+
+  @@index([organisationId, resolvedAt])
+}
+
+/// One run of the call-monitoring sweep, so the monitor can show how fresh its figures are.
+model RotaProcessingRun {
+  id             String    @id @default(cuid())
+  organisationId String?
+  kind           String
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  ok             Boolean   @default(false)
+  processed      Int       @default(0)
+  alertsRaised   Int       @default(0)
+  error          String?
+
+  @@index([kind, startedAt])
+}
+
+// ───────────────────────────── Finance ─────────────────────────────
+// Money is integer pence. Approved runs are frozen by trigger; corrections are adjustment lines in a new run.
+
+enum FunderKind {
+  LOCAL_AUTHORITY
+  NHS
+  PRIVATE
+  OTHER
+}
+
+enum TimeBasis {
+  SCHEDULED
+  ACTUAL
+}
+
+model Funder {
+  id                     String        @id @default(cuid())
+  organisationId         String
+  name                   String
+  kind                   FunderKind
+  reference              String?
+  billingEmail           String?
+  billingAddress         String?
+  paymentTermsDays       Int           @default(30)
+  chargeBasis            TimeBasis     @default(SCHEDULED)
+  chargeRateCardId       String?
+  chargeRateCard         RateCard?     @relation(fields: [chargeRateCardId], references: [id])
+  /// Cancellations within this many hours of the start are chargeable. Null: never.
+  shortNoticeCancelHours Int?
+  active                 Boolean       @default(true)
+  createdAt              DateTime      @default(now())
+  packages               CarePackage[]
+
+  @@unique([organisationId, name])
+}
+
+enum RateCardKind {
+  CHARGE
+  PAY
+}
+
+model RateCard {
+  id             String         @id @default(cuid())
+  organisationId String
+  kind           RateCardKind
+  name           String
+  effectiveFrom  DateTime       @db.Date
+  effectiveTo    DateTime?      @db.Date
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  bands          RateBand[]
+  funders        Funder[]
+  staffRates     StaffPayRate[]
+
+  @@unique([organisationId, name])
+}
+
+enum RateUnit {
+  PER_HOUR
+  PER_VISIT
+}
+
+model RateBand {
+  id             String   @id @default(cuid())
+  rateCardId     String
+  rateCard       RateCard @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+  label          String
+  /// ISO weekdays this band applies to. Ignored for the bank-holiday band.
+  weekdays       Int[]
+  fromMinute     Int      @default(0)
+  toMinute       Int      @default(1440)
+  bankHoliday    Boolean  @default(false)
+  ratePence      Int
+  unit           RateUnit @default(PER_HOUR)
+  minimumMinutes Int?
+}
+
+model BankHoliday {
+  id             String   @id @default(cuid())
+  organisationId String
+  date           DateTime @db.Date
+  name           String
+
+  @@unique([organisationId, date])
+}
+
+model StaffPayRate {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  rateCardId     String
+  rateCard       RateCard    @relation(fields: [rateCardId], references: [id])
+  effectiveFrom  DateTime    @db.Date
+  effectiveTo    DateTime?   @db.Date
+
+  @@index([organisationId, staffId])
+}
+
+model FinanceSettings {
+  organisationId       String    @id
+  defaultPayRateCardId String?
+  payBasis             TimeBasis @default(ACTUAL)
+  mileagePencePerMile  Int       @default(45)
+  invoicePrefix        String    @default("INV")
+  nextInvoiceNumber    Int       @default(1)
+  updatedById          String?
+  updatedAt            DateTime  @updatedAt
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Timesheet {
+  id               String          @id @default(cuid())
+  organisationId   String
+  staffId          String
+  periodStart      DateTime        @db.Date
+  periodEnd        DateTime        @db.Date
+  status           TimesheetStatus @default(DRAFT)
+  scheduledMinutes Int             @default(0)
+  deliveredMinutes Int             @default(0)
+  payableMinutes   Int             @default(0)
+  exceptions       Int             @default(0)
+  mileageMiles     Float           @default(0)
+  generatedById    String
+  generatedAt      DateTime        @default(now())
+  submittedById    String?
+  submittedAt      DateTime?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  version          Int             @default(1)
+  lines            TimesheetLine[]
+
+  @@unique([organisationId, staffId, periodStart, periodEnd])
+}
+
+model TimesheetLine {
+  id               String    @id @default(cuid())
+  timesheetId      String
+  timesheet        Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  visitId          String?
+  date             DateTime  @db.Date
+  description      String
+  scheduledMinutes Int
+  deliveredMinutes Int
+  payableMinutes   Int
+  /// Why this line is not straightforward (no clock out, short visit, office-corrected…).
+  exception        String?
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model MileageClaim {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  visitId        String?
+  date           DateTime    @db.Date
+  miles          Float
+  reason         String?
+  status         ClaimStatus @default(SUBMITTED)
+  submittedById  String
+  submittedAt    DateTime    @default(now())
+  decidedById    String?
+  decidedAt      DateTime?
+
+  @@index([organisationId, staffId, date])
+}
+
+enum RunStatusFinance {
+  DRAFT
+  APPROVED
+  VOID
+}
+
+/// Invoice preparation. Approval needs a second person. Nothing is sent or issued by the platform.
+model InvoiceRun {
+  id             String           @id @default(cuid())
+  organisationId String
+  periodStart    DateTime         @db.Date
+  periodEnd      DateTime         @db.Date
+  status         RunStatusFinance @default(DRAFT)
+  totalPence     Int              @default(0)
+  exceptions     Json             @default("[]")
+  createdById    String
+  createdAt      DateTime         @default(now())
+  approvedById   String?
+  approvedAt     DateTime?
+  voidedById     String?
+  voidedAt       DateTime?
+  voidReason     String?
+  invoices       Invoice[]
+
+  @@index([organisationId, periodStart])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organisationId String
+  runId          String
+  run            InvoiceRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  funderId       String
+  number         String?
+  totalPence     Int
+  dueDays        Int
+  lines          InvoiceLine[]
+}
+
+model InvoiceLine {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  visitId       String?
+  serviceUserId String
+  date          DateTime @db.Date
+  description   String
+  minutes       Int
+  ratePence     Int
+  amountPence   Int
+  bandLabel     String
+}
+
+/// Payroll preparation. Approval needs a second person. Nothing is submitted or paid by the platform.
+model PayRun {
+  id             String           @id @default(cuid())
+  organisationId String
+  periodStart    DateTime         @db.Date
+  periodEnd      DateTime         @db.Date
+  status         RunStatusFinance @default(DRAFT)
+  totalPence     Int              @default(0)
+  exceptions     Json             @default("[]")
+  createdById    String
+  createdAt      DateTime         @default(now())
+  approvedById   String?
+  approvedAt     DateTime?
+  voidedById     String?
+  voidedAt       DateTime?
+  voidReason     String?
+  lines          PayLine[]
+
+  @@index([organisationId, periodStart])
+}
+
+enum PayLineKind {
+  VISIT
+  MILEAGE
+  ADJUSTMENT
+}
+
+model PayLine {
+  id          String      @id @default(cuid())
+  runId       String
+  run         PayRun      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  staffId     String
+  visitId     String?
+  kind        PayLineKind
+  date        DateTime    @db.Date
+  description String
+  minutes     Int
+  ratePence   Int
+  amountPence Int
+  bandLabel   String
 }
