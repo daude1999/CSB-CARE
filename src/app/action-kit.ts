@@ -27,13 +27,14 @@ export function withParam(url: string, key: string, value: string) {
   return `${path}?${q}`;
 }
 
-export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void>, ok: string) {
+/** `fn` may return where to go next, or `{ to, ok }` when the confirmation depends on what happened (e.g. bulk results). */
+export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void | { to?: string; ok: string }>, ok: string) {
   const back = safeBack(fd.get("back"));
   let target: string;
   try {
     const ctx = await requireCtx();
     const next = await fn(ctx);
-    target = withParam(next ?? back, "ok", ok);
+    target = typeof next === "object" ? withParam(next.to ?? back, "ok", next.ok) : withParam(next ?? back, "ok", ok);
   } catch (e) {
     if (isRedirectError(e)) throw e;
     const msg = e instanceof AppError || e instanceof AiUnavailableError ? e.message : "Something went wrong. The error has been logged.";

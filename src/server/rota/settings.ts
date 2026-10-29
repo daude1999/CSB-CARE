@@ -53,7 +53,8 @@ export const settingsSchema = z
 
 export type SettingsInput = z.input<typeof settingsSchema>;
 
-export async function updateRotaSettings(ctx: Ctx, input: SettingsInput) {
+/** Takes raw form values; the schema coerces and validates them. */
+export async function updateRotaSettings(ctx: Ctx, input: SettingsInput | Record<string, unknown>) {
   const organisationId = requireOrgPermission(ctx, "rota.settings");
   const parsed = settingsSchema.safeParse(input);
   if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Check the settings");
