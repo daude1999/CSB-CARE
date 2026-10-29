@@ -3,7 +3,8 @@
  * A portal that is not built yet has `planned` set; it opens an honest "not built yet" page and never shows figures.
  * Which portals a person may open is decided on the server by `portalsFor` in src/server/auth/portals.ts.
  */
-export type PortalId = "overview" | "service-users" | "policy" | "rota" | "hr" | "reporting" | "admin";
+/** The Overview landing page plus exactly five business modules. */
+export type PortalId = "overview" | "policy" | "rota" | "hr" | "reporting" | "admin";
 
 export interface Portal {
   id: PortalId;
@@ -24,21 +25,21 @@ export interface Portal {
 
 export const PORTALS: readonly Portal[] = [
   { id: "overview", name: "Overview", code: "OV", summary: "Today across every portal", home: "/overview", colour: "#0e7490", tint: "#e6f6fa" },
-  { id: "service-users", name: "Service Users", code: "SU", summary: "People you support, care plans, contacts", home: "/service-users", planned: "Stage D", colour: "#b45309", tint: "#fdf1e4" },
   { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/", colour: "#1f5fd1", tint: "#eaf1fd" },
-  { id: "rota", name: "Rota & Visits", code: "RV", summary: "Weekly rota, visits, call monitoring", home: "/rota", planned: "Stage D", colour: "#6b46c9", tint: "#f1ecfc" },
+  { id: "rota", name: "Rostering & Care Management", code: "RC", summary: "Service users, rota, visits, call monitoring, care records, finance", home: "/rota", colour: "#6b46c9", tint: "#f1ecfc" },
   { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", separateApp: true, colour: "#c92a54", tint: "#fdebef" },
   { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Reports and the AI assistant", home: "/reports", colour: "#0b6f99", tint: "#e5f4fa" },
-  { id: "admin", name: "Administration", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#4b5666", tint: "#eef0f3" },
+  { id: "admin", name: "Administration & Settings", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#4b5666", tint: "#eef0f3" },
 ];
 
-/** Planned pieces that are not portals of their own, listed under "Coming later". */
-export const COMING_LATER = [{ code: "CW", name: "Carer phone page", summary: "Today's visits, check in and out", planned: "Stage D" }] as const;
 
 const PREFIXES: [string, PortalId][] = [
   ["/overview", "overview"],
-  ["/service-users", "service-users"],
+  // Service users and call monitoring are part of Rostering & Care Management; /service-users redirects there.
+  ["/service-users", "rota"],
   ["/rota", "rota"],
+  ["/carer", "rota"],
+  ["/workforce", "hr"],
   ["/hr", "hr"],
   ["/reports", "reporting"],
   ["/assistant", "reporting"],
