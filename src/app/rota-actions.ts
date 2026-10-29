@@ -14,6 +14,7 @@ import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
+import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
 import { reconcileWorkforce } from "@/server/workforce/projection";
 import { requireOrgPermission } from "@/server/auth/rbac";
 
@@ -417,4 +418,42 @@ export async function templateCarerAction(fd: FormData) {
     const s = slot(fd);
     await setTemplateCarer(ctx, str(fd, "templateId"), int(fd, "version", "Version"), s, str(fd, "staffId") || null);
   }, "Template carer changed. Weeks built from now on use the new carer.");
+}
+
+// ── Workforce: absences and availability (HR-controlled) ────────────────────
+
+const impactNote = (r: { flagged: number }) => (r.flagged ? ` ${r.flagged} booked visit${r.flagged === 1 ? " is" : "s are"} now flagged for the rota team to review.` : "");
+
+export async function recordAbsenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await recordAbsence(ctx, { staffId: str(fd, "staffId"), kind: str(fd, "kind"), from: str(fd, "from"), to: str(fd, "to") || str(fd, "from"), startTime: str(fd, "startTime") || undefined, endTime: str(fd, "endTime") || undefined, reason: str(fd, "reason") });
+    return { ok: `${r.status === "APPROVED" ? "Sickness recorded." : "Request recorded. Someone else must approve it."}${impactNote(r.impact)}` };
+  }, "Recorded");
+}
+
+export async function decideAbsenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const d = str(fd, "decision") === "APPROVED" ? "APPROVED" : "DECLINED";
+    const r = await decideAbsence(ctx, str(fd, "absenceId"), int(fd, "version", "Version"), d, str(fd, "note"));
+    return { ok: `${d === "APPROVED" ? "Approved." : "Declined."}${impactNote(r)}` };
+  }, "Decided");
+}
+
+export async function cancelStaffAbsenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await cancelStaffAbsence(ctx, str(fd, "absenceId"), str(fd, "reason"));
+  }, "Absence cancelled. Visits flagged for it have been re-checked.");
+}
+
+export async function addAvailabilityAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await addAvailability(ctx, { staffId: str(fd, "staffId"), weekdays: fd.getAll("weekdays").map(Number), start: str(fd, "start"), end: str(fd, "end"), kind: str(fd, "kind"), from: str(fd, "from"), to: str(fd, "to") || undefined, note: str(fd, "note") });
+    return { ok: `Working pattern saved.${impactNote(r)}` };
+  }, "Saved");
+}
+
+export async function endAvailabilityAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await endAvailability(ctx, str(fd, "id"));
+  }, "Pattern line ended");
 }
