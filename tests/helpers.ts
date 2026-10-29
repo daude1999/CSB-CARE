@@ -15,7 +15,7 @@ export async function resetDb() {
 }
 
 /** Seeds the demo on the core library subset; pass `full: true` for the whole library (slow). */
-export async function seedAll(opts: { simulatedChange?: boolean; full?: boolean } = {}) {
+export async function seedAll(opts: { simulatedChange?: boolean; full?: boolean; care?: boolean } = {}) {
   const masters = await seedBase(opts.full ? {} : { refs: CORE_REFS });
   await seedDemo(masters, opts);
   return masters;
