@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { AppError, ForbiddenError } from "@/lib/errors";
+import { AppError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { BUSINESS_FIELDS } from "@/lib/business";
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
@@ -16,7 +16,8 @@ import { triageChange, reviewAssessment } from "@/server/changes/workflow";
 import { createManualAssessment } from "@/server/impact/assess";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { acknowledge, addComment, logReadAndSign, confirmImplementation, createManualRevision, createRollbackRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
-import { adoptTemplate, createPolicy } from "@/server/policies/library";
+import { adoptTemplate, assignPolicyReviewer, createPolicy, setPolicyArchived } from "@/server/policies/library";
+import { z } from "zod";
 import { requestManualCheck } from "@/server/sources/engine";
 import { cancelJob, retryJob } from "@/server/jobs/queue";
 import { addFinding, answerQuestion, completeAudit, createAction, startAudit, transitionAction } from "@/server/compliance/audits";
@@ -221,6 +222,38 @@ export async function acknowledgeAction(fd: FormData) {
 }
 export async function logReadAndSignAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await logReadAndSign(ctx, str(fd, "policyId"))), "Read and signed. Your signature has been logged");
+}
+// ───────── policy library workspace
+const RecordId = z.string().regex(/^[a-z0-9]{8,40}$/i, "That record could not be found");
+const AssignReviewer = z.object({ policyId: RecordId, reviewerId: z.string().regex(/^[a-z0-9]{8,40}$/i, "Choose a reviewer") });
+const ArchivePolicy = z.object({ policyId: RecordId, reason: z.string().trim().min(5, "Give a reason of at least a few words").max(500) });
+
+/** Reads an action's fields with a zod schema; a failure is shown to the user like any other validation error. */
+function parse<T extends z.ZodTypeAny>(schema: T, fd: FormData): z.infer<T> {
+  const r = schema.safeParse(Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")));
+  if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Some details are missing");
+  return r.data;
+}
+
+export async function assignReviewerAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const input = parse(AssignReviewer, fd);
+    await assignPolicyReviewer(ctx, input.policyId, input.reviewerId);
+  }, "Reviewer assigned and notified");
+}
+export async function archivePolicyAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const input = parse(ArchivePolicy, fd);
+    await setPolicyArchived(ctx, input.policyId, true, input.reason);
+    return `/policies?tab=archived&selected=${input.policyId}`;
+  }, "Policy archived");
+}
+export async function restorePolicyAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const input = parse(ArchivePolicy, fd);
+    await setPolicyArchived(ctx, input.policyId, false, input.reason);
+    return `/policies?selected=${input.policyId}`;
+  }, "Policy restored");
 }
 export async function confirmImplementationAction(fd: FormData) {
   await handle(fd, (ctx) => confirmImplementation(ctx, str(fd, "publicationId"), str(fd, "notes")), "Implementation confirmed");
