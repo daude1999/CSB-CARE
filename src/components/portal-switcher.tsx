@@ -27,6 +27,8 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
   const ordered = [...portals].sort((a, b) => rank(a.id) - rank(b.id));
   const isActive = useIsActive();
   const currentId = portalForPath(path);
+  // Only the most specific matching entry is highlighted, so "/rota" (Today) is not lit on "/rota/visits".
+  const activeHref = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned && isActive(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
   return (
     <nav aria-label="Main" className="shell-scroll min-h-0 flex-1 overflow-y-auto px-[10px] pb-[12px]">
       <ul data-testid="portal-switcher" className="space-y-[3px]">
@@ -66,7 +68,7 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
                           <span className="ml-auto shrink-0 text-[10px]">Planned</span>
                         </li>
                       );
-                    const active = isActive(i.href);
+                    const active = i.href === activeHref;
                     return (
                       <li key={i.href}>
                         <Link href={i.href} aria-current={active ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
