@@ -40,9 +40,9 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
     [
       "Care records",
       [
-        ["/rota/care-plans", "Care Plans", <ClipboardText key="i" {...i} />, "serviceUser.view", false],
-        ["/rota/risks", "Risk Assessments", <ShieldWarning key="i" {...i} />, "serviceUser.view", false],
-        ["/rota/incidents", "Incidents", <FirstAidKit key="i" {...i} />, ["incident.manage", "incident.report"], false],
+        ["/rota/care-plans", "Care Plans", <ClipboardText key="i" {...i} />, "serviceUser.view", true],
+        ["/rota/risks", "Risk Assessments", <ShieldWarning key="i" {...i} />, "serviceUser.view", true],
+        ["/rota/incidents", "Incidents", <FirstAidKit key="i" {...i} />, ["incident.manage", "incident.report"], true],
       ],
     ],
     [

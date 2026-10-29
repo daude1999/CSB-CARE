@@ -7,6 +7,10 @@ import { confirmBuild, publishBuild } from "@/server/rota/build";
 import { reconcileWorkforce } from "@/server/workforce/projection";
 import { linkLogin } from "@/server/workforce/link";
 import { encryptKeySafe } from "@/server/care/keysafe";
+import { PLAN_SECTIONS, approvePlan, draftFingerprint, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
+import { createRisk } from "@/server/care/risks";
+import { closeIncident, reportIncident, triageIncident } from "@/server/care/incidents";
+import type { Ctx } from "@/server/auth/rbac";
 import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
 
 /** The HR Hub's branch ids for Care Solution Bureau's three branches (see src/hr/lib/seed.ts). */
@@ -194,6 +198,52 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
     await publishBuild(coordinator, build.id);
   }
   await seedAttendanceHistory(organisationId, people.manager);
+  await seedCareRecords(organisationId, coordinator, managerCtx);
+}
+
+/** Demo care records, written through the real services: plans drafted by the coordinator and approved by the manager. */
+async function seedCareRecords(organisationId: string, coordinator: Ctx, manager: Ctx) {
+  const people = await db.serviceUser.findMany({ where: { organisationId }, orderBy: { reference: "asc" }, select: { id: true, firstName: true, riskLevel: true } });
+  const text: Record<string, (n: string) => string> = {
+    about_me: (n) => `${n} has lived locally for most of their life and enjoys the radio, crosswords and visits from family. Mornings are slow; ${n} likes time to wake up before getting washed.`,
+    communication: (n) => `${n} hears well on the left side. Speak clearly, face them and give time to answer. ${n} will say if they are in pain.`,
+    personal_care: (n) => `${n} washes their face and hands; carers support with a full wash at the basin and with dressing the lower half. Check skin on heels and lower back and report any redness.`,
+    mobility: (n) => `${n} walks indoors with a frame. Stay close on the stairs and when standing from the chair. Follow the moving and handling risk assessment.`,
+    nutrition: (n) => `${n} likes porridge for breakfast and a hot lunch. Offer a drink at every visit and leave one within reach. No known allergies.`,
+    medication: (n) => `Prompt ${n} to take medicines from the pharmacy blister pack and record on the paper MAR chart. Carers do not administer. eMAR is not in use.`,
+    health: (n) => `${n} has arthritis and high blood pressure. If ${n} seems confused, unusually drowsy or has a fall, call the office and, if needed, 111 or 999.`,
+    home: () => "Lights and heating are on a timer. Lock the back door when leaving. In an emergency, the office holds the next of kin details.",
+    outcomes: (n) => `${n} wants to stay at home, keep walking to the kitchen independently and see friends at the community lunch on Thursdays.`,
+  };
+  const draft = async (su: (typeof people)[number]) => {
+    const plan = await startDraft(coordinator, su.id);
+    const full = await db.carePlan.findUniqueOrThrow({ where: { id: plan.id }, include: { sections: true } });
+    await saveDraft(coordinator, plan.id, {
+      fingerprint: draftFingerprint(full, full.sections),
+      summary: `Support ${su.firstName} to stay safe and independent at home. Read the mobility and risk sections before the first visit.`,
+      reviewDue: addDays(londonDate(), 120),
+      sections: Object.fromEntries(PLAN_SECTIONS.map((x) => [x.key, { body: text[x.key]!(su.firstName) }])),
+    });
+    await submitPlan(coordinator, plan.id);
+    return plan;
+  };
+  for (const su of people.slice(0, 8)) await approvePlan(manager, (await draft(su)).id);
+  if (people[8]) await draft(people[8]);
+
+  for (const su of people.slice(0, 10)) {
+    await createRisk(coordinator, su.id, { type: "ENVIRONMENT", title: "Home environment check", hazards: "Loose rugs in the hallway and poor lighting on the stairs could cause a trip.", controls: "Keep walkways clear, switch on the landing light, and report any new hazards to the office.", level: "LOW", reviewDue: addDays(londonDate(), 180) });
+    if (su.riskLevel === "HIGH") await createRisk(coordinator, su.id, { type: "MOVING_HANDLING", title: "Hoist transfers", hazards: "Cannot weight-bear. Risk of injury to the person and carers during transfers.", controls: "Two trained carers for every transfer using the ceiling hoist and the person's own sling. Check the sling and hoist before use.", level: "HIGH", reviewDue: addDays(londonDate(), 90) });
+    if (su.riskLevel === "MEDIUM") await createRisk(coordinator, su.id, { type: "FALLS", title: "Falls when walking", hazards: "Unsteady when tired, especially in the evening. One fall at home in the last six months.", controls: "Frame within reach at all times. Supervise on the stairs. If a fall happens, do not lift; call the office.", level: "MEDIUM", reviewDue: addDays(londonDate(), 60) });
+  }
+
+  const yesterday = addDays(londonDate(), -1);
+  if (people[1]) await reportIncident(coordinator, { serviceUserId: people[1].id, date: yesterday, time: "08:20", category: "Fall", severity: "MODERATE", description: "Found sitting on the bedroom floor at the start of the morning call. Said they slipped getting out of bed. Small graze on the left elbow.", immediateAction: "Checked for injury, helped up with the stand aid, cleaned the graze and informed the daughter." });
+  if (people[4]) await reportIncident(coordinator, { serviceUserId: people[4].id, date: yesterday, time: "17:10", category: "Medication error", severity: "LOW", description: "Lunchtime blister pocket was found unopened at the tea call. The lunch call carer had prompted but not checked it was taken.", immediateAction: "Called the pharmacist for advice and recorded it on the MAR chart." });
+  if (people[2]) {
+    const inc = await reportIncident(coordinator, { serviceUserId: people[2].id, date: addDays(londonDate(), -9), time: "12:15", category: "Property or key safe", severity: "LOW", description: "Key safe code would not open on arrival. The person let the carer in after a short wait.", immediateAction: "Told the office, who contacted the family to check the code." });
+    await triageIncident(manager, inc.id, inc.version, { severity: "LOW", safeguarding: false, notifiable: false, note: "Family reset the key safe; code updated on the record." });
+    await closeIncident(manager, inc.id, inc.version + 1, "Key safe code had been changed by a relative without telling the office. Family reminded to let us know; no harm came to the person.", false);
+  }
 }
 
 /** Visits that ended before now get clock records (demo history), with a few late and one missed for the monitor. */

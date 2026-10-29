@@ -11,6 +11,9 @@ import { resolveAlert } from "@/server/rota/alerts";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { sweepNow } from "@/server/rota/monitor";
+import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
+import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
+import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
@@ -492,4 +495,88 @@ export async function sweepNowAction(fd: FormData) {
     const r = await sweepNow(ctx);
     return { ok: `Checked ${r.processed} visit${r.processed === 1 ? "" : "s"}. ${r.alertsRaised} new alert${r.alertsRaised === 1 ? "" : "s"}.` };
   }, "Checked");
+}
+
+// ── Care plans, risk assessments and incidents ──
+
+export async function startDraftAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await startDraft(ctx, str(fd, "serviceUserId"));
+    return { to: `/rota/care-plans/${str(fd, "serviceUserId")}?edit=1`, ok: "Draft started from the current plan" };
+  }, "Draft started");
+}
+
+export async function saveDraftAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const sections: Record<string, { body: string; outcomes?: string }> = {};
+    for (const [k, v] of fd.entries()) {
+      const m = /^section\.(\w+)\.(body|outcomes)$/.exec(k);
+      if (m && typeof v === "string") sections[m[1]!] = { ...sections[m[1]!], body: sections[m[1]!]?.body ?? "", [m[2]!]: v };
+    }
+    await saveDraft(ctx, str(fd, "planId"), { fingerprint: str(fd, "fingerprint"), summary: str(fd, "summary"), reviewDue: str(fd, "reviewDue"), sections });
+    if (str(fd, "then") === "submit") {
+      await submitPlan(ctx, str(fd, "planId"));
+      return { to: str(fd, "done"), ok: "Saved and sent for approval" };
+    }
+  }, "Draft saved");
+}
+
+export async function returnPlanAction(fd: FormData) {
+  return handle(fd, (ctx) => returnPlan(ctx, str(fd, "planId"), str(fd, "reason")), "Returned to draft");
+}
+
+export async function approvePlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await approvePlan(ctx, str(fd, "planId"));
+    return { ok: `Approved and now in use. ${r.notified} carer${r.notified === 1 ? "" : "s"} asked to read it.` };
+  }, "Approved");
+}
+
+export async function discardDraftAction(fd: FormData) {
+  return handle(fd, (ctx) => discardDraft(ctx, str(fd, "planId")), "Draft discarded");
+}
+
+export async function acknowledgePlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const created = await acknowledgePlan(ctx, str(fd, "serviceUserId"), str(fd, "planId"));
+    return { ok: created ? "Thanks. The office can see you have read it." : "You had already confirmed this version." };
+  }, "Recorded");
+}
+
+export async function createRiskAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await createRisk(ctx, str(fd, "serviceUserId"), Object.fromEntries(fd));
+    return { to: `/rota/risks/${r.id}`, ok: "Risk assessment saved" };
+  }, "Saved");
+}
+
+export async function reviewRiskAction(fd: FormData) {
+  return handle(fd, (ctx) => reviewRisk(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)), "Review saved");
+}
+
+export async function archiveRiskAction(fd: FormData) {
+  return handle(fd, (ctx) => archiveRisk(ctx, str(fd, "riskId"), str(fd, "reason")), "Archived");
+}
+
+export async function reportIncidentAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const inc = await reportIncident(ctx, Object.fromEntries(fd));
+    return { to: `/rota/incidents/${inc.id}`, ok: `Reported as ${inc.reference}` };
+  }, "Reported");
+}
+
+export async function triageIncidentAction(fd: FormData) {
+  return handle(fd, (ctx) => triageIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), { severity: str(fd, "severity"), safeguarding: bool(fd, "safeguarding"), notifiable: bool(fd, "notifiable"), note: str(fd, "note") }), "Incident updated");
+}
+
+export async function incidentNoteAction(fd: FormData) {
+  return handle(fd, (ctx) => addIncidentNote(ctx, str(fd, "incidentId"), str(fd, "note")), "Note added");
+}
+
+export async function closeIncidentAction(fd: FormData) {
+  return handle(fd, (ctx) => closeIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), str(fd, "outcome"), bool(fd, "notificationHandled")), "Incident closed");
+}
+
+export async function reopenIncidentAction(fd: FormData) {
+  return handle(fd, (ctx) => reopenIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), str(fd, "reason")), "Incident reopened");
 }

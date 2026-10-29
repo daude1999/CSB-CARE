@@ -1,3 +1,4 @@
+import Link from "@/components/link";
 import { ForbiddenError } from "@/lib/errors";
 import { fmtLondonDate, fromDbDate, londonDate, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
@@ -59,6 +60,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     {v.serviceUser.accessNotes ? <p className="mt-1 text-[13.5px] text-slate-700">Getting in: {v.serviceUser.accessNotes}</p> : null}
                     {v.tasks.length ? <p className="mt-1 text-[13.5px] text-slate-700">Tasks: {v.tasks.map((t) => t.name).join(", ")}</p> : null}
                     {v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; eMAR is not in use.</p> : null}
+                    <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
                   </li>
                 );
