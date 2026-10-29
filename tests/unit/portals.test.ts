@@ -33,6 +33,9 @@ describe("portal access", () => {
     expect(canUsePortal(admin, "admin")).toBe(true);
     expect(canUsePortal(admin, "reporting")).toBe(true);
     expect(canUsePortal(admin, "rota")).toBe(false);
+    // System Settings belongs to an organisation, so their Administration portal opens on Modules.
+    expect(portalsFor(admin).find((p) => p.id === "admin")?.home).toBe("/modules");
+    expect(portalsFor(ctx({ orgRoles: ["ORG_ADMIN"] })).find((p) => p.id === "admin")?.home).toBe("/settings");
   });
 });
 
