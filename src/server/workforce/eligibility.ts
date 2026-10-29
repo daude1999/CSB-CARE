@@ -92,6 +92,14 @@ function checkGroup(rows: Facts["staff"][number]["compliance"], category: string
   return { required: required.length, problems };
 }
 
+/** HR check status for one person on one date, as the rota rules see it (for registers and staff pages). */
+export function complianceOn(rows: Facts["staff"][number]["compliance"], date: string) {
+  const dbs = checkGroup(rows, "DBS", date);
+  const rtw = checkGroup(rows, "Right to work", date);
+  const training = checkGroup(rows, "Training", date);
+  return { dbs, rtw, training, problems: [...dbs.problems, ...rtw.problems, ...training.problems] };
+}
+
 function applyRule(rule: ComplianceRule, msg: Reason, out: { blocking: Reason[]; warnings: Reason[] }) {
   if (rule === "BLOCK") out.blocking.push(msg);
   else if (rule === "REVIEW") out.warnings.push(msg);

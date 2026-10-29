@@ -11,6 +11,7 @@ import { resolveAlert } from "@/server/rota/alerts";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
+import { updateRotaProfile } from "@/server/workforce/profile";
 import { reconcileWorkforce } from "@/server/workforce/projection";
 import { requireOrgPermission } from "@/server/auth/rbac";
 
@@ -287,4 +288,20 @@ export async function unlinkLoginAction(fd: FormData) {
 
 export async function resolveAlertAction(fd: FormData) {
   return handle(fd, (ctx) => resolveAlert(ctx, str(fd, "alertId"), str(fd, "resolution")), "Alert closed");
+}
+
+export async function rotaProfileAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const rota = str(fd, "rotaEnabled");
+    const gender = str(fd, "gender");
+    const hours = str(fd, "maxWeeklyHours");
+    await updateRotaProfile(ctx, str(fd, "staffId"), {
+      rotaEnabled: rota === "" ? null : rota === "yes",
+      gender: gender === "" ? null : gender,
+      drives: bool(fd, "drives"),
+      maxWeeklyHours: hours === "" ? null : hours,
+      areaIds: ids(fd, "areaIds"),
+      notes: str(fd, "notes") || null,
+    });
+  }, "Rota details saved. Future visits were re-checked.");
 }
