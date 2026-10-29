@@ -6,7 +6,10 @@
 //    implementation are separate records/stages.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // queryCompiler + driverAdapters let PRISMA_CLIENT_ENGINE_TYPE=client run on the bundled WASM engine
+  // (see prisma.config.ts). The default engine is unchanged.
+  previewFeatures = ["queryCompiler", "driverAdapters"]
 }
 
 datasource db {

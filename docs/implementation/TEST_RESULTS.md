@@ -97,3 +97,15 @@ The owner asked that the logic behind each screen match OnePlan too, not only th
 | `npx playwright test tests/e2e/rota.spec.ts` | 14 of 14 passed after two test fixes. The Build Rota test now checks the Add New Rota form. The screen-size test now waits for the page heading instead of the old title bar, which the OnePlan-style pages no longer have. The phone-width run caught the Monitor's search row overflowing at 390px, which was fixed before the passing run |
 
 Not built yet, and listed in KNOWN_LIMITATIONS: OnePlan's bulk actions that would fake attendance (Clock In/Out Scheduled, Complete Visits, Reassign and Complete), send messages (Send Push Message), change pay or chargeable status, delete visits outright (we cancel with a reason), or use run routes and printable rotas.
+
+## V1 baseline (29 Oct 2026, branch feature/v1-complete, before any V1 change)
+
+Build environment without access to Prisma's engine downloads: Prisma ran on its bundled WASM engines (`PRISMA_JS_ENGINE=1`, `PRISMA_CLIENT_ENGINE_TYPE=client`, pg driver adapter) and migrations were applied with `node scripts/local-migrate.mjs`. Same schema and migrations; the Windows laptop keeps the standard engines.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` (vitest, local csb_test) | 21 files, 175 tests passed |
+| `npm run test:hr` | 14 passed, 0 failed |
+| `npm run build` | pass |
+| `npm run test:e2e` (local csb_e2e) | 30 passed, 0 failed |
