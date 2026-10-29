@@ -36,7 +36,7 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
     <>
       <PageHeader title="Rostering Settings" back="/rota" subtitle="How the rota cycle, allocation checks and call timings work for your organisation. Every change is recorded. Clocking, geofence and carer-app settings take effect when those features are built." />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <Card title="Rules">
           <form action={rotaSettingsAction} className="space-y-5">
             <input type="hidden" name="back" value={back} />

@@ -1,6 +1,6 @@
 import type { AssignmentSlot } from "@prisma/client";
 import Link from "@/components/link";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
@@ -23,7 +23,7 @@ const EVENT_LABEL: Record<string, string> = {
 
 export default async function VisitPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const v = await orNotFound(getVisit(ctx, id));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const settings = await rotaSettings(db, v.organisationId);
@@ -49,7 +49,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
         subtitle={`Visit ${v.reference} on ${fmtLondonDate(date)}. Changing the time re-checks every carer on it; a carer who cannot do the new time stops the change.`}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-3">
           <Card title="Visit">
             <div className="mb-3 flex flex-wrap items-center gap-1.5">

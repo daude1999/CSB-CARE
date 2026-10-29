@@ -1,6 +1,6 @@
 import type { ServiceUserStatus } from "@prisma/client";
 import Link from "@/components/link";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listServiceUsers } from "@/server/care/service-users";
 import { rotaLookups, suName } from "@/server/rota/queries";
@@ -13,7 +13,7 @@ const STATUSES: ServiceUserStatus[] = ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSE
 
 export default async function ServiceUsersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage("serviceUser.view");
   const status = STATUSES.find((s) => s === sp.status) ?? "CURRENT";
   const [rows, lk] = await Promise.all([listServiceUsers(ctx, { q: sp.q?.trim() || undefined, status, areaId: sp.area || undefined }), rotaLookups(ctx)]);
   return (

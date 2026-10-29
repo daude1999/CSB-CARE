@@ -54,7 +54,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
       />
       <Flash searchParams={sp as Record<string, string | undefined>} />
 
-      <div className="grid gap-3 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[340px_minmax(0,1fr)]">
         <div className="space-y-3">
           <Card title="1. Choose the week">
             <Stepper base="/rota/build" params={params} param="week" prev={addDays(week, -7)} next={addDays(week, 7)} label={`w/c ${fmtLondonDate(week, { day: "numeric", month: "short", year: "numeric" })}`} />

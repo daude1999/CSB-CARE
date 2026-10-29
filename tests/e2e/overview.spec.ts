@@ -17,8 +17,10 @@ test.describe("Overview", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Good (morning|afternoon|evening), Alex$/);
-    for (const id of ["policy", "hr", "reporting", "admin"]) await expect(page.getByTestId(`tile-${id}`)).toBeVisible();
-    for (const id of ["rota", "ecm", "service-users"]) await expect(page.getByTestId(`tile-${id}`)).toContainText("Not built yet");
+    for (const id of ["policy", "rota", "hr", "reporting", "admin"]) await expect(page.getByTestId(`tile-${id}`)).toBeVisible();
+    // Electronic call monitoring and service users now live inside Rostering & Care Management.
+    for (const id of ["ecm", "service-users"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
+    await expect(page.getByTestId("tile-rota")).not.toContainText("Not built yet");
     await expect(page.getByTestId("needs-attention")).toBeVisible();
 
     // The Policy tile and the Policy & Compliance pages share one colour.
@@ -35,7 +37,7 @@ test.describe("Overview", () => {
       ["reporting", "/reports", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota", "[data-testid=title-bar]"],
-      ["service-users", "/service-users", "[data-testid=title-bar]"],
+      ["rota", "/rota/service-users", "[data-testid=title-bar]"],
       ["hr", "/hr/dashboard", "header.h-top"],
     ];
     for (const [id, path, banner] of banners) {

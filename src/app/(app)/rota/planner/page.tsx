@@ -1,5 +1,5 @@
 import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, weekDates } from "@/server/rota/queries";
 import { assignCarerAction } from "@/app/rota-actions";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PlannerPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const today = londonDate();
   const week = mondayOf(sp.week && isIsoDate(sp.week) ? sp.week : today);
   const dates = weekDates(week);

@@ -1,6 +1,6 @@
 import type { VisitStatus } from "@prisma/client";
 import Link from "@/components/link";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName } from "@/server/rota/queries";
 import { addDays, fmtLondonDate, isIsoDate, londonDate } from "@/lib/london";
@@ -15,7 +15,7 @@ const STATUSES = Object.keys(VISIT_LABEL) as VisitStatus[];
 
 export default async function DailyVisitsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const date = sp.date && isIsoDate(sp.date) ? sp.date : londonDate();
   const status = STATUSES.includes(sp.status as VisitStatus) ? (sp.status as VisitStatus) : undefined;
   const filters = { date, areaId: sp.area || undefined, staffId: sp.carer || undefined, serviceUserId: sp.su || undefined, callTypeId: sp.call || undefined, status, unassigned: sp.view === "unassigned", review: sp.view === "review", includeCancelled: sp.cancelled === "1", q: sp.q?.trim() || undefined };
@@ -97,6 +97,7 @@ export default async function DailyVisitsPage({ searchParams }: { searchParams: 
 
       <Card>
         {rows.length ? (
+          <div className="min-w-0 overflow-x-auto">
           <table className="table">
             <thead>
               <tr>
@@ -138,6 +139,7 @@ export default async function DailyVisitsPage({ searchParams }: { searchParams: 
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
           <Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty>
         )}

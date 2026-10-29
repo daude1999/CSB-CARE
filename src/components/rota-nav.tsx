@@ -61,7 +61,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
         ["/rota/settings", "Rostering Settings", <GearSix key="i" {...i} />, "rota.settings", true],
       ],
     ],
-    ["My work", [["/carer", "My Visits", <DeviceMobile key="i" {...i} />, "visit.own", false]]],
+    ["My work", [["/carer", "My Visits", <DeviceMobile key="i" {...i} />, "visit.own", true]]],
   ];
   const can = (p: Entry[3]) => (Array.isArray(p) ? p : [p]).some((x) => hasOrgPermission(ctx, x));
   const out: ShellItem[] = [];

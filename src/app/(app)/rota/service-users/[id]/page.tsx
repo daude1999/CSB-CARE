@@ -2,7 +2,7 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { addDays, dbDate, fmtLondonDate, fromDbDate, hhmm, londonDate, londonTime, WEEKDAYS } from "@/lib/london";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/service-users";
@@ -19,7 +19,7 @@ const TABS = [["overview", "Overview"], ["visits", "Visits"], ["people", "Contac
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage("serviceUser.view");
   const su = await orNotFound(getServiceUser(ctx, id));
   const tab = TABS.find(([k]) => k === sp.tab)?.[0] ?? "overview";
   const canEdit = hasOrgPermission(ctx, "serviceUser.edit");
@@ -61,7 +61,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       <SegmentNav label="Service user sections" items={TABS.map(([k, label]) => ({ href: `${base}?tab=${k}`, label, active: tab === k }))} />
 
       {tab === "overview" ? (
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-3">
             <Card title="About">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
@@ -208,7 +208,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       ) : null}
 
       {tab === "people" ? (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           <Card title="Contacts">
             {su.contacts.length ? (
               <ul className="rows">

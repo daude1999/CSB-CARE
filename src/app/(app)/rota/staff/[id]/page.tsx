@@ -54,7 +54,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
     <>
       <PageHeader title={s.displayName} back="/rota/staff" subtitle={`${s.jobTitle} · ${s.branch?.name ?? "no branch"} · staff number ${s.staffNumber}. Employment and checks come from HR & Workforce.`} actions={hasOrgPermission(ctx, "workforce.link") ? <Link href="/admin/workforce" className="btn-secondary">Sign-in links</Link> : null} />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">
           <Card title="From HR & Workforce">
             <dl className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">

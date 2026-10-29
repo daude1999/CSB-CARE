@@ -33,7 +33,7 @@ export default async function AbsencesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Holidays & Sickness" back="/hr" subtitle="Staff absences, decided in HR and used by the rota. Holiday and other leave start as requests that someone other than the person who entered them approves. Every decision re-checks the person's booked visits and flags any that clash; nothing is removed automatically." />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>
           <SegmentNav label="Absence status" items={[["REQUESTED", "Waiting for a decision"], ["APPROVED", "Approved"], ["DECLINED", "Declined"], ["CANCELLED", "Cancelled"], ["ALL", "All"]].map(([k, l]) => ({ href: `/workforce/absences?status=${k}`, label: l!, active: status === k }))} />
           <Card>

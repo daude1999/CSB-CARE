@@ -27,7 +27,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
     <>
       <PageHeader title="Availability" back="/hr" subtitle="Each person's usual working pattern. Times marked unavailable block allocation; if someone has available times recorded, visits outside them need a coordinator's review. People with nothing recorded can be booked at any time." />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card title="Working patterns" actions={<form method="get" className="flex gap-2"><select name="staff" defaultValue={sp.staff ?? ""} className="input py-1.5 text-[14px]" aria-label="Member of staff"><option value="">Everyone</option>{staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select><button className="btn-secondary py-1">Show</button></form>}>
           {people.length ? (
             <div className="space-y-4">

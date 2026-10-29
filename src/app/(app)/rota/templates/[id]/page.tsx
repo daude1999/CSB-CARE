@@ -2,7 +2,7 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
 import { fmtLondonDate } from "@/lib/london";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TemplatePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const lk = await rotaLookups(ctx);
   const t = await orNotFound(
@@ -47,7 +47,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
         ) : null}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card title={<span className="flex items-center gap-2">Template {t.enabled ? <Badge tone="green">Switched on</Badge> : <Badge>Switched off</Badge>} <span className="text-[13px] font-normal text-slate-500">version {t.version}</span></span>}>
           {canEdit ? (
             <TemplateForm action={updateTemplateAction} lk={lk} t={t} taskIds={t.tasks.map((x) => x.careTaskId)} back={back} cycleLength={settings.cycleLength} submit="Save template" />

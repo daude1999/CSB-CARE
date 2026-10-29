@@ -56,7 +56,7 @@ export default async function RotaToday({ searchParams }: { searchParams: Promis
         actions={<Link href="/rota/visits" className="btn-secondary">All of today’s visits</Link>}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-3">
           <Card title={<>Not started on time <span className="text-slate-500">({notStarted.length})</span></>}>
             {notStarted.length ? <ul className="rows">{notStarted.map((v) => <VisitLine key={v.id} v={v} />)}</ul> : <Empty>Every visit due so far has started.</Empty>}

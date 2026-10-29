@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { PORTALS, type Portal, type PortalId } from "@/lib/portals";
 import { requireCtx } from "./current";
-import { hasOrgPermission, hasPlatformPermission, type Ctx } from "./rbac";
+import { hasOrgPermission, hasPlatformPermission, type Ctx, type OrgPermission } from "./rbac";
 
 /** Who may open each portal. This is the only place the rule lives; menus and pages both ask it. */
 export function canUsePortal(ctx: Ctx, id: PortalId): boolean {
@@ -43,5 +43,15 @@ export function rotaHome(ctx: Ctx) {
 export async function requirePortal(id: PortalId): Promise<Ctx> {
   const ctx = await requireCtx();
   if (!canUsePortal(ctx, id)) redirect(`/no-access?portal=${id}`);
+  return ctx;
+}
+
+/**
+ * Page guard for Rostering & Care Management pages: the portal, then the page's own permission. People who may use the
+ * portal but not this page (a carer, a finance officer) are sent to their own Rostering home instead of an error.
+ */
+export async function requireRotaPage(perm: OrgPermission = "rota.view"): Promise<Ctx> {
+  const ctx = await requirePortal("rota");
+  if (!hasOrgPermission(ctx, perm)) redirect(rotaHome(ctx));
   return ctx;
 }

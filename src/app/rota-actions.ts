@@ -8,6 +8,7 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
+import { acknowledgeMyVisits } from "@/server/rota/carer";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, createTemplate, duplicateTemplate, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateInput } from "@/server/rota/templates";
@@ -456,4 +457,11 @@ export async function endAvailabilityAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await endAvailability(ctx, str(fd, "id"));
   }, "Pattern line ended");
+}
+
+export async function acknowledgeMyVisitsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const n = await acknowledgeMyVisits(ctx);
+    return { ok: n ? `Thanks. ${n} visit${n === 1 ? "" : "s"} marked as seen.` : "You had already seen all your visits." };
+  }, "Done");
 }

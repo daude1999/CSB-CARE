@@ -32,7 +32,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
     <>
       <PageHeader title="Workforce Sync & Logins" back="/settings" subtitle="HR & Workforce is the source of truth for staff. Every HR change updates the rota's staff list in the same save; re-check below repairs anything out of step. Staff are not sign-ins: a carer gets the carer app only when an administrator links their sign-in here." />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">
           <Card title="Linked sign-ins">
             {linked.length ? (

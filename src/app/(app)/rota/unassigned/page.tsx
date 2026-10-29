@@ -1,7 +1,7 @@
 import type { AssignmentSlot } from "@prisma/client";
 import Link from "@/components/link";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate } from "@/lib/london";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
 import { assignCarerAction } from "@/app/rota-actions";
@@ -16,7 +16,7 @@ const SUGGEST = 25;
 
 export default async function UnassignedPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const from = sp.from && isIsoDate(sp.from) ? sp.from : londonDate();
   const days = Math.min(Math.max(Number(sp.days) || 14, 1), 28);
   const to = addDays(from, days - 1);

@@ -25,7 +25,7 @@ export default async function AreasPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader title="Areas" back="/settings" subtitle="Geographical patches used to group service users, carers and visits. A coordinator given areas sees and changes only visits in those areas; one with no areas covers the whole organisation." />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <Card title="Areas">
           {areas.length ? (
             <ul className="rows">

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { hhmm, WEEKDAYS } from "@/lib/london";
-import { requirePortal } from "@/server/auth/portals";
+import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TemplatePlannerPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const ctx = await requirePortal("rota");
+  const ctx = await requireRotaPage();
   const lk = await rotaLookups(ctx);
   const org = lk.scope.organisationId;
   const settings = await rotaSettings(db, org);
