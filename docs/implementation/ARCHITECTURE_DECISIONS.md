@@ -43,3 +43,25 @@ Notifications are in-app only. No SMS, email or push is sent from rostering. Fin
 
 ## AD-12 No new dependencies
 The build uses the existing stack only: Next.js, Prisma, zod and Phosphor. Planner drag-and-drop uses native HTML5 drag events in a small client component, and keyboard users get the same action through the visit page.
+
+## Rota screens mirror OnePlan's structure (29 Oct 2026)
+
+The owner's standing rule, now in CLAUDE.md: when a reference system is named, its structure is mirrored screen by screen. Only the code and branding are CSB's own.
+
+- **Menu:** Home, Rota, Templates, Users, Invoicing/Wages, Reports.
+- **Rota Dashboard (`/rota`):** OnePlan's top-to-bottom order.
+  - A long date heading with previous/next day.
+  - Four call boxes: Complete, Late, Missed, and Missed meds. Missed meds shows "Not in use yet" because eMAR is not built.
+  - Searchable lists: All Service Users, All Team Members and All Active Reminders.
+  - Counters: Rota Conflicts, Template Conflicts, Holidays Due and Visit Notes.
+  - Dashboard data comes from `src/server/rota/dashboard.ts`. The people lists leave out date of birth, ethnicity and next-of-kin details.
+- **Daily Rota (`/rota/visits`):**
+  - OnePlan's filter and Actions placement, a single bulk-action select with Go, and search.
+  - OnePlan's columns, including scheduled and clocked times.
+  - Status-tinted rows that always show the status in words.
+  - Hour totals in the footer.
+- **Advanced Rota (`/rota/advanced`):**
+  - A day board in half-hour slots (`src/components/timeline-board.tsx`) with an Unassigned row.
+  - OnePlan's views: by team member, by area, by service user and by run route. "By week" opens the week planner, which has drag and drop.
+  - Cancelled and uncovered filters, and auto refresh.
+  - Cards are links. Changing a carer or a time still goes through the visit page and the one assignment path.

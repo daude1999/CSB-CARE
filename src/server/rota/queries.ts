@@ -51,12 +51,13 @@ export interface VisitFilters {
   status?: VisitStatus;
   unassigned?: boolean;
   review?: boolean;
+  late?: boolean;
   includeCancelled?: boolean;
   q?: string;
 }
 
 export const visitListInclude = {
-  serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, postcode: true } },
+  serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, postcode: true, riskLevel: true } },
   callType: { select: { id: true, name: true } },
   area: { select: { id: true, name: true, colour: true } },
   runRoute: { select: { id: true, name: true, colour: true, textColour: true } },
@@ -88,6 +89,7 @@ export async function listVisits(ctx: Ctx, f: VisitFilters, take = 1000): Promis
   let out = rows.slice(0, take).map((r) => ({ ...r, flags: deriveFlags(r, settings, now) }));
   if (f.unassigned) out = out.filter((r) => r.flags.unassignedSlots > 0);
   if (f.review) out = out.filter((r) => r.flags.review.length > 0);
+  if (f.late) out = out.filter((r) => r.flags.late && r.status !== "MISSED");
   return { rows: out, settings, truncated: rows.length > take };
 }
 

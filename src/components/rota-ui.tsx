@@ -75,3 +75,32 @@ export function Stepper({ base, params, param: k, prev, next, label }: { base: s
     </div>
   );
 }
+
+/** "Thursday 29th October 2026": the long date heading used on the dashboard and the rota pages. */
+export function longDate(date: string) {
+  const d = new Date(`${date}T12:00:00Z`);
+  const day = d.getUTCDate();
+  const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+  return `${d.toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" })} ${day}${suffix} ${d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })}`;
+}
+
+/**
+ * The status words the office uses on the live rota: Due, Late, In Progress, Complete, Missed. Late and Due are
+ * worked out from the clock, so they never go stale. The row tint repeats the status but never replaces the word.
+ */
+export function rotaState(v: { status: VisitStatus; flags: VisitFlags }): { label: string; tint: string } {
+  switch (v.status) {
+    case "SCHEDULED":
+      return v.flags.overdueStart ? { label: "Late", tint: "[&>td]:bg-[#fff6db]" } : { label: "Due", tint: "" };
+    case "IN_PROGRESS":
+      return { label: v.flags.late ? "In Progress (late)" : "In Progress", tint: "[&>td]:bg-[#e2f2fb]" };
+    case "COMPLETED":
+      return { label: v.flags.late ? "Complete (late)" : "Complete", tint: "[&>td]:bg-[#eaf6ec]" };
+    case "MISSED":
+      return { label: "Missed", tint: "[&>td]:bg-[#fde8e8]" };
+    case "NOT_DELIVERED":
+      return { label: "Not delivered", tint: "[&>td]:bg-[#fde8e8]" };
+    default:
+      return { label: "Cancelled", tint: "opacity-60" };
+  }
+}

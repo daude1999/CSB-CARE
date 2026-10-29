@@ -71,3 +71,16 @@ Finance screenshots (`*_rota_finance*`, `f1440_*`, `f390_*`) are in `screenshots
 | `npm run test:e2e` (full) | 27 passed, 1 failed: the new reports test used an ambiguous "To" label (it also matched the Area list). After the fix, `tests/e2e/rota.spec.ts` was re-run: 12 of 12 passed |
 
 Report screenshots (`r1440_*`, `r390_*`, `*_rota_reports*`) are in `screenshots/`.
+
+## OnePlan structure checkpoint (29 Oct 2026)
+
+The owner asked for the Rota dashboard, Daily Rota and Advanced Rota (the calendar board) to mirror OnePlan's structure. They were rebuilt and compared side by side with the redacted OnePlan screenshots. Those screenshots stay on the owner's laptop and are not committed, because this repository is public.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 20 files, 169 tests passed. Adds `tests/integration/rota-dashboard.test.ts` (3): call counts match the visit records, people and reminders lists with reminders in date order, template conflicts, and refusal for carers |
+| `npm run build` | pass |
+| `npm run test:e2e` (full) | 28 passed, 2 failed. The failures were a stale build (the monitor was renamed after the build) and an ambiguous bulk-action label in the test. After a rebuild and fixing the test, `tests/e2e/rota.spec.ts` ran 14 of 14 passed. One more fix was needed during that rerun: the reports test now filters `role=alert` by its text, because Next's route announcer also has that role |
+
+Our screenshots of the restructured screens are `screenshots/oneplan-structure_*.png`.

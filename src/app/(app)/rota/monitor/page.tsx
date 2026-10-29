@@ -66,7 +66,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
     <>
       <AutoRefresh seconds={60} />
       <PageHeader
-        title="Live Call Monitor"
+        title="The Monitor"
         back="/rota"
         subtitle={`Today's calls as they happen, from carers' clock-ins and outs. A call is late ${b.settings.lateAfterMin} minutes after its start with nobody clocked in, and missed after ${b.settings.missedAfterMin} minutes. Clock times come from the server when the carer presses the button; location and NFC checks are not in use.`}
         actions={

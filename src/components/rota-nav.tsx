@@ -10,56 +10,53 @@ import type { ShellItem } from "@/components/portal-switcher";
 type Entry = [href: string, label: string, icon: React.ReactNode, perm: OrgPermission | OrgPermission[], built: boolean];
 
 export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
+  // Sections follow the order of work the office already knows from OnePlan: Home, Rota, Templates, Users,
+  // Invoicing/Wages, Reports. Care records sit with the people they belong to.
   const groups: [string, Entry[]][] = [
+    ["Home", [["/rota", "Rota Dashboard", <House key="i" {...i} />, "rota.view", true]]],
     [
-      "Operations",
+      "Rota",
       [
-        ["/rota", "Today", <House key="i" {...i} />, "rota.view", true],
-        ["/rota/visits", "Daily Visits", <ListChecks key="i" {...i} />, "rota.view", true],
-        ["/rota/planner", "Rota Planner", <CalendarDots key="i" {...i} />, "rota.view", true],
+        ["/rota/visits", "Daily Rota", <ListChecks key="i" {...i} />, "rota.view", true],
+        ["/rota/advanced", "Advanced Rota", <CalendarDots key="i" {...i} />, "rota.view", true],
         ["/rota/unassigned", "Unassigned Visits", <WarningOctagon key="i" {...i} />, "rota.view", true],
-        ["/rota/monitor", "Live Call Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
-        ["/rota/routes", "Run Routes", <Path key="i" {...i} />, "rota.view", false],
-      ],
-    ],
-    [
-      "Planning",
-      [
-        ["/rota/templates", "Rota Templates", <Repeat key="i" {...i} />, "rota.view", true],
-        ["/rota/templates/planner", "Template Planner", <ArrowsLeftRight key="i" {...i} />, "rota.view", true],
+        ["/rota/monitor", "The Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
+        ["/rota/routes", "Live Run Routes", <Path key="i" {...i} />, "rota.view", false],
         ["/rota/build", "Build Rota", <CalendarPlus key="i" {...i} />, "rota.build", true],
       ],
     ],
     [
-      "People",
+      "Templates",
       [
-        ["/rota/service-users", "Service Users", <UsersThree key="i" {...i} />, "serviceUser.view", true],
-        ["/rota/staff", "Staff & Eligibility", <IdentificationBadge key="i" {...i} />, "staff.directory", true],
+        ["/rota/templates", "Daily Templates", <Repeat key="i" {...i} />, "rota.view", true],
+        ["/rota/templates/planner", "Advanced Templates", <ArrowsLeftRight key="i" {...i} />, "rota.view", true],
       ],
     ],
     [
-      "Care records",
+      "Users",
       [
+        ["/rota/service-users", "Service Users", <UsersThree key="i" {...i} />, "serviceUser.view", true],
+        ["/rota/staff", "Team Members", <IdentificationBadge key="i" {...i} />, "staff.directory", true],
         ["/rota/care-plans", "Care Plans", <ClipboardText key="i" {...i} />, "serviceUser.view", true],
         ["/rota/risks", "Risk Assessments", <ShieldWarning key="i" {...i} />, "serviceUser.view", true],
         ["/rota/incidents", "Incidents", <FirstAidKit key="i" {...i} />, ["incident.manage", "incident.report"], true],
       ],
     ],
     [
-      "Finance",
+      "Invoicing/Wages",
       [
-        ["/rota/finance", "Finance Overview", <Bank key="i" {...i} />, "finance.view", true],
+        ["/rota/finance", "Overview", <Bank key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/invoices", "Invoicing", <Receipt key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/payroll", "Wages", <Wallet key="i" {...i} />, "finance.view", true],
         ["/rota/finance/timesheets", "Timesheets", <CalendarCheck key="i" {...i} />, "finance.view", true],
-        ["/rota/finance/rates", "Funders & Rates", <Coins key="i" {...i} />, "finance.view", true],
-        ["/rota/finance/invoices", "Invoice Preparation", <Receipt key="i" {...i} />, "finance.view", true],
-        ["/rota/finance/payroll", "Payroll Preparation", <Wallet key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/rates", "Tariffs & Funders", <Coins key="i" {...i} />, "finance.view", true],
       ],
     ],
     [
-      "Reports & settings",
+      "Reports",
       [
         ["/rota/reports", "Rota Reports", <ChartLine key="i" {...i} />, "rota.view", true],
-        ["/rota/settings", "Rostering Settings", <GearSix key="i" {...i} />, "rota.settings", true],
+        ["/rota/settings", "Rota Settings", <GearSix key="i" {...i} />, "rota.settings", true],
       ],
     ],
     ["My work", [["/carer", "My Visits", <DeviceMobile key="i" {...i} />, "visit.own", true]]],

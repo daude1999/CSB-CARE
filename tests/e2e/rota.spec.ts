@@ -36,8 +36,9 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("status")).toContainText("Carer assigned");
 
     await page.goto("/rota/visits");
-    await page.getByLabel("Show").selectOption("unassigned");
-    await page.getByRole("button", { name: "Apply filters" }).click();
+    await page.getByText("More filters").click();
+    await page.getByLabel("Show only").selectOption("unassigned");
+    await page.getByRole("button", { name: "Show", exact: true }).click();
     await expect(page).toHaveURL(/view=unassigned/);
   });
 
@@ -46,7 +47,8 @@ test.describe("Rostering & Care Management", () => {
     await page.goto("/rota/visits");
     const boxes = page.locator("input[name=visitIds]");
     await boxes.nth(0).check();
-    await page.getByRole("button", { name: "Cancel visits" }).click();
+    await page.locator("#bulk select[name=kind]").selectOption("cancel");
+    await page.locator("#bulk").getByRole("button", { name: "Go" }).click();
     await expect(page.getByRole("alert").filter({ hasText: /reason/i }).first()).toBeVisible();
   });
 
@@ -61,9 +63,9 @@ test.describe("Rostering & Care Management", () => {
   test("a carer cannot open the office rota or the monitor, and sees their own visits", async ({ page }) => {
     await signIn(page, "carer@care-solution.demo");
     await page.goto("/rota/visits");
-    await expect(page.getByRole("heading", { level: 1, name: "Daily Visits" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toHaveCount(0);
     await page.goto("/rota/monitor");
-    await expect(page.getByRole("heading", { level: 1, name: "Live Call Monitor" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "The Monitor" })).toHaveCount(0);
     await page.goto("/carer");
     await expect(page.getByRole("heading", { level: 1, name: "My Visits" })).toBeVisible();
     await expect(page.getByText(/Location and NFC checks are not used/)).toBeVisible();
@@ -72,7 +74,7 @@ test.describe("Rostering & Care Management", () => {
   test("the monitor checks calls on demand and reports when it last checked", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
     await page.goto("/rota/monitor");
-    await expect(page.getByRole("heading", { level: 1, name: "Live Call Monitor" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "The Monitor" })).toBeVisible();
     await page.getByRole("button", { name: "Check now" }).click();
     await expect(page.getByRole("status")).toContainText(/Checked \d+ visits?/);
     await expect(page.getByText(/Last checked at/)).toBeVisible();
@@ -83,7 +85,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
+      for (const path of ["/rota", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -138,10 +140,37 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("heading", { level: 2, name: "Carer attendance" })).toBeVisible();
     await page.getByLabel("To", { exact: true }).fill("2020-01-01");
     await page.getByRole("button", { name: "Show report" }).click();
-    await expect(page.getByRole("alert")).toContainText("The end date must be on or after the start date");
+    await expect(page.getByRole("alert").filter({ hasText: "The end date must be on or after the start date" })).toBeVisible();
     const res = await page.request.get((await page.getByRole("link", { name: "Download CSV" }).getAttribute("href"))!);
     expect(res.status()).toBe(200);
     expect(await res.text()).toMatch(/^Date,Planned,Completed/);
+  });
+
+  test("rota dashboard follows the OnePlan order: date, four call boxes, people and reminders, counters", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota");
+    const calls = page.getByRole("region", { name: "Calls on this date" });
+    for (const label of ["Complete calls", "Late calls", "Missed calls", "Calls with missed meds"]) await expect(calls.getByText(label)).toBeVisible();
+    await expect(calls.getByText("Not in use yet")).toBeVisible();
+    for (const title of ["All Service Users", "All Team Members", "All Active Reminders"]) await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
+    await page.getByRole("link", { name: "Next day" }).click();
+    await expect(page).toHaveURL(/date=\d{4}-\d{2}-\d{2}/);
+    await calls.getByRole("link", { name: /Complete calls/ }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
+    await expect(page.getByRole("note")).toContainText("complete");
+  });
+
+  test("Advanced Rota shows the day by carer with an Unassigned row, and switches view", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota/advanced");
+    const board = page.getByRole("region", { name: "Team member" });
+    await expect(board.getByText("Unassigned", { exact: true })).toBeVisible();
+    await expect(board.locator("a[href^='/rota/visits/']").first()).toBeVisible();
+    await page.getByLabel("View").selectOption("su-day");
+    await page.getByRole("button", { name: "Show", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Service user" })).toBeVisible();
+    await page.getByRole("region", { name: "Service user" }).locator("a[href^='/rota/visits/']").first().click();
+    await expect(page.getByRole("heading", { level: 2, name: "Carers" })).toBeVisible();
   });
 
   test("keyboard: a visit can be opened and reassigned without a mouse", async ({ page }) => {
