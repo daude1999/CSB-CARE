@@ -6,7 +6,9 @@ CSB ("CSB All In One Platform", Care Solution Bureau CIC) is a multi-tenant B2B 
 
 ## Current scope
 
-The current focus is **Policy & Compliance → Policy Library** only. The plan is in `docs/POLICY_COMPLIANCE_IMPLEMENTATION_PLAN.md`. Rota, Service Users and wider HR development are out of scope until the owner says otherwise. Don't change application code for it until the owner replies exactly "APPROVED — BUILD POLICY LIBRARY". Then build on a feature branch.
+The owner's brief of 29 October 2026 ("Master autonomous CRM implementation") widens the scope to five modules: Policy & Compliance (preserve), **Rostering & Care Management** (the main build), HR & Workforce (preserve; the HR Hub stays the source of truth for people), Reporting & Analytics, and Administration & Settings. Build on a feature branch and open a PR. Never merge without the owner's explicit "merge". Progress, decisions and limitations are in `docs/implementation/` (start with `MASTER_BUILD_TRACKER.md`). Policy Library redesign work still needs the owner's "APPROVED — BUILD POLICY LIBRARY" (`docs/POLICY_COMPLIANCE_IMPLEMENTATION_PLAN.md`).
+
+Rostering rules: staff come from HR through the projection in `src/server/workforce`, and sign-ins are linked to staff by hand only. Every assignment goes through the eligibility service. HR changes flag visits and never reassign them. Never activate clinical workflows (eMAR, medication figures) or send outbound notifications without review, and never present simulated GPS, NFC or offline features as real.
 
 ## Technology stack (mandatory)
 

@@ -11,6 +11,14 @@ async function signIn(page: Page, email: string) {
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
+/** ISO date of the Monday `n` weeks after this week's Monday (UTC is fine for picking a week). */
+function mondayWeeksAhead(n: number) {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 7 * n);
+  return d.toISOString().slice(0, 10);
+}
+
 test.describe("Rostering & Care Management", () => {
   test.use({ viewport: { width: 1440, height: 1000 } });
 
@@ -39,12 +47,13 @@ test.describe("Rostering & Care Management", () => {
     const boxes = page.locator("input[name=visitIds]");
     await boxes.nth(0).check();
     await page.getByRole("button", { name: "Cancel visits" }).click();
-    await expect(page.getByRole("alert")).toContainText(/reason/i);
+    await expect(page.getByRole("alert").filter({ hasText: /reason/i }).first()).toBeVisible();
   });
 
   test("Build Rota previews a future week with its checklist", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    await page.goto("/rota/build");
+    // The demo seed already builds next week, so preview the week after.
+    await page.goto(`/rota/build?week=${mondayWeeksAhead(2)}`);
     await expect(page.getByRole("heading", { name: "2. Before you build" })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Build \d+ visits for Week \d$/ })).toBeVisible();
   });
@@ -57,8 +66,9 @@ test.describe("Rostering & Care Management", () => {
 
   for (const [name, width] of [["desktop", 1440], ["tablet", 834], ["phone", 390]] as const) {
     test(`rota screens render at ${name} width without page overflow`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 1000 });
+      // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
+      await page.setViewportSize({ width, height: 1000 });
       for (const path of ["/rota", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff"]) {
         await page.goto(path);
         await expect(page.locator("[data-testid=title-bar]")).toBeVisible();
@@ -71,7 +81,9 @@ test.describe("Rostering & Care Management", () => {
 
   test("keyboard: a visit can be opened and reassigned without a mouse", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    await page.goto("/rota/visits");
+    // Tomorrow's visits are still scheduled, so they can be reassigned (today's earliest may already be done).
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    await page.goto(`/rota/visits?date=${tomorrow}`);
     const link = page.locator("table a[href^='/rota/visits/']").first();
     await link.focus();
     await page.keyboard.press("Enter");
