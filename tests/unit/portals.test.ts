@@ -12,7 +12,14 @@ const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisa
 describe("portal access", () => {
   it("gives a manager every portal, HR included when they have an HR account", () => {
     const manager = ctx({ orgRoles: ["ORG_ADMIN", "COMPLIANCE_LEAD"], hrUserId: "admin" });
-    expect(portalsFor(manager).map((p) => p.id)).toEqual(["overview", "service-users", "policy", "rota", "hr", "reporting", "admin"]);
+    expect(portalsFor(manager).map((p) => p.id)).toEqual(["overview", "policy", "rota", "hr", "reporting", "admin"]);
+  });
+
+  it("opens Rostering & Care Management for rota, service-user, finance and carer roles, each on their own home", () => {
+    expect(portalsFor(ctx({ orgRoles: ["CARE_COORDINATOR"] })).find((p) => p.id === "rota")?.home).toBe("/rota");
+    expect(portalsFor(ctx({ orgRoles: ["FINANCE_OFFICER"] })).find((p) => p.id === "rota")?.home).toBe("/rota/finance");
+    expect(portalsFor(ctx({ orgRoles: ["STAFF", "CARER"] })).find((p) => p.id === "rota")?.home).toBe("/carer");
+    expect(canUsePortal(ctx({ orgRoles: ["STAFF"] }), "rota")).toBe(false);
   });
 
   it("limits care staff to Overview and Policy & Compliance", () => {
@@ -50,6 +57,10 @@ describe("portal routes", () => {
     expect(portalForPath("/admin/jobs")).toBe("admin");
     expect(portalForPath("/settings")).toBe("admin");
     expect(portalForPath("/rota")).toBe("rota");
+    expect(portalForPath("/rota/visits/abc")).toBe("rota");
+    expect(portalForPath("/service-users")).toBe("rota");
+    expect(portalForPath("/carer")).toBe("rota");
+    expect(portalForPath("/workforce/absences")).toBe("hr");
     expect(portalForPath("/hrx")).toBe("policy");
   });
   it("prefixes HR Hub links with /hr but leaves files and APIs alone", () => {

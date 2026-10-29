@@ -38,7 +38,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
         ) : null}
       />
       <Flash searchParams={sp} />
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <Card title="Retrieval runs">
             {s.runs.length ? (

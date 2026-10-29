@@ -11,6 +11,7 @@ import { toSectionInputs } from "../policies/versions";
 import { createManualRevision, editDraftSection } from "../policies/workflow";
 import { addFinding, answerQuestion, createAction, startAudit } from "../compliance/audits";
 import { seedHrWorkspace } from "./hr";
+import { linkHrBranchesAndProject, seedCareDemo } from "./care";
 
 export const DEMO_PASSWORD = "DemoPassword!2026";
 /** The demo agency: Care Solution Bureau with its three branches. Every person and record in it is fictional. */
@@ -20,7 +21,7 @@ async function user(email: string, name: string, platformRoles: PlatformRole[] =
   return db.user.upsert({ where: { email }, create: { email, name, platformRoles, isDemo: true, passwordHash }, update: {} });
 }
 
-export async function seedDemo(masters: Record<string, string>, opts: { simulatedChange?: boolean } = {}) {
+export async function seedDemo(masters: Record<string, string>, opts: { simulatedChange?: boolean; care?: boolean } = {}) {
   if (await db.organisation.findUnique({ where: { slug: DEMO_ORG_SLUG } })) return;
   const pw = await hashPassword(DEMO_PASSWORD);
 
@@ -38,7 +39,10 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
 
   // The last column is the person's HR Hub account (see src/hr/lib/seed.ts); people without one cannot open HR & Workforce.
   const members: [string, string, OrgRole[], string | null, string, string | null][] = [
-    ["manager@care-solution.demo", "Alex Morgan", ["ORG_ADMIN", "COMPLIANCE_LEAD"], null, "Registered manager", "admin"],
+    ["manager@care-solution.demo", "Alex Morgan", ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"], null, "Registered manager", "admin"],
+    ["coordinator@care-solution.demo", "Casey Coordinator", ["CARE_COORDINATOR"], null, "Care coordinator", null],
+    ["finance@care-solution.demo", "Frankie Finance", ["FINANCE_OFFICER"], null, "Finance officer", null],
+    ["carer@care-solution.demo", "Amelia Hart", ["STAFF"], liverpool.id, "Care support worker", null],
     ["author@care-solution.demo", "Kim Author", ["POLICY_AUTHOR"], null, "Quality officer", null],
     ["reviewer@care-solution.demo", "Riley Reviewer", ["POLICY_REVIEWER"], null, "Deputy manager", null],
     ["approver@care-solution.demo", "Avery Approver", ["POLICY_APPROVER"], null, "Nominated individual", null],
@@ -55,6 +59,8 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
     await db.membership.create({ data: { userId: u.id, organisationId: org.id, roles, branchId, jobTitle, hrUserId } });
   }
   await seedHrWorkspace(org.id);
+  await linkHrBranchesAndProject(org.id);
+  if (opts.care) await seedCareDemo(org.id, { manager: ids["manager@care-solution.demo"]!, coordinator: ids["coordinator@care-solution.demo"]!, carer: ids["carer@care-solution.demo"], finance: ids["finance@care-solution.demo"] });
   // Platform reviewer is also a member for viewing (no customer permissions beyond reading).
   void regulatory;
 

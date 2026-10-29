@@ -10,7 +10,7 @@ async function main() {
   }
   const masters = await seedBase();
   if (process.env.SEED_DEMO !== "false") {
-    await seedDemo(masters);
+    await seedDemo(masters, { care: true });
     console.log(`Demo data seeded. Sign in with e.g. manager@care-solution.demo / ${DEMO_PASSWORD}`);
   }
   console.log("Seed complete.");

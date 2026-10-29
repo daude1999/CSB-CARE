@@ -6,7 +6,7 @@ import { CaretDown, List, SignOut, Swap, X } from "@phosphor-icons/react";
 import { portalForPath, type Portal } from "@/lib/portals";
 import { useIsActive } from "@/components/side-nav";
 
-export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean };
+export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean; /** Starts a labelled group of pages in the sidebar. */ group?: string };
 export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
@@ -19,7 +19,7 @@ function PortalAnchor({ portal, className, current, style, children }: { portal:
 
 /** Every portal this person may open, with the current portal's pages listed underneath it. */
 /** The order of the approved design; a portal missing from the list keeps its place at the end. */
-const ORDER = ["overview", "policy", "hr", "service-users", "rota", "reporting", "admin"];
+const ORDER = ["overview", "policy", "rota", "hr", "reporting", "admin"];
 const rank = (id: string) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
 
 function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>> }) {
@@ -27,6 +27,8 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
   const ordered = [...portals].sort((a, b) => rank(a.id) - rank(b.id));
   const isActive = useIsActive();
   const currentId = portalForPath(path);
+  // Only the most specific matching entry is highlighted, so "/rota" (Today) is not lit on "/rota/visits".
+  const activeHref = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned && isActive(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
   return (
     <nav aria-label="Main" className="shell-scroll min-h-0 flex-1 overflow-y-auto px-[10px] pb-[12px]">
       <ul data-testid="portal-switcher" className="space-y-[3px]">
@@ -44,23 +46,9 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
               {pages.length ? (
                 <ul className="relative mb-[8px] ml-[8px] mt-[4px] space-y-px border-l border-white/[0.14] pl-[6px]">
                   {pages.map((i) => {
-                    if (i.planned)
-                      return (
-                        <li key={i.label} className="shell-page cursor-default text-white/45">
-                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-                          <span className="min-w-0 truncate">{i.label}</span>
-                          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
-                        </li>
-                      );
-                    const active = isActive(i.href);
-                    return (
-                      <li key={i.href}>
-                        <Link href={i.href} aria-current={active ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
-                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-                          <span className="min-w-0 truncate">{i.label}</span>
-                        </Link>
-                      </li>
-                    );
+                    const heading = i.group ? <li key={`g-${i.group}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{i.group}</li> : null;
+                    const row = renderItem(i);
+                    return heading ? [heading, row] : row;
                   })}
                 </ul>
               ) : null}
@@ -70,6 +58,26 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
       </ul>
     </nav>
   );
+
+  function renderItem(i: ShellItem) {
+                    if (i.planned)
+                      return (
+                        <li key={i.label} className="shell-page cursor-default text-white/45">
+                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+                          <span className="min-w-0 truncate">{i.label}</span>
+                          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
+                        </li>
+                      );
+                    const active = i.href === activeHref;
+                    return (
+                      <li key={i.href}>
+                        <Link href={i.href} aria-current={active ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
+                          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+                          <span className="min-w-0 truncate">{i.label}</span>
+                        </Link>
+                      </li>
+                    );
+  }
 }
 
 /** The organisation card: switching is offered only when the person belongs to more than one organisation. */

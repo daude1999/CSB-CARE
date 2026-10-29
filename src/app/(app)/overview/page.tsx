@@ -5,8 +5,9 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { dashboardMetrics } from "@/server/reports/metrics";
 import { REPORTS } from "@/server/reports/tables";
 import { hrHeadline } from "@/server/hr/summary";
+import { rotaHeadline } from "@/server/rota/summary";
 import type { Portal, PortalId } from "@/lib/portals";
-import { ArrowRight, ChartBar, FileText, Gear, Lock, MapPin, CalendarDots, UsersThree, User } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, ChartBar, FileText, Gear, Lock, CalendarDots, UsersThree } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -102,10 +103,11 @@ export default async function Overview() {
   const portals = new Map(portalsFor(ctx).map((p) => [p.id, p] as const));
   const has = (id: PortalId) => portals.has(id);
   const orgId = ctx.organisationId;
-  const [m, hr, branches] = await Promise.all([
+  const [m, hr, branches, rotaFigures] = await Promise.all([
     has("policy") ? dashboardMetrics(ctx) : null,
     has("hr") ? hrHeadline(ctx) : null,
     has("admin") && orgId ? db.branch.count({ where: { organisationId: orgId } }) : null,
+    has("rota") ? rotaHeadline(ctx) : null,
   ]);
 
   const specs: (TileSpec & { live: boolean; figures?: Figure[]; note?: string })[] = [];
@@ -115,16 +117,11 @@ export default async function Overview() {
   }
   const rota = portals.get("rota");
   if (rota) {
-    specs.push({ key: "rota", portal: rota, name: "Rostering & Scheduling", icon: <CalendarDots size={22} />, live: false, items: ["Staff rotas and shift allocation", "Service user visit scheduling", "Availability and skills matching", "Travel time and shift alerts"] });
-    specs.push({ key: "ecm", portal: { ...rota, colour: "#0b7d50", tint: "#e6f6ef" }, name: "Electronic Call Monitoring", icon: <MapPin size={22} />, live: false, items: ["Check-in and check-out via mobile", "GPS visit verification", "Missed and late visit alerts", "Care notes and photos"] });
+    specs.push({ key: "rota", portal: rota, name: rota.name, icon: <CalendarDots size={22} />, live: true, items: ["Service users, care plans and risks", "Templates, Build Rota and the planner", "Live call monitoring and carer mobile", "Timesheets, invoicing and payroll preparation"], figures: rotaFigures ? [[rotaFigures.visitsToday, "visits today"], [rotaFigures.unassignedToday, "unassigned"]] : [], note: "Open your visits." });
   }
   const hrPortal = portals.get("hr");
   if (hrPortal) {
     specs.push({ key: "hr", portal: hrPortal, name: hrPortal.name, icon: <UsersThree size={22} />, live: true, items: ["Staff records and DBS tracking", "Training and qualifications", "Right to work and supervision", "Sickness and compliance alerts"], figures: hr ? [[hr.employees, "employees"], [hr.overdue, "checks overdue"]] : [], note: "Opens your HR Hub." });
-  }
-  const su = portals.get("service-users");
-  if (su) {
-    specs.push({ key: "service-users", portal: su, name: "Service User Management", icon: <User size={22} />, live: false, items: ["Care plans and risk assessments", "Care notes and observations", "Medication prompts", "Family and commissioner access"] });
   }
   const reporting = portals.get("reporting");
   if (reporting) {
@@ -144,6 +141,8 @@ export default async function Overview() {
     if (m.overdueAcks && hasOrgPermission(ctx, "staff.view")) attention.push({ text: `${m.overdueAcks} staff ${m.overdueAcks === 1 ? "sign-off is" : "sign-offs are"} overdue`, where: "Policy & Compliance · Staff Sign-off", href: "/staff", colour: policy.colour });
     if (m.overdueActions) attention.push({ text: `${m.overdueActions} ${m.overdueActions === 1 ? "action is" : "actions are"} past their due date`, where: "Policy & Compliance · Actions & Risks", href: "/actions", colour: policy.colour });
   }
+  if (rota && rotaFigures?.unassignedToday) attention.push({ text: `${rotaFigures.unassignedToday} ${rotaFigures.unassignedToday === 1 ? "visit slot is" : "visit slots are"} unassigned today`, where: "Rostering & Care Management · Unassigned", href: "/rota/visits?unassigned=1", colour: rota.colour });
+  if (rota && rotaFigures?.openAlerts) attention.push({ text: `${rotaFigures.openAlerts} rota ${rotaFigures.openAlerts === 1 ? "alert needs" : "alerts need"} attention`, where: "Rostering & Care Management · Today", href: "/rota", colour: rota.colour });
   if (hrPortal && hr?.overdue) attention.push({ text: `${hr.overdue} HR ${hr.overdue === 1 ? "check is" : "checks are"} overdue`, where: "HR & Workforce", href: hrPortal.home, colour: hrPortal.colour });
 
   const first = ctx.userName.split(/\s+/)[0];

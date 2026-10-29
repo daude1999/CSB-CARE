@@ -30,7 +30,34 @@ export const ORG_PERMISSIONS = {
   "org.manage": ["ORG_ADMIN"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
   "operations.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
-  "assistant.use": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF"],
+  "assistant.use": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "FINANCE_OFFICER"],
+
+  // Rostering & Care Management. Coordinators may be limited to areas (Membership → areas).
+  "rota.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "rota.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  "rota.build": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  "rota.monitor": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "rota.clockCorrect": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  "rota.settings": ["ORG_ADMIN", "CARE_MANAGER"],
+  "staff.directory": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "FINANCE_OFFICER"],
+  "serviceUser.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "serviceUser.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Date of birth, NHS number and other identifying details. */
+  "serviceUser.sensitive": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Revealing a key safe code. Every reveal is audited. */
+  "serviceUser.keysafe": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
+  "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],
+  "incident.manage": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
+  /** The carer's own visits on the carer mobile page. */
+  "visit.own": ["CARER"],
+  "finance.view": ["ORG_ADMIN", "FINANCE_OFFICER", "CARE_MANAGER"],
+  "finance.manage": ["ORG_ADMIN", "FINANCE_OFFICER"],
+  "finance.approve": ["ORG_ADMIN", "FINANCE_OFFICER"],
+  /** Linking a sign-in to a staff identity: an explicit, audited administrator action. */
+  "workforce.link": ["ORG_ADMIN"],
+  "report.export": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "FINANCE_OFFICER"],
 } as const satisfies Record<string, readonly OrgRole[]>;
 
 export const PLATFORM_PERMISSIONS = {
