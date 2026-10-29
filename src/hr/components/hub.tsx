@@ -8,7 +8,6 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "@/hr/nav";
 import Link from "@/hr/nav";
-import Image from "next/image";
 import { BranchWorkspace, AlertsWorkspace } from "./workspace-widgets";
 import { EmployeePanel } from "./employee-panel";
 import { health, documentState, documentDue } from "@/hr/lib/presentation";
@@ -29,17 +28,13 @@ import {
   MoreHorizontal,
   CheckCircle2,
   FolderOpen,
-  LogOut,
-  Menu,
   SlidersHorizontal,
-  CalendarDays,
   FileText,
   ExternalLink,
   ZoomIn,
   ZoomOut,
   History,
   Home,
-  ListTodo,
   Lock,
   Command,
   GraduationCap,
@@ -60,8 +55,8 @@ import { DocumentCentre } from "./document-centre";
 import { HRTasks } from "./hr-tasks";
 import { HRHome } from "./hr-home";
 import { HRRecord } from "./hr-record";
-import { ThemeControl } from "./theme-control";
-import { PortalSwitcher, type PortalChoice } from "./portal-switcher";
+import { HubHeader } from "./hub-header";
+import { HUB_SEARCH_EVENT } from "@/lib/portals";
 import { documentTitle } from "@/hr/lib/document-groups";
 import { employeeRoute } from "@/hr/lib/routes";
 import {
@@ -114,7 +109,7 @@ const formatDate = (s: string | null) =>
         timeZone: "Europe/London",
       }).format(new Date(s.length === 10 ? s + "T12:00:00Z" : s))
     : "Not set";
-export default function Hub({ portals }: { portals: PortalChoice[] }) {
+export default function Hub() {
   const [scope, updateScope] = useState(() =>
     typeof window === "undefined"
       ? "all"
@@ -130,7 +125,6 @@ export default function Hub({ portals }: { portals: PortalChoice[] }) {
   return (
     <Workspace
       key={`${scope}:${epoch}`}
-      portals={portals}
       scope={scope}
       setScope={setScope}
       reset={() => {
@@ -141,12 +135,10 @@ export default function Hub({ portals }: { portals: PortalChoice[] }) {
   );
 }
 function Workspace({
-  portals,
   scope,
   setScope,
   reset: _reset,
 }: {
-  portals: PortalChoice[];
   scope: string;
   setScope: (s: string) => void;
   reset: () => void;
@@ -161,8 +153,6 @@ function Workspace({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<Modal>(null);
-  const [query, setQuery] = useState("");
-  const [mobile, setMobile] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const requestVersion = useRef(0);
   const refresh = useCallback(async () => {
@@ -206,7 +196,6 @@ function Workspace({
         requestVersion.current++;
         setData(null);
         setModal(null);
-        setQuery("");
       } else
         refresh().catch(() => setError("Could not revalidate your access."));
     };
@@ -228,8 +217,14 @@ function Workspace({
         setCommandOpen(true);
       }
     };
+    // The platform's top-bar search opens the HR Hub's search on HR pages.
+    const onSearch = () => setCommandOpen(true);
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    window.addEventListener(HUB_SEARCH_EVENT, onSearch);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener(HUB_SEARCH_EVENT, onSearch);
+    };
   }, []);
   async function mutate(body: unknown) {
     setError("");
@@ -248,11 +243,6 @@ function Workspace({
     setNotice(message);
     setTimeout(() => setNotice(""), 6000);
   }
-  async function logout() {
-    await fetch("/api/hr/session", { method: "DELETE" });
-    setData(null);
-    window.location.assign("/login");
-  }
   // In the platform there is one sign-in for every portal, so an expired session goes to the platform sign-in page.
   if (auth) {
     if (typeof window !== "undefined") window.location.assign("/login");
@@ -260,28 +250,21 @@ function Workspace({
   }
   if (!data)
     return (
-      <div className="boot">
-        <div className="brand-logo">
-          <Image
-            src="/brand/csb-logo.png"
-            alt="Care Solution Bureau"
-            width={280}
-            height={117}
-            priority
-          />
+      <div className="cs h-embed">
+        <div className="boot">
+          <p>{error || "Opening your HR workspace…"}</p>
+          {error && (
+            <button
+              onClick={() => {
+                setError("");
+                refresh();
+              }}
+            >
+              Try again
+            </button>
+          )}
+          <div className="skeleton" />
         </div>
-        <p>{error || "Opening your HR workspace…"}</p>
-        {error && (
-          <button
-            onClick={() => {
-              setError("");
-              refresh();
-            }}
-          >
-            Try again
-          </button>
-        )}
-        <div className="skeleton" />
       </div>
     );
   const editable = canEdit(data.user);
@@ -293,7 +276,6 @@ function Workspace({
       : section === "alerts" && tasksPage
         ? "My tasks"
         : navigation.find((n) => n.id === section)?.name || "Home";
-  const alerts = data.notices.filter((n) => !n.read).length;
   const active = data.employees.filter((e) => e.status !== "Archived");
   const activeIds = new Set(active.map((e) => e.id));
   const attention = data.checks
@@ -419,253 +401,28 @@ function Workspace({
     );
   }
   return (
-    <div className="app cs h-app">
-      <aside className={"sidebar cs-side h-side " + (mobile ? "visible" : "")}>
-        <Link
-          href={"/dashboard?branch=" + scope}
-          className="h-brand"
-          onClick={() => setMobile(false)}
-        >
-          <Image
-            src="/brand/csb-monogram.png"
-            alt="CSB"
-            width={30}
-            height={30}
-            priority
-          />
-          <span>
-            <b>CSB</b>
-            <small>HR Hub</small>
-          </span>
-        </Link>
-        <button
-          type="button"
-          className="h-search"
-          onClick={() => setCommandOpen(true)}
-          aria-label="Search or jump to"
-        >
-          <Search size={14} />
-          <span>Search</span>
-          <kbd className="cs-kbd">⌘K</kbd>
-        </button>
-        <nav aria-label="Main navigation">
-          {[
-            { label: "Home", ids: ["dashboard"] },
-            { label: "People", ids: ["people"] },
-            { label: "Work", ids: ["tasks"] },
-            {
-              label: "HR management",
-              ids: ["compliance", "documents", "training"],
-            },
-            { label: "Organisation", ids: ["branches"] },
-          ].map((group) => (
-            <div key={group.label}>
-              <div className="h-grp">{group.label}</div>
-              {group.ids.map((id) => {
-                const n =
-                  id === "tasks"
-                    ? { name: "My tasks", icon: ListTodo }
-                    : navigation.find((n) => n.id === id)!;
-                const selected =
-                  id === "tasks"
-                    ? section === "alerts" && tasksPage
-                    : section === id;
-                const count =
-                  id === "people"
-                    ? active.length
-                    : id === "tasks"
-                      ? (data.tasks || []).filter(
-                          (t) =>
-                            t.assignedTo === data.user.id &&
-                            t.status !== "Complete",
-                        ).length
-                      : id === "compliance"
-                        ? attention.filter(
-                            (c) => checkStatus(c, data.today) === "Overdue",
-                          ).length
-                        : null;
-                return (
-                  <Link
-                    key={id}
-                    href={
-                      id === "tasks"
-                        ? "/alerts?branch=" + scope + "&view=tasks"
-                        : "/" + id + "?branch=" + scope
-                    }
-                    aria-current={selected ? "page" : undefined}
-                    className={selected ? "selected" : ""}
-                    onClick={() => setMobile(false)}
-                  >
-                    <n.icon size={16} />
-                    <span>{id === "dashboard" ? "Home" : n.name}</span>
-                    {count !== null && <b className="cs-count">{count}</b>}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-        <div className="h-grp">Administration</div>
-        <nav aria-label="Administration">
-          {["alerts", "settings"].map((id) => {
-            const n = navigation.find((n) => n.id === id)!;
-            const selected = section === id && !(id === "alerts" && tasksPage);
-            return (
-              <Link
-                key={id}
-                href={"/" + id + "?branch=" + scope}
-                aria-current={selected ? "page" : undefined}
-                className={selected ? "selected" : ""}
-                onClick={() => setMobile(false)}
-              >
-                <n.icon size={16} />
-                <span>{n.name}</span>
-                {id === "alerts" && alerts > 0 && (
-                  <b className="cs-count">{alerts}</b>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="h-me sidebar-user">
-          <Avatar name={data.user.name} />
-          <div>
-            <strong>{data.user.name}</strong>
-            <small>{data.user.role}</small>
-          </div>
-          <button aria-label="Sign out" onClick={logout}>
-            <LogOut size={16} />
-          </button>
-        </div>
-      </aside>
-      <div className="main-shell cs-main h-main">
-        <header className="topbar h-top">
-          <button
-            className="icon-btn mobile-toggle"
-            aria-label="Open navigation"
-            onClick={() => setMobile(!mobile)}
-          >
-            <Menu size={22} />
-          </button>
-          <PortalSwitcher portals={portals} />
-          <div className="breadcrumbs">
-            {selected && (
-              <>
-                <Link href={"/people?branch=" + scope}>People</Link>
-                <ChevronRight size={14} />
-                <strong>{selected.name}</strong>
-              </>
-            )}
-            {!selected && <strong>{title}</strong>}
-          </div>
-          <div className="global-search h-gsearch">
-            <Search size={17} />
-            <input
-              aria-label="Search employees and documents"
-              placeholder="Search people or documents…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && (
-              <div className="search-results">
-                {data.employees
-                  .filter((e) =>
-                    (e.name + " " + e.staffId)
-                      .toLowerCase()
-                      .includes(query.toLowerCase()),
-                  )
-                  .slice(0, 5)
-                  .map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => {
-                        openEmployee(e.id);
-                        setQuery("");
-                      }}
-                    >
-                      <Avatar name={e.name} />
-                      <span>
-                        {e.name}
-                        <small>{e.staffId}</small>
-                      </span>
-                    </button>
-                  ))}
-                {data.documents
-                  .filter((d) =>
-                    (
-                      d.filename +
-                      " " +
-                      d.category +
-                      " " +
-                      documentTitle(d, data.checks)
-                    )
-                      .toLowerCase()
-                      .includes(query.toLowerCase()),
-                  )
-                  .slice(0, 3)
-                  .map((d) => (
-                    <button
-                      key={d.id}
-                      onClick={() => {
-                        setModal({ type: "document", document: d });
-                        setQuery("");
-                      }}
-                    >
-                      <FileText size={18} />
-                      {d.filename}
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-          <div className="branch-select">
-            <Building2 size={16} />
-            <select
-              aria-label="Branch scope"
-              value={scope}
-              onChange={(e) => setScope(e.target.value)}
-            >
-              <option value="all">
-                {data.allBranches ? "All branches" : "All assigned branches"}
-              </option>
-              {data.branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Link
-            className="notification icon-btn"
-            href={`/alerts?branch=${scope}`}
-            aria-label={`${alerts} unread alerts`}
-          >
-            <Bell size={20} />
-            {alerts > 0 && <i />}
-          </Link>
-          <span className="topbar-date">
-            <CalendarDays size={14} />
-            {formatDate(data.today)}
-          </span>
-          <details className="account-menu">
-            <summary aria-label="Account menu">
-              <Avatar name={data.user.name} />
-            </summary>
-            <div>
-              <strong>{data.user.name}</strong>
-              <small>{data.user.role}</small>
-              <span className="cs-badge cs-badge--neutral cs-pilot-badge">
-                Fictional data pilot · external email disabled
-              </span>
-              <ThemeControl />
-              <Link href={`/settings?branch=${scope}`}>Workspace settings</Link>
-              <button onClick={logout}>
-                <LogOut size={15} /> Sign out
-              </button>
-            </div>
-          </details>
-        </header>
-        <main className={selected ? "h-record-page" : "h-wrap"}>
+    <>
+      <HubHeader
+        title={
+          selected
+            ? selected.name
+            : section === "dashboard"
+              ? "HR Dashboard"
+              : title
+        }
+        back={
+          selected
+            ? "/hr/people?branch=" + scope
+            : section === "dashboard"
+              ? undefined
+              : "/hr/dashboard?branch=" + scope
+        }
+        scope={scope}
+        setScope={setScope}
+        data={data}
+      />
+      <div className="cs h-embed">
+        <div className={"h-content " + (selected ? "h-record-page" : "h-wrap")}>
           {notice && (
             <div role="status" className="toast">
               <CheckCircle2 size={18} />
@@ -695,7 +452,7 @@ function Workspace({
               />
               <section className="h-sheet">
                 <div className="table-scroll">
-                  <table className="h-dir">
+                  <table className="h-dir h-dir--fit">
                     <thead>
                       <tr>
                         <th>Employee</th>
@@ -842,154 +599,145 @@ function Workspace({
           {section === "settings" && (
             <SettingsPage data={data} mutate={mutate} notify={setNotice} />
           )}
-          <footer className="app-footer">
-            <span>
-              CSB HR Hub <span className="separator">/</span> People, documents
-              and compliance.
-            </span>
-            <span>
-              <ShieldCheck size={13} /> Authorised workspace
-            </span>
-          </footer>
-        </main>
+        </div>
+        {commandOpen && (
+          <CommandPalette
+            data={data}
+            scope={scope}
+            close={() => setCommandOpen(false)}
+            editable={editable}
+            onAdd={() => {
+              setCommandOpen(false);
+              setModal({ type: "employee" });
+            }}
+            onUpload={() => {
+              setCommandOpen(false);
+              setModal({ type: "upload" });
+            }}
+            onReview={() => {
+              setCommandOpen(false);
+              const first = attention.find((c) => c.required);
+              if (first && editable) setModal({ type: "review", check: first });
+              else if (first) openEmployee(first.employee);
+            }}
+            onEmployee={(id) => {
+              setCommandOpen(false);
+              openEmployee(id);
+            }}
+            onDocument={(id) => {
+              setCommandOpen(false);
+              const doc = data.documents.find((item) => item.id === id);
+              if (doc) setModal({ type: "document", document: doc });
+            }}
+          />
+        )}
+        {modal?.type === "employee" && (
+          <EmployeeForm
+            data={data}
+            employee={modal.employee}
+            close={() => setModal(null)}
+            mutate={mutate}
+            done={() => success("Employee record saved.")}
+          />
+        )}
+        {modal?.type === "document" && (
+          <DocumentPreview
+            document={modal.document}
+            data={data}
+            close={() => {
+              setModal(null);
+              refresh();
+            }}
+            onReview={(c) => setModal({ type: "review", check: c })}
+            onNote={() =>
+              setModal({
+                type: "note",
+                document: modal.document.id,
+                employee: data.employees.find(
+                  (e) => e.id === modal.document.employee,
+                )!,
+              })
+            }
+            replace={() =>
+              setModal({
+                type: "upload",
+                employee: data.employees.find(
+                  (e) => e.id === modal.document.employee,
+                ),
+                previous: modal.document,
+              })
+            }
+          />
+        )}
+        {modal?.type === "upload" && (
+          <UploadForm
+            data={data}
+            employee={modal.employee}
+            previous={modal.previous}
+            close={() => setModal(null)}
+            done={async () => {
+              await refresh();
+              success(
+                "Files received into quarantine. Scanning is required before access.",
+              );
+            }}
+          />
+        )}
+        {modal?.type === "review" && (
+          <ReviewForm
+            check={modal.check}
+            data={data}
+            close={() => setModal(null)}
+            mutate={mutate}
+            done={() =>
+              success("Review recorded. Statuses and reminders updated.")
+            }
+          />
+        )}
+        {modal?.type === "note" && (
+          <NoteForm
+            employee={modal.employee}
+            document={modal.document}
+            close={() => setModal(null)}
+            mutate={mutate}
+            done={() => success("HR note saved.")}
+          />
+        )}
+        {modal?.type === "quick" && (
+          <EmployeePanel
+            data={data}
+            employee={modal.employee}
+            close={() => {
+              setModal(null);
+              const url = new URL(window.location.href);
+              url.searchParams.delete("peek");
+              window.history.replaceState(null, "", url);
+            }}
+            openRecord={() => {
+              const params = new URLSearchParams(window.location.search);
+              params.delete("peek");
+              router.push(
+                employeeRoute(
+                  modal.employee.id,
+                  scope,
+                  "/people?" + params.toString(),
+                ),
+              );
+              setModal(null);
+            }}
+            onDocument={(d) => setModal({ type: "document", document: d })}
+            onReview={(c) => setModal({ type: "review", check: c })}
+            onNote={() => setModal({ type: "note", employee: modal.employee })}
+            onEdit={() =>
+              setModal({ type: "employee", employee: modal.employee })
+            }
+            onUpload={() =>
+              setModal({ type: "upload", employee: modal.employee })
+            }
+          />
+        )}
       </div>
-      {commandOpen && (
-        <CommandPalette
-          data={data}
-          scope={scope}
-          close={() => setCommandOpen(false)}
-          editable={editable}
-          onAdd={() => {
-            setCommandOpen(false);
-            setModal({ type: "employee" });
-          }}
-          onUpload={() => {
-            setCommandOpen(false);
-            setModal({ type: "upload" });
-          }}
-          onReview={() => {
-            setCommandOpen(false);
-            const first = attention.find((c) => c.required);
-            if (first && editable) setModal({ type: "review", check: first });
-            else if (first) openEmployee(first.employee);
-          }}
-          onEmployee={(id) => {
-            setCommandOpen(false);
-            openEmployee(id);
-          }}
-          onDocument={(id) => {
-            setCommandOpen(false);
-            const doc = data.documents.find((item) => item.id === id);
-            if (doc) setModal({ type: "document", document: doc });
-          }}
-        />
-      )}
-      {modal?.type === "employee" && (
-        <EmployeeForm
-          data={data}
-          employee={modal.employee}
-          close={() => setModal(null)}
-          mutate={mutate}
-          done={() => success("Employee record saved.")}
-        />
-      )}
-      {modal?.type === "document" && (
-        <DocumentPreview
-          document={modal.document}
-          data={data}
-          close={() => {
-            setModal(null);
-            refresh();
-          }}
-          onReview={(c) => setModal({ type: "review", check: c })}
-          onNote={() =>
-            setModal({
-              type: "note",
-              document: modal.document.id,
-              employee: data.employees.find(
-                (e) => e.id === modal.document.employee,
-              )!,
-            })
-          }
-          replace={() =>
-            setModal({
-              type: "upload",
-              employee: data.employees.find(
-                (e) => e.id === modal.document.employee,
-              ),
-              previous: modal.document,
-            })
-          }
-        />
-      )}
-      {modal?.type === "upload" && (
-        <UploadForm
-          data={data}
-          employee={modal.employee}
-          previous={modal.previous}
-          close={() => setModal(null)}
-          done={async () => {
-            await refresh();
-            success(
-              "Files received into quarantine. Scanning is required before access.",
-            );
-          }}
-        />
-      )}
-      {modal?.type === "review" && (
-        <ReviewForm
-          check={modal.check}
-          data={data}
-          close={() => setModal(null)}
-          mutate={mutate}
-          done={() =>
-            success("Review recorded. Statuses and reminders updated.")
-          }
-        />
-      )}
-      {modal?.type === "note" && (
-        <NoteForm
-          employee={modal.employee}
-          document={modal.document}
-          close={() => setModal(null)}
-          mutate={mutate}
-          done={() => success("HR note saved.")}
-        />
-      )}
-      {modal?.type === "quick" && (
-        <EmployeePanel
-          data={data}
-          employee={modal.employee}
-          close={() => {
-            setModal(null);
-            const url = new URL(window.location.href);
-            url.searchParams.delete("peek");
-            window.history.replaceState(null, "", url);
-          }}
-          openRecord={() => {
-            const params = new URLSearchParams(window.location.search);
-            params.delete("peek");
-            router.push(
-              employeeRoute(
-                modal.employee.id,
-                scope,
-                "/people?" + params.toString(),
-              ),
-            );
-            setModal(null);
-          }}
-          onDocument={(d) => setModal({ type: "document", document: d })}
-          onReview={(c) => setModal({ type: "review", check: c })}
-          onNote={() => setModal({ type: "note", employee: modal.employee })}
-          onEdit={() =>
-            setModal({ type: "employee", employee: modal.employee })
-          }
-          onUpload={() =>
-            setModal({ type: "upload", employee: modal.employee })
-          }
-        />
-      )}
-    </div>
+    </>
   );
 }
 function PageHeading({
@@ -3180,14 +2928,19 @@ function SettingsPage({
           </form>
         </section>
         <section className="panel padded">
-          <h2>Live service readiness</h2>
+          <h2>Before going live</h2>
           {[
-            ["Authentication & MFA", "Supabase configuration required"],
-            ["Private document storage", "Supabase private bucket required"],
-            ["Malware scanning", "Not configured · uploads quarantined"],
-            ["Email provider", "Disabled · no external sends"],
-            ["Reminder schedule", "Manual job available · scheduler required"],
-            ["OneDrive connector", "Not connected · preparation only"],
+            ["Sign-in", "Uses your CSB platform sign-in"],
+            [
+              "Virus checking",
+              "Not set up yet, so uploaded files stay locked",
+            ],
+            ["Emails", "Switched off. Nothing is sent outside the platform"],
+            [
+              "Automatic reminders",
+              "Not scheduled yet. Use “Run reminder job” on Alerts",
+            ],
+            ["OneDrive import", "Not connected yet"],
           ].map(([name, state]) => (
             <div className="readiness-row" key={name}>
               <Lock size={16} />
@@ -3198,8 +2951,8 @@ function SettingsPage({
             </div>
           ))}
           <div className="warning">
-            Real HR data is blocked. Complete the documented release checklist
-            before enabling live access.
+            This is a demo workspace. Do not enter real staff records until the
+            go-live checks are complete.
           </div>
           <h3>Document categories</h3>
           <div className="category-chips">
@@ -3224,7 +2977,7 @@ function SettingsPage({
             <h2>Authorised accounts</h2>
             <p>Application access is separate from employee records.</p>
           </div>
-          <span className="muted">Invitations require Supabase Auth</span>
+          <span className="muted">New accounts can’t be invited from here yet</span>
         </div>
         <div className="table-scroll">
           <table>

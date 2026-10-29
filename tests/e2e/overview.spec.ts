@@ -38,7 +38,7 @@ test.describe("Overview", () => {
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],
-      ["hr", "/hr/dashboard", "header.h-top"],
+      ["hr", "/hr/dashboard", "[data-testid=title-bar]"],
     ];
     for (const [id, path, banner] of banners) {
       await page.goto("/overview");

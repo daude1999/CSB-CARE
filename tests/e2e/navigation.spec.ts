@@ -54,31 +54,63 @@ test.describe("Portal switching", () => {
     }
   });
 
-  test("HR is a full page load with its own styles, and Rostering and back does not leak either style sheet", async ({ page }) => {
+  test("HR sits in the platform shell; entering and leaving it is a full page load, so its style sheet never leaks", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
+    const rotaTitleFont = await page.getByTestId("title-bar").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily);
     await portal(page, "hr").click();
     await expect(page).toHaveURL(/\/hr\/dashboard/);
-    await expect(page.getByTestId("current-portal")).toHaveText("HR & Workforce");
+    // The same sidebar, top bar and module title bar as every other module, with the HR Hub's screens in the menu.
+    await expect(page.getByRole("heading", { level: 1, name: "HR Dashboard" })).toBeVisible();
+    await expect(portal(page, "hr")).toHaveClass(/shell-portal-current/);
+    await expect(currentPage(page)).toHaveText("HR Dashboard");
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
-    await expect(page.locator('link[href="/hr/hr-motion.css"]')).toHaveCount(1);
+    await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
+    // The HR Hub's styles stop at its own root: the shell's title bar reads exactly as it does on Rostering.
+    await expect(page.getByTestId("title-bar").locator("h1")).toHaveCSS("font-family", rotaTitleFont);
 
-    // HR to Rostering: the chosen entry shows it is opening, then Rostering loads without the HR sheet.
-    await page.getByTestId("portal-switcher").locator("summary").click();
-    await page.getByTestId("portal-switcher").getByRole("link", { name: /Rostering & Care Management/ }).click();
+    // Between HR screens the page is not reloaded.
+    await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));
+    await sidebar(page).getByRole("link", { name: "People", exact: true }).click();
+    await expect(page).toHaveURL(/\/hr\/people/);
+    await expect(page.getByTestId("title-bar").getByRole("heading", { level: 1, name: "People" })).toBeVisible();
+    await expect(currentPage(page)).toHaveText("People");
+    expect(await page.evaluate(() => (window as unknown as { stay?: number }).stay)).toBe(1);
+
+    // HR to Rostering: a fresh page without the HR sheet.
+    await portal(page, "rota").click();
     await expect(page).toHaveURL(/\/rota$/);
     await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(0);
-    await expect(portal(page, "rota")).toHaveClass(/shell-portal-current/);
+    expect(await page.evaluate(() => (window as unknown as { stay?: number }).stay)).toBeUndefined();
 
-    // Back to HR through the browser: no "leaving" state is left behind by the history cache.
+    // Back to HR through the browser, then forward again: nothing is left loading.
     await page.goBack();
-    await expect(page).toHaveURL(/\/hr\/dashboard/);
-    await expect(page.locator("html")).not.toHaveAttribute("data-portal-leaving", /.*/);
-    await expect(page.getByTestId("portal-switcher").locator("[data-pending]")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/hr\/people/);
     await page.goForward();
     await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
     await expect(page.getByTestId("nav-progress")).toHaveAttribute("data-phase", /idle|done/);
+  });
+
+  test("on HR pages the top-bar search opens the HR Hub's search, from the box or with Ctrl+K", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/hr/dashboard");
+    await expect(page.getByRole("heading", { level: 1, name: "HR Dashboard" })).toBeVisible();
+    await page.locator("header").getByRole("button", { name: "Search people or documents" }).first().click();
+    const dialog = page.getByRole("dialog", { name: "Search or jump to" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByPlaceholder("Search people, documents or actions…").fill("Amelia");
+    await dialog.getByPlaceholder("Search people, documents or actions…").press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await page.keyboard.press("Control+k");
+    await expect(dialog).toBeVisible();
+  });
+
+  test("bare /hr opens the HR Dashboard and keeps the chosen branch", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/hr?branch=all");
+    await expect(page).toHaveURL(/\/hr\/dashboard\?branch=all$/);
+    await expect(page.getByRole("combobox", { name: "Branch scope" })).toHaveValue("all");
   });
 
   test("people only see and reach the modules they may use", async ({ page }) => {

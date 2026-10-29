@@ -13,10 +13,9 @@ export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
 
-/** A portal with its own look (the HR Hub) loads as a fresh page so the two style sheets never mix. */
+/** A portal's entry in the sidebar. Links into or out of the HR Hub load a fresh page (HubEdge in navigation-progress.tsx). */
 function PortalAnchor({ portal, className, current, style, children }: { portal: ShellPortal; className: string; current: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
-  const props = { className, style, "data-portal-home": "", "data-portal": portal.id, "aria-current": current ? ("page" as const) : undefined };
-  return portal.separateApp ? <a href={portal.home} {...props}>{children}</a> : <Link href={portal.home} {...props}>{children}</Link>;
+  return <Link href={portal.home} className={className} style={style} data-portal-home="" data-portal={portal.id} aria-current={current ? "page" : undefined}>{children}</Link>;
 }
 
 /** Every portal this person may open, with the current portal's pages listed underneath it. */
@@ -275,6 +274,8 @@ export function MobileMenu(props: SidebarProps) {
 export function SearchShortcut({ targetId }: { targetId: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A page with its own search (the HR Hub's command palette) has already taken the shortcut.
+      if (e.defaultPrevented) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         (document.getElementById(targetId) as HTMLInputElement | null)?.focus();

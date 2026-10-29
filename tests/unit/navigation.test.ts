@@ -76,8 +76,7 @@ describe("motion tokens", () => {
 
   it("switch off for people who ask for reduced motion", () => {
     const css = readFileSync(resolve(__dirname, "../../src/app/globals.css"), "utf8");
-    const hr = readFileSync(resolve(__dirname, "../../public/hr/hr-motion.css"), "utf8");
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration: 0\.01ms !important/);
-    expect(hr).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+    // One rule for every element, including the HR Hub's screens, which now live inside the platform's pages.
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\*, \*::before, \*::after \{ animation-duration: 0\.01ms !important/);
   });
 });
