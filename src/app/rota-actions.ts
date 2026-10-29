@@ -13,6 +13,9 @@ import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendan
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
+import { addBand, addBankHoliday, createRateCard, removeBand, removeBankHoliday, saveFunder, setPackageFunder, setStaffPayCard, updateFinanceSettings } from "@/server/finance/rates";
+import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet } from "@/server/finance/timesheets";
+import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
@@ -579,4 +582,89 @@ export async function closeIncidentAction(fd: FormData) {
 
 export async function reopenIncidentAction(fd: FormData) {
   return handle(fd, (ctx) => reopenIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), str(fd, "reason")), "Incident reopened");
+}
+
+// ── Finance preparation (nothing is paid, submitted or sent) ──
+
+export async function saveFunderAction(fd: FormData) {
+  return handle(fd, async (ctx) => { await saveFunder(ctx, str(fd, "funderId") || null, Object.fromEntries(fd)); }, "Funder saved");
+}
+
+export async function createRateCardAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const c = await createRateCard(ctx, { kind: str(fd, "kind"), name: str(fd, "name"), effectiveFrom: str(fd, "effectiveFrom") });
+    return { to: `/rota/finance/rates?tab=cards&card=${c.id}#card-${c.id}`, ok: "Rate card created. Add its bands." };
+  }, "Created");
+}
+
+export async function addBandAction(fd: FormData) {
+  return handle(fd, (ctx) => addBand(ctx, str(fd, "rateCardId"), { label: str(fd, "label"), weekdays: fd.getAll("weekdays").map(Number), from: str(fd, "from"), to: str(fd, "to"), bankHoliday: bool(fd, "bankHoliday"), rate: str(fd, "rate"), unit: str(fd, "unit"), minimumMinutes: str(fd, "minimumMinutes") }), "Band added");
+}
+
+export async function removeBandAction(fd: FormData) {
+  return handle(fd, (ctx) => removeBand(ctx, str(fd, "bandId")), "Band removed");
+}
+
+export async function addBankHolidayAction(fd: FormData) {
+  return handle(fd, (ctx) => addBankHoliday(ctx, str(fd, "date"), str(fd, "name")), "Bank holiday added");
+}
+
+export async function removeBankHolidayAction(fd: FormData) {
+  return handle(fd, (ctx) => removeBankHoliday(ctx, str(fd, "holidayId")), "Bank holiday removed");
+}
+
+export async function financeSettingsAction(fd: FormData) {
+  return handle(fd, (ctx) => updateFinanceSettings(ctx, Object.fromEntries(fd)), "Settings saved");
+}
+
+export async function packageFunderAction(fd: FormData) {
+  return handle(fd, (ctx) => setPackageFunder(ctx, str(fd, "packageId"), str(fd, "funderId") || null), "Funder set");
+}
+
+export async function staffPayCardAction(fd: FormData) {
+  return handle(fd, (ctx) => setStaffPayCard(ctx, str(fd, "staffId"), str(fd, "rateCardId"), str(fd, "from")), "Pay rate set");
+}
+
+export async function generateTimesheetsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await generateTimesheets(ctx, str(fd, "week"));
+    return { ok: `${r.created} timesheets prepared, ${r.refreshed} drafts refreshed${r.skipped ? `, ${r.skipped} left alone (already submitted or approved)` : ""}.` };
+  }, "Prepared");
+}
+
+export async function bulkTimesheetsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const kind = str(fd, "kind") === "approve" ? "approve" : "submit";
+    const r = await bulkTimesheets(ctx, str(fd, "week"), kind);
+    const why = [...new Set(r.refused)].join(" ");
+    return { ok: `${r.done} timesheet${r.done === 1 ? "" : "s"} ${kind === "approve" ? "approved" : "submitted"}.${r.refused.length ? ` ${r.refused.length} not changed: ${why}` : ""}` };
+  }, "Done");
+}
+
+export async function adjustLineAction(fd: FormData) {
+  return handle(fd, (ctx) => adjustLine(ctx, str(fd, "timesheetId"), int(fd, "version", "Version"), str(fd, "lineId"), int(fd, "minutes", "Payable minutes"), str(fd, "reason")), "Line adjusted");
+}
+
+export async function submitTimesheetAction(fd: FormData) {
+  return handle(fd, (ctx) => submitTimesheet(ctx, str(fd, "timesheetId"), int(fd, "version", "Version")), "Submitted for approval");
+}
+
+export async function decideTimesheetAction(fd: FormData) {
+  return handle(fd, (ctx) => decideTimesheet(ctx, str(fd, "timesheetId"), int(fd, "version", "Version"), str(fd, "decision") === "REJECTED" ? "REJECTED" : "APPROVED", str(fd, "note")), "Decision recorded");
+}
+
+export async function prepareRunAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const kind = str(fd, "kind") === "invoice" ? "invoice" : "pay";
+    const run = kind === "pay" ? await preparePayRun(ctx, str(fd, "week")) : await prepareInvoiceRun(ctx, str(fd, "week"));
+    return { to: `/rota/finance/${kind === "pay" ? "payroll" : "invoices"}/${run.id}`, ok: "Draft prepared. Check the exceptions before asking for approval." };
+  }, "Prepared");
+}
+
+export async function approveRunAction(fd: FormData) {
+  return handle(fd, (ctx) => approveRun(ctx, str(fd, "kind") === "invoice" ? "invoice" : "pay", str(fd, "runId")), "Approved. Nothing has been paid or sent; export the file when ready.");
+}
+
+export async function voidRunAction(fd: FormData) {
+  return handle(fd, (ctx) => voidRun(ctx, str(fd, "kind") === "invoice" ? "invoice" : "pay", str(fd, "runId"), str(fd, "reason")), "Run voided");
 }

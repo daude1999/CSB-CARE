@@ -183,10 +183,11 @@ export async function previewBuild(ctx: Ctx, input: { weekStart: string; areaIds
 }
 
 /** Saves a previewed build. Re-plans inside the transaction (with locks), so the saved week is exactly what the rules allow now. */
-export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds?: string[]; cycleWeek?: number }) {
+/** `demoHistory` is used only by the demo seed to create last week's history; no action or route passes it. */
+export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds?: string[]; cycleWeek?: number }, opts: { demoHistory?: boolean } = {}) {
   const scope = await rotaScope(ctx, "rota.build");
   const weekStart = parseWeek(input.weekStart);
-  if (weekStart < mondayOf(londonDate())) throw new ValidationError("Past weeks cannot be built");
+  if (weekStart < mondayOf(londonDate()) && !opts.demoHistory) throw new ValidationError("Past weeks cannot be built");
   return db.$transaction(
     async (tx) => {
       // One build of an organisation's week at a time; a second click waits, then finds the visits already built.

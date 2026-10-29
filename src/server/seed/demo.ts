@@ -60,7 +60,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   }
   await seedHrWorkspace(org.id);
   await linkHrBranchesAndProject(org.id);
-  if (opts.care) await seedCareDemo(org.id, { manager: ids["manager@care-solution.demo"]!, coordinator: ids["coordinator@care-solution.demo"]!, carer: ids["carer@care-solution.demo"] });
+  if (opts.care) await seedCareDemo(org.id, { manager: ids["manager@care-solution.demo"]!, coordinator: ids["coordinator@care-solution.demo"]!, carer: ids["carer@care-solution.demo"], finance: ids["finance@care-solution.demo"] });
   // Platform reviewer is also a member for viewing (no customer permissions beyond reading).
   void regulatory;
 

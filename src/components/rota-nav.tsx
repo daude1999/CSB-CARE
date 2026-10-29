@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, ShieldWarning, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, Bank, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, ShieldWarning, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -48,10 +48,11 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
     [
       "Finance",
       [
-        ["/rota/finance/timesheets", "Timesheets", <CalendarCheck key="i" {...i} />, "finance.view", false],
-        ["/rota/finance/rates", "Funders & Rates", <Coins key="i" {...i} />, "finance.view", false],
-        ["/rota/finance/invoices", "Invoice Preparation", <Receipt key="i" {...i} />, "finance.view", false],
-        ["/rota/finance/payroll", "Payroll Preparation", <Wallet key="i" {...i} />, "finance.view", false],
+        ["/rota/finance", "Finance Overview", <Bank key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/timesheets", "Timesheets", <CalendarCheck key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/rates", "Funders & Rates", <Coins key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/invoices", "Invoice Preparation", <Receipt key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/payroll", "Payroll Preparation", <Wallet key="i" {...i} />, "finance.view", true],
       ],
     ],
     [

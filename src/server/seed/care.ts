@@ -10,6 +10,9 @@ import { encryptKeySafe } from "@/server/care/keysafe";
 import { PLAN_SECTIONS, approvePlan, draftFingerprint, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { createRisk } from "@/server/care/risks";
 import { closeIncident, reportIncident, triageIncident } from "@/server/care/incidents";
+import { addBand, addBankHoliday, createRateCard, saveFunder, setPackageFunder, updateFinanceSettings } from "@/server/finance/rates";
+import { bulkTimesheets, generateTimesheets } from "@/server/finance/timesheets";
+import { prepareInvoiceRun, preparePayRun } from "@/server/finance/runs";
 import type { Ctx } from "@/server/auth/rbac";
 import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
 
@@ -46,7 +49,7 @@ const PEOPLE: [string, string, string, "ANY" | "FEMALE" | "MALE", "LOW" | "MEDIU
  * service users with contacts and care plans, a 4-week template pattern, and the current and next week built from it
  * through the real build engine. Visits already finished today are given attendance records labelled as demo history.
  */
-export async function seedCareDemo(organisationId: string, people: { manager: string; coordinator: string; carer?: string }) {
+export async function seedCareDemo(organisationId: string, people: { manager: string; coordinator: string; carer?: string; finance?: string }) {
   if (await db.serviceUser.count({ where: { organisationId } })) return;
   const today = londonDate();
   const branches = await db.branch.findMany({ where: { organisationId } });
@@ -193,12 +196,14 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
 
   // Build this week and next through the real engine, then publish them.
   const coordinator = await ctxForUser(people.coordinator, organisationId);
-  for (const week of [mondayOf(today), addDays(mondayOf(today), 7)]) {
-    const { build } = await confirmBuild(coordinator, { weekStart: week });
+  // Last week too (history for timesheets, payroll and invoices), then this week and next.
+  for (const week of [addDays(mondayOf(today), -7), mondayOf(today), addDays(mondayOf(today), 7)]) {
+    const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: week < mondayOf(today) });
     await publishBuild(coordinator, build.id);
   }
   await seedAttendanceHistory(organisationId, people.manager);
   await seedCareRecords(organisationId, coordinator, managerCtx);
+  await seedFinance(organisationId, coordinator, managerCtx, people.finance);
 }
 
 /** Demo care records, written through the real services: plans drafted by the coordinator and approved by the manager. */
@@ -267,5 +272,52 @@ async function seedAttendanceHistory(organisationId: string, managerId: string) 
     await db.visit.update({ where: { id: v.id }, data: { status: "IN_PROGRESS", actualStart: inAt } });
     await db.visit.update({ where: { id: v.id }, data: { status: "COMPLETED", actualEnd: outAt, statusChangedAt: outAt } });
     await db.visitAssignment.updateMany({ where: { visitId: v.id, removedAt: null }, data: { acknowledgedAt: new Date(v.scheduledStart.getTime() - 86400000) } });
+  }
+}
+
+/** Demo finance set-up and last week's preparation, through the real services. Fictional councils and rates. */
+async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ctx, financeUserId?: string) {
+  const today = londonDate();
+  const from = `${today.slice(0, 4)}-04-01` <= today ? `${today.slice(0, 4)}-04-01` : `${Number(today.slice(0, 4)) - 1}-04-01`;
+  const weekdays = [1, 2, 3, 4, 5];
+  const council = await createRateCard(manager, { kind: "CHARGE", name: "Council framework", effectiveFrom: from });
+  for (const b of [
+    { label: "Weekday day", weekdays, from: "07:00", to: "20:00", rate: "24.80", minimumMinutes: "30" },
+    { label: "Weekday evening", weekdays, from: "20:00", to: "24:00", rate: "27.20", minimumMinutes: "30" },
+    { label: "Weekday night", weekdays, from: "00:00", to: "07:00", rate: "27.20", minimumMinutes: "30" },
+    { label: "Weekend", weekdays: [6, 7], from: "00:00", to: "24:00", rate: "27.90", minimumMinutes: "30" },
+    { label: "Bank holiday", weekdays: [], from: "00:00", to: "24:00", rate: "37.20", minimumMinutes: "30", bankHoliday: true },
+  ]) await addBand(manager, council.id, { bankHoliday: false, unit: "PER_HOUR", ...b });
+  const privateCard = await createRateCard(manager, { kind: "CHARGE", name: "Private clients", effectiveFrom: from });
+  await addBand(manager, privateCard.id, { label: "Any time", weekdays: [1, 2, 3, 4, 5, 6, 7], from: "00:00", to: "24:00", bankHoliday: false, rate: "29.50", unit: "PER_HOUR" });
+  const pay = await createRateCard(manager, { kind: "PAY", name: "Care worker pay", effectiveFrom: from });
+  await addBand(manager, pay.id, { label: "Weekday", weekdays, from: "00:00", to: "24:00", bankHoliday: false, rate: "12.60", unit: "PER_HOUR" });
+  await addBand(manager, pay.id, { label: "Weekend", weekdays: [6, 7], from: "00:00", to: "24:00", bankHoliday: false, rate: "13.40", unit: "PER_HOUR" });
+  await addBand(manager, pay.id, { label: "Bank holiday", weekdays: [], from: "00:00", to: "24:00", bankHoliday: true, rate: "18.90", unit: "PER_HOUR" });
+  await updateFinanceSettings(manager, { defaultPayRateCardId: pay.id, payBasis: "ACTUAL", mileage: "0.45", invoicePrefix: "CSB" });
+  for (const [date, name] of [["2026-12-25", "Christmas Day"], ["2026-12-28", "Boxing Day (substitute day)"], ["2027-01-01", "New Year's Day"], ["2027-03-26", "Good Friday"], ["2027-03-29", "Easter Monday"]] as const) await addBankHoliday(manager, date, name);
+
+  const funder = async (name: string, kind: string, card: string, basis: string, cancel: string) => saveFunder(manager, null, { name, kind, chargeRateCardId: card, chargeBasis: basis, paymentTermsDays: "30", shortNoticeCancelHours: cancel, reference: "", billingEmail: "" });
+  const byTown: Record<string, string> = {
+    Liverpool: await funder("Liverpool City Council (fictional)", "LOCAL_AUTHORITY", council.id, "SCHEDULED", "24"),
+    Portsmouth: await funder("Portsmouth City Council (fictional)", "LOCAL_AUTHORITY", council.id, "SCHEDULED", "24"),
+    "Tower Hamlets": await funder("Tower Hamlets Council (fictional)", "LOCAL_AUTHORITY", council.id, "ACTUAL", ""),
+  };
+  const privately = await funder("Private clients", "PRIVATE", privateCard.id, "ACTUAL", "48");
+  const packages = await db.carePackage.findMany({ where: { organisationId, status: "ACTIVE" }, include: { serviceUser: { select: { town: true, reference: true } } }, orderBy: { serviceUser: { reference: "asc" } } });
+  for (const [i, p] of packages.entries()) {
+    if (i === packages.length - 1) continue; // left unfunded, so the invoice run shows the exception
+    await setPackageFunder(manager, p.id, i % 5 === 4 ? privately : (byTown[p.serviceUser.town ?? ""] ?? privately));
+  }
+
+  // Last week: timesheets prepared and submitted by the coordinator, approved by finance; draft runs prepared by finance.
+  const lastWeek = addDays(mondayOf(today), -7);
+  await generateTimesheets(coordinator, lastWeek);
+  await bulkTimesheets(coordinator, lastWeek, "submit");
+  if (financeUserId) {
+    const finance = await ctxForUser(financeUserId, organisationId);
+    await bulkTimesheets(finance, lastWeek, "approve");
+    await preparePayRun(finance, lastWeek);
+    await prepareInvoiceRun(finance, lastWeek);
   }
 }
