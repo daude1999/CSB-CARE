@@ -51,7 +51,7 @@ export default async function Dashboard() {
 
   return (
     <div className="relative">
-      <h1 className="flex h-[60px] items-center justify-center rounded-t-[6px] bg-navy-900 px-4 text-[20px] font-medium tracking-normal text-white">Compliance Centre Dashboard</h1>
+      <h1 className="flex h-[60px] items-center justify-center rounded-t-[6px] bg-[var(--module,#0f2a4f)] px-4 text-[20px] font-medium tracking-normal text-white">Compliance Centre Dashboard</h1>
       <div className="bg-[#f1f2f5] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-0 pb-3 pt-2">
           {org?.isDemo ? (

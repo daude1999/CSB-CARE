@@ -4,7 +4,7 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("@/server/auth/current", () => ({ requireCtx: vi.fn() }));
 import type { Ctx } from "@/server/auth/rbac";
 import { canUsePortal, portalsFor } from "@/server/auth/portals";
-import { portalForPath } from "@/lib/portals";
+import { PORTALS, portalForPath } from "@/lib/portals";
 import { withBase } from "@/hr/nav";
 
 const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, orgRoles: [], platformRoles: [], hrUserId: null, ...over });
@@ -60,3 +60,17 @@ describe("portal routes", () => {
     expect(withBase("mailto:a@example.com")).toBe("mailto:a@example.com");
   });
 });
+
+describe("module colours", () => {
+  // WCAG relative luminance; white text on each module colour must reach AA (4.5:1).
+  const lum = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  it("gives every portal its own colour with readable white text", () => {
+    const colours = PORTALS.map((p) => p.colour);
+    expect(new Set(colours).size).toBe(PORTALS.length);
+    for (const p of PORTALS) expect(1.05 / (lum(p.colour) + 0.05), p.id).toBeGreaterThanOrEqual(4.5);
+  });
+});
+

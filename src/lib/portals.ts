@@ -16,16 +16,20 @@ export interface Portal {
   planned?: string;
   /** Portals with their own look (the HR Hub) are opened with a full page load so their styles never mix. */
   separateApp?: boolean;
+  /** The module colour: the sidebar marker, the portal's page headers and its Overview tile. White text on it meets WCAG AA. */
+  colour: string;
+  /** A light tint of the module colour for panels behind figures. */
+  tint: string;
 }
 
 export const PORTALS: readonly Portal[] = [
-  { id: "overview", name: "Overview", code: "OV", summary: "Today across every portal", home: "/overview" },
-  { id: "service-users", name: "Service Users", code: "SU", summary: "People you support, care plans, contacts", home: "/service-users", planned: "Stage D" },
-  { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/" },
-  { id: "rota", name: "Rota & Visits", code: "RV", summary: "Weekly rota, visits, call monitoring", home: "/rota", planned: "Stage D" },
-  { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", separateApp: true },
-  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Reports and the AI assistant", home: "/reports" },
-  { id: "admin", name: "Administration", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings" },
+  { id: "overview", name: "Overview", code: "OV", summary: "Today across every portal", home: "/overview", colour: "#0e7490", tint: "#e6f6fa" },
+  { id: "service-users", name: "Service Users", code: "SU", summary: "People you support, care plans, contacts", home: "/service-users", planned: "Stage D", colour: "#b45309", tint: "#fdf1e4" },
+  { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/", colour: "#1f5fd1", tint: "#eaf1fd" },
+  { id: "rota", name: "Rota & Visits", code: "RV", summary: "Weekly rota, visits, call monitoring", home: "/rota", planned: "Stage D", colour: "#6b46c9", tint: "#f1ecfc" },
+  { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", separateApp: true, colour: "#c92a54", tint: "#fdebef" },
+  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Reports and the AI assistant", home: "/reports", colour: "#0b6f99", tint: "#e5f4fa" },
+  { id: "admin", name: "Administration", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#4b5666", tint: "#eef0f3" },
 ];
 
 /** Planned pieces that are not portals of their own, listed under "Coming later". */

@@ -12,8 +12,8 @@ export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
 
 /** A portal with its own look (the HR Hub) loads as a fresh page so the two style sheets never mix. */
-function PortalAnchor({ portal, className, current, children }: { portal: ShellPortal; className: string; current: boolean; children: React.ReactNode }) {
-  const props = { className, "data-portal-home": "", "aria-current": current ? ("page" as const) : undefined };
+function PortalAnchor({ portal, className, current, style, children }: { portal: ShellPortal; className: string; current: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
+  const props = { className, style, "data-portal-home": "", "aria-current": current ? ("page" as const) : undefined };
   return portal.separateApp ? <a href={portal.home} {...props}>{children}</a> : <Link href={portal.home} {...props}>{children}</Link>;
 }
 
@@ -35,7 +35,8 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
           const pages = current ? (items[p.id] ?? []) : [];
           return (
             <li key={p.id}>
-              <PortalAnchor portal={p} current={current && path === p.home} className={`shell-portal ${current ? "shell-portal-current" : ""}`}>
+              <PortalAnchor portal={p} current={current && path === p.home} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
+                <span aria-hidden="true" className="absolute bottom-[10px] left-0 top-[10px] w-[3px] rounded-full" style={{ background: p.colour, opacity: current ? 0 : 1 }} />
                 <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
                 <span className={`min-w-0 truncate ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
                 {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
