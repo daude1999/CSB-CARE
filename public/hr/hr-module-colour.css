@@ -1,7 +1,7 @@
 /* HR & Workforce module colour (Portal.colour for "hr" in src/lib/portals.ts) on the HR Hub top bar, so the
    banner matches the HR tile, the sidebar marker and the rest of the platform's module colours.
    Kept as a plain sheet loaded after hr-hub.css so the prebuilt HR Hub CSS stays untouched. */
-.h-top.topbar { background: #c92a54; border-bottom-color: #c92a54; color: #fff; }
+.h-top.topbar { background: #c2410c; border-bottom-color: #c2410c; color: #fff; }
 .h-top .breadcrumbs, .h-top .breadcrumbs strong, .h-top .breadcrumbs a, .h-top .breadcrumbs svg { color: #fff; }
 .h-top .breadcrumbs a:hover { color: rgb(255 255 255 / 0.8); }
 .h-top > .icon-btn { color: #fff; }

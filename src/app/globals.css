@@ -52,9 +52,9 @@
    * flat deep-navy sidebar, warm off-white top bar. Colours are fixed here rather than themed so the shell
    * matches the reference in every theme; page content keeps using the theme tokens.
    */
-  .shell-sidebar { background: #092135; color: #fff; font-family: "Inter Variable", var(--font-sans); }
+  .shell-sidebar { background: #0b2340; color: #fff; font-family: "Inter Variable", var(--font-sans); }
   .shell-sidebar a { text-decoration: none; }
-  .shell-portal { @apply flex h-[38px] items-center gap-[10px] rounded-[6px] px-[10px] text-[13.5px] tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; }
+  .shell-portal { @apply flex min-h-[40px] py-[6px] items-center gap-[12px] rounded-[7px] px-[11px] text-[13.5px] tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; }
   .shell-portal-current { background: #17527b; }
   .shell-portal-current:hover { background: #1b5d8a; }
   .shell-page { @apply flex h-[29px] items-center gap-[8px] rounded-[6px] px-[7px] text-[12.5px] leading-none text-[#d6e0ea] hover:bg-white/[0.06] hover:text-white; }
@@ -69,15 +69,17 @@
    * so the other pages and themes are unchanged. Serif display face, Inter for the interface, warm neutrals.
    */
   /* Overview: one coloured tile per module, from the approved mock-up. */
-  .ov-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; background: #f8f7f4; min-height: 100%; }
+  .ov-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; background: #f3f5f9; min-height: 100%; }
   .ov-root a { text-decoration: none; }
   .ov-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
-  .ov-tile { @apply flex flex-col overflow-hidden rounded-[10px] border border-[#ebe8e2] bg-white; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 20px rgb(11 21 48 / 0.05); }
-  .ov-tile-head { @apply flex min-h-[48px] items-center gap-[10px] px-[14px] py-[11px] text-white; }
+  .ov-tile { @apply flex flex-col overflow-hidden rounded-[10px] border border-[#e6e9ef] bg-white; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 20px rgb(11 21 48 / 0.05); }
+  .ov-tile-head { @apply flex min-h-[46px] items-center gap-[10px] px-[14px] py-[10px] text-white; }
   .ov-tile-planned li { color: #5f6b7a; }
   .ov-num { @apply flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold; background: rgb(255 255 255 / 0.22); }
   .ov-figures { @apply mx-[14px] mt-1.5 rounded-[7px] px-3 py-2.5; }
-  .ov-cta { @apply flex w-fit items-center gap-1.5 px-4 pb-3.5 pt-3 text-[13px] font-semibold hover:underline; }
+  .ov-cta { @apply mx-4 mb-3 mt-2.5 flex h-[36px] items-center justify-between rounded-[7px] border bg-white px-3.5 text-[13.5px] font-semibold hover:bg-[#fafbfc]; }
+  .ov-preview { @apply mx-3 mt-3 h-[110px] overflow-hidden rounded-[8px] border border-[#e8ebf0] bg-white; }
+  .ov-hero { background: #0b2a4a; box-shadow: 0 1px 2px rgb(11 21 48 / 0.08); }
   .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }

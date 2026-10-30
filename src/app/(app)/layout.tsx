@@ -39,10 +39,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Each portal's pages, listed under it in the sidebar when it is open. Pages keep the addresses they had before portals existed.
   const items: Record<string, ShellItem[]> = {
-    overview: [...page("/overview", "Today", <House {...i} />), ...page("/acknowledgements", "My Reading List", <Eyeglasses {...i} />), ...page("/notifications", "Notifications", <Bell {...i} />)],
+    // The Overview stands alone in the sidebar, as in the approved design; notifications open from the bell.
+    overview: [],
     policy: [
       ...page("/", "Compliance Dashboard", <Sparkle {...i} />),
       ...page("/policies", ctx.organisationId ? "Policy Library" : "Template Library", <BookOpenText {...i} />),
+      ...page("/acknowledgements", "My Reading List", <Eyeglasses {...i} />),
       ...page("/changes", "Regulatory Updates", <Newspaper {...i} />),
       ...page("/requirements", "Requirements Register", <ListChecks {...i} />),
       ...page("/queue", "Policy Change Queue", <ClockCounterClockwise {...i} />, can.queue),
@@ -96,7 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     person: { name: ctx.userName, initials, role: roleName },
     switchAction: switchOrgAction,
     signOutAction: logoutAction,
-    logo: <Monogram className="h-[34px]" />,
+    logo: <Monogram className="h-[42px]" />,
   };
   return (
     <div className="flex min-h-screen flex-col">
@@ -123,14 +125,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <SearchShortcut targetId="global-search" />
             </form>
             <div className="ml-auto flex items-center gap-4">
+              {me?.branch?.name ? (
+                <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
+                  <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
+                </span>
+              ) : null}
               {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
               <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
                 <Bell size={21} aria-hidden="true" />
                 {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
               </Link>
               <Link href="/assistant" className="flex items-center gap-2 text-[14px] text-[#0b1530] no-underline hover:text-[#0646b1]">
-                <Question size={21} aria-hidden="true" /><span className="hidden sm:inline">Help</span><span className="sr-only sm:hidden">Help</span>
+                <Question size={23} aria-hidden="true" /><span className="sr-only">Help</span>
               </Link>
+              <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
             </div>
           </header>
           <MainArea>{children}</MainArea>
