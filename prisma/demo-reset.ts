@@ -7,7 +7,7 @@ import { db } from "../src/lib/db";
  *   - this is the production build on Vercel;
  *   - every organisation in the database is a demo organisation (no customer's records can be touched);
  *   - this RESET_ID has not been applied before (recorded in the audit log, which is kept immutable).
- * If the load fails part-way, the build carries on: the normal seed then fills the empty database with the standard
+ * If the load fails twice, the build carries on: the normal seed then fills the empty database with the standard
  * demo, and the next build tries the reset again.
  */
 const RESET_ID = "2026-10-30-three-branch-rota";
@@ -25,13 +25,19 @@ async function main() {
   await db.$disconnect();
 
   console.log(`demo reset: replacing demo data (${RESET_ID})`);
-  run("npx prisma migrate reset --force --skip-seed --skip-generate");
-  try {
-    run("npx tsx prisma/seed-uat.ts");
-  } catch (e) {
-    console.error("demo reset: the full-scale load failed; emptying the database so the standard demo seed runs instead", e);
+  // Two attempts, each from an empty database; if both fail, leave it empty so the standard demo seed fills it.
+  for (let attempt = 1; ; attempt++) {
     run("npx prisma migrate reset --force --skip-seed --skip-generate");
-    return;
+    try {
+      run("npx tsx prisma/seed-uat.ts");
+      break;
+    } catch (e) {
+      console.error(`demo reset: the full-scale load failed (attempt ${attempt})`, e);
+      if (attempt === 2) {
+        run("npx prisma migrate reset --force --skip-seed --skip-generate");
+        return;
+      }
+    }
   }
   await db.auditLog.create({ data: { action: "demo.reset", entityType: "Database", entityId: RESET_ID, data: { note: "Hosted demo replaced with the full-scale three-branch test data, as approved by the owner" } } });
   console.log("demo reset: done");
