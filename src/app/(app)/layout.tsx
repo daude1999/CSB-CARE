@@ -6,13 +6,16 @@ import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
 import { Logo, Monogram } from "@/components/brand";
-import { MobileMenu, SearchShortcut, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
+import { MobileMenu, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
+import { ShellSearch } from "@/components/shell-search";
+import { hrItems } from "@/components/hr-nav";
 import { MainArea } from "@/components/main-area";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, MagnifyingGlass, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -63,7 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...page("/rota/reports", "Rota Reports", <CalendarDots {...i} />, hasOrgPermission(ctx, "rota.view")),
       ...page("/assistant", "AI Assistant", <ChatTeardropText {...i} />, can.assistant),
     ],
-    hr: [...page("/workforce/absences", "Holidays & Sickness", <CalendarDots {...i} />, Boolean(ctx.hrUserId)), ...page("/workforce/availability", "Availability", <ClockCounterClockwise {...i} />, Boolean(ctx.hrUserId))],
+    hr: hrItems(ctx, i),
     admin: [
       ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
       ...page("/admin/users", "Users", <UsersThree {...i} />, can.settings),
@@ -102,6 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   return (
     <div className="flex min-h-screen flex-col">
+      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-[14px] text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       {setupLeft ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
           <Warning size={18} weight="fill" aria-hidden="true" className="shrink-0" />
@@ -113,17 +117,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ShellSidebar {...shell} />
         <div className="shell-main flex min-w-0 flex-1 flex-col">
           <header className="shell-topbar sticky top-0 z-20 flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
+            <NavigationProgress renderKey={String(Date.now())} />
             <MobileMenu {...shell} />
             <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
-            <form action="/policies" method="get" role="search" className="hidden min-w-0 flex-1 sm:block sm:max-w-[776px]">
-              <label htmlFor="global-search" className="shell-search">
-                <MagnifyingGlass size={17} aria-hidden="true" className="shrink-0 text-[#3a4b5e]" />
-                <span className="sr-only">Search policies</span>
-                <input id="global-search" name="q" type="search" placeholder="Search policies, categories, keywords…" className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0b1530] placeholder:text-[#5f6b7a] focus:outline-none" />
-                <kbd className="hidden rounded-[4px] border border-[#dcd9d2] bg-white px-1.5 text-[10.5px] leading-[18px] text-[#3a4b5e] lg:inline">⌘ K</kbd>
-              </label>
-              <SearchShortcut targetId="global-search" />
-            </form>
+            <ShellSearch />
             <div className="ml-auto flex items-center gap-4">
               {me?.branch?.name ? (
                 <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">

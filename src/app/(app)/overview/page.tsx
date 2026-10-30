@@ -103,7 +103,7 @@ interface CardSpec {
 }
 
 function ModuleLink({ portal, className, style, label, children }: { portal: Portal; className: string; style?: React.CSSProperties; label?: string; children: React.ReactNode }) {
-  return portal.separateApp ? <a href={portal.home} className={className} style={style} aria-label={label}>{children}</a> : <Link href={portal.home} className={className} style={style} aria-label={label}>{children}</Link>;
+  return <Link href={portal.home} className={className} style={style} aria-label={label}>{children}</Link>;
 }
 
 function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {

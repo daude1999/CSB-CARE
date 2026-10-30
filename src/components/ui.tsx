@@ -13,7 +13,7 @@ export function PageHeader({ title, subtitle, actions, back = "/" }: { title: Re
       <TitleBar title={title} back={back ?? undefined} />
       {subtitle || actions ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[3px] bg-white px-[15px] py-2.5">
-          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
+          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 basis-[18rem] items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
           {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
         </div>
       ) : <div className="mb-3" />}
@@ -86,7 +86,7 @@ export function SegmentNav({ items, label, alert = false }: { items: { href: str
   return (
     <nav aria-label={label} className="flex gap-[6px] overflow-x-auto px-2 pt-1">
       {items.map((i) => (
-        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 no-underline ${i.active ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
+        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 no-underline transition-colors duration-[120ms] ${i.active ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
           {i.label}
           {i.count !== undefined ? <span className={`flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-[#f06a4d] text-white" : "bg-slate-200 text-slate-700"}`}>{i.count}</span> : null}
         </Link>
@@ -138,7 +138,7 @@ export function Stat({ label, value, href, tone = "navy", hint }: { label: strin
       </span>
     </>
   );
-  const cls = "flex min-h-[66px] items-center gap-2.5 rounded-[3px] bg-white py-2 pl-2.5 pr-3 sm:gap-[13px] sm:pl-[13px] sm:pr-4 no-underline shadow-[0_0_0_1px_#eef1f3]";
+  const cls = "flex min-h-[66px] items-center gap-2.5 rounded-[3px] bg-white py-2 pl-2.5 pr-3 sm:gap-[13px] sm:pl-[13px] sm:pr-4 no-underline shadow-[0_0_0_1px_#eef1f3] transition-shadow duration-[120ms]";
   return href ? <Link href={href} className={`${cls} hover:shadow-[0_0_0_1px_#c4cfdd]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
@@ -152,7 +152,7 @@ export function Flash({ searchParams }: { searchParams: Record<string, string | 
   const ok = typeof searchParams.ok === "string" ? searchParams.ok : null;
   if (!error && !ok) return null;
   return (
-    <div role={error ? "alert" : "status"} className={`mb-3 rounded-[3px] border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+    <div role={error ? "alert" : "status"} className={`flash mb-3 rounded-[3px] border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
       {error ?? ok}
     </div>
   );
