@@ -8,7 +8,10 @@ import { hrHeadline, hrPeoplePreview, type HrPersonStatus } from "@/server/hr/su
 import { rotaHeadline } from "@/server/rota/summary";
 import { activeServiceUsers, activeStaff, rotaSnapshot, signOffSeries, type DailySeries, type RotaBoardRow, type Trend } from "@/server/overview/snapshot";
 import { employeeRoute } from "@/hr/lib/routes";
-import { OverviewBanner, OverviewChart, type ChartSeries } from "@/components/overview-ui";
+import { ModuleGrid, OverviewBanner, OverviewChart, type ChartSeries } from "@/components/overview-ui";
+import { arrange, overviewOrder } from "@/server/overview/layout";
+import { saveOverviewOrderAction } from "@/app/actions";
+import { Flash } from "@/components/ui";
 import type { Portal, PortalId } from "@/lib/portals";
 import {
   ArrowDown, ArrowRight, ArrowSquareOut, ArrowUp, Bell, Buildings, CalendarBlank, CalendarDots, CalendarPlus, CaretRight, ChartBar, CheckCircle, ClipboardText,
@@ -111,7 +114,7 @@ function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {
         <span aria-hidden="true" className="ov-num">{n}</span>
         <span aria-hidden="true" className="flex shrink-0">{spec.icon}</span>
         <h2 className="min-w-0 text-[15px] font-semibold leading-tight text-white">{portal.name}</h2>
-        <ModuleLink portal={portal} label={`Open ${portal.name}`} className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-white hover:bg-white/15">
+        <ModuleLink portal={portal} label={`Go to ${portal.name}`} className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-white hover:bg-white/15">
           <ArrowSquareOut size={18} aria-hidden="true" />
         </ModuleLink>
       </div>
@@ -270,8 +273,11 @@ function AdminPreview({ links }: { links: { href: string; label: string; icon: R
  * The Overview: the organisation's figures for today, quick actions, one card per module this person may open with a
  * preview drawn from real records, and the items that need attention. Every figure is counted from the database.
  */
-export default async function Overview() {
+export default async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requirePortal("overview");
+  const sp = await searchParams;
+  const savedOrder = await overviewOrder(ctx);
+  const arranging = sp.arrange === "1" && Boolean(ctx.organisationId);
   const portals = new Map(portalsFor(ctx).map((p) => [p.id, p] as const));
   const has = (id: PortalId) => portals.has(id);
   const orgId = ctx.organisationId;
@@ -396,11 +402,14 @@ export default async function Overview() {
   if (rotaPortal && rotaFigures?.openAlerts) attention.push({ count: rotaFigures.openAlerts, text: rotaFigures.openAlerts === 1 ? "Rota alert needs attention" : "Rota alerts need attention", where: "Rostering & Care Management", href: "/rota/exceptions", icon: <WarningCircle size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
   if (hrPortal && hr?.overdue) attention.push({ count: hr.overdue, text: hr.overdue === 1 ? "HR check overdue" : "HR checks overdue", where: "HR & Workforce", href: hrPortal.home, external: true, icon: <UsersThree size={17} />, colour: hrPortal.colour, tint: hrPortal.tint });
 
+  const ordered = ctx.organisationId ? arrange(cards.map((c) => c.key), savedOrder).flatMap((k) => cards.filter((c) => c.key === k)) : cards;
+
   const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration";
 
   return (
     <div className="ov-root">
       <div className="space-y-2.5 px-4 pb-6 pt-3 md:px-[16px]">
+        <Flash searchParams={sp} />
         <section aria-label="Today at a glance" className="flex flex-col gap-3 xl:flex-row">
           <div className="ov-hero flex shrink-0 flex-col justify-center rounded-[12px] px-[18px] py-3 text-white xl:w-[252px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -436,8 +445,11 @@ export default async function Overview() {
           </ul>
         </nav>
 
-        <div className="grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c, i) => <ModuleCard key={c.key} spec={c} n={i + 1} />)}
+        <ModuleGrid
+          arranging={arranging}
+          saveAction={saveOverviewOrderAction}
+          items={ordered.map((c, i) => ({ key: c.key, name: c.portal.name, node: <ModuleCard spec={c} n={i + 1} /> }))}
+          after={
           <section aria-labelledby="attention-title" className="ov-tile px-4 pb-2 pt-3.5" data-testid="needs-attention">
             <div className="mb-1 flex items-center justify-between">
               <h2 id="attention-title" className="text-[16px] font-semibold text-[#0b1530]">Needs your attention</h2>
@@ -466,7 +478,8 @@ export default async function Overview() {
               <p className="text-[13px] text-[#4f5b6c]">Nothing needs your attention right now.</p>
             )}
           </section>
-        </div>
+          }
+        />
 
         <OverviewBanner />
       </div>

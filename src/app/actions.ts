@@ -28,6 +28,7 @@ import { askAssistant, type AssistantResult } from "@/server/search/assistant";
 export type AskState = { question: string; result?: AssistantResult; error?: string };
 
 import { handle, str } from "./action-kit";
+import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
 export async function loginAction(fd: FormData) {
@@ -380,4 +381,19 @@ export async function askAction(_prev: AskState, fd: FormData): Promise<AskState
     logger.error({ err: (e as Error).message }, "assistant failed");
     return { question, error: e instanceof AppError ? e.message : "The assistant could not answer just now. Search results are still available from the policy library." };
   }
+}
+
+// ───────── overview layout (a personal preference, scoped to the session's own membership)
+export async function saveOverviewOrderAction(fd: FormData) {
+  const reset = str(fd, "reset") === "1";
+  await handle(
+    fd,
+    async (ctx) => {
+      const order = reset ? [] : str(fd, "order").split(",").map((s) => s.trim()).filter(Boolean);
+      await saveOverviewOrder(ctx, order);
+      // Saving leaves arrange mode; restoring the standard order stays in it so the person can carry on arranging.
+      return reset ? undefined : "/overview";
+    },
+    reset ? "The module boxes are back in the standard order." : "Your module order is saved.",
+  );
 }
