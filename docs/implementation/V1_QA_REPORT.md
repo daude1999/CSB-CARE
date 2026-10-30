@@ -4,7 +4,7 @@
 
 ## Result
 
-**Pass, with one open item.** 280 unit and integration tests, 14 HR Hub tests and 51 browser tests pass. The browser tests include the principal scenario and a walk of 475 screens for 8 roles. One open item: a browser console notice from React appears on 1–3 screens per walk (details below). Nothing has been checked by a person yet: use `V1_ACCEPTANCE_CHECKLIST.md` before real data goes in.
+**Pass, with one open item.** After bringing in the latest `main`, 294 unit and integration tests, 14 HR Hub tests and 68 browser tests pass, with none failing. The browser tests include the principal scenario and a walk of 475 screens for 8 roles. One open item: a browser console notice from React appears on 1–3 screens per walk (once in the final run; details below). Nothing has been checked by a person yet: use `V1_ACCEPTANCE_CHECKLIST.md` before real data goes in.
 
 ## The principal scenario
 
