@@ -12,5 +12,5 @@ export function MainArea({ children }: { children: React.ReactNode }) {
   const style = { "--module": portalById(portalForPath(path)).colour } as React.CSSProperties;
   if (path === "/policies" || path === "/overview") return <main style={style} className="w-full min-w-0 flex-1">{children}</main>;
   const wide = path === "/";
-  return <main style={style} className="w-full flex-1 bg-white px-4 pb-4 pt-3">{wide ? children : <div className="page-canvas">{children}</div>}</main>;
+  return <main style={style} className="w-full min-w-0 flex-1 bg-white px-4 pb-4 pt-3">{wide ? children : <div className="page-canvas">{children}</div>}</main>;
 }

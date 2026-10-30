@@ -29,6 +29,10 @@ CSB is original work. It contains no content, code or branding from QCS or any o
 
 The dashboard figures are computed from the database. A source is only shown as monitored when it has actually been checked successfully within its freshness window, and the admin pages warn when the worker has stopped.
 
+## Running it on your own computer
+
+Step-by-step for Windows: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md). It covers installing PostgreSQL 16, `npm run db:reset:local` (demo data) or `npm run db:reset:local -- --clean` plus `npm run org:create` (an empty database for a real organisation), `npm run dev:all`, backups and the automatic checks.
+
 ## Quick start (development)
 
 Requirements: Node 22, PostgreSQL 16.

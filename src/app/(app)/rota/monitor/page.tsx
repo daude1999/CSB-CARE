@@ -4,6 +4,7 @@ import { fmtLondonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { monitorBoard, type MonitorState } from "@/server/rota/monitor";
+import { missedMedsCount } from "@/server/care/medication";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { sweepNowAction } from "@/app/rota-actions";
 import { Flash } from "@/components/ui";
@@ -52,6 +53,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
   const complete = b.rows.filter((r) => r.state === "done").length;
   const late = b.rows.filter((r) => r.state === "late" || (r.arrivedLateMin ?? 0) >= b.settings.lateAfterMin).length;
   const missed = b.rows.filter((r) => r.state === "missed").length;
+  const missedMeds = await missedMedsCount(b.settings.organisationId, b.rows.map((r) => r.id));
   const pct = (n: number) => (total ? ((n / total) * 100).toFixed(2) : "0.00");
   const back = `/rota/monitor${sp.area ? `?area=${sp.area}` : ""}`;
   const stale = !b.lastRun || b.now.getTime() - b.lastRun.startedAt.getTime() > 10 * 60000;
@@ -65,7 +67,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
         <Ring label="Complete Calls" value={complete} total={total} colour="#2e7d32" note={`${pct(complete)}% of ${total} visits`} href={`/rota/visits?status=COMPLETED`} />
         <Ring label="Late Calls" value={late} total={total} colour="#b26a00" note={`${pct(late)}% of visits ${b.settings.lateAfterMin} minutes late`} href="/rota/visits?view=late" />
         <Ring label="Missed Calls" value={missed} total={total} colour="#b42a23" note={`${pct(missed)}% not clocked into`} href="/rota/visits?status=MISSED" />
-        <Ring label="Calls With Missed Meds" value={null} total={total} colour="#2a6f97" note="Not in use yet: eMAR is not built" />
+        <Ring label="Calls With Missed Meds" value={missedMeds} total={total} colour="#2a6f97" note={missedMeds === null ? "Medication records are switched off" : `${pct(missedMeds)}% with a dose not recorded`} href={missedMeds === null ? undefined : "/rota/exceptions?kind=MISSED_MEDICATION&state=all"} />
       </section>
 
       <section className="panel" aria-labelledby="monitor-title">

@@ -155,7 +155,7 @@ test.describe("Rostering & Care Management", () => {
     await page.goto("/rota");
     const calls = page.getByRole("region", { name: "Calls on this date" });
     for (const label of ["Complete calls", "Late calls", "Missed calls", "Calls with missed meds"]) await expect(calls.getByText(label)).toBeVisible();
-    await expect(calls.getByText("Not in use yet")).toBeVisible();
+    await expect(calls.getByText("Switched off", { exact: true })).toBeVisible();
     for (const title of ["All Service Users", "All Team Members", "All Active Reminders"]) await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
     await page.getByRole("link", { name: "Next day" }).click();
     await expect(page).toHaveURL(/date=\d{4}-\d{2}-\d{2}/);

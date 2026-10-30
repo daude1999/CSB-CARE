@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { auditCsv, auditPage } from "@/server/admin/audit-viewer";
-import { createResetLink, deactivateMember, describeToken, inviteMember, listMembers, reactivateMember, redeemToken, revokeInvite, updateMember } from "@/server/admin/users";
+import { createResetLink, deactivateMember, describeToken, inviteMember, listMembers, provisionOrganisation, reactivateMember, redeemToken, revokeInvite, updateMember } from "@/server/admin/users";
 import { ctxFromToken, login } from "@/server/auth/session";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
@@ -103,5 +103,22 @@ describe("audit log viewer", () => {
     expect(csv).toContain("admin.member.deactivated");
     expect(await db.auditLog.count({ where: { organisationId: orgId, action: "admin.audit.exported" } })).toBe(1);
     await expect(auditPage(await ctxFor("coordinator@care-solution.demo", BROOKFIELD), {})).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("setting up a real organisation", () => {
+  it("creates a non-demo organisation with branches and a one-time link for its first admin, who can then sign in", async () => {
+    await expect(provisionOrganisation({ name: "Riverside Home Care", slug: "Bad Slug!", branches: ["Leeds"], adminEmail: "owner@riverside.example", adminName: "Robin Owner" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(provisionOrganisation({ name: "Riverside Home Care", slug: "riverside", branches: ["Leeds", "leeds"], adminEmail: "owner@riverside.example", adminName: "Robin Owner" })).rejects.toBeInstanceOf(ValidationError);
+    const { organisation, token } = await provisionOrganisation({ name: "Riverside Home Care", slug: "riverside", branches: ["Leeds", "York"], adminEmail: "Owner@Riverside.example", adminName: "Robin Owner" });
+    expect(organisation.isDemo).toBe(false);
+    expect(await db.branch.count({ where: { organisationId: organisation.id } })).toBe(2);
+    await expect(provisionOrganisation({ name: "Riverside again", slug: "riverside", branches: ["Leeds"], adminEmail: "x@y.example", adminName: "X Y" })).rejects.toBeInstanceOf(ConflictError);
+    await redeemToken(token, { password: PASSWORD });
+    const { token: session } = await login("owner@riverside.example", PASSWORD);
+    const ctx = await ctxFromToken(session);
+    expect(ctx?.organisationId).toBe(organisation.id);
+    expect(ctx?.orgRoles).toEqual(expect.arrayContaining(["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"]));
+    expect(await db.auditLog.count({ where: { organisationId: organisation.id, action: "admin.organisation.created" } })).toBe(1);
   });
 });

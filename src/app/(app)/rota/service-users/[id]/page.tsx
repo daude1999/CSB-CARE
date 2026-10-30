@@ -7,6 +7,8 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/service-users";
 import { packageCoverage } from "@/server/care/packages";
+import { listMedications, medicationEnabled } from "@/server/care/medication";
+import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
@@ -16,7 +18,7 @@ import { ServiceUserForm } from "@/components/service-user-form";
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["people", "Contacts & carers"], ["details", "Details"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["history", "History"]] as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -183,6 +185,16 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {tab === "medication" ? (
+        !hasOrgPermission(ctx, "medication.view") ? <Card><Empty>You do not have access to medication records.</Empty></Card>
+        : !(await medicationEnabled(su.organisationId)) ? <MedicationOff />
+        : await (async () => {
+          const meds = await listMedications(ctx, su.id);
+          const medNames = await memberNames(ctx, meds.flatMap((m) => [m.createdById, m.approvedById]));
+          return <MedicationList meds={meds} serviceUserId={su.id} back={back} canManage={hasOrgPermission(ctx, "medication.manage")} me={ctx.userId} names={medNames} month={today.slice(0, 7)} />;
+        })()
       ) : null}
 
       {tab === "package" ? (

@@ -1,6 +1,8 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
+import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/auth/current";
+import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { Badge, Flash, fmtDate, PageHeader, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function QueuePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
+  // The same people the menu shows the queue to: anyone else would only meet drafts they cannot open.
+  const canQueue = hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author");
+  if (!canQueue) notFound();
   const scope = { organisationId: ctx.organisationId ?? null };
   const [revisions, needsDraft, myAssignments] = await Promise.all([
     db.policyRevision.findMany({

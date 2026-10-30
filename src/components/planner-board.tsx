@@ -41,7 +41,7 @@ export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visi
   const [pending, setPending] = useState<{ chip: PlannerChip; staffId: string } | null>(null);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <form ref={form} action={action} className="hidden">
         <input type="hidden" name="back" value={pending ? `${back}${back.includes("?") ? "&" : "?"}move=${pending.chip.visitId}~${pending.chip.slot}~${pending.staffId}~${pending.chip.lockVersion}` : back} />
         <input type="hidden" name={idName} value={pending?.chip.visitId ?? ""} />

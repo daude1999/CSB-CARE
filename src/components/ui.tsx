@@ -108,7 +108,7 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
       {isTable ? (
         <>
           <p className="mb-2 px-1 text-xs text-slate-400 md:hidden">Swipe sideways to view all columns.</p>
-          <div className="min-w-0 overflow-x-auto">{children}</div>
+          <div className="relative min-w-0 overflow-x-auto">{children}</div>
         </>
       ) : children}
     </section>

@@ -22,6 +22,8 @@ export const EXCEPTION_KINDS: Record<string, string> = {
   READINESS: "Readiness at clock-in",
   UNASSIGNED: "Unassigned after a build",
   CONCERN: "Concern noted on a visit",
+  MISSED_MEDICATION: "Missed medication",
+  MEDICATION_NOT_TAKEN: "Medication refused or not given",
   CLOCK_CORRECTION: "Clock correction request",
 };
 
@@ -29,7 +31,7 @@ export const EXCEPTION_KINDS: Record<string, string> = {
  * How long the office has to resolve each kind of exception before it is escalated to the care managers. Calls that
  * may leave someone without care are the shortest; review work that can wait for the next working day is the longest.
  */
-const DEADLINE_MIN: Record<string, number> = { MISSED: 30, LATE: 30, NOT_DELIVERED: 60, OVERRUN: 60, READINESS: 60, CONCERN: 240, SHORT_VISIT: 1440, ALLOCATION_REVIEW: 1440, UNASSIGNED: 1440 };
+const DEADLINE_MIN: Record<string, number> = { MISSED_MEDICATION: 30, MEDICATION_NOT_TAKEN: 60, MISSED: 30, LATE: 30, NOT_DELIVERED: 60, OVERRUN: 60, READINESS: 60, CONCERN: 240, SHORT_VISIT: 1440, ALLOCATION_REVIEW: 1440, UNASSIGNED: 1440 };
 export function exceptionDeadline(kind: string, from = new Date()) {
   return new Date(from.getTime() + (DEADLINE_MIN[kind] ?? 1440) * 60_000);
 }

@@ -3,9 +3,12 @@ import { ForbiddenError } from "@/lib/errors";
 import { fmtLondonDate, fromDbDate, londonDate, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { myVisits } from "@/server/rota/carer";
+import { myMileage } from "@/server/finance/mileage";
+import { medsForMyVisit } from "@/server/care/medication";
+import { CarerMedication } from "@/components/medication-ui";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
-import { acknowledgeMyVisitsAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
+import { acknowledgeMyVisitsAction, submitMileageAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
@@ -24,6 +27,8 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     throw e;
   }
   const { staff, settings, visits, lastHandover } = data;
+  const claims = await myMileage(ctx);
+  const meds = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await medsForMyVisit(staff.organisationId, v)] as const)));
   const now = Date.now();
   const today = londonDate();
   const days = [...new Set(visits.map((v) => fromDbDate(v.date)))];
@@ -61,9 +66,10 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     {v.serviceUser.accessNotes ? <p className="mt-1 text-[13.5px] text-slate-700">Getting in: {v.serviceUser.accessNotes}</p> : null}
                     {lastHandover.get(v.serviceUserId) && lastHandover.get(v.serviceUserId)!.visitId !== v.id ? <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-[13.5px] text-slate-800">Handover from the last visit: {lastHandover.get(v.serviceUserId)!.text}</p> : null}
                     {v.tasks.length ? <p className="mt-1 text-[13.5px] text-slate-700">Tasks: {v.tasks.map((t) => t.name).join(", ")}</p> : null}
-                    {v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; eMAR is not in use.</p> : null}
+                    {meds.get(v.id) === null && v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; medication records are switched off.</p> : null}
                     <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
+                    {mine && meds.get(v.id) ? <CarerMedication visitId={v.id} due={meds.get(v.id)!} clockedIn={effectiveClocks(v.clocks).some((c) => c.kind === "IN")} /> : null}
                     {mine ? <TaskControls v={v} /> : null}
                     {mine ? <CorrectionControls v={v} now={now} /> : null}
                     {mine ? <NoteControls v={v} staffId={staff.id} /> : null}
@@ -76,6 +82,26 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
       ) : (
         <Card><Empty>No published visits for you in this period.</Empty></Card>
       )}
+      <Card title="Mileage" className="mb-3">
+        {claims.length ? (
+          <ul className="mb-2 space-y-1 text-[13.5px]">
+            {claims.slice(0, 5).map((c) => <li key={c.id}>{fmtLondonDate(fromDbDate(c.date), { day: "numeric", month: "short" })}: {c.miles} miles · {c.status === "SUBMITTED" ? "waiting" : c.status === "APPROVED" ? "approved" : `rejected${c.decisionNote ? ` (${c.decisionNote})` : ""}`}</li>)}
+          </ul>
+        ) : null}
+        <details>
+          <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Claim mileage</summary>
+          <form action={submitMileageAction} className="mt-2 space-y-2">
+            <input type="hidden" name="back" value="/carer" />
+            <div className="grid grid-cols-2 gap-2">
+              <label><span className="label">Date</span><input type="date" name="date" defaultValue={today} max={today} required className="input" /></label>
+              <label><span className="label">Miles</span><input type="number" name="miles" min="0.1" max="500" step="0.1" required className="input" /></label>
+            </div>
+            <label className="block"><span className="label">Journey</span><input name="reason" required minLength={3} placeholder="e.g. between visits, Mon morning round" className="input" /></label>
+            <p className="text-[12.5px] text-slate-600">Enter the miles you drove for work. They are not worked out from a map.</p>
+            <button className="btn-secondary">Send claim</button>
+          </form>
+        </details>
+      </Card>
     </div>
   );
 }
