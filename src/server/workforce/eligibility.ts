@@ -249,6 +249,27 @@ export async function rankCarers(tx: Db, organisationId: string, input: Omit<Eli
     .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName));
 }
 
+/**
+ * rankCarers for many visits at once (the Unassigned Visits list): staff, settings and bookings are loaded once for the
+ * whole span instead of once per visit, and each visit is then judged by the same evaluate() rules.
+ */
+export async function rankCarersMany(tx: Db, organisationId: string, inputs: (Omit<EligibilityInput, "staffId"> & { otherSlotStaffIds?: string[] })[]) {
+  if (!inputs.length) return [];
+  const ids = (await tx.staffMember.findMany({ where: { organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false }, select: { id: true } })).map((s) => s.id);
+  const from = new Date(Math.min(...inputs.map((i) => i.start.getTime())));
+  const to = new Date(Math.max(...inputs.map((i) => i.end.getTime())));
+  const [settings, facts] = await Promise.all([rotaSettings(tx, organisationId), loadFacts(tx, organisationId, ids, from, to)]);
+  const prefs = new Map<string, PreferenceFacts | null>();
+  for (const su of new Set(inputs.map((i) => i.serviceUserId ?? ""))) prefs.set(su, await loadPreferenceFacts(tx, organisationId, su || null));
+  const order = { ELIGIBLE: 0, REQUIRES_REVIEW: 1, NOT_ELIGIBLE: 2 };
+  return inputs.map(({ otherSlotStaffIds, ...input }) =>
+    ids
+      .map((id) => ({ staff: facts.staff.find((s) => s.id === id), result: evaluate(settings, facts, { ...input, staffId: id }, prefs.get(input.serviceUserId ?? "") ?? null, { otherSlotStaffIds }) }))
+      .filter((r) => r.staff)
+      .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName)),
+  );
+}
+
 /** Minutes between visits below which the coordinator is told there is little time to travel. */
 export const TRAVEL_GAP_MIN = 10;
 /** Daily rest under the Working Time Regulations: 11 consecutive hours between working days. */

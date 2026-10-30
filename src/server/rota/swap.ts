@@ -55,7 +55,10 @@ export async function swapCarers(ctx: Ctx, raw: SwapInput | Record<string, unkno
         // Both carers leave their own visit first, so each is checked for the other visit without their old booking.
         const now = new Date();
         const why = `Swapped: ${input.reason}`;
-        for (const x of [a!, b!]) await tx.visitAssignment.update({ where: { id: x.id }, data: { removedAt: now, removedById: ctx.userId, removeReason: why } });
+        for (const x of [a!, b!]) {
+          await tx.visitAssignment.update({ where: { id: x.id }, data: { removedAt: now, removedById: ctx.userId, removeReason: why } });
+          await tx.rotaAlert.updateMany({ where: { assignmentId: x.id, resolvedAt: null }, data: { resolvedAt: now, resolvedById: ctx.userId, resolution: "Carer swapped onto another visit" } });
+        }
 
         const place = async (to: typeof a, from: typeof a) => {
           try {
