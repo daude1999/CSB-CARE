@@ -133,7 +133,7 @@ function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {
           )) : <p className="text-[11.5px] text-[#4f5b6c]">{spec.note}</p>}
         </div>
       </div>
-      <ModuleLink portal={portal} className="ov-cta" style={{ color: portal.colour, borderColor: portal.colour }}>
+      <ModuleLink portal={portal} className="ov-cta" style={{ color: portal.colour, borderColor: `${portal.colour}88`, background: portal.tint }}>
         <span>Open {portal.name}</span>
         <ArrowRight size={15} weight="bold" aria-hidden="true" />
       </ModuleLink>
@@ -141,23 +141,34 @@ function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {
   );
 }
 
-/** An original drawing of a policy document set, in the module colour. */
+/** An original drawing of a policy library: an index of documents beside a stack of policy pages, in the module colour. */
 function PolicyPreview({ colour, published, total }: { colour: string; published: number; total: number }) {
+  const page = (x: number, y: number, w: number, h: number, head: string, lines: number[], rotate = 0) => (
+    <g transform={`rotate(${rotate} ${x + w / 2} ${y + h / 2})`} filter="url(#ov-doc-shadow)">
+      <rect x={x} y={y} width={w} height={h} rx="4" fill="#fff" />
+      <rect x={x + 9} y={y + 10} width={w * 0.42} height="6" rx="3" fill={head} />
+      {lines.map((lw, i) => <rect key={i} x={x + 9} y={y + 24 + i * 9} width={(w - 18) * lw} height="4" rx="2" fill="#e3e8ef" />)}
+    </g>
+  );
   return (
-    <div className="flex h-full items-stretch gap-3 p-3">
-      <div className="flex flex-1 flex-col justify-center gap-[7px]" aria-hidden="true">
-        {[88, 70, 94, 58, 80, 66].map((w, i) => <span key={i} className="h-[6px] rounded-full bg-[#e7eaf0]" style={{ width: `${w}%` }} />)}
-      </div>
-      <svg viewBox="0 0 130 96" className="h-full w-[46%] shrink-0" role="img" aria-label={`${total} policies in your library, ${published} published`}>
-        <rect x="40" y="6" width="74" height="86" rx="4" fill="#fff" stroke="#d9dee7" />
-        <rect x="28" y="12" width="74" height="80" rx="4" fill="#fff" stroke="#d9dee7" />
-        <rect x="16" y="18" width="74" height="76" rx="4" fill="#fff" stroke="#cdd4df" />
-        <rect x="24" y="27" width="34" height="5" rx="2.5" fill={colour} />
-        {[38, 45, 52, 59, 66, 73].map((y, i) => <rect key={y} x="24" y={y} width={i % 2 ? 46 : 58} height="3" rx="1.5" fill="#e3e7ee" />)}
-        <circle cx="76" cy="80" r="8" fill={colour} />
-        <path d="M72.5 80 l2.5 2.5 l4.5 -5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
+    <svg viewBox="0 0 400 122" preserveAspectRatio="xMidYMid meet" className="block h-full w-full bg-[#f7f9fc]" role="img" aria-label={`Policy library: ${total} policies, ${published} in use`}>
+      <defs>
+        <filter id="ov-doc-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#0b1530" floodOpacity="0.12" />
+        </filter>
+      </defs>
+      <rect width="400" height="122" fill="#f7f9fc" />
+      <rect x="236" y="0" width="164" height="122" fill="#eef2f7" />
+      <g transform="translate(0 5)">
+      <rect x="16" y="14" width="44" height="7" rx="3.5" fill={colour} />
+      {[176, 138, 190, 122, 166, 148].map((w, i) => <rect key={i} x="16" y={30 + i * 12.5} width={w} height="7" rx="3.5" fill="#e6eaf0" />)}
+      {page(258, 10, 86, 104, "#94a3b8", [1, 0.8, 0.9, 0.6, 0.85, 0.7, 0.9], -7)}
+      {page(282, 18, 86, 100, "#64748b", [0.9, 1, 0.7, 0.95, 0.6, 0.8, 0.75], 3)}
+      {page(304, 30, 82, 92, "#475569", [1, 0.75, 0.9, 0.65, 0.85, 0.7])}
+      <circle cx="372" cy="94" r="10" fill={colour} stroke="#fff" strokeWidth="2.5" />
+      <path d="M367.5 94 l3 3 l5.5 -6" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
   );
 }
 
@@ -349,7 +360,7 @@ export default async function Overview() {
       key: "reporting", portal: reporting, icon: <ChartBar size={22} />,
       items: ["Policy, sign-off and change reports", "Actions register", "CSV exports for inspections", "Ask the AI assistant"],
       figures: [[Object.keys(REPORTS).length, "report exports"]],
-      preview: <OverviewChart series={series} colour={reporting.colour} />,
+      preview: <OverviewChart series={series} colour="#2f7de1" />,
     });
   }
   if (admin) {

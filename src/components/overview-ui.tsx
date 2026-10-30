@@ -18,35 +18,41 @@ export function OverviewChart({ series, colour }: { series: ChartSeries[]; colou
   const current = series.find((s) => s.key === key) ?? series[0];
   if (!current) return <p className="flex h-full items-center justify-center px-4 text-center text-[12.5px] text-[#5f6b7a]">Charts appear here for people with rota or staff sign-off access.</p>;
   const max = Math.max(4, ...current.days.map((d) => d.value));
-  const top = Math.ceil(max / 4) * 4;
-  const ticks = [top, (top * 3) / 4, top / 2, top / 4, 0];
+  const step = Math.ceil(max / 4 / 5) * 5 || 1;
+  const top = step * 4;
+  const ticks = [4, 3, 2, 1, 0].map((n) => n * step);
   const total = current.days.reduce((n, d) => n + d.value, 0);
+  const last = current.days.length - 1;
   return (
-    <figure className="flex h-full flex-col px-3 pb-1.5 pt-2">
-      <div className="flex justify-end">
+    <figure className="relative flex h-full flex-col bg-white px-3 pb-1.5 pt-[38px]">
+      <div className="absolute inset-x-3 top-2 flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-medium text-[#5f6b7a]">Last 7 days · <span className="text-[#0b1530]">{total}</span></span>
         <label htmlFor={id} className="sr-only">Measure</label>
         <span className="relative">
-          <select id={id} value={current.key} onChange={(e) => setKey(e.target.value)} className="h-[24px] appearance-none rounded-[5px] border border-[#dfe3ea] bg-white pl-2 pr-6 text-[11px] text-[#1b2533]">
+          <select id={id} value={current.key} onChange={(e) => setKey(e.target.value)} className="h-[24px] appearance-none rounded-[6px] border border-[#dfe3ea] bg-white pl-2.5 pr-6 text-[11px] font-medium text-[#1b2533] shadow-[0_1px_2px_rgb(11_21_48/0.06)]">
             {series.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
           <CaretDown size={10} weight="bold" aria-hidden="true" className="pointer-events-none absolute right-2 top-[7px] text-[#3a4658]" />
         </span>
       </div>
-      <figcaption className="sr-only">{current.label}, last 7 days: {current.days.map((d) => `${dayLabel(d.date)} ${d.value}`).join(", ")}. Total {total}.</figcaption>
-      <div aria-hidden="true" className="relative mt-1 flex min-h-0 flex-1 pl-6">
-        <div className="absolute inset-y-0 left-0 flex w-5 flex-col justify-between pb-[16px] text-right text-[9px] leading-none text-[#7a8494]">
-          {ticks.map((t) => <span key={t}>{Math.round(t)}</span>)}
-        </div>
-        <div className="flex flex-1 items-end justify-around gap-2 border-b border-[#e6e9ef] pb-0">
-          {current.days.map((d) => (
-            <div key={d.date} className="flex h-full flex-1 flex-col justify-end">
-              <div className="mx-auto w-full max-w-[26px] rounded-t-[2px]" style={{ height: `${(d.value / top) * 100}%`, minHeight: d.value ? 2 : 0, background: colour }} title={`${dayLabel(d.date)}: ${d.value}`} />
+      <figcaption className="sr-only">{current.label}, last 7 days: {current.days.map((d) => `${dayLabel(d.date)} ${d.value}`).join(", ")}. Total {total}. Today is so far.</figcaption>
+      <div aria-hidden="true" className="relative min-h-0 flex-1">
+        {ticks.map((t) => (
+          <div key={t} className="absolute inset-x-0 flex items-center gap-1.5" style={{ bottom: `${(t / top) * 100}%`, transform: "translateY(50%)" }}>
+            <span className="w-5 text-right text-[9px] leading-none text-[#8a93a3]">{t}</span>
+            <span className={`h-px flex-1 ${t === 0 ? "bg-[#d9dee6]" : "bg-[#eef1f5]"}`} />
+          </div>
+        ))}
+        <div className="absolute inset-y-0 left-[26px] right-0 flex items-end justify-around">
+          {current.days.map((d, i) => (
+            <div key={d.date} className="flex h-full w-[7%] flex-col justify-end" title={`${dayLabel(d.date)}: ${d.value}${i === last ? " (today so far)" : ""}`}>
+              <div className="w-full rounded-t-[4px]" style={{ height: `${(d.value / top) * 100}%`, minHeight: d.value ? 3 : 0, background: colour, opacity: i === last ? 0.45 : 1 }} />
             </div>
           ))}
         </div>
       </div>
-      <div aria-hidden="true" className="flex justify-around gap-2 pl-6 pt-1 text-[9.5px] text-[#7a8494]">
-        {current.days.map((d) => <span key={d.date} className="flex-1 text-center">{dayLabel(d.date)}</span>)}
+      <div aria-hidden="true" className="ml-[26px] flex justify-around pt-1 text-[9.5px] leading-[11px] text-[#7a8494]">
+        {current.days.map((d, i) => <span key={d.date} className="w-[7%] whitespace-nowrap text-center">{i === last ? "Today" : dayLabel(d.date)}</span>)}
       </div>
     </figure>
   );
