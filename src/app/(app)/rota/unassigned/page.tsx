@@ -66,7 +66,7 @@ export default async function UnassignedPage({ searchParams }: { searchParams: P
                           <input type="hidden" name="visitId" value={v.id} />
                           <input type="hidden" name="slot" value={s.slot} />
                           <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                          <select name="staffId" required className="input max-w-lg flex-1 py-1.5 text-[14px]" aria-label={`Carer for ${suName(v.serviceUser)} at ${v.scheduledStart.toISOString()}`}>
+                          <select name="staffId" required className="input min-w-0 max-w-lg basis-full py-1.5 text-[14px] sm:basis-0 sm:flex-1" aria-label={`Carer for ${suName(v.serviceUser)} at ${v.scheduledStart.toISOString()}`}>
                             <option value="">Choose a carer…</option>
                             {s.list.map((c) => <option key={c.id} value={c.id}>{c.name} — {STATE[c.state]}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}</option>)}
                           </select>

@@ -240,10 +240,28 @@ function hrCheckComponents(staff: StaffFacts, date: string): ComponentResult[] {
 
 const NOT_MET: ComponentState[] = ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE"];
 
-export function evaluateReadiness(facts: ReadinessFacts, staff: StaffFacts, ctx: ReadinessContext): ReadinessResult {
-  const date = ctx.date;
+// A person's requirement results depend only on the facts, the person and the date, not on the visit asked about, so
+// ranking every carer against many visits works them out once per person and day. Keyed on the facts and staff
+// objects themselves, which are loaded fresh for each request, so nothing outlives them or is shared between them.
+const componentCache = new WeakMap<ReadinessFacts, WeakMap<StaffFacts, Map<string, readonly ComponentResult[]>>>();
+
+function componentsFor(facts: ReadinessFacts, staff: StaffFacts, date: string): readonly ComponentResult[] {
+  let byStaff = componentCache.get(facts);
+  if (!byStaff) componentCache.set(facts, (byStaff = new WeakMap()));
+  let byKey = byStaff.get(staff);
+  if (!byKey) byStaff.set(staff, (byKey = new Map()));
+  const key = date;
+  const hit = byKey.get(key);
+  if (hit) return hit;
   const components: ComponentResult[] = [...hrCheckComponents(staff, date)];
   for (const item of applicableRequirements(facts, staff, date)) components.push(evaluateRequirement(facts, staff, item, date));
+  byKey.set(key, components);
+  return components;
+}
+
+export function evaluateReadiness(facts: ReadinessFacts, staff: StaffFacts, ctx: ReadinessContext): ReadinessResult {
+  const date = ctx.date;
+  const components = componentsFor(facts, staff, date);
 
   const restrictions = facts.restrictions
     .filter((r) => r.staffId === staff.id && !r.liftedAt && iso(r.startsAt)! <= date && (!r.endsAt || iso(r.endsAt)! >= date))
@@ -283,7 +301,7 @@ export function evaluateReadiness(facts: ReadinessFacts, staff: StaffFacts, ctx:
   else status = "READY";
 
   const blockedForContext = status === "NOT_READY" || status === "PENDING_VERIFICATION" || biting.length > 0 || restrictionBites;
-  return { staffId: staff.id, status, reasons, components, restrictions, openFlags, blockedForContext };
+  return { staffId: staff.id, status, reasons, components: [...components], restrictions, openFlags, blockedForContext };
 }
 
 export const READINESS_LABEL: Record<ReadinessStatus, string> = {

@@ -6,10 +6,21 @@ const TZ = "Europe/London";
 
 const partsFmt = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
 
-function parts(d: Date) {
+type Parts = { year: number; month: number; day: number; hour: number; minute: number; second: number };
+// formatToParts is slow and the rota asks about the same few instants thousands of times (every carer against every
+// visit), so results are remembered. The cache is cleared when it fills; entries never go stale (an instant's London
+// time never changes).
+const partsCache = new Map<number, Parts>();
+
+function parts(d: Date): Parts {
+  const t = d.getTime();
+  const hit = partsCache.get(t);
+  if (hit) return hit;
   const p: Record<string, number> = {};
   for (const { type, value } of partsFmt.formatToParts(d)) if (type !== "literal") p[type] = Number(value);
-  return p as { year: number; month: number; day: number; hour: number; minute: number; second: number };
+  if (partsCache.size >= 20_000) partsCache.clear();
+  partsCache.set(t, p as Parts);
+  return p as Parts;
 }
 
 /** Minutes London is ahead of UTC at this instant (0 in winter, 60 in summer). */

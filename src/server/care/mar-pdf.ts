@@ -27,17 +27,23 @@ export async function marChartPdf(ctx: Ctx, serviceUserId: string, month: string
   days.forEach((d, i) => doc.text(d.slice(8), left + nameW + i * cellW, top, { width: cellW, align: "center" }));
   let y = top + 12;
   for (const row of grid) {
-    if (y + rowH > doc.page.height - 40) { doc.addPage(); y = 40; }
-    doc.rect(left, y, doc.page.width - left * 2, rowH).strokeColor("#d6dae1").lineWidth(0.5).stroke();
-    doc.font(FONT.bold).fontSize(8).fillColor("#16181c").text(clean(`${row.med.name}${row.med.strength ? ` ${row.med.strength}` : ""}`), left + 3, y + 3, { width: nameW - 6 });
-    doc.font(FONT.regular).fontSize(7).fillColor("#5b6577").text(clean(`${row.med.dose}${row.med.asRequired ? " · as required" : ` · ${row.med.timeRanges.join(", ").toLowerCase()}`}${row.med.status === "STOPPED" ? " · stopped" : ""}`), left + 3, y + 14, { width: nameW - 6 });
+    // A long medicine name wraps, so the row grows to fit the name and the dose line beneath it.
+    const name = clean(`${row.med.name}${row.med.strength ? ` ${row.med.strength}` : ""}`);
+    const dose = clean(`${row.med.dose}${row.med.asRequired ? " · as required" : ` · ${row.med.timeRanges.join(", ").toLowerCase()}`}${row.med.status === "STOPPED" ? " · stopped" : ""}`);
+    const nameH = doc.font(FONT.bold).fontSize(8).heightOfString(name, { width: nameW - 6 });
+    const doseH = doc.font(FONT.regular).fontSize(7).heightOfString(dose, { width: nameW - 6 });
+    const h = Math.max(rowH, Math.ceil(nameH + doseH + 8));
+    if (y + h > doc.page.height - 40) { doc.addPage(); y = 40; }
+    doc.rect(left, y, doc.page.width - left * 2, h).strokeColor("#d6dae1").lineWidth(0.5).stroke();
+    doc.font(FONT.bold).fontSize(8).fillColor("#16181c").text(name, left + 3, y + 3, { width: nameW - 6 });
+    doc.font(FONT.regular).fontSize(7).fillColor("#5b6577").text(dose, left + 3, y + 5 + nameH, { width: nameW - 6 });
     row.cells.forEach((c, i) => {
       const x = left + nameW + i * cellW;
-      doc.moveTo(x, y).lineTo(x, y + rowH).strokeColor("#eef0f3").stroke();
+      doc.moveTo(x, y).lineTo(x, y + h).strokeColor("#eef0f3").stroke();
       const text = [...c.codes, ...Array(c.missed).fill("-")].join(" ");
-      doc.font(FONT.bold).fontSize(7).fillColor(c.missed ? "#a3242c" : "#16181c").text(text, x, y + 10, { width: cellW, align: "center" });
+      doc.font(FONT.bold).fontSize(7).fillColor(c.missed ? "#a3242c" : "#16181c").text(text, x, y + h / 2 - 4, { width: cellW, align: "center" });
     });
-    y += rowH;
+    y += h;
   }
   if (!grid.length) doc.font(FONT.regular).fontSize(10).fillColor("#1f2937").text("No medicines in this month.", left, y + 10);
   doc.font(FONT.regular).fontSize(7).fillColor("#5b6577").text("Confidential: contains health information. Printed from CSB; the records in the platform are the source.", left, doc.page.height - 30, { lineBreak: false });
