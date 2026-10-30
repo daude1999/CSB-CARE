@@ -65,3 +65,8 @@ The owner's standing rule, now in CLAUDE.md: when a reference system is named, i
   - OnePlan's views: by team member, by area, by service user and by run route. "By week" opens the week planner, which has drag and drop.
   - Cancelled and uncovered filters, and auto refresh.
   - Cards are links. Changing a carer or a time still goes through the visit page and the one assignment path.
+
+## AD-13 The HR Hub's screens sit inside the platform shell (29 Oct 2026)
+The HR Hub's own sidebar, top bar and portal menu were replaced by the platform's sidebar (HR screens listed under HR & Workforce), top bar and module title bar. Its two style sheets are kept apart instead of rewritten: `scripts/build-hr-css.mjs` confines every unlayered HR rule to the HR Hub's root (`.cs`, element rules through `:where(.cs)`, so specificity is unchanged), the platform's element rules and the five class names both sides use stop at `.cs`, and links into or out of `/hr` are full page loads so the HR sheet never stays on another page.
+**Reason:** the owner asked for HR to look and behave like the rest of the platform while keeping every HR Hub screen as built. Rewriting the HR Hub's 130 KB of CSS in Tailwind 3 would have changed those screens.
+**Consequence:** see `HR_IN_PLATFORM_SHELL.md`. Rebuild `public/hr/hr-hub.css` after any change in `src/hr/styles`; `tests/unit/hr-shell.test.ts` fails if an HR rule escapes `.cs`.

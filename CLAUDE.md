@@ -69,9 +69,9 @@ Expect the database to reject invalid transitions, and update the triggers in a 
 
 **Jobs.** The Postgres queue is in `src/server/jobs/queue.ts`. Handlers are in `src/worker/handlers.ts`. Vercel has no worker, so `inline.ts` drains the queue through `/api/jobs/kick` and a daily `/api/cron/tick`.
 
-**HR & Workforce** (`src/hr`, `src/app/hr`, `src/app/api/hr`) is the standalone CSB HR Hub, moved in with its own conventions:
+**HR & Workforce** (`src/hr`, `src/app/(app)/hr`, `src/app/api/hr`) is the standalone CSB HR Hub, moved in with its own conventions:
 - HR data is one JSON document per organisation in `HrWorkspace`, written under a row lock.
-- The HR Hub uses Tailwind 4. Its CSS is prebuilt into `public/hr/hr-hub.css` with `npm run build:hr-css -- <folder with Tailwind 4>`.
+- The HR Hub uses Tailwind 4. Its CSS is prebuilt into `public/hr/hr-hub.css` with `npm run build:hr-css -- <folder with Tailwind 4>`, which confines every HR rule to the HR Hub's root (`.cs`). Its screens sit inside the platform shell, and links into or out of `/hr` are full page loads (`docs/implementation/HR_IN_PLATFORM_SHELL.md`).
 - Don't restructure it while it is out of scope.
 
 **Content and look.** The starter library is original TypeScript seed data in `prisma/seed-data/library/`. Never add QCS or other providers' content. Themes (`src/lib/themes.ts`, `src/app/themes.css`) change colour and type only. Shared UI primitives are in `src/components/ui.tsx` and `tabs.tsx`, and the official logo is `public/csb-logo.*` through `src/components/brand.tsx`.

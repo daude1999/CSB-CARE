@@ -7,12 +7,36 @@
  * "Board paper": the interface follows the CSB Word/PDF template. Warm paper,
  * charcoal ink, serif headings, hairline rules. Cyan is a signal, not decoration.
  */
+/*
+ * Motion tokens (mirrored in src/lib/motion.ts). Every transition and animation in the platform shell uses these,
+ * so hover, menus, dialogs, the sidebar and page entrances share one rhythm.
+ */
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 260ms;
+  --motion-rise: 5px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Registered so the module colour can blend from one module to the next instead of snapping. */
+@property --module {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #0f2a4f;
+}
+
+/*
+ * The HR Hub's screens (inside `.cs`, src/hr) keep their own type and element styles, so the platform's element
+ * rules and the few class names both use stop at its edge. `:where()` adds no specificity, so nothing else changes.
+ */
 @layer base {
   body { @apply bg-paper font-sans text-slate-800 antialiased; font-feature-settings: "ss02"; }
-  h1 { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
-  h2 { @apply font-serif leading-snug text-slate-800; font-weight: 400; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
-  h3 { @apply text-base font-semibold text-navy-900; }
-  a { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
+  h1:where(:not(.cs *)) { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
+  h2:where(:not(.cs *)) { @apply font-serif leading-snug text-slate-800; font-weight: 400; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
+  h3:where(:not(.cs *)) { @apply text-base font-semibold text-navy-900; }
+  a:where(:not(.cs *)) { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
   ::selection { @apply bg-teal-100 text-navy-900; }
 }
@@ -20,15 +44,16 @@
 @layer components {
   /* The compliance-centre look shared by every page: white panels on a soft grey canvas under a navy title bar. */
   .page-canvas { @apply min-h-full rounded-[6px] bg-[#f1f2f5] pb-5; }
-  .panel { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
-  .card { @apply panel; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] px-3.5 py-[7px] text-[14px] font-normal no-underline transition disabled:opacity-50; }
+  .panel:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
+  .card:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] px-3.5 py-[7px] text-[14px] font-normal no-underline disabled:opacity-50; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
   .btn-primary { @apply btn border-[1.5px] border-navy-900 bg-navy-900 text-white hover:bg-navy-700 hover:text-white; }
   .btn-teal { @apply btn border-[1.5px] border-teal-600 bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
   .btn-secondary { @apply btn border-[1.5px] border-slate-500 bg-white text-slate-800 hover:border-navy-900 hover:text-navy-900; }
   .btn-danger { @apply btn border-[1.5px] border-rose-700 bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
   .input { @apply w-full rounded-[4px] border border-slate-300 bg-white px-3 py-2 text-[15px] text-slate-800 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-  .label { @apply mb-1 block text-[13px] font-medium text-slate-700; }
+  .label:where(:not(.cs *)) { @apply mb-1 block text-[13px] font-medium text-slate-700; }
   .eyebrow { @apply text-[13px] font-normal text-slate-600; }
   .figure { @apply font-sans tabular-nums; font-weight: 400; }
   /* Registers read like the dashboard's policy table: plain headings, soft blue rows. */
@@ -37,14 +62,15 @@
   .table td { @apply bg-[#f5f9fc] px-3 py-2.5 align-middle text-slate-800; }
   .table td:first-child { @apply rounded-l-[2px]; }
   .table td:last-child { @apply rounded-r-[2px]; }
+  .table td { transition: background-color var(--motion-fast) var(--ease-standard); }
   .table tbody tr:hover td { @apply bg-[#eaf2fa]; }
   .table td a { @apply font-medium text-[#1d4f91] no-underline hover:underline; }
   .table td[class~="font-mono"] { white-space: nowrap; }
   /* A list of records: one soft blue row each, same as the dashboard table. */
-  .rows > li { @apply rounded-[2px] bg-[#f5f9fc] px-4; }
-  .rows > li + li { @apply mt-[3px]; }
+  .rows:where(:not(.cs *)) > li { @apply rounded-[2px] bg-[#f5f9fc] px-4; }
+  .rows:where(:not(.cs *)) > li + li { @apply mt-[3px]; }
   .row-title { @apply font-medium text-[#1d4f91] no-underline hover:text-[#1d4f91] hover:underline; }
-  .muted { @apply text-sm text-slate-500; }
+  .muted:where(:not(.cs *)) { @apply text-sm text-slate-500; }
   .prose-policy { @apply whitespace-pre-wrap text-[15px] leading-7 text-slate-800; font-family: var(--font-prose); }
 
   /*
@@ -54,15 +80,70 @@
    */
   .shell-sidebar { background: #092135; color: #fff; font-family: "Inter Variable", var(--font-sans); }
   .shell-sidebar a { text-decoration: none; }
-  .shell-portal { @apply flex h-[38px] items-center gap-[10px] rounded-[6px] px-[10px] text-[13.5px] tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; }
+  /* On the navy sidebar the focus ring is white, inset, so it never clips against the scroll edge. */
+  .shell-sidebar :focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+  .shell-portal { @apply flex h-[38px] items-center gap-[10px] rounded-[6px] px-[10px] text-[13.5px] tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; transition: background-color var(--motion-slow) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
   .shell-portal-current { background: #17527b; }
-  .shell-portal-current:hover { background: #1b5d8a; }
-  .shell-page { @apply flex h-[29px] items-center gap-[8px] rounded-[6px] px-[7px] text-[12.5px] leading-none text-[#d6e0ea] hover:bg-white/[0.06] hover:text-white; }
+  .shell-portal-current:hover { filter: brightness(1.08); }
+  .shell-portal-marker { transition: opacity var(--motion-slow) var(--ease-standard); }
+  .shell-page { @apply flex h-[29px] items-center gap-[8px] rounded-[6px] px-[7px] text-[12.5px] leading-none text-[#d6e0ea] hover:bg-white/[0.06] hover:text-white; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
   .shell-page-active { background: #0d385e; color: #fff; }
+  /* One marker on the guide line glides to the active page (transform only, so nothing reflows). */
+  .shell-marker { position: absolute; left: -1.5px; top: 0; margin: 0 !important; width: 2px; height: 0; border-radius: 2px; opacity: 0; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard), height var(--motion-base) var(--ease-standard), opacity var(--motion-fast) linear; }
+  /* A module's pages open and fold with the grid-rows technique: no measuring, and only during the change. */
+  .shell-section { display: grid; grid-template-rows: 1fr; }
+  .shell-section > div { min-height: 0; }
+  .shell-section[data-state="opening"] { animation: shell-open var(--motion-slow) var(--ease-out); }
+  .shell-section[data-state="closing"] { animation: shell-close var(--motion-slow) var(--ease-out) forwards; }
+  .shell-section:is([data-state="opening"], [data-state="closing"]) > div { overflow: hidden; }
+  /* Phone menu: slides in from the left over a fading backdrop; slides back out where the browser supports it. */
+  .shell-drawer { transform: translateX(-100%); transition: transform var(--motion-base) var(--ease-out), overlay var(--motion-base) allow-discrete, display var(--motion-base) allow-discrete; }
+  .shell-drawer[open] { transform: none; }
+  @starting-style { .shell-drawer[open] { transform: translateX(-100%); } }
+  .shell-drawer::backdrop { background: rgb(0 0 0 / 0); transition: background-color var(--motion-base) linear, overlay var(--motion-base) allow-discrete, display var(--motion-base) allow-discrete; }
+  .shell-drawer[open]::backdrop { background: rgb(0 0 0 / 0.4); }
+  @starting-style { .shell-drawer[open]::backdrop { background: rgb(0 0 0 / 0); } }
   .shell-scroll { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.2) transparent; }
   .shell-main { background: #f8f7f4; }
   .shell-topbar { background: #f6f5f3; font-family: "Inter Variable", var(--font-sans); }
-  .shell-search { @apply flex h-[32px] items-center gap-[10px] rounded-[6px] border border-[#e3e0d9] bg-[#fcfcfa] px-[12px] focus-within:border-[#0369d5] focus-within:ring-2 focus-within:ring-[#0369d5]/20; }
+  .shell-search { @apply flex h-[32px] items-center gap-[10px] rounded-[6px] border border-[#e3e0d9] bg-[#fcfcfa] px-[12px] hover:border-[#cfcac0] focus-within:border-[#0369d5] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0369d5]/20; transition: border-color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+
+  /* Navigation progress: a thin bar in the colour of the module being opened, under the top bar. */
+  .nav-progress { position: absolute; inset: auto 0 0 0; height: 2px; overflow: hidden; pointer-events: none; }
+  .nav-progress > span { display: block; height: 100%; background: var(--progress, #0369d5); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+  /* Appears only if the page takes longer than a blink, creeps towards the end, and completes when the page arrives. */
+  .nav-progress:is([data-phase="loading"], [data-phase="slow"], [data-phase="stalled"]) > span { opacity: 1; animation: nav-trickle 10s var(--ease-out) 120ms both; }
+  .nav-progress[data-phase="done"] > span { transform: scaleX(1); opacity: 0; transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-base) linear var(--motion-fast); }
+  .nav-notice { animation: rise-in var(--motion-base) var(--ease-out) backwards; }
+
+  /* Page entrance on a full page load (client navigations use the same values from src/components/main-area.tsx). */
+  .page-enter { animation: rise-in var(--motion-base) var(--ease-out) backwards; }
+  /* Flash messages after a form: they appear when the server's answer does, never before. */
+  .flash { animation: rise-in var(--motion-base) var(--ease-out) backwards; }
+
+  /* Skeletons for pages still loading: shown after a short delay so a fast page never flashes one. */
+  /* One composited pulse for the whole placeholder, not one animation per bar. */
+  .skeleton-page { animation: fade-in var(--motion-base) linear backwards; }
+  .skeleton-pulse { animation: skeleton-pulse 1.6s ease-in-out var(--motion-base) infinite; }
+  .skeleton:where(:not(.cs *)) { border-radius: 4px; background: #e6e9ee; }
+
+  /* Pop-overs built on <details> (menus, quick actions, the organisation switcher). */
+  .menu-pop, details[open] > summary ~ .absolute { animation: pop-in var(--motion-fast) var(--ease-out) backwards; transform-origin: top; }
+
+  /* The content area blends from one module's colour to the next (title bars read --module). */
+  #main-content[data-blend] { transition: --module var(--motion-slow) var(--ease-standard); }
+
+  /* Dialogs (Radix): the overlay fades, the panel rises; both reverse on close. */
+  .dialog-overlay[data-state="open"] { animation: fade-in var(--motion-base) linear backwards; }
+  .dialog-overlay[data-state="closed"] { animation: fade-out var(--motion-fast) linear both; }
+  .dialog-panel[data-state="open"] { animation: dialog-in var(--motion-base) var(--ease-out) backwards; }
+  .dialog-panel[data-state="closed"] { animation: dialog-out var(--motion-fast) var(--ease-standard) both; }
+  .tab-panel[data-state="active"] { animation: fade-in var(--motion-base) linear backwards; }
+
+  /* Buttons waiting on the server: a small spinner, and no second press. */
+  :is(button, .btn)[data-pending] { cursor: progress; pointer-events: none; }
+  :is(button, .btn)[data-pending]::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; flex-shrink: 0; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  :is(.btn)[data-pending]::before { margin-right: 0; }
 
   /*
    * Policy Library workspace (docs/design/policy-library-reference.png). Scoped to [data-surface="policy-library"]
@@ -124,3 +205,26 @@
   .pl-menu-item { @apply flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] text-[#1f2d42] hover:bg-[#f4f9fc] hover:text-[#0b1530]; }
 }
 
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(var(--motion-rise)); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, 8px) scale(0.98); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes dialog-out { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 4px) scale(0.98); } }
+@keyframes shell-open { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+@keyframes shell-close { from { grid-template-rows: 1fr; opacity: 1; } to { grid-template-rows: 0fr; opacity: 0; } }
+@keyframes nav-trickle { 0% { transform: scaleX(0); } 20% { transform: scaleX(0.45); } 100% { transform: scaleX(0.9); } }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/*
+ * Reduced motion: nothing slides, fades or spins. State changes still happen, instantly; the progress bar and
+ * spinner become static marks so the "working" signal is kept without the movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; scroll-behavior: auto !important; }
+  .nav-progress:is([data-phase="loading"], [data-phase="slow"], [data-phase="stalled"]) > span { animation: none !important; transform: scaleX(1); opacity: 0.7; }
+  :is(button, .btn)[data-pending]::before { animation: none !important; border-right-color: currentColor; opacity: 0.5; }
+  .skeleton-page, .skeleton-pulse { animation: none !important; }
+}

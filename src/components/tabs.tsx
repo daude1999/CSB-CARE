@@ -34,7 +34,7 @@ export function Tab({ value, children, count }: { value: string; children: React
 
 export function TabPanel({ value, children }: { value: string; children: ReactNode }) {
   return (
-    <TabsPrimitive.Content value={value} className="pt-7 focus-visible:ring-0 focus-visible:ring-offset-0">
+    <TabsPrimitive.Content value={value} className="tab-panel pt-7 focus-visible:ring-0 focus-visible:ring-offset-0">
       {children}
     </TabsPrimitive.Content>
   );

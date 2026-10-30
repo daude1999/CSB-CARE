@@ -84,7 +84,7 @@ One sign-in opens every portal the person may use. The portal button in the head
 | --- | --- | --- |
 | Overview | `/overview` | Working. Figures are counted from the database. |
 | Policy & Compliance | `/` and the existing policy pages, unchanged addresses | Working |
-| HR & Workforce | `/hr/...` | Working. The CSB HR Hub, moved in unchanged (see below). |
+| HR & Workforce | `/hr/...` | Working. The CSB HR Hub's screens inside the platform's menu and top bar (see below). |
 | Reporting & Analytics | `/reports`, `/assistant` | Working |
 | Administration | `/settings`, `/modules`, `/admin/...` | Working |
 | Rostering & Care Management | `/rota/...`, `/carer` | Working: service users, templates, Build Rota, daily and advanced rota, allocation, call monitoring, carer clocking, care plans, risks, incidents, finance preparation, reports. Anything not built is marked "Planned" in its menu. |
@@ -93,7 +93,7 @@ One sign-in opens every portal the person may use. The portal button in the head
 
 - **Sign-in**: the platform session decides who you are; `Membership.hrUserId` names the HR Hub account you work as (Organisation Admin, Group HR, Branch HR or Branch Viewer, with their branch limits). No HR account means no HR portal.
 - **Data**: the HR Hub keeps its records as one document per organisation in the `HrWorkspace` table, written under a row lock, instead of the pilot's local SQLite file. Uploaded files go to `HrFile` and stay in quarantine. A later step should move these records into relational tables (the HR Hub's `supabase/migrations` design is the blueprint) so the rota can share staff records directly.
-- **Styling**: the HR Hub was built with Tailwind 4; its CSS is compiled separately into `public/hr/hr-hub.css` by `npm run build:hr-css -- <folder with Tailwind 4 installed>` and loaded only on HR pages. Portal changes are full page loads so the two style sheets never mix.
+- **Styling and frame**: the HR Hub's screens sit inside the platform's sidebar, top bar and red module title bar; its own sidebar, top bar and portal menu were removed. It was built with Tailwind 4, so its CSS is compiled separately into `public/hr/hr-hub.css` by `npm run build:hr-css -- <folder with Tailwind 4 installed>`, which also confines every HR rule to the HR Hub's root element (`.cs`). It is loaded only on `/hr` pages, and links into or out of them are full page loads, so it never stays on another page. Details: `docs/implementation/HR_IN_PLATFORM_SHELL.md`.
 - Demo HR accounts: `manager@care-solution.demo` (Organisation Admin), `jordan.ellis@` (Group HR), `sam.parker@` (Branch HR, Liverpool), `taylor.reed@` (Branch Viewer, Liverpool), all `@care-solution.demo` with the demo password. Existing demo databases get HR added on the next build by `prisma/seed-hr.ts`.
 
 ## Architecture

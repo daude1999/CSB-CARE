@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   resolve: { alias: { "@": resolve(__dirname, "src") } },
+  // The same JSX runtime as Next.js, so tests can import components that build menus (e.g. src/components/hr-nav.tsx).
+  esbuild: { jsx: "automatic" },
   test: {
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     globalSetup: ["tests/global-setup.ts"],
