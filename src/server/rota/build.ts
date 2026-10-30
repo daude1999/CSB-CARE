@@ -283,7 +283,7 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
     // Re-validate every carer on the week before it goes out: anything that changed since the build (an expired
     // certificate, a new restriction, an absence) flags the visit for review. Nobody is reassigned automatically.
     const staffOnBuild = [...new Set((await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staffId: true } })).map((a) => a.staffId))];
-    const recheck = staffOnBuild.length ? await reviewStaffImpact(tx, scope.organisationId, staffOnBuild, { source: "publish", now }) : { flagged: 0, cleared: 0 };
+    const recheck = staffOnBuild.length ? await reviewStaffImpact(tx, scope.organisationId, staffOnBuild, { source: "publish", now, visitIds: visits.map((v) => v.id) }) : { flagged: 0, cleared: 0 };
     await tx.visit.updateMany({ where: { id: { in: visits.map((v) => v.id) } }, data: { publishedAt: now } });
     if (visits.length) await tx.visitEvent.createMany({ data: visits.map((v) => ({ organisationId: scope.organisationId, visitId: v.id, type: "PUBLISHED", actorId: ctx.userId })) });
     const carers = await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staff: { select: { userId: true } } } });
@@ -297,7 +297,7 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
     }
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.published", entityType: "RotaBuild", entityId: b.id, data: { visits: visits.length, carersNotified: users.length, flaggedOnRecheck: recheck.flagged } }, tx);
     return { published: visits.length, carersNotified: users.length, flagged: recheck.flagged };
-  });
+  }, { timeout: 120_000 });
 }
 
 /** Removes a future build whose visits have not been touched. Anything started, clocked or changed by hand stops it. */

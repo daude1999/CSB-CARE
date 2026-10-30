@@ -207,7 +207,7 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
 }
 
 /** Demo care records, written through the real services: plans drafted by the coordinator and approved by the manager. */
-async function seedCareRecords(organisationId: string, coordinator: Ctx, manager: Ctx) {
+export async function seedCareRecords(organisationId: string, coordinator: Ctx, manager: Ctx) {
   const people = await db.serviceUser.findMany({ where: { organisationId }, orderBy: { reference: "asc" }, select: { id: true, firstName: true, riskLevel: true } });
   const text: Record<string, (n: string) => string> = {
     about_me: (n) => `${n} has lived locally for most of their life and enjoys the radio, crosswords and visits from family. Mornings are slow; ${n} likes time to wake up before getting washed.`,
@@ -252,7 +252,7 @@ async function seedCareRecords(organisationId: string, coordinator: Ctx, manager
 }
 
 /** Visits that ended before now get clock records (demo history), with a few late and one missed for the monitor. */
-async function seedAttendanceHistory(organisationId: string, managerId: string) {
+export async function seedAttendanceHistory(organisationId: string, managerId: string) {
   const now = Date.now();
   const past = await db.visit.findMany({ where: { organisationId, scheduledEnd: { lt: new Date(now) }, status: "SCHEDULED" }, include: { assignments: { where: { removedAt: null, slot: { not: "SHADOW" } } } }, orderBy: { scheduledStart: "asc" } });
   let n = 0;
@@ -276,7 +276,7 @@ async function seedAttendanceHistory(organisationId: string, managerId: string) 
 }
 
 /** Demo finance set-up and last week's preparation, through the real services. Fictional councils and rates. */
-async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ctx, financeUserId?: string) {
+export async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ctx, financeUserId?: string) {
   const today = londonDate();
   const from = `${today.slice(0, 4)}-04-01` <= today ? `${today.slice(0, 4)}-04-01` : `${Number(today.slice(0, 4)) - 1}-04-01`;
   const weekdays = [1, 2, 3, 4, 5];

@@ -110,11 +110,9 @@ const formatDate = (s: string | null) =>
       }).format(new Date(s.length === 10 ? s + "T12:00:00Z" : s))
     : "Not set";
 export default function Hub() {
-  const [scope, updateScope] = useState(() =>
-    typeof window === "undefined"
-      ? "all"
-      : new URLSearchParams(window.location.search).get("branch") || "all",
-  );
+  // Read through Next.js so the server and the browser start from the same branch (no hydration mismatch).
+  const initialBranch = useSearchParams().get("branch");
+  const [scope, updateScope] = useState(() => initialBranch || "all");
   const setScope = (value: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set("branch", value);
