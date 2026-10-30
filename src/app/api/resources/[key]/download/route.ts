@@ -39,6 +39,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ key: str
     publishedAt: now,
     effectiveDate: now,
     approvedAt: null,
+    approval: "Not applicable (working template)",
     approvedBy: "Not applicable (working template)",
     owner: details?.registered_manager || "Registered manager",
     nextReviewDate: null,

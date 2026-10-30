@@ -198,7 +198,7 @@ export async function PolicyInspector({ ctx, query, policyId }: { ctx: Ctx; quer
             <ReasonForm action={restorePolicyAction} policyId={p.id} back={back} button="Restore policy" />
           </ActionDialog>
         ) : null}
-        <Menu label="More policy actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[6px] border border-[#dcd9d2] bg-white" align="right">
+        <Menu label="More policy actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[6px] border border-[#dcd9d2] bg-white" align="right" opens="up">
           <Link href={`/policies/${p.id}`} className="pl-menu-item"><ArrowSquareOut size={15} />Open full record</Link>
           <Link href={`/policies/${p.id}?view=history`} className="pl-menu-item"><ClockCounterClockwise size={15} />Versions and rollback</Link>
           {active && canArchive ? (

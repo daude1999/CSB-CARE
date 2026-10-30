@@ -83,6 +83,7 @@ function cover(m: DocModel) {
       ["Organisation", owner, "Status", m.status],
       ["Category", m.category, "Applies to", m.appliesTo],
       ["Effective date", fmtDocDate(m.effectiveDate ?? m.publishedAt), "Next review", fmtDocDate(m.nextReviewDate)],
+      ["Approval", m.approval, "Owner", m.owner],
     ], [18, 32, 18, 32], true),
     new Paragraph({ spacing: { before: 600 }, children: [run("Controlled document. Printed copies are uncontrolled; always check the CSB system for the current version.", { italics: true, color: GREY, size: 18 })] }),
     new Paragraph({ children: [new PageBreak()] }),
@@ -94,6 +95,7 @@ function control(m: DocModel) {
     heading("Document control"),
     grid(null, [
       ["Document owner", m.owner],
+      ["Approval", m.approval],
       ["Approved by", m.approvedBy],
       ["Date approved", fmtDocDate(m.approvedAt)],
       ["Review interval", `${m.reviewIntervalMonths} months`],
@@ -140,7 +142,7 @@ export async function renderDocx(m: DocModel): Promise<Buffer> {
       new Paragraph({
         tabStops: [{ type: TabStopType.RIGHT, position: 9700 }],
         children: [
-          run(`${m.organisation ?? "CSB master template"} · Version ${m.version} · Uncontrolled when printed`, { color: GREY, size: 16 }),
+          run(`${m.organisation ?? "CSB master template"} · Version ${m.version} · ${m.status} · Uncontrolled when printed`, { color: GREY, size: 16 }),
           new TextRun({ children: ["\tPage ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: GREY }),
         ],
       }),

@@ -1,5 +1,6 @@
 import "server-only";
 import PDFDocument from "pdfkit";
+import { embeddedDefaultFont, FONT, pdfText, applyEmbeddedFonts } from "@/server/documents/fonts";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
@@ -31,7 +32,7 @@ export const printSchema = z.object({
 });
 export type PrintInput = z.input<typeof printSchema>;
 
-const sanitise = (s: string) => s.replace(/[–—]/g, "-").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff]/g, "");
+const sanitise = pdfText;
 
 export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf: Buffer; filename: string }> {
   const p = printSchema.safeParse(input);
@@ -63,7 +64,8 @@ export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf:
     orderBy: [{ date: "asc" }, { routeOrder: { sort: "asc", nulls: "last" } }, { scheduledStart: "asc" }],
   });
 
-  const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true, info: { Title: "Printable rota", Author: "CSB Care Solution Bureau" } });
+  const doc = new PDFDocument({ ...embeddedDefaultFont(), size: "A4", margin: 40, bufferPages: true, info: { Title: "Printable rota", Author: "CSB Care Solution Bureau" } });
+  applyEmbeddedFonts(doc);
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -78,8 +80,8 @@ export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf:
     const mine = visits.filter((v) => (o.kind === "CARER" ? v.assignments.some((a) => a.staffId === person.id && (o.includeShadow || a.slot !== "SHADOW")) : v.serviceUser.id === person.id));
     if (!first && o.separatePages) doc.addPage();
     first = false;
-    doc.font("Helvetica-Bold").fontSize(size + 6).fillColor("#16181c").text(sanitise(person.name));
-    doc.font("Helvetica").fontSize(size).fillColor("#5b6577").text(sanitise(`${o.kind === "CARER" ? "Rota" : "Visits"} from ${fmtLondonDate(o.from)} to ${fmtLondonDate(o.to)} · printed ${fmtLondonDate(londonDate())}`));
+    doc.font(FONT.bold).fontSize(size + 6).fillColor("#16181c").text(sanitise(person.name));
+    doc.font(FONT.regular).fontSize(size).fillColor("#5b6577").text(sanitise(`${o.kind === "CARER" ? "Rota" : "Visits"} from ${fmtLondonDate(o.from)} to ${fmtLondonDate(o.to)} · printed ${fmtLondonDate(londonDate())}`));
     doc.moveDown(0.6);
     if (!mine.length) {
       doc.fillColor("#1f2937").text("No visits in these dates.");
@@ -92,12 +94,12 @@ export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf:
       if (d !== day) {
         day = d;
         if (doc.y > doc.page.height - 120) doc.addPage();
-        doc.moveDown(0.4).font("Helvetica-Bold").fontSize(size + 1).fillColor("#16181c").text(sanitise(fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })));
+        doc.moveDown(0.4).font(FONT.bold).fontSize(size + 1).fillColor("#16181c").text(sanitise(fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })));
       }
       if (doc.y > doc.page.height - 80) doc.addPage();
       const other = o.kind === "CARER" ? suName(v.serviceUser) : v.assignments.filter((a) => o.includeShadow || a.slot !== "SHADOW").map((a) => a.staff.displayName).join(" and ") || "Not yet assigned";
       const line = `${londonTime(v.scheduledStart)}-${londonTime(v.scheduledEnd)}  ${other} · ${v.callType.name}${v.status === "CANCELLED" ? " · CANCELLED" : ""}${v.runRoute ? ` · route ${v.runRoute.name}` : ""}${o.kind === "CARER" && v.assignments.find((a) => a.staffId === person.id)?.slot === "SHADOW" ? " · shadowing" : ""}`;
-      doc.font("Helvetica").fontSize(size).fillColor("#1f2937").text(sanitise(line));
+      doc.font(FONT.regular).fontSize(size).fillColor("#1f2937").text(sanitise(line));
       const extra: string[] = [];
       if (o.address && o.kind === "CARER") extra.push([v.serviceUser.addressLine1, v.serviceUser.town, v.serviceUser.postcode].filter(Boolean).join(", "));
       if (o.medication && v.medicationRequired) extra.push("Medication prompt: follow the paper MAR chart");
@@ -111,7 +113,7 @@ export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf:
   const range = doc.bufferedPageRange();
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i);
-    doc.font("Helvetica").fontSize(8).fillColor("#5b6577").text(`Confidential: contains personal information. Page ${i + 1} of ${range.count}`, 40, doc.page.height - 30, { lineBreak: false });
+    doc.font(FONT.regular).fontSize(8).fillColor("#5b6577").text(`Confidential: contains personal information. Page ${i + 1} of ${range.count}`, 40, doc.page.height - 30, { lineBreak: false });
   }
   doc.end();
   const pdf = await done;

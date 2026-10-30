@@ -20,6 +20,7 @@ const model: DocModel = {
   publishedAt: new Date("2026-08-27"),
   effectiveDate: new Date("2026-08-27"),
   approvedAt: new Date("2026-08-20"),
+  approval: "Approved",
   approvedBy: "Avery Approver",
   owner: "Morgan Manager",
   nextReviewDate: new Date("2027-08-27"),

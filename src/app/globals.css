@@ -194,13 +194,16 @@
   .pl-insp-tab { @apply relative flex h-[40px] flex-1 items-center justify-center whitespace-nowrap px-2 text-[13.5px] text-[#26364e] hover:text-[#0b1530]; }
   .pl-insp-tab[data-state="active"] { color: #0646b1; font-weight: 600; }
   .pl-insp-tab[data-state="active"]::after { content: ""; position: absolute; left: 10%; right: 10%; bottom: -1px; height: 2px; background: #0369d5; }
-  .pl-viewer { @apply flex flex-col overflow-hidden rounded-[6px] border border-[#e3e0d9]; height: 306px; background: #f2f1ef; }
-  .pl-viewer:fullscreen { height: 100vh; border-radius: 0; }
+  /* The panel takes most of the screen height (never less than a readable page), and the reader takes the whole window. */
+  .pl-viewer { @apply flex flex-col overflow-hidden rounded-[6px] border border-[#e3e0d9]; height: clamp(440px, calc(100vh - 230px), 980px); background: #f2f1ef; }
+  .pl-viewer-reader { height: 100%; border: 0; border-radius: inherit; }
   .pl-viewer-bar { @apply flex h-[40px] shrink-0 items-center gap-1 border-b border-[#e3e0d9] px-2; background: #f6f5f3; }
   .pl-tool { @apply flex h-[28px] w-[28px] items-center justify-center rounded-[5px] text-[#1f2d42] hover:bg-[#e9e7e2] disabled:opacity-40; }
   .pl-tool-sep { @apply mx-1 h-4 w-px bg-[#dcd9d2]; }
   .pl-tool-count { @apply min-w-[48px] rounded-[5px] border border-[#e3e0d9] bg-white px-2 text-center text-[12.5px] leading-[26px] tabular-nums text-[#1f2d42]; }
-  .pl-viewer-page { @apply overflow-auto py-4; background: #e4e4e4; }
+  .pl-viewer-page { @apply flex flex-col items-center gap-4 overflow-auto p-4; background: #e4e4e4; }
+  .pl-viewer-page:focus-visible { outline: 2px solid #1d6fb8; outline-offset: -2px; }
+  .pl-page { @apply relative shrink-0 bg-white shadow-[0_1px_4px_rgb(0_0_0/0.12)]; }
   .pl-dl { @apply grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[13px]; }
   .pl-dl dt { color: #646e7f; }
   .pl-dl dd { color: #2f3d52; min-width: 0; }
@@ -229,4 +232,13 @@
   .nav-progress:is([data-phase="loading"], [data-phase="slow"], [data-phase="stalled"]) > span { animation: none !important; transform: scaleX(1); opacity: 0.7; }
   :is(button, .btn)[data-pending]::before { animation: none !important; border-right-color: currentColor; opacity: 0.5; }
   .skeleton-page, .skeleton-pulse { animation: none !important; }
+}
+
+/* Printing a policy from the document viewer: only the rendered page images are printed. */
+.pdf-print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 0; }
+  body:has(> .pdf-print-root) > :not(.pdf-print-root) { display: none !important; }
+  .pdf-print-root { display: block; }
+  .pdf-print-root img { display: block; width: 100%; height: auto; break-after: page; }
 }

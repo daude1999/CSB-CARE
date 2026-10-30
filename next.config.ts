@@ -26,8 +26,9 @@ const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/client", "pino", "unpdf", "mammoth", "pdfkit"],
-  // pdfkit loads its built-in fonts by dynamic path, which file tracing misses on Vercel.
-  outputFileTracingIncludes: { "/api/policies/**": ["./node_modules/pdfkit/js/**/*"] },
+  // pdfkit loads its built-in font metrics by dynamic path, and src/server/documents/fonts.ts reads the embedded PDF
+  // fonts at runtime; file tracing misses both on Vercel, so every server route carries them.
+  outputFileTracingIncludes: { "/**": ["./node_modules/pdfkit/js/**/*", "./src/server/documents/fonts/*.ttf"] },
   experimental: { serverActions: { bodySizeLimit: "11mb" }, optimizePackageImports: ["@phosphor-icons/react"] },
   async headers() {
     return [
