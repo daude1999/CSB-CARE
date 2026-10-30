@@ -5,6 +5,8 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
 import { CLOCK_KIND_LABEL, listCorrectionRequests } from "@/server/rota/corrections";
+import { visitMedication } from "@/server/care/medication";
+import { VisitMedication } from "@/components/medication-ui";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
@@ -37,6 +39,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const assignable = canEdit && ["SCHEDULED", "MISSED"].includes(v.status);
   const slots: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), "SHADOW"];
   const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
+  const medication = await visitMedication(ctx, v.id);
   const [candidates, lk, names] = await Promise.all([
     assignable ? Promise.all(slots.map(async (s) => [s, await visitCandidates(ctx, v, s)] as const)) : Promise.resolve([]),
     editable ? rotaLookups(ctx) : Promise.resolve(null),
@@ -78,7 +81,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Field label="Service user"><Link href={`/rota/service-users/${v.serviceUser.id}`}>{suName(v.serviceUser)}</Link> <span className="text-slate-500">{v.serviceUser.reference}</span></Field>
               <Field label="Postcode">{v.serviceUser.postcode ?? "—"}</Field>
               <Field label="Carer preference">{v.serviceUser.carerGenderPreference === "ANY" ? "No preference" : `${v.serviceUser.carerGenderPreference.toLowerCase()} carers`}</Field>
-              <Field label="Medication">{v.medicationRequired ? "Prompt on this visit (eMAR not in use)" : "None"}</Field>
+              <Field label="Medication">{medication ? (medication.due.length ? `${medication.due.length} due (see Medication)` : "None due") : v.medicationRequired ? "Prompt on this visit (medication records switched off)" : "None"}</Field>
               <Field label="Source">{v.templateId ? <Link href={`/rota/templates/${v.templateId}`}>Rota template</Link> : "One-off visit"}</Field>
               <Field label="Run route">{v.runRoute?.name ?? "—"}</Field>
             </dl>
@@ -126,7 +129,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
-                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}
+                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
                             </option>
                           ))}
                         </select>
@@ -184,6 +187,8 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               </Card>
             </section>
           ) : null}
+
+          {medication ? <VisitMedication data={medication} back={back} canManage={hasOrgPermission(ctx, "medication.manage")} /> : null}
 
           <section id="attendance" aria-label="Attendance">
           <Card title="Attendance and notes">

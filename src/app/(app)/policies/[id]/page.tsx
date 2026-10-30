@@ -23,6 +23,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const { id } = await params;
   const sp = await searchParams;
   const ctx = await requireCtx();
+  const canEditDetails = hasOrgPermission(ctx, "org.manage");
   const p = await orNotFound(getPolicy(ctx, id));
   // The first open of an outstanding reading assignment is recorded (opening is not acknowledgement).
   await markOpened(ctx, p.id);
@@ -197,7 +198,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 {textSections.map((s, i) => (
                   <section key={s.key} id={`text-${s.key}`}>
                     <h3 className="flex items-baseline gap-3 text-[17px] font-medium tracking-normal text-navy-900"><span className="font-mono text-sm font-normal text-teal-600">{i + 1}</span>{s.heading}{s.isLocal ? <Badge tone="teal">local</Badge> : null}</h3>
-                    <TagBody body={s.body} details={details} className="mt-2 text-[15.5px] leading-7 text-slate-800" />
+                    <TagBody body={s.body} details={details} canEdit={canEditDetails} className="mt-2 text-[15.5px] leading-7 text-slate-800" />
                   </section>
                 ))}
               </div>
@@ -213,7 +214,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   {procedure.map((s, i) => (
                     <section key={s.key} id={s.key} className="scroll-mt-24">
                       <h3 className="flex items-baseline gap-3 text-[17px] font-medium tracking-normal text-navy-900"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy-900 font-mono text-[12px] font-normal text-white">{i + 1}</span>{s.heading}</h3>
-                      <TagBody body={s.body} details={details} className="mt-2 pl-9 text-[15.5px] leading-7 text-slate-800" />
+                      <TagBody body={s.body} details={details} canEdit={canEditDetails} className="mt-2 pl-9 text-[15.5px] leading-7 text-slate-800" />
                     </section>
                   ))}
                 </div>
@@ -222,13 +223,13 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 {procedure.length ? (
                   <Panel title="Key facts for staff" tone="teal">
                     <ul className="space-y-2.5 text-[14px] leading-6 text-slate-800">
-                      {procedure.map((s) => <li key={s.key} className="flex gap-2"><Lightbulb size={16} weight="fill" className="mt-1 shrink-0 text-teal-600" aria-hidden="true" /><span><TagText text={firstSentence(s.body)} details={details} /></span></li>)}
+                      {procedure.map((s) => <li key={s.key} className="flex gap-2"><Lightbulb size={16} weight="fill" className="mt-1 shrink-0 text-teal-600" aria-hidden="true" /><span><TagText text={firstSentence(s.body)} details={details} canEdit={canEditDetails} /></span></li>)}
                     </ul>
                   </Panel>
                 ) : null}
                 {definitions ? (
                   <Panel title="Definitions">
-                    <TagBody body={definitions.body} details={details} className="text-[14px] leading-6 text-slate-800" />
+                    <TagBody body={definitions.body} details={details} canEdit={canEditDetails} className="text-[14px] leading-6 text-slate-800" />
                   </Panel>
                 ) : null}
                 {reading.length ? (
@@ -312,7 +313,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                           {s.heading}
                           {s.isLocal ? <Badge tone="teal">local</Badge> : null}
                         </h2>
-                        <TagBody body={s.body} details={details} className="mt-2.5 text-[16px] leading-[1.75] text-slate-800" />
+                        <TagBody body={s.body} details={details} canEdit={canEditDetails} className="mt-2.5 text-[16px] leading-[1.75] text-slate-800" />
                       </section>
                     ))}
                   </div>
@@ -494,7 +495,7 @@ function Panel({ title, note, tone, children }: { title: string; note?: React.Re
         <h2 className="text-[18px] font-medium tracking-normal text-navy-900">{title}</h2>
         {note ? <p className="mt-0.5 text-[13px] text-slate-600">{note}</p> : null}
       </div>
-      <div className="overflow-x-auto">{children}</div>
+      <div className="relative overflow-x-auto">{children}</div>
     </section>
   );
 }

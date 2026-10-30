@@ -17,7 +17,8 @@ export interface Ctx {
 }
 
 export const ORG_PERMISSIONS = {
-  "policy.read": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF"],
+  // Everyone in the organisation reads its policies: anyone may be asked to acknowledge one.
+  "policy.read": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "CARER", "FINANCE_OFFICER"],
   "policy.author": ["ORG_ADMIN", "POLICY_AUTHOR"],
   "policy.review": ["POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD"],
   "policy.approve": ["POLICY_APPROVER"],
@@ -68,6 +69,9 @@ export const ORG_PERMISSIONS = {
 
   // Staff readiness (training, competency, policy acknowledgement, restrictions). Rota users see status and reasons;
   // evidence detail is for managers and compliance.
+  /** Medication lists and MAR records (only when the organisation has switched medication on). */
+  "medication.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "medication.manage": ["ORG_ADMIN", "CARE_MANAGER"],
   "readiness.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
   "readiness.evidence": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
   /** Enter training evidence for someone (verified by a second person). */

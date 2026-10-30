@@ -1,10 +1,10 @@
 import type { Prisma, RateBand, RateCard } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { dbDate, fromDbDate, isoWeekday, londonMinute } from "@/lib/london";
+import { addDays, dbDate, fromDbDate, isoWeekday, londonMinute } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import { requireOrgPermission, type Ctx } from "@/server/auth/rbac";
-import { pickBand, price } from "./pricing";
+import { priceAtCutOff, priceWork, splitWork } from "./pricing";
 import { financeSettings } from "./rates";
 import { weekOf } from "./timesheets";
 
@@ -60,26 +60,50 @@ export async function preparePayRun(ctx: Ctx, weekStart: string) {
     const staff = new Map((await tx.staffMember.findMany({ where: { organisationId }, select: { id: true, displayName: true } })).map((s) => [s.id, s.displayName]));
     const exceptions: RunException[] = others.map((o) => ({ kind: "TIMESHEET", message: `${staff.get(o.staffId) ?? "A carer"}: timesheet is ${o.status.toLowerCase()}, so not included`, ref: o.staffId }));
     const lines: Prisma.PayLineCreateManyRunInput[] = [];
+    /** Prices one timesheet line, split at the cut-off after `lastDay`, or explains why it cannot be priced. */
+    const priceLine = async (staffId: string, l: { id: string; visitId: string | null; date: Date; description: string; payableMinutes: number }, lastDay: string) => {
+      const rate = payRates.find((r) => r.staffId === staffId && r.effectiveFrom <= l.date && (!r.effectiveTo || r.effectiveTo >= l.date));
+      const card = cardOn(cards, rate?.rateCardId ?? settings.defaultPayRateCardId, l.date);
+      if (!card) return { ok: false as const, error: { kind: "NO_PAY_RATE", message: `${staff.get(staffId)}: no pay rate card on ${fromDbDate(l.date)}`, ref: l.id } };
+      const visit = l.visitId ? await tx.visit.findUnique({ where: { id: l.visitId }, select: { scheduledStart: true } }) : null;
+      const day = fromDbDate(l.date);
+      // Work past midnight or across a band boundary is paid at each stretch's own band.
+      const cut = priceAtCutOff(splitWork(card.bands, day, visit ? londonMinute(visit.scheduledStart) : 0, l.payableMinutes, (d) => holidays.has(d), (d) => addDays(d, 1), isoWeekday), lastDay);
+      if (!cut) return { ok: false as const, error: { kind: "NO_BAND", message: `${staff.get(staffId)}: no band on "${card.name}" for all of ${l.description} on ${day}`, ref: l.id } };
+      return { ok: true as const, card, ...cut };
+    };
     for (const t of sheets) {
       for (const l of t.lines) {
         if (!l.payableMinutes) continue;
-        const rate = payRates.find((r) => r.staffId === t.staffId && r.effectiveFrom <= l.date && (!r.effectiveTo || r.effectiveTo >= l.date));
-        const card = cardOn(cards, rate?.rateCardId ?? settings.defaultPayRateCardId, l.date);
-        if (!card) {
-          exceptions.push({ kind: "NO_PAY_RATE", message: `${staff.get(t.staffId)}: no pay rate card on ${fromDbDate(l.date)}`, ref: l.id });
+        const p = await priceLine(t.staffId, l, end);
+        if (!p.ok) {
+          exceptions.push(p.error);
           continue;
         }
-        const visit = l.visitId ? await tx.visit.findUnique({ where: { id: l.visitId }, select: { scheduledStart: true } }) : null;
-        const day = fromDbDate(l.date);
-        const band = pickBand(card.bands, isoWeekday(day), visit ? londonMinute(visit.scheduledStart) : 0, holidays.has(day));
-        if (!band) {
-          exceptions.push({ kind: "NO_BAND", message: `${staff.get(t.staffId)}: no band on "${card.name}" for ${l.description} on ${day}`, ref: l.id });
-          continue;
-        }
-        const p = price(band, l.payableMinutes);
-        lines.push({ staffId: t.staffId, visitId: l.visitId, kind: "VISIT", date: l.date, description: l.description, minutes: p.minutes, ratePence: p.ratePence, amountPence: p.amountPence, bandLabel: `${card.name} · ${band.label}` });
+        const note = p.tail ? " · paid to the cut-off; the rest is in next week's run" : p.head.split ? " · split across bands or midnight" : "";
+        lines.push({ staffId: t.staffId, visitId: l.visitId, kind: "VISIT", date: l.date, description: `${l.description}${note}`, minutes: p.head.minutes, ratePence: p.head.ratePence, amountPence: p.head.amountPence, bandLabel: `${p.card.name} · ${p.head.bandLabel}` });
+        if (p.tail) exceptions.push({ kind: "CARRIED", message: `${staff.get(t.staffId)}: ${p.tail.minutes} minutes of ${l.description} fall after the cut-off and are paid in next week's run`, ref: l.id });
       }
     }
+    // The tail of last Sunday's overnight work belongs to this period. A run prepared before cut-off splitting paid it
+    // in full, so nothing is carried when last week's run already holds the whole visit.
+    const prevStart = addDays(start, -7);
+    const [prevSheets, prevRun] = await Promise.all([
+      tx.timesheet.findMany({ where: { organisationId, periodStart: dbDate(prevStart), status: "APPROVED" }, include: { lines: { where: { date: dbDate(addDays(start, -1)), payableMinutes: { gt: 0 } } } } }),
+      tx.payRun.findFirst({ where: { organisationId, periodStart: dbDate(prevStart), status: { not: "VOID" } }, include: { lines: { where: { kind: "VISIT" } } } }),
+    ]);
+    for (const t of prevSheets) {
+      for (const l of t.lines) {
+        const p = await priceLine(t.staffId, l, addDays(start, -1));
+        if (!p.ok || !p.tail) continue;
+        const paid = prevRun?.lines.filter((x) => x.staffId === t.staffId && x.visitId === l.visitId).reduce((n, x) => n + x.minutes, 0) ?? 0;
+        if (paid >= p.head.minutes + p.tail.minutes) continue;
+        lines.push({ staffId: t.staffId, visitId: l.visitId, kind: "VISIT", date: dbDate(start), description: `${l.description} · after last week's cut-off`, minutes: p.tail.minutes, ratePence: p.tail.ratePence, amountPence: p.tail.amountPence, bandLabel: `${p.card.name} · ${p.tail.bandLabel}` });
+      }
+    }
+    // A visit still running when the run is prepared has no clock-out, so it is not paid here.
+    const running = await tx.visitAssignment.findMany({ where: { organisationId, removedAt: null, visit: { status: "IN_PROGRESS", date: { gte: dbDate(start), lte: dbDate(end) } } }, select: { staffId: true, visitId: true, visit: { select: { reference: true } } } });
+    for (const r of running) exceptions.push({ kind: "UNFINISHED_AT_CUTOFF", message: `${staff.get(r.staffId) ?? "A carer"}: ${r.visit.reference} was still in progress at the cut-off and is not paid in this run`, ref: r.visitId });
     for (const c of claims) {
       const amount = Math.round(c.miles * settings.mileagePencePerMile);
       lines.push({ staffId: c.staffId, visitId: c.visitId, kind: "MILEAGE", date: c.date, description: `Mileage ${c.miles} miles${c.reason ? `: ${c.reason}` : ""}`, minutes: 0, ratePence: settings.mileagePencePerMile, amountPence: amount, bandLabel: "Mileage" });
@@ -133,15 +157,15 @@ export async function prepareInvoiceRun(ctx: Ctx, weekStart: string) {
       }
       const card = cardOn(cards, funder.chargeRateCardId, v.date);
       if (!card) { exceptions.push({ kind: "NO_CHARGE_RATE", message: `${funder.name}: no charge rate card on ${day}`, ref: funder.id }); continue; }
-      const band = pickBand(card.bands, isoWeekday(day), londonMinute(v.scheduledStart), holidays.has(day));
-      if (!band) { exceptions.push({ kind: "NO_BAND", message: `${what}: no band on "${card.name}"`, ref: v.id }); continue; }
       const scheduled = Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000);
       const actual = v.actualStart && v.actualEnd ? Math.round((v.actualEnd.getTime() - v.actualStart.getTime()) / 60000) : null;
       if (funder.chargeBasis === "ACTUAL" && v.status === "COMPLETED" && actual === null) exceptions.push({ kind: "NO_ACTUAL", message: `${what}: no actual times, charged at planned length`, ref: v.id });
       const minutes = v.status === "CANCELLED" ? scheduled : funder.chargeBasis === "ACTUAL" && actual !== null ? actual : scheduled;
-      const p = price(band, minutes);
+      const startAt = funder.chargeBasis === "ACTUAL" && v.status === "COMPLETED" && v.actualStart ? v.actualStart : v.scheduledStart;
+      const p = priceWork(splitWork(card.bands, day, londonMinute(startAt), minutes, (d) => holidays.has(d), (d) => addDays(d, 1), isoWeekday));
+      if (!p) { exceptions.push({ kind: "NO_BAND", message: `${what}: no band on "${card.name}" for all of the visit`, ref: v.id }); continue; }
       const carers = v.carersRequired;
-      byFunder.set(funder.id, [...(byFunder.get(funder.id) ?? []), { visitId: v.id, serviceUserId: v.serviceUser.id, date: v.date, description: `${what}${carers > 1 ? ` (${carers} carers)` : ""}${v.status === "CANCELLED" ? " · short-notice cancellation" : ""}`, minutes: p.minutes * carers, ratePence: p.ratePence, amountPence: p.amountPence * carers, bandLabel: `${card.name} · ${band.label}` }]);
+      byFunder.set(funder.id, [...(byFunder.get(funder.id) ?? []), { visitId: v.id, serviceUserId: v.serviceUser.id, date: v.date, description: `${what}${carers > 1 ? ` (${carers} carers)` : ""}${v.status === "CANCELLED" ? " · short-notice cancellation" : ""}${p.split ? " · split across bands or midnight" : ""}`, minutes: p.minutes * carers, ratePence: p.ratePence, amountPence: p.amountPence * carers, bandLabel: `${card.name} · ${p.bandLabel}` }]);
     }
     const funders = await tx.funder.findMany({ where: { organisationId, id: { in: [...byFunder.keys()] } } });
     const totalPence = [...byFunder.values()].flat().reduce((n, l) => n + l.amountPence, 0);

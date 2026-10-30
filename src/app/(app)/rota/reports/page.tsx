@@ -100,7 +100,7 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
           <li>Planned hours are the visit length times the number of carers needed. Delivered and clocked hours come from clock-in to clock-out, using corrected times where the office has changed them.</li>
           <li>A visit is on time if the first carer clocked in within the late threshold in Rota Settings. A short visit is one where a carer was clocked in for less than the short-visit percentage of the planned length.</li>
           <li>Cancelled visits are counted separately and left out of planned hours. Shadow shifts are left out.</li>
-          <li>Medication figures are not reported: eMAR is not in use.</li>
+          <li>Medication: missed and refused doses are in the Exceptions register and each person&apos;s monthly MAR chart (when medication records are switched on).</li>
         </ul>
       </details>
     </>

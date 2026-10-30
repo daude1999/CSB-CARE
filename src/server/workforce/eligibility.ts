@@ -28,6 +28,8 @@ export interface EligibilityResult {
   state: EligibilityState;
   blocking: Reason[];
   warnings: Reason[];
+  /** Points for the coordinator that do not change the state: little travel time, short rest between days. */
+  advice: Reason[];
   compliance: ComplianceSummary;
   restrictions: string[];
   /** Staff readiness (training, competency, policy, restrictions) judged for the visit's date and tasks. */
@@ -57,7 +59,7 @@ const staffInclude = {
 
 /** Loads everything the rules need for a set of staff over a time window, in a handful of indexed queries. */
 export async function loadFacts(tx: Db, organisationId: string, staffIds: string[], from: Date, to: Date) {
-  const weekFrom = londonToUtc(mondayOf(londonDate(from)), 0);
+  const weekFrom = londonToUtc(addDays(mondayOf(londonDate(from)), -1), 0);
   const weekTo = londonToUtc(addDays(mondayOf(londonDate(to)), 7), 0);
   const [staff, absences, availability, assignments, readiness] = await Promise.all([
     tx.staffMember.findMany({ where: { organisationId, id: { in: staffIds } }, include: staffInclude }),
@@ -118,7 +120,7 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   const restrictions: string[] = [];
   const s = facts.staff.find((x) => x.id === input.staffId);
   const none: ComplianceSummary = { dbs: "Unknown", rightToWork: "Unknown", training: "Unknown" };
-  if (!s) return { staffId: input.staffId, state: "NOT_ELIGIBLE", blocking: [{ code: "NOT_FOUND", message: "This person is not on your organisation's staff list" }], warnings: [], compliance: none, restrictions, readiness: null };
+  if (!s) return { staffId: input.staffId, state: "NOT_ELIGIBLE", blocking: [{ code: "NOT_FOUND", message: "This person is not on your organisation's staff list" }], warnings: [], advice: [], compliance: none, restrictions, readiness: null };
   const date = londonDate(input.start);
 
   // 1–4. Employment, role, rota participation.
@@ -219,7 +221,7 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   }
 
   const state: EligibilityState = out.blocking.length ? "NOT_ELIGIBLE" : out.warnings.length ? "REQUIRES_REVIEW" : "ELIGIBLE";
-  return { staffId: s.id, state, blocking: out.blocking, warnings: out.warnings, compliance, restrictions, readiness };
+  return { staffId: s.id, state, blocking: out.blocking, warnings: out.warnings, advice: travelAndRest(facts, s.id, input), compliance, restrictions, readiness };
 }
 
 /** Eligibility for one person and one time window, for coordinators. */
@@ -245,4 +247,28 @@ export async function rankCarers(tx: Db, organisationId: string, input: Omit<Eli
     .map((id) => ({ staff: facts.staff.find((s) => s.id === id), result: evaluate(settings, facts, { ...input, staffId: id }, prefs) }))
     .filter((r) => r.staff)
     .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName));
+}
+
+/** Minutes between visits below which the coordinator is told there is little time to travel. */
+export const TRAVEL_GAP_MIN = 10;
+/** Daily rest under the Working Time Regulations: 11 consecutive hours between working days. */
+export const DAILY_REST_MIN = 11 * 60;
+
+/**
+ * Advice only (the state is unchanged): the carer's nearest other visits leave under 10 minutes to travel, or under 11
+ * hours' rest between the last visit of one day and the first of the next. Travel time is not worked out from
+ * addresses, so a short gap is a prompt to check, not a judgement.
+ */
+export function travelAndRest(facts: Pick<Facts, "assignments">, staffId: string, input: Pick<EligibilityInput, "start" | "end" | "visitId">): Reason[] {
+  const mine = facts.assignments.filter((b) => b.staffId === staffId && b.visitId !== input.visitId && (b.endsAt <= input.start || b.startsAt >= input.end));
+  const before = mine.filter((b) => b.endsAt <= input.start).sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())[0];
+  const after = mine.filter((b) => b.startsAt >= input.end).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
+  const day = londonDate(input.start);
+  const out: Reason[] = [];
+  const gap = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60000);
+  if (before && londonDate(before.endsAt) === day && gap(before.endsAt, input.start) < TRAVEL_GAP_MIN) out.push({ code: "TRAVEL_GAP", message: `Only ${gap(before.endsAt, input.start)} minutes after their visit ending ${londonTime(before.endsAt)} (${before.visit.reference}) to travel` });
+  if (after && londonDate(after.startsAt) === londonDate(input.end) && gap(input.end, after.startsAt) < TRAVEL_GAP_MIN) out.push({ code: "TRAVEL_GAP", message: `Only ${gap(input.end, after.startsAt)} minutes before their visit at ${londonTime(after.startsAt)} (${after.visit.reference}) to travel` });
+  if (before && londonDate(before.endsAt) < day && gap(before.endsAt, input.start) < DAILY_REST_MIN) out.push({ code: "DAILY_REST", message: `Less than 11 hours' rest since their visit ended at ${londonTime(before.endsAt)} the day before` });
+  if (after && londonDate(after.startsAt) > londonDate(input.end) && gap(input.end, after.startsAt) < DAILY_REST_MIN) out.push({ code: "DAILY_REST", message: `Less than 11 hours' rest before their visit at ${londonTime(after.startsAt)} the next day` });
+  return out;
 }

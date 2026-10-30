@@ -1,4 +1,5 @@
 import "server-only";
+import { missedMedsCount } from "@/server/care/medication";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
@@ -38,6 +39,8 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     unassigned: live.filter((v) => v.flags.unassignedSlots > 0).length,
     review: live.filter((v) => v.flags.review.length > 0).length,
     lateAfterMin: settings.lateAfterMin,
+    /** Null while medication records are switched off, so no figure is shown. */
+    missedMeds: await missedMedsCount(org, live.map((v) => v.id)),
   };
 
   const canPeople = hasOrgPermission(ctx, "serviceUser.view");

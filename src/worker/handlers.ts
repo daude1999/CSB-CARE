@@ -7,6 +7,7 @@ import { syncCustomersFromMaster } from "@/server/policies/sync";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { sweepCalls } from "@/server/rota/monitor";
 import { escalateOverdueExceptions } from "@/server/rota/exceptions";
+import { sweepMissedMedication } from "@/server/care/medication";
 import { reconcileStaffAssignments } from "@/server/policies/assignment";
 import type { RunTrigger } from "@prisma/client";
 
@@ -34,8 +35,9 @@ export const handlers: Record<string, JobHandler> = {
   // Call monitoring runs as its own job, so a failing policy or source job never stops late and missed calls being found.
   "rota.sweep": async () => {
     const calls = await sweepCalls();
+    const missedMedication = await sweepMissedMedication();
     const escalated = await escalateOverdueExceptions();
-    return { ...calls, escalated };
+    return { ...calls, missedMedication, escalated };
   },
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();

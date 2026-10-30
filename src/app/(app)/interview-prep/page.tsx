@@ -1,6 +1,7 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
+import { hasOrgPermission } from "@/server/auth/rbac";
 import { businessDetails } from "@/server/business";
 import { TitleBar } from "@/components/title-bar";
 import { TagText } from "@/components/tag-text";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function InterviewPrep({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
+  const canEditDetails = hasOrgPermission(ctx, "org.manage");
   const refs = [...new Set(INTERVIEW.flatMap((t) => t.policies))];
   const [details, docs] = await Promise.all([
     businessDetails(ctx.organisationId),
@@ -49,10 +51,10 @@ export default async function InterviewPrep({ searchParams }: { searchParams: Pr
                 <ol className="space-y-5">
                   {t.questions.map((q, n) => (
                     <li key={n}>
-                      <p className="flex gap-3 text-[15.5px] font-medium text-navy-900"><span className="font-mono text-[13px] font-normal leading-6 text-teal-600">Q{n + 1}</span><span><TagText text={q.q} details={details} /></span></p>
+                      <p className="flex gap-3 text-[15.5px] font-medium text-navy-900"><span className="font-mono text-[13px] font-normal leading-6 text-teal-600">Q{n + 1}</span><span><TagText text={q.q} details={details} canEdit={canEditDetails} /></span></p>
                       <div className="ml-9 mt-2 rounded-[3px] border-l-[3px] border-teal-400 bg-teal-50 px-4 py-2.5 text-[14.5px] leading-6 text-slate-800">
                         <span className="mb-0.5 flex items-center gap-1.5 text-[12px] font-medium uppercase tracking-[0.06em] text-teal-700"><Lightbulb size={14} weight="fill" aria-hidden="true" />Model answer</span>
-                        <TagText text={q.a} details={details} />
+                        <TagText text={q.a} details={details} canEdit={canEditDetails} />
                       </div>
                     </li>
                   ))}

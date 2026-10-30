@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function ModulePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  await requirePortal("admin");
+  const ctx = await requirePortal("admin");
   const m = MODULES.find((x) => x.slug === slug);
   if (!m) notFound();
   return (
@@ -33,9 +33,9 @@ export default async function ModulePage({ params, searchParams }: { params: Pro
             {m.opens ? (
               <div className="self-start rounded-[4px] border-[1.5px] border-teal-400 bg-teal-100 p-5">
                 <p className="text-[16px] font-medium text-navy-900">Included in your plan</p>
-                <p className="mt-1 text-[13.5px] text-slate-700">Open it from here:</p>
+                {ctx.organisationId ? <p className="mt-1 text-[13.5px] text-slate-700">Open it from here:</p> : <p className="mt-1 text-[13.5px] text-slate-700">These screens open inside a provider organisation; CSB staff accounts have none.</p>}
                 <ul className="mt-3 space-y-2">
-                  {m.opens.map((o) => <li key={o.href}><Link href={o.href} className="flex items-center justify-between rounded-[4px] bg-white px-3 py-2 text-[14.5px] text-navy-900 no-underline shadow-[0_1px_2px_rgb(0_0_0/0.06)] hover:bg-teal-50">{o.label}<ArrowRight size={16} aria-hidden="true" /></Link></li>)}
+                  {(ctx.organisationId ? m.opens : []).map((o) => <li key={o.href}><Link href={o.href} className="flex items-center justify-between rounded-[4px] bg-white px-3 py-2 text-[14.5px] text-navy-900 no-underline shadow-[0_1px_2px_rgb(0_0_0/0.06)] hover:bg-teal-50">{o.label}<ArrowRight size={16} aria-hidden="true" /></Link></li>)}
                 </ul>
               </div>
             ) : (

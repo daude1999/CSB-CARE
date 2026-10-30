@@ -215,3 +215,36 @@ export async function redeemToken(token: string, input: { password: string; name
     return { kind: t.kind, email: t.email };
   });
 }
+
+// ── Setting up a new organisation (command line only) ─────────────────────
+
+const provisionSchema = z.object({
+  name: z.string().trim().min(3, "Give the organisation's name").max(160),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "The short name may use letters, numbers and hyphens").max(60),
+  branches: z.array(z.string().trim().min(2).max(120)).min(1, "Give at least one branch"),
+  adminEmail: z.string().trim().toLowerCase().email("Give a valid email address for the first admin").max(200),
+  adminName: z.string().trim().min(2, "Give the first admin's name").max(120),
+});
+
+/**
+ * Creates a real (non-demo) organisation with its branches and an invitation for its first admin, who becomes
+ * organisation admin, compliance lead and care manager. Run from the command line by whoever installs the platform
+ * (`npm run org:create`); there is no screen for it, because no one inside an organisation may create another.
+ * Returns the one-time link token, which is shown once and stored only as a hash.
+ */
+export async function provisionOrganisation(input: z.input<typeof provisionSchema>) {
+  const p = provisionSchema.safeParse(input);
+  if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the details");
+  const d = p.data;
+  if (new Set(d.branches.map((b) => b.toLowerCase())).size !== d.branches.length) throw new ValidationError("Two branches have the same name");
+  if (await db.organisation.findUnique({ where: { slug: d.slug } })) throw new ConflictError(`An organisation with the short name "${d.slug}" already exists`);
+  const { token, tokenHash } = newToken();
+  const org = await db.$transaction(async (tx) => {
+    const o = await tx.organisation.create({ data: { name: d.name, slug: d.slug, isDemo: false } });
+    for (const name of d.branches) await tx.branch.create({ data: { organisationId: o.id, name, services: { create: [{ serviceTypeCode: "DOMICILIARY" }] } } });
+    const t = await tx.accountToken.create({ data: { organisationId: o.id, kind: "INVITE", email: d.adminEmail, name: d.adminName, roles: ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"], tokenHash, createdById: "system", expiresAt: new Date(Date.now() + INVITE_DAYS * 86400_000) } });
+    await audit({ organisationId: o.id, actorId: null, action: "admin.organisation.created", entityType: "Organisation", entityId: o.id, data: { branches: d.branches, firstAdmin: d.adminEmail, inviteId: t.id } }, tx);
+    return o;
+  });
+  return { organisation: org, token };
+}

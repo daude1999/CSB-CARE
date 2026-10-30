@@ -47,10 +47,19 @@ export default async function Dashboard() {
 
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const steps = canManage ? await setupChecklist(ctx.organisationId!) : [];
+  // Only links the person can open: a quick action or figure that leads to "not found" is a dead end.
+  const canStaff = hasOrgPermission(ctx, "staff.view");
+  const quickActions = ([
+    ["/queue", "Open the change queue", hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve")],
+    ["/changes", "See regulatory updates", true],
+    ["/policies/new", "Create a policy", hasOrgPermission(ctx, "policy.author")],
+    ["/acknowledgements", "My policies to read", Boolean(ctx.organisationId)],
+    ["/reports", "Reports", hasOrgPermission(ctx, "report.view")],
+  ] as const).filter(([, , ok]) => ok);
   const month = now.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <h1 className="flex h-[60px] items-center justify-center rounded-t-[6px] bg-[var(--module,#0f2a4f)] px-4 text-[20px] font-medium tracking-normal text-white">Compliance Centre Dashboard</h1>
       <div className="bg-[#f1f2f5] pb-4">
         <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-0 pb-3 pt-2">
@@ -60,7 +69,7 @@ export default async function Dashboard() {
           <details className="relative">
             <summary className="flex h-[33px] w-[139px] cursor-pointer list-none items-center justify-center gap-2.5 rounded-[4px] border-[1.5px] border-slate-500 bg-white text-[15px] text-slate-800 [&::-webkit-details-marker]:hidden">Quick action <CaretDown size={12} weight="bold" aria-hidden="true" /></summary>
             <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col rounded-[6px] border border-slate-200 bg-white py-1 shadow-lg">
-              {[["/queue", "Open the change queue"], ["/changes", "See regulatory updates"], ["/policies/new", "Create a policy"], ["/acknowledgements", "My policies to read"], ["/reports", "Reports"]].map(([href, label]) => (
+              {quickActions.map(([href, label]) => (
                 <Link key={href} href={href!} className="px-3 py-2 text-[14px] text-navy-900 no-underline hover:bg-slate-100">{label}</Link>
               ))}
             </div>
@@ -70,7 +79,11 @@ export default async function Dashboard() {
         <section aria-label="Key figures" className="flex flex-wrap gap-[13px] bg-white pb-1.5">
           <Stat value={updatedRecently} label="Policies Updated" note="In Last 30 days" ring="border-[#e3934a] text-[#b35e14]" href="/policies" />
           <Stat value={m.newChanges + m.awaitingAssessment} label="Important Changes" note="Waiting for review" ring="border-[#e4544f] text-[#c3332c]" href="/changes" />
-          <Stat value={m.outstandingAcks} label="Awaiting Signature" note={m.overdueAcks ? `${m.overdueAcks} past due` : "Staff yet to sign"} ring="border-[#4a7fc9] text-[#2f5fa3]" href="/staff" />
+          {canStaff ? (
+            <Stat value={m.outstandingAcks} label="Awaiting Signature" note={m.overdueAcks ? `${m.overdueAcks} past due` : "Staff yet to sign"} ring="border-[#4a7fc9] text-[#2f5fa3]" href="/staff" />
+          ) : (
+            <Stat value={due} label="Awaiting Signature" note={overdue ? `${overdue} past due` : "Policies for you to sign"} ring="border-[#4a7fc9] text-[#2f5fa3]" href="/acknowledgements" />
+          )}
           <Stat value={ownPolicies} label={ctx.organisationId ? "Custom Policies" : "Templates"} note="Total in library" ring="border-[#6d5fc0] text-[#4a3d9c]" href="/policies" />
         </section>
 
@@ -83,7 +96,7 @@ export default async function Dashboard() {
             <li className="flex items-center gap-[7px]"><StatusMark status="updated" />Updated</li>
           </ul>
           {latest.length ? (
-            <div className="mt-3 overflow-x-auto">
+            <div className="relative mt-3 min-w-0 max-w-full overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse text-[14px]">
                 <thead>
                   <tr className="h-[38px] text-left text-[13px] text-slate-700">

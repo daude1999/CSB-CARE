@@ -7,6 +7,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaSettings } from "@/server/rota/settings";
 import { callTypeActiveAction, careTaskActiveAction, createCallTypeAction, createCareTaskAction, rotaSettingsAction } from "@/app/rota-actions";
 import { Card, Flash, fmtDate, PageHeader } from "@/components/ui";
+import { medicationSwitchAction } from "@/app/medication-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +107,24 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
               <label className="block"><span className="label">Description</span><input name="description" className="input" /></label>
               <button className="btn-secondary">Add task</button>
             </form>
-            <p className="mt-2 text-[12.5px] text-slate-500">Medication administration (eMAR) is not part of tasks and is not built.</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">Medication is recorded separately from tasks; see Medication records.</p>
+          </Card>
+          <Card title="Medication records">
+            {s.medicationEnabledAt ? (
+              <>
+                <p className="text-[14px]">Switched on {fmtDate(s.medicationEnabledAt, true)}. Clinical review: {s.medicationReviewNote}</p>
+                {hasOrgPermission(ctx, "org.manage") ? (
+                  <form action={medicationSwitchAction} className="mt-2"><input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="0" /><button className="btn-secondary">Switch off</button></form>
+                ) : null}
+              </>
+            ) : hasOrgPermission(ctx, "org.manage") ? (
+              <form action={medicationSwitchAction} className="space-y-2">
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="1" />
+                <p className="text-[14px]">Off. Switching on lets managers keep each person&apos;s medicines (checked by a second person) and carers record each dose on the visit, with missed-medication exceptions and a monthly MAR chart. The platform does not check doses, interactions or stock.</p>
+                <label className="block"><span className="label">Who reviewed this for clinical safety, and when</span><input name="reviewNote" required minLength={10} className="input" placeholder="e.g. J. Smith, registered nurse, 30 Oct 2026" /></label>
+                <button className="btn-primary">Switch on medication records</button>
+              </form>
+            ) : <p className="text-[14px]">Off. An organisation admin can switch medication records on after a clinical review.</p>}
           </Card>
           <Card title="Areas">
             <p className="text-[14px]">Areas and which coordinators work in them are managed in <Link href="/admin/areas">Administration → Areas</Link>.</p>

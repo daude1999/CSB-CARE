@@ -99,7 +99,7 @@ model Organisation {
   serviceUsers          ServiceUser[]
   areas                 Area[]
   visits                Visit[]
-  accountTokens AccountToken[]
+  accountTokens         AccountToken[]
 }
 
 model ServiceType {
@@ -140,25 +140,25 @@ model BranchServiceType {
 }
 
 model Membership {
-  id             String             @id @default(cuid())
-  userId         String
-  organisationId String
-  branchId       String?
-  roles          OrgRole[]
-  jobTitle       String?
+  id                      String             @id @default(cuid())
+  userId                  String
+  organisationId          String
+  branchId                String?
+  roles                   OrgRole[]
+  jobTitle                String?
   /// The HR Hub account this member works as in HR & Workforce. Empty means no HR access.
-  hrUserId       String?
-  createdAt      DateTime           @default(now())
-  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisation   Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branch         Branch?            @relation(fields: [branchId], references: [id])
+  hrUserId                String?
+  createdAt               DateTime           @default(now())
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation            Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch                  Branch?            @relation(fields: [branchId], references: [id])
   /// Areas a care coordinator is limited to. None means every area in the organisation.
-  areas          MembershipArea[]
+  areas                   MembershipArea[]
   /// Branches this member may work in. None means every branch in the organisation (the single-branch default).
-  branches       MembershipBranch[]
+  branches                MembershipBranch[]
   /// Set when an administrator deactivates the member: roles are cleared and kept here for reactivation.
   deactivatedAt           DateTime?
-  rolesBeforeDeactivation OrgRole[]  @default([])
+  rolesBeforeDeactivation OrgRole[]          @default([])
 
   @@unique([userId, organisationId])
   @@index([organisationId])
@@ -1521,6 +1521,7 @@ model ServiceUser {
   templates        VisitTemplate[]
   visits           Visit[]
   carerPreferences CarerPreference[]
+  medications      Medication[]
 
   @@unique([organisationId, reference])
   @@unique([id, organisationId])
@@ -1795,6 +1796,10 @@ model RotaSettings {
   doorstepCancel          Boolean        @default(true)
   /// The target time from "visit became late or missed" to "coordinator alerted", in seconds.
   alertLatencyTargetSec   Int            @default(300)
+  /// Medication records are off until an admin switches them on after a clinical review (recorded here).
+  medicationEnabledAt     DateTime?
+  medicationEnabledById   String?
+  medicationReviewNote    String?
   updatedById             String?
   updatedAt               DateTime       @updatedAt
 }
@@ -1854,6 +1859,8 @@ model VisitTemplate {
   alertOnLate        Boolean        @default(true)
   rotaType           RotaType       @default(NORMAL)
   runRouteTemplateId String?
+  /// Position on its template run route, carried into each built visit.
+  routeOrder         Int?
   enabled            Boolean        @default(true)
   effectiveFrom      DateTime       @db.Date
   effectiveTo        DateTime?      @db.Date
@@ -1930,6 +1937,8 @@ model Visit {
   rotaBuild          RotaBuild?     @relation(fields: [rotaBuildId], references: [id])
   runRouteId         String?
   runRoute           RunRoute?      @relation(fields: [runRouteId], references: [id])
+  /// Position on its run route that day, set by hand by the coordinator.
+  routeOrder         Int?
   runOrder           Int?
   /// The local (Europe/London) date the visit starts on.
   date               DateTime       @db.Date
@@ -1960,19 +1969,20 @@ model Visit {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  assignments  VisitAssignment[]
-  tasks        VisitTask[]
-  clocks       VisitClock[]
-  visitNotes   VisitNote[]
-  events       VisitEvent[]
-  taskOutcomes VisitTaskOutcome[]
+  assignments        VisitAssignment[]
+  tasks              VisitTask[]
+  clocks             VisitClock[]
+  visitNotes         VisitNote[]
+  events             VisitEvent[]
+  taskOutcomes       VisitTaskOutcome[]
+  correctionRequests ClockCorrectionRequest[]
+  marRecords         MarRecord[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, date])
   @@index([organisationId, status, date])
   @@index([serviceUserId, date])
   @@index([templateId, date])
-  correctionRequests ClockCorrectionRequest[]
 }
 
 enum AssignmentSlot {
@@ -2156,28 +2166,28 @@ enum AlertSeverity {
 
 /// An operational alert for coordinators (late, missed, unassigned, HR impact). Resolved, never deleted.
 model RotaAlert {
-  id             String        @id @default(cuid())
-  organisationId String
-  kind           String
-  severity       AlertSeverity @default(WARNING)
-  visitId        String?
-  staffId        String?
-  assignmentId   String?
-  message        String
-  dedupeKey      String        @unique
-  raisedAt       DateTime      @default(now())
+  id              String        @id @default(cuid())
+  organisationId  String
+  kind            String
+  severity        AlertSeverity @default(WARNING)
+  visitId         String?
+  staffId         String?
+  assignmentId    String?
+  message         String
+  dedupeKey       String        @unique
+  raisedAt        DateTime      @default(now())
   /// When the condition first became true (for alert latency).
-  conditionAt    DateTime?
-  resolvedAt     DateTime?
-  resolvedById   String?
-  resolution     String?
+  conditionAt     DateTime?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolution      String?
   /// Exceptions register: who is dealing with it, by when, and whether it went to a manager.
   ownerId         String?
   ownerAssignedAt DateTime?
   deadline        DateTime?
   escalatedAt     DateTime?
   /// NONE | ESCALATED | RESOLVED_AFTER_ESCALATION
-  escalationState String    @default("NONE")
+  escalationState String        @default("NONE")
   escalationNote  String?
   evidenceNote    String?
 
@@ -2405,6 +2415,7 @@ model MileageClaim {
   submittedAt    DateTime    @default(now())
   decidedById    String?
   decidedAt      DateTime?
+  decisionNote   String?
 
   @@index([organisationId, staffId, date])
 }
@@ -2827,4 +2838,77 @@ model AccountToken {
   createdAt      DateTime     @default(now())
 
   @@index([organisationId, kind])
+}
+
+enum MedicationStatus {
+  DRAFT
+  ACTIVE
+  STOPPED
+}
+
+enum MarOutcome {
+  GIVEN
+  PROMPTED
+  REFUSED
+  NOT_GIVEN
+  NOT_REQUIRED
+}
+
+/// A medicine on a person's list. Used on visits only once a second person approves it (database trigger); a change
+/// is a new medicine that replaces the old one, so the history stays.
+model Medication {
+  id             String           @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser      @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  name           String
+  strength       String?
+  dose           String
+  /// ORAL | TOPICAL | INHALED | EYE | EAR | NASAL | TRANSDERMAL | OTHER
+  route          String
+  /// PROMPT | ASSIST | ADMINISTER
+  support        String
+  /// MORNING | LUNCH | TEA | BED; empty for "as required" medicines.
+  timeRanges     String[]         @default([])
+  asRequired     Boolean          @default(false)
+  maxDosesPerDay Int?
+  controlled     Boolean          @default(false)
+  instructions   String?
+  prescriber     String?
+  startDate      DateTime         @db.Date
+  endDate        DateTime?        @db.Date
+  status         MedicationStatus @default(DRAFT)
+  createdById    String
+  createdAt      DateTime         @default(now())
+  approvedById   String?
+  approvedAt     DateTime?
+  stoppedById    String?
+  stoppedAt      DateTime?
+  stopReason     String?
+  replacesId     String?
+  changeReason   String?
+  records        MarRecord[]
+
+  @@index([organisationId, serviceUserId, status])
+}
+
+/// One recorded dose on a visit (append-only; a correction supersedes it with a reason).
+model MarRecord {
+  id             String     @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit      @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  medicationId   String
+  medication     Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  staffId        String?
+  outcome        MarOutcome
+  reason         String?
+  witnessName    String?
+  recordedById   String
+  at             DateTime   @default(now())
+  supersedesId   String?
+  supersededAt   DateTime?
+
+  @@index([visitId])
+  @@index([medicationId, at])
 }

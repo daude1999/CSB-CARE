@@ -14,6 +14,8 @@ import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
+import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
+import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
@@ -785,4 +787,49 @@ export async function verifyLinesAction(fd: FormData) {
     const n = await verifyLines(ctx, str(fd, "timesheetId"), Number(str(fd, "version")), ids.length ? ids : "exceptions", str(fd, "note"));
     return { ok: `${n} line${n === 1 ? "" : "s"} checked` };
   }, "Lines checked");
+}
+
+// ── Run routes ────────────────────────────────────────────────────────────
+
+const routeInput = (fd: FormData): RouteInput => ({ name: str(fd, "name"), kind: str(fd, "kind") === "AREA" ? "AREA" : "CARER", staffId: str(fd, "staffId") || undefined, areaId: str(fd, "areaId") || undefined, weekStart: str(fd, "weekStart") || undefined, colour: str(fd, "colour"), textColour: str(fd, "textColour") });
+const routeKind = (fd: FormData) => (str(fd, "kind") === "TEMPLATE" ? "TEMPLATE" : "LIVE");
+
+export async function createLiveRouteAction(fd: FormData) {
+  return handle(fd, async (ctx) => `/rota/routes/${(await createLiveRoute(ctx, routeInput(fd))).id}`, "Run route added");
+}
+
+export async function createTemplateRouteAction(fd: FormData) {
+  return handle(fd, async (ctx) => `/rota/routes/templates/${(await createTemplateRoute(ctx, routeInput(fd))).id}`, "Template run route added");
+}
+
+export async function addToRouteAction(fd: FormData) {
+  const ids = fd.getAll("ids").filter((x): x is string => typeof x === "string" && !!x);
+  return handle(fd, async (ctx) => {
+    const n = await addToRoute(ctx, routeKind(fd), str(fd, "routeId"), ids);
+    return { ok: `${n} added to the route` };
+  }, "Added to the route");
+}
+
+export async function removeFromRouteAction(fd: FormData) {
+  return handle(fd, (ctx) => removeFromRoute(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id")), "Taken off the route");
+}
+
+export async function moveStopAction(fd: FormData) {
+  return handle(fd, (ctx) => moveStop(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id"), str(fd, "dir") === "up" ? "up" : "down"), "Order changed");
+}
+
+export async function removeRouteAction(fd: FormData) {
+  return handle(fd, (ctx) => removeRoute(ctx, routeKind(fd), str(fd, "routeId")), routeKind(fd) === "LIVE" ? "Run route removed" : "Template run route switched off");
+}
+
+// ── Mileage ───────────────────────────────────────────────────────────────
+
+export async function submitMileageAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await submitMyMileage(ctx, { date: str(fd, "date"), miles: Number(str(fd, "miles")), visitId: str(fd, "visitId") || undefined, reason: str(fd, "reason") });
+  }, "Mileage claim sent");
+}
+
+export async function decideMileageAction(fd: FormData) {
+  return handle(fd, (ctx) => decideMileage(ctx, str(fd, "claimId"), str(fd, "decision") === "APPROVED" ? "APPROVED" : "REJECTED", str(fd, "note")), "Decision recorded");
 }

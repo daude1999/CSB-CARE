@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3000",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "next build",
     "start": "next start -p 3000",
     "worker": "tsx src/worker/index.ts",
@@ -15,6 +16,8 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
+    "db:reset:local": "node scripts/local-reset.mjs",
+    "org:create": "tsx scripts/create-organisation.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate && node scripts/prepare-pdfjs.mjs",

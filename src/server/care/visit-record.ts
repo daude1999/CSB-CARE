@@ -12,7 +12,7 @@ import { myStaff } from "@/server/workforce/link";
 /**
  * What happened on a visit, recorded by the carer who was there: the outcome of each planned task and notes. Both are
  * append-only (database triggers); a carer records each task once, and only on their own visit after clocking in.
- * A concern note raises an in-app alert for the office. Nothing here is a medication record: eMAR is not built.
+ * A concern note raises an in-app alert for the office. Doses are recorded separately (src/server/care/medication.ts).
  */
 
 export const NOTE_CATEGORIES = { GENERAL: "General note", HANDOVER: "Handover for the next carer", CONCERN: "Concern for the office" } as const;

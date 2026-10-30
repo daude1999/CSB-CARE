@@ -38,7 +38,7 @@ export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, s
         <label><span className="label">Start (UK time)</span><input type="time" name="start" required defaultValue={t ? hhmm(t.startMinute) : "08:00"} className="input" /></label>
         <label><span className="label">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={t?.durationMin ?? 30} className="input" /></label>
         <label><span className="label">Carers needed</span><select name="carersRequired" defaultValue={t?.carersRequired ?? 1} className="input"><option value={1}>One</option><option value={2}>Two (double-up)</option></select></label>
-        <label><span className="label">Rota type</span><select name="rotaType" defaultValue={t?.rotaType ?? "NORMAL"} className="input"><option value="NORMAL">Normal</option><option value="ALTERNATE">Alternate</option></select></label>
+        <input type="hidden" name="rotaType" value={t?.rotaType ?? "NORMAL"} />
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         <label><span className="label">First carer</span><select name="preferredStaff1Id" defaultValue={t?.preferredStaff1Id ?? ""} className="input"><option value="">Leave unassigned</option>{staffOpt}</select></label>
