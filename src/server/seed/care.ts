@@ -254,7 +254,11 @@ export async function seedCareRecords(organisationId: string, coordinator: Ctx, 
 /** Visits that ended before now get clock records (demo history), with a few late and one missed for the monitor. */
 export async function seedAttendanceHistory(organisationId: string, managerId: string) {
   const now = Date.now();
-  const past = await db.visit.findMany({ where: { organisationId, scheduledEnd: { lt: new Date(now) }, status: "SCHEDULED" }, include: { assignments: { where: { removedAt: null, slot: { not: "SHADOW" } } } }, orderBy: { scheduledStart: "asc" } });
+  const past = await db.visit.findMany({ where: { organisationId, scheduledEnd: { lt: new Date(now) }, status: "SCHEDULED" }, include: { assignments: { where: { removedAt: null, slot: { not: "SHADOW" } } }, tasks: { orderBy: { position: "asc" } }, serviceUser: { select: { firstName: true, preferredName: true } } }, orderBy: { scheduledStart: "asc" } });
+  // Each carer's sign-in, so their task outcomes and notes are recorded as theirs (the manager where none is linked).
+  const logins = new Map((await db.staffMember.findMany({ where: { organisationId, userId: { not: null } }, select: { id: true, userId: true } })).map((s) => [s.id, s.userId!]));
+  const outcomes: Prisma.VisitTaskOutcomeCreateManyInput[] = [];
+  const notes: Prisma.VisitNoteCreateManyInput[] = [];
   let n = 0;
   for (const v of past) {
     n++;
@@ -272,8 +276,34 @@ export async function seedAttendanceHistory(organisationId: string, managerId: s
     await db.visit.update({ where: { id: v.id }, data: { status: "IN_PROGRESS", actualStart: inAt } });
     await db.visit.update({ where: { id: v.id }, data: { status: "COMPLETED", actualEnd: outAt, statusChangedAt: outAt } });
     await db.visitAssignment.updateMany({ where: { visitId: v.id, removedAt: null }, data: { acknowledgedAt: new Date(v.scheduledStart.getTime() - 86400000) } });
+
+    // What the carer recorded: every planned task (now and then one refused or not done, with the reason) and a note.
+    const by = logins.get(carer.staffId) ?? managerId;
+    const name = v.serviceUser.preferredName ?? v.serviceUser.firstName;
+    for (const [i, t] of v.tasks.entries()) {
+      const outcome = (n + i) % 29 === 0 ? "REFUSED" : (n + i) % 41 === 0 ? "NOT_DONE" : "DONE";
+      const note = outcome === "REFUSED" ? `${name} declined today and asked to leave it until the next call` : outcome === "NOT_DONE" ? "Ran out of time; handed over to the next call" : null;
+      outcomes.push({ organisationId, visitId: v.id, visitTaskId: t.id, outcome, note, staffId: carer.staffId, recordedById: by, at: new Date(outAt.getTime() - (v.tasks.length - i) * 60000) });
+    }
+    const text = n % 11 === 0 ? `Short call: ${name} had a visitor and asked us to finish early. All essential tasks done.`
+      : n % 13 === 0 ? `${name} seemed more tired than usual and ate little. Please keep an eye on fluids at the next call.`
+      : VISIT_NOTES[n % VISIT_NOTES.length]!(name);
+    notes.push({ organisationId, visitId: v.id, authorUserId: by, staffId: carer.staffId, category: n % 13 === 0 ? "HANDOVER" : n % 11 === 0 ? "SHORT_VISIT" : "CLOCK_OUT", text, createdAt: outAt });
   }
+  for (let i = 0; i < outcomes.length; i += 2000) await db.visitTaskOutcome.createMany({ data: outcomes.slice(i, i + 2000) });
+  for (let i = 0; i < notes.length; i += 2000) await db.visitNote.createMany({ data: notes.slice(i, i + 2000) });
 }
+
+/** Everyday clock-out notes for the demo history: plain, factual, no clinical detail. */
+const VISIT_NOTES: ((name: string) => string)[] = [
+  (n) => `${n} was in good spirits. Supported with a wash and getting dressed. Left a drink within reach.`,
+  (n) => `All tasks done. ${n} ate most of the meal and had a cup of tea. House left tidy and secure.`,
+  (n) => `${n} was sitting in the lounge on arrival. Helped to the kitchen with the frame. No concerns.`,
+  (n) => `Prompted ${n} with the blister pack as planned. Chatted about the family visit at the weekend.`,
+  (n) => `${n} slept well, according to them. Skin checked during personal care: no redness seen.`,
+  (n) => `Helped ${n} into bed and settled for the night. Lights left on the timer and back door locked.`,
+  (n) => `${n} enjoyed the crossword together. Bins put out as asked. Nothing to report.`,
+];
 
 /** Demo finance set-up and last week's preparation, through the real services. Fictional councils and rates. */
 export async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ctx, financeUserId?: string) {

@@ -18,7 +18,7 @@ The mutation plumbing itself was sound, and was measured rather than assumed. Ev
 |---|---|---|
 | 1 | Are recurring templates created? | Yes. The UAT load creates 349 templates (four-week cycle, weekday and weekend teams, double-ups, a Friday night sit). |
 | 2 | Are the correct weeks built? | Yes: two past weeks, this week and three future weeks, through the real Build Rota and Publish. Later weeks need building, and the screens now say so. |
-| 3 | Are real dated Visit rows generated? | Yes: 7,227 over six weeks, each with a reference, service user, area, call type, times, carers required, tasks and build. |
+| 3 | Are real dated Visit rows generated? | Yes: 7,227 over six weeks at the time (8,431 over seven weeks since the load was extended to a month ahead), each with a reference, service user, area, call type, times, carers required, tasks and build. |
 | 4 | Linked to the right service user? | Yes. Checked by the consistency tests: the person's schedule lists the same visit. |
 | 5 | Carers assigned correctly? | Yes, through the eligibility service. A slot is left empty when the template's carer has a hard stop, and shows as unassigned. |
 | 6 | Branch or area filters hiding visits? | No. All-branch roles see all 174 a day. Branch coordinators see their own branch only (tested). |
