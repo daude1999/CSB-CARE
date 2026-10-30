@@ -1,3 +1,4 @@
+import { toCsv } from "@/lib/csv";
 import type { Prisma, RateBand, RateCard } from "@prisma/client";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -235,12 +236,6 @@ export async function voidRun(ctx: Ctx, kind: "pay" | "invoice", id: string, rea
   });
 }
 
-function csvCell(v: string | number) {
-  const s = String(v);
-  // Neutralise spreadsheet formulas and quote everything.
-  return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-}
-
 /** CSV of a run for the payroll provider or accounts system. Approved runs only, after a permission check. */
 export async function runCsv(ctx: Ctx, kind: "pay" | "invoice", id: string) {
   const organisationId = requireOrgPermission(ctx, "finance.view");
@@ -260,5 +255,6 @@ export async function runCsv(ctx: Ctx, kind: "pay" | "invoice", id: string) {
     name = `invoice-run-${fromDbDate(run.periodStart)}.csv`;
   }
   await audit({ organisationId, actorId: ctx.userId, action: `finance.${kind}run.exported`, entityType: kind === "pay" ? "PayRun" : "InvoiceRun", entityId: id });
-  return { name, body: rows.map((r) => r.map(csvCell).join(",")).join("\r\n") };
+  const [head, ...body] = rows;
+  return { name, body: toCsv(head!.map(String), body) };
 }

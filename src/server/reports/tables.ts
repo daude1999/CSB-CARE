@@ -57,12 +57,5 @@ export async function reportRows(ctx: Ctx, kind: string): Promise<{ columns: str
   }
 }
 
-/** RFC 4180 CSV with formula-injection protection for spreadsheet users. */
-export function toCsv(columns: string[], rows: (string | number)[][]) {
-  const cell = (v: string | number) => {
-    let s = String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [columns, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
-}
+/** RFC 4180 CSV with formula-injection protection for spreadsheet users (shared with every CSV export). */
+export { toCsv } from "@/lib/csv";

@@ -1,3 +1,4 @@
+import { toCsv } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -46,11 +47,7 @@ export async function auditPage(ctx: Ctx, input: Record<string, string | undefin
   return { f, rows, total, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), entities: entities.map((e) => e.entityType), members: members.map((m) => ({ id: m.userId, name: m.user.name })), names };
 }
 
-const cell = (v: unknown) => {
-  const s = v === null || v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v);
-  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
-  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
+const text = (v: unknown) => (v === null || v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v));
 
 /** CSV of the filtered log, at most 20,000 rows. The export itself is audited. */
 export async function auditCsv(ctx: Ctx, input: Record<string, string | undefined>) {
@@ -61,5 +58,5 @@ export async function auditCsv(ctx: Ctx, input: Record<string, string | undefine
   const names = new Map(members.map((m) => [m.userId, m.user.name]));
   await audit({ organisationId, actorId: ctx.userId, action: "admin.audit.exported", entityType: "Organisation", entityId: organisationId, data: { rows: rows.length, filters: { ...f, page: undefined } } });
   const head = ["When (UTC)", "Who", "Action", "Record type", "Record id", "Details"];
-  return [head.join(","), ...rows.map((r) => [r.createdAt.toISOString(), r.actorId ? names.get(r.actorId) ?? "Former member" : "System", r.action, r.entityType, r.entityId, r.data].map(cell).join(","))].join("\n");
+  return toCsv(head, rows.map((r) => [r.createdAt.toISOString(), r.actorId ? names.get(r.actorId) ?? "Former member" : "System", r.action, r.entityType, r.entityId, text(r.data)]));
 }

@@ -99,7 +99,7 @@ describe("audit log viewer", () => {
     expect(page.total).toBeGreaterThan(0);
     expect(page.rows.every((r) => r.organisationId === orgId && r.action.includes("admin.member"))).toBe(true);
     const csv = await auditCsv(await admin(), { action: "admin.member.deactivated" });
-    expect(csv.split("\n")[0]).toBe("When (UTC),Who,Action,Record type,Record id,Details");
+    expect(csv.replace(/^\uFEFF/, "").split("\r\n")[0]).toBe("When (UTC),Who,Action,Record type,Record id,Details");
     expect(csv).toContain("admin.member.deactivated");
     expect(await db.auditLog.count({ where: { organisationId: orgId, action: "admin.audit.exported" } })).toBe(1);
     await expect(auditPage(await ctxFor("coordinator@care-solution.demo", BROOKFIELD), {})).rejects.toBeInstanceOf(ForbiddenError);
