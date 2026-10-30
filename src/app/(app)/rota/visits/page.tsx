@@ -7,7 +7,8 @@ import { listVisits, rotaLookups, suName } from "@/server/rota/queries";
 import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime } from "@/lib/london";
 import { bulkVisitsAction } from "@/app/rota-actions";
 import { Empty, Flash, PageHeader } from "@/components/ui";
-import { CarerSlots, FlagBadges, longDate, rotaState, VISIT_LABEL } from "@/components/rota-ui";
+import { CarerSlots, FlagBadges, longDate, rotaState, VISIT_LABEL, NotBuiltNotice } from "@/components/rota-ui";
+import { weekIsBuilt } from "@/server/rota/build";
 import { SelectAll } from "@/components/select-all";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const status = STATUSES.includes(sp.status as VisitStatus) ? (sp.status as VisitStatus) : undefined;
   const filters = { date, areaId: sp.area || undefined, staffId: sp.carer || undefined, serviceUserId: sp.su || undefined, callTypeId: sp.call || undefined, status, unassigned: sp.view === "unassigned", review: sp.view === "review", late: sp.view === "late", includeCancelled: sp.cancelled === "1", q: sp.q?.trim() || undefined };
   const [{ rows, truncated }, lk] = await Promise.all([listVisits(ctx, filters), rotaLookups(ctx)]);
+  const notBuilt = rows.length === 0 && !(await weekIsBuilt(ctx, date));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
   const params = { date, area: sp.area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q: sp.q };
@@ -45,6 +47,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title="Daily Rota" back="/rota" subtitle="Every visit on one day. Tick visits and choose a bulk action; each visit is checked on its own and any that cannot change are listed with the reason." />
       <Flash searchParams={sp} />
+      {notBuilt ? <NotBuiltNotice date={date} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
 
       <section aria-label="Filters and actions" className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <form method="get" className="flex flex-wrap items-end gap-2">

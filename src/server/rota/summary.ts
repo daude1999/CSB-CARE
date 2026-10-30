@@ -22,7 +22,8 @@ export async function rotaHeadline(ctx: Ctx): Promise<{ visitsToday: number; una
   }
   return {
     visitsToday: visits.length,
-    unassignedToday: visits.filter((v) => v.status === "SCHEDULED").reduce((n, v) => n + Math.max(0, v.carersRequired - v.assignments.length), 0),
+    // Counted as the Rota Dashboard and Daily Rota count them: visits still to be delivered with a carer slot empty.
+    unassignedToday: visits.filter((v) => !["COMPLETED", "NOT_DELIVERED"].includes(v.status) && v.assignments.length < v.carersRequired).length,
     openAlerts,
   };
 }

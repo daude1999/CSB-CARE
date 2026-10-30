@@ -347,3 +347,9 @@ export async function listBuilds(ctx: Ctx) {
     };
   });
 }
+
+/** True when a rota has been built for the week containing `date`, so an empty screen can say why it is empty. */
+export async function weekIsBuilt(ctx: Ctx, date: string) {
+  const scope = await rotaScope(ctx, "rota.view");
+  return (await db.rotaBuild.count({ where: { organisationId: scope.organisationId, weekStart: dbDate(mondayOf(date)), status: "BUILT" } })) > 0;
+}

@@ -153,3 +153,15 @@ export async function escalateOverdueExceptions(now = new Date()) {
 }
 
 export const canWorkExceptions = (ctx: Ctx) => hasOrgPermission(ctx, "rota.edit");
+
+/** Open and overdue exceptions the person can see, for the Rota Dashboard. Same rules as the register. */
+export async function exceptionCounts(ctx: Ctx) {
+  const scope = await rotaScope(ctx, "rota.monitor");
+  const now = new Date();
+  const f = filtersSchema.parse({});
+  const [open, overdue] = await Promise.all([
+    db.rotaAlert.count({ where: await visibleWhere(scope, { ...f, state: "open" }, now) }),
+    db.rotaAlert.count({ where: await visibleWhere(scope, { ...f, state: "overdue" }, now) }),
+  ]);
+  return { open, overdue };
+}

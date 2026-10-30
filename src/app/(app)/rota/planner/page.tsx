@@ -4,7 +4,8 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, weekDates } from "@/server/rota/queries";
 import { assignCarerAction, moveVisitAction } from "@/app/rota-actions";
 import { Flash, PageHeader } from "@/components/ui";
-import { Stepper } from "@/components/rota-ui";
+import { Stepper, NotBuiltNotice } from "@/components/rota-ui";
+import { weekIsBuilt } from "@/server/rota/build";
 import { PlannerBoard, type PlannerChip, type PlannerRow } from "@/components/planner-board";
 import Link from "@/components/link";
 
@@ -17,6 +18,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
   const week = mondayOf(sp.week && isIsoDate(sp.week) ? sp.week : today);
   const dates = weekDates(week);
   const [{ rows: visits, truncated }, lk] = await Promise.all([listVisits(ctx, { date: week, to: addDays(week, 6), areaId: sp.area || undefined, includeCancelled: sp.cancelled === "1" }, 3000), rotaLookups(ctx)]);
+  const notBuilt = visits.length === 0 && !(await weekIsBuilt(ctx, week));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const dayIndex = new Map(dates.map((d, i) => [d, i]));
   const blank = () => dates.map((): PlannerChip[] => []);
@@ -66,6 +68,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
     <>
       <PageHeader title="Rota Planner" back="/rota" subtitle="The week by carer. Drag a visit to another carer to reassign it, or to another day to move that one visit at the same time of day (its recurring template is not changed). Every move is checked against holidays, HR checks, clashes and preferences before it is saved. Keyboard users can open a visit and change the carer or day there." />
       <Flash searchParams={sp} />
+      {notBuilt ? <NotBuiltNotice date={week} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
       <section aria-label="Week and filters" className="panel mb-3 flex flex-wrap items-end justify-between gap-3">
         <Stepper base="/rota/planner" params={params} param="week" prev={addDays(week, -7)} next={addDays(week, 7)} label={`w/c ${fmtLondonDate(week, { day: "numeric", month: "short", year: "numeric" })}`} />
         <form method="get" className="flex flex-wrap items-end gap-2">

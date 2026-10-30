@@ -192,7 +192,8 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
     for (const [profile, count] of Object.entries(b.profiles) as [Profile, number][]) {
       for (let j = 0; j < count; j++, k++, suAt++) {
         const [first, g] = SU_FIRST[suAt % SU_FIRST.length]!;
-        const last = SU_LAST[(suAt * 7) % SU_LAST.length]!;
+        // The second pass through the first names takes the next surname along, so no two people share a full name.
+        const last = SU_LAST[(suAt * 7 + Math.floor(suAt / SU_FIRST.length)) % SU_LAST.length]!;
         const areaIndex = k % b.areas.length;
         const high = profile === "P4" && j % 2 === 0;
         const pref: Gender | "ANY" = suAt % 6 === 0 ? g : "ANY";
