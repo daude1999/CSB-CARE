@@ -33,6 +33,27 @@ Accounts: `coordinator@care-solution.demo` (all branches), `manager@care-solutio
 | 23 | Concurrent coordinators | Two browsers: both coordinators swap overlapping visits at once, or edit the same visit | One succeeds; the other is told the visit changed and to reload; no visit ends up with two carers in one slot | int swap "lets only one of two coordinators' overlapping swaps win…", rota "refuses a stale edit" |
 | 24 | Move a visit to another day | Rota Planner › drag a visit to another day (or open it and change the day) | Same time on the new day; the template is unchanged; refused into the past or onto a clash | int planner-moves |
 
+## Owner's acceptance checklist (rota and dashboards)
+
+Run these in order on the full-scale data (`npm run uat:data -- restore`, then sign in as `coordinator@care-solution.demo`). Use tomorrow's date so the visits are still in the future. Tick each one only when you have seen it yourself.
+
+| # | Do this | You should see | Pass / fail |
+|---|---|---|---|
+| A1 | Rostering › Rota Dashboard, then the next-day arrow | A populated day: about 167–174 scheduled visits, with figures for still to start, unassigned, short double-ups and staff on duty | |
+| A2 | Advanced Rota for the same date | Every carer's calls across the day, plus an Unassigned row at the top | |
+| A3 | Daily Rota › Add visit: a person, 09:00, 30 minutes | "Visit added". Back on the dashboard, scheduled and unassigned are each one higher | |
+| A4 | On that visit, choose a carer marked Eligible or "check first", tick "I have read the warnings", Assign | "Carer assigned". Unassigned goes back down and staff on duty may go up. The visit shows on the carer's day (Advanced Rota, carer filter) and on the person's Visits tab | |
+| A5 | Replace the carer with another one | Only the new carer has the visit. History shows both | |
+| A6 | Change the start time and Save visit | The new time shows on the visit, the Daily Rota and the Advanced Rota | |
+| A7 | Open another staffed visit › "Swap with another carer's visit" › choose one › give a reason | Either "Carers swapped", or a refusal that names the carer and the clash. A refusal changes nothing | |
+| A8 | Rota Planner › drag a visit to another day | It moves to the same time on the new day | |
+| A9 | Cancel a visit with a reason, then refresh the browser | Still cancelled, with the reason. Dashboard: scheduled one lower, cancelled one higher | |
+| A10 | Advanced Rota for a date five weeks ahead | The yellow "No rota has been built" notice with a Build this week link | |
+| A11 | Build this week › Build New Rota › Publish | About 1,200 visits built and published. The notice is gone and the board is full | |
+| A12 | As `manager@care-solution.demo`: Administration › Audit log | Entries for the visit you added, assigned, swapped and cancelled | |
+| A13 | Rota Reports › Visit delivery for the dates you changed | Planned and cancelled totals include your changes | |
+| A14 | Sign in as `coordinator.liverpool@uat.example` | Only Liverpool's people, carers and visits | |
+
 ## Recording a manual run
 
 For each scenario, note: date, tester, account used, pass or fail, and for a fail what was seen (a screenshot helps). A failure that matches an automated test that passes is a gap in the test; report it so a test can be added.

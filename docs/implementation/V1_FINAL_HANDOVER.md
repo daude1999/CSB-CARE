@@ -19,6 +19,20 @@ Brief: "CSB-CARE — Version 1 complete operational readiness, defect repair and
 
 19 defects were found and fixed or built; see `V1_DEFECT_REGISTER.md`. Two of them only appeared at full scale (a week of 1,204 visits could not be published; Unassigned Visits took over 3 seconds), which is why the full-scale data was worth building.
 
+## Follow-up: rota calls missing and dashboards not updating (30 Oct, evening)
+
+The owner reported scheduled calls missing from the rota and dashboards not changing after rota actions. Root causes and fixes are in `V1_ROTA_ROOT_CAUSE.md` (defects D20–D25). In short: the live demo has no rota weeks at all, and unbuilt weeks gave no explanation (both now flagged on screen). The Rota Dashboard lacked most of the figures an action changes, and now has them, counted from the same rows. Missed calls were marked hourly without a worker, and are now marked every five minutes. The Overview counted unassigned visits differently, and now uses the same rule. The owner's acceptance checklist is in `V1_MANUAL_TEST_SCENARIOS.md` (A1–A14).
+
+Re-run after those changes, at commit 80b865e plus documents:
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | Pass |
+| `npm test` | **346 of 346 passed**, 47 files (adds `consistency.test.ts`) |
+| `npm run test:hr` | **14 of 14 passed** |
+| `npm run build && npx playwright test` | **72 of 72 passed** (12.2 min), adds `dashboard-refresh.spec.ts`; QA walk 477 page visits, 0 findings, 0 hydration warnings |
+| Acceptance run on full-scale data (`csb_uat`, production build) | Add, assign, reassign, retime, swap, cancel, build and publish a week all worked, and the dashboard figures changed at every step and survived a reload. One hydration warning appeared once in an earlier attempt of this run (page not recorded) and not in the repeat |
+
 ## Test runs (exact commands and results)
 
 All run in this environment on 30 Oct 2026 against local, disposable databases (`csb_test`, `csb_e2e`, `csb_uat`).
