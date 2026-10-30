@@ -41,13 +41,14 @@ export async function raiseAlert(
  * no longer valid are flagged for a coordinator's review and alerted; nothing is cancelled, removed or reassigned.
  * Flags whose problem has gone away are cleared. Visits that have started or finished are never touched.
  */
-export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds: string[], opts: { source: string; now?: Date }) {
+export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds: string[], opts: { source: string; now?: Date; visitIds?: string[] }) {
   const now = opts.now ?? new Date();
   const assignments = await tx.visitAssignment.findMany({
-    where: { organisationId, staffId: { in: staffIds }, removedAt: null, startsAt: { gt: now }, visit: { status: "SCHEDULED" } },
+    where: { organisationId, staffId: { in: staffIds }, removedAt: null, startsAt: { gt: now }, visit: { status: "SCHEDULED" }, ...(opts.visitIds ? { visitId: { in: opts.visitIds } } : {}) },
     include: { visit: { select: { id: true, reference: true, serviceUserId: true, areaId: true, timeLocked: true, scheduledStart: true, scheduledEnd: true, tasks: { select: { careTaskId: true } } } }, staff: { select: { displayName: true } } },
     orderBy: { startsAt: "asc" },
-    take: 2000,
+    // An HR change re-checks everything ahead for a few people; publishing names its own week's visits instead.
+    take: opts.visitIds ? undefined : 2000,
   });
   if (!assignments.length) return { flagged: 0, cleared: 0 };
   const from = assignments[0].startsAt;

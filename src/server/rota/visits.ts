@@ -3,7 +3,7 @@ import type { AssignmentSlot, Prisma, VisitStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
-import { dbDate, isIsoDate, londonDate, londonToUtc } from "@/lib/london";
+import { dbDate, isIsoDate, londonDate, londonMinute, londonToUtc } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { eligibilityFor } from "@/server/workforce/eligibility";
@@ -176,6 +176,53 @@ export async function reinstateVisit(ctx: Ctx, visitId: string, reason: string, 
 export async function setDoubleUp(ctx: Ctx, visitId: string, carersRequired: 1 | 2, lockVersion?: number) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction((tx) => updateVisitInTx(tx, scope, ctx.userId, visitId, { carersRequired }, { source: "manual", lockVersion }));
+}
+
+const moveSchema = z.object({
+  visitId: z.string().min(1),
+  slot: z.enum(["PRIMARY", "SECOND", "SHADOW"]),
+  lockVersion: z.number().int().nonnegative().optional(),
+  toDate: z.string().refine(isIsoDate, "Choose the day to move the visit to"),
+  /** The carer who should do the visit after the move; null leaves the slot empty. */
+  staffId: z.string().min(1).nullable(),
+  acceptWarnings: z.boolean().default(false),
+});
+
+/**
+ * The planner's drag to another day (and optionally another carer): one visit moves, at the same time of day, in one
+ * transaction. The dragged carer leaves the slot if someone else is to do it, the new time is checked for everyone
+ * still on the visit, and the new carer goes through the shared assignment path. Only this visit changes; its
+ * recurring template is untouched (the visit is marked as changed by hand so a later template update leaves it alone).
+ */
+export async function moveVisit(ctx: Ctx, raw: z.input<typeof moveSchema> | Record<string, unknown>) {
+  const r = moveSchema.safeParse(raw);
+  if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the move");
+  const d = r.data;
+  const scope = await rotaScope(ctx, "rota.edit");
+  try {
+    return await db.$transaction(
+      async (tx) => {
+        const v = await lockVisit(tx, scope, d.visitId);
+        if (d.lockVersion !== undefined && d.lockVersion !== v.lockVersion) throw new ConflictError("This visit changed since you opened it. Reload and try again.");
+        if (v.status !== "SCHEDULED") throw new ValidationError(`A ${v.status.toLowerCase().replace("_", " ")} visit cannot be moved to another day`);
+        const fromDate = londonDate(v.scheduledStart);
+        if (d.toDate !== fromDate && v.timeLocked) throw new ValidationError("This visit's time is locked. Unlock it before moving it to another day.");
+        if (d.toDate !== fromDate && londonToUtc(d.toDate, londonMinute(v.scheduledStart)) < new Date()) throw new ValidationError("A visit cannot be moved into the past");
+        const current = await tx.visitAssignment.findFirst({ where: { visitId: v.id, slot: d.slot, removedAt: null } });
+        if (current && current.staffId !== d.staffId) await unassignInTx(tx, scope, ctx.userId, { visitId: v.id, slot: d.slot, reason: "Moved in the planner" });
+        if (d.toDate !== fromDate) {
+          const start = londonToUtc(d.toDate, londonMinute(v.scheduledStart));
+          await updateVisitInTx(tx, scope, ctx.userId, v.id, { scheduledStart: start, scheduledEnd: new Date(start.getTime() + (v.scheduledEnd.getTime() - v.scheduledStart.getTime())) }, { source: "planner" });
+        }
+        if (d.staffId && d.staffId !== current?.staffId) await assignInTx(tx, scope, ctx.userId, { visitId: v.id, slot: d.slot, staffId: d.staffId, acceptWarnings: d.acceptWarnings }, { source: "planner" });
+        return tx.visit.findUniqueOrThrow({ where: { id: v.id } });
+      },
+      { isolationLevel: "ReadCommitted", timeout: 15_000 },
+    );
+  } catch (e) {
+    if (isOverlapViolation(e)) throw new ConflictError("A carer is already booked at that time. Reload and choose someone else.");
+    throw e;
+  }
 }
 
 export type BulkAction =

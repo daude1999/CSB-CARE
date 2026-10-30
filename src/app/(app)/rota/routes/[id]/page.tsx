@@ -5,7 +5,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getLiveRoute, ROUTE_KIND_LABEL } from "@/server/rota/routes";
 import { suName } from "@/server/rota/queries";
-import { addToRouteAction, moveStopAction, removeFromRouteAction, removeRouteAction } from "@/app/rota-actions";
+import { addToRouteAction, moveStopAction, moveToRouteAction, removeFromRouteAction, removeRouteAction } from "@/app/rota-actions";
 import { RouteChip } from "@/components/route-ui";
 import { Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function LiveRoutePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ctx = await requireRotaPage("rota.view");
-  const { route, owner, visits, candidates } = await orNotFound(getLiveRoute(ctx, id));
+  const { route, owner, visits, candidates, others } = await orNotFound(getLiveRoute(ctx, id));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const back = `/rota/routes/${route.id}`;
   const week = fromDbDate(route.weekStart);
@@ -49,6 +49,16 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
                               <form action={moveStopAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button name="dir" value="up" className="btn-secondary px-2 py-0.5" aria-label={`Move ${suName(v.serviceUser)} earlier`} disabled={i === 0}>↑</button></form>
                               <form action={moveStopAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button name="dir" value="down" className="btn-secondary px-2 py-0.5" aria-label={`Move ${suName(v.serviceUser)} later`} disabled={i === list.length - 1}>↓</button></form>
                               <form action={removeFromRouteAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button className="btn-secondary px-2 py-0.5">Remove</button></form>
+                              {others.length ? (
+                                <form action={moveToRouteAction} className="flex gap-1">
+                                  <input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} />
+                                  <select name="toRouteId" required className="input py-0.5 text-[13px]" aria-label={`Move ${suName(v.serviceUser)} to another route`}>
+                                    <option value="">Move to…</option>
+                                    {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                                  </select>
+                                  <button className="btn-secondary px-2 py-0.5">Move</button>
+                                </form>
+                              ) : null}
                             </span>
                           ) : null}
                         </div>

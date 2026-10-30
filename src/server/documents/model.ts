@@ -36,6 +36,8 @@ export interface DocModel {
   effectiveDate: Date | null;
   approvedAt: Date | null;
   approvedBy: string;
+  /** "Approved" only when the published version carries an organisation approval decision, as in the inspector. */
+  approval: string;
   owner: string;
   nextReviewDate: Date | null;
   reviewIntervalMonths: number;
@@ -115,7 +117,8 @@ export async function buildDocModel(ctx: Ctx, policyId: string): Promise<DocMode
     publishedAt: v.publishedAt,
     effectiveDate: v.effectiveDate,
     approvedAt: v.approvedAt,
-    approvedBy: approverIds.map((id) => name.get(id)).filter(Boolean).join(", ") || (v.origin === "SEED" ? "Not yet approved (starter content)" : "—"),
+    approval: approverIds.length ? "Approved" : v.origin === "SEED" ? "Not yet approved (starter content)" : "Not yet approved",
+    approvedBy: approverIds.map((id) => name.get(id)).filter(Boolean).join(", ") || "—",
     owner: (p.ownerId && name.get(p.ownerId)) || (p.kind === "MASTER" ? "CSB Content Team" : "Registered Manager"),
     nextReviewDate: p.nextReviewDate,
     reviewIntervalMonths: p.reviewIntervalMonths,

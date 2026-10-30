@@ -74,6 +74,22 @@ export async function loadFacts(tx: Db, organisationId: string, staffIds: string
   return { staff, absences, availability, assignments, readiness };
 }
 export type Facts = Awaited<ReturnType<typeof loadFacts>>;
+type Booking = Facts["assignments"][number];
+
+// Bookings grouped by carer. Ranking every carer against many visits otherwise rescans every booking each time. The
+// rota build appends its planned bookings to the same array as it goes, so the index catches up with any new rows.
+const bookingIndex = new WeakMap<Booking[], { seen: number; byStaff: Map<string, Booking[]> }>();
+function bookingsOf(all: Booking[], staffId: string): Booking[] {
+  let ix = bookingIndex.get(all);
+  if (!ix) bookingIndex.set(all, (ix = { seen: 0, byStaff: new Map() }));
+  for (; ix.seen < all.length; ix.seen++) {
+    const b = all[ix.seen]!;
+    const list = ix.byStaff.get(b.staffId);
+    if (list) list.push(b);
+    else ix.byStaff.set(b.staffId, [b]);
+  }
+  return ix.byStaff.get(staffId) ?? [];
+}
 
 export interface PreferenceFacts {
   carerGenderPreference: "ANY" | "FEMALE" | "MALE";
@@ -165,13 +181,15 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   if (available.length && !available.some((a) => a.weekday === weekday && a.startMinute <= startMin && a.endMinute >= Math.min(endMin, 1440))) out.warnings.push({ code: "OUTSIDE_AVAILABILITY", message: "Outside their usual working pattern" });
 
   // 10. Overlapping bookings.
-  for (const b of facts.assignments.filter((b) => b.staffId === s.id && b.visitId !== input.visitId && b.startsAt < input.end && b.endsAt > input.start)) {
+  const mine = bookingsOf(facts.assignments, s.id);
+  for (const b of mine.filter((b) => b.visitId !== input.visitId && b.startsAt < input.end && b.endsAt > input.start)) {
     out.blocking.push({ code: "OVERLAP", message: `Already booked ${londonTime(b.startsAt)}–${londonTime(b.endsAt)} (${b.visit.reference})` });
   }
   if (s.profile?.maxWeeklyMinutes) {
     const wk = mondayOf(date);
-    const booked = facts.assignments
-      .filter((b) => b.staffId === s.id && b.visitId !== input.visitId && londonDate(b.startsAt) >= wk && londonDate(b.startsAt) < addDays(wk, 7))
+    const wkEnd = addDays(wk, 7);
+    const booked = mine
+      .filter((b) => b.visitId !== input.visitId && londonDate(b.startsAt) >= wk && londonDate(b.startsAt) < wkEnd)
       .reduce((m, b) => m + (b.endsAt.getTime() - b.startsAt.getTime()) / 60000, 0);
     if (booked + (endMin - startMin) > s.profile.maxWeeklyMinutes) out.warnings.push({ code: "MAX_HOURS", message: `Would exceed their ${Math.round(s.profile.maxWeeklyMinutes / 60)} hour weekly limit` });
   }
@@ -249,6 +267,27 @@ export async function rankCarers(tx: Db, organisationId: string, input: Omit<Eli
     .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName));
 }
 
+/**
+ * rankCarers for many visits at once (the Unassigned Visits list): staff, settings and bookings are loaded once for the
+ * whole span instead of once per visit, and each visit is then judged by the same evaluate() rules.
+ */
+export async function rankCarersMany(tx: Db, organisationId: string, inputs: (Omit<EligibilityInput, "staffId"> & { otherSlotStaffIds?: string[] })[]) {
+  if (!inputs.length) return [];
+  const ids = (await tx.staffMember.findMany({ where: { organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false }, select: { id: true } })).map((s) => s.id);
+  const from = new Date(Math.min(...inputs.map((i) => i.start.getTime())));
+  const to = new Date(Math.max(...inputs.map((i) => i.end.getTime())));
+  const [settings, facts] = await Promise.all([rotaSettings(tx, organisationId), loadFacts(tx, organisationId, ids, from, to)]);
+  const prefs = new Map<string, PreferenceFacts | null>();
+  for (const su of new Set(inputs.map((i) => i.serviceUserId ?? ""))) prefs.set(su, await loadPreferenceFacts(tx, organisationId, su || null));
+  const order = { ELIGIBLE: 0, REQUIRES_REVIEW: 1, NOT_ELIGIBLE: 2 };
+  return inputs.map(({ otherSlotStaffIds, ...input }) =>
+    ids
+      .map((id) => ({ staff: facts.staff.find((s) => s.id === id), result: evaluate(settings, facts, { ...input, staffId: id }, prefs.get(input.serviceUserId ?? "") ?? null, { otherSlotStaffIds }) }))
+      .filter((r) => r.staff)
+      .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName)),
+  );
+}
+
 /** Minutes between visits below which the coordinator is told there is little time to travel. */
 export const TRAVEL_GAP_MIN = 10;
 /** Daily rest under the Working Time Regulations: 11 consecutive hours between working days. */
@@ -260,7 +299,7 @@ export const DAILY_REST_MIN = 11 * 60;
  * addresses, so a short gap is a prompt to check, not a judgement.
  */
 export function travelAndRest(facts: Pick<Facts, "assignments">, staffId: string, input: Pick<EligibilityInput, "start" | "end" | "visitId">): Reason[] {
-  const mine = facts.assignments.filter((b) => b.staffId === staffId && b.visitId !== input.visitId && (b.endsAt <= input.start || b.startsAt >= input.end));
+  const mine = bookingsOf(facts.assignments, staffId).filter((b) => b.visitId !== input.visitId && (b.endsAt <= input.start || b.startsAt >= input.end));
   const before = mine.filter((b) => b.endsAt <= input.start).sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())[0];
   const after = mine.filter((b) => b.startsAt >= input.end).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
   const day = londonDate(input.start);

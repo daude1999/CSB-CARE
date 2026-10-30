@@ -69,7 +69,11 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   if (result.state === "REQUIRES_REVIEW" && !p.acceptWarnings) throw new EligibilityError(`Needs your confirmation: ${result.warnings.map((w) => w.message).join("; ")}`, result);
 
   const now = new Date();
-  if (current) await tx.visitAssignment.update({ where: { id: current.id }, data: { removedAt: now, removedById: actorId, removeReason: `Replaced (${opts.source})` } });
+  if (current) {
+    await tx.visitAssignment.update({ where: { id: current.id }, data: { removedAt: now, removedById: actorId, removeReason: `Replaced (${opts.source})` } });
+    // Alerts about the replaced carer's booking (for example a review flag after sickness) are answered by replacing them.
+    await tx.rotaAlert.updateMany({ where: { assignmentId: current.id, resolvedAt: null }, data: { resolvedAt: now, resolvedById: actorId, resolution: "Carer replaced on the visit" } });
+  }
   try {
     const created = await tx.visitAssignment.create({
       data: {

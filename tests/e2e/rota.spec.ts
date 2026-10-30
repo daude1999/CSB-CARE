@@ -147,7 +147,8 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("alert").filter({ hasText: "The end date must be on or after the start date" })).toBeVisible();
     const res = await page.request.get((await page.getByRole("link", { name: "Download CSV" }).getAttribute("href"))!);
     expect(res.status()).toBe(200);
-    expect(await res.text()).toMatch(/^Date,Planned,Completed/);
+    // The byte-order mark lets Excel read the file as UTF-8 (src/lib/csv.ts).
+    expect(await res.text()).toMatch(/^\uFEFFDate,Planned,Completed/);
   });
 
   test("rota dashboard follows the OnePlan order: date, four call boxes, people and reminders, counters", async ({ page }) => {

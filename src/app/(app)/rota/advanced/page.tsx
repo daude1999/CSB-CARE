@@ -8,7 +8,8 @@ import { listVisits, rotaLookups, suName, type VisitRow } from "@/server/rota/qu
 import { assignCarerAction } from "@/app/rota-actions";
 import { Flash, PageHeader } from "@/components/ui";
 import { AutoRefresh } from "@/components/auto-refresh";
-import { longDate } from "@/components/rota-ui";
+import { longDate, NotBuiltNotice } from "@/components/rota-ui";
+import { weekIsBuilt } from "@/server/rota/build";
 import { TimelineBoard, type BoardCard, type BoardRow, type CardTone } from "@/components/timeline-board";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
   const cancelled: Filter = sp.cancelled && sp.cancelled in FILTER ? (sp.cancelled as Filter) : "hide";
   const uncovered: Filter = sp.uncovered && sp.uncovered in FILTER ? (sp.uncovered as Filter) : "include";
   const [{ rows: all, truncated }, lk] = await Promise.all([listVisits(ctx, { date, areaId: sp.area || undefined, includeCancelled: cancelled !== "hide", staffId: sp.carer || undefined }), rotaLookups(ctx)]);
+  const notBuilt = all.length === 0 && !(await weekIsBuilt(ctx, date));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
 
   let visits = all;
@@ -142,6 +144,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
       {sp.refresh === "1" ? <AutoRefresh seconds={60} /> : null}
       <PageHeader title="Advanced Rota" back="/rota" subtitle="The day as a planner board in half-hour slots. Drag a card to another team member (or from Unassigned) to reassign it, or open it to change its time. Every move is checked against holidays, HR checks and clashes before it is saved." />
       <Flash searchParams={sp} />
+      {notBuilt ? <NotBuiltNotice date={date} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
 
       <section aria-label="Board controls" className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <form method="get" className="grid grid-cols-1 items-end gap-2 sm:grid-cols-3">

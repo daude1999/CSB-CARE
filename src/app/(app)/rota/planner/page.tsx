@@ -2,9 +2,10 @@ import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } f
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, weekDates } from "@/server/rota/queries";
-import { assignCarerAction } from "@/app/rota-actions";
+import { assignCarerAction, moveVisitAction } from "@/app/rota-actions";
 import { Flash, PageHeader } from "@/components/ui";
-import { Stepper } from "@/components/rota-ui";
+import { Stepper, NotBuiltNotice } from "@/components/rota-ui";
+import { weekIsBuilt } from "@/server/rota/build";
 import { PlannerBoard, type PlannerChip, type PlannerRow } from "@/components/planner-board";
 import Link from "@/components/link";
 
@@ -17,6 +18,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
   const week = mondayOf(sp.week && isIsoDate(sp.week) ? sp.week : today);
   const dates = weekDates(week);
   const [{ rows: visits, truncated }, lk] = await Promise.all([listVisits(ctx, { date: week, to: addDays(week, 6), areaId: sp.area || undefined, includeCancelled: sp.cancelled === "1" }, 3000), rotaLookups(ctx)]);
+  const notBuilt = visits.length === 0 && !(await weekIsBuilt(ctx, week));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const dayIndex = new Map(dates.map((d, i) => [d, i]));
   const blank = () => dates.map((): PlannerChip[] => []);
@@ -53,19 +55,20 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
   ];
   // A drag that needs confirmation comes back with the move in the address, so the coordinator can accept the warnings.
   const move = (() => {
-    const [visitId, slot, staffId, lockVersion] = (sp.move ?? "").split("~");
+    const [visitId, slot, staffId, lockVersion, toDate] = (sp.move ?? "").split("~");
     const v = visits.find((x) => x.id === visitId);
     const st = lk.staff.find((x) => x.id === staffId);
     if (!v || !st || !slot || !lockVersion) return null;
-    return { visitId: v.id, slot, staffId: st.id, lockVersion, label: `${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)} on ${fmtLondonDate(londonDate(v.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}`, staff: st.displayName };
+    return { visitId: v.id, slot, staffId: st.id, lockVersion, toDate: toDate && isIsoDate(toDate) ? toDate : null, label: `${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)} on ${fmtLondonDate(londonDate(v.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}`, staff: st.displayName };
   })();
   const params = { week, area: sp.area, cancelled: sp.cancelled, all: sp.all };
   const back = `/rota/planner?${new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]))}`;
 
   return (
     <>
-      <PageHeader title="Rota Planner" back="/rota" subtitle="The week by carer. Drag a visit to another carer on the same day to reassign it; every move is checked against holidays, HR checks, clashes and preferences before it is saved. Keyboard users can open a visit and choose the carer there." />
+      <PageHeader title="Rota Planner" back="/rota" subtitle="The week by carer. Drag a visit to another carer to reassign it, or to another day to move that one visit at the same time of day (its recurring template is not changed). Every move is checked against holidays, HR checks, clashes and preferences before it is saved. Keyboard users can open a visit and change the carer or day there." />
       <Flash searchParams={sp} />
+      {notBuilt ? <NotBuiltNotice date={week} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
       <section aria-label="Week and filters" className="panel mb-3 flex flex-wrap items-end justify-between gap-3">
         <Stepper base="/rota/planner" params={params} param="week" prev={addDays(week, -7)} next={addDays(week, 7)} label={`w/c ${fmtLondonDate(week, { day: "numeric", month: "short", year: "numeric" })}`} />
         <form method="get" className="flex flex-wrap items-end gap-2">
@@ -79,8 +82,9 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
       </section>
       {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? (
         <section aria-label="Confirm move" className="panel mb-3 border-l-4 border-[#e3934a]">
-          <p className="text-[14px]">Move <span className="font-medium">{move.label}</span> to <span className="font-medium">{move.staff}</span> anyway? The warnings above will be recorded on the allocation.</p>
-          <form action={assignCarerAction} className="mt-2 flex gap-2">
+          <p className="text-[14px]">Move <span className="font-medium">{move.label}</span> to <span className="font-medium">{move.staff}</span>{move.toDate ? <> on <span className="font-medium">{fmtLondonDate(move.toDate, { weekday: "short", day: "numeric", month: "short" })}</span></> : null} anyway? The warnings above will be recorded on the allocation.</p>
+          <form action={move.toDate ? moveVisitAction : assignCarerAction} className="mt-2 flex gap-2">
+            {move.toDate ? <input type="hidden" name="toDate" value={move.toDate} /> : null}
             <input type="hidden" name="back" value={back} />
             <input type="hidden" name="visitId" value={move.visitId} />
             <input type="hidden" name="slot" value={move.slot} />
@@ -100,7 +104,7 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
           <span><span className="mr-1 inline-block h-3 w-3 rounded-sm border border-[#bfe3cd] bg-[#eef8f2] align-middle" />Started or done</span>
           <span>(2) double-up</span>
         </div>
-        <PlannerBoard days={dates.map((d) => ({ date: d, label: fmtLondonDate(d, { weekday: "short", day: "numeric", month: "short" }), today: d === today }))} rows={rows} action={assignCarerAction} back={back} canEdit={canEdit} />
+        <PlannerBoard days={dates.map((d) => ({ date: d, label: fmtLondonDate(d, { weekday: "short", day: "numeric", month: "short" }), today: d === today }))} rows={rows} action={assignCarerAction} moveAction={moveVisitAction} back={back} canEdit={canEdit} />
         {truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">This week has more than 3,000 visits. Choose an area to see them all.</p> : null}
       </section>
     </>

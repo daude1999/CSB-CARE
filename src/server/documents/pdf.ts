@@ -1,5 +1,6 @@
 import "server-only";
 import PDFDocument from "pdfkit";
+import { embeddedDefaultFont, FONT, pdfText, applyEmbeddedFonts } from "./fonts";
 import { LOGO_PNG_BASE64, LOGO_SIZE } from "./logo";
 import { fmtDocDate, type DocModel } from "./model";
 
@@ -16,9 +17,7 @@ const W = PAGE.width - M.left - M.right;
 
 type Doc = InstanceType<typeof PDFDocument>;
 
-// The built-in PDF fonts only cover Windows-1252; map common characters outside it.
-const sanitise = (s: string) =>
-  s.replace(/[≥]/g, ">=").replace(/[≤]/g, "<=").replace(/[→]/g, "->").replace(/[✓✔]/g, "Yes").replace(/[‐-‒]/g, "-").replace(/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/g, "");
+const sanitise = pdfText;
 
 const LOGO = Buffer.from(LOGO_PNG_BASE64, "base64");
 
@@ -34,14 +33,19 @@ function table(doc: Doc, header: string[] | null, rows: string[][], widths: numb
   const cols = widths.map((w) => (w / 100) * W);
   const pad = 6;
   const size = 9;
-  const drawRow = (cells: string[], kind: "header" | "body") => {
-    doc.font(kind === "header" ? "Helvetica-Bold" : "Helvetica").fontSize(size);
+  const rowHeight = (cells: string[], kind: "header" | "body") => {
+    doc.fontSize(size);
     const heights = cells.map((t, i) => {
-      doc.font(kind === "header" || (opts.labelCols && i % 2 === 0) ? "Helvetica-Bold" : "Helvetica");
+      doc.font(kind === "header" || (opts.labelCols && i % 2 === 0) ? FONT.bold : FONT.regular);
       return doc.heightOfString(sanitise(t) || " ", { width: cols[i] - pad * 2 });
     });
-    const h = Math.max(...heights) + pad * 2;
-    if (doc.y + h > PAGE.height - M.bottom) {
+    return Math.max(...heights) + pad * 2;
+  };
+  const drawRow = (cells: string[], kind: "header" | "body") => {
+    const h = rowHeight(cells, kind);
+    // A header row never sits alone at the foot of a page: it needs room for the first body row too.
+    const needed = kind === "header" && rows[0] ? h + rowHeight(rows[0], "body") : h;
+    if (doc.y + needed > PAGE.height - M.bottom) {
       doc.addPage();
       if (kind === "body" && header) drawRow(header, "header");
     }
@@ -52,7 +56,7 @@ function table(doc: Doc, header: string[] | null, rows: string[][], widths: numb
       if (kind === "header") doc.rect(x, y, cols[i], h).fill(NAVY);
       else if (label) doc.rect(x, y, cols[i], h).fill(GOLD_LIGHT);
       doc.rect(x, y, cols[i], h).lineWidth(0.5).stroke(RULE);
-      doc.font(kind === "header" || label ? "Helvetica-Bold" : "Helvetica").fontSize(size).fillColor(kind === "header" ? "#ffffff" : label ? NAVY : TEXT);
+      doc.font(kind === "header" || label ? FONT.bold : FONT.regular).fontSize(size).fillColor(kind === "header" ? "#ffffff" : label ? NAVY : TEXT);
       doc.text(sanitise(t), x + pad, y + pad, { width: cols[i] - pad * 2 });
       x += cols[i];
     });
@@ -64,10 +68,11 @@ function table(doc: Doc, header: string[] | null, rows: string[][], widths: numb
   doc.moveDown(0.8);
 }
 
-function heading(doc: Doc, text: string, level: 1 | 2 = 1) {
-  ensure(doc, 60);
+/** Headings keep with at least three lines of what follows, so one never sits alone at the foot of a page. */
+function heading(doc: Doc, text: string, level: 1 | 2 = 1, keepWith = 48) {
+  ensure(doc, 40 + keepWith);
   doc.moveDown(level === 1 ? 0.9 : 0.6);
-  doc.font("Helvetica-Bold").fontSize(level === 1 ? 14 : 11.5).fillColor(NAVY).text(sanitise(text), M.left, doc.y, { width: W });
+  doc.font(FONT.bold).fontSize(level === 1 ? 14 : 11.5).fillColor(NAVY).text(sanitise(text), M.left, doc.y, { width: W });
   if (level === 1) {
     const y = doc.y + 3;
     doc.moveTo(M.left, y).lineTo(M.left + W, y).lineWidth(1.2).stroke(GOLD);
@@ -77,7 +82,7 @@ function heading(doc: Doc, text: string, level: 1 | 2 = 1) {
 
 function para(doc: Doc, text: string, opts: { indent?: number; marker?: string; color?: string } = {}) {
   const indent = opts.indent ?? 0;
-  doc.font("Helvetica").fontSize(10).fillColor(opts.color ?? TEXT);
+  doc.font(FONT.regular).fontSize(10).fillColor(opts.color ?? TEXT);
   const h = doc.heightOfString(sanitise(text), { width: W - indent, lineGap: 2 });
   ensure(doc, Math.min(h, 40));
   const y = doc.y;
@@ -86,64 +91,83 @@ function para(doc: Doc, text: string, opts: { indent?: number; marker?: string; 
   doc.moveDown(0.35);
 }
 
-/** Two-column contents list so it fits on the document control page. */
-function contents(doc: Doc, items: string[]) {
+/** Two-column contents list so it fits on the document control page; long headings wrap under their own text. */
+function contents(doc: Doc, items: [string, string][]) {
   const half = Math.ceil(items.length / 2);
   const colW = W / 2 - 10;
-  doc.font("Helvetica").fontSize(9.5).fillColor(TEXT);
+  const numW = 22;
+  doc.font(FONT.regular).fontSize(9.5).fillColor(TEXT);
   ensure(doc, half * 15);
   const top = doc.y;
   let bottom = top;
   [items.slice(0, half), items.slice(half)].forEach((col, c) => {
     doc.y = top;
-    for (const item of col) doc.text(sanitise(item), M.left + c * (colW + 20), doc.y, { width: colW, lineGap: 3.5 });
+    const x = M.left + c * (colW + 20);
+    for (const [n, text] of col) {
+      const y = doc.y;
+      doc.text(n, x, y, { width: numW, lineBreak: false });
+      doc.text(sanitise(text), x + numW, y, { width: colW - numW });
+      doc.y += 3.5;
+    }
     bottom = Math.max(bottom, doc.y);
   });
   doc.x = M.left;
   doc.y = bottom;
 }
 
+/** Cuts text to fit one line of the given width, ending with an ellipsis. */
+function fitLine(doc: Doc, text: string, width: number) {
+  if (doc.widthOfString(text) <= width) return text;
+  let cut = text;
+  while (cut.length > 1 && doc.widthOfString(`${cut}…`) > width) cut = cut.slice(0, -1);
+  return `${cut.trimEnd()}…`;
+}
+
 function cover(doc: Doc, m: DocModel) {
   doc.rect(0, 0, PAGE.width, 10).fill(GOLD);
   logo(doc, M.left, 60, 70);
-  doc.font("Helvetica").fontSize(9).fillColor(GREY).text("Policies, procedures and regulatory compliance for adult social care", M.left, 150, { width: W });
+  doc.font(FONT.regular).fontSize(9).fillColor(GREY).text("Policies, procedures and regulatory compliance for adult social care", M.left, 150, { width: W });
   doc.moveTo(M.left, 175).lineTo(M.left + W, 175).lineWidth(0.8).stroke(RULE);
 
-  doc.font("Helvetica-Bold").fontSize(11).fillColor(GOLD).text(m.typeLabel.toUpperCase(), M.left, 250, { characterSpacing: 1.5 });
-  doc.font("Helvetica-Bold").fontSize(28).fillColor(NAVY).text(sanitise(m.title), M.left, 272, { width: W });
+  doc.font(FONT.bold).fontSize(11).fillColor(GOLD).text(m.typeLabel.toUpperCase(), M.left, 250, { characterSpacing: 1.5 });
+  // Long titles step down a size so the cover still holds the title, summary and control table.
+  doc.font(FONT.bold).fontSize(m.title.length > 60 ? 22 : 28).fillColor(NAVY).text(sanitise(m.title), M.left, 272, { width: W, lineGap: 2 });
   doc.moveDown(0.4);
-  doc.font("Helvetica").fontSize(11.5).fillColor(GREY).text(sanitise(m.description), { width: W, lineGap: 2 });
+  doc.font(FONT.regular).fontSize(11.5).fillColor(GREY).text(sanitise(m.description), { width: W, lineGap: 2 });
   doc.y = Math.max(doc.y + 30, 430);
   table(doc, null, [
     ["Reference", m.ref, "Version", m.version],
     ["Organisation", m.organisation ?? "CSB master template", "Status", m.status],
     ["Category", m.category, "Applies to", m.appliesTo],
     ["Effective date", fmtDocDate(m.effectiveDate ?? m.publishedAt), "Next review", fmtDocDate(m.nextReviewDate)],
+    ["Approval", m.approval, "Owner", m.owner],
   ], [18, 32, 18, 32], { labelCols: true });
-  doc.font("Helvetica-Oblique").fontSize(8.5).fillColor(GREY).text("Controlled document. Printed copies are uncontrolled; always check the CSB system for the current version.", M.left, PAGE.height - 110, { width: W });
+  doc.font(FONT.italic).fontSize(8.5).fillColor(GREY).text("Controlled document. Printed copies are uncontrolled; always check the CSB system for the current version.", M.left, PAGE.height - 110, { width: W });
 }
 
 function decorate(doc: Doc, m: DocModel) {
+  // Pages are numbered as a reader or PDF viewer counts them: the cover is page 1 (left unnumbered).
   const range = doc.bufferedPageRange();
-  const total = range.count - 1;
+  const total = range.count;
   for (let i = 1; i < range.count; i++) {
     doc.switchToPage(range.start + i);
     const margins = doc.page.margins;
     doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 };
     logo(doc, M.left, 28, 22);
-    doc.font("Helvetica").fontSize(8).fillColor(GREY);
-    doc.text(sanitise(`${m.ref}  ${m.title}`), M.left + 160, 38, { width: W - 160, align: "right", lineBreak: false, ellipsis: true, height: 10 });
+    doc.font(FONT.regular).fontSize(8).fillColor(GREY);
+    doc.text(fitLine(doc, sanitise(`${m.ref}  ${m.title}`), W - 160), M.left + 160, 38, { width: W - 160, align: "right", lineBreak: false });
     doc.moveTo(M.left, 56).lineTo(M.left + W, 56).lineWidth(0.8).stroke(GOLD);
     const fy = PAGE.height - 42;
     doc.moveTo(M.left, fy - 8).lineTo(M.left + W, fy - 8).lineWidth(0.5).stroke(RULE);
-    doc.font("Helvetica").fontSize(8).fillColor(GREY).text(sanitise(`${m.organisation ?? "CSB master template"} · Version ${m.version} · Uncontrolled when printed`), M.left, fy, { width: W - 90, lineBreak: false });
-    doc.text(`Page ${i} of ${total}`, M.left + W - 90, fy, { width: 90, align: "right", lineBreak: false });
+    doc.font(FONT.regular).fontSize(8).fillColor(GREY).text(fitLine(doc, sanitise(`${m.organisation ?? "CSB master template"} · Version ${m.version} · ${m.status} · Uncontrolled when printed`), W - 100), M.left, fy, { width: W - 90, lineBreak: false });
+    doc.text(`Page ${i + 1} of ${total}`, M.left + W - 90, fy, { width: 90, align: "right", lineBreak: false });
     doc.page.margins = margins;
   }
 }
 
 export async function renderPdf(m: DocModel): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", margins: M, bufferPages: true, info: { Title: `${m.ref} ${m.title}`, Author: "CSB Care Solution Bureau", Subject: m.description } });
+  const doc = new PDFDocument({ size: "A4", margins: M, bufferPages: true, ...embeddedDefaultFont(), info: { Title: `${m.ref} ${m.title}`, Author: "CSB Care Solution Bureau", Subject: m.description } });
+  applyEmbeddedFonts(doc);
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -156,6 +180,7 @@ export async function renderPdf(m: DocModel): Promise<Buffer> {
   heading(doc, "Document control");
   table(doc, null, [
     ["Document owner", m.owner],
+    ["Approval", m.approval],
     ["Approved by", m.approvedBy],
     ["Date approved", fmtDocDate(m.approvedAt)],
     ["Review interval", `${m.reviewIntervalMonths} months`],
@@ -165,8 +190,9 @@ export async function renderPdf(m: DocModel): Promise<Buffer> {
   table(doc, ["Version", "Date", "Status", "Summary of changes"], m.history.map((h) => [h.version, fmtDocDate(h.date), h.status, h.summary]), [12, 20, 16, 52]);
   heading(doc, "Local approval and sign-off", 2);
   table(doc, ["Role", "Name", "Signature", "Date"], [["Registered Manager", "", "", ""], ["Nominated Individual / Director", "", "", ""]], [30, 25, 25, 20]);
-  heading(doc, "Contents", 2);
-  contents(doc, [...m.sections.map((s) => `${s.number}.  ${s.heading}`), ...(m.requirements.length ? [`${m.sections.length + 1}.  Regulatory mapping`] : [])]);
+  const entries = m.sections.length + (m.requirements.length ? 1 : 0);
+  heading(doc, "Contents", 2, Math.min(Math.ceil(entries / 2) * 16, 300));
+  contents(doc, [...m.sections.map((s): [string, string] => [`${s.number}.`, s.heading]), ...(m.requirements.length ? [[`${m.sections.length + 1}.`, "Regulatory mapping"] as [string, string]] : [])]);
 
   doc.addPage();
   for (const s of m.sections) {
@@ -175,7 +201,7 @@ export async function renderPdf(m: DocModel): Promise<Buffer> {
       if (b.kind === "bullet") para(doc, b.text, { indent: 18, marker: "•" });
       else if (b.kind === "numbered") para(doc, b.text, { indent: 22, marker: b.n });
       else if (b.kind === "local") {
-        doc.font("Helvetica-Oblique").fontSize(10);
+        doc.font(FONT.italic).fontSize(10);
         const text = sanitise(`To complete locally: ${b.text}`);
         const h = doc.heightOfString(text, { width: W - 24, lineGap: 2 }) + 14;
         ensure(doc, h);

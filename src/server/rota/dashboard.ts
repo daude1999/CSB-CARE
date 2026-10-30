@@ -1,8 +1,9 @@
 import "server-only";
 import { missedMedsCount } from "@/server/care/medication";
 import { db } from "@/lib/db";
-import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds } from "@/lib/london";
+import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds, mondayOf } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
+import { exceptionCounts } from "./exceptions";
 import { listVisits, suName } from "./queries";
 import { rotaScope, serviceUserWhere, visitWhere } from "./scope";
 
@@ -28,10 +29,18 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
   const org = scope.organisationId;
   const today = londonDate();
   const date = input.date && isIsoDate(input.date) ? input.date : today;
-  const { rows, settings } = await listVisits(ctx, { date, areaId: input.areaId });
+  const { rows, settings } = await listVisits(ctx, { date, areaId: input.areaId, includeCancelled: true });
   const live = rows.filter((v) => v.status !== "CANCELLED");
+  const onDuty = new Set(live.filter((v) => v.status !== "NOT_DELIVERED").flatMap((v) => v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staffId)));
   const calls = {
     total: live.length,
+    /** Not started and not yet late: still to come. */
+    due: live.filter((v) => v.status === "SCHEDULED" && !v.flags.late).length,
+    inProgress: live.filter((v) => v.status === "IN_PROGRESS").length,
+    cancelled: rows.length - live.length,
+    /** Double-ups with one of their two carers. */
+    partDoubleUps: live.filter((v) => v.carersRequired > 1 && v.flags.unassignedSlots > 0 && v.flags.unassignedSlots < v.carersRequired).length,
+    staffOnDuty: onDuty.size,
     complete: live.filter((v) => v.status === "COMPLETED").length,
     late: live.filter((v) => v.flags.late && v.status !== "MISSED").length,
     missed: live.filter((v) => v.status === "MISSED").length,
@@ -50,7 +59,8 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
   const now = new Date();
   const soon = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 86_400_000);
 
-  const [serviceUsers, team, plans, risks, absenceRequests, templates, holidaysDue, notes] = await Promise.all([
+  const weekStart = mondayOf(date);
+  const [serviceUsers, team, plans, risks, absenceRequests, templates, holidaysDue, notes, exceptions, builds] = await Promise.all([
     canPeople
       ? db.serviceUser.findMany({ where: { AND: [suScope, { status: { in: ["ACTIVE", "PAUSED", "ASSESSMENT"] } }] }, select: { id: true, firstName: true, lastName: true, preferredName: true, postcode: true, status: true, area: { select: { name: true, colour: true } } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
       : Promise.resolve([]),
@@ -70,6 +80,8 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
       const { start, end } = londonDayBounds(date);
       return db.visitNote.count({ where: { organisationId: org, createdAt: { gte: start, lt: end }, visit: visitWhere(scope) } });
     })(),
+    hasOrgPermission(ctx, "rota.monitor") ? exceptionCounts(ctx) : Promise.resolve(null),
+    db.rotaBuild.count({ where: { organisationId: org, weekStart: dbDate(weekStart), status: "BUILT" } }),
   ]);
 
   // A template conflict is a slot with no carer, or a carer who has left or is no longer in HR.
@@ -99,5 +111,8 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     canStaff,
     reminders,
     counters: { rotaConflicts: calls.review, templateConflicts, holidaysDue, notes },
+    exceptions,
+    /** No visits on the date and no build for its week: the rota for that week has not been built yet. */
+    notBuilt: rows.length === 0 && builds === 0 ? { weekStart } : null,
   };
 }

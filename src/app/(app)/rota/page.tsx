@@ -8,7 +8,8 @@ import { rotaDashboard } from "@/server/rota/dashboard";
 import { rotaLookups } from "@/server/rota/queries";
 import { Flash, PageHeader } from "@/components/ui";
 import { SearchTable } from "@/components/search-table";
-import { longDate } from "@/components/rota-ui";
+import { NotBuiltNotice, longDate } from "@/components/rota-ui";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,18 @@ function CallBox({ href, colour, icon, label, value, note }: { href: string | nu
   );
   const cls = "flex min-h-[96px] overflow-hidden rounded text-white no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
   return href ? <Link href={href} className={`${cls} hover:brightness-110`} style={{ background: colour }}>{body}</Link> : <div className={cls} style={{ background: colour }}>{body}</div>;
+}
+
+/** One figure in the call-status strip; links to the visits it counts. */
+function Status({ href, label, value, alert }: { href: string; label: string; value: number; alert?: boolean }) {
+  return (
+    <li className="min-w-0">
+      <Link href={href} className="flex h-full flex-col rounded px-3 py-2 no-underline hover:bg-slate-50" data-testid={`status-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+        <span className={`text-[22px] font-semibold leading-tight tabular-nums ${alert && value ? "text-[#a3242c]" : "text-navy-900"}`}>{value}</span>
+        <span className="text-[13px] text-slate-600">{label}</span>
+      </Link>
+    </li>
+  );
 }
 
 function Widget({ title, accent, actions, children }: { title: string; accent: string; actions?: React.ReactNode; children: React.ReactNode }) {
@@ -82,6 +95,9 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         </form>
       </section>
 
+      {d.notBuilt ? <NotBuiltNotice date={date} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
+      {date === d.today ? <AutoRefresh seconds={60} /> : null}
+
       <section aria-label="Calls on this date" className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CallBox href={`/rota/visits?${q({ status: "COMPLETED" })}`} colour="#13703c" icon={<Check {...iconProps} />} label="Complete calls" value={c.complete} note={`${pct(c.complete, c.total)} of ${c.total} visits`} />
         <CallBox href={`/rota/visits?${q({ view: "late" })}`} colour="#a85b0a" icon={<Clock {...iconProps} />} label="Late calls" value={c.late} note={`${pct(c.late, c.total)} · ${c.lateAfterMin} minutes or more late`} />
@@ -91,6 +107,19 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         ) : (
           <CallBox href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" colour="#4b5a6b" icon={<FirstAidKit {...iconProps} />} label="Calls with missed meds" value={d.calls.missedMeds} note={`${pct(d.calls.missedMeds, c.total)} with a dose not recorded`} />
         )}
+      </section>
+
+      <section aria-label="Call status" className="panel mb-4 p-1">
+        <ul className="grid grid-cols-2 gap-1 sm:grid-cols-4 xl:grid-cols-8">
+          <Status href={`/rota/visits?${q({})}`} label="Scheduled visits" value={c.total} />
+          <Status href={`/rota/visits?${q({ status: "SCHEDULED" })}`} label="Still to start" value={c.due} />
+          <Status href={`/rota/visits?${q({ status: "IN_PROGRESS" })}`} label="In progress" value={c.inProgress} />
+          <Status href={`/rota/visits?${q({ status: "CANCELLED", cancelled: "1" })}`} label="Cancelled" value={c.cancelled} />
+          <Status href={`/rota/visits?${q({ view: "unassigned" })}`} label="Unassigned" value={c.unassigned} alert />
+          <Status href="/rota/unassigned" label="Double-ups short of a carer" value={c.partDoubleUps} alert />
+          <Status href={`/rota/advanced?${q({ view: "staff-day" })}`} label="Staff on duty" value={c.staffOnDuty} />
+          {d.exceptions ? <Status href="/rota/exceptions" label={d.exceptions.overdue ? `Open exceptions (${d.exceptions.overdue} overdue)` : "Open exceptions"} value={d.exceptions.open} alert /> : null}
+        </ul>
       </section>
 
       <section aria-label="People and reminders" className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-3">

@@ -1,3 +1,4 @@
+import { CSV_BOM } from "@/lib/csv";
 import { applyRequirements } from "@/hr/lib/requirements";
 import { limitedRequest, rateLimit } from "@/hr/lib/request-security";
 import { NextResponse } from "next/server";
@@ -123,22 +124,25 @@ export async function GET(request: Request) {
         audit(s, u, `Exported ${rows.length} employee summaries`),
       );
       return new Response(
-        [
-          "Name,Branch,Job role,Employment status",
-          ...rows.map((e) =>
-            [
-              e.name,
-              s.branches.find((b) => b.id === e.branch)!.name,
-              e.job,
-              e.status,
-            ]
-              .map(csvCell)
-              .join(","),
-          ),
-        ].join("\r\n"),
+        // A byte-order mark so Excel reads names such as "Zoë" as UTF-8 (src/lib/csv.ts does the same).
+        CSV_BOM +
+          [
+            "Name,Branch,Job role,Employment status",
+            ...rows.map((e) =>
+              [
+                e.name,
+                s.branches.find((b) => b.id === e.branch)!.name,
+                e.job,
+                e.status,
+              ]
+                .map(csvCell)
+                .join(","),
+            ),
+          ].join("\r\n") +
+          "\r\n",
         {
           headers: {
-            "Content-Type": "text/csv",
+            "Content-Type": "text/csv; charset=utf-8",
             "Content-Disposition": 'attachment; filename="csb-people.csv"',
             "Cache-Control": "no-store",
           },

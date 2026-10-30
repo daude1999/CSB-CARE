@@ -1,12 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * The main screen of every module at desktop (1440), tablet (834) and phone (390) widths: no sideways scrolling and a
+ * The main screen of every module at desktop (1440), laptop (1366), tablet (834) and phone (390) widths: no sideways scrolling and a
  * visible heading at each width. Screenshots go to test-results/screens-v1 (copied into docs/implementation/screenshots
  * for the QA report).
  */
 const PASSWORD = "DemoPassword!2026";
-const WIDTHS = [1440, 834, 390] as const;
+const WIDTHS = [1440, 1366, 834, 390] as const;
 const SCREENS: { who: string; module: string; path: string }[] = [
   { who: "manager", module: "overview", path: "/overview" },
   { who: "manager", module: "policy-library", path: "/" },

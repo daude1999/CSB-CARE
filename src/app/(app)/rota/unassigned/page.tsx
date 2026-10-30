@@ -3,7 +3,7 @@ import Link from "@/components/link";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { listVisits, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
+import { listVisits, rotaLookups, suName, visitCandidatesMany } from "@/server/rota/queries";
 import { assignCarerAction } from "@/app/rota-actions";
 import { Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { AreaDot, CarerSlots, TimeSpan } from "@/components/rota-ui";
@@ -24,14 +24,9 @@ export default async function UnassignedPage({ searchParams }: { searchParams: P
   const now = Date.now();
   const open = rows.filter((v) => v.scheduledEnd.getTime() > now);
   const canEdit = hasOrgPermission(ctx, "rota.edit");
-  const suggestions = new Map(
-    await Promise.all(
-      (canEdit ? open.slice(0, SUGGEST) : []).map(async (v) => {
-        const slot: AssignmentSlot = v.assignments.some((a) => a.slot === "PRIMARY") ? "SECOND" : "PRIMARY";
-        return [v.id, { slot, list: (await visitCandidates(ctx, v, slot)).filter((c) => c.state !== "NOT_ELIGIBLE").slice(0, 8) }] as const;
-      }),
-    ),
-  );
+  const wanted = (canEdit ? open.slice(0, SUGGEST) : []).map((v) => ({ visit: v, slot: (v.assignments.some((a) => a.slot === "PRIMARY") ? "SECOND" : "PRIMARY") as AssignmentSlot }));
+  const ranked = await visitCandidatesMany(ctx, wanted);
+  const suggestions = new Map(wanted.map(({ visit, slot }) => [visit.id, { slot, list: (ranked.get(visit.id) ?? []).filter((c) => c.state !== "NOT_ELIGIBLE").slice(0, 8) }] as const));
   const dates = [...new Set(open.map((v) => fromDbDate(v.date)))];
   const back = `/rota/unassigned?from=${from}&days=${days}${sp.area ? `&area=${sp.area}` : ""}`;
   const slots = open.reduce((n, v) => n + v.flags.unassignedSlots, 0);
@@ -71,7 +66,7 @@ export default async function UnassignedPage({ searchParams }: { searchParams: P
                           <input type="hidden" name="visitId" value={v.id} />
                           <input type="hidden" name="slot" value={s.slot} />
                           <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                          <select name="staffId" required className="input max-w-lg flex-1 py-1.5 text-[14px]" aria-label={`Carer for ${suName(v.serviceUser)} at ${v.scheduledStart.toISOString()}`}>
+                          <select name="staffId" required className="input min-w-0 max-w-lg basis-full py-1.5 text-[14px] sm:basis-0 sm:flex-1" aria-label={`Carer for ${suName(v.serviceUser)} at ${v.scheduledStart.toISOString()}`}>
                             <option value="">Choose a carer…</option>
                             {s.list.map((c) => <option key={c.id} value={c.id}>{c.name} — {STATE[c.state]}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}</option>)}
                           </select>

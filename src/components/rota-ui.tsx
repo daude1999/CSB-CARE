@@ -1,7 +1,7 @@
 import type { VisitStatus } from "@prisma/client";
 import Link from "@/components/link";
 import { Badge, type Tone } from "@/components/ui";
-import { londonTime } from "@/lib/london";
+import { londonTime, mondayOf } from "@/lib/london";
 import type { VisitFlags } from "@/server/rota/queries";
 
 /** Shared pieces of the rostering screens: visit status, derived flags, carer slots and the time column. */
@@ -103,4 +103,19 @@ export function rotaState(v: { status: VisitStatus; flags: VisitFlags }): { labe
     default:
       return { label: "Cancelled", tint: "opacity-60" };
   }
+}
+
+/**
+ * Shown where a date has no visits because nobody has built that week's rota yet. Visits only exist once a week is
+ * built from the templates (or added one at a time), so an empty rota is never a display fault to hide.
+ */
+export function NotBuiltNotice({ date, canBuild }: { date: string; canBuild: boolean }) {
+  const monday = mondayOf(date);
+  return (
+    <div role="status" className="mb-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-950">
+      <strong className="font-semibold">No rota has been built for the week of {longDate(monday)}.</strong>{" "}
+      Visits appear here once the week is built from the templates in Build Rota{canBuild ? "" : " (ask a coordinator)"}, or added one at a time.
+      {canBuild ? <> <Link href={`/rota/build?week=${monday}`} className="font-medium">Build this week</Link></> : null}
+    </div>
+  );
 }

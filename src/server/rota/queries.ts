@@ -2,7 +2,7 @@ import type { AssignmentSlot, Prisma, RotaSettings, VisitStatus } from "@prisma/
 import { db } from "@/lib/db";
 import { addDays, dbDate, isIsoDate, londonDate } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
-import { rankCarers } from "@/server/workforce/eligibility";
+import { rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
 import { rotaSettings } from "./settings";
 import { rotaScope, visitWhere } from "./scope";
 
@@ -121,6 +121,17 @@ export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUser
   const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
   const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds });
   return ranked.filter((r) => !others.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }));
+}
+
+type CandidateVisit = Parameters<typeof visitCandidates>[1];
+
+/** visitCandidates for a list of visits in one pass (shared fact loading), keyed by visit id. */
+export async function visitCandidatesMany(ctx: Ctx, visits: { visit: CandidateVisit; slot: AssignmentSlot }[]) {
+  const scope = await rotaScope(ctx, "rota.view");
+  const tasks = await db.visitTask.findMany({ where: { visitId: { in: visits.map((v) => v.visit.id) } }, select: { visitId: true, careTaskId: true } });
+  const others = visits.map(({ visit, slot }) => visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId));
+  const ranked = await rankCarersMany(db, scope.organisationId, visits.map(({ visit, slot }, i) => ({ start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: tasks.filter((t) => t.visitId === visit.id).map((t) => t.careTaskId).filter((x): x is string => !!x), otherSlotStaffIds: others[i] })));
+  return new Map(visits.map(({ visit }, i) => [visit.id, ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }))]));
 }
 
 /** Display names for the people who acted on records (audit actors), limited to the caller's organisation. */

@@ -28,6 +28,8 @@ export default function PdfPreview({
       pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
       loading = pdfjs.getDocument({
         url,
+        // Never draw with the device's own fonts: a local "Helvetica" can distort documents that do not embed fonts.
+        useSystemFonts: false,
         standardFontDataUrl: "/pdfjs/standard_fonts/",
         cMapUrl: "/pdfjs/cmaps/",
         cMapPacked: true,

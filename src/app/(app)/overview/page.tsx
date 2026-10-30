@@ -12,6 +12,7 @@ import { ModuleGrid, OverviewBanner, OverviewChart, type ChartSeries } from "@/c
 import { arrange, overviewOrder } from "@/server/overview/layout";
 import { saveOverviewOrderAction } from "@/app/actions";
 import { Flash } from "@/components/ui";
+import { AutoRefresh } from "@/components/auto-refresh";
 import type { Portal, PortalId } from "@/lib/portals";
 import {
   ArrowDown, ArrowRight, ArrowSquareOut, ArrowUp, Bell, Buildings, CalendarBlank, CalendarDots, CalendarPlus, CaretRight, ChartBar, CheckCircle, ClipboardText,
@@ -397,7 +398,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     if (m.overdueAcks && can("staff.view")) attention.push({ count: m.overdueAcks, text: m.overdueAcks === 1 ? "Staff sign-off overdue" : "Staff sign-offs overdue", where: "Policy & Compliance", href: "/staff", icon: <FileText size={17} />, ...policyTone });
     if (m.overdueActions) attention.push({ count: m.overdueActions, text: m.overdueActions === 1 ? "Action past due date" : "Actions past due date", where: "Policy & Compliance", href: "/actions", icon: <ClipboardText size={17} />, ...policyTone });
   }
-  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ count: rotaFigures.unassignedToday, text: rotaFigures.unassignedToday === 1 ? "Unassigned visit slot today" : "Unassigned visit slots today", where: "Rostering & Care Management", href: "/rota/unassigned", icon: <CalendarDots size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
+  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ count: rotaFigures.unassignedToday, text: rotaFigures.unassignedToday === 1 ? "Unassigned visit today" : "Unassigned visits today", where: "Rostering & Care Management", href: "/rota/visits?view=unassigned", icon: <CalendarDots size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
   if (rota?.missedToday) attention.push({ count: rota.missedToday, text: rota.missedToday === 1 ? "Missed visit today" : "Missed visits today", where: "Rostering & Care Management", href: "/rota/monitor", icon: <WarningCircle size={17} weight="fill" />, ...red });
   if (rotaPortal && rotaFigures?.openAlerts) attention.push({ count: rotaFigures.openAlerts, text: rotaFigures.openAlerts === 1 ? "Rota alert needs attention" : "Rota alerts need attention", where: "Rostering & Care Management", href: "/rota/exceptions", icon: <WarningCircle size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
   if (hrPortal && hr?.overdue) attention.push({ count: hr.overdue, text: hr.overdue === 1 ? "HR check overdue" : "HR checks overdue", where: "HR & Workforce", href: hrPortal.home, external: true, icon: <UsersThree size={17} />, colour: hrPortal.colour, tint: hrPortal.tint });
@@ -410,6 +411,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     <div className="ov-root">
       <div className="space-y-2.5 px-4 pb-6 pt-3 md:px-[16px]">
         <Flash searchParams={sp} />
+        <AutoRefresh seconds={60} />
         <section aria-label="Today at a glance" className="flex flex-col gap-3 xl:flex-row">
           <div className="ov-hero flex shrink-0 flex-col justify-center rounded-[12px] px-[18px] py-3 text-white xl:w-[252px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}

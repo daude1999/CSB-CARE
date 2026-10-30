@@ -24,7 +24,7 @@ test.describe("Policy Library", () => {
 
     // The first policy opens in the inspector, with the real PDF rendered.
     const inspector = page.getByTestId("policy-inspector");
-    await expect(inspector.locator("canvas[data-rendered=true]")).toBeVisible({ timeout: 30_000 });
+    await expect(inspector.locator("[data-page='1'][data-rendered=true] canvas")).toBeVisible({ timeout: 30_000 });
     await expect(inspector.getByTestId("key-information")).toContainText("Owner");
 
     // Selecting another row swaps the inspector.
@@ -62,6 +62,59 @@ test.describe("Policy Library", () => {
     await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^Templates \(\d+\)$/);
     await page.getByRole("navigation", { name: "Library views" }).getByRole("link", { name: "Review Calendar" }).click();
     await expect(page.getByTestId("review-calendar")).toBeVisible();
+  });
+
+  test("shows the real PDF readably: same pixels as the downloaded file, full-height panel, reader and print", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => {
+        (window as unknown as { printed: number }).printed++;
+      };
+    });
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/policies");
+    const viewer = page.getByTestId("document-viewer");
+    await expect(viewer.locator("[data-page='1'][data-rendered=true] canvas")).toBeVisible({ timeout: 30_000 });
+
+    // The panel is a practical reading height, not a 306px strip.
+    expect((await viewer.boundingBox())!.height).toBeGreaterThanOrEqual(440);
+
+    const total = Number((await viewer.getByTestId("page-count").innerText()).split("/")[1]);
+    expect(total).toBeGreaterThanOrEqual(3);
+    await viewer.getByLabel("Next page").click();
+    await expect(viewer.getByTestId("page-count")).toHaveText(`2 / ${total}`);
+
+    // The reader opens across the window; at 100% its page is the downloaded PDF drawn by PDF.js, pixel for pixel
+    // within anti-aliasing, so what people read in the app is exactly the controlled document.
+    await viewer.getByRole("button", { name: "Open full-screen reader" }).click();
+    const reader = page.getByTestId("document-reader");
+    await expect(reader.locator("[data-page='1'][data-rendered=true] canvas")).toBeVisible();
+    expect((await reader.boundingBox())!.height).toBeGreaterThan(900);
+    await reader.getByRole("combobox").selectOption("100");
+    await reader.getByLabel("Next page").click();
+    await expect(reader.getByTestId("page-count")).toHaveText(`2 / ${total}`);
+    const second = reader.locator("[data-page='2'][data-rendered=true] canvas");
+    await expect(second).toBeInViewport({ ratio: 1 });
+    await page.waitForTimeout(800);
+    const shot = await second.screenshot();
+    const href = await reader.getByRole("link", { name: "Download PDF" }).getAttribute("href");
+    const pdf = Buffer.from(await (await page.request.get(href!)).body());
+    expect(pdf.toString("latin1")).not.toMatch(/\/BaseFont \/Helvetica/);
+    const { renderPages, compareWithBaseline } = await import("../support/pdf-inspect");
+    const [, reference] = await renderPages(pdf, 1);
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const file = `${mkdtempSync(`${tmpdir()}/viewer-`)}/page2.png`;
+    await compareWithBaseline(reference!, file);
+    expect((await compareWithBaseline(shot, file, { allowShift: true })).diff).toBeLessThan(0.02);
+    await reader.getByRole("navigation", { name: "Sections" }).getByRole("button").first().click();
+    await page.keyboard.press("Escape");
+    await expect(reader).toHaveCount(0);
+
+    // Print draws every page into the print layer and opens the browser's print dialog.
+    await viewer.getByRole("button", { name: "Print" }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+    await expect(page.locator(".pdf-print-root img")).toHaveCount(total);
   });
 
   test("archives and restores a policy with a reason", async ({ page }) => {
