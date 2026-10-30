@@ -202,3 +202,16 @@ Runs in order. Each item's own tests were run first, then a full run.
 - Open: React's hydration notice (#418) appears on one to three of 475 screens per run, on a different screen each time (notifications, evidence, policies, risk assessments, a visit). It does not change what the page shows or does and could not be reproduced on its own in development. The walk lists it (`docs/implementation/v1-qa-walk.json`) rather than failing; it is in KNOWN_LIMITATIONS.
 
 Screenshots of 20 main screens at 1440, 834 and 390 are in `docs/implementation/screenshots/v1/`.
+
+## V1 final run after merging `main` (30 Oct 2026)
+
+`main` (PRs #25 and #26: navigation and motion polish, HR in the platform shell) merged into `feature/v1-complete`.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npm test` | 39 files, 294 passed |
+| `npm run test:hr` | 14 passed |
+| `npm run build` | pass |
+| `npm run test:e2e` (first run after the merge) | 66 passed, 2 failed: two navigation tests still expected Reporting to open on Compliance Reports; on this branch it opens on Analytics. Test fix; `npx playwright test tests/e2e/navigation.spec.ts` then passed 17/17 |
+| `npm run typecheck`, `npm run lint`, `npm run build`, `npm run test:e2e` (final, at 1d5ed62) | pass; **68 passed, 0 failed** (7.9 min). The QA walk checked 475 screens for 8 roles with no findings; React's hydration notice (#418) appeared once (`/notifications`, manager@), listed in `v1-qa-walk.json` |
