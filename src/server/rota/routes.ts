@@ -134,7 +134,9 @@ export async function getLiveRoute(ctx: Ctx, id: string) {
     db.visit.findMany({ where: { ...visitWhere(scope), runRouteId: null, status: { not: "CANCELLED" }, date: week, ...(r.staffId ? { assignments: { some: { staffId: r.staffId, removedAt: null } } } : r.areaId ? { areaId: r.areaId } : {}) }, include: { serviceUser: suSelect }, orderBy: { scheduledStart: "asc" }, take: 300 }),
   ]);
   const owner = r.staffId ? (await db.staffMember.findUnique({ where: { id: r.staffId }, select: { displayName: true } }))?.displayName : r.areaId ? (await db.area.findUnique({ where: { id: r.areaId }, select: { name: true } }))?.name : null;
-  return { route: r, owner: owner ?? null, visits, candidates };
+  const others = [];
+  for (const o of await db.runRoute.findMany({ where: { organisationId: scope.organisationId, weekStart: r.weekStart, id: { not: r.id } }, orderBy: { name: "asc" } })) if (await ownerVisible(scope, o)) others.push({ id: o.id, name: o.name });
+  return { route: r, owner: owner ?? null, visits, candidates, others };
 }
 
 export async function getTemplateRoute(ctx: Ctx, id: string) {
@@ -146,7 +148,9 @@ export async function getTemplateRoute(ctx: Ctx, id: string) {
     db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: null, enabled: true, ...areaLimit, ...(r.staffId ? { OR: [{ preferredStaff1Id: r.staffId }, { preferredStaff2Id: r.staffId }] } : r.areaId ? { areaId: r.areaId } : {}) }, include: { serviceUser: suSelect }, orderBy: { startMinute: "asc" }, take: 300 }),
   ]);
   const owner = r.staffId ? (await db.staffMember.findUnique({ where: { id: r.staffId }, select: { displayName: true } }))?.displayName : r.areaId ? (await db.area.findUnique({ where: { id: r.areaId }, select: { name: true } }))?.name : null;
-  return { route: r, owner: owner ?? null, templates, candidates };
+  const others = [];
+  for (const o of await db.runRouteTemplate.findMany({ where: { organisationId: scope.organisationId, id: { not: r.id }, active: true }, orderBy: { name: "asc" } })) if (await ownerVisible(scope, o)) others.push({ id: o.id, name: o.name });
+  return { route: r, owner: owner ?? null, templates, candidates, others };
 }
 
 /** Adds visits (live) or templates (template route) to the end of the route, in time order. */
@@ -186,6 +190,32 @@ export async function removeFromRoute(ctx: Ctx, kind: "LIVE" | "TEMPLATE", route
       : await tx.visitTemplate.updateMany({ where: { id, runRouteTemplateId: r.id }, data: { runRouteTemplateId: null, routeOrder: null } });
     if (!done.count) throw new NotFoundError("Stop on this route");
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: kind === "LIVE" ? "rota.route.visit_removed" : "rota.route_template.removed", entityType: kind === "LIVE" ? "RunRoute" : "RunRouteTemplate", entityId: r.id, data: { id } }, tx);
+  });
+}
+
+/**
+ * Moves one stop straight from one route to another in a single step (live routes of the same week, or template
+ * routes), so a visit is never left off every route in between. It joins the end of the other route.
+ */
+export async function moveToRoute(ctx: Ctx, kind: "LIVE" | "TEMPLATE", fromRouteId: string, toRouteId: string, id: string) {
+  const scope = await rotaScope(ctx, "rota.edit");
+  if (fromRouteId === toRouteId) throw new ValidationError("Choose a different route");
+  if (kind === "LIVE") {
+    const [from, to] = await Promise.all([liveInScope(scope, fromRouteId), liveInScope(scope, toRouteId)]);
+    if (from.weekStart.getTime() !== to.weekStart.getTime()) throw new ValidationError("A visit can only move to a route for the same week");
+    return db.$transaction(async (tx) => {
+      const max = (await tx.visit.aggregate({ where: { runRouteId: to.id }, _max: { routeOrder: true } }))._max.routeOrder ?? 0;
+      const done = await tx.visit.updateMany({ where: { ...visitWhere(scope), id, runRouteId: from.id }, data: { runRouteId: to.id, routeOrder: max + 1 } });
+      if (!done.count) throw new NotFoundError("Stop on this route");
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.route.visit_moved", entityType: "RunRoute", entityId: to.id, data: { id, from: from.id } }, tx);
+    });
+  }
+  const [from, to] = await Promise.all([templateInScope(scope, fromRouteId), templateInScope(scope, toRouteId)]);
+  return db.$transaction(async (tx) => {
+    const max = (await tx.visitTemplate.aggregate({ where: { runRouteTemplateId: to.id }, _max: { routeOrder: true } }))._max.routeOrder ?? 0;
+    const done = await tx.visitTemplate.updateMany({ where: { organisationId: scope.organisationId, id, runRouteTemplateId: from.id }, data: { runRouteTemplateId: to.id, routeOrder: max + 1 } });
+    if (!done.count) throw new NotFoundError("Stop on this route");
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.route_template.moved", entityType: "RunRouteTemplate", entityId: to.id, data: { id, from: from.id } }, tx);
   });
 }
 

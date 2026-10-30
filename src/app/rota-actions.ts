@@ -5,6 +5,7 @@ import { ValidationError } from "@/lib/errors";
 import { londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, str } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
+import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
@@ -14,7 +15,7 @@ import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
-import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
+import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
 import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
@@ -26,7 +27,7 @@ import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageI
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
-import { bulkVisits, cancelVisit, createVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
+import { bulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
@@ -80,6 +81,23 @@ export async function unassignCarerAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await unassignCarer(ctx, { visitId: str(fd, "visitId"), slot: slot(fd), reason: str(fd, "reason") || "Removed by the office", lockVersion: optInt(fd, "lockVersion") });
   }, "Carer removed");
+}
+
+/** The planner's drag to another day, optionally onto another carer. */
+export async function moveVisitAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await moveVisit(ctx, { visitId: str(fd, "visitId"), slot: str(fd, "slot"), lockVersion: optInt(fd, "lockVersion"), toDate: str(fd, "toDate"), staffId: str(fd, "staffId") || null, acceptWarnings: bool(fd, "acceptWarnings") });
+  }, "Visit moved");
+}
+
+/** Two-way swap from the visit page: "with" holds the other visit as visitId|slot|lockVersion. */
+export async function swapCarersAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const [visitId, otherSlot, version] = str(fd, "with").split("|");
+    if (!visitId || !otherSlot) throw new ValidationError("Choose the visit to swap with");
+    const other = { visitId, slot: otherSlot, lockVersion: version ? Number(version) : undefined };
+    await swapCarers(ctx, { first: { visitId: str(fd, "visitId"), slot: slot(fd), lockVersion: optInt(fd, "lockVersion") }, second: other, reason: str(fd, "reason"), acceptWarnings: bool(fd, "acceptWarnings") });
+  }, "Carers swapped");
 }
 
 export async function updateVisitAction(fd: FormData) {
@@ -812,6 +830,10 @@ export async function addToRouteAction(fd: FormData) {
 
 export async function removeFromRouteAction(fd: FormData) {
   return handle(fd, (ctx) => removeFromRoute(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id")), "Taken off the route");
+}
+
+export async function moveToRouteAction(fd: FormData) {
+  return handle(fd, (ctx) => moveToRoute(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "toRouteId"), str(fd, "id")), "Moved to the other route");
 }
 
 export async function moveStopAction(fd: FormData) {

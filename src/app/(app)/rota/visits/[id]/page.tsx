@@ -4,6 +4,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
+import { swapCandidates } from "@/server/rota/swap";
 import { CLOCK_KIND_LABEL, listCorrectionRequests } from "@/server/rota/corrections";
 import { visitMedication } from "@/server/care/medication";
 import { VisitMedication } from "@/components/medication-ui";
@@ -14,7 +15,7 @@ import { rotaSettings } from "@/server/rota/settings";
 import { READINESS_LABEL } from "@/server/readiness";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
-import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
+import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, swapCarersAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 
@@ -24,7 +25,7 @@ const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "First carer", SEC
 const STATE_LABEL = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", UPDATED: "Visit changed", CANCELLED: "Visit cancelled", REINSTATED: "Visit reinstated",
-  PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded",
+  SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded",
 };
 
 export default async function VisitPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -40,10 +41,12 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const slots: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), "SHADOW"];
   const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
   const medication = await visitMedication(ctx, v.id);
-  const [candidates, lk, names] = await Promise.all([
+  const swappable = editable ? live.filter((a) => a.slot !== "SHADOW").map((a) => a.slot) : [];
+  const [candidates, lk, names, swaps] = await Promise.all([
     assignable ? Promise.all(slots.map(async (s) => [s, await visitCandidates(ctx, v, s)] as const)) : Promise.resolve([]),
     editable ? rotaLookups(ctx) : Promise.resolve(null),
     memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId), ...requests.flatMap((r) => [r.requestedById, r.decidedById])]),
+    Promise.all(swappable.map(async (s) => [s, await swapCandidates(ctx, v.id, s)] as const)),
   ]);
   const date = fromDbDate(v.date);
   const back = `/rota/visits/${v.id}`;
@@ -136,6 +139,33 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         <label className="flex items-center gap-1.5 text-[13.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
                         <button className="btn-primary py-1">{a ? "Replace" : "Assign"}</button>
                       </form>
+                    ) : null}
+                    {a && swappable.includes(s) ? (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Swap with another carer’s visit</summary>
+                        {(swaps.find((x) => x[0] === s)?.[1] ?? []).length ? (
+                          <form action={swapCarersAction} className="mt-2 flex flex-wrap items-center gap-2">
+                            <input type="hidden" name="back" value={back} />
+                            <input type="hidden" name="visitId" value={v.id} />
+                            <input type="hidden" name="slot" value={s} />
+                            <input type="hidden" name="lockVersion" value={v.lockVersion} />
+                            <select name="with" required className="input max-w-md flex-1 py-1.5 text-[14px]" aria-label={`Visit to swap ${a.staff.displayName} with`}>
+                              <option value="">Choose a visit…</option>
+                              {(swaps.find((x) => x[0] === s)?.[1] ?? []).map((c) => (
+                                <option key={`${c.visitId}-${c.slot}`} value={`${c.visitId}|${c.slot}|${c.lockVersion}`}>
+                                  {londonTime(c.start)}–{londonTime(c.end)} {c.serviceUser} · {c.carer} ({c.reference})
+                                </option>
+                              ))}
+                            </select>
+                            <input name="reason" required minLength={3} className="input w-48 py-1.5 text-[14px]" placeholder="Reason" aria-label="Reason for the swap" />
+                            <label className="flex items-center gap-1.5 text-[13.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
+                            <button className="btn-secondary py-1">Swap</button>
+                          </form>
+                        ) : (
+                          <p className="mt-2 text-[13px] text-slate-500">No other scheduled visit with a carer within 12 hours of this one.</p>
+                        )}
+                        <p className="mt-1 text-[12.5px] text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
+                      </details>
                     ) : null}
                   </li>
                 );

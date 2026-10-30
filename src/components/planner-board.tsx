@@ -30,25 +30,39 @@ const TONE: Record<PlannerChip["tone"], string> = {
 };
 
 /**
- * The week grid. Carers are rows and days are columns. A visit chip can be dragged to another carer on the same day;
- * the move goes through the same server-side assignment and eligibility check as every other allocation, and a refusal
- * is shown with its reason. Without a mouse, open the visit (Enter on the chip) and choose the carer there.
+ * The week grid. Carers are rows and days are columns. A visit chip can be dragged to another carer on the same day,
+ * or (when the page passes `moveAction`) to any carer on another day of the week, which moves that one visit at the
+ * same time of day. Every move goes through the same server-side assignment and eligibility checks as every other
+ * allocation, and a refusal is shown with its reason. Without a mouse, open the visit (Enter on the chip) and change the
+ * carer or day there.
  */
-export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer" }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string }) {
+export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer" }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; moveAction?: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string }) {
   const form = useRef<HTMLFormElement>(null);
-  const [drag, setDrag] = useState<{ chip: PlannerChip; day: number } | null>(null);
+  const moveForm = useRef<HTMLFormElement>(null);
+  const [drag, setDrag] = useState<{ chip: PlannerChip; day: number; staffId: string } | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ chip: PlannerChip; staffId: string } | null>(null);
+  const [pending, setPending] = useState<{ chip: PlannerChip; staffId: string; toDate?: string } | null>(null);
+  const backWith = pending ? `${back}${back.includes("?") ? "&" : "?"}move=${pending.chip.visitId}~${pending.chip.slot}~${pending.staffId}~${pending.chip.lockVersion}${pending.toDate ? `~${pending.toDate}` : ""}` : back;
 
   return (
     <div className="relative overflow-x-auto">
       <form ref={form} action={action} className="hidden">
-        <input type="hidden" name="back" value={pending ? `${back}${back.includes("?") ? "&" : "?"}move=${pending.chip.visitId}~${pending.chip.slot}~${pending.staffId}~${pending.chip.lockVersion}` : back} />
+        <input type="hidden" name="back" value={backWith} />
         <input type="hidden" name={idName} value={pending?.chip.visitId ?? ""} />
         <input type="hidden" name="slot" value={pending?.chip.slot ?? ""} />
         <input type="hidden" name="staffId" value={pending?.staffId ?? ""} />
         <input type="hidden" name={versionName} value={pending?.chip.lockVersion ?? ""} />
       </form>
+      {moveAction ? (
+        <form ref={moveForm} action={moveAction} className="hidden">
+          <input type="hidden" name="back" value={backWith} />
+          <input type="hidden" name="visitId" value={pending?.chip.visitId ?? ""} />
+          <input type="hidden" name="slot" value={pending?.chip.slot ?? ""} />
+          <input type="hidden" name="staffId" value={pending?.staffId ?? ""} />
+          <input type="hidden" name="toDate" value={pending?.toDate ?? ""} />
+          <input type="hidden" name="lockVersion" value={pending?.chip.lockVersion ?? ""} />
+        </form>
+      ) : null}
       <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-[12.5px]">
         <thead>
           <tr>
@@ -67,7 +81,7 @@ export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visi
               </th>
               {r.cells.map((cell, di) => {
                 const key = `${r.id}:${di}`;
-                const droppable = canEdit && r.id !== "unassigned" && drag?.day === di;
+                const droppable = canEdit && r.id !== "unassigned" && !!drag && (drag.day === di || !!moveAction) && !(drag.day === di && drag.staffId === r.id);
                 return (
                   <td
                     key={di}
@@ -82,10 +96,11 @@ export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visi
                       e.preventDefault();
                       if (!droppable || !drag) return;
                       setOver(null);
-                      setPending({ chip: drag.chip, staffId: r.id });
+                      const otherDay = drag.day !== di;
+                      setPending({ chip: drag.chip, staffId: r.id, toDate: otherDay ? days[di]!.date : undefined });
                       setDrag(null);
                       // Submit after React has written the hidden fields.
-                      setTimeout(() => form.current?.requestSubmit(), 0);
+                      setTimeout(() => (otherDay ? moveForm.current : form.current)?.requestSubmit(), 0);
                     }}
                   >
                     <div className="flex min-h-[28px] flex-col gap-[3px]">
@@ -97,7 +112,7 @@ export function PlannerBoard({ days, rows, action, back, canEdit, idName = "visi
                           draggable={canEdit && c.movable}
                           onDragStart={(e) => {
                             e.dataTransfer.effectAllowed = "move";
-                            setDrag({ chip: c, day: di });
+                            setDrag({ chip: c, day: di, staffId: r.id });
                           }}
                           onDragEnd={() => setDrag(null)}
                           className={`block rounded-[3px] border px-1.5 py-[3px] leading-[15px] no-underline ${TONE[c.tone]} ${canEdit && c.movable ? "cursor-grab" : ""}`}
