@@ -6,6 +6,7 @@ import { read as readHr } from "@/hr/lib/workspace-tx";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { reviewStaffImpact } from "./impact";
+import { raiseReviewFlag } from "@/server/readiness/flags";
 
 /**
  * Holidays, sickness and working availability. These are HR-controlled: only people with an HR & Workforce account
@@ -102,6 +103,10 @@ export async function decideAbsence(ctx: Ctx, absenceId: string, version: number
     if (abs.requestedById === ctx.userId) throw new ForbiddenError("You entered this request, so someone else must decide it");
     await tx.staffAbsence.update({ where: { id: abs.id }, data: { status: decision, decidedById: ctx.userId, decidedAt: new Date(), decisionNote: note.trim() || null, version: { increment: 1 } } });
     await audit({ organisationId: a.organisationId, actorId: ctx.userId, action: `workforce.absence.${decision.toLowerCase()}`, entityType: "StaffAbsence", entityId: abs.id, data: { staffId: abs.staffId } }, tx);
+    // A long absence (four weeks or more) means a manager looks at readiness before the person returns to duties.
+    if (decision === "APPROVED" && abs.endsAt.getTime() - abs.startsAt.getTime() >= 28 * 86400_000) {
+      await raiseReviewFlag(tx, a.organisationId, abs.staffId, `Absence of ${Math.round((abs.endsAt.getTime() - abs.startsAt.getTime()) / 86400_000)} days approved (${abs.kind.toLowerCase()}); check readiness before return`, ctx.userId);
+    }
     return reviewStaffImpact(tx, a.organisationId, [abs.staffId], { source: "absence" });
   });
 }

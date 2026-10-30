@@ -1,9 +1,10 @@
 import "server-only";
+import { missedMedsCount } from "@/server/care/medication";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { listVisits, suName } from "./queries";
-import { rotaScope, serviceUserWhere } from "./scope";
+import { rotaScope, serviceUserWhere, visitWhere } from "./scope";
 
 /**
  * The Rota dashboard, laid out in the order the office already works in OnePlan: one date drives the page, then the
@@ -38,6 +39,8 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     unassigned: live.filter((v) => v.flags.unassignedSlots > 0).length,
     review: live.filter((v) => v.flags.review.length > 0).length,
     lateAfterMin: settings.lateAfterMin,
+    /** Null while medication records are switched off, so no figure is shown. */
+    missedMeds: await missedMedsCount(org, live.map((v) => v.id)),
   };
 
   const canPeople = hasOrgPermission(ctx, "serviceUser.view");
@@ -65,7 +68,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     db.staffAbsence.count({ where: { organisationId: org, status: "APPROVED", startsAt: { gte: now, lte: soon } } }),
     (() => {
       const { start, end } = londonDayBounds(date);
-      return db.visitNote.count({ where: { organisationId: org, createdAt: { gte: start, lt: end } } });
+      return db.visitNote.count({ where: { organisationId: org, createdAt: { gte: start, lt: end }, visit: visitWhere(scope) } });
     })(),
   ]);
 

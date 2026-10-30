@@ -7,7 +7,7 @@ import { diffPolicySections } from "@/server/policies/versions";
 import { backoffMs } from "@/server/jobs/queue";
 import { auditScore } from "@/server/compliance/audits";
 
-const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, orgRoles: [], platformRoles: [], ...over });
+const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, branchIds: null, orgRoles: [], platformRoles: [], ...over });
 
 describe("authorisation", () => {
   it("separates author and approver permissions", () => {
@@ -130,5 +130,10 @@ describe("misc", () => {
   it("audit score ignores not-applicable answers", () => {
     expect(auditScore([{ response: "MET" }, { response: "NOT_MET" }, { response: "NOT_APPLICABLE" }])).toBe(50);
     expect(auditScore([])).toBeNull();
+  });
+  it("audit score is withheld while any question is unanswered, so nothing defaults to met", () => {
+    expect(auditScore([{ response: "MET" }], 20)).toBeNull();
+    expect(auditScore([{ response: "MET" }, { response: "NOT_APPLICABLE" }], 2)).toBe(100);
+    expect(auditScore([{ response: "NOT_APPLICABLE" }], 1)).toBeNull();
   });
 });

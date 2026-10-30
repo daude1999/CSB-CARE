@@ -44,8 +44,9 @@ export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, vis
   if (patch.carersRequired === 1 && live.some((a) => a.slot === "SECOND")) throw new ValidationError("Remove the second carer before making this a single-carer visit");
 
   if (timeChanged) {
+    const careTaskIds = (await tx.visitTask.findMany({ where: { visitId }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
     for (const a of live) {
-      const r = await eligibilityFor(tx, scope.organisationId, { staffId: a.staffId, start, end, slot: a.slot, visitId, serviceUserId: v.serviceUserId, areaId: v.areaId }, { otherSlotStaffIds: live.filter((x) => x.id !== a.id).map((x) => x.staffId) });
+      const r = await eligibilityFor(tx, scope.organisationId, { staffId: a.staffId, start, end, slot: a.slot, visitId, serviceUserId: v.serviceUserId, areaId: v.areaId, careTaskIds }, { otherSlotStaffIds: live.filter((x) => x.id !== a.id).map((x) => x.staffId) });
       if (r.state === "NOT_ELIGIBLE") throw new EligibilityError(`${a.staff.displayName} cannot do the new time: ${r.blocking.map((b) => b.message).join("; ")}`, r);
     }
   }
@@ -91,7 +92,7 @@ const newVisitSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose a date"),
   startMinute: z.coerce.number().int().min(0).max(1439),
   durationMin: z.coerce.number().int().min(5).max(1440),
-  carersRequired: z.coerce.number().int().min(1).max(2),
+  carersRequired: z.coerce.number().int().min(1).max(2).default(1),
   medicationRequired: z.boolean().default(false),
   timeLocked: z.boolean().default(false),
   notes: z.string().max(2000).optional(),

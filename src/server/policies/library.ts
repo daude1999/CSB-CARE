@@ -43,7 +43,7 @@ export async function getPolicy(ctx: Ctx, policyId: string) {
       versions: { orderBy: { versionNumber: "desc" }, include: { revisionAsDraft: true, publication: true, approvals: true } },
       requirementLinks: { include: { requirement: true } },
       revisions: { orderBy: { createdAt: "desc" }, include: { draftVersion: true } },
-      publications: { orderBy: { createdAt: "desc" }, include: { acknowledgements: true } },
+      publications: { orderBy: { createdAt: "desc" }, include: { acknowledgements: { where: { supersededAt: null, state: { not: "WITHDRAWN" } }, include: { staffMember: { select: { displayName: true } } } } } },
       candidates: { include: { change: true }, orderBy: { createdAt: "desc" }, take: 20 },
     },
   });

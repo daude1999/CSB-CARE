@@ -87,7 +87,7 @@ test("detected change flows through review, drafting, approval, publication and 
   const carer = await signIn(browser, "carer1@care-solution.demo");
   await carer.goto("/acknowledgements");
   const ack = carer.locator('[data-testid^="ack-"]').filter({ hasText: "Safeguarding" }).first();
-  await ack.getByRole("button", { name: /I have read and understood/ }).click();
+  await ack.getByRole("button", { name: /I confirm I have read this policy/ }).click();
   await expect(carer.getByRole("status")).toContainText("acknowledgement has been recorded");
   await expect(carer.locator('[data-testid^="ack-"]').filter({ hasText: "Safeguarding" }).first()).toContainText("acknowledged");
 

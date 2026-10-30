@@ -2,6 +2,7 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { acknowledgeAction } from "../../actions";
+import { ACK_NOT_TRAINING, ACK_WORDING, ackBucket } from "@/server/policies/assignment";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -10,14 +11,14 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
   const sp = await searchParams;
   const ctx = await requireCtx();
   const acks = ctx.organisationId
-    ? await db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId }, orderBy: [{ acknowledgedAt: { sort: "asc", nulls: "first" } }, { dueAt: "asc" }], include: { publication: { include: { policy: { select: { id: true, ref: true, title: true } }, version: { select: { label: true, changeSummary: true } } } } } })
+    ? await db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId, supersededAt: null, state: { notIn: ["WITHDRAWN", "EXEMPTED"] } }, orderBy: [{ acknowledgedAt: { sort: "asc", nulls: "first" } }, { dueAt: "asc" }], include: { publication: { include: { policy: { select: { id: true, ref: true, title: true } }, version: { select: { label: true, changeSummary: true } } } } } })
     : [];
   const now = new Date();
   const signed = acks.filter((a) => a.acknowledgedAt).length;
-  const overdue = acks.filter((a) => !a.acknowledgedAt && a.dueAt && a.dueAt < now).length;
+  const overdue = acks.filter((a) => ackBucket(a, now).overdue).length;
   return (
     <>
-      <PageHeader eyebrow="Read and sign" title="My Reading List" subtitle="Policies published or updated that you have been asked to read and acknowledge." />
+      <PageHeader eyebrow="Read and sign" title="My Reading List" subtitle={`Policies published or updated that you have been asked to read and acknowledge. ${ACK_NOT_TRAINING}`} />
       <Flash searchParams={sp} />
       <StatRow>
         <Stat label="Overdue" value={overdue} hint="Past the due date" tone="rose" />
@@ -33,13 +34,13 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
                 <div>
                   <span className="mr-3 text-[14px] text-slate-700">{a.publication.policy.ref.replace(/^CSB-/, "")}</span><Link href={`/policies/${a.publication.policy.id}`} className="row-title text-[15.5px]">{a.publication.policy.title}</Link> <span className="text-[13px] text-slate-600">{a.publication.version.label}</span>
                   {a.publication.version.changeSummary ? <div className="mt-0.5 text-[13px] text-slate-600">What changed: {a.publication.version.changeSummary}</div> : null}
-                  <div className="mt-1.5">{a.acknowledgedAt ? <Badge tone="green">acknowledged {fmtDate(a.acknowledgedAt)}</Badge> : a.dueAt && a.dueAt < now ? <Badge tone="rose">overdue since {fmtDate(a.dueAt)}</Badge> : <Badge tone="amber">due {fmtDate(a.dueAt)}</Badge>}</div>
+                  <div className="mt-1.5">{a.state === "ASSESSMENT_REQUIRED" ? <Badge tone="amber">acknowledged {fmtDate(a.acknowledgedAt)}; your manager will check your understanding</Badge> : a.state === "ASSESSMENT_FAILED" ? <Badge tone="rose">acknowledged; follow-up with your manager needed</Badge> : a.acknowledgedAt ? <Badge tone="green">acknowledged {fmtDate(a.acknowledgedAt)}</Badge> : a.dueAt && a.dueAt < now ? <Badge tone="rose">overdue since {fmtDate(a.dueAt)}</Badge> : <Badge tone="amber">due {fmtDate(a.dueAt)}</Badge>}</div>
                 </div>
                 {!a.acknowledgedAt ? (
                   <form action={acknowledgeAction}>
                     <input type="hidden" name="acknowledgementId" value={a.id} />
                     <input type="hidden" name="back" value="/acknowledgements" />
-                    <button className="btn-primary" type="submit">I have read and understood this policy</button>
+                    <button className="btn-primary" type="submit">{ACK_WORDING.replace(/\.$/, "")}</button>
                   </form>
                 ) : null}
               </li>

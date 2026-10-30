@@ -1,7 +1,7 @@
 import type { RotaSettings } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { dbDate, londonDate, londonTime } from "@/lib/london";
+import { addDays, dbDate, londonDate, londonDayBounds, londonTime } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
 import { raiseAlert } from "@/server/workforce/impact";
 import { effectiveClocks } from "./attendance";
@@ -88,7 +88,13 @@ export async function monitorBoard(ctx: Ctx, opts: { areaId?: string; now?: Date
   const settings = await rotaSettings(db, scope.organisationId);
   const [visits, lastRun, alerts] = await Promise.all([
     db.visit.findMany({
-      where: { ...visitWhere(scope), date: dbDate(today), status: { not: "CANCELLED" }, ...(opts.areaId ? { areaId: opts.areaId } : {}) },
+      // Today's visits, plus overnight visits that started yesterday and are still running or still waiting for a clock-out.
+      where: {
+        ...visitWhere(scope),
+        status: { not: "CANCELLED" },
+        OR: [{ date: dbDate(today) }, { date: dbDate(addDays(today, -1)), scheduledEnd: { gt: londonDayBounds(today).start }, status: { in: ["IN_PROGRESS", "SCHEDULED", "MISSED"] } }],
+        ...(opts.areaId ? { areaId: opts.areaId } : {}),
+      },
       include: {
         serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, postcode: true, phone: true } },
         callType: { select: { name: true } },

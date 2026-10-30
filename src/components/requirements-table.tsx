@@ -127,7 +127,7 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
           <input value={query} onChange={(e) => setQuery(e.target.value)} className="h-full w-60 bg-transparent text-[14px] placeholder:text-slate-500 focus:outline-none" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
         </label>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="table">
           <thead>
             {table.getHeaderGroups().map((hg) => (

@@ -1,5 +1,6 @@
 import type { Policy, PolicyRevision, PolicyVersion } from "@prisma/client";
-import { db, type Tx } from "@/lib/db";
+import { acknowledgeRow, assignPublication, materialPublication } from "./assignment";
+import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "../audit-log";
 import { canOnPolicy, requireOnPolicy, type Ctx } from "../auth/rbac";
@@ -196,7 +197,7 @@ export async function decide(ctx: Ctx, revisionId: string, input: { decision: "A
 export async function publishRevision(
   ctx: Ctx,
   revisionId: string,
-  input: { effectiveDate?: Date; scheduleFor?: Date | null; requireAcknowledgement?: boolean; acknowledgementDueDays?: number } = {},
+  input: { effectiveDate?: Date; scheduleFor?: Date | null; requireAcknowledgement?: boolean; acknowledgementDueDays?: number; materialRevision?: boolean } = {},
 ) {
   const r = await loadRevision(revisionId);
   requireOnPolicy(ctx, r.policy, "publish");
@@ -217,6 +218,8 @@ export async function publishRevision(
       effectiveDate,
       publishedById: ctx.userId,
       requiresAcknowledgement: requireAck,
+      // A material change is assigned to staff again; a non-material one keeps the previous acknowledgements as evidence.
+      materialRevision: input.materialRevision ?? true,
       acknowledgementDueAt: requireAck ? ackDue : null,
     },
   });
@@ -262,7 +265,7 @@ export async function performPublication(publicationId: string) {
         });
         await tx.policyPublication.update({ where: { id: pub.id }, data: { status: "PUBLISHED", publishedAt: now } });
         if (revision) await tx.policyRevision.update({ where: { id: revision.id }, data: { closedAt: now } });
-        if (pub.requiresAcknowledgement && pub.organisationId) await createAcknowledgements(tx, pub.id, pub.organisationId, pub.policy.branchId, pub.acknowledgementDueAt);
+        if (pub.requiresAcknowledgement && pub.organisationId && pub.materialRevision) await assignPublication(tx, pub.id, { actorId: pub.publishedById });
         await audit({ organisationId: pub.organisationId, actorId: pub.publishedById, action: "policy.published", entityType: "PolicyVersion", entityId: pub.versionId, data: { publicationId: pub.id, superseded: current } }, tx);
       },
       { isolationLevel: "Serializable" },
@@ -279,11 +282,6 @@ export async function performPublication(publicationId: string) {
   return db.policyPublication.findUniqueOrThrow({ where: { id: pub.id } });
 }
 
-async function createAcknowledgements(tx: Tx, publicationId: string, organisationId: string, branchId: string | null, dueAt: Date | null) {
-  const members = await tx.membership.findMany({ where: { organisationId, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : {}) }, select: { userId: true } });
-  await tx.acknowledgement.createMany({ data: members.map((m) => ({ publicationId, organisationId, userId: m.userId, dueAt })), skipDuplicates: true });
-}
-
 async function afterPublication(publicationId: string) {
   const pub = await db.policyPublication.findUniqueOrThrow({ where: { id: publicationId }, include: { policy: true, version: true, acknowledgements: true } });
   const label = pub.version.isSimulated ? "[SIMULATED] " : "";
@@ -293,7 +291,7 @@ async function afterPublication(publicationId: string) {
   }
   await notify({
     organisationId: pub.organisationId,
-    userIds: pub.acknowledgements.map((a) => a.userId),
+    userIds: pub.acknowledgements.filter((a) => !a.supersededAt).map((a) => a.userId).filter((u): u is string => !!u),
     type: "policy.published",
     title: `${label}Updated policy: ${pub.policy.ref} ${pub.policy.title} (${pub.version.label})`,
     body: `${pub.version.changeSummary ?? "This policy has been updated."} Effective from ${pub.effectiveDate.toDateString()}.${pub.requiresAcknowledgement ? " Please read it and confirm you have done so." : ""}`,
@@ -305,27 +303,28 @@ async function afterPublication(publicationId: string) {
   });
 }
 
+/** The signed-in person acknowledges their own reading assignment (see assignment.ts for the rules). */
 export async function acknowledge(ctx: Ctx, acknowledgementId: string) {
-  const ack = await db.acknowledgement.findUnique({ where: { id: acknowledgementId } });
-  if (!ack || ack.userId !== ctx.userId || ack.organisationId !== ctx.organisationId) throw new NotFoundError("Acknowledgement");
-  if (ack.acknowledgedAt) return ack;
-  const updated = await db.acknowledgement.update({ where: { id: ack.id }, data: { acknowledgedAt: new Date() } });
-  await audit({ organisationId: ack.organisationId, actorId: ctx.userId, action: "policy.acknowledged", entityType: "Acknowledgement", entityId: ack.id });
-  return updated;
+  return acknowledgeRow(ctx, acknowledgementId);
 }
 
-/** "Log Read & Sign" from a policy page: records that the signed-in user has read the policy's current publication, whether or not it was on their reading list. */
+/** "Log Read & Sign" from a policy page: records that the signed-in user has read the policy's current version, whether or not it was on their reading list. */
 export async function logReadAndSign(ctx: Ctx, policyId: string) {
   if (!ctx.organisationId) throw new ForbiddenError();
-  const pub = await db.policyPublication.findFirst({ where: { policyId, organisationId: ctx.organisationId, status: "PUBLISHED" }, orderBy: { publishedAt: "desc" } });
+  const policy = await db.policy.findFirst({ where: { id: policyId, organisationId: ctx.organisationId } });
+  if (!policy) throw new NotFoundError("Policy");
+  const pub = await materialPublication(db, policyId);
   if (!pub) throw new ConflictError("This policy has not been published to staff yet, so there is nothing to sign");
-  const existing = await db.acknowledgement.findUnique({ where: { publicationId_userId: { publicationId: pub.id, userId: ctx.userId } } });
+  const existing = await db.acknowledgement.findFirst({ where: { publicationId: pub.id, userId: ctx.userId, supersededAt: null } });
   if (existing?.acknowledgedAt) return existing;
-  const ack = existing
-    ? await db.acknowledgement.update({ where: { id: existing.id }, data: { acknowledgedAt: new Date() } })
-    : await db.acknowledgement.create({ data: { publicationId: pub.id, organisationId: ctx.organisationId, userId: ctx.userId, acknowledgedAt: new Date() } });
-  await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "policy.acknowledged", entityType: "Acknowledgement", entityId: ack.id, data: { from: "policy page" } });
-  return ack;
+  if (existing && (existing.state === "WITHDRAWN" || existing.state === "EXEMPTED")) throw new ConflictError("This policy is no longer on your reading list");
+  const row = existing ?? (await db.$transaction(async (tx) => {
+    const staff = await tx.staffMember.findFirst({ where: { organisationId: ctx.organisationId!, userId: ctx.userId }, select: { id: true } });
+    const created = await tx.acknowledgement.create({ data: { publicationId: pub.id, organisationId: ctx.organisationId!, userId: ctx.userId, staffMemberId: staff?.id ?? null, mandatory: false } });
+    await tx.acknowledgementEvent.create({ data: { organisationId: created.organisationId, acknowledgementId: created.id, type: "ASSIGNED", actorId: ctx.userId, note: "Self-recorded from the policy page" } });
+    return created;
+  }));
+  return acknowledgeRow(ctx, row.id);
 }
 
 /** Separate stage: the organisation confirms it has implemented the change in practice. */
@@ -339,26 +338,8 @@ export async function confirmImplementation(ctx: Ctx, publicationId: string, not
   await audit({ organisationId: pub.organisationId, actorId: ctx.userId, action: "publication.implementation_confirmed", entityType: "PolicyPublication", entityId: pub.id, data: { notes } });
 }
 
-/** Sends one reminder per day for overdue acknowledgements. */
-export async function sendAcknowledgementReminders(now = new Date()) {
-  const overdue = await db.acknowledgement.findMany({ where: { acknowledgedAt: null, dueAt: { lt: now } }, include: { publication: { include: { policy: true } } } });
-  let sent = 0;
-  for (const a of overdue) {
-    sent += await notify({
-      organisationId: a.organisationId,
-      userIds: [a.userId],
-      type: "acknowledgement.overdue",
-      title: `Overdue: please read ${a.publication.policy.ref} ${a.publication.policy.title}`,
-      body: `Your acknowledgement was due on ${a.dueAt?.toDateString()}.`,
-      reason: "You are required to read this policy.",
-      links: [{ label: "Read and acknowledge", url: `/acknowledgements` }],
-      actionUrl: `/acknowledgements`,
-      dueAt: a.dueAt,
-      dedupeKey: `ack-overdue:${a.id}:${now.toISOString().slice(0, 10)}`,
-    });
-  }
-  return sent;
-}
+/** Reminders and escalation live with the assignment rules. */
+export { sendAcknowledgementReminders } from "./assignment";
 
 export async function publishDueScheduled(now = new Date()) {
   const due = await db.policyPublication.findMany({ where: { status: "SCHEDULED", scheduledFor: { lte: now } } });

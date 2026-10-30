@@ -4,12 +4,17 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getVisit } from "@/server/rota/visits";
+import { CLOCK_KIND_LABEL, listCorrectionRequests } from "@/server/rota/corrections";
+import { visitMedication } from "@/server/care/medication";
+import { VisitMedication } from "@/components/medication-ui";
+import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
+import { READINESS_LABEL } from "@/server/readiness";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
-import { officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
+import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 
@@ -33,16 +38,20 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const editable = canEdit && v.status === "SCHEDULED";
   const assignable = canEdit && ["SCHEDULED", "MISSED"].includes(v.status);
   const slots: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), "SHADOW"];
+  const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
+  const medication = await visitMedication(ctx, v.id);
   const [candidates, lk, names] = await Promise.all([
     assignable ? Promise.all(slots.map(async (s) => [s, await visitCandidates(ctx, v, s)] as const)) : Promise.resolve([]),
     editable ? rotaLookups(ctx) : Promise.resolve(null),
-    memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId)]),
+    memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId), ...requests.flatMap((r) => [r.requestedById, r.decidedById])]),
   ]);
   const date = fromDbDate(v.date);
   const back = `/rota/visits/${v.id}`;
   const who = (u: string | null | undefined) => (u ? names.get(u) ?? "Former member" : "System");
   const inForce = new Set(effectiveClocks(v.clocks).map((c) => c.id));
   const carerName = (staffId: string | null) => v.assignments.find((a) => a.staffId === staffId)?.staff.displayName ?? "Carer";
+  const canNote = hasOrgPermission(ctx, "rota.edit");
+  const canDecideRequests = hasOrgPermission(ctx, "rota.clockCorrect");
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
 
@@ -72,7 +81,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Field label="Service user"><Link href={`/rota/service-users/${v.serviceUser.id}`}>{suName(v.serviceUser)}</Link> <span className="text-slate-500">{v.serviceUser.reference}</span></Field>
               <Field label="Postcode">{v.serviceUser.postcode ?? "—"}</Field>
               <Field label="Carer preference">{v.serviceUser.carerGenderPreference === "ANY" ? "No preference" : `${v.serviceUser.carerGenderPreference.toLowerCase()} carers`}</Field>
-              <Field label="Medication">{v.medicationRequired ? "Prompt on this visit (eMAR not in use)" : "None"}</Field>
+              <Field label="Medication">{medication ? (medication.due.length ? `${medication.due.length} due (see Medication)` : "None due") : v.medicationRequired ? "Prompt on this visit (medication records switched off)" : "None"}</Field>
               <Field label="Source">{v.templateId ? <Link href={`/rota/templates/${v.templateId}`}>Rota template</Link> : "One-off visit"}</Field>
               <Field label="Run route">{v.runRoute?.name ?? "—"}</Field>
             </dl>
@@ -120,7 +129,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
-                              {c.name} — {STATE_LABEL[c.state]}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}
+                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
                             </option>
                           ))}
                         </select>
@@ -132,7 +141,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 );
               })}
             </ul>
-            <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
           </Card>
 
           <Card title="Tasks">
@@ -141,12 +150,45 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 {v.tasks.map((t) => (
                   <li key={t.id} className="flex items-center justify-between py-2 text-[14px]">
                     <span>{t.name}</span>
-                    <span className="text-slate-500">{t.outcomes[0] ? `${t.outcomes[0].outcome.toLowerCase().replace("_", " ")} · ${fmtDate(t.outcomes[0].at, true)}` : "Not recorded"}</span>
+                    <span className="text-right text-slate-500">{t.outcomes.length ? t.outcomes.map((o) => <span key={o.id} className="block">{OUTCOME_LABEL[o.outcome]} · {carerName(o.staffId)} · {fmtDate(o.at, true)}{o.note ? <span className="block text-[13px] text-slate-600">{o.note}</span> : null}</span>) : "Not recorded"}</span>
                   </li>
                 ))}
               </ul>
             ) : <Empty>No tasks on this visit.</Empty>}
           </Card>
+
+          {requests.length ? (
+            <section id="corrections" aria-label="Clock correction requests">
+              <Card title="Clock correction requests">
+                <ul className="rows">
+                  {requests.map((r) => (
+                    <li key={r.id} className="py-2 text-[14px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{carerName(r.staffId)}: {CLOCK_KIND_LABEL[r.kind]} at {londonTime(r.requestedTime)} {fmtDate(r.requestedTime)}</span>
+                        <Badge tone={r.status === "PENDING" ? "amber" : r.status === "APPROVED" ? "green" : "slate"}>{r.status === "PENDING" ? "Waiting" : r.status === "APPROVED" ? "Approved" : "Rejected"}</Badge>
+                        {r.origin === "OFFICE" ? <span className="text-[12.5px] text-slate-500">entered by the office</span> : null}
+                      </div>
+                      <p className="text-[13.5px] text-slate-700">{r.reason} · asked by {who(r.requestedById)} {fmtDate(r.createdAt, true)}</p>
+                      {r.decidedById && r.origin !== "OFFICE" ? <p className="text-[13px] text-slate-600">Decided by {who(r.decidedById)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : null}
+                      {r.status === "PENDING" && canDecideRequests ? (
+                        r.requestedById === ctx.userId ? <p className="text-[13px] text-slate-600">You asked for this, so someone else must decide it.</p> : (
+                          <form action={decideClockCorrectionAction} className="mt-1 flex flex-wrap items-end gap-2">
+                            <input type="hidden" name="back" value={`${back}#corrections`} />
+                            <input type="hidden" name="requestId" value={r.id} />
+                            <input name="note" className="input w-56 py-1" placeholder="Note (needed to reject)" aria-label="Decision note" />
+                            <button className="btn-primary py-1" name="decision" value="APPROVED">Approve</button>
+                            <button className="btn-secondary py-1" name="decision" value="REJECTED">Reject</button>
+                          </form>
+                        )
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          ) : null}
+
+          {medication ? <VisitMedication data={medication} back={back} canManage={hasOrgPermission(ctx, "medication.manage")} /> : null}
 
           <section id="attendance" aria-label="Attendance">
           <Card title="Attendance and notes">
@@ -161,12 +203,24 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 ))}
                 {v.visitNotes.map((n) => (
                   <li key={n.id} className="py-2 text-[14px]">
-                    <span className="text-[12.5px] text-slate-500">{n.category.toLowerCase()} note · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
+                    <span className="text-[12.5px] text-slate-500">{NOTE_LABEL[n.category] ?? `${n.category.toLowerCase().replace("_", " ")} note`} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
                     <p>{n.text}</p>
                   </li>
                 ))}
               </ul>
             ) : <Empty>Nothing recorded yet. Clock records and notes are kept permanently once made.</Empty>}
+            {canNote ? (
+              <form action={addVisitNoteAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Add a note">
+                <input type="hidden" name="back" value={`${back}#attendance`} />
+                <input type="hidden" name="visitId" value={v.id} />
+                <div className="grid gap-2 md:grid-cols-[12rem_1fr_auto] md:items-end">
+                  <label><span className="label">Kind of note</span><select name="category" className="input">{Object.entries(NOTE_CATEGORIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+                  <label><span className="label">Note</span><textarea name="text" required minLength={3} rows={2} className="input" /></label>
+                  <button className="btn-secondary">Add note</button>
+                </div>
+                <p className="mt-1 text-[12.5px] text-slate-600">Notes cannot be edited or deleted once saved. A concern alerts the coordinators inside the platform.</p>
+              </form>
+            ) : null}
             {canClock ? (
               <form action={officeClockAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Record a clock time">
                 <input type="hidden" name="back" value={`${back}#attendance`} />
@@ -183,6 +237,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                     </label>
                   ) : null}
                   <label className="col-span-2"><span className="label">Reason</span><input name="reason" required minLength={3} placeholder="e.g. carer phoned in, phone battery flat" className="input" /></label>
+                  <label className="col-span-2 md:col-span-4"><span className="label">Clock-out note (needed when the visit was shorter than planned)</span><input name="note" maxLength={2000} placeholder="What the carer said about the visit" className="input" /></label>
                 </div>
                 <button className="btn-secondary mt-2">Record clock time</button>
                 <p className="mt-1 text-[12.5px] text-slate-500">Entries are permanent. A wrong entry is fixed by recording a replacement, and both stay on the visit.</p>

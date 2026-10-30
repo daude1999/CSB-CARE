@@ -63,7 +63,8 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   if (current?.staffId === p.staffId) return current;
   const others = live.filter((a) => a.slot !== p.slot).map((a) => a.staffId);
 
-  const result = await eligibilityFor(tx, scope.organisationId, { staffId: p.staffId, start: visit.scheduledStart, end: visit.scheduledEnd, slot: p.slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked }, { otherSlotStaffIds: others });
+  const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
+  const result = await eligibilityFor(tx, scope.organisationId, { staffId: p.staffId, start: visit.scheduledStart, end: visit.scheduledEnd, slot: p.slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
   if (result.state === "NOT_ELIGIBLE") throw new EligibilityError(`Cannot allocate: ${result.blocking.map((b) => b.message).join("; ")}`, result);
   if (result.state === "REQUIRES_REVIEW" && !p.acceptWarnings) throw new EligibilityError(`Needs your confirmation: ${result.warnings.map((w) => w.message).join("; ")}`, result);
 

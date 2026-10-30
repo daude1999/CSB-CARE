@@ -34,7 +34,7 @@ export async function listServiceUsers(ctx: Ctx, f: ServiceUserFilters) {
   };
   return db.serviceUser.findMany({
     where,
-    select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
+    select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 500,
   });

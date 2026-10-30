@@ -29,6 +29,10 @@ CSB is original work. It contains no content, code or branding from QCS or any o
 
 The dashboard figures are computed from the database. A source is only shown as monitored when it has actually been checked successfully within its freshness window, and the admin pages warn when the worker has stopped.
 
+## Running it on your own computer
+
+Step-by-step for Windows: [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md). It covers installing PostgreSQL 16, `npm run db:reset:local` (demo data) or `npm run db:reset:local -- --clean` plus `npm run org:create` (an empty database for a real organisation), `npm run dev:all`, backups and the automatic checks.
+
 ## Quick start (development)
 
 Requirements: Node 22, PostgreSQL 16.
@@ -42,15 +46,16 @@ npm run dev                       # web app on http://localhost:3000
 npm run worker                    # in a second terminal: monitoring and background jobs
 ```
 
-Demo sign-ins (password `DemoPassword!2026`, demo data only):
+Demo sign-ins (password `DemoPassword!2026`, demo data only; the demo organisation is "Care Solution Bureau (DEMO)" with branches Liverpool, Portsmouth and Tower Hamlets):
 
 | Email | Role |
 | --- | --- |
-| `manager@brookfield.demo` | Organisation admin and compliance lead (Brookfield Care Group, demo) |
-| `author@brookfield.demo` | Policy author |
-| `reviewer@brookfield.demo` | Policy reviewer |
-| `approver@brookfield.demo` | Policy approver (can publish) |
-| `carer1@brookfield.demo`, `carer2@brookfield.demo` | Care staff |
+| `manager@care-solution.demo` | Organisation admin, compliance lead and care manager (also HR Organisation Admin) |
+| `coordinator@care-solution.demo` | Care coordinator (rota, visits, call monitoring) |
+| `finance@care-solution.demo` | Finance officer (timesheets, invoice and pay runs) |
+| `carer@care-solution.demo`, `carer1@care-solution.demo`, `carer2@care-solution.demo` | Care staff (own visits, clocking, policy acknowledgements) |
+| `author@care-solution.demo`, `reviewer@care-solution.demo`, `approver@care-solution.demo` | Policy author, reviewer and approver |
+| `jordan.ellis@care-solution.demo`, `sam.parker@care-solution.demo`, `taylor.reed@care-solution.demo` | HR & Workforce: Group HR, Branch HR (Liverpool), Branch Viewer (Liverpool) |
 | `manager@oakridge.demo` | A second organisation, to show tenant isolation |
 | `regulatory@csb.demo` | CSB regulatory reviewer (triages detected changes) |
 | `content@csb.demo` | CSB content editor (master templates) |
@@ -82,7 +87,7 @@ One sign-in opens every portal the person may use. The portal button in the head
 | HR & Workforce | `/hr/...` | Working. The CSB HR Hub's screens inside the platform's menu and top bar (see below). |
 | Reporting & Analytics | `/reports`, `/assistant` | Working |
 | Administration | `/settings`, `/modules`, `/admin/...` | Working |
-| Service Users, Rota & Visits | `/service-users`, `/rota` | Planned (Stage D). Honest "not built yet" pages with no figures. |
+| Rostering & Care Management | `/rota/...`, `/carer` | Working: service users, templates, Build Rota, daily and advanced rota, allocation, call monitoring, carer clocking, care plans, risks, incidents, finance preparation, reports. Anything not built is marked "Planned" in its menu. |
 
 **HR & Workforce** is the standalone CSB HR Hub (people, compliance checks, documents, training, HR tasks, imports, alerts, settings) with its screens, rules and look kept as built. Its code is in `src/hr`, its pages in `src/app/hr`, its API in `src/app/api/hr`. What changed when it moved in:
 

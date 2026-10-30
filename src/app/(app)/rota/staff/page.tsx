@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { addDays, dbDate, londonDate, mondayOf } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { rotaScope } from "@/server/rota/scope";
+import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings, isCareRole } from "@/server/rota/settings";
 import { complianceOn } from "@/server/workforce/eligibility";
+import { readinessFor } from "@/server/readiness";
+import { ReadinessBadge } from "@/components/readiness-ui";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +27,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   const settings = await rotaSettings(db, org);
   const today = londonDate();
   const wk = mondayOf(today);
-  const where: Prisma.StaffMemberWhereInput = {
-    organisationId: org,
-    hrMissing: false,
-    ...(sp.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING"] } }),
-    ...(sp.area ? { areas: { some: { areaId: sp.area } } } : scope.areaIds ? { OR: [{ areas: { some: { areaId: { in: scope.areaIds } } } }, { areas: { none: {} } }] } : {}),
-    ...(sp.q ? { OR: [{ displayName: { contains: sp.q, mode: "insensitive" } }, { staffNumber: { contains: sp.q, mode: "insensitive" } }, { jobTitle: { contains: sp.q, mode: "insensitive" } }] } : {}),
-  };
+  const where = staffDirectoryWhere(scope, { area: sp.area, status: sp.status, q: sp.q });
   const [staff, areas, booked] = await Promise.all([
     db.staffMember.findMany({ where, include: { profile: true, compliance: true, areas: { include: { area: { select: { name: true, colour: true } } } }, branch: { select: { name: true } } }, orderBy: { displayName: "asc" } }),
     db.area.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
@@ -42,6 +37,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
   let rows = staff.filter((s) => !careOnly || isCareRole(settings, s.jobTitle)).map((s) => ({ s, c: complianceOn(s.compliance, today) }));
   if (sp.problems === "1") rows = rows.filter((r) => r.c.problems.length > 0);
   const visits = new Map(booked.map((b) => [b.staffId, b._count]));
+  const readiness = hasOrgPermission(ctx, "readiness.view") ? await readinessFor(db, org, rows.map((r) => r.s.id)) : null;
 
   return (
     <>
@@ -61,7 +57,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
       <Card>
         {rows.length ? (
           <table className="table">
-            <thead><tr><th>Name</th><th>Areas</th><th>DBS</th><th>Right to work</th><th>Training</th><th>Rota</th><th>Visits this week</th><th>Sign-in</th></tr></thead>
+            <thead><tr><th>Name</th><th>Areas</th><th>DBS</th><th>Right to work</th><th>Training</th>{readiness ? <th>Readiness</th> : null}<th>Rota</th><th>Visits this week</th><th>Sign-in</th></tr></thead>
             <tbody>
               {rows.map(({ s, c }) => (
                 <tr key={s.id}>
@@ -70,6 +66,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
                   <td><Check g={c.dbs} /></td>
                   <td><Check g={c.rtw} /></td>
                   <td>{c.training.required ? <span className={c.training.problems.length ? "text-[#a3242c]" : ""} title={c.training.problems.join("; ")}>{c.training.required - c.training.problems.length} of {c.training.required}</span> : <span className="text-slate-500">None</span>}</td>
+                  {readiness ? <td>{readiness.get(s.id) ? <span title={readiness.get(s.id)!.reasons.join("; ")}><ReadinessBadge status={readiness.get(s.id)!.status} /></span> : "—"}</td> : null}
                   <td>{(s.profile?.rotaEnabled ?? isCareRole(settings, s.jobTitle)) ? "On" : <Badge>Off</Badge>}</td>
                   <td className="tabular-nums">{visits.get(s.id) ?? 0}</td>
                   <td>{s.userId ? <Badge tone="teal">Linked</Badge> : <span className="text-slate-500">None</span>}</td>

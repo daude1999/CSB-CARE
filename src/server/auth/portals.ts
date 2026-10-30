@@ -16,7 +16,7 @@ export function canUsePortal(ctx: Ctx, id: PortalId): boolean {
     case "hr":
       return Boolean(ctx.organisationId && ctx.hrUserId);
     case "reporting":
-      return hasOrgPermission(ctx, "report.view") || platformAdmin;
+      return hasOrgPermission(ctx, "report.view") || hasOrgPermission(ctx, "analytics.view") || platformAdmin;
     case "admin":
       return hasOrgPermission(ctx, "org.manage") || platformAdmin;
   }
@@ -27,6 +27,7 @@ export function portalsFor(ctx: Ctx): Portal[] {
   return PORTALS.filter((p) => canUsePortal(ctx, p.id)).map((p) => {
     if (p.id === "admin" && !hasOrgPermission(ctx, "org.manage")) return { ...p, home: "/modules" };
     if (p.id === "rota") return { ...p, home: rotaHome(ctx) };
+    if (p.id === "reporting" && !hasOrgPermission(ctx, "analytics.view")) return { ...p, home: "/reports" };
     return p;
   });
 }

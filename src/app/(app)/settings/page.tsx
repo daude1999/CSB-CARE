@@ -1,3 +1,4 @@
+import Link from "@/components/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePortal } from "@/server/auth/portals";
@@ -68,7 +69,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </div>
           </Card>
         </div>
-        <Card className="lg:col-span-2" title="Audit trail (latest 40)">
+        <Card className="lg:col-span-2" title="Audit trail (latest 40)" actions={<Link href="/admin/audit" className="btn-secondary py-1">Full audit log</Link>}>
           <table className="table">
             <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th></tr></thead>
             <tbody>

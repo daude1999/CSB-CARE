@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Bank, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, ShieldWarning, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, Bank, Car, Printer, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, Pulse, Receipt, Repeat, Notepad, SealCheck, ShieldWarning, Siren, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -21,7 +21,10 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
         ["/rota/advanced", "Advanced Rota", <CalendarDots key="i" {...i} />, "rota.view", true],
         ["/rota/unassigned", "Unassigned Visits", <WarningOctagon key="i" {...i} />, "rota.view", true],
         ["/rota/monitor", "The Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
-        ["/rota/routes", "Live Run Routes", <Path key="i" {...i} />, "rota.view", false],
+        ["/rota/exceptions", "Exceptions", <Siren key="i" {...i} />, "rota.monitor", true],
+        ["/rota/notes", "Visit Notes", <Notepad key="i" {...i} />, "rota.view", true],
+        ["/rota/routes", "Live Run Routes", <Path key="i" {...i} />, "rota.view", true],
+        ["/rota/print", "Printable Rota", <Printer key="i" {...i} />, "rota.view", true],
         ["/rota/build", "Build Rota", <CalendarPlus key="i" {...i} />, "rota.build", true],
       ],
     ],
@@ -30,6 +33,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
       [
         ["/rota/templates", "Daily Templates", <Repeat key="i" {...i} />, "rota.view", true],
         ["/rota/templates/planner", "Advanced Templates", <ArrowsLeftRight key="i" {...i} />, "rota.view", true],
+        ["/rota/routes/templates", "Template Run Routes", <Path key="i" {...i} />, "rota.view", true],
       ],
     ],
     [
@@ -37,6 +41,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
       [
         ["/rota/service-users", "Service Users", <UsersThree key="i" {...i} />, "serviceUser.view", true],
         ["/rota/staff", "Team Members", <IdentificationBadge key="i" {...i} />, "staff.directory", true],
+        ["/rota/readiness", "Staff Readiness", <SealCheck key="i" {...i} />, "readiness.view", true],
         ["/rota/care-plans", "Care Plans", <ClipboardText key="i" {...i} />, "serviceUser.view", true],
         ["/rota/risks", "Risk Assessments", <ShieldWarning key="i" {...i} />, "serviceUser.view", true],
         ["/rota/incidents", "Incidents", <FirstAidKit key="i" {...i} />, ["incident.manage", "incident.report"], true],
@@ -49,6 +54,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
         ["/rota/finance/invoices", "Invoicing", <Receipt key="i" {...i} />, "finance.view", true],
         ["/rota/finance/payroll", "Wages", <Wallet key="i" {...i} />, "finance.view", true],
         ["/rota/finance/timesheets", "Timesheets", <CalendarCheck key="i" {...i} />, "finance.view", true],
+        ["/rota/finance/mileage", "Mileage", <Car key="i" {...i} />, "finance.view", true],
         ["/rota/finance/rates", "Tariffs & Funders", <Coins key="i" {...i} />, "finance.view", true],
       ],
     ],

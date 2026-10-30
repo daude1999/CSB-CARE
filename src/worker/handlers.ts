@@ -6,6 +6,9 @@ import { performPublication, publishDueScheduled, sendAcknowledgementReminders }
 import { syncCustomersFromMaster } from "@/server/policies/sync";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { sweepCalls } from "@/server/rota/monitor";
+import { escalateOverdueExceptions } from "@/server/rota/exceptions";
+import { sweepMissedMedication } from "@/server/care/medication";
+import { reconcileStaffAssignments } from "@/server/policies/assignment";
 import type { RunTrigger } from "@prisma/client";
 
 export const handlers: Record<string, JobHandler> = {
@@ -28,11 +31,18 @@ export const handlers: Record<string, JobHandler> = {
     const r = await syncCustomersFromMaster(p.masterVersionId as string);
     return { results: r.map((x) => ({ policyId: x.policyId, revisionId: x.revisionId, skipped: x.skipped ?? null })) };
   },
+  "ack.reconcile": async (p) => reconcileStaffAssignments(p.organisationId as string, p.staffId as string),
+  // Call monitoring runs as its own job, so a failing policy or source job never stops late and missed calls being found.
+  "rota.sweep": async () => {
+    const calls = await sweepCalls();
+    const missedMedication = await sweepMissedMedication();
+    const escalated = await escalateOverdueExceptions();
+    return { ...calls, missedMedication, escalated };
+  },
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();
     const reminders = await sendAcknowledgementReminders();
-    const calls = await sweepCalls();
-    return { scheduledChecks: scheduled.length, publications, reminders, calls };
+    return { scheduledChecks: scheduled.length, publications, reminders };
   },
 };

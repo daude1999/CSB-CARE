@@ -7,7 +7,7 @@ import { hrItems } from "@/components/hr-nav";
 import { isActiveHref, mostSpecificActive } from "@/lib/navigation";
 import type { Ctx } from "@/server/auth/rbac";
 
-const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, orgRoles: [], platformRoles: [], hrUserId: null, ...over });
+const ctx = (over: Partial<Ctx>): Ctx => ({ userId: "u", userName: "U", organisationId: "org1", branchId: null, branchIds: null, orgRoles: [], platformRoles: [], hrUserId: null, ...over });
 
 describe("the HR Hub inside the platform shell", () => {
   it("treats only /hr addresses as HR Hub pages, so only crossing that edge reloads the page", () => {

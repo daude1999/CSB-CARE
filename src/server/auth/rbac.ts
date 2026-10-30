@@ -6,7 +6,10 @@ export interface Ctx {
   userId: string;
   userName: string;
   organisationId: string | null;
+  /** The member's home branch (where they are based), used for targeting; not an access limit. */
   branchId: string | null;
+  /** Branches this member may work in (MembershipBranch grants); null = every branch in the organisation. */
+  branchIds: string[] | null;
   orgRoles: OrgRole[];
   platformRoles: PlatformRole[];
   /** The HR Hub account used in HR & Workforce, when the member has HR access. */
@@ -14,7 +17,8 @@ export interface Ctx {
 }
 
 export const ORG_PERMISSIONS = {
-  "policy.read": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF"],
+  // Everyone in the organisation reads its policies: anyone may be asked to acknowledge one.
+  "policy.read": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "CARER", "FINANCE_OFFICER"],
   "policy.author": ["ORG_ADMIN", "POLICY_AUTHOR"],
   "policy.review": ["POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD"],
   "policy.approve": ["POLICY_APPROVER"],
@@ -27,8 +31,12 @@ export const ORG_PERMISSIONS = {
   "evidence.upload": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR"],
   "evidence.read": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER"],
   "staff.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
+  /** Assign policies to staff, exempt, record assessments and correct acknowledgements. */
+  "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** Reporting & Analytics measures; each measure also needs its own module's permission. */
+  "analytics.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER", "CARE_MANAGER", "FINANCE_OFFICER"],
   "operations.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "assistant.use": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "FINANCE_OFFICER"],
 
@@ -58,6 +66,22 @@ export const ORG_PERMISSIONS = {
   /** Linking a sign-in to a staff identity: an explicit, audited administrator action. */
   "workforce.link": ["ORG_ADMIN"],
   "report.export": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "FINANCE_OFFICER"],
+
+  // Staff readiness (training, competency, policy acknowledgement, restrictions). Rota users see status and reasons;
+  // evidence detail is for managers and compliance.
+  /** Medication lists and MAR records (only when the organisation has switched medication on). */
+  "medication.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "medication.manage": ["ORG_ADMIN", "CARE_MANAGER"],
+  "readiness.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  "readiness.evidence": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
+  /** Enter training evidence for someone (verified by a second person). */
+  "readiness.record": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  /** Verify evidence, record competency assessments, add restrictions, raise and clear reviews. */
+  "readiness.verify": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
+  /** Grant a time-limited exception. */
+  "readiness.exception": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Maintain the requirements matrix. */
+  "readiness.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
 } as const satisfies Record<string, readonly OrgRole[]>;
 
 export const PLATFORM_PERMISSIONS = {

@@ -2,7 +2,8 @@ import type { ClockKind, ClockMethod, Prisma, RotaSettings, Visit, VisitClock, V
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { isIsoDate, londonTime, londonToUtc, parseHhmm } from "@/lib/london";
+import { isIsoDate, londonDate, londonTime, londonToUtc, parseHhmm } from "@/lib/london";
+import { readinessFor } from "@/server/readiness";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { raiseAlert } from "@/server/workforce/impact";
@@ -116,9 +117,9 @@ async function applyClock(tx: Tx, scope: Scope, visit: Visit, settings: RotaSett
 /** A carer clocks themselves in or out now. Their staff identity comes from the linked sign-in, never the form. */
 export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, input: { nonce?: string; note?: string }) {
   const staff = await myStaff(ctx);
-  const scope: Scope = { organisationId: staff.organisationId, areaIds: null };
+  const scope: Scope = { organisationId: staff.organisationId, areaIds: null, branchIds: null };
   const at = new Date();
-  return db.$transaction(async (tx) => {
+  const outcome = await db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
     // A carer cannot tell another carer's visit from one that does not exist.
     if (!v.publishedAt || !(await tx.visitAssignment.findFirst({ where: { visitId: v.id, staffId: staff.id, removedAt: null } }))) throw new NotFoundError("Visit");
@@ -126,14 +127,34 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
     const opensAt = v.scheduledStart.getTime() - (settings.blockEarlyClockIn ? settings.earlyBeforeMin : OPEN_BEFORE_MIN) * 60000;
     if (kind === "IN" && at.getTime() < opensAt) throw new ValidationError(`You can clock in from ${londonTime(new Date(opensAt))}`);
     if (kind === "IN" && at.getTime() > v.scheduledEnd.getTime() + OPEN_AFTER_MIN * 60000) throw new ValidationError("This visit is too far in the past to clock in. Ask the office to record it.");
-    return applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note });
+    if (kind === "IN") {
+      // Readiness is checked again at the door: a certificate that expired since allocation, a new restriction or an
+      // authorisation withdrawn is not ignored. Hard stops refuse the clock-in and alert the office; anything else is flagged.
+      const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: v.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
+      const r = (await readinessFor(tx, scope.organisationId, [staff.id], { date: londonDate(at), careTaskIds, serviceUserId: v.serviceUserId })).get(staff.id);
+      if (r && r.blockedForContext) {
+        const applies = (c: { taskLevel: boolean; careTaskIds: string[]; serviceUserIds: string[] }) => !c.taskLevel || c.careTaskIds.some((t) => careTaskIds.includes(t)) || c.serviceUserIds.includes(v.serviceUserId);
+        const restrictionBites = r.restrictions.some((x) => x.kind === "GENERAL" || (x.kind === "TASK" && !!x.careTaskId && careTaskIds.includes(x.careTaskId)) || (x.kind === "SERVICE_USER" && x.serviceUserId === v.serviceUserId));
+        const hard = r.components.some((c) => c.hardStop && applies(c) && ["EXPIRED", "MISSING", "NOT_COMPETENT", "COMPETENCY_DUE", "PENDING_VERIFICATION"].includes(c.state)) || restrictionBites;
+        const alert = { organisationId: scope.organisationId, kind: "READINESS" as const, severity: hard ? ("CRITICAL" as const) : ("WARNING" as const), visitId: v.id, staffId: staff.id, message: `${staff.displayName} ${hard ? "was refused clock-in" : "clocked in with a readiness warning"} on ${v.reference}: ${r.reasons.join("; ")}`, dedupeKey: `readiness:${v.id}:${staff.id}:${hard ? "block" : "warn"}`, actionUrl: `/rota/visits/${v.id}` };
+        // A refusal is decided here but recorded after this transaction ends, so the office alert is not rolled back with it.
+        if (hard) return { refused: `You cannot clock in to this visit: ${r.reasons[0] ?? "a readiness requirement is not met"}. The office has been alerted.`, alert };
+        await raiseAlert(tx, alert);
+      }
+    }
+    return { refused: null, result: await applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note }) };
   });
+  if (outcome.refused !== null) {
+    await db.$transaction((tx) => raiseAlert(tx, outcome.alert));
+    throw new ValidationError(outcome.refused);
+  }
+  return outcome.result;
 }
 
 /** The carer could not deliver the visit at the door (no answer, refused). The office is alerted at once. */
 export async function notDeliveredMine(ctx: Ctx, visitId: string, reason: string) {
   const staff = await myStaff(ctx);
-  const scope: Scope = { organisationId: staff.organisationId, areaIds: null };
+  const scope: Scope = { organisationId: staff.organisationId, areaIds: null, branchIds: null };
   if (reason.trim().length < 3) throw new ValidationError("Say what happened");
   return db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
@@ -156,6 +177,8 @@ const officeSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose the date"),
   time: z.string().refine((t) => parseHhmm(t) !== null, "Times must be like 09:00"),
   reason: z.string().trim().min(3, "Give a reason for entering this by hand"),
+  /** Shown on the visit as a clock-out note; required when the recorded visit is short or the organisation demands one. */
+  note: z.string().trim().max(2000).optional(),
   supersedesId: z.string().optional(),
 });
 
@@ -170,6 +193,16 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
     const v = await lockVisit(tx, scope, visitId);
     if (Math.abs(at.getTime() - v.scheduledStart.getTime()) > 24 * 3600000) throw new ValidationError("That time is more than a day away from the visit");
     const settings = await rotaSettings(tx, scope.organisationId);
-    return applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, supersedesId: p.data.supersedesId || null });
+    const r = await applyClock(tx, scope, v, settings, { staffId: p.data.staffId, kind: p.data.kind, at, method: "OFFICE", actorId: ctx.userId, reason: p.data.reason, note: p.data.note || undefined, supersedesId: p.data.supersedesId || null });
+    // Recorded as an approved request too, so office entries and carers' requests share one trail.
+    await tx.clockCorrectionRequest.create({ data: { organisationId: scope.organisationId, visitId: v.id, staffId: p.data.staffId, kind: p.data.kind, requestedTime: at, reason: p.data.reason, origin: "OFFICE", status: "APPROVED", requestedById: ctx.userId, decidedById: ctx.userId, decidedAt: new Date(), clockId: r.clock.id } });
+    return r;
   });
+}
+
+/** Records an approved correction request as an office entry. The caller has checked scope and separation of duties. */
+export async function clockFromRequest(tx: Tx, scope: Scope, visitId: string, c: Omit<ClockInput, "method">) {
+  const v = await lockVisit(tx, scope, visitId);
+  const settings = await rotaSettings(tx, scope.organisationId);
+  return applyClock(tx, scope, v, settings, { ...c, method: "OFFICE" });
 }

@@ -28,6 +28,7 @@ import { askAssistant, type AssistantResult } from "@/server/search/assistant";
 export type AskState = { question: string; result?: AssistantResult; error?: string };
 
 import { handle, str } from "./action-kit";
+import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
 export async function loginAction(fd: FormData) {
@@ -144,6 +145,7 @@ export async function publishAction(fd: FormData) {
         scheduleFor: when ? new Date(when) : null,
         effectiveDate: eff ? new Date(eff) : undefined,
         requireAcknowledgement: fd.get("requireAcknowledgement") === "on",
+        materialRevision: fd.get("materialRevision") === "on",
         acknowledgementDueDays: Number(str(fd, "ackDays") || 14),
       });
     },
@@ -358,9 +360,12 @@ export async function requestModuleAction(fd: FormData) {
   await handle(
     fd,
     async (ctx) => {
-      await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "module.access_requested", entityType: "Module", entityId: str(fd, "module").slice(0, 60) });
+      const slug = str(fd, "module").slice(0, 60);
+      const team = await db.user.findMany({ where: { platformRoles: { has: "PLATFORM_ADMIN" }, deactivatedAt: null }, select: { id: true } });
+      await db.notification.createMany({ data: team.map((u) => ({ userId: u.id, type: "module.access_requested", title: `Module request: ${slug}`, body: `${ctx.userName} asked about the ${slug} module.`, reason: "You look after customer module requests.", actionUrl: "/modules", dedupeKey: `module-request:${ctx.organisationId}:${slug}:${u.id}` })), skipDuplicates: true });
+      await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "module.access_requested", entityType: "Module", entityId: slug });
     },
-    "Thanks. Your CSB account manager will be in touch about this module",
+    "Request sent to the CSB team inside the platform. They will contact you about this module.",
   );
 }
 
@@ -376,4 +381,19 @@ export async function askAction(_prev: AskState, fd: FormData): Promise<AskState
     logger.error({ err: (e as Error).message }, "assistant failed");
     return { question, error: e instanceof AppError ? e.message : "The assistant could not answer just now. Search results are still available from the policy library." };
   }
+}
+
+// ───────── overview layout (a personal preference, scoped to the session's own membership)
+export async function saveOverviewOrderAction(fd: FormData) {
+  const reset = str(fd, "reset") === "1";
+  await handle(
+    fd,
+    async (ctx) => {
+      const order = reset ? [] : str(fd, "order").split(",").map((s) => s.trim()).filter(Boolean);
+      await saveOverviewOrder(ctx, order);
+      // Saving leaves arrange mode; restoring the standard order stays in it so the person can carry on arranging.
+      return reset ? undefined : "/overview";
+    },
+    reset ? "The module boxes are back in the standard order." : "Your module order is saved.",
+  );
 }

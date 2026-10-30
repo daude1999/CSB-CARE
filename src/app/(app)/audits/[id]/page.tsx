@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { auditScore } from "@/server/compliance/audits";
+import { auditBranchWhere, auditProgress, auditScore } from "@/server/compliance/audits";
 import { answerAction, completeAuditAction, createActionAction, findingAction } from "../../../actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -16,7 +16,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   const ctx = await requireCtx();
   if (!hasOrgPermission(ctx, "audit.conduct")) notFound();
   const a = await db.audit.findFirst({
-    where: { id, organisationId: ctx.organisationId! },
+    where: { id, organisationId: ctx.organisationId!, ...auditBranchWhere(ctx) },
     include: {
       template: { include: { questions: { orderBy: { position: "asc" }, include: { policy: { select: { id: true, ref: true } }, requirements: { include: { requirement: { select: { id: true, ref: true } } } } } } } },
       answers: true,
@@ -28,22 +28,24 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   const answers = new Map(a.answers.map((x) => [x.questionId, x]));
   const open = a.status === "IN_PROGRESS";
   const back = `/audits/${a.id}`;
-  const score = auditScore(a.answers);
+  const progress = auditProgress(a.template.questions.map((q) => q.id), a.answers);
+  const score = auditScore(a.answers, progress.total);
   const canManageActions = hasOrgPermission(ctx, "action.manage");
   return (
     <>
       <PageHeader back="/audits" title={a.title} subtitle={`${a.template.title}, template version ${a.templateVersion}. Started ${fmtDate(a.startedAt)}.`}
         actions={open ? (
-          <form action={completeAuditAction}>
+          <form action={completeAuditAction} className="flex items-center gap-3">
             <input type="hidden" name="auditId" value={a.id} />
             <input type="hidden" name="back" value={back} />
-            <button className="btn-primary" type="submit">Complete audit</button>
+            <span className="text-[13px] text-slate-600" data-testid="audit-progress">{progress.answered} of {progress.total} answered</span>
+            <button className="btn-primary" type="submit" title={progress.missing.length ? "Every question needs an answer first" : undefined}>Complete audit</button>
           </form>
-        ) : <StatusBadge status={a.status} />}
+        ) : <span className="flex items-center gap-2 text-[13px] text-slate-600"><StatusBadge status={a.status} />{a.completedAt ? `Completed ${fmtDate(a.completedAt)}${a.completedById ? ` by ${members.find((m) => m.userId === a.completedById)?.user.name ?? "a member"}` : ""}` : null}</span>}
       />
       <Flash searchParams={sp} />
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="lg:col-span-2" title={`Questions (score: ${score === null ? "not yet scored" : `${score}%`})`}>
+        <Card className="lg:col-span-2" title={`Questions (score: ${score === null ? (progress.missing.length ? `not scored until all ${progress.total} are answered` : "not scored") : `${score}%`})`}>
           <ol className="space-y-4">
             {a.template.questions.map((q, i) => {
               const ans = answers.get(q.id);
@@ -60,7 +62,8 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
                       <input type="hidden" name="auditId" value={a.id} />
                       <input type="hidden" name="questionId" value={q.id} />
                       <input type="hidden" name="back" value={back} />
-                      <select name="response" className="input w-44" defaultValue={ans?.response ?? "MET"} aria-label="Response">
+                      <select name="response" className="input w-44" defaultValue={ans?.response ?? ""} required aria-label="Response">
+                        <option value="" disabled>Choose a response</option>
                         {RESPONSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                       </select>
                       <input name="notes" className="input flex-1" defaultValue={ans?.notes ?? ""} placeholder="Notes" aria-label="Notes" />

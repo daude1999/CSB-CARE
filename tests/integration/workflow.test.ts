@@ -152,8 +152,8 @@ describe("approval workflow controls", () => {
     const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const { publicationId } = await publishRevision(manager, rev.id, { acknowledgementDueDays: 1 });
     await db.acknowledgement.updateMany({ where: { publicationId }, data: { dueAt: new Date(Date.now() - 1000) } });
-    const n1 = await sendAcknowledgementReminders();
-    const n2 = await sendAcknowledgementReminders();
+    const n1 = (await sendAcknowledgementReminders()).sent;
+    const n2 = (await sendAcknowledgementReminders()).sent;
     expect(n1).toBeGreaterThan(0);
     expect(n2).toBe(0);
     const carer = await ctxFor("carer2@care-solution.demo", BROOKFIELD);
@@ -298,6 +298,30 @@ describe("audits and actions", () => {
     await transitionAction(manager, action.id, "CLOSED");
     const history = await db.actionEvent.findMany({ where: { actionId: action.id }, orderBy: { createdAt: "asc" } });
     expect(history.map((h) => h.to)).toEqual(["OPEN", "COMPLETED", "VERIFIED", "CLOSED"]);
+  });
+  it("cannot complete an audit with unanswered questions, keeps every answer ever given, and freezes it afterwards", async () => {
+    const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
+    const { startAudit, answerQuestion, completeAudit } = await import("@/server/compliance/audits");
+    const tpl = await db.auditTemplate.findFirstOrThrow({ where: { status: "ACTIVE" }, include: { questions: true } });
+    expect(tpl.questions.length).toBeGreaterThan(1);
+    const a = await startAudit(manager, tpl.id, { title: "Completion rules" });
+    await expect(completeAudit(manager, a.id)).rejects.toThrow(/no answer/);
+    await expect(answerQuestion(manager, a.id, tpl.questions[0]!.id, "", undefined)).rejects.toThrow(/Choose a response/);
+    for (const q of tpl.questions.slice(0, -1)) await answerQuestion(manager, a.id, q.id, "NOT_MET", "first pass");
+    await expect(completeAudit(manager, a.id)).rejects.toThrow(/1 of \d+ questions? has no answer/);
+    const last = tpl.questions.at(-1)!;
+    await answerQuestion(manager, a.id, last.id, "MET");
+    await answerQuestion(manager, a.id, last.id, "PARTIALLY_MET", "corrected");
+    const events = await db.auditAnswerEvent.findMany({ where: { auditId: a.id, questionId: last.id }, orderBy: { createdAt: "asc" } });
+    expect(events.map((e) => e.response)).toEqual(["MET", "PARTIALLY_MET"]);
+    await completeAudit(manager, a.id);
+    const done = await db.audit.findUniqueOrThrow({ where: { id: a.id } });
+    expect(done.status).toBe("COMPLETED");
+    expect(done.completedById).toBe(manager.userId);
+    await expect(answerQuestion(manager, a.id, last.id, "MET")).rejects.toThrow(/completed/);
+    await expect(db.auditAnswer.updateMany({ where: { auditId: a.id }, data: { response: "MET" } })).rejects.toThrow(/immutable/);
+    await expect(db.audit.update({ where: { id: a.id }, data: { title: "renamed" } })).rejects.toThrow(/immutable/);
+    await expect(db.auditAnswerEvent.deleteMany({ where: { auditId: a.id } })).rejects.toThrow(/immutable/);
   });
   it("flags audit templates linked to affected requirements without changing them", async () => {
     // The seeded simulated change affects REQ-SIM-001; link a question to it and re-run analysis.

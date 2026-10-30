@@ -6,7 +6,7 @@ import { addDays, cycleWeekOf, dbDate, fromDbDate, isIsoDate, isoWeekday, london
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { evaluate, loadFacts, type Facts, type PreferenceFacts } from "@/server/workforce/eligibility";
-import { raiseAlert } from "@/server/workforce/impact";
+import { raiseAlert, reviewStaffImpact } from "@/server/workforce/impact";
 import { rotaSettings } from "./settings";
 import { rotaScope, type Scope } from "./scope";
 import { visitReference } from "./visits";
@@ -90,7 +90,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: dbDate(weekStart) } }],
       AND: [{ OR: [{ areaId: { in: areaIds } }, ...(includeNoArea ? [{ areaId: null }] : [])] }],
     },
-    include: { serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, status: true, carerGenderPreference: true, carerPreferences: true } }, callType: { select: { name: true } } },
+    include: { serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, status: true, carerGenderPreference: true, carerPreferences: true } }, callType: { select: { name: true } }, tasks: { select: { careTaskId: true } } },
     orderBy: [{ startMinute: "asc" }],
   });
   const weekFrom = londonToUtc(weekStart, 0);
@@ -141,7 +141,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
           continue;
         }
         const name = facts.staff.find((s) => s.id === staffId)?.displayName ?? "Unknown";
-        const r = evaluate(settings, facts, { staffId, start, end, slot, serviceUserId: t.serviceUserId, areaId: t.areaId }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
+        const r = evaluate(settings, facts, { staffId, start, end, slot, serviceUserId: t.serviceUserId, areaId: t.areaId, careTaskIds: t.tasks.map((x) => x.careTaskId) }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
         if (r.state === "NOT_ELIGIBLE") {
           slots.push({ slot, staffId: null, staffName: name, state: "UNASSIGNED", reason: `${name}: ${r.blocking.map((b) => b.message).join("; ")}` });
           if (slot === "SHADOW") slots.pop();
@@ -229,6 +229,7 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
           templateId: v.templateId,
           rotaBuildId: build.id,
           runRouteId: t.runRouteTemplateId ? (routes.get(t.runRouteTemplateId) ?? null) : null,
+          routeOrder: t.runRouteTemplateId ? t.routeOrder : null,
           date: dbDate(v.date),
           scheduledStart: v.start,
           scheduledEnd: v.end,
@@ -279,6 +280,10 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
     if (!b) throw new ValidationError("Build not found");
     const now = new Date();
     const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id, publishedAt: null, status: { not: "CANCELLED" } }, select: { id: true } });
+    // Re-validate every carer on the week before it goes out: anything that changed since the build (an expired
+    // certificate, a new restriction, an absence) flags the visit for review. Nobody is reassigned automatically.
+    const staffOnBuild = [...new Set((await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staffId: true } })).map((a) => a.staffId))];
+    const recheck = staffOnBuild.length ? await reviewStaffImpact(tx, scope.organisationId, staffOnBuild, { source: "publish", now }) : { flagged: 0, cleared: 0 };
     await tx.visit.updateMany({ where: { id: { in: visits.map((v) => v.id) } }, data: { publishedAt: now } });
     if (visits.length) await tx.visitEvent.createMany({ data: visits.map((v) => ({ organisationId: scope.organisationId, visitId: v.id, type: "PUBLISHED", actorId: ctx.userId })) });
     const carers = await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staff: { select: { userId: true } } } });
@@ -290,8 +295,8 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
         skipDuplicates: true,
       });
     }
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.published", entityType: "RotaBuild", entityId: b.id, data: { visits: visits.length, carersNotified: users.length } }, tx);
-    return { published: visits.length, carersNotified: users.length };
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.published", entityType: "RotaBuild", entityId: b.id, data: { visits: visits.length, carersNotified: users.length, flaggedOnRecheck: recheck.flagged } }, tx);
+    return { published: visits.length, carersNotified: users.length, flagged: recheck.flagged };
   });
 }
 
@@ -302,8 +307,8 @@ export async function deleteBuild(ctx: Ctx, buildId: string, reason: string) {
   return db.$transaction(async (tx) => {
     const b = await tx.rotaBuild.findFirst({ where: { id: buildId, organisationId: scope.organisationId, status: "BUILT" } });
     if (!b) throw new ValidationError("Build not found");
-    const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id }, select: { id: true, reference: true, status: true, manuallyChanged: true, scheduledStart: true, _count: { select: { clocks: true, visitNotes: true, taskOutcomes: true } } } });
-    const blockers = visits.filter((v) => v.status !== "SCHEDULED" || v.manuallyChanged || v.scheduledStart <= new Date() || v._count.clocks || v._count.visitNotes || v._count.taskOutcomes);
+    const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id }, select: { id: true, reference: true, status: true, manuallyChanged: true, scheduledStart: true, _count: { select: { clocks: true, visitNotes: true, taskOutcomes: true, correctionRequests: true, marRecords: true } } } });
+    const blockers = visits.filter((v) => v.status !== "SCHEDULED" || v.manuallyChanged || v.scheduledStart <= new Date() || v._count.clocks || v._count.visitNotes || v._count.taskOutcomes || v._count.correctionRequests || v._count.marRecords);
     if (blockers.length) throw new ValidationError(`Cannot delete: ${blockers.length} visit${blockers.length === 1 ? " has" : "s have"} started, been changed by hand or been recorded (e.g. ${blockers.slice(0, 3).map((v) => v.reference).join(", ")}). Cancel individual visits instead.`);
     // Their CREATED events go with them (the event trigger allows deletion only by cascade from a removed visit).
     await tx.visit.deleteMany({ where: { id: { in: visits.map((v) => v.id) } } });

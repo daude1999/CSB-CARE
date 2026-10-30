@@ -25,7 +25,7 @@ export const PLAN_SECTIONS = [
   { key: "personal_care", title: "Personal care", hint: "Washing, dressing, continence and skin care: what they do themselves and what carers do." },
   { key: "mobility", title: "Mobility and moving", hint: "Walking, transfers, equipment and the number of carers needed. Link to the moving and handling risk assessment." },
   { key: "nutrition", title: "Eating and drinking", hint: "Meals, drinks, preferences, allergies and any swallowing guidance." },
-  { key: "medication", title: "Medication support", hint: "Prompting only, against the paper MAR chart. eMAR is not in use on this platform." },
+  { key: "medication", title: "Medication support", hint: "What support the person needs with medicines and who orders them. Each medicine and its times go on the Medication tab (when medication records are switched on), where carers record every dose." },
   { key: "health", title: "Health and wellbeing", hint: "Conditions, signs to look out for, and who to contact." },
   { key: "home", title: "Home and safety", hint: "Getting in, pets, hazards and what to do in an emergency." },
   { key: "outcomes", title: "Outcomes", hint: "What the person wants to achieve and how the visits help." },

@@ -2,6 +2,7 @@ import type { AlertSeverity, Prisma } from "@prisma/client";
 import { londonTime, londonDate } from "@/lib/london";
 import { rotaSettings } from "@/server/rota/settings";
 import { evaluate, loadFacts, loadPreferenceFacts } from "./eligibility";
+import { exceptionDeadline } from "@/server/rota/exceptions";
 
 type Db = Prisma.TransactionClient;
 
@@ -17,12 +18,12 @@ export async function rotaRecipients(tx: Db, organisationId: string) {
  */
 export async function raiseAlert(
   tx: Db,
-  a: { organisationId: string; kind: string; severity?: AlertSeverity; visitId?: string | null; staffId?: string | null; assignmentId?: string | null; message: string; dedupeKey: string; conditionAt?: Date; actionUrl?: string; notify?: boolean },
+  a: { organisationId: string; kind: string; severity?: AlertSeverity; visitId?: string | null; staffId?: string | null; assignmentId?: string | null; message: string; dedupeKey: string; conditionAt?: Date; actionUrl?: string; notify?: boolean; deadline?: Date | null },
 ) {
   const existing = await tx.rotaAlert.findUnique({ where: { dedupeKey: a.dedupeKey } });
   if (existing) return { created: false, alert: existing };
   const alert = await tx.rotaAlert.create({
-    data: { organisationId: a.organisationId, kind: a.kind, severity: a.severity ?? "WARNING", visitId: a.visitId ?? null, staffId: a.staffId ?? null, assignmentId: a.assignmentId ?? null, message: a.message, dedupeKey: a.dedupeKey, conditionAt: a.conditionAt ?? null },
+    data: { organisationId: a.organisationId, kind: a.kind, severity: a.severity ?? "WARNING", visitId: a.visitId ?? null, staffId: a.staffId ?? null, assignmentId: a.assignmentId ?? null, message: a.message, dedupeKey: a.dedupeKey, conditionAt: a.conditionAt ?? null, deadline: a.deadline === undefined ? exceptionDeadline(a.kind) : a.deadline },
   });
   if (a.notify !== false) {
     for (const userId of await rotaRecipients(tx, a.organisationId)) {
@@ -44,7 +45,7 @@ export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds
   const now = opts.now ?? new Date();
   const assignments = await tx.visitAssignment.findMany({
     where: { organisationId, staffId: { in: staffIds }, removedAt: null, startsAt: { gt: now }, visit: { status: "SCHEDULED" } },
-    include: { visit: { select: { id: true, reference: true, serviceUserId: true, areaId: true, timeLocked: true, scheduledStart: true, scheduledEnd: true } }, staff: { select: { displayName: true } } },
+    include: { visit: { select: { id: true, reference: true, serviceUserId: true, areaId: true, timeLocked: true, scheduledStart: true, scheduledEnd: true, tasks: { select: { careTaskId: true } } } }, staff: { select: { displayName: true } } },
     orderBy: { startsAt: "asc" },
     take: 2000,
   });
@@ -57,7 +58,7 @@ export async function reviewStaffImpact(tx: Db, organisationId: string, staffIds
   let cleared = 0;
   for (const a of assignments) {
     if (!prefsCache.has(a.visit.serviceUserId)) prefsCache.set(a.visit.serviceUserId, await loadPreferenceFacts(tx, organisationId, a.visit.serviceUserId));
-    const r = evaluate(settings, facts, { staffId: a.staffId, start: a.visit.scheduledStart, end: a.visit.scheduledEnd, slot: a.slot, visitId: a.visitId, serviceUserId: a.visit.serviceUserId, areaId: a.visit.areaId }, prefsCache.get(a.visit.serviceUserId) ?? null);
+    const r = evaluate(settings, facts, { staffId: a.staffId, start: a.visit.scheduledStart, end: a.visit.scheduledEnd, slot: a.slot, visitId: a.visitId, serviceUserId: a.visit.serviceUserId, areaId: a.visit.areaId, careTaskIds: a.visit.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x) }, prefsCache.get(a.visit.serviceUserId) ?? null);
     const reason = r.blocking[0]?.message ?? null;
     if (reason && a.reviewReason !== reason) {
       await tx.visitAssignment.update({ where: { id: a.id }, data: { reviewReason: reason, reviewFlaggedAt: now } });

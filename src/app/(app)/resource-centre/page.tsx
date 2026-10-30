@@ -93,7 +93,7 @@ export default async function ResourceCentre({ searchParams }: { searchParams: P
                 <div className="h-full rounded-full bg-[#3289f8]" style={{ width: `${Math.round((complete / PACK.length) * 100)}%` }} />
               </div>
             ) : null}
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-[14px]">
                 <thead><tr className="h-[36px] text-left text-[13px] text-slate-700"><th className="w-[46px] font-normal"><span className="sr-only">Ready</span></th><th className="font-normal">What CQC asks for</th><th className="w-[300px] font-normal">CSB documents that help</th></tr></thead>
                 <tbody>

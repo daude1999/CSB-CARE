@@ -30,7 +30,7 @@ async function slowNavigations(page: Page, ms: number) {
 const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
   { id: "policy", home: "/", title: /Compliance Centre Dashboard/, colour: "rgb(31, 95, 209)" },
   { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(107, 70, 201)" },
-  { id: "reporting", home: "/reports", title: /Reports/, colour: "rgb(11, 111, 153)" },
+  { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(11, 111, 153)" },
   { id: "admin", home: "/settings", title: /System Settings/, colour: "rgb(75, 86, 102)" },
 ];
 
@@ -185,7 +185,7 @@ test.describe("Sidebar", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/rota\/visits/);
     await portal(page, "reporting").click();
-    await expect(page).toHaveURL(/\/reports/);
+    await expect(page).toHaveURL(/\/analytics/);
     expect(await width()).toBe(before);
   });
 });

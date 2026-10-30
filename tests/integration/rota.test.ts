@@ -7,6 +7,8 @@ import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, previewBuild, publishBuild } from "@/server/rota/build";
 import { listVisits } from "@/server/rota/queries";
+import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
+import { createVisit } from "@/server/rota/visits";
 import { cancelVisit, getVisit, setDoubleUp, updateVisit } from "@/server/rota/visits";
 import { setTemplateCarer, updateTemplate } from "@/server/rota/templates";
 import { checkStaffEligibility } from "@/server/workforce/eligibility";
@@ -211,6 +213,12 @@ describe("tenancy and access", () => {
     const elsewhere = await futureVisit({ areaId: areas[1]!.id });
     // Refused (pages turn this into the same 404 as a missing record).
     await expect(getVisit(fresh, elsewhere.id)).rejects.toThrow(ForbiddenError);
+    // The staff directory's area filter cannot widen the scope: asking for another area lists nobody.
+    const scope = await rotaScope(fresh, "staff.directory");
+    const inArea = await db.staffMember.count({ where: staffDirectoryWhere(scope, { area: areas[0]!.id }) });
+    const outside = await db.staffMember.count({ where: staffDirectoryWhere(scope, { area: areas[1]!.id }) });
+    expect(inArea).toBeGreaterThan(0);
+    expect(outside).toBe(0);
     await db.membershipArea.deleteMany({ where: { membershipId: m.id } });
   });
 
@@ -289,5 +297,23 @@ describe("templates", () => {
     await expect(updateTemplate(ctx, t.id, t.version + 5, { serviceUserId: t.serviceUserId, callTypeId: t.callTypeId, cycleWeeks: t.cycleWeeks, weekdays: t.weekdays, startMinute: t.startMinute, durationMin: t.durationMin, carersRequired: t.carersRequired, effectiveFrom: "2026-01-05" })).rejects.toThrow(ConflictError);
     const clash = await db.visitTemplate.findFirstOrThrow({ where: { organisationId: orgId, enabled: true, id: { not: t.id }, startMinute: t.startMinute, preferredStaff1Id: { notIn: [t.preferredStaff1Id!] } } });
     await expect(setTemplateCarer(ctx, clash.id, clash.version, "PRIMARY", t.preferredStaff1Id)).rejects.toThrow(/overlapping/);
+  });
+});
+
+describe("one-off visits", () => {
+  it("adds a visit for an active service user only, unassigned, with its creation recorded", async () => {
+    const ctx = await coordinator();
+    const su = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, status: "ACTIVE" } });
+    const callType = await db.callType.findFirstOrThrow({ where: { organisationId: orgId, active: true } });
+    const date = addDays(londonDate(), 10);
+    await expect(createVisit(ctx, { serviceUserId: su.id, callTypeId: callType.id, date, startMinute: 9 * 60, durationMin: 2 })).rejects.toThrow(ValidationError);
+    const v = await createVisit(ctx, { serviceUserId: su.id, callTypeId: callType.id, date, startMinute: 9 * 60, durationMin: 45, carersRequired: 2, notes: "One-off review visit" });
+    expect(v.status).toBe("SCHEDULED");
+    expect(v.carersRequired).toBe(2);
+    expect(v.manuallyChanged).toBe(true);
+    expect(await db.visitAssignment.count({ where: { visitId: v.id } })).toBe(0);
+    expect(await db.visitEvent.count({ where: { visitId: v.id, type: "CREATED" } })).toBe(1);
+    const paused = await db.serviceUser.findFirst({ where: { organisationId: orgId, status: { not: "ACTIVE" } } });
+    if (paused) await expect(createVisit(ctx, { serviceUserId: paused.id, callTypeId: callType.id, date, startMinute: 9 * 60, durationMin: 30 })).rejects.toThrow(/active/);
   });
 });

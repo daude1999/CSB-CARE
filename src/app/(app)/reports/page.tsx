@@ -45,7 +45,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <SegmentNav label="Report" items={(Object.keys(REPORTS) as ReportKind[]).map((k) => ({ href: `/reports?kind=${k}`, label: REPORTS[k], active: k === kind }))} />
       <Card title={REPORTS[kind]} actions={<a className="btn-primary py-1" href={`/api/reports/${kind}`}>Export CSV</a>}>
         {rows.length ? (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="table">
               <thead><tr>{columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
               <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} className={`py-2 text-[13px] ${String(v).length < 24 ? "whitespace-nowrap" : ""}`}>{String(v)}</td>)}</tr>)}</tbody>

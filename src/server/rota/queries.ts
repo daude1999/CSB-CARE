@@ -118,8 +118,9 @@ export function weekDates(monday: string) {
 export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUserId: string; areaId: string | null; scheduledStart: Date; scheduledEnd: Date; timeLocked: boolean; assignments: { slot: string; staffId: string; removedAt: Date | null }[] }, slot: AssignmentSlot) {
   const scope = await rotaScope(ctx, "rota.view");
   const others = visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId);
-  const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked });
-  return ranked.filter((r) => !others.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message) }));
+  const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
+  const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds });
+  return ranked.filter((r) => !others.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }));
 }
 
 /** Display names for the people who acted on records (audit actors), limited to the caller's organisation. */

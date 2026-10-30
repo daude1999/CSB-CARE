@@ -6,7 +6,10 @@
 //    implementation are separate records/stages.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // queryCompiler + driverAdapters let PRISMA_CLIENT_ENGINE_TYPE=client run on the bundled WASM engine
+  // (see prisma.config.ts). The default engine is unchanged.
+  previewFeatures = ["queryCompiler", "driverAdapters"]
 }
 
 datasource db {
@@ -86,14 +89,17 @@ model Organisation {
   settings     Json     @default("{}") // approval rules, escalation config
   createdAt    DateTime @default(now())
 
-  branches     Branch[]
-  memberships  Membership[]
-  policies     Policy[]
-  hrWorkspace  HrWorkspace?
-  staff        StaffMember[]
-  serviceUsers ServiceUser[]
-  areas        Area[]
-  visits       Visit[]
+  branches              Branch[]
+  memberships           Membership[]
+  policies              Policy[]
+  hrWorkspace           HrWorkspace?
+  staff                 StaffMember[]
+  readinessRequirements ReadinessRequirement[]
+  policyAssignmentRules PolicyAssignmentRule[]
+  serviceUsers          ServiceUser[]
+  areas                 Area[]
+  visits                Visit[]
+  accountTokens         AccountToken[]
 }
 
 model ServiceType {
@@ -118,6 +124,7 @@ model Branch {
   staff          StaffMember[]
   areas          Area[]
   serviceUsers   ServiceUser[]
+  grants         MembershipBranch[]
 
   @@unique([organisationId, hrBranchKey])
   @@index([organisationId])
@@ -133,23 +140,42 @@ model BranchServiceType {
 }
 
 model Membership {
-  id             String           @id @default(cuid())
-  userId         String
-  organisationId String
-  branchId       String?
-  roles          OrgRole[]
-  jobTitle       String?
+  id                      String             @id @default(cuid())
+  userId                  String
+  organisationId          String
+  branchId                String?
+  roles                   OrgRole[]
+  jobTitle                String?
   /// The HR Hub account this member works as in HR & Workforce. Empty means no HR access.
-  hrUserId       String?
-  createdAt      DateTime         @default(now())
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branch         Branch?          @relation(fields: [branchId], references: [id])
+  hrUserId                String?
+  createdAt               DateTime           @default(now())
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation            Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch                  Branch?            @relation(fields: [branchId], references: [id])
   /// Areas a care coordinator is limited to. None means every area in the organisation.
-  areas          MembershipArea[]
+  areas                   MembershipArea[]
+  /// Branches this member may work in. None means every branch in the organisation (the single-branch default).
+  branches                MembershipBranch[]
+  /// Set when an administrator deactivates the member: roles are cleared and kept here for reactivation.
+  deactivatedAt           DateTime?
+  rolesBeforeDeactivation OrgRole[]          @default([])
+  /// The member's own order for the module boxes on the Overview (module ids). Empty means the standard order.
+  overviewOrder           String[]           @default([])
 
   @@unique([userId, organisationId])
   @@index([organisationId])
+}
+
+/// An explicit, audited grant of access to a branch. Scope is derived from these on every request.
+model MembershipBranch {
+  membershipId String
+  branchId     String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  branch       Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  grantedAt    DateTime   @default(now())
+  grantedById  String?
+
+  @@id([membershipId, branchId])
 }
 
 /// HR & Workforce (the CSB HR Hub) for one organisation. The HR Hub keeps its records as one document,
@@ -616,6 +642,7 @@ model Policy {
   revisions        PolicyRevision[]
   publications     PolicyPublication[]
   auditQuestions   AuditQuestion[]
+  assignmentRules  PolicyAssignmentRule[]
 
   @@unique([organisationId, ref])
   @@index([searchVector], map: "policy_search_idx", type: Gin)
@@ -852,6 +879,8 @@ model PolicyPublication {
   effectiveDate               DateTime
   publishedById               String
   requiresAcknowledgement     Boolean           @default(true)
+  /// A material change needs fresh acknowledgement; a non-material one (wording, links) keeps the previous evidence.
+  materialRevision            Boolean           @default(true)
   acknowledgementDueAt        DateTime?
   implementationConfirmedAt   DateTime?
   implementationConfirmedById String?
@@ -864,19 +893,51 @@ model PolicyPublication {
 }
 
 model Acknowledgement {
-  id             String            @id @default(cuid())
-  publicationId  String
-  publication    PolicyPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  organisationId String
-  userId         String
-  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dueAt          DateTime?
-  acknowledgedAt DateTime?
-  remindedAt     DateTime?
-  createdAt      DateTime          @default(now())
+  id                 String                 @id @default(cuid())
+  publicationId      String
+  publication        PolicyPublication      @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  organisationId     String
+  /// The sign-in that can acknowledge. Null for staff with no linked sign-in: they are listed as "cannot sign", never dropped.
+  userId             String?
+  user               User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The person (HR projection) the assignment is for, when they have a staff record.
+  staffMemberId      String?
+  staffMember        StaffMember?           @relation(fields: [staffMemberId], references: [id])
+  ruleId             String?
+  rule               PolicyAssignmentRule?  @relation(fields: [ruleId], references: [id])
+  mandatory          Boolean                @default(true)
+  state              AcknowledgementState   @default(ASSIGNED)
+  dueAt              DateTime?
+  openedAt           DateTime?
+  acknowledgedAt     DateTime?
+  /// The exact statement agreed to, stored with the time.
+  wording            String?
+  remindedAt         DateTime?
+  escalatedAt        DateTime?
+  requiresAssessment Boolean                @default(false)
+  assessedAt         DateTime?
+  assessedById       String?
+  assessmentMethod   String?
+  assessmentScore    Int?
+  assessmentPassMark Int?
+  assessmentNote     String?
+  exemptedAt         DateTime?
+  exemptedById       String?
+  exemptionReason    String?
+  withdrawnAt        DateTime?
+  withdrawnById      String?
+  withdrawnReason    String?
+  /// A correction is a new row; the original is kept and marked superseded.
+  supersedesId       String?
+  supersededAt       DateTime?
+  createdAt          DateTime               @default(now())
+  events             AcknowledgementEvent[]
 
-  @@unique([publicationId, userId])
+  // One current row per publication and person is enforced by partial unique indexes in the migration.
+  @@index([publicationId, userId])
+  @@index([publicationId, staffMemberId])
   @@index([organisationId, acknowledgedAt])
+  @@index([organisationId, state])
 }
 
 // ───────────────────────────── Audits, actions, evidence, training ─────────────────────────────
@@ -921,19 +982,21 @@ model AuditQuestionRequirement {
 }
 
 model Audit {
-  id              String         @id @default(cuid())
+  id              String             @id @default(cuid())
   organisationId  String
   branchId        String?
   templateId      String
-  template        AuditTemplate  @relation(fields: [templateId], references: [id])
+  template        AuditTemplate      @relation(fields: [templateId], references: [id])
   templateVersion Int
   title           String
-  status          String         @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  status          String             @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
   conductedById   String
-  startedAt       DateTime       @default(now())
+  startedAt       DateTime           @default(now())
   completedAt     DateTime?
-  isDemo          Boolean        @default(false)
+  completedById   String?
+  isDemo          Boolean            @default(false)
   answers         AuditAnswer[]
+  answerEvents    AuditAnswerEvent[]
   findings        AuditFinding[]
 
   @@index([organisationId])
@@ -949,6 +1012,20 @@ model AuditAnswer {
   notes      String?
 
   @@unique([auditId, questionId])
+}
+
+/// Every answer ever recorded, in order. Append-only (database trigger); the current answer is AuditAnswer.
+model AuditAnswerEvent {
+  id         String   @id @default(cuid())
+  auditId    String
+  audit      Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  questionId String
+  actorId    String
+  response   String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([auditId, questionId, createdAt])
 }
 
 model AuditFinding {
@@ -1217,14 +1294,21 @@ model StaffMember {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  profile      RotaStaffProfile?
-  compliance   StaffCompliance[]
-  areas        StaffArea[]
-  absences     StaffAbsence[]
-  availability StaffAvailability[]
-  assignments  VisitAssignment[]
-  preferences  CarerPreference[]
-  payRates     StaffPayRate[]
+  profile            RotaStaffProfile?
+  compliance         StaffCompliance[]
+  areas              StaffArea[]
+  absences           StaffAbsence[]
+  availability       StaffAvailability[]
+  assignments        VisitAssignment[]
+  preferences        CarerPreference[]
+  payRates           StaffPayRate[]
+  trainingRecords    StaffTrainingRecord[]
+  assessments        CompetencyAssessment[]
+  restrictions       StaffRestriction[]
+  exceptions         ReadinessException[]
+  acknowledgements   Acknowledgement[]
+  readinessFlags     StaffReadinessFlag[]
+  readinessSnapshots StaffReadinessSnapshot[]
 
   @@unique([organisationId, hrEmployeeId])
   @@unique([organisationId, userId])
@@ -1439,6 +1523,7 @@ model ServiceUser {
   templates        VisitTemplate[]
   visits           Visit[]
   carerPreferences CarerPreference[]
+  medications      Medication[]
 
   @@unique([organisationId, reference])
   @@unique([id, organisationId])
@@ -1713,6 +1798,10 @@ model RotaSettings {
   doorstepCancel          Boolean        @default(true)
   /// The target time from "visit became late or missed" to "coordinator alerted", in seconds.
   alertLatencyTargetSec   Int            @default(300)
+  /// Medication records are off until an admin switches them on after a clinical review (recorded here).
+  medicationEnabledAt     DateTime?
+  medicationEnabledById   String?
+  medicationReviewNote    String?
   updatedById             String?
   updatedAt               DateTime       @updatedAt
 }
@@ -1772,6 +1861,8 @@ model VisitTemplate {
   alertOnLate        Boolean        @default(true)
   rotaType           RotaType       @default(NORMAL)
   runRouteTemplateId String?
+  /// Position on its template run route, carried into each built visit.
+  routeOrder         Int?
   enabled            Boolean        @default(true)
   effectiveFrom      DateTime       @db.Date
   effectiveTo        DateTime?      @db.Date
@@ -1848,6 +1939,8 @@ model Visit {
   rotaBuild          RotaBuild?     @relation(fields: [rotaBuildId], references: [id])
   runRouteId         String?
   runRoute           RunRoute?      @relation(fields: [runRouteId], references: [id])
+  /// Position on its run route that day, set by hand by the coordinator.
+  routeOrder         Int?
   runOrder           Int?
   /// The local (Europe/London) date the visit starts on.
   date               DateTime       @db.Date
@@ -1878,12 +1971,14 @@ model Visit {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  assignments  VisitAssignment[]
-  tasks        VisitTask[]
-  clocks       VisitClock[]
-  visitNotes   VisitNote[]
-  events       VisitEvent[]
-  taskOutcomes VisitTaskOutcome[]
+  assignments        VisitAssignment[]
+  tasks              VisitTask[]
+  clocks             VisitClock[]
+  visitNotes         VisitNote[]
+  events             VisitEvent[]
+  taskOutcomes       VisitTaskOutcome[]
+  correctionRequests ClockCorrectionRequest[]
+  marRecords         MarRecord[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, date])
@@ -2073,23 +2168,33 @@ enum AlertSeverity {
 
 /// An operational alert for coordinators (late, missed, unassigned, HR impact). Resolved, never deleted.
 model RotaAlert {
-  id             String        @id @default(cuid())
-  organisationId String
-  kind           String
-  severity       AlertSeverity @default(WARNING)
-  visitId        String?
-  staffId        String?
-  assignmentId   String?
-  message        String
-  dedupeKey      String        @unique
-  raisedAt       DateTime      @default(now())
+  id              String        @id @default(cuid())
+  organisationId  String
+  kind            String
+  severity        AlertSeverity @default(WARNING)
+  visitId         String?
+  staffId         String?
+  assignmentId    String?
+  message         String
+  dedupeKey       String        @unique
+  raisedAt        DateTime      @default(now())
   /// When the condition first became true (for alert latency).
-  conditionAt    DateTime?
-  resolvedAt     DateTime?
-  resolvedById   String?
-  resolution     String?
+  conditionAt     DateTime?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolution      String?
+  /// Exceptions register: who is dealing with it, by when, and whether it went to a manager.
+  ownerId         String?
+  ownerAssignedAt DateTime?
+  deadline        DateTime?
+  escalatedAt     DateTime?
+  /// NONE | ESCALATED | RESOLVED_AFTER_ESCALATION
+  escalationState String        @default("NONE")
+  escalationNote  String?
+  evidenceNote    String?
 
   @@index([organisationId, resolvedAt])
+  @@index([organisationId, deadline])
 }
 
 /// One run of the call-monitoring sweep, so the monitor can show how fresh its figures are.
@@ -2261,6 +2366,36 @@ model TimesheetLine {
   payableMinutes   Int
   /// Why this line is not straightforward (no clock out, short visit, office-corrected…).
   exception        String?
+  /// Attendance verification: a line with an exception is checked by the office before the timesheet is submitted.
+  verifiedById     String?
+  verifiedAt       DateTime?
+  verificationNote String?
+}
+
+/// A request to correct a clock time. A carer's request is decided by someone else (database trigger); office
+/// entries are recorded as approved requests (origin OFFICE) so every hand-entered time has one trail.
+model ClockCorrectionRequest {
+  id             String    @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  staffId        String
+  kind           ClockKind
+  requestedTime  DateTime
+  reason         String
+  /// CARER | OFFICE
+  origin         String    @default("CARER")
+  /// PENDING | APPROVED | REJECTED
+  status         String    @default("PENDING")
+  requestedById  String
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  clockId        String?
+  createdAt      DateTime  @default(now())
+
+  @@index([organisationId, status])
+  @@index([visitId])
 }
 
 enum ClaimStatus {
@@ -2282,6 +2417,7 @@ model MileageClaim {
   submittedAt    DateTime    @default(now())
   decidedById    String?
   decidedAt      DateTime?
+  decisionNote   String?
 
   @@index([organisationId, staffId, date])
 }
@@ -2379,4 +2515,402 @@ model PayLine {
   ratePence   Int
   amountPence Int
   bandLabel   String
+}
+
+// ───────────────────────────── Staff readiness (training, competency, policy, restrictions) ─────────────────────────────
+// Identity, employment and recruitment checks (DBS, right to work) stay in HR & Workforce and reach here through
+// StaffCompliance. Everything below is keyed on StaffMember.id and evaluated by src/server/readiness. A status is never
+// stored as the truth: it is worked out from these records every time, and every status cites them as evidence.
+
+enum ReadinessCategory {
+  TRAINING
+  COMPETENCY
+  POLICY
+  QUALIFICATION
+}
+
+enum RequirementClassification {
+  MANDATORY_ROLE
+  AGENCY_POLICY
+  CONTRACT
+  RECOMMENDED
+}
+
+enum ReadinessScopeKind {
+  ALL
+  JOB_TITLE
+  BRANCH
+  CARE_TASK
+  SERVICE_USER
+}
+
+enum RequirementStatus {
+  ACTIVE
+  RETIRED
+}
+
+/// One requirement in the organisation's training/competency/policy matrix. Versioned: a change retires this row and creates its successor.
+model ReadinessRequirement {
+  id                String                    @id @default(cuid())
+  organisationId    String
+  organisation      Organisation              @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  key               String
+  name              String
+  description       String?
+  category          ReadinessCategory
+  classification    RequirementClassification @default(MANDATORY_ROLE)
+  sourceAuthority   String?
+  sourceRef         String?
+  sourceVersion     String?
+  /// Course completion alone is not enough: an observed competency assessment is also required.
+  requiresPractical Boolean                   @default(false)
+  renewalMonths     Int?
+  warningDays       Int                       @default(30)
+  /// Not met = allocation is blocked (true) or flagged for review (false).
+  hardStop          Boolean                   @default(true)
+  /// Whether a manager may record a time-limited exception. Off for legal requirements.
+  exceptionAllowed  Boolean                   @default(true)
+  /// POLICY requirements: the policy whose current published version must be acknowledged.
+  policyId          String?
+  status            RequirementStatus         @default(ACTIVE)
+  version           Int                       @default(1)
+  supersedesId      String?
+  effectiveFrom     DateTime                  @db.Date
+  effectiveTo       DateTime?                 @db.Date
+  createdById       String
+  createdAt         DateTime                  @default(now())
+  scopes            ReadinessScope[]
+  records           StaffTrainingRecord[]
+  assessments       CompetencyAssessment[]
+  exceptions        ReadinessException[]
+
+  @@unique([organisationId, key, version])
+  @@index([organisationId, status])
+}
+
+/// Who a requirement applies to. Any matching scope applies. CARE_TASK and SERVICE_USER scopes are task-level: they bite when a visit involves that task or person.
+model ReadinessScope {
+  id            String               @id @default(cuid())
+  requirementId String
+  requirement   ReadinessRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  kind          ReadinessScopeKind
+  jobTitle      String?
+  branchId      String?
+  careTaskId    String?
+  serviceUserId String?
+
+  @@index([requirementId])
+}
+
+enum TrainingVerification {
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+/// A training completion, qualification or certificate for one requirement. Immutable once verified or rejected; a correction is a new row that supersedes it.
+model StaffTrainingRecord {
+  id                 String               @id @default(cuid())
+  organisationId     String
+  staffId            String
+  staff              StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId      String
+  requirement        ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  provider           String?
+  completedAt        DateTime             @db.Date
+  expiresAt          DateTime?            @db.Date
+  result             String?
+  evidenceId         String?
+  evidenceNote       String?
+  assessmentType     String?
+  assessor           String?
+  enteredById        String
+  verificationStatus TrainingVerification @default(SUBMITTED)
+  verifiedById       String?
+  verifiedAt         DateTime?
+  verificationNote   String?
+  exemptionRationale String?
+  supersedesId       String?
+  createdAt          DateTime             @default(now())
+
+  @@index([organisationId, staffId])
+  @@index([requirementId])
+}
+
+enum AssessmentMethod {
+  OBSERVED
+  SIMULATED
+  DISCUSSION
+  WRITTEN
+}
+
+enum CompetencyOutcome {
+  COMPETENT
+  COMPETENT_WITH_RESTRICTIONS
+  NOT_YET_COMPETENT
+}
+
+/// An observed or discussed practical competency assessment by a named assessor. Append-only; the latest decides.
+model CompetencyAssessment {
+  id               String               @id @default(cuid())
+  organisationId   String
+  staffId          String
+  staff            StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId    String
+  requirement      ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  careTaskId       String?
+  method           AssessmentMethod
+  observedEvidence String
+  assessorId       String
+  assessorRole     String?
+  outcome          CompetencyOutcome
+  restrictions     String?
+  remedialAction   String?
+  assessedAt       DateTime             @db.Date
+  reviewDue        DateTime?            @db.Date
+  createdAt        DateTime             @default(now())
+
+  @@index([organisationId, staffId])
+}
+
+enum RestrictionKind {
+  TASK
+  SERVICE_USER
+  GENERAL
+}
+
+/// A limit on what a generally employed worker may do, with its reason. Lifted, never deleted.
+model StaffRestriction {
+  id             String          @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  kind           RestrictionKind
+  careTaskId     String?
+  serviceUserId  String?
+  reason         String
+  startsAt       DateTime        @db.Date
+  endsAt         DateTime?       @db.Date
+  createdById    String
+  createdAt      DateTime        @default(now())
+  liftedById     String?
+  liftedAt       DateTime?
+  liftedReason   String?
+
+  @@index([organisationId, staffId])
+}
+
+/// A manager's time-limited exception to one requirement, with compensating controls. Never on requirements that forbid it.
+model ReadinessException {
+  id                   String               @id @default(cuid())
+  organisationId       String
+  staffId              String
+  staff                StaffMember          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requirementId        String
+  requirement          ReadinessRequirement @relation(fields: [requirementId], references: [id])
+  reason               String
+  compensatingControls String
+  approvedById         String
+  expiresAt            DateTime             @db.Date
+  createdAt            DateTime             @default(now())
+  revokedById          String?
+  revokedAt            DateTime?
+  revokedReason        String?
+
+  @@index([organisationId, staffId])
+}
+
+/// "Review required": a change that needs a manager to look again (role or branch change, long absence, incident, retired requirement). Cleared with an outcome, never deleted.
+model StaffReadinessFlag {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  reason         String
+  raisedById     String?
+  raisedAt       DateTime    @default(now())
+  clearedById    String?
+  clearedAt      DateTime?
+  outcome        String?
+
+  @@index([organisationId, staffId, clearedAt])
+}
+
+/// The result of an evaluation at a point in time, kept so dashboards reconcile with history. Never the source of truth.
+model StaffReadinessSnapshot {
+  id             String      @id @default(cuid())
+  organisationId String
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  evaluatedAt    DateTime    @default(now())
+  status         String
+  components     Json
+  reasons        Json
+  trigger        String
+
+  @@index([organisationId, staffId, evaluatedAt])
+}
+
+// ───────────────────────────── Policy assignment and acknowledgement (Appendix E) ─────────────────────────────
+
+enum PolicyAssignmentScope {
+  ORG
+  BRANCH
+  ROLE
+  JOB_TITLE
+  STAFF
+}
+
+enum AcknowledgementState {
+  ASSIGNED
+  OPENED
+  IN_PROGRESS
+  ACKNOWLEDGED
+  ASSESSMENT_REQUIRED
+  ASSESSMENT_PASSED
+  ASSESSMENT_FAILED
+  EXEMPTED
+  WITHDRAWN
+}
+
+/// Who must read and acknowledge a policy. Resolved to staff (HR projection) and their linked sign-ins; withdrawn with a reason, never deleted.
+model PolicyAssignmentRule {
+  id                 String                @id @default(cuid())
+  organisationId     String
+  organisation       Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  policyId           String
+  policy             Policy                @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  scope              PolicyAssignmentScope
+  branchId           String?
+  orgRole            OrgRole?
+  jobTitle           String?
+  staffMemberId      String?
+  mandatory          Boolean               @default(true)
+  /// 1 = high risk (overdue items escalate first), 3 = routine.
+  priority           Int                   @default(2)
+  dueDays            Int                   @default(14)
+  /// After acknowledging, a manager-recorded knowledge check or discussion is required.
+  requiresAssessment Boolean               @default(false)
+  ownerId            String
+  createdById        String
+  createdAt          DateTime              @default(now())
+  withdrawnAt        DateTime?
+  withdrawnById      String?
+  withdrawnReason    String?
+  acknowledgements   Acknowledgement[]
+
+  @@index([organisationId, policyId])
+}
+
+/// Append-only history of one acknowledgement: assigned, opened, reminded, escalated, acknowledged, assessed, exempted, withdrawn, corrected.
+model AcknowledgementEvent {
+  id                String          @id @default(cuid())
+  organisationId    String
+  acknowledgementId String
+  acknowledgement   Acknowledgement @relation(fields: [acknowledgementId], references: [id], onDelete: Cascade)
+  type              String
+  actorId           String?
+  note              String?
+  data              Json?
+  at                DateTime        @default(now())
+
+  @@index([acknowledgementId, at])
+  @@index([organisationId, type, at])
+}
+
+/// One-time link for joining an organisation (INVITE) or choosing a new password (RESET). Only the hash is stored;
+/// the administrator gives the link to the person. Nothing is emailed.
+model AccountToken {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  /// INVITE | RESET
+  kind           String
+  email          String
+  name           String?
+  userId         String?
+  roles          OrgRole[]    @default([])
+  branchIds      String[]     @default([])
+  jobTitle       String?
+  tokenHash      String       @unique
+  createdById    String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organisationId, kind])
+}
+
+enum MedicationStatus {
+  DRAFT
+  ACTIVE
+  STOPPED
+}
+
+enum MarOutcome {
+  GIVEN
+  PROMPTED
+  REFUSED
+  NOT_GIVEN
+  NOT_REQUIRED
+}
+
+/// A medicine on a person's list. Used on visits only once a second person approves it (database trigger); a change
+/// is a new medicine that replaces the old one, so the history stays.
+model Medication {
+  id             String           @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser      @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  name           String
+  strength       String?
+  dose           String
+  /// ORAL | TOPICAL | INHALED | EYE | EAR | NASAL | TRANSDERMAL | OTHER
+  route          String
+  /// PROMPT | ASSIST | ADMINISTER
+  support        String
+  /// MORNING | LUNCH | TEA | BED; empty for "as required" medicines.
+  timeRanges     String[]         @default([])
+  asRequired     Boolean          @default(false)
+  maxDosesPerDay Int?
+  controlled     Boolean          @default(false)
+  instructions   String?
+  prescriber     String?
+  startDate      DateTime         @db.Date
+  endDate        DateTime?        @db.Date
+  status         MedicationStatus @default(DRAFT)
+  createdById    String
+  createdAt      DateTime         @default(now())
+  approvedById   String?
+  approvedAt     DateTime?
+  stoppedById    String?
+  stoppedAt      DateTime?
+  stopReason     String?
+  replacesId     String?
+  changeReason   String?
+  records        MarRecord[]
+
+  @@index([organisationId, serviceUserId, status])
+}
+
+/// One recorded dose on a visit (append-only; a correction supersedes it with a reason).
+model MarRecord {
+  id             String     @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit      @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  medicationId   String
+  medication     Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  staffId        String?
+  outcome        MarOutcome
+  reason         String?
+  witnessName    String?
+  recordedById   String
+  at             DateTime   @default(now())
+  supersedesId   String?
+  supersededAt   DateTime?
+
+  @@index([visitId])
+  @@index([medicationId, at])
 }

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { auditScore } from "@/server/compliance/audits";
+import { auditBranchWhere, auditScore } from "@/server/compliance/audits";
 import { startAuditAction } from "../../actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow, StatusBadge } from "@/components/ui";
 
@@ -16,11 +16,11 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const orgId = ctx.organisationId!;
   const [templates, audits, branches] = await Promise.all([
     db.auditTemplate.findMany({ where: { OR: [{ organisationId: null }, { organisationId: orgId }], status: "ACTIVE" }, include: { _count: { select: { questions: true } } }, orderBy: { title: "asc" } }),
-    db.audit.findMany({ where: { organisationId: orgId }, orderBy: { startedAt: "desc" }, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true } } } }),
-    db.branch.findMany({ where: { organisationId: orgId }, orderBy: { name: "asc" } }),
+    db.audit.findMany({ where: { organisationId: orgId, ...auditBranchWhere(ctx) }, orderBy: { startedAt: "desc" }, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true, _count: { select: { questions: true } } } } } }),
+    db.branch.findMany({ where: { organisationId: orgId, ...(ctx.branchIds ? { id: { in: ctx.branchIds } } : {}) }, orderBy: { name: "asc" } }),
   ]);
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
-  const scores = audits.map((a) => auditScore(a.answers)).filter((x): x is number => x !== null);
+  const scores = audits.map((a) => auditScore(a.answers, a.template._count.questions)).filter((x): x is number => x !== null);
   const average = scores.length ? Math.round(scores.reduce((n, x) => n + x, 0) / scores.length) : null;
   return (
     <>
@@ -29,7 +29,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
       <StatRow>
         <Stat label="Audits" value={audits.length} hint="Recorded so far" tone="violet" />
         <Stat label="In Progress" value={audits.filter((a) => a.status === "IN_PROGRESS").length} hint="Still being completed" tone="amber" />
-        <Stat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Across scored audits" tone="green" />
+        <Stat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Fully answered audits only" tone="green" />
         <Stat label="Findings" value={audits.reduce((n, a) => n + a._count.findings, 0)} hint="Raised by audits" tone="rose" href="/actions" />
       </StatRow>
       <div className="grid gap-3 lg:grid-cols-3">
@@ -39,7 +39,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
               <thead><tr><th>Audit</th><th>Branch</th><th>Status</th><th>Score</th><th>Findings</th><th>Started</th></tr></thead>
               <tbody>
                 {audits.map((a) => {
-                  const score = auditScore(a.answers);
+                  const score = auditScore(a.answers, a.template._count.questions);
                   return (
                     <tr key={a.id}>
                       <td><Link href={`/audits/${a.id}`}>{a.title}</Link>{a.isDemo ? <span className="ml-2"><Badge tone="violet">Demo</Badge></span> : null}<div className="text-[12.5px] text-slate-600">{a.template.title}</div></td>

@@ -2,7 +2,7 @@
 import Link from "@/components/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CaretDown, List, SignOut, Swap, X } from "@phosphor-icons/react";
+import { CaretDown, List, MapPin, SignOut, Swap, X } from "@phosphor-icons/react";
 import { portalForPath, type Portal } from "@/lib/portals";
 import { mostSpecificActive, splitHref } from "@/lib/navigation";
 import { MOTION } from "@/lib/motion";
@@ -28,7 +28,7 @@ const rank = (id: string) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.len
  * module lights up and its pages open, while the content area keeps the old page until the new one arrives.
  * aria-current stays on the page actually shown, so assistive technology is never told about a page that has not loaded.
  */
-function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>> }) {
+function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: Partial<Record<string, ShellItem[]>>; branch: string | null }) {
   const path = usePathname();
   const params = useSearchParams();
   const pendingHref = usePendingHref();
@@ -70,9 +70,8 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
           return (
             <li key={p.id}>
               <PortalAnchor portal={p} current={p.id === shownId && path === p.home} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
-                <span aria-hidden="true" className="shell-portal-marker absolute bottom-[10px] left-0 top-[10px] w-[3px] rounded-full" style={{ background: p.colour, opacity: current ? 0 : 1 }} />
                 <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
-                <span className={`min-w-0 truncate ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
+                <span className={`min-w-0 leading-[17px] ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
                 {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
               </PortalAnchor>
               {pages.length ? (
@@ -86,6 +85,14 @@ function PortalNav({ portals, items }: { portals: ShellPortal[]; items: Partial<
           );
         })}
       </ul>
+      {branch ? (
+        <div className="mt-[14px] border-t border-white/[0.1] px-[6px] pt-[12px]">
+          <p className="text-[12.5px] text-white/60">Workspace</p>
+          <p className="mt-[8px] flex items-center gap-[10px] px-[4px] text-[13px] text-white" title="Your branch">
+            <MapPin size={18} aria-hidden="true" className="shrink-0" /><span className="sr-only">Your branch: </span><span className="truncate">{branch}</span>
+          </p>
+        </div>
+      ) : null}
     </nav>
   );
 }
@@ -188,9 +195,9 @@ function SidebarBody({ portals, items, org, person, switchAction, signOutAction,
     <>
       <div className="shrink-0 px-[18px] pb-5 pt-[18px]">
         <Link href="/overview" aria-label="CSB All in One Platform home" className="block w-fit no-underline">{logo}</Link>
-        <p className="mt-2 text-[14px] leading-tight text-white">Care Solution Bureau CIC</p>
+        <p className="mt-2.5 whitespace-nowrap text-[14px] leading-tight text-white">Care Solution Bureau CIC</p>
       </div>
-      <PortalNav portals={portals} items={items} />
+      <PortalNav portals={portals} items={items} branch={org?.branch ?? null} />
       <div className="shrink-0 space-y-3 border-t border-white/[0.08] px-3 pb-4 pt-3">
         {org ? <OrganisationCard org={org} switchAction={switchAction} /> : null}
         <div className="flex items-center gap-3 px-1">

@@ -1,0 +1,88 @@
+import Link from "@/components/link";
+import { addDays, fmtLondonDate, fromDbDate, londonTime } from "@/lib/london";
+import { requireRotaPage } from "@/server/auth/portals";
+import { hasOrgPermission } from "@/server/auth/rbac";
+import { orNotFound } from "@/server/auth/page-guard";
+import { getLiveRoute, ROUTE_KIND_LABEL } from "@/server/rota/routes";
+import { suName } from "@/server/rota/queries";
+import { addToRouteAction, moveStopAction, removeFromRouteAction, removeRouteAction } from "@/app/rota-actions";
+import { RouteChip } from "@/components/route-ui";
+import { Card, Empty, Flash, PageHeader } from "@/components/ui";
+import { VisitStatusBadge } from "@/components/rota-ui";
+
+export const dynamic = "force-dynamic";
+
+/** One live run route: each day's stops in the order the carer follows, the gap between them, and visits to add. */
+export default async function LiveRoutePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const ctx = await requireRotaPage("rota.view");
+  const { route, owner, visits, candidates } = await orNotFound(getLiveRoute(ctx, id));
+  const canEdit = hasOrgPermission(ctx, "rota.edit");
+  const back = `/rota/routes/${route.id}`;
+  const week = fromDbDate(route.weekStart);
+  const days = [...new Set(visits.map((v) => fromDbDate(v.date)))];
+
+  return (
+    <>
+      <PageHeader title={route.name} back="/rota/routes" subtitle={`${ROUTE_KIND_LABEL[route.kind]}${owner ? ` · ${owner}` : ""} · week of ${fmtLondonDate(week)} to ${fmtLondonDate(addDays(week, 6))}`} actions={<RouteChip name={route.name} colour={route.colour} textColour={route.textColour} />} />
+      <Flash searchParams={sp} />
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-3">
+          {days.length ? days.map((d) => {
+            const list = visits.filter((v) => fromDbDate(v.date) === d);
+            return (
+              <Card key={d} title={fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })}>
+                <ol className="rows">
+                  {list.map((v, i) => {
+                    const prev = list[i - 1];
+                    const gap = prev ? Math.round((v.scheduledStart.getTime() - prev.scheduledEnd.getTime()) / 60000) : null;
+                    return (
+                      <li key={v.id} className="py-2 text-[14px]">
+                        {gap !== null ? <p className={`mb-1 text-[12.5px] ${gap < 0 ? "font-medium text-[#a3242c]" : "text-slate-500"}`}>{gap < 0 ? `Overlaps the stop before by ${-gap} minutes` : `${gap} minutes after the stop before (travel time not worked out)`}</p> : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="w-6 text-right font-semibold tabular-nums">{i + 1}.</span>
+                          <Link href={`/rota/visits/${v.id}`} className="font-medium">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)} {suName(v.serviceUser)}</Link>
+                          <span className="text-slate-600">{v.serviceUser.postcode ?? ""} · {v.callType.name} · {v.assignments.map((a) => a.staff.displayName).join(", ") || "unassigned"}</span>
+                          <VisitStatusBadge status={v.status} />
+                          {canEdit ? (
+                            <span className="ml-auto flex gap-1">
+                              <form action={moveStopAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button name="dir" value="up" className="btn-secondary px-2 py-0.5" aria-label={`Move ${suName(v.serviceUser)} earlier`} disabled={i === 0}>↑</button></form>
+                              <form action={moveStopAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button name="dir" value="down" className="btn-secondary px-2 py-0.5" aria-label={`Move ${suName(v.serviceUser)} later`} disabled={i === list.length - 1}>↓</button></form>
+                              <form action={removeFromRouteAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} /><button className="btn-secondary px-2 py-0.5">Remove</button></form>
+                            </span>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </Card>
+            );
+          }) : <Card><Empty>No visits on this route yet.</Empty></Card>}
+        </div>
+        {canEdit ? (
+          <aside className="space-y-3">
+            <Card title="Add visits">
+              {candidates.length ? (
+                <form action={addToRouteAction} className="space-y-2">
+                  <input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} />
+                  <ul className="max-h-[420px] space-y-1 overflow-y-auto text-[13.5px]">
+                    {candidates.map((v) => <li key={v.id}><label className="flex items-center gap-2"><input type="checkbox" name="ids" value={v.id} />{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric" })} {londonTime(v.scheduledStart)} {suName(v.serviceUser)}</label></li>)}
+                  </ul>
+                  <button className="btn-primary">Add to route</button>
+                </form>
+              ) : <Empty>{route.staffId ? "No other visits for this carer that week." : "No unrouted visits in this area that week."}</Empty>}
+            </Card>
+            <Card title="Remove route">
+              <form action={removeRouteAction} className="space-y-2">
+                <input type="hidden" name="back" value="/rota/routes" /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} />
+                <p className="text-[13.5px] text-slate-600">The visits stay on the rota with their carers; only the route goes.</p>
+                <button className="btn-danger">Remove this route</button>
+              </form>
+            </Card>
+          </aside>
+        ) : null}
+      </div>
+    </>
+  );
+}

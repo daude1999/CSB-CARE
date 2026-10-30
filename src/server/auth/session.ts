@@ -20,7 +20,7 @@ export async function isRateLimited(key: string): Promise<boolean> {
 export async function login(email: string, password: string, meta: { ip?: string; userAgent?: string } = {}) {
   const key = email.trim().toLowerCase();
   if (await isRateLimited(key)) throw new AppError("Too many failed attempts. Try again in 15 minutes.", "RATE_LIMITED", 429);
-  const user = await db.user.findUnique({ where: { email: key }, include: { memberships: true } });
+  const user = await db.user.findUnique({ where: { email: key }, include: { memberships: { where: { deactivatedAt: null } } } });
   const ok = user && !user.deactivatedAt ? await verifyPassword(password, user.passwordHash) : await verifyPassword(password, null);
   await db.loginAttempt.create({ data: { key, success: Boolean(ok) } });
   if (!user || !ok) throw new AppError("Invalid email or password", "INVALID_CREDENTIALS", 401);
@@ -48,7 +48,7 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
   if (!token) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: sha256(token) },
-    include: { user: { include: { memberships: true } } },
+    include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } } },
   });
   if (!session || session.expiresAt < new Date() || session.user.deactivatedAt) return null;
   if (Date.now() - session.lastSeenAt.getTime() > 5 * 60 * 1000) {
@@ -64,6 +64,7 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
     userName: session.user.name,
     organisationId: membership?.organisationId ?? null,
     branchId: membership?.branchId ?? null,
+    branchIds: membership?.branches.length ? membership.branches.map((b) => b.branchId) : null,
     orgRoles: membership?.roles ?? [],
     platformRoles: session.user.platformRoles.filter((r) => r !== "NONE"),
     hrUserId: membership?.hrUserId ?? null,
@@ -71,7 +72,7 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
 }
 
 export async function switchOrganisation(token: string, organisationId: string) {
-  const session = await db.session.findUnique({ where: { tokenHash: sha256(token) }, include: { user: { include: { memberships: true } } } });
+  const session = await db.session.findUnique({ where: { tokenHash: sha256(token) }, include: { user: { include: { memberships: { where: { deactivatedAt: null } } } } } });
   if (!session) throw new AppError("Not signed in", "UNAUTHENTICATED", 401);
   if (!session.user.memberships.some((m) => m.organisationId === organisationId))
     throw new AppError("You are not a member of that organisation", "FORBIDDEN", 403);
@@ -80,7 +81,7 @@ export async function switchOrganisation(token: string, organisationId: string) 
 
 /** Builds a context directly for a user (used by workers and tests). */
 export async function ctxForUser(userId: string, organisationId?: string | null): Promise<Ctx> {
-  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { memberships: true } });
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } });
   const m = organisationId === null ? undefined : user.memberships.find((x) => x.organisationId === organisationId) ?? (organisationId ? undefined : user.memberships[0]);
   if (organisationId && !m) throw new AppError("Not a member of organisation", "FORBIDDEN", 403);
   return {
@@ -88,6 +89,7 @@ export async function ctxForUser(userId: string, organisationId?: string | null)
     userName: user.name,
     organisationId: m?.organisationId ?? null,
     branchId: m?.branchId ?? null,
+    branchIds: m?.branches.length ? m.branches.map((b) => b.branchId) : null,
     orgRoles: m?.roles ?? [],
     platformRoles: user.platformRoles.filter((r) => r !== "NONE"),
     hrUserId: m?.hrUserId ?? null,

@@ -1,3 +1,4 @@
+import { ackBucket } from "./assignment";
 import "server-only";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -383,7 +384,8 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
   const approvals = published?.approvals.filter((a) => a.decision === "APPROVE") ?? [];
   const open = p.revisions.find((r) => !r.closedAt) ?? null;
   const history = p.versions.filter((x) => x.status === "PUBLISHED" || x.status === "SUPERSEDED");
-  const latestPub = p.publications.find((x) => x.status === "PUBLISHED") ?? null;
+  // Staff acknowledge the latest material publication; a wording-only update keeps the earlier acknowledgements.
+  const latestPub = p.publications.find((x) => x.status === "PUBLISHED" && x.materialRevision) ?? p.publications.find((x) => x.status === "PUBLISHED") ?? null;
   const canSeeCoverage = Boolean(p.organisationId) && hasOrgPermission(ctx, "staff.view");
   const ownAck = latestPub?.acknowledgements.find((a) => a.userId === ctx.userId) ?? null;
   const acks = canSeeCoverage ? (latestPub?.acknowledgements ?? []) : [];
@@ -420,8 +422,8 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
   const person = new Map(people.map((u) => [u.id, u.name]));
   const area = AREA_OF.get(p.categoryCode) ?? null;
   const status = policyStatus({ currentPublishedVersion: v ? { approved: approvals.length > 0 } : null, openRevision: open, nextReviewDate: p.nextReviewDate }, now);
-  const signed = acks.filter((a) => a.acknowledgedAt).length;
-  const overdueAcks = acks.filter((a) => !a.acknowledgedAt && a.dueAt && a.dueAt < now).length;
+  const signed = acks.filter((a) => ackBucket(a, now).bucket === "acknowledged").length;
+  const overdueAcks = acks.filter((a) => ackBucket(a, now).overdue).length;
 
   return {
     policy: p,
@@ -448,10 +450,10 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
             ? {
                 assigned: acks.length,
                 signed,
-                outstanding: acks.length - signed,
+                outstanding: acks.filter((a) => ackBucket(a, now).outstanding).length,
                 overdue: overdueAcks,
                 people: acks
-                  .map((a) => ({ name: person.get(a.userId) ?? "A former member", acknowledgedAt: a.acknowledgedAt, dueAt: a.dueAt }))
+                  .map((a) => ({ name: (a.userId ? person.get(a.userId) : null) ?? a.staffMember?.displayName ?? "A former member", acknowledgedAt: a.acknowledgedAt, dueAt: a.dueAt }))
                   .sort((a, b) => Number(Boolean(a.acknowledgedAt)) - Number(Boolean(b.acknowledgedAt)) || a.name.localeCompare(b.name)),
               }
             : null,

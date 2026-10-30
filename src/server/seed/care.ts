@@ -11,7 +11,7 @@ import { PLAN_SECTIONS, approvePlan, draftFingerprint, saveDraft, startDraft, su
 import { createRisk } from "@/server/care/risks";
 import { closeIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { addBand, addBankHoliday, createRateCard, saveFunder, setPackageFunder, updateFinanceSettings } from "@/server/finance/rates";
-import { bulkTimesheets, generateTimesheets } from "@/server/finance/timesheets";
+import { bulkTimesheets, generateTimesheets, verifyLines } from "@/server/finance/timesheets";
 import { prepareInvoiceRun, preparePayRun } from "@/server/finance/runs";
 import type { Ctx } from "@/server/auth/rbac";
 import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
@@ -215,7 +215,7 @@ async function seedCareRecords(organisationId: string, coordinator: Ctx, manager
     personal_care: (n) => `${n} washes their face and hands; carers support with a full wash at the basin and with dressing the lower half. Check skin on heels and lower back and report any redness.`,
     mobility: (n) => `${n} walks indoors with a frame. Stay close on the stairs and when standing from the chair. Follow the moving and handling risk assessment.`,
     nutrition: (n) => `${n} likes porridge for breakfast and a hot lunch. Offer a drink at every visit and leave one within reach. No known allergies.`,
-    medication: (n) => `Prompt ${n} to take medicines from the pharmacy blister pack and record on the paper MAR chart. Carers do not administer. eMAR is not in use.`,
+    medication: (n) => `Prompt ${n} to take medicines from the pharmacy blister pack and record each dose (on the paper MAR chart until medication records are switched on). Carers do not administer.`,
     health: (n) => `${n} has arthritis and high blood pressure. If ${n} seems confused, unusually drowsy or has a fall, call the office and, if needed, 111 or 999.`,
     home: () => "Lights and heating are on a timer. Lock the back door when leaving. In an emergency, the office holds the next of kin details.",
     outcomes: (n) => `${n} wants to stay at home, keep walking to the kitchen independently and see friends at the community lunch on Thursdays.`,
@@ -313,6 +313,10 @@ async function seedFinance(organisationId: string, coordinator: Ctx, manager: Ct
   // Last week: timesheets prepared and submitted by the coordinator, approved by finance; draft runs prepared by finance.
   const lastWeek = addDays(mondayOf(today), -7);
   await generateTimesheets(coordinator, lastWeek);
+  // The office checks every line with an exception before submitting, as a coordinator would after phoning round.
+  for (const t of await db.timesheet.findMany({ where: { organisationId, periodStart: dbDate(lastWeek), status: "DRAFT", exceptions: { gt: 0 } } })) {
+    await verifyLines(coordinator, t.id, t.version, "exceptions", "Checked against the office call log");
+  }
   await bulkTimesheets(coordinator, lastWeek, "submit");
   if (financeUserId) {
     const finance = await ctxForUser(financeUserId, organisationId);

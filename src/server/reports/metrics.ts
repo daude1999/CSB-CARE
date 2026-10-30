@@ -1,3 +1,4 @@
+import { outstandingAckWhere } from "@/server/policies/assignment";
 import { db } from "@/lib/db";
 import type { Ctx } from "../auth/rbac";
 import { freshness } from "../sources/engine";
@@ -20,8 +21,8 @@ export async function dashboardMetrics(ctx: Ctx) {
     db.policyRevision.count({ where: { ...orgScope, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } } }),
     db.policyPublication.count({ where: { ...orgScope, status: "PUBLISHED", publishedAt: { gte: monthStart } } }),
     db.policy.count({ where: { ...orgScope, status: "ACTIVE", nextReviewDate: { lt: now } } }),
-    orgId ? db.acknowledgement.count({ where: { organisationId: orgId, acknowledgedAt: null } }) : 0,
-    orgId ? db.acknowledgement.count({ where: { organisationId: orgId, acknowledgedAt: null, dueAt: { lt: now } } }) : 0,
+    orgId ? db.acknowledgement.count({ where: { organisationId: orgId, ...outstandingAckWhere } }) : 0,
+    orgId ? db.acknowledgement.count({ where: { organisationId: orgId, ...outstandingAckWhere, dueAt: { lt: now } } }) : 0,
     orgId ? db.complianceAction.count({ where: { organisationId: orgId, status: { in: ["OPEN", "IN_PROGRESS"] }, dueDate: { lt: now } } }) : 0,
   ]);
   return {

@@ -22,6 +22,8 @@ export async function saveArea(ctx: Ctx, input: { id?: string; name: string; col
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the area");
   return db.$transaction(async (tx) => {
     if (r.data.branchId && !(await tx.branch.findFirst({ where: { id: r.data.branchId, organisationId } }))) throw new NotFoundError("Branch");
+    // Areas belong to branches; branch access is worked out from them, so an area cannot float free once branches exist.
+    if (!r.data.branchId && (await tx.branch.count({ where: { organisationId } })) > 0) throw new ValidationError("Choose the branch this area belongs to");
     if (input.id) {
       if (!(await tx.area.findFirst({ where: { id: input.id, organisationId } }))) throw new NotFoundError("Area");
       await unique(tx.area.update({ where: { id: input.id }, data: r.data }), "An area");

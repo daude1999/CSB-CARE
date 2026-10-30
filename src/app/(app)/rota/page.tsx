@@ -86,7 +86,11 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         <CallBox href={`/rota/visits?${q({ status: "COMPLETED" })}`} colour="#13703c" icon={<Check {...iconProps} />} label="Complete calls" value={c.complete} note={`${pct(c.complete, c.total)} of ${c.total} visits`} />
         <CallBox href={`/rota/visits?${q({ view: "late" })}`} colour="#a85b0a" icon={<Clock {...iconProps} />} label="Late calls" value={c.late} note={`${pct(c.late, c.total)} · ${c.lateAfterMin} minutes or more late`} />
         <CallBox href={`/rota/visits?${q({ status: "MISSED" })}`} colour="#b42a23" icon={<X {...iconProps} />} label="Missed calls" value={c.missed} note={`${pct(c.missed, c.total)} not clocked into`} />
-        <CallBox href={null} colour="#4b5a6b" icon={<FirstAidKit {...iconProps} />} label="Calls with missed meds" value={<span className="text-[17px] font-medium">Not in use yet</span>} note="eMAR is not built, so no figure is shown" />
+        {d.calls.missedMeds === null ? (
+          <CallBox href={null} colour="#4b5a6b" icon={<FirstAidKit {...iconProps} />} label="Calls with missed meds" value={<span className="text-[17px] font-medium">Switched off</span>} note="Medication records are switched off in Rota Settings" />
+        ) : (
+          <CallBox href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" colour="#4b5a6b" icon={<FirstAidKit {...iconProps} />} label="Calls with missed meds" value={d.calls.missedMeds} note={`${pct(d.calls.missedMeds, c.total)} with a dose not recorded`} />
+        )}
       </section>
 
       <section aria-label="People and reminders" className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-3">
@@ -150,7 +154,7 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         <Counter href={`/rota/visits?${q({ view: "review" })}`} label="Rota Conflicts" value={d.counters.rotaConflicts} note="Visits on this date with an allocation to review" />
         <Counter href="/rota/templates/planner" label="Template Conflicts" value={d.counters.templateConflicts} note="Template slots with no carer, or a carer who has left" />
         <Counter href="/workforce/absences" label="Holidays Due" value={d.counters.holidaysDue} note="Approved absences starting in the next 14 days" />
-        <Counter href={`/rota/visits?${q({})}`} label="Visit Notes" value={d.counters.notes} note="Notes carers wrote on this date" />
+        <Counter href={`/rota/notes?from=${date}&to=${date}`} label="Visit Notes" value={d.counters.notes} note="Notes carers wrote on this date" />
       </section>
     </>
   );

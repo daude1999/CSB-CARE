@@ -8,13 +8,19 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
+import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
+import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
+import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
+import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
+import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
+import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
 import { addBand, addBankHoliday, createRateCard, removeBand, removeBankHoliday, saveFunder, setPackageFunder, setStaffPayCard, updateFinanceSettings } from "@/server/finance/rates";
-import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet } from "@/server/finance/timesheets";
+import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet, verifyLines } from "@/server/finance/timesheets";
 import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
@@ -703,4 +709,127 @@ export async function approveRunAction(fd: FormData) {
 
 export async function voidRunAction(fd: FormData) {
   return handle(fd, (ctx) => voidRun(ctx, str(fd, "kind") === "invoice" ? "invoice" : "pay", str(fd, "runId"), str(fd, "reason")), "Run voided");
+}
+
+// ── Exceptions register ───────────────────────────────────────────────────
+
+export async function assignExceptionOwnerAction(fd: FormData) {
+  return handle(fd, (ctx) => assignExceptionOwner(ctx, str(fd, "alertId"), str(fd, "ownerId")), "Owner assigned");
+}
+
+export async function escalateExceptionAction(fd: FormData) {
+  return handle(fd, (ctx) => escalateException(ctx, str(fd, "alertId"), str(fd, "note")), "Escalated to the care managers");
+}
+
+export async function resolveExceptionAction(fd: FormData) {
+  return handle(fd, (ctx) => resolveException(ctx, str(fd, "alertId"), { resolution: str(fd, "resolution"), evidenceNote: str(fd, "evidenceNote") || undefined }), "Exception resolved");
+}
+
+// ── Visit tasks and notes ─────────────────────────────────────────────────
+
+/** Task outcomes arrive as outcome_<taskId> and note_<taskId>; tasks left blank are not recorded. */
+export async function recordTasksMineAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const rows: { visitTaskId: string; outcome: "DONE" | "NOT_DONE" | "REFUSED"; note?: string }[] = [];
+    for (const [k, val] of fd.entries()) {
+      if (!k.startsWith("outcome_") || typeof val !== "string" || !val) continue;
+      if (val !== "DONE" && val !== "NOT_DONE" && val !== "REFUSED") throw new ValidationError("Choose done, not done or refused");
+      const id = k.slice("outcome_".length);
+      rows.push({ visitTaskId: id, outcome: val, note: str(fd, `note_${id}`) || undefined });
+    }
+    const r = await recordTaskOutcomes(ctx, str(fd, "visitId"), rows);
+    return { ok: `${r.recorded} task${r.recorded === 1 ? "" : "s"} recorded` };
+  }, "Tasks recorded");
+}
+
+export async function addVisitNoteAction(fd: FormData) {
+  const category = str(fd, "category");
+  return handle(fd, async (ctx) => {
+    await addVisitNote(ctx, str(fd, "visitId"), { text: str(fd, "text"), category: category === "HANDOVER" || category === "CONCERN" ? category : "GENERAL" });
+  }, "Note added");
+}
+
+// ── Care packages ─────────────────────────────────────────────────────────
+
+function packageInput(fd: FormData): PackageInput {
+  return { reference: str(fd, "reference"), commissionedMinutesPerWeek: str(fd, "hoursPerWeek") ? Math.round(Number(str(fd, "hoursPerWeek")) * 60) : null, startDate: str(fd, "startDate"), endDate: str(fd, "endDate") || undefined, requirements: str(fd, "requirements"), funderId: fd.has("funderId") ? str(fd, "funderId") || undefined : undefined };
+}
+
+export async function createPackageAction(fd: FormData) {
+  return handle(fd, async (ctx) => { await createPackage(ctx, str(fd, "serviceUserId"), packageInput(fd)); }, "Care package recorded");
+}
+
+export async function updatePackageAction(fd: FormData) {
+  return handle(fd, async (ctx) => { await updatePackage(ctx, str(fd, "packageId"), packageInput(fd)); }, "Care package updated");
+}
+
+export async function endPackageAction(fd: FormData) {
+  return handle(fd, (ctx) => endPackage(ctx, str(fd, "packageId"), { endDate: str(fd, "endDate"), reason: str(fd, "reason") }), "Care package ended");
+}
+
+// ── Attendance verification ───────────────────────────────────────────────
+
+export async function requestClockCorrectionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await requestClockCorrection(ctx, str(fd, "visitId"), { kind: str(fd, "kind") === "OUT" ? "OUT" : "IN", date: str(fd, "date"), time: str(fd, "time"), reason: str(fd, "reason") });
+  }, "Request sent to the office");
+}
+
+export async function decideClockCorrectionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await decideClockCorrection(ctx, str(fd, "requestId"), str(fd, "decision") === "APPROVED" ? "APPROVED" : "REJECTED", str(fd, "note"));
+  }, "Decision recorded");
+}
+
+export async function verifyLinesAction(fd: FormData) {
+  const ids = fd.getAll("lineId").filter((x): x is string => typeof x === "string" && !!x);
+  return handle(fd, async (ctx) => {
+    const n = await verifyLines(ctx, str(fd, "timesheetId"), Number(str(fd, "version")), ids.length ? ids : "exceptions", str(fd, "note"));
+    return { ok: `${n} line${n === 1 ? "" : "s"} checked` };
+  }, "Lines checked");
+}
+
+// ── Run routes ────────────────────────────────────────────────────────────
+
+const routeInput = (fd: FormData): RouteInput => ({ name: str(fd, "name"), kind: str(fd, "kind") === "AREA" ? "AREA" : "CARER", staffId: str(fd, "staffId") || undefined, areaId: str(fd, "areaId") || undefined, weekStart: str(fd, "weekStart") || undefined, colour: str(fd, "colour"), textColour: str(fd, "textColour") });
+const routeKind = (fd: FormData) => (str(fd, "kind") === "TEMPLATE" ? "TEMPLATE" : "LIVE");
+
+export async function createLiveRouteAction(fd: FormData) {
+  return handle(fd, async (ctx) => `/rota/routes/${(await createLiveRoute(ctx, routeInput(fd))).id}`, "Run route added");
+}
+
+export async function createTemplateRouteAction(fd: FormData) {
+  return handle(fd, async (ctx) => `/rota/routes/templates/${(await createTemplateRoute(ctx, routeInput(fd))).id}`, "Template run route added");
+}
+
+export async function addToRouteAction(fd: FormData) {
+  const ids = fd.getAll("ids").filter((x): x is string => typeof x === "string" && !!x);
+  return handle(fd, async (ctx) => {
+    const n = await addToRoute(ctx, routeKind(fd), str(fd, "routeId"), ids);
+    return { ok: `${n} added to the route` };
+  }, "Added to the route");
+}
+
+export async function removeFromRouteAction(fd: FormData) {
+  return handle(fd, (ctx) => removeFromRoute(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id")), "Taken off the route");
+}
+
+export async function moveStopAction(fd: FormData) {
+  return handle(fd, (ctx) => moveStop(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id"), str(fd, "dir") === "up" ? "up" : "down"), "Order changed");
+}
+
+export async function removeRouteAction(fd: FormData) {
+  return handle(fd, (ctx) => removeRoute(ctx, routeKind(fd), str(fd, "routeId")), routeKind(fd) === "LIVE" ? "Run route removed" : "Template run route switched off");
+}
+
+// ── Mileage ───────────────────────────────────────────────────────────────
+
+export async function submitMileageAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await submitMyMileage(ctx, { date: str(fd, "date"), miles: Number(str(fd, "miles")), visitId: str(fd, "visitId") || undefined, reason: str(fd, "reason") });
+  }, "Mileage claim sent");
+}
+
+export async function decideMileageAction(fd: FormData) {
+  return handle(fd, (ctx) => decideMileage(ctx, str(fd, "claimId"), str(fd, "decision") === "APPROVED" ? "APPROVED" : "REJECTED", str(fd, "note")), "Decision recorded");
 }

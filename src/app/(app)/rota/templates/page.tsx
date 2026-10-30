@@ -182,7 +182,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                       <td>{t.callType.name}</td>
                       <td className="text-center">{t.timeLocked ? <span title="Time locked"><LockSimple size={15} aria-hidden /><span className="sr-only">Time locked</span></span> : ""}</td>
                       <td className="text-center">{t.alertOnLate ? <span title="Alert when late" className="text-slate-500"><Bell size={15} weight="fill" aria-hidden /><span className="sr-only">Alert when late</span></span> : ""}</td>
-                      <td className="text-center">{t.medicationRequired ? <span title="Medication prompt (not eMAR)"><Pill size={15} aria-hidden /><span className="sr-only">Medication prompt</span></span> : ""}</td>
+                      <td className="text-center">{t.medicationRequired ? <span title="Medication due on this visit"><Pill size={15} aria-hidden /><span className="sr-only">Medication prompt</span></span> : ""}</td>
                       <td className="text-center">{t._count.tasks ? <span title={`${t._count.tasks} tasks`} className="text-slate-600"><ListChecks size={15} aria-hidden className="inline" /><span className="sr-only">{t._count.tasks} tasks</span></span> : ""}</td>
                       <td>{t.cycleWeeks.length === settings.cycleLength ? "All" : t.cycleWeeks.join(", ")}</td>
                     </tr>

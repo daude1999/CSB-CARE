@@ -14,8 +14,8 @@ type Frame = "bare" | "wide" | "canvas";
 const frameFor = (path: string): Frame => (path === "/policies" || path === "/overview" ? "bare" : path === "/" ? "wide" : "canvas");
 const FRAME_CLASS: Record<Frame, string> = {
   bare: "w-full min-w-0 flex-1",
-  wide: "w-full flex-1 bg-white px-4 pb-4 pt-3",
-  canvas: "w-full flex-1 bg-white px-4 pb-4 pt-3",
+  wide: "w-full min-w-0 flex-1 bg-white px-4 pb-4 pt-3",
+  canvas: "w-full min-w-0 flex-1 bg-white px-4 pb-4 pt-3",
 };
 
 /**

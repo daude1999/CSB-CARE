@@ -12,8 +12,9 @@ export const MODULES: Module[] = [
   {
     slug: "learning",
     name: "E-Learning & Training Tracking",
-    summary: "Short online courses for care staff, with certificates and a live training matrix that shows who is due a refresher.",
-    features: ["Courses mapped to the Care Certificate standards", "Automatic reminders before training expires", "Training matrix by person, team and service", "Certificates stored against each staff record"],
+    summary: "Training records for care staff, checked by a second person, with a readiness matrix that shows who is due a refresher. Online courses are not built yet.",
+    features: ["Training and competency records with second-person verification", "Expiry dates that move staff to \"not ready\" automatically", "Readiness matrix by requirement, role and branch", "Online courses and certificates: not built yet"],
+    opens: [{ href: "/rota/readiness", label: "Staff readiness" }, { href: "/admin/readiness", label: "Readiness matrix" }],
   },
   {
     slug: "hr-advice",
@@ -24,8 +25,9 @@ export const MODULES: Module[] = [
   {
     slug: "care-plans",
     name: "Risk Assessments & Care Plan Builder",
-    summary: "Build person-centred care plans and risk assessments from guided questions, linked to the policies they rely on.",
-    features: ["Guided assessment that writes the first draft", "Risk scores that prompt the right assessments", "Review dates and change history for each plan", "Print or share a plan with the person and family"],
+    summary: "Versioned care plans and risk assessments for each person, approved by a second person and confirmed by carers. Guided drafting is not built yet.",
+    features: ["Care plans with sections, versions and second-person approval", "Risk register with review dates and history", "Carers confirm they have read the current plan", "Guided first drafts and sharing with families: not built yet"],
+    opens: [{ href: "/rota/care-plans", label: "Care plans" }, { href: "/rota/risks", label: "Risk assessments" }],
   },
   {
     slug: "read-tracking",
@@ -37,8 +39,9 @@ export const MODULES: Module[] = [
   {
     slug: "rotas",
     name: "Rotas & Scheduling",
-    summary: "Plan shifts and home care visits around people's needs and staff skills, and spot gaps before they happen.",
-    features: ["Drag-and-drop rota with skills matching", "Visit scheduling with travel time", "Gaps and overtime highlighted", "Staff see their rota on their phone"],
+    summary: "Plan home care visits around people's needs and staff readiness, monitor calls live and prepare timesheets and invoices.",
+    features: ["Templates, Build Rota and a drag-and-drop planner with eligibility checks", "Live call monitoring and an exceptions register", "Carers clock in, record tasks and write notes on their phone", "Travel time and route optimisation: not built yet"],
+    opens: [{ href: "/rota", label: "Rota dashboard" }, { href: "/rota/visits", label: "Daily visits" }, { href: "/rota/monitor", label: "The Monitor" }],
   },
   {
     slug: "mock-inspections",

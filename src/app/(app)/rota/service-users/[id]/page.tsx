@@ -6,8 +6,11 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/service-users";
+import { packageCoverage } from "@/server/care/packages";
+import { listMedications, medicationEnabled } from "@/server/care/medication";
+import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
-import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction } from "@/app/rota-actions";
+import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { ServiceUserForm } from "@/components/service-user-form";
@@ -15,7 +18,7 @@ import { ServiceUserForm } from "@/components/service-user-form";
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["visits", "Visits"], ["people", "Contacts & carers"], ["details", "Details"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["history", "History"]] as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -37,17 +40,19 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     }
   }
   const today = londonDate();
-  const [lk, visits, history] = await Promise.all([
+  const canFund = hasOrgPermission(ctx, "finance.manage");
+  const [lk, visits, history, coverage, funders] = await Promise.all([
     rotaLookups(ctx),
     tab === "visits" || tab === "overview"
       ? db.visit.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, date: { gte: dbDate(addDays(today, tab === "visits" ? -14 : 0)), lte: dbDate(addDays(today, tab === "visits" ? 14 : 2)) } }, orderBy: { scheduledStart: "asc" }, include: { callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, reviewReason: true, staff: { select: { id: true, displayName: true } } } } } })
       : Promise.resolve([]),
     tab === "history" ? db.auditLog.findMany({ where: { organisationId: su.organisationId, entityType: "ServiceUser", entityId: su.id }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
+    tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
+    tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
-  const mins = su.packages.filter((p) => p.status === "ACTIVE").reduce((n, p) => n + (p.commissionedMinutesPerWeek ?? 0), 0);
-  const plannedMins = su.templates.reduce((n, t) => n + t.durationMin * t.carersRequired * t.weekdays.length, 0);
+  const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
 
   return (
     <>
@@ -75,7 +80,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
               {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
               {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
-              <p className="mt-3 text-[12.5px] text-slate-500">Care plans and risk assessments are planned and not built yet.</p>
+              <p className="mt-3 text-[12.5px] text-slate-500"><Link href={`/rota/care-plans/${su.id}`}>Care plan</Link> · <Link href={`/rota/risks?su=${su.id}`}>Risk assessments</Link></p>
             </Card>
             <Card title="Next visits" actions={<Link href={`${base}?tab=visits`} className="btn-secondary py-1">All visits</Link>}>
               {visits.length ? (
@@ -110,19 +115,15 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             </Card>
           </div>
           <div className="space-y-3">
-            <Card title="Package">
-              {su.packages.length ? (
-                <ul className="space-y-2 text-[14px]">
-                  {su.packages.map((p) => (
-                    <li key={p.id}>
-                      <div className="font-medium">{p.reference ?? "Package"} {p.status === "ACTIVE" ? <Badge tone="green">Active</Badge> : <Badge>Ended</Badge>}</div>
-                      <div className="text-slate-600">{p.commissionedMinutesPerWeek ? `${(p.commissionedMinutesPerWeek / 60).toFixed(1)} commissioned hours a week` : "Hours not recorded"} · from {fmtDate(p.startDate)}{p.funder ? ` · ${p.funder.name}` : ""}</div>
-                      {p.requirements ? <div className="text-slate-600">{p.requirements}</div> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : <Empty>No care package recorded.</Empty>}
-              {mins ? <p className={`mt-3 text-[13.5px] ${Math.abs(plannedMins - mins) > 60 ? "text-[#8a5a00]" : "text-slate-600"}`}>Repeating visits plan about {(plannedMins / 60).toFixed(1)} carer hours a week against {(mins / 60).toFixed(1)} commissioned (all cycle weeks counted alike).</p> : null}
+            <Card title="Care package" actions={<Link href={`${base}?tab=package`} className="btn-secondary py-1">{canEdit ? "Manage" : "History"}</Link>}>
+              {active ? (
+                <div className="text-[14px]">
+                  <div className="font-medium">{active.reference ?? "Package"} <Badge tone="green">Active</Badge></div>
+                  <div className="text-slate-600">{active.commissionedMinutesPerWeek !== null ? `${hours(active.commissionedMinutesPerWeek)} commissioned hours a week` : "Hours not recorded"} · from {fmtDate(active.startDate)}{active.endDate ? ` to ${fmtDate(active.endDate)}` : ""}{active.funder ? ` · ${active.funder.name}` : " · no funder linked"}</div>
+                  {active.requirements ? <div className="text-slate-600">{active.requirements}</div> : null}
+                </div>
+              ) : <Empty>No active care package.</Empty>}
+              {coverage ? <Coverage c={coverage} /> : null}
             </Card>
             <Card title="Getting in">
               <p className="text-[14px]">{su.accessNotes ?? "No access notes."}</p>
@@ -183,6 +184,58 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               </Card>
             ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {tab === "medication" ? (
+        !hasOrgPermission(ctx, "medication.view") ? <Card><Empty>You do not have access to medication records.</Empty></Card>
+        : !(await medicationEnabled(su.organisationId)) ? <MedicationOff />
+        : await (async () => {
+          const meds = await listMedications(ctx, su.id);
+          const medNames = await memberNames(ctx, meds.flatMap((m) => [m.createdById, m.approvedById]));
+          return <MedicationList meds={meds} serviceUserId={su.id} back={back} canManage={hasOrgPermission(ctx, "medication.manage")} me={ctx.userId} names={medNames} month={today.slice(0, 7)} />;
+        })()
+      ) : null}
+
+      {tab === "package" ? (
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <Card title="Packages">
+            {coverage ? <Coverage c={coverage} /> : null}
+            {su.packages.length ? (
+              <ul className="rows mt-2">
+                {su.packages.map((p) => (
+                  <li key={p.id} className="py-3 text-[14px]">
+                    <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{p.reference ?? "Package"}</span>{p.status === "ACTIVE" ? <Badge tone="green">Active</Badge> : <Badge>Ended</Badge>}</div>
+                    <div className="text-slate-600">{p.commissionedMinutesPerWeek !== null ? `${hours(p.commissionedMinutesPerWeek)} hours a week` : "Hours not recorded"} · {fmtDate(p.startDate)} to {p.endDate ? fmtDate(p.endDate) : "open-ended"}{p.funder ? ` · ${p.funder.name}` : " · no funder linked"}</div>
+                    {p.requirements ? <div className="text-slate-600">{p.requirements}</div> : null}
+                    {canEdit && p.status === "ACTIVE" ? (
+                      <div className="mt-2 grid gap-3 lg:grid-cols-2">
+                        <details>
+                          <summary className="btn-secondary inline-block cursor-pointer py-1">Edit</summary>
+                          <PackageForm action={updatePackageAction} hidden={{ packageId: p.id }} back={back} p={p} funders={funders} canFund={canFund} submit="Save changes" />
+                        </details>
+                        <details>
+                          <summary className="btn-secondary inline-block cursor-pointer py-1">End package</summary>
+                          <form action={endPackageAction} className="mt-2 space-y-2">
+                            <input type="hidden" name="back" value={back} /><input type="hidden" name="packageId" value={p.id} />
+                            <label className="block"><span className="label">Last day</span><input type="date" name="endDate" required defaultValue={today} className="input" /></label>
+                            <label className="block"><span className="label">Why it ends</span><input name="reason" required minLength={3} className="input" /></label>
+                            <button className="btn-danger">End package</button>
+                          </form>
+                        </details>
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty>No care package recorded yet.</Empty>}
+          </Card>
+          {canEdit ? (
+            <Card title={active ? "Replace with a new package" : "Record a package"}>
+              {active ? <p className="mb-2 text-[13.5px] text-slate-600">The active package ends the day before the new one starts. Past invoices keep using the package that was in force on each visit date.</p> : null}
+              <PackageForm action={createPackageAction} hidden={{ serviceUserId: su.id }} back={back} funders={funders} canFund={canFund} submit="Record package" today={today} />
+            </Card>
+          ) : null}
         </div>
       ) : null}
 
@@ -297,5 +350,41 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </Card>
       ) : null}
     </>
+  );
+}
+
+const hours = (min: number) => (min / 60).toFixed(1).replace(/\.0$/, "");
+
+/** Commissioned against planned, so a coordinator sees at once when the repeating visits do not match the package. */
+function Coverage({ c }: { c: Awaited<ReturnType<typeof packageCoverage>> }) {
+  if (c.commissioned === null) return <p className="mt-2 text-[13.5px] text-slate-600">Repeating visits plan {hours(c.planned)} hours a week ({hours(c.plannedCarerMinutes)} carer hours). No commissioned hours recorded to compare.</p>;
+  const off = Math.abs(c.difference ?? 0) > 30;
+  return (
+    <p className={`mt-2 text-[13.5px] ${off ? "text-[#8a5a00]" : "text-slate-600"}`}>
+      Repeating visits plan {hours(c.planned)} hours a week against {hours(c.commissioned)} commissioned
+      {c.difference ? ` (${c.difference > 0 ? "over" : "under"} by ${hours(Math.abs(c.difference))} hours)` : " (matches)"}; {hours(c.plannedCarerMinutes)} carer hours with double-ups, averaged over the rota cycle.
+    </p>
+  );
+}
+
+type PackageRow = { reference: string | null; commissionedMinutesPerWeek: number | null; startDate: Date; endDate: Date | null; requirements: string | null; funderId: string | null };
+
+function PackageForm({ action, hidden, back, p, funders, canFund, submit, today }: { action: (fd: FormData) => Promise<void>; hidden: Record<string, string>; back: string; p?: PackageRow; funders: { id: string; name: string }[]; canFund: boolean; submit: string; today?: string }) {
+  return (
+    <form action={action} className="mt-2 space-y-2">
+      <input type="hidden" name="back" value={back} />
+      {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+      <div className="grid grid-cols-2 gap-2">
+        <label><span className="label">Reference</span><input name="reference" defaultValue={p?.reference ?? ""} maxLength={80} className="input" /></label>
+        <label><span className="label">Hours a week</span><input name="hoursPerWeek" type="number" min="0" max="336" step="0.25" defaultValue={p?.commissionedMinutesPerWeek != null ? p.commissionedMinutesPerWeek / 60 : ""} className="input" /></label>
+        <label><span className="label">Starts</span><input name="startDate" type="date" required defaultValue={p ? fromDbDate(p.startDate) : today} className="input" /></label>
+        <label><span className="label">Ends (optional)</span><input name="endDate" type="date" defaultValue={p?.endDate ? fromDbDate(p.endDate) : ""} className="input" /></label>
+      </div>
+      <label className="block"><span className="label">What was commissioned</span><textarea name="requirements" rows={2} maxLength={2000} defaultValue={p?.requirements ?? ""} placeholder="e.g. four calls a day, two carers for hoist transfers" className="input" /></label>
+      {canFund ? (
+        <label className="block"><span className="label">Funder</span><select name="funderId" defaultValue={p?.funderId ?? ""} className="input"><option value="">None yet</option>{funders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
+      ) : <p className="text-[12.5px] text-slate-600">Finance links the funder.</p>}
+      <button className="btn-primary">{submit}</button>
+    </form>
   );
 }
