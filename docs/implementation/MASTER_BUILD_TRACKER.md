@@ -1,5 +1,9 @@
 # Master build tracker — five-module CSB CRM
 
+## Final Rota Dashboard and Daily Rota (31 Oct 2026)
+
+`/rota` is the operational Rota Dashboard and `/rota/visits` the Daily Rota, both to the owner's approved images. The week roster moved to `/rota/planner`. Also Generate & Optimise and Rota Insights. Definitions, limitations and the acceptance checklist: `ROTA_DASHBOARD_AND_DAILY_ROTA.md` and `ROTA_OPTIMISE_AND_INSIGHTS.md`.
+
 ## Missed Calls (31 Oct 2026)
 
 Built on the owner's approved specification: register, case investigation, manager sign-off, histories, KPIs, Excel and PDF exports. Checklist and design notes: `MISSED_CALLS.md`.

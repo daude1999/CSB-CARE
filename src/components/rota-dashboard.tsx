@@ -159,3 +159,34 @@ export function CoverageChart({ days, hrefFor }: { days: { date: string; full: n
     </figure>
   );
 }
+
+/**
+ * A doughnut of mutually exclusive states with the completed share in the centre. Each slice is a link to its visits
+ * and carries its count and share in its title, so nothing depends on colour or hover alone.
+ */
+export function StateDonut({ rows, total, centre, centreLabel }: { rows: { label: string; value: number; colour: string; href: string }[]; total: number; centre: string; centreLabel: string }) {
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
+  return (
+    <svg viewBox="0 0 140 140" className="h-[132px] w-[132px] shrink-0" role="img" aria-label={`${centre} ${centreLabel.toLowerCase()}`}>
+      <circle cx="70" cy="70" r={R} fill="none" stroke="#eef0f3" strokeWidth="18" />
+      {total
+        ? rows.map((r) => {
+            if (!r.value) return null;
+            const len = (r.value / total) * C;
+            const seg = (
+              <a key={r.label} href={r.href} aria-label={`${r.label}: ${r.value} of ${total}`}>
+                <title>{`${r.label}: ${r.value} (${((r.value / total) * 100).toFixed(1)}%)`}</title>
+                <circle cx="70" cy="70" r={R} fill="none" stroke={r.colour} strokeWidth="18" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset} transform="rotate(-90 70 70)" />
+              </a>
+            );
+            offset += len;
+            return seg;
+          })
+        : null}
+      <text x="70" y="68" textAnchor="middle" fontSize="22" fontWeight="700" fill="#0b1530">{centre}</text>
+      <text x="70" y="86" textAnchor="middle" fontSize="11" fill="#475467">{centreLabel}</text>
+    </svg>
+  );
+}

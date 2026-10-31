@@ -9,7 +9,7 @@ import { Flash } from "@/components/ui";
 import { NotBuiltNotice } from "@/components/rota-ui";
 import { weekIsBuilt } from "@/server/rota/build";
 import { AutoSubmitForm } from "@/components/auto-submit";
-import { AttentionRow, CoverageChart, DashPanel, KpiCard, StaffRow, StateBars, ordinalDate } from "@/components/rota-dashboard";
+import { AttentionRow, CoverageChart, DashPanel, KpiCard, StaffRow, StateBars, StateDonut, ordinalDate } from "@/components/rota-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,13 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
   const periodLabel = isDay ? (o.date === o.today ? "Today" : ordinalDate(o.date).split(" ")[0]) : o.period === "week" ? "This week" : "Next week";
   const rangeText = isDay ? ordinalDate(o.date) : `${ordinalDate(o.range.from).replace(/ \d{4}$/, "")} – ${ordinalDate(o.range.to)}`;
   const nextMonday = addDays(mondayOf(o.today), 7);
+  const perfRows = [
+    { label: "Completed", value: p.states.completed, colour: "#1f9d4c", href: listFor("&status=COMPLETED") },
+    { label: "In progress", value: p.states.inProgress, colour: "#2f7de1", href: listFor("&status=IN_PROGRESS") },
+    { label: "Still due", value: p.states.due, colour: "#c9c2f2", href: listFor("&status=SCHEDULED") },
+    { label: "Missed", value: p.states.missed, colour: "#e5484d", href: listFor("&status=MISSED") },
+    ...(p.states.notDelivered ? [{ label: "Not delivered", value: p.states.notDelivered, colour: "#98a2b3", href: listFor("&status=NOT_DELIVERED") }] : []),
+  ];
 
   return (
     <div className="rota-dash -mt-1">
@@ -107,16 +114,10 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         <DashPanel title={isDay && o.date === o.today ? "Today's Performance" : `${periodLabel === "Today" ? "Today" : isDay ? "Day" : periodLabel}'s Performance`.replace("This week's", "This Week's").replace("Next week's", "Next Week's")} id="dash-perf" icon={<ChartBar size={26} weight="bold" aria-hidden />}>
           {p.total ? (
             <>
-              <StateBars
-                total={p.total}
-                rows={[
-                  { label: "Completed", value: p.states.completed, colour: "#1f9d4c", href: listFor("&status=COMPLETED") },
-                  { label: "In progress", value: p.states.inProgress, colour: "#2f7de1", href: listFor("&status=IN_PROGRESS") },
-                  { label: "Scheduled", value: p.states.due, colour: "#c9c2f2", href: listFor("&status=SCHEDULED") },
-                  { label: "Missed", value: p.states.missed, colour: "#e5484d", href: listFor("&status=MISSED") },
-                  ...(p.states.notDelivered ? [{ label: "Not delivered", value: p.states.notDelivered, colour: "#98a2b3", href: listFor("&status=NOT_DELIVERED") }] : []),
-                ]}
-              />
+              <div className="flex items-center gap-4">
+                <StateDonut total={p.total} centre={p.future ? "—" : `${p.completedPercent.toFixed(1)}%`} centreLabel={p.future ? "Not started yet" : "Completed"} rows={perfRows} />
+                <div className="min-w-0 flex-1"><StateBars total={p.total} rows={perfRows} /></div>
+              </div>
               <p className="mt-1.5 border-t border-[#eef0f3] pt-1.5 text-[12.5px] text-slate-600">
                 Each visit is counted once, by its status. Also: <Link href={listFor("&view=unassigned")} className="font-medium text-[#8a5a00]">{p.unassigned} unassigned</Link> · <Link href={listFor("&view=late")} className="font-medium text-[#a14b0f]">{p.late} late</Link>
                 {p.future ? " · nothing can be completed yet on future dates" : ""}
