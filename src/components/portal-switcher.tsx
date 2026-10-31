@@ -23,9 +23,8 @@ const OVERVIEW_HREF = "/overview";
 function PortalAnchor({ portal, className, current, inside, style, children }: { portal: ShellPortal; className: string; current: boolean; inside: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
   const back = inside && portal.home !== OVERVIEW_HREF;
   return (
-    <Link href={back ? OVERVIEW_HREF : portal.home} className={className} style={style} title={back ? "Back to Overview" : undefined} data-portal-home="" data-portal={portal.id} data-back-to-overview={back ? "" : undefined} aria-current={current && !back ? "page" : undefined}>
+    <Link href={back ? OVERVIEW_HREF : portal.home} className={className} style={style} title={back ? "Back to Overview" : undefined} aria-label={back ? `${portal.name}, back to Overview` : undefined} data-portal-home="" data-portal={portal.id} data-back-to-overview={back ? "" : undefined} aria-current={current && !back ? "page" : undefined}>
       {children}
-      {back ? <span className="sr-only">, back to Overview</span> : null}
     </Link>
   );
 }
