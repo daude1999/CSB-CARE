@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
-import { londonTime } from "@/lib/london";
+import { londonDate, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaScope } from "@/server/rota/scope";
@@ -74,6 +74,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
                       <p className="mt-1 text-[14.5px]">{r.visit ? <Link href={`/rota/visits/${r.visit.id}`} className="row-title">{r.message}</Link> : r.message}</p>
                       <p className="text-[12.5px] text-slate-600">Raised {fmtDate(r.raisedAt, true)}{r.deadline ? ` · deadline ${londonTime(r.deadline)} ${fmtDate(r.deadline)}` : " · no deadline"}{r.visit?.area ? ` · ${r.visit.area.name}` : ""} · owner {r.ownerId ? names.get(r.ownerId) ?? "a member" : "nobody yet"}</p>
                       {r.escalationNote ? <p className="text-[12.5px] text-slate-600">Escalation: {r.escalationNote}</p> : null}
+                      {r.kind === "MISSED" && r.visit ? <p className="text-[13px]"><Link href={`/rota/missed?period=custom&from=${londonDate(r.visit.scheduledStart)}&to=${londonDate(r.visit.scheduledStart)}&q=${encodeURIComponent(r.visit.reference)}`}>Investigate in Missed Calls →</Link> <span className="text-slate-500">(the case there escalates and closes this one)</span></p> : null}
                       {r.resolvedAt ? <p className="text-[13px] text-slate-700">Resolved by {r.resolvedById ? names.get(r.resolvedById) ?? "a member" : "the system"} {fmtDate(r.resolvedAt, true)}: {r.resolution}{r.evidenceNote ? ` · evidence: ${r.evidenceNote}` : ""}</p> : null}
                     </div>
                   </div>

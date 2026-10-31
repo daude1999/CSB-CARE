@@ -8,32 +8,13 @@ import { missedMedsCount } from "@/server/care/medication";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { sweepNowAction } from "@/app/rota-actions";
 import { Flash } from "@/components/ui";
+import { CallRing } from "@/components/rota-ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 
 export const dynamic = "force-dynamic";
 
 function secs(n: number) {
   return n < 90 ? `${Math.round(n)} s` : `${Math.round(n / 60)} min`;
-}
-
-/** A ring gauge: the share of today's calls in one outcome, with the count in the middle and the share underneath. */
-function Ring({ label, value, total, colour, note, href }: { label: string; value: number | null; total: number; colour: string; note: string; href?: string }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const share = value !== null && total ? value / total : 0;
-  const body = (
-    <>
-      <svg width="84" height="84" viewBox="0 0 84 84" aria-hidden>
-        <circle cx="42" cy="42" r={r} fill="none" stroke={colour} strokeOpacity={0.25} strokeWidth="7" />
-        <circle cx="42" cy="42" r={r} fill="none" stroke={colour} strokeWidth="7" strokeDasharray={`${share * c} ${c}`} transform="rotate(-90 42 42)" strokeLinecap="round" />
-        <text x="42" y="49" textAnchor="middle" fontSize={value === null ? 13 : 22} fill={colour}>{value === null ? "n/a" : value}</text>
-      </svg>
-      <span className="mt-1 text-[19px] font-semibold" style={{ color: colour }}>{label}</span>
-      <span className="text-[12.5px] text-slate-600">{note}</span>
-    </>
-  );
-  const cls = "flex flex-col items-center px-2 py-2 text-center no-underline";
-  return href ? <Link href={href} className={`${cls} rounded hover:bg-slate-50`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 const TINT: Partial<Record<MonitorState, string>> = { late: "[&>td]:bg-[#fff6db]", missed: "[&>td]:bg-[#fde8e8]", not_delivered: "[&>td]:bg-[#fde8e8]", overrun: "[&>td]:bg-[#fff6db]", on_visit: "[&>td]:bg-[#e2f2fb]", done: "[&>td]:bg-[#eaf6ec]" };
@@ -64,10 +45,10 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
       <Flash searchParams={sp} />
 
       <section aria-label="Today's calls" className="panel mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Ring label="Complete Calls" value={complete} total={total} colour="#2e7d32" note={`${pct(complete)}% of ${total} visits`} href={`/rota/visits?status=COMPLETED`} />
-        <Ring label="Late Calls" value={late} total={total} colour="#b26a00" note={`${pct(late)}% of visits ${b.settings.lateAfterMin} minutes late`} href="/rota/visits?view=late" />
-        <Ring label="Missed Calls" value={missed} total={total} colour="#b42a23" note={`${pct(missed)}% not clocked into`} href="/rota/visits?status=MISSED" />
-        <Ring label="Calls With Missed Meds" value={missedMeds} total={total} colour="#2a6f97" note={missedMeds === null ? "Medication records are switched off" : `${pct(missedMeds)}% with a dose not recorded`} href={missedMeds === null ? undefined : "/rota/exceptions?kind=MISSED_MEDICATION&state=all"} />
+        <CallRing label="Complete Calls" value={complete} total={total} colour="#2e7d32" note={`${pct(complete)}% of ${total} visits`} href={`/rota/visits?status=COMPLETED`} />
+        <CallRing label="Late Calls" value={late} total={total} colour="#b26a00" note={`${pct(late)}% of visits ${b.settings.lateAfterMin} minutes late`} href="/rota/visits?view=late" />
+        <CallRing label="Missed Calls" value={missed} total={total} colour="#b42a23" note={`${pct(missed)}% not clocked into`} href="/rota/missed?period=day" />
+        <CallRing label="Calls With Missed Meds" value={missedMeds} total={total} colour="#2a6f97" note={missedMeds === null ? "Medication records are switched off" : `${pct(missedMeds)}% with a dose not recorded`} href={missedMeds === null ? undefined : "/rota/exceptions?kind=MISSED_MEDICATION&state=all"} />
       </section>
 
       <section className="panel" aria-labelledby="monitor-title">

@@ -47,6 +47,8 @@ export const ORG_PERMISSIONS = {
   "rota.monitor": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
   "rota.clockCorrect": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "rota.settings": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Signing off a missed-call investigation (never one the manager investigated themselves). */
+  "rota.missed.signoff": ["ORG_ADMIN", "CARE_MANAGER"],
   "staff.directory": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "FINANCE_OFFICER"],
   "serviceUser.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
   "serviceUser.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],

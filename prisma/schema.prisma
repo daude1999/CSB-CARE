@@ -1798,6 +1798,12 @@ model RotaSettings {
   doorstepCancel          Boolean        @default(true)
   /// The target time from "visit became late or missed" to "coordinator alerted", in seconds.
   alertLatencyTargetSec   Int            @default(300)
+  /// Missed Calls: a care worker with this many carer-attributable missed calls inside the window is a repeat offender.
+  repeatOffenderCount     Int            @default(3)
+  /// Missed Calls: a service user missed this many times inside the window is a repeat service-user incident.
+  repeatClientCount       Int            @default(2)
+  /// Missed Calls: the rolling window, in days, for both repeat rules.
+  repeatWindowDays        Int            @default(30)
   /// Medication records are off until an admin switches them on after a clinical review (recorded here).
   medicationEnabledAt     DateTime?
   medicationEnabledById   String?
@@ -1979,6 +1985,7 @@ model Visit {
   taskOutcomes       VisitTaskOutcome[]
   correctionRequests ClockCorrectionRequest[]
   marRecords         MarRecord[]
+  missedCallCase     MissedCallCase?
 
   @@unique([organisationId, reference])
   @@index([organisationId, date])
@@ -2913,4 +2920,101 @@ model MarRecord {
 
   @@index([visitId])
   @@index([medicationId, at])
+}
+
+enum MissedCallStage {
+  NEW
+  INVESTIGATING
+  AWAITING_SIGNOFF
+  CLOSED
+}
+
+/// The investigation of one missed call. Opened automatically when a visit is marked missed, one per visit, never deleted.
+model MissedCallCase {
+  id                    String              @id @default(cuid())
+  organisationId        String
+  visitId               String              @unique
+  visit                 Visit               @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  /// Snapshot at detection: who was booked (null = nobody), for whom, where and when. Kept even if the rota changes later.
+  staffId               String?
+  serviceUserId         String
+  areaId                String?
+  callTypeId            String
+  scheduledStart        DateTime
+  detectedAt            DateTime            @default(now())
+  stage                 MissedCallStage     @default(NEW)
+  deadline              DateTime?
+  coordinatorId         String?
+  coordinatorAssignedAt DateTime?
+  reasonCode            String?
+  reasonDetail          String?
+  findings              String?
+  reasonRecordedById    String?
+  reasonRecordedAt      DateTime?
+  /// REPLACEMENT_VISIT | CARER_ARRIVED_LATE | FAMILY_COVERED | CLIENT_DECLINED | NOT_NEEDED | NONE_POSSIBLE
+  replacementType       String?
+  replacementStaffId    String?
+  replacementArrivedAt  DateTime?
+  clientInformed        String?
+  replacementNote       String?
+  replacementWarnings   String[]            @default([])
+  replacementById       String?
+  replacementAt         DateTime?
+  escalatedAt           DateTime?
+  escalatedById         String?
+  escalationNote        String?
+  outcome               String?
+  outcomeNote           String?
+  preventable           Boolean?
+  submittedById         String?
+  submittedAt           DateTime?
+  signedOffById         String?
+  signedOffAt           DateTime?
+  signOffNote           String?
+  reopenedAt            DateTime?
+  reopenReason          String?
+  lockVersion           Int                 @default(1)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  actions               MissedCallAction[]
+  comments              MissedCallComment[]
+
+  @@index([organisationId, scheduledStart])
+  @@index([organisationId, stage])
+  @@index([organisationId, staffId])
+  @@index([organisationId, serviceUserId])
+}
+
+/// A follow-up action on a missed-call case, owned by a coordinator or manager.
+model MissedCallAction {
+  id             String         @id @default(cuid())
+  organisationId String
+  caseId         String
+  case           MissedCallCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  text           String
+  ownerId        String
+  dueAt          DateTime
+  doneAt         DateTime?
+  doneById       String?
+  createdById    String
+  createdAt      DateTime       @default(now())
+
+  @@index([organisationId, ownerId, doneAt])
+  @@index([caseId])
+}
+
+/// A management comment or an evidence file on a missed-call case. Append-only.
+model MissedCallComment {
+  id             String         @id @default(cuid())
+  organisationId String
+  caseId         String
+  case           MissedCallCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId       String
+  /// COMMENT | EVIDENCE | SYSTEM
+  kind           String         @default("COMMENT")
+  body           String
+  evidenceId     String?
+  createdAt      DateTime       @default(now())
+
+  @@index([caseId, createdAt])
 }
