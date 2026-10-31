@@ -21,9 +21,9 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/csb_uat npx tsx scrip
 | Liverpool | Liverpool North; Liverpool South | 16 | 10 | 44 / 44.7 / 45 | 16, 10, about 45 |
 | Portsmouth | Portsmouth Central; Portsmouth North | 12 | 8 | 33 / 33.7 / 34 | 12, 8, about 34 |
 
-Seven care areas in total. 7,227 visits across six weeks (3,933 + 1,878 + 1,416).
+Seven care areas in total. 8,431 visits across seven weeks (4,588 + 2,191 + 1,652).
 
-**Built the way an office builds a rota.** 349 visit templates (weekday and weekend teams, double-ups for hoist users, afternoon sittings that alternate between weeks 1 and 3 and weeks 2 and 4, and one overnight sitting on Fridays in weeks 2 and 4). The four-week cycle is anchored so that six weeks were built and published through the real build engine: two past weeks (weeks 1 and 2), this week (week 3) and three ahead (week 4, then weeks 1 and 2 again).
+**Built the way an office builds a rota.** 349 visit templates (weekday and weekend teams, double-ups for hoist users, afternoon sittings that alternate between weeks 1 and 3 and weeks 2 and 4, and one overnight sitting on Fridays in weeks 2 and 4). The four-week cycle is anchored so that seven weeks were built and published through the real build engine: two past weeks (weeks 1 and 2), this week (week 3) and four ahead, a month (week 4, then weeks 1, 2 and 3 again). Every past call that was delivered is completed with check-in and check-out times, an outcome for each planned task (a few refused or not done, with the reason) and the carer's clock-out note, written under the carer's own sign-in.
 
 **Staff come from HR.** The extra carers were added in the HR Hub's own transaction, which projects them into Rostering. Their HR checks have synthetic evidence and are verified, and the readiness matrix and training records were entered through the real readiness services (a second person verifies each). Every carer has a sign-in linked through the audited link workflow. The safeguarding policy is assigned to care roles and acknowledged by all but two carers per branch.
 
@@ -38,7 +38,7 @@ Seven care areas in total. 7,227 visits across six weeks (3,933 + 1,878 + 1,416)
 | Readiness short | One carer awaiting training verification, one with expired safeguarding training, one awaiting a practical sign-off (with a time-limited exception) | 3 |
 | Medication competency | About a third of carers are not competent for medication prompts and are not planned on those calls; some are competent with restrictions (flagged for review) | 191 flagged bookings |
 | Overdue policy acknowledgement | Two carers per branch have not read the safeguarding policy (flagged "Requires review") | 6 carers |
-| Unassigned visits | Empty slots from the cases above and three deliberately empty template slots | 218 visits over six weeks, incl. past missed ones |
+| Unassigned visits | Empty slots from the cases above and three deliberately empty template slots | about 8 visits a day over the seven weeks, incl. past missed ones |
 | Partial double-ups | A double-up with only one carer | 55 |
 | Approved leave | One Liverpool carer on holiday next week (visits flagged, not reassigned) | 1 |
 | Sickness | One Tower Hamlets carer off sick today and tomorrow (visits flagged, not reassigned) | 1 |

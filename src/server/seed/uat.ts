@@ -25,7 +25,7 @@ import { DEMO_PASSWORD } from "./demo";
  *
  * Shape (per day, averaged over the 4-week cycle): Tower Hamlets about 95 visits for 30 people with 40 carers,
  * Liverpool about 45 for 16 with 10, Portsmouth about 34 for 12 with 8; seven care areas; two past weeks with
- * attendance and timesheets, this week and three weeks ahead, all built by the real rota build engine.
+ * attendance and timesheets, this week and four weeks ahead, all built by the real rota build engine.
  */
 
 type Gender = "FEMALE" | "MALE";
@@ -65,7 +65,7 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
   if (await db.serviceUser.count({ where: { organisationId } })) throw new Error("This organisation already has service users; load test data only into a fresh database");
   const today = londonDate();
   const thisMonday = mondayOf(today);
-  // Week 1 of the 4-week cycle starts two weeks ago, so the six built weeks cover weeks 1, 2, 3, 4, 1, 2.
+  // Week 1 of the 4-week cycle starts two weeks ago, so the seven built weeks cover weeks 1, 2, 3, 4, 1, 2, 3.
   await db.rotaSettings.upsert({ where: { organisationId }, create: { organisationId, anchorMonday: dbDate(addDays(thisMonday, -14)), careRoleTitles: DEFAULT_CARE_ROLES }, update: {} });
   const branches = await db.branch.findMany({ where: { organisationId } });
   const branchId = (name: string) => branches.find((b) => b.name === name)!.id;
@@ -215,10 +215,10 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
   }
   log(`${sus.length} service users`);
 
-  // Like a coordinator, plan with carers who are cleared for the work over the whole six weeks: a carer with a hard stop
+  // Like a coordinator, plan with carers who are cleared for the work over the whole seven weeks: a carer with a hard stop
   // (for example a DBS review falling due within the period) keeps a single template, so the scenario still shows,
   // and only medication-competent carers are planned on calls with a medication prompt.
-  const probeAt = londonToUtc(addDays(thisMonday, 25), 600);
+  const probeAt = londonToUtc(addDays(thisMonday, 34), 600);
   const probe = async (careTaskIds: string[]) => {
     const r = await rankCarers(db, organisationId, { start: probeAt, end: new Date(probeAt.getTime() + 30 * 60000), slot: "PRIMARY", serviceUserId: sus[0]!.id, careTaskIds }, staff.map((x) => x.id));
     return new Set(r.filter((x) => x.result.state === "NOT_ELIGIBLE" && x.result.blocking.some((b) => b.code !== "GENDER")).map((x) => x.staff!.id));
@@ -302,9 +302,9 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
   if (night) await tpl(night, calls.night, 22 * 60, 540, 1, [tasks.company], { weekdays: [5], cycleWeeks: [2, 4] });
   log(`${templates} templates`);
 
-  // ---- Build six weeks through the real engine: two past weeks (history), this week and three ahead ----
+  // ---- Build seven weeks through the real engine: two past weeks (history), this week and four ahead (a month) ----
   const coordinator = await ctxForUser(people.coordinator, organisationId);
-  for (let w = -2; w <= 3; w++) {
+  for (let w = -2; w <= 4; w++) {
     const week = addDays(thisMonday, w * 7);
     const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: w < 0 });
     await publishBuild(coordinator, build.id);

@@ -216,13 +216,22 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
       const assignmentRows: Prisma.VisitAssignmentCreateManyInput[] = [];
       const taskRows: Prisma.VisitTaskCreateManyInput[] = [];
       const eventRows: Prisma.VisitEventCreateManyInput[] = [];
+      // References are random per day; a week of over a thousand visits occasionally draws the same one twice, which
+      // the unique index would reject for the whole week. Existing references on these days are avoided as well.
+      const taken = new Set((await tx.visit.findMany({ where: { organisationId: scope.organisationId, date: { gte: dbDate(weekStart), lte: dbDate(addDays(weekStart, 6)) } }, select: { reference: true } })).map((r) => r.reference));
+      const freshReference = (date: string) => {
+        let r = visitReference(date);
+        while (taken.has(r)) r = visitReference(date);
+        taken.add(r);
+        return r;
+      };
       for (const v of p.visits) {
         const t = tById.get(v.templateId)!;
         const id = randomUUID();
         visitRows.push({
           id,
           organisationId: scope.organisationId,
-          reference: visitReference(v.date),
+          reference: freshReference(v.date),
           serviceUserId: v.serviceUserId,
           callTypeId: v.callTypeId,
           areaId: v.areaId,
