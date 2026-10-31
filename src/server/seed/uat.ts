@@ -14,6 +14,7 @@ import { transaction as hrTransaction } from "@/hr/lib/workspace-tx";
 import { applyRequirements } from "@/hr/lib/requirements";
 import type { Employee } from "@/hr/lib/domain";
 import { seedAttendanceHistory, seedCareRecords, seedFinance } from "./care";
+import { seedMissedCallDemo } from "./missed-calls";
 import { seedReadinessDemo } from "./readiness";
 import { DEMO_PASSWORD } from "./demo";
 
@@ -323,6 +324,7 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
   log("attendance history");
   await seedCareRecords(organisationId, coordinator, manager);
   await seedFinance(organisationId, coordinator, manager, people.finance);
+  await seedMissedCallDemo(organisationId, coordinator, manager);
   log("care records and finance");
 
   // ---- Absences: approved leave next week and sickness reported today, so visits are flagged (never reassigned) ----
