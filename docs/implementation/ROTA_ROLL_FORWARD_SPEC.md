@@ -36,4 +36,4 @@ Build Rota creates a week from the regular-call templates. Offices also change a
 
 - Pay estimates are basic pay from rate cards only, not payroll (no mileage, enhancements outside bands, or holiday accrual).
 - The preview table shows the first 500 rows; the counts cover everything.
-- Run routes are copied by name; a route that has since been deactivated is not reactivated.
+- Run routes are copied by name into the new week (an existing route of the same name that week is reused). The route keeps its original carer even if that carer was dropped from the visits, so check routes after a roll forward with many uncovered slots.
