@@ -48,7 +48,10 @@ test.describe("Portal switching", () => {
       await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(m.title);
       await expect(portal(page, m.id)).toHaveCSS("background-color", m.colour);
       await expect(page.getByTestId("portal-pages")).toHaveCount(1);
-      await expect(portal(page, m.id)).toHaveAttribute("aria-current", "page");
+      // Once inside, the module's own name leads back to the Overview; its dashboard is the page marked current.
+      await expect(portal(page, m.id)).toHaveAttribute("href", "/overview");
+      await expect(portal(page, m.id)).not.toHaveAttribute("aria-current");
+      await expect(currentPage(page)).toHaveCount(1);
       // The content area settles on the module colour (it blends there from the previous one).
       await expect(page.getByTestId("main-content")).toHaveCSS("--module", m.colour);
     }
@@ -111,6 +114,21 @@ test.describe("Portal switching", () => {
     await page.goto("/hr?branch=all");
     await expect(page).toHaveURL(/\/hr\/dashboard\?branch=all$/);
     await expect(page.getByRole("combobox", { name: "Branch scope" })).toHaveValue("all");
+  });
+
+  test("clicking the name of the module you are in goes back to the Overview, from every module and from the HR Hub", async ({ page }) => {
+    await signIn(page);
+    for (const start of ["/policies", "/rota/visits", "/analytics", "/settings", "/hr/people"]) {
+      await page.goto(start);
+      // The other modules' names still open those modules.
+      const others = await sidebar(page).locator('[data-portal]:not(.shell-portal-current):not([data-portal="overview"])').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+      expect(others.length, start).toBeGreaterThan(0);
+      expect(others, start).not.toContain("/overview");
+      await sidebar(page).locator(".shell-portal-current").click();
+      await expect(page, start).toHaveURL(/\/overview$/);
+      await expect(portal(page, "overview")).toHaveClass(/shell-portal-current/);
+      await expect(portal(page, "overview")).toHaveAttribute("aria-current", "page");
+    }
   });
 
   test("people only see and reach the modules they may use", async ({ page }) => {
@@ -382,6 +400,12 @@ test.describe("Dialogs and the phone menu", () => {
     await expect(menu).toBeHidden();
     await expect(page).toHaveURL(/\/rota\/visits/);
     await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
+
+    // The module's name in the menu goes back to the Overview on a phone too.
+    await open.click();
+    await menu.getByRole("link", { name: /Rostering & Care Management, back to Overview/ }).click();
+    await expect(menu).toBeHidden();
+    await expect(page).toHaveURL(/\/overview$/);
   });
 });
 
