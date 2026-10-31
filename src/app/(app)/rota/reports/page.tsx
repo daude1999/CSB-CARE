@@ -49,7 +49,7 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
         title="Rota Reports"
         back="/rota"
         subtitle="Worked out from visits and clock times when you open the page, so corrections show straight away. Choose a report, dates and an area; each row links to the records behind it."
-        actions={canExport ? <span className="flex flex-wrap gap-2"><a href={`/api/rota/reports?${qs(filters)}&format=xlsx`} className="btn-secondary">Excel</a><a href={`/api/rota/reports?${qs(filters)}&format=pdf`} className="btn-secondary">PDF</a><a href={`/api/rota/reports?${qs(filters)}`} className="btn-secondary">CSV</a></span> : null}
+        actions={canExport ? <span className="flex flex-wrap gap-2"><a href={`/api/rota/reports?${qs(filters)}&format=xlsx`} className="btn-secondary">Download Excel</a><a href={`/api/rota/reports?${qs(filters)}&format=pdf`} className="btn-secondary">Download PDF</a><a href={`/api/rota/reports?${qs(filters)}`} className="btn-secondary">Download CSV</a></span> : null}
       />
       {problem ? <p role="alert" className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[14px] text-[#a3242c]">{problem}. Showing the default instead.</p> : null}
       <SegmentNav label="Reports" items={Object.entries(ROTA_REPORTS).map(([k, label]) => ({ href: `/rota/reports?${qs({ ...filters, report: k as RotaReportFilters["report"] })}`, label, active: k === filters.report }))} />

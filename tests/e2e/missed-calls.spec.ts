@@ -29,7 +29,7 @@ test("Missed Calls register: figures, smart filter, and a case investigated to s
   await page.getByRole("button", { name: "Save reason" }).click();
   await expect(page).toHaveURL(/ok=Reason\+recorded/);
 
-  await page.getByLabel("Arrangement").selectOption("FAMILY_COVERED");
+  await page.locator("select[name=replacementType]").selectOption("FAMILY_COVERED");
   await page.getByLabel("Client or family told (who, how, when)").fill("Son by phone at 12:40");
   await page.getByRole("button", { name: "Record arrangement" }).click();
   await expect(page).toHaveURL(/ok=Replacement\+care/);
@@ -44,12 +44,12 @@ test("Missed Calls register: figures, smart filter, and a case investigated to s
   await page.getByLabel("Outcome summary and what will stop it happening again").fill("Reminded to ring the office whenever delayed.");
   await page.getByRole("button", { name: "Send for manager sign-off" }).click();
   await expect(page).toHaveURL(/ok=Sent\+to\+the\+care/);
-  await expect(page.getByText("Waiting for a care manager to sign off.")).toBeVisible();
+  await expect(page.getByText("You investigated this missed call, so another care manager must sign it off.")).toBeVisible();
 });
 
 test("Missed Calls on a phone shows cards and the figures", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page, "manager@care-solution.demo");
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/rota/missed?period=month");
   await expect(page.getByRole("region", { name: "Management figures" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Export Excel" })).toBeVisible();
