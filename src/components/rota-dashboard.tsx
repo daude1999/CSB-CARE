@@ -26,8 +26,8 @@ export function KpiCard({ label, value, extra, icon, tone, href, title, testId }
       <span aria-hidden className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full ${t.ring}`}>{icon}</span>
       <span className="min-w-0">
         <span className="block truncate text-[14.5px] font-semibold text-[#0b1530]">{label}</span>
-        <span className="flex items-baseline gap-3">
-          <span data-value className="text-[32px] font-bold leading-[1.1] tabular-nums text-[#0b1530]">{value.toLocaleString("en-GB")}</span>
+        <span className="flex flex-wrap items-baseline gap-x-3">
+          <span data-value className="text-[26px] sm:text-[32px] font-bold leading-[1.1] tabular-nums text-[#0b1530]">{value.toLocaleString("en-GB")}</span>
           {extra ? <span className={`text-[14px] font-medium tabular-nums ${t.pct}`}>{extra}</span> : null}
         </span>
       </span>
