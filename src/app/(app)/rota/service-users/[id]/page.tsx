@@ -13,12 +13,13 @@ import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
+import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["history", "History"]] as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -334,6 +335,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           )}
         </Card>
       ) : null}
+
+      {tab === "missed" ? <MissedHistory ctx={ctx} serviceUserId={su.id} /> : null}
 
       {tab === "history" ? (
         <Card title="Record history">

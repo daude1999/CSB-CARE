@@ -8,6 +8,7 @@ import { audit } from "@/server/audit-log";
 import { toCsv } from "@/server/reports/tables";
 import { effectiveClocks } from "./attendance";
 import { suName } from "./queries";
+import { isHighRisk, MISSED_REASONS } from "./missed-calls";
 import { inScope, rotaScope, visitWhere } from "./scope";
 import { rotaSettings } from "./settings";
 
@@ -21,6 +22,7 @@ export const ROTA_REPORTS = {
   carers: "Carer attendance",
   coverage: "Unfilled visits",
   alerts: "Call alerts",
+  missed: "Missed calls",
 } as const;
 export type RotaReportKind = keyof typeof ROTA_REPORTS;
 
@@ -280,6 +282,28 @@ export async function rotaReport(ctx: Ctx, f: RotaReportFilters): Promise<RotaRe
     };
   }
 
+  if (f.report === "missed") {
+    // Missed-call cases in the range, by reason, from the investigations (Missed Calls). Same area scope as the visits.
+    const cases = await db.missedCallCase.findMany({
+      where: { visitId: { in: facts.map((v) => v.id) } },
+      select: { reasonCode: true, outcome: true, stage: true, staffId: true, serviceUserId: true, replacementType: true, escalatedAt: true, visit: { select: { serviceUser: { select: { riskLevel: true, risks: { where: { level: "HIGH", status: "ACTIVE", archivedAt: null }, select: { id: true }, take: 1 } } } } } },
+    });
+    const columns = ["Reason", "Missed calls", "Care worker attributable", "High-risk clients", "No replacement possible", "Escalated", "Signed off", "Still open"];
+    const rows = [...groupBy(cases, (c) => c.reasonCode ?? "")]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([code, cs]) => ({
+        cells: [code ? MISSED_REASONS[code]?.label ?? code : "Not yet investigated", cs.length, cs.filter((c) => c.staffId && (!code || MISSED_REASONS[code]?.carer)).length, cs.filter((c) => isHighRisk(c.visit.serviceUser)).length, cs.filter((c) => c.replacementType === "NONE_POSSIBLE").length, cs.filter((c) => c.escalatedAt).length, cs.filter((c) => c.stage === "CLOSED").length, cs.filter((c) => c.stage !== "CLOSED").length] as Cell[],
+        href: `/rota/missed?period=custom&from=${f.from}&to=${f.to}${code ? `&reason=${code}` : "&reason=none"}`,
+      }));
+    const closed = cases.filter((c) => c.stage === "CLOSED").length;
+    const sumCol = (i: number) => rows.reduce((n, r) => n + Number(r.cells[i]), 0);
+    return {
+      ...base, columns, numeric: columns.map((_, i) => i > 0), rows,
+      totals: rows.length ? ["Total", cases.length, sumCol(2), sumCol(3), sumCol(4), sumCol(5), closed, cases.length - closed] : null,
+      summary: `${range}: ${cases.length} missed ${cases.length === 1 ? "call" : "calls"} to ${new Set(cases.map((c) => c.serviceUserId)).size} service users; ${closed} investigations signed off, ${cases.length - closed} still open. Open the Missed Calls page for each case.`,
+    };
+  }
+
   // Alerts raised in the range. Alerts tied to a visit follow the visit's area; others count only for organisation-wide viewers.
   const visitIds = new Set(facts.map((v) => v.id));
   const alerts = await db.rotaAlert.findMany({
@@ -317,6 +341,17 @@ export const ALERT_LABEL: Record<string, string> = {
   UNASSIGNED: "No carer booked",
   ALLOCATION_REVIEW: "Allocation needs review",
 };
+
+/** A report as Excel or PDF, after the same permission and area checks as the page, recorded in the audit log. */
+export async function rotaReportFile(ctx: Ctx, f: RotaReportFilters, format: "xlsx" | "pdf") {
+  const organisationId = requireOrgPermission(ctx, "report.export");
+  const r = await rotaReport(ctx, f);
+  const { toPdf, toXlsx } = await import("@/server/reports/export-files");
+  const t = { title: r.title, subtitle: `${fmtLondonDate(f.from)} to ${fmtLondonDate(f.to)}${r.areaName ? ` · ${r.areaName}` : " · all my areas"} · ${r.summary}`, columns: r.columns, rows: [...r.rows.map((x) => x.cells), ...(r.totals ? [r.totals] : [])] };
+  const body = format === "xlsx" ? await toXlsx(t) : await toPdf(t);
+  await audit({ organisationId, actorId: ctx.userId, action: "rota.report.exported", entityType: "RotaReport", entityId: f.report, data: { from: f.from, to: f.to, areaId: f.areaId ?? null, rows: r.rows.length, format } });
+  return { name: `csb-${f.report}-${f.from}-to-${f.to}.${format}`, body, type: format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf" };
+}
 
 /** CSV of a report, after the same permission and area checks as the page, recorded in the audit log. */
 export async function rotaReportCsv(ctx: Ctx, f: RotaReportFilters) {

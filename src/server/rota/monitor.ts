@@ -7,6 +7,7 @@ import { raiseAlert } from "@/server/workforce/impact";
 import { effectiveClocks } from "./attendance";
 import { rotaScope, visitWhere } from "./scope";
 import { rotaSettings } from "./settings";
+import { openMissedCase } from "./missed-calls";
 
 /**
  * Call monitoring. The sweep runs from the background job queue (every minute with the worker; on hosts without a
@@ -31,7 +32,7 @@ export async function sweepCalls(opts: { now?: Date; organisationId?: string } =
         status: { in: ["SCHEDULED", "IN_PROGRESS"] },
         scheduledStart: { gte: new Date(now.getTime() - LOOKBACK_DAYS * 86400000), lte: now },
       },
-      select: { id: true, organisationId: true, reference: true, status: true, scheduledStart: true, scheduledEnd: true, alertOnLate: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } },
+      select: { id: true, organisationId: true, reference: true, status: true, scheduledStart: true, scheduledEnd: true, alertOnLate: true, serviceUserId: true, areaId: true, callTypeId: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } },
       orderBy: { scheduledStart: "asc" },
       take: 5000,
     });
@@ -50,6 +51,8 @@ export async function sweepCalls(opts: { now?: Date; organisationId?: string } =
           if (rows[0]?.status !== "SCHEDULED") return false;
           await tx.visit.update({ where: { id: v.id }, data: { status: "MISSED", statusChangedAt: now, lockVersion: { increment: 1 } } });
           await tx.visitEvent.create({ data: { organisationId: v.organisationId, visitId: v.id, type: "STATUS", fromStatus: "SCHEDULED", toStatus: "MISSED", data: { source: "call.sweep", minutesAfterStart: Math.round(lateMin) } } });
+          // Every missed call opens its investigation case, whether or not the visit raises alerts.
+          await openMissedCase(tx, v, now);
           if (!v.alertOnLate) return false;
           const r = await raiseAlert(tx, { organisationId: v.organisationId, kind: "MISSED", severity: "CRITICAL", visitId: v.id, message: `Missed call: ${who} at ${londonTime(v.scheduledStart)} (${v.reference}). No one has clocked in.`, dedupeKey: `missed:${v.id}`, conditionAt: new Date(v.scheduledStart.getTime() + s.missedAfterMin * 60000), actionUrl: "/rota/monitor", notify });
           return r.created;
