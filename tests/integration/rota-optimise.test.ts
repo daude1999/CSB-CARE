@@ -83,7 +83,8 @@ describe("Generate & Optimise", () => {
     const after = await getPlan(await manager(), planId);
     expect(after.changes.find((c) => c.id === stale!.id)!.decision).toBe("FAILED");
     expect(after.changes.find((c) => c.id === stale!.id)!.outcome).toMatch(/changed since/);
-    if (rest[0]) expect(await db.visitAssignment.count({ where: { visitId: rest[0].visitId, removedAt: null } })).toBe(0);
+    // A rejected change books nobody in its slot (the same visit may have another slot that was accepted).
+    if (rest[0]) expect(await db.visitAssignment.count({ where: { visitId: rest[0].visitId, slot: rest[0].slot!, removedAt: null } })).toBe(0);
     await expect(applyPlan(await manager(), planId)).rejects.toThrow(/already been applied/);
     await expect(decideChanges(await manager(), planId, [keep!.id], "REJECTED")).rejects.toThrow(/already been applied/);
     expect((await publishPlanVisits(await manager(), planId)).failed).toBe(0);
