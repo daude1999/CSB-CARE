@@ -13,9 +13,20 @@ export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
 
-/** A portal's entry in the sidebar. Links into or out of the HR Hub load a fresh page (HubEdge in navigation-progress.tsx). */
-function PortalAnchor({ portal, className, current, style, children }: { portal: ShellPortal; className: string; current: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
-  return <Link href={portal.home} className={className} style={style} data-portal-home="" data-portal={portal.id} aria-current={current ? "page" : undefined}>{children}</Link>;
+const OVERVIEW_HREF = "/overview";
+
+/**
+ * A portal's entry in the sidebar. Another module's name opens that module; the name of the module on screen takes
+ * the person back to the Overview (its own dashboard stays one row below, in its pages). Links into or out of the
+ * HR Hub load a fresh page (HubEdge in navigation-progress.tsx).
+ */
+function PortalAnchor({ portal, className, current, inside, style, children }: { portal: ShellPortal; className: string; current: boolean; inside: boolean; style?: React.CSSProperties; children: React.ReactNode }) {
+  const back = inside && portal.home !== OVERVIEW_HREF;
+  return (
+    <Link href={back ? OVERVIEW_HREF : portal.home} className={className} style={style} title={back ? "Back to Overview" : undefined} aria-label={back ? `${portal.name}, back to Overview` : undefined} data-portal-home="" data-portal={portal.id} data-back-to-overview={back ? "" : undefined} aria-current={current && !back ? "page" : undefined}>
+      {children}
+    </Link>
+  );
 }
 
 /** Every portal this person may open, with the current portal's pages listed underneath it. */
@@ -69,7 +80,7 @@ function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: 
           const pages = current || closing ? (items[p.id] ?? []) : [];
           return (
             <li key={p.id}>
-              <PortalAnchor portal={p} current={p.id === shownId && path === p.home} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
+              <PortalAnchor portal={p} current={p.id === shownId && path === p.home} inside={p.id === shownId} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
                 <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
                 <span className={`min-w-0 leading-[17px] ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
                 {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
