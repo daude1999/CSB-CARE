@@ -33,6 +33,7 @@ import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
 import { reconcileWorkforce } from "@/server/workforce/projection";
 import { requireOrgPermission } from "@/server/auth/rbac";
+import { addCaseComment, addCaseEvidence, addFollowUp, assignCoordinator, bulkMissed, completeFollowUp, escalateMissedCase, recordReason, recordReplacement, reopenMissedCase, signOffMissedCase, submitForSignOff } from "@/server/rota/missed-calls";
 
 /** Server actions for Rostering & Care Management. Each reads FormData, calls one domain function and redirects back. */
 
@@ -335,6 +336,9 @@ export async function rotaSettingsAction(fd: FormData) {
       mandatoryClockOutNote: bool(fd, "mandatoryClockOutNote"),
       doorstepCancel: bool(fd, "doorstepCancel"),
       alertLatencyTargetSec: str(fd, "alertLatencyTargetSec"),
+      repeatOffenderCount: str(fd, "repeatOffenderCount") || undefined,
+      repeatClientCount: str(fd, "repeatClientCount") || undefined,
+      repeatWindowDays: str(fd, "repeatWindowDays") || undefined,
     });
   }, "Rostering settings saved");
 }
@@ -854,4 +858,70 @@ export async function submitMileageAction(fd: FormData) {
 
 export async function decideMileageAction(fd: FormData) {
   return handle(fd, (ctx) => decideMileage(ctx, str(fd, "claimId"), str(fd, "decision") === "APPROVED" ? "APPROVED" : "REJECTED", str(fd, "note")), "Decision recorded");
+}
+
+// ── Missed Calls ──────────────────────────────────────────────────────────
+
+const lock = (fd: FormData) => {
+  const n = Number(str(fd, "lockVersion"));
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+};
+
+export async function missedAssignAction(fd: FormData) {
+  return handle(fd, (ctx) => assignCoordinator(ctx, str(fd, "caseId"), str(fd, "coordinatorId"), lock(fd)), "Coordinator assigned");
+}
+
+export async function missedReasonAction(fd: FormData) {
+  return handle(fd, (ctx) => recordReason(ctx, str(fd, "caseId"), { reasonCode: str(fd, "reasonCode"), reasonDetail: str(fd, "reasonDetail") || undefined, findings: str(fd, "findings"), lockVersion: lock(fd) }), "Reason recorded");
+}
+
+export async function missedReplacementAction(fd: FormData) {
+  return handle(fd, (ctx) => recordReplacement(ctx, str(fd, "caseId"), { replacementType: str(fd, "replacementType"), replacementStaffId: str(fd, "replacementStaffId") || undefined, arrivedAt: str(fd, "arrivedAt") || undefined, clientInformed: str(fd, "clientInformed"), note: str(fd, "note") || undefined, acceptWarnings: bool(fd, "acceptWarnings"), lockVersion: lock(fd) }), "Replacement care recorded");
+}
+
+export async function missedAddActionAction(fd: FormData) {
+  return handle(fd, (ctx) => addFollowUp(ctx, str(fd, "caseId"), { text: str(fd, "text"), ownerId: str(fd, "ownerId"), due: str(fd, "due") }), "Follow-up action added");
+}
+
+export async function missedCompleteActionAction(fd: FormData) {
+  return handle(fd, (ctx) => completeFollowUp(ctx, str(fd, "actionId")), "Action marked done");
+}
+
+export async function missedCommentAction(fd: FormData) {
+  return handle(fd, (ctx) => addCaseComment(ctx, str(fd, "caseId"), str(fd, "body")), "Comment added");
+}
+
+export async function missedEvidenceAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const file = fd.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new ValidationError("Choose a file to attach");
+    await addCaseEvidence(ctx, str(fd, "caseId"), { name: file.name, type: file.type, bytes: Buffer.from(await file.arrayBuffer()) }, str(fd, "description") || undefined);
+  }, "Evidence attached");
+}
+
+export async function missedEscalateAction(fd: FormData) {
+  return handle(fd, (ctx) => escalateMissedCase(ctx, str(fd, "caseId"), str(fd, "note")), "Escalated to the care managers");
+}
+
+export async function missedSubmitAction(fd: FormData) {
+  const preventable = str(fd, "preventable");
+  return handle(fd, (ctx) => submitForSignOff(ctx, str(fd, "caseId"), { outcome: str(fd, "outcome"), preventable: preventable === "yes" || preventable === "no" ? preventable : ("" as "yes"), outcomeNote: str(fd, "outcomeNote"), lockVersion: lock(fd) }), "Sent to the care managers for sign-off");
+}
+
+export async function missedSignOffAction(fd: FormData) {
+  const decision = str(fd, "decision") === "return" ? "return" : "approve";
+  return handle(fd, (ctx) => signOffMissedCase(ctx, str(fd, "caseId"), { decision, note: str(fd, "note"), lockVersion: lock(fd) }), decision === "approve" ? "Signed off and closed" : "Sent back for more investigation");
+}
+
+export async function missedReopenAction(fd: FormData) {
+  return handle(fd, (ctx) => reopenMissedCase(ctx, str(fd, "caseId"), str(fd, "reason")), "Case reopened");
+}
+
+export async function missedBulkAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const action = str(fd, "bulk");
+    if (action !== "assign" && action !== "escalate") throw new ValidationError("Choose a bulk action");
+    const r = await bulkMissed(ctx, ids(fd, "ids"), action, { coordinatorId: str(fd, "coordinatorId") || undefined, note: str(fd, "note") || undefined });
+    return { ok: `${r.done} ${action === "assign" ? "assigned" : "escalated"}${r.skipped.length ? `, ${r.skipped.length} skipped (${[...new Set(r.skipped)].slice(0, 2).join("; ")})` : ""}` };
+  }, "Done");
 }

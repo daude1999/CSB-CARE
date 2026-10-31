@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { seedMissedCallDemo } from "./missed-calls";
 import { db } from "@/lib/db";
 import { addDays, dbDate, londonDate, mondayOf } from "@/lib/london";
 import { ctxForUser } from "@/server/auth/session";
@@ -204,6 +205,7 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
   await seedAttendanceHistory(organisationId, people.manager);
   await seedCareRecords(organisationId, coordinator, managerCtx);
   await seedFinance(organisationId, coordinator, managerCtx, people.finance);
+  await seedMissedCallDemo(organisationId, coordinator, managerCtx);
 }
 
 /** Demo care records, written through the real services: plans drafted by the coordinator and approved by the manager. */

@@ -12,6 +12,7 @@ import { checkStaffEligibility, complianceOn, type EligibilityResult } from "@/s
 import { rotaProfileAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
+import { MissedHistory } from "@/components/missed-history";
 import { ReadinessPanel } from "@/components/readiness-ui";
 import { listRequirements, staffReadiness } from "@/server/readiness";
 
@@ -176,6 +177,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
           </Card>
         </div>
       </div>
+      <MissedHistory ctx={ctx} staffId={s.id} />
     </>
   );
 }

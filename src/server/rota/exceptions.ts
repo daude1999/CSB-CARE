@@ -143,9 +143,12 @@ export async function resolveException(ctx: Ctx, alertId: string, input: { resol
   });
 }
 
-/** Run with the call sweep: open exceptions past their deadline are escalated once, in-app. */
+/**
+ * Run with the call sweep: open exceptions past their deadline are escalated once, in-app. Missed calls are left to
+ * their investigation case (Missed Calls), which escalates them and keeps this register in step.
+ */
 export async function escalateOverdueExceptions(now = new Date()) {
-  const due = await db.rotaAlert.findMany({ where: { resolvedAt: null, escalatedAt: null, deadline: { lt: now } }, take: 500 });
+  const due = await db.rotaAlert.findMany({ where: { resolvedAt: null, escalatedAt: null, deadline: { lt: now }, kind: { not: "MISSED" } }, take: 500 });
   for (const a of due) {
     await db.$transaction((tx) => escalate(tx, a, `Not resolved by its deadline (${a.deadline?.toISOString()})`, null));
   }

@@ -65,6 +65,12 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
               <div className="space-y-2 pt-5"><Tick name="blockEarlyClockIn" label="Block early clock-in" value={s.blockEarlyClockIn} /><Tick name="requireNoteOnShortVisit" label="Note required on a short visit" value={s.requireNoteOnShortVisit} /></div>
             </fieldset>
             <fieldset className="grid gap-3 md:grid-cols-3">
+              <legend className="mb-2 text-[15px] font-medium text-navy-900">Missed calls</legend>
+              <Num name="repeatOffenderCount" label="Repeat offender: missed calls" value={s.repeatOffenderCount} min={2} max={20} hint="A care worker with this many in the window is flagged. Calls found to be delivered, or not their doing, are left out." />
+              <Num name="repeatClientCount" label="Repeat service-user incident: missed calls" value={s.repeatClientCount} min={2} max={20} />
+              <Num name="repeatWindowDays" label="Window (days)" value={s.repeatWindowDays} min={7} max={365} />
+            </fieldset>
+            <fieldset className="grid gap-3 md:grid-cols-3">
               <legend className="mb-2 text-[15px] font-medium text-navy-900">Carer app <span className="text-[12.5px] font-normal text-slate-500">(not built yet)</span></legend>
               <Num name="carerDaysForward" label="Days ahead carers see" value={s.carerDaysForward} min={0} max={28} />
               <Num name="carerDaysBack" label="Days back carers see" value={s.carerDaysBack} min={0} max={14} />
