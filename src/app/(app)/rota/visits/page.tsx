@@ -4,9 +4,12 @@ import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName } from "@/server/rota/queries";
-import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime } from "@/lib/london";
+import { addDays, fmtLondonDate, isIsoDate, londonDate, londonMinute, londonTime, mondayOf } from "@/lib/london";
 import { bulkVisitsAction } from "@/app/rota-actions";
-import { Empty, Flash, PageHeader } from "@/components/ui";
+import { Empty, Flash, PageHeader, SegmentNav } from "@/components/ui";
+import { dayTimeline } from "@/server/rota/roster";
+import { RotaTimeline } from "@/components/rota-timeline";
+import { RosterKey } from "@/components/roster-key";
 import { CarerSlots, FlagBadges, longDate, rotaState, VISIT_LABEL, NotBuiltNotice } from "@/components/rota-ui";
 import { weekIsBuilt } from "@/server/rota/build";
 import { SelectAll } from "@/components/select-all";
@@ -34,7 +37,10 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const notBuilt = rows.length === 0 && !(await weekIsBuilt(ctx, date));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
-  const params = { date, area: sp.area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q: sp.q };
+  // The day opens as a timeline (one row per carer); the table, with bulk actions, is the List layout. A search lists.
+  const layout = sp.layout === "list" || sp.q?.trim() ? "list" : "timeline";
+  const timeline = layout === "timeline" ? await dayTimeline(ctx, date, rows) : null;
+  const params = { date, area: sp.area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q: sp.q, layout: sp.layout === "list" ? "list" : undefined };
   const qs = (extra: Record<string, string | undefined>) => new URLSearchParams(Object.entries({ ...params, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
   const back = `/rota/visits?${qs({})}`;
   const live = rows.filter((r) => r.status !== "CANCELLED");
@@ -45,13 +51,22 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Daily Rota" back="/rota" subtitle="Every visit on one day. Tick visits and choose a bulk action; each visit is checked on its own and any that cannot change are listed with the reason." />
+      <PageHeader title="Daily Rota" back="/rota" subtitle={layout === "list" ? "Every visit on one day as a list. Tick visits and choose a bulk action; each visit is checked on its own and any that cannot change are listed with the reason." : "The day by carer. Each block is a visit at its scheduled time; open one to change the carer or time. Leave and unavailable time are shaded."} />
       <Flash searchParams={sp} />
+      <SegmentNav
+        label="Rota layout"
+        items={[
+          { href: `/rota?week=${mondayOf(date)}`, label: "Week", active: false },
+          { href: `/rota/visits?${qs({ layout: undefined, q: undefined })}`, label: "Day", active: layout === "timeline" },
+          { href: `/rota/visits?${qs({ layout: "list" })}`, label: "List", active: layout === "list" },
+        ]}
+      />
       {notBuilt ? <NotBuiltNotice date={date} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
 
       <section aria-label="Filters and actions" className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="date" value={date} />
+          {params.layout ? <input type="hidden" name="layout" value={params.layout} /> : null}
           <label><span className="sr-only">Team member</span>
             <select name="carer" defaultValue={sp.carer ?? ""} className="input w-[210px]"><option value="">Select team member…</option>{lk.staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select>
           </label>
@@ -69,7 +84,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             </div>
           </details>
           <button className="btn-primary">Show</button>
-          {Object.entries(params).some(([k, v]) => k !== "date" && v) ? <Link href={`/rota/visits?date=${date}`} className="btn-secondary">Clear</Link> : null}
+          {Object.entries(params).some(([k, v]) => k !== "date" && k !== "layout" && v) ? <Link href={`/rota/visits?${qs({ area: undefined, carer: undefined, su: undefined, call: undefined, status: undefined, view: undefined, cancelled: undefined, q: undefined })}`} className="btn-secondary">Clear</Link> : null}
         </form>
         <details className="relative">
           <summary className="btn-primary cursor-pointer list-none">Actions ▾</summary>
@@ -83,7 +98,32 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </details>
       </section>
 
-      <section className="panel" aria-label="Visits">
+      {timeline ? (
+        <section className="panel" aria-label="Day timeline">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-t-[3px] border-[#6b46c9] pt-3">
+            <h2 className="text-[22px] font-semibold text-[#2f6b3a]">{longDate(date)}</h2>
+            <form method="get" className="flex items-center gap-1.5">
+              {Object.entries(params).filter(([k, v]) => k !== "date" && v).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+              <Link href={`/rota/visits?${qs({ date: addDays(date, -1) })}`} className="btn-secondary px-2.5" aria-label="Previous day"><CaretLeft size={18} weight="bold" /></Link>
+              <label className="sr-only" htmlFor="rota-date-t">Date</label>
+              <input id="rota-date-t" type="date" name="date" defaultValue={date} className="input w-[150px]" />
+              <button className="btn-secondary">Go</button>
+              <Link href={`/rota/visits?${qs({ date: addDays(date, 1) })}`} className="btn-secondary px-2.5" aria-label="Next day"><CaretRight size={18} weight="bold" /></Link>
+              {date !== londonDate() ? <Link href={`/rota/visits?${qs({ date: undefined })}`} className="ml-1 text-[14px]">Today</Link> : null}
+            </form>
+          </div>
+          {only ? <p className="mb-2 rounded bg-[#fff6db] px-3 py-1.5 text-[14px]" role="note">You are looking at {only} only. <Link href={`/rota/visits?date=${date}`}>Show every visit</Link></p> : null}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <RosterKey tones={["ok", "draft", "active", "done", "missed", "review", "empty"]} shades={["leave", "sick", "unavailable"]} />
+            <p className="text-[13px] text-slate-600"><span className="tabular-nums">{live.length}</span> visits · <span className="tabular-nums">{hm(scheduled)}</span> scheduled{unassigned ? <> · <span className="tabular-nums font-medium text-[#a3242c]">{unassigned}</span> empty carer slots</> : null}</p>
+          </div>
+          {rows.length ? <RotaTimeline rows={timeline.rows} axisStart={timeline.axisStart} axisEnd={timeline.axisEnd} nowMinute={date === londonDate() ? londonMinute(new Date()) : null} /> : <Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty>}
+          {truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits. Narrow the filters to see the rest.</p> : null}
+          {canEdit ? <p className="mt-2 text-[12.5px] text-slate-500">To tick several visits and change them together, use the <Link href={`/rota/visits?${qs({ layout: "list" })}`}>List</Link> layout. To drag visits between carers, use the <Link href={`/rota?week=${mondayOf(date)}`}>Week</Link> roster.</p> : null}
+        </section>
+      ) : null}
+
+      {layout === "list" ? <section className="panel" aria-label="Visits">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-t-[3px] border-[#6b46c9] pt-3">
           <h2 className="text-[22px] font-semibold text-[#2f6b3a]">{longDate(date)}</h2>
           <form method="get" className="flex items-center gap-1.5">
@@ -207,7 +247,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         )}
         {truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits. Narrow the filters to see the rest.</p> : null}
         <p className="mt-2 text-[12.5px] text-slate-500">Row colours: late pale yellow, in progress pale blue, complete pale green, missed pale red; the status is always written out too. Hover the area dot, run route and risk square for their names.</p>
-      </section>
+      </section> : null}
     </>
   );
 }

@@ -13,7 +13,13 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
   // Sections follow the order of work the office already knows from OnePlan: Home, Rota, Templates, Users,
   // Invoicing/Wages, Reports. Care records sit with the people they belong to.
   const groups: [string, Entry[]][] = [
-    ["Home", [["/rota", "Rota Dashboard", <House key="i" {...i} />, "rota.view", true]]],
+    [
+      "Home",
+      [
+        ["/rota", "Rota Dashboard", <House key="i" {...i} />, "rota.view", true],
+        ["/rota/today", "Today at a Glance", <ChartLine key="i" {...i} />, "rota.view", true],
+      ],
+    ],
     [
       "Rota",
       [
