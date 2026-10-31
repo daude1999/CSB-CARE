@@ -86,7 +86,7 @@ export function StateBars({ rows, total }: { rows: { label: string; value: numbe
         const share = total ? r.value / total : 0;
         return (
           <li key={r.label}>
-            <Link href={r.href} className="grid grid-cols-[96px_minmax(0,1fr)_96px] items-center gap-3 rounded-[4px] py-1 no-underline hover:bg-[#f7f7fb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6b3fd0]" title={`${r.label}: ${r.value} of ${total} visits`}>
+            <Link href={r.href} className="grid grid-cols-[84px_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[96px_minmax(0,1fr)_96px] sm:gap-3 rounded-[4px] py-1 no-underline hover:bg-[#f7f7fb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6b3fd0]" title={`${r.label}: ${r.value} of ${total} visits`}>
               <span className="text-[14px] text-[#0b1530]">{r.label}</span>
               <span className="h-[18px] rounded-[3px] bg-transparent">
                 <span className="block h-full rounded-[3px]" style={{ width: `${Math.max(share * 100, r.value ? 2.5 : 0)}%`, background: r.colour }} />

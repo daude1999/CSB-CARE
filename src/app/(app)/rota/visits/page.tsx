@@ -95,7 +95,8 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const notBuilt = dayRows.length === 0 && !(await weekIsBuilt(ctx, date));
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
-  const layout = sp.layout === "list" ? "list" : "timeline";
+  // A text search shows its results as a list.
+  const layout = sp.layout === "list" || sp.q?.trim() ? "list" : "timeline";
   const timeline = layout === "timeline" ? await dayTimeline(ctx, date, rows, lk) : null;
   const inspector = layout === "timeline" && sp.visit ? await visitInspector(ctx, sp.visit) : null;
   const params = { date: date === today ? undefined : date, branch, area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q: sp.q, layout: layout === "list" ? "list" : undefined };

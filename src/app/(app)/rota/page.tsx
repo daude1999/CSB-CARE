@@ -114,9 +114,9 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
         <DashPanel title={isDay && o.date === o.today ? "Today's Performance" : `${periodLabel === "Today" ? "Today" : isDay ? "Day" : periodLabel}'s Performance`.replace("This week's", "This Week's").replace("Next week's", "Next Week's")} id="dash-perf" icon={<ChartBar size={26} weight="bold" aria-hidden />}>
           {p.total ? (
             <>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
                 <StateDonut total={p.total} centre={p.future ? "—" : `${p.completedPercent.toFixed(1)}%`} centreLabel={p.future ? "Not started yet" : "Completed"} rows={perfRows} />
-                <div className="min-w-0 flex-1"><StateBars total={p.total} rows={perfRows} /></div>
+                <div className="w-full min-w-0 flex-1"><StateBars total={p.total} rows={perfRows} /></div>
               </div>
               <p className="mt-1.5 border-t border-[#eef0f3] pt-1.5 text-[12.5px] text-slate-600">
                 Each visit is counted once, by its status. Also: <Link href={listFor("&view=unassigned")} className="font-medium text-[#8a5a00]">{p.unassigned} unassigned</Link> · <Link href={listFor("&view=late")} className="font-medium text-[#a14b0f]">{p.late} late</Link>
