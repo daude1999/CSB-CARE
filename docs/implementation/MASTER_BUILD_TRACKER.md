@@ -1,5 +1,9 @@
 # Master build tracker — five-module CSB CRM
 
+## Missed Calls (31 Oct 2026)
+
+Built on the owner's approved specification: register, case investigation, manager sign-off, histories, KPIs, Excel and PDF exports. Checklist and design notes: `MISSED_CALLS.md`.
+
 ## Version 1 (branch `feature/v1-complete`, owner's "COMPLETE VERSION 1" brief, 29 Oct 2026)
 
 Backlog: `V1_BACKLOG.md`. Audits: `v1-audit/`. The build moved from the laptop session to a cloud session at 22:01 on 29 Oct at the owner's choice; work continues on the same branch.

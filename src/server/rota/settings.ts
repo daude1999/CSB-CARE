@@ -48,6 +48,10 @@ export const settingsSchema = z
     mandatoryClockOutNote: z.boolean(),
     doorstepCancel: z.boolean(),
     alertLatencyTargetSec: z.coerce.number().int().min(60).max(3600),
+    // Missed Calls repeat rules. Optional so older callers keep the stored values.
+    repeatOffenderCount: z.coerce.number().int().min(2).max(20).optional(),
+    repeatClientCount: z.coerce.number().int().min(2).max(20).optional(),
+    repeatWindowDays: z.coerce.number().int().min(7).max(365).optional(),
   })
   .refine((s) => s.missedAfterMin > s.lateAfterMin, { message: "A visit must become late before it becomes missed", path: ["missedAfterMin"] });
 

@@ -7,6 +7,7 @@ import { syncCustomersFromMaster } from "@/server/policies/sync";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { sweepCalls } from "@/server/rota/monitor";
 import { escalateOverdueExceptions } from "@/server/rota/exceptions";
+import { escalateOverdueCases } from "@/server/rota/missed-calls";
 import { sweepMissedMedication } from "@/server/care/medication";
 import { reconcileStaffAssignments } from "@/server/policies/assignment";
 import type { RunTrigger } from "@prisma/client";
@@ -36,8 +37,10 @@ export const handlers: Record<string, JobHandler> = {
   "rota.sweep": async () => {
     const calls = await sweepCalls();
     const missedMedication = await sweepMissedMedication();
+    // Missed calls escalate through their investigation case; the register's other exceptions escalate on their own.
+    const missedEscalated = await escalateOverdueCases();
     const escalated = await escalateOverdueExceptions();
-    return { ...calls, missedMedication, escalated };
+    return { ...calls, missedMedication, escalated, missedEscalated };
   },
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();

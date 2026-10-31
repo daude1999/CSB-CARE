@@ -34,6 +34,14 @@ async function scan(buf: Buffer): Promise<"CLEAN" | "INFECTED" | "NOT_SCANNED"> 
 
 export async function uploadEvidence(ctx: Ctx, file: { name: string; type: string; bytes: Buffer }, meta: { description?: string; linkedType?: string; linkedId?: string }) {
   const orgId = requireOrgPermission(ctx, "evidence.upload");
+  return storeEvidenceFile(orgId, ctx.userId, file, meta);
+}
+
+/**
+ * Checks, scans and stores one evidence file. Callers authorise first: compliance evidence via `evidence.upload`,
+ * missed-call evidence via the rota permissions on the case it belongs to.
+ */
+export async function storeEvidenceFile(orgId: string, actorId: string, file: { name: string; type: string; bytes: Buffer }, meta: { description?: string; linkedType?: string; linkedId?: string }) {
   if (file.bytes.length === 0) throw new ValidationError("File is empty");
   if (file.bytes.length > MAX_UPLOAD_BYTES) throw new ValidationError("File exceeds the 10 MB limit");
   const sniffed = sniffImage(file.bytes) ?? sniffContentType(file.bytes, file.type);
@@ -47,9 +55,9 @@ export async function uploadEvidence(ctx: Ctx, file: { name: string; type: strin
   const key = `evidence/${orgId}/${randomUUID()}`;
   await storage().put(key, file.bytes, file.type);
   const doc = await db.evidenceDocument.create({
-    data: { organisationId: orgId, filename: safeName, contentType: file.type, sizeBytes: file.bytes.length, sha256: sha256(file.bytes), storageKey: key, scanStatus, description: meta.description, linkedType: meta.linkedType, linkedId: meta.linkedId, uploadedById: ctx.userId },
+    data: { organisationId: orgId, filename: safeName, contentType: file.type, sizeBytes: file.bytes.length, sha256: sha256(file.bytes), storageKey: key, scanStatus, description: meta.description, linkedType: meta.linkedType, linkedId: meta.linkedId, uploadedById: actorId },
   });
-  await audit({ organisationId: orgId, actorId: ctx.userId, action: "evidence.uploaded", entityType: "EvidenceDocument", entityId: doc.id, data: { filename: safeName, sizeBytes: file.bytes.length, scanStatus } });
+  await audit({ organisationId: orgId, actorId, action: "evidence.uploaded", entityType: "EvidenceDocument", entityId: doc.id, data: { filename: safeName, sizeBytes: file.bytes.length, scanStatus } });
   return doc;
 }
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { uninvestigatedCount } from "@/server/rota/missed-calls";
 import { CaretLeft, CaretRight, Check, Clock, FirstAidKit, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { addDays, fmtLondonDate, isIsoDate, londonDate } from "@/lib/london";
@@ -68,7 +69,7 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "rota.view")) redirect(rotaHome(ctx));
   const date = sp.date && isIsoDate(sp.date) ? sp.date : londonDate();
-  const [d, lk] = await Promise.all([rotaDashboard(ctx, { date, areaId: sp.area || undefined }), rotaLookups(ctx)]);
+  const [d, lk, uninvestigated] = await Promise.all([rotaDashboard(ctx, { date, areaId: sp.area || undefined }), rotaLookups(ctx), uninvestigatedCount(ctx)]);
   const q = (extra: Record<string, string | undefined>) => new URLSearchParams(Object.entries({ date, area: sp.area, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
   const c = d.calls;
   const iconProps = { size: 40, weight: "bold" as const };
@@ -101,7 +102,7 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
       <section aria-label="Calls on this date" className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <CallBox href={`/rota/visits?${q({ status: "COMPLETED" })}`} colour="#13703c" icon={<Check {...iconProps} />} label="Complete calls" value={c.complete} note={`${pct(c.complete, c.total)} of ${c.total} visits`} />
         <CallBox href={`/rota/visits?${q({ view: "late" })}`} colour="#a85b0a" icon={<Clock {...iconProps} />} label="Late calls" value={c.late} note={`${pct(c.late, c.total)} · ${c.lateAfterMin} minutes or more late`} />
-        <CallBox href={`/rota/visits?${q({ status: "MISSED" })}`} colour="#b42a23" icon={<X {...iconProps} />} label="Missed calls" value={c.missed} note={`${pct(c.missed, c.total)} not clocked into`} />
+        <CallBox href={`/rota/missed?period=day&date=${date}`} colour="#b42a23" icon={<X {...iconProps} />} label="Missed calls" value={c.missed} note={`${pct(c.missed, c.total)} not clocked into${uninvestigated ? ` · ${uninvestigated} uninvestigated` : ""}`} />
         {d.calls.missedMeds === null ? (
           <CallBox href={null} colour="#4b5a6b" icon={<FirstAidKit {...iconProps} />} label="Calls with missed meds" value={<span className="text-[17px] font-medium">Switched off</span>} note="Medication records are switched off in Rota Settings" />
         ) : (
