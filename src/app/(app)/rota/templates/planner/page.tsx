@@ -4,6 +4,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
+import { templateScopeWhere } from "@/server/rota/scope";
 import { templateCarerAction } from "@/app/rota-actions";
 import { Flash, PageHeader, SegmentNav } from "@/components/ui";
 import { PlannerBoard, type PlannerChip, type PlannerRow } from "@/components/planner-board";
@@ -18,7 +19,8 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   const settings = await rotaSettings(db, org);
   const week = Math.min(Math.max(Number(sp.week) || 1, 1), settings.cycleLength);
   const templates = await db.visitTemplate.findMany({
-    where: { organisationId: org, enabled: true, cycleWeeks: { has: week }, ...(sp.area ? { areaId: sp.area } : lk.scope.areaIds ? { areaId: { in: lk.scope.areaIds } } : {}) },
+    // The area filter narrows the member's own scope; it can never widen it to another branch's area.
+    where: { organisationId: org, enabled: true, cycleWeeks: { has: week }, AND: [templateScopeWhere(lk.scope), sp.area ? { areaId: sp.area } : {}] },
     include: { serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } } },
     orderBy: { startMinute: "asc" },
   });

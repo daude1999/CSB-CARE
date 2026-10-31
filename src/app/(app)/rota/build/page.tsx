@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import { CheckCircle, Hammer, ProhibitInset } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { AppError } from "@/lib/errors";
-import { addDays, fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
+import { fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { listBuilds, previewBuild, type BuildPlan } from "@/server/rota/build";
+import { listBuilds, previewBuild, suggestBuildWeek, type BuildPlan } from "@/server/rota/build";
 import { memberNames, rotaLookups } from "@/server/rota/queries";
 import { confirmBuildAction, deleteBuildAction, publishBuildAction } from "@/app/rota-actions";
 import { Flash, fmtDate } from "@/components/ui";
@@ -22,13 +22,23 @@ const dmy = (iso: string) => iso.split("-").reverse().join("/");
 export default async function BuildRotaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requirePortal("rota");
-  if (!hasOrgPermission(ctx, "rota.build")) notFound();
+  if (!hasOrgPermission(ctx, "rota.build")) {
+    if (!hasOrgPermission(ctx, "rota.view")) notFound();
+    return (
+      <section className="panel max-w-2xl" aria-labelledby="no-build">
+        <h1 id="no-build" className="text-[20px] font-normal text-navy-900">Build Rota</h1>
+        <p className="mt-2 text-[14.5px] text-slate-700">Your role can view the rota but not build or publish it. Building is open to administrators, care managers and care coordinators. Ask an administrator to change your role if you need it.</p>
+      </section>
+    );
+  }
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
   const thisMonday = mondayOf(londonDate());
   const adding = one("new") === "1" || !!one("week");
+  // With no week chosen, the form opens on the next week that still needs building, not blindly on next Monday.
+  const suggested = await suggestBuildWeek(ctx);
   const week = (() => {
     const w = one("week");
-    return w && isIsoDate(w) ? mondayOf(w) : addDays(thisMonday, 7);
+    return w && isIsoDate(w) ? mondayOf(w) : suggested.weekStart;
   })();
   const areaIds = ([] as string[]).concat(sp.areas ?? []).filter(Boolean);
   const cycle = one("cycle") ? Number(one("cycle")) : undefined;
@@ -51,7 +61,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
   const days = plan ? [...new Set(plan.visits.map((v) => v.date))].sort() : [];
 
   const rows = builds.map((b) => {
-    const areas = b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "Other area").join(", ") : "All areas";
+    const areas = (b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "Other area").join(", ") : b.otherAreas ? "" : "All areas") + (b.otherAreas ? `${b.areaIds.length ? " " : ""}(+${b.otherAreas} other branch area${b.otherAreas === 1 ? "" : "s"})` : "");
     const built = `${londonTime(b.builtAt)} ${fmtDate(b.builtAt).replace(/\s/g, " ")}`;
     return {
       key: b.id,
@@ -80,7 +90,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                 <button className="btn-primary py-1 text-[13px]">Publish</button>
               </form>
             ) : null}
-            {b.future ? (
+            {b.future && !b.otherAreas ? (
               <details className="relative">
                 <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-[3px] bg-[#d9473f] px-2.5 py-1 text-[13px] font-medium text-white hover:bg-[#b93a33]"><ProhibitInset size={15} aria-hidden />Delete</summary>
                 <form action={deleteBuildAction} className="absolute right-0 z-10 mt-1 w-64 space-y-2 rounded border border-slate-300 bg-white p-2.5 shadow-lg">
@@ -137,6 +147,9 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                   ))}
                   <li>Holidays are recorded (<Link href="/workforce/absences" className="text-white underline">check here</Link>), and the templates are right (<Link href="/rota/templates" className="text-white underline">check here</Link>).</li>
                 </ul>
+              ) : null}
+              {!one("week") && suggested.builtThrough ? (
+                <p className="rounded-[3px] bg-white/15 px-3 py-2 text-[14px]">Your rota is already built up to {fmtLondonDate(suggested.builtThrough, { weekday: "long", day: "numeric", month: "long" })}, so the form has opened on the next week that still needs building.</p>
               ) : null}
               {planError ? <p role="alert" className="rounded-[3px] bg-white px-3 py-2 text-[14px] text-[#a3242c]">{planError}</p> : null}
 
@@ -201,7 +214,10 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
               ) : null}
 
               {plan && past ? (
-                <p className="font-medium">This week has started or passed, so it cannot be built.</p>
+                <div role="alert" className="rounded-[3px] bg-white px-3 py-2 text-[14px] text-navy-900">
+                  <p className="font-medium text-[#a3242c]">This week has already finished, so it cannot be built.</p>
+                  <Link href={`/rota/build?week=${suggested.weekStart}`} className="mt-1 inline-block font-medium text-[#0f6e3b] underline">Go to the next week that needs building ({dmy(suggested.weekStart)})</Link>
+                </div>
               ) : plan && plan.visits.length ? (
                 <form action={confirmBuildAction}>
                   <input type="hidden" name="back" value={`/rota/build?week=${week}${cycle ? `&cycle=${cycle}` : ""}${areaIds.map((a) => `&areas=${a}`).join("")}`} />
@@ -212,7 +228,18 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                   <p className="mt-1.5 text-[13px] text-white/85">Visits are saved unpublished. Carers see them only after you publish the rota from the list.</p>
                 </form>
               ) : plan ? (
-                <p className="font-medium">Nothing new to build for this week.</p>
+                <div role="alert" className="space-y-1.5 rounded-[3px] bg-white px-3 py-2 text-[14px] text-navy-900">
+                  <p className="font-semibold text-[#a3242c]">Nothing can be built for this week</p>
+                  {(plan.blockers.length ? plan.blockers : [{ code: "NONE", message: "There are no visits to create for this week." }]).map((b) => (
+                    <p key={b.code}>
+                      {b.message}
+                      {"action" in b && b.action ? <> <Link href={b.action.href} className="font-medium text-[#0f6e3b] underline">{b.action.label}</Link></> : null}
+                    </p>
+                  ))}
+                  {week !== suggested.weekStart && !past ? (
+                    <p><Link href={`/rota/build?week=${suggested.weekStart}`} className="font-medium text-[#0f6e3b] underline">Go to the next week that needs building ({dmy(suggested.weekStart)})</Link></p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
             <div className="flex justify-end border-t border-white/25 bg-[#0f8a4c] px-4 py-3">

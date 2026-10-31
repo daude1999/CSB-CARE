@@ -2,7 +2,7 @@
 
 import type { AssignmentSlot } from "@prisma/client";
 import { ValidationError } from "@/lib/errors";
-import { londonToUtc, parseHhmm } from "@/lib/london";
+import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, str } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
@@ -103,6 +103,7 @@ export async function swapCarersAction(fd: FormData) {
 export async function updateVisitAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const date = str(fd, "date");
+    if (!isIsoDate(date)) throw new ValidationError("Choose the date of the visit");
     const start = londonToUtc(date, minuteOf(fd, "start", "Start"));
     const duration = int(fd, "durationMin", "Length");
     if (duration < 5 || duration > 1440) throw new ValidationError("A visit lasts between 5 minutes and 24 hours");

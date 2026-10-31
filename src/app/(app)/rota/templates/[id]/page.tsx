@@ -7,6 +7,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
+import { templateScopeWhere } from "@/server/rota/scope";
 import { previewTemplateChanges } from "@/server/rota/templates";
 import { applyTemplateChangesAction, duplicateTemplateAction, templateBulkAction, updateTemplateAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
@@ -20,7 +21,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const lk = await rotaLookups(ctx);
   const t = await orNotFound(
-    db.visitTemplate.findFirst({ where: { id, organisationId: lk.scope.organisationId, ...(lk.scope.areaIds ? { areaId: { in: lk.scope.areaIds } } : {}) }, include: { tasks: true, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } } } }).then((x) => {
+    db.visitTemplate.findFirst({ where: { id, organisationId: lk.scope.organisationId, ...templateScopeWhere(lk.scope) }, include: { tasks: true, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } } } }).then((x) => {
       if (!x) throw new NotFoundError("Template");
       return x;
     }),

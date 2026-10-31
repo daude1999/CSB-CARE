@@ -5,7 +5,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { dbDate, fromDbDate, isIsoDate, londonDate, londonToUtc } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
-import { assertInScope, rotaScope, serviceUserWhere, type Scope } from "./scope";
+import { assertInScope, rotaScope, serviceUserWhere, templateScopeWhere, type Scope } from "./scope";
 
 const ids = z.array(z.coerce.number().int());
 export const templateSchema = z
@@ -102,7 +102,7 @@ export async function createTemplate(ctx: Ctx, input: TemplateInput) {
 }
 
 async function loadTemplate(tx: Prisma.TransactionClient, scope: Scope, id: string) {
-  const t = await tx.visitTemplate.findUnique({ where: { id } });
+  const t = await tx.visitTemplate.findUnique({ where: { id }, include: { serviceUser: { select: { areaId: true, branchId: true } } } });
   assertInScope(scope, t, "Template");
   return t;
 }
@@ -144,9 +144,10 @@ export async function setTemplatesEnabled(ctx: Ctx, templateIds: string[], enabl
 export async function duplicateTemplate(ctx: Ctx, id: string) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction(async (tx) => {
-    const t = await tx.visitTemplate.findUnique({ where: { id }, include: { tasks: true } });
+    const t = await tx.visitTemplate.findUnique({ where: { id }, include: { tasks: true, serviceUser: { select: { areaId: true, branchId: true } } } });
     assertInScope(scope, t, "Template");
-    const { id: _id, version: _v, createdAt: _c, updatedAt: _u, tasks, ...rest } = t;
+    const { id: _id, version: _v, createdAt: _c, updatedAt: _u, tasks, serviceUser: _su, ...rest } = t;
+    void _su;
     void _id;
     void _v;
     void _c;
@@ -381,8 +382,8 @@ export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
   const q = f.q?.trim();
   const where: Prisma.VisitTemplateWhereInput = {
     organisationId: scope.organisationId,
-    ...(scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {}),
     AND: [
+      templateScopeWhere(scope),
       ...(f.serviceUserId ? [{ serviceUserId: f.serviceUserId }] : []),
       ...(f.areaId ? [{ areaId: f.areaId }] : []),
       ...(f.callTypeId ? [{ callTypeId: f.callTypeId }] : []),

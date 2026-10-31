@@ -4,7 +4,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, mondayOf } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
-import { rotaScope, visitWhere, type Scope } from "./scope";
+import { rotaScope, templateScopeWhere, visitWhere, type Scope } from "./scope";
 
 /**
  * Run routes, as OnePlan has them: template run routes (a named, coloured round that templates belong to, carried into
@@ -142,10 +142,9 @@ export async function getLiveRoute(ctx: Ctx, id: string) {
 export async function getTemplateRoute(ctx: Ctx, id: string) {
   const scope = await rotaScope(ctx, "rota.view");
   const r = await templateInScope(scope, id);
-  const areaLimit = scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {};
   const [templates, candidates] = await Promise.all([
     db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: r.id }, include: { serviceUser: suSelect, callType: { select: { name: true } } }, orderBy: [{ routeOrder: { sort: "asc", nulls: "last" } }, { startMinute: "asc" }] }),
-    db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: null, enabled: true, ...areaLimit, ...(r.staffId ? { OR: [{ preferredStaff1Id: r.staffId }, { preferredStaff2Id: r.staffId }] } : r.areaId ? { areaId: r.areaId } : {}) }, include: { serviceUser: suSelect }, orderBy: { startMinute: "asc" }, take: 300 }),
+    db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: null, enabled: true, AND: [templateScopeWhere(scope), r.staffId ? { OR: [{ preferredStaff1Id: r.staffId }, { preferredStaff2Id: r.staffId }] } : r.areaId ? { areaId: r.areaId } : {}] }, include: { serviceUser: suSelect }, orderBy: { startMinute: "asc" }, take: 300 }),
   ]);
   const owner = r.staffId ? (await db.staffMember.findUnique({ where: { id: r.staffId }, select: { displayName: true } }))?.displayName : r.areaId ? (await db.area.findUnique({ where: { id: r.areaId }, select: { name: true } }))?.name : null;
   const others = [];
@@ -172,7 +171,7 @@ export async function addToRoute(ctx: Ctx, kind: "LIVE" | "TEMPLATE", routeId: s
   }
   const r = await templateInScope(scope, routeId);
   return db.$transaction(async (tx) => {
-    const ts = await tx.visitTemplate.findMany({ where: { organisationId: scope.organisationId, id: { in: unique }, runRouteTemplateId: null, ...(scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {}) }, orderBy: { startMinute: "asc" } });
+    const ts = await tx.visitTemplate.findMany({ where: { organisationId: scope.organisationId, id: { in: unique }, runRouteTemplateId: null, ...templateScopeWhere(scope) }, orderBy: { startMinute: "asc" } });
     if (ts.length !== unique.length) throw new ConflictError("Some templates are already on a route or not in your areas");
     const max = (await tx.visitTemplate.aggregate({ where: { runRouteTemplateId: r.id }, _max: { routeOrder: true } }))._max.routeOrder ?? 0;
     for (const [i, t] of ts.entries()) await tx.visitTemplate.update({ where: { id: t.id }, data: { runRouteTemplateId: r.id, routeOrder: max + i + 1 } });

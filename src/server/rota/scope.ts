@@ -42,26 +42,69 @@ export function branchWhere<T extends { branchId?: unknown }>(scope: Pick<Scope,
   return (scope.branchIds ? { OR: [{ branchId: { in: scope.branchIds } }, { branchId: null }] } : {}) as T;
 }
 
-export function visitWhere(scope: Scope): Prisma.VisitWhereInput {
-  return scope.areaIds ? { organisationId: scope.organisationId, OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : { organisationId: scope.organisationId };
-}
-
-export function serviceUserWhere(scope: Scope): Prisma.ServiceUserWhereInput {
-  const w: Prisma.ServiceUserWhereInput = { organisationId: scope.organisationId };
+/**
+ * The service-user clause without the organisation, shared by visits and templates that have no area of their own.
+ * Mirrors serviceUserWhere: a limited member sees a service user in one of their areas, or with no area in one of
+ * their branches (or with neither, an unallocated referral).
+ */
+function suClause(scope: Scope): Prisma.ServiceUserWhereInput {
   const ands: Prisma.ServiceUserWhereInput[] = [];
   if (scope.areaIds) ands.push({ OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] });
   if (scope.branchIds) ands.push({ OR: [{ branchId: { in: scope.branchIds } }, { branchId: null }] });
-  return ands.length ? { ...w, AND: ands } : w;
+  return ands.length ? { AND: ands } : {};
 }
 
-export function inScope(scope: Scope, areaId: string | null | undefined) {
-  return !scope.areaIds || !areaId || scope.areaIds.includes(areaId);
+/**
+ * Visits a member may see. A visit with no area is judged by its service user, so a visit created without an area can
+ * never carry another branch's work into a branch-limited coordinator's screens.
+ */
+export function visitWhere(scope: Scope): Prisma.VisitWhereInput {
+  if (!scope.areaIds) return { organisationId: scope.organisationId };
+  // Inside AND, so a caller that adds its own OR (a search, the Monitor's two-day window) cannot replace the limit.
+  return { organisationId: scope.organisationId, AND: [{ OR: [{ areaId: { in: scope.areaIds } }, { areaId: null, serviceUser: suClause(scope) }] }] };
+}
+
+/** Recurring templates a member may see or build; a template with no area is judged by its service user. */
+export function templateScopeWhere(scope: Scope): Prisma.VisitTemplateWhereInput {
+  if (!scope.areaIds) return {};
+  return { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null, serviceUser: suClause(scope) }] };
+}
+
+export function serviceUserWhere(scope: Scope): Prisma.ServiceUserWhereInput {
+  return { organisationId: scope.organisationId, ...suClause(scope) };
+}
+
+export interface ServiceUserRef {
+  areaId: string | null;
+  branchId: string | null;
+}
+
+/** The in-memory twin of suClause. */
+export function serviceUserInScope(scope: Pick<Scope, "areaIds" | "branchIds">, su: ServiceUserRef) {
+  if (scope.areaIds && su.areaId && !scope.areaIds.includes(su.areaId)) return false;
+  if (scope.branchIds && su.branchId && !scope.branchIds.includes(su.branchId)) return false;
+  return true;
+}
+
+/**
+ * Whether a record is inside the member's areas. A record without an area is judged by its service user when one is
+ * given; without one, only members limited to no areas can reach it.
+ */
+export function inScope(scope: Scope, areaId: string | null | undefined, serviceUser?: ServiceUserRef | null) {
+  if (!scope.areaIds) return true;
+  if (areaId) return scope.areaIds.includes(areaId);
+  return serviceUser ? serviceUserInScope(scope, serviceUser) : false;
 }
 
 /** Throws NotFound for a record outside the caller's organisation or areas (forbidden and missing look the same). */
-export function assertInScope(scope: Scope, rec: { organisationId: string; areaId?: string | null } | null, what: string): asserts rec {
+export function assertInScope(scope: Scope, rec: { organisationId: string; areaId?: string | null; serviceUser?: ServiceUserRef | null } | null, what: string): asserts rec {
   if (!rec || rec.organisationId !== scope.organisationId) throw new NotFoundError(what);
-  if (!inScope(scope, rec.areaId)) throw new ForbiddenError(`This ${what.toLowerCase()} is outside your areas`);
+  if (!inScope(scope, rec.areaId, rec.serviceUser)) throw new ForbiddenError(`This ${what.toLowerCase()} is outside your areas`);
+}
+
+/** Whether a rota build touches any of the member's areas. Builds always record the areas they covered. */
+export function buildWhere(scope: Scope): Prisma.RotaBuildWhereInput {
+  return scope.areaIds ? { organisationId: scope.organisationId, areaIds: { hasSome: scope.areaIds } } : { organisationId: scope.organisationId };
 }
 
 /**

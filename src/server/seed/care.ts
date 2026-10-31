@@ -198,7 +198,7 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
   const coordinator = await ctxForUser(people.coordinator, organisationId);
   // Last week too (history for timesheets, payroll and invoices), then this week and next.
   for (const week of [addDays(mondayOf(today), -7), mondayOf(today), addDays(mondayOf(today), 7)]) {
-    const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: week < mondayOf(today) });
+    const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: week <= mondayOf(today) });
     await publishBuild(coordinator, build.id);
   }
   await seedAttendanceHistory(organisationId, people.manager);

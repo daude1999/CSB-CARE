@@ -284,7 +284,8 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="visitId" value={v.id} />
                 <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                <input type="hidden" name="date" value={date} />
+                {/* The keyboard way to move a visit to another day, alongside dragging it in the Weekly Planner. */}
+                <label className="block"><span className="label">Date</span><input type="date" name="date" required defaultValue={date} className="input" /></label>
                 <div className="grid grid-cols-2 gap-2">
                   <label><span className="label">Start</span><input type="time" name="start" required defaultValue={hhmm(londonMinute(v.scheduledStart))} className="input" /></label>
                   <label><span className="label">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} className="input" /></label>

@@ -90,7 +90,7 @@ describe("Build Rota", () => {
     const [a, b] = await Promise.allSettled([confirmBuild(ctx, { weekStart: week }), confirmBuild(ctx, { weekStart: week })]);
     expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
     expect(await db.visit.count({ where: { organisationId: orgId } })).toBe(before + plan.visits.length);
-    await expect(confirmBuild(ctx, { weekStart: week })).rejects.toThrow(/already been built/);
+    await expect(confirmBuild(ctx, { weekStart: week })).rejects.toThrow(/already built/);
     const dupes = await db.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM (SELECT "templateId", date FROM "Visit" WHERE "templateId" IS NOT NULL GROUP BY 1, 2 HAVING count(*) > 1) d`;
     expect(Number(dupes[0]!.n)).toBe(0);
   });

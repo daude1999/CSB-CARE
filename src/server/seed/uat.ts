@@ -306,7 +306,7 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
   const coordinator = await ctxForUser(people.coordinator, organisationId);
   for (let w = -2; w <= 4; w++) {
     const week = addDays(thisMonday, w * 7);
-    const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: w < 0 });
+    const { build } = await confirmBuild(coordinator, { weekStart: week }, { demoHistory: w <= 0 });
     await publishBuild(coordinator, build.id);
     log(`built and published week of ${week}`);
   }

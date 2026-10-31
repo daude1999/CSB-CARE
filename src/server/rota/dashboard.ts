@@ -5,7 +5,7 @@ import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds, mo
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { exceptionCounts } from "./exceptions";
 import { listVisits, suName } from "./queries";
-import { rotaScope, serviceUserWhere, visitWhere } from "./scope";
+import { buildWhere, rotaScope, serviceUserWhere, staffDirectoryWhere, templateScopeWhere, visitWhere } from "./scope";
 
 /**
  * The Rota dashboard, laid out in the order the office already works in OnePlan: one date drives the page, then the
@@ -60,12 +60,15 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
   const soon = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 86_400_000);
 
   const weekStart = mondayOf(date);
+  // Team members, their absences and holidays follow the same branch and area limits as the visits on this page.
+  const staffScope = staffDirectoryWhere(scope, { status: "all" });
+  const staffInScope = { organisationId: org, staff: staffScope };
   const [serviceUsers, team, plans, risks, absenceRequests, templates, holidaysDue, notes, exceptions, builds] = await Promise.all([
     canPeople
       ? db.serviceUser.findMany({ where: { AND: [suScope, { status: { in: ["ACTIVE", "PAUSED", "ASSESSMENT"] } }] }, select: { id: true, firstName: true, lastName: true, preferredName: true, postcode: true, status: true, area: { select: { name: true, colour: true } } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] })
       : Promise.resolve([]),
     canStaff
-      ? db.staffMember.findMany({ where: { organisationId: org, employmentStatus: { not: "ARCHIVED" }, hrMissing: false }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, workPhone: true, userId: true }, orderBy: { displayName: "asc" } })
+      ? db.staffMember.findMany({ where: { ...staffScope, employmentStatus: { not: "ARCHIVED" } }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, workPhone: true, userId: true }, orderBy: { displayName: "asc" } })
       : Promise.resolve([]),
     canPeople
       ? db.carePlan.findMany({ where: { organisationId: org, status: "ACTIVE", reviewDue: { lte: horizon }, serviceUser: suScope }, select: { reviewDue: true, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } } } })
@@ -73,15 +76,15 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     canPeople
       ? db.riskAssessment.findMany({ where: { organisationId: org, status: "ACTIVE", reviewDue: { lte: horizon }, serviceUser: suScope }, select: { id: true, title: true, reviewDue: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } })
       : Promise.resolve([]),
-    canStaff ? db.staffAbsence.findMany({ where: { organisationId: org, status: "REQUESTED", endsAt: { gte: now } }, select: { kind: true, startsAt: true, staff: { select: { displayName: true } } } }) : Promise.resolve([]),
-    db.visitTemplate.findMany({ where: { organisationId: org, enabled: true, ...(scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {}) }, select: { carersRequired: true, preferredStaff1Id: true, preferredStaff2Id: true } }),
-    db.staffAbsence.count({ where: { organisationId: org, status: "APPROVED", startsAt: { gte: now, lte: soon } } }),
+    canStaff ? db.staffAbsence.findMany({ where: { ...staffInScope, status: "REQUESTED", endsAt: { gte: now } }, select: { kind: true, startsAt: true, staff: { select: { displayName: true } } } }) : Promise.resolve([]),
+    db.visitTemplate.findMany({ where: { organisationId: org, enabled: true, ...templateScopeWhere(scope) }, select: { carersRequired: true, preferredStaff1Id: true, preferredStaff2Id: true } }),
+    db.staffAbsence.count({ where: { ...staffInScope, status: "APPROVED", startsAt: { gte: now, lte: soon } } }),
     (() => {
       const { start, end } = londonDayBounds(date);
       return db.visitNote.count({ where: { organisationId: org, createdAt: { gte: start, lt: end }, visit: visitWhere(scope) } });
     })(),
     hasOrgPermission(ctx, "rota.monitor") ? exceptionCounts(ctx) : Promise.resolve(null),
-    db.rotaBuild.count({ where: { organisationId: org, weekStart: dbDate(weekStart), status: "BUILT" } }),
+    db.rotaBuild.count({ where: { ...buildWhere(scope), weekStart: dbDate(weekStart), status: "BUILT" } }),
   ]);
 
   // A template conflict is a slot with no carer, or a carer who has left or is no longer in HR.
