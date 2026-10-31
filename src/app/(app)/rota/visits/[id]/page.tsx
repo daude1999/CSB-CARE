@@ -122,6 +122,33 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         </form>
                       ) : null}
                     </div>
+                    {assignable && s !== "SHADOW" && list.some((c) => c.score !== null) ? (
+                      <details className="mt-2" open={!a}>
+                        <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Recommended carers</summary>
+                        <ol className="mt-1.5 space-y-1.5">
+                          {list.filter((c) => c.score !== null).slice(0, 3).map((c) => (
+                            <li key={c.id} className="flex flex-wrap items-start gap-2 rounded-[4px] border border-slate-200 px-2.5 py-2 text-[13.5px]">
+                              <span className="inline-flex h-7 w-9 items-center justify-center rounded-[4px] bg-[#e8f0fb] font-semibold tabular-nums text-[#1d4f91]" aria-label={`Suitability ${c.score} out of 100`}>{c.score}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="font-medium">{c.name}</span> <span className="text-slate-600">· {STATE_LABEL[c.state]} · {c.weekHours} h booked this week</span>
+                                <span className="block text-[12.5px] text-slate-600">{c.explain.map((e) => `${e.points > 0 ? "+" : ""}${e.points} ${e.text}`).join(" · ")}</span>
+                                {c.reasons.length ? <span className="block text-[12.5px] text-[#8a5a00]">Check: {c.reasons.slice(0, 3).join("; ")}</span> : null}
+                              </span>
+                              <form action={assignCarerAction}>
+                                <input type="hidden" name="back" value={back} />
+                                <input type="hidden" name="visitId" value={v.id} />
+                                <input type="hidden" name="slot" value={s} />
+                                <input type="hidden" name="staffId" value={c.id} />
+                                <input type="hidden" name="lockVersion" value={v.lockVersion} />
+                                {c.state === "REQUIRES_REVIEW" ? <input type="hidden" name="acceptWarnings" value="true" /> : null}
+                                <button className="btn-secondary py-1" aria-label={`${a ? "Replace with" : "Assign"} ${c.name}${c.state === "REQUIRES_REVIEW" ? ", accepting the warnings shown" : ""}`}>{a ? "Use" : "Assign"}</button>
+                              </form>
+                            </li>
+                          ))}
+                        </ol>
+                        <p className="mt-1 text-[12px] text-slate-500">Scores order the carers the rules allow; they never override a failed check. Gaps between bookings are time gaps, not travel times.</p>
+                      </details>
+                    ) : null}
                     {assignable ? (
                       <form action={assignCarerAction} className="mt-2 flex flex-wrap items-center gap-2">
                         <input type="hidden" name="back" value={back} />
@@ -132,7 +159,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
-                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
+                              {c.score !== null ? `${c.score} · ` : ""}{c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
                             </option>
                           ))}
                         </select>

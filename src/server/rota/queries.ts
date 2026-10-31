@@ -5,6 +5,7 @@ import type { Ctx } from "@/server/auth/rbac";
 import { rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
 import { rotaSettings } from "./settings";
 import { rotaScope, serviceUserWhere, staffDirectoryWhere, visitWhere, type Scope } from "./scope";
+import { loadMatchFacts, scoreMatch, type Match } from "./matching";
 
 /**
  * Derived visit indicators. They are computed on read from stored times and settings, so they never go stale:
@@ -127,8 +128,21 @@ export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUser
   const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
   const allowed = await allocatableStaffIds(scope);
   const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, allowed ?? undefined);
-  return ranked.filter((r) => !others.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }));
+  const list = ranked.filter((r) => !others.includes(r.result.staffId));
+  const facts = await loadMatchFacts(db, scope.organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: visit.id, serviceUserId: visit.serviceUserId, start: visit.scheduledStart, end: visit.scheduledEnd });
+  return orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd }, facts))));
 }
+
+type Ranked = Awaited<ReturnType<typeof rankCarers>>[number];
+function toCandidate(r: Ranked, m: Match) {
+  return { id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message), score: m.score, explain: m.explain, continuity: m.continuity, weekHours: m.weekHours };
+}
+const STATE_ORDER = { ELIGIBLE: 0, REQUIRES_REVIEW: 1, NOT_ELIGIBLE: 2 } as const;
+/** Allowed carers first, best score first; a score never lifts a carer above the eligibility order's hard line. */
+function orderByMatch<T extends { state: keyof typeof STATE_ORDER; score: number | null; name: string }>(list: T[]) {
+  return list.sort((a, b) => (a.state === "NOT_ELIGIBLE" ? 1 : 0) - (b.state === "NOT_ELIGIBLE" ? 1 : 0) || (b.score ?? -1) - (a.score ?? -1) || STATE_ORDER[a.state] - STATE_ORDER[b.state] || a.name.localeCompare(b.name));
+}
+export type Candidate = ReturnType<typeof toCandidate>;
 
 type CandidateVisit = Parameters<typeof visitCandidates>[1];
 
@@ -139,7 +153,13 @@ export async function visitCandidatesMany(ctx: Ctx, visits: { visit: CandidateVi
   const others = visits.map(({ visit, slot }) => visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId));
   const allowed = await allocatableStaffIds(scope);
   const ranked = await rankCarersMany(db, scope.organisationId, visits.map(({ visit, slot }, i) => ({ start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: tasks.filter((t) => t.visitId === visit.id).map((t) => t.careTaskId).filter((x): x is string => !!x), otherSlotStaffIds: others[i] })));
-  return new Map(visits.map(({ visit }, i) => [visit.id, ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId) && (!allowed || allowed.includes(r.result.staffId))).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }))]));
+  const out = new Map<string, Candidate[]>();
+  for (const [i, { visit }] of visits.entries()) {
+    const list = ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId) && (!allowed || allowed.includes(r.result.staffId)));
+    const facts = await loadMatchFacts(db, scope.organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: visit.id, serviceUserId: visit.serviceUserId, start: visit.scheduledStart, end: visit.scheduledEnd });
+    out.set(visit.id, orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd }, facts)))));
+  }
+  return out;
 }
 
 /** Display names for the people who acted on records (audit actors), limited to the caller's organisation. */
