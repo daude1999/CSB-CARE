@@ -251,10 +251,10 @@ export async function seedCareRecords(organisationId: string, coordinator: Ctx, 
   }
 }
 
-/** Visits that ended before now get clock records (demo history), with a few late and one missed for the monitor. */
-export async function seedAttendanceHistory(organisationId: string, managerId: string) {
+/** Visits that ended before now (and, given `since`, not before it) get clock records (demo history), with a few late and one missed for the monitor. */
+export async function seedAttendanceHistory(organisationId: string, managerId: string, since?: Date) {
   const now = Date.now();
-  const past = await db.visit.findMany({ where: { organisationId, scheduledEnd: { lt: new Date(now) }, status: "SCHEDULED" }, include: { assignments: { where: { removedAt: null, slot: { not: "SHADOW" } } }, tasks: { orderBy: { position: "asc" } }, serviceUser: { select: { firstName: true, preferredName: true } } }, orderBy: { scheduledStart: "asc" } });
+  const past = await db.visit.findMany({ where: { organisationId, scheduledEnd: { lt: new Date(now), ...(since ? { gte: since } : {}) }, status: "SCHEDULED" }, include: { assignments: { where: { removedAt: null, slot: { not: "SHADOW" } } }, tasks: { orderBy: { position: "asc" } }, serviceUser: { select: { firstName: true, preferredName: true } } }, orderBy: { scheduledStart: "asc" } });
   // Each carer's sign-in, so their task outcomes and notes are recorded as theirs (the manager where none is linked).
   const logins = new Map((await db.staffMember.findMany({ where: { organisationId, userId: { not: null } }, select: { id: true, userId: true } })).map((s) => [s.id, s.userId!]));
   const outcomes: Prisma.VisitTaskOutcomeCreateManyInput[] = [];
