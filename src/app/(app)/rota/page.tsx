@@ -1,6 +1,6 @@
 import type { AssignmentSlot } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { ArrowsClockwise, CalendarPlus, Plus, UserSwitch } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsClockwise, CalendarPlus, Plus, UserSwitch, Faders } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { addDays, fmtLondonDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
@@ -68,6 +68,7 @@ export default async function RotaDashboard({ searchParams }: { searchParams: Pr
           <span className="flex flex-wrap gap-2">
             {canBuild ? <Link href="/rota/build" className="btn-primary inline-flex items-center gap-1.5"><CalendarPlus size={16} aria-hidden />Plan rota</Link> : null}
             {canBuild ? <Link href={`/rota/build?roll=1&from=${addDays(r.week, -7)}&to=${r.week}&weeks=1`} className="btn-secondary inline-flex items-center gap-1.5"><ArrowsClockwise size={16} aria-hidden />Roll forward</Link> : null}
+            {canBuild ? <Link href={`/rota/optimise?from=${r.week > r.today ? r.week : r.today}`} className="btn-secondary inline-flex items-center gap-1.5"><Faders size={16} aria-hidden />Fill open slots</Link> : null}
             <Link href="/rota/cover" className="btn-secondary inline-flex items-center gap-1.5"><UserSwitch size={16} aria-hidden />Cover</Link>
             {canEdit ? <Link href={`/rota/visits/new?date=${r.week >= mondayOf(r.today) && r.week <= r.today ? r.today : r.week}`} className="btn-secondary inline-flex items-center gap-1.5"><Plus size={16} aria-hidden />Add visit</Link> : null}
           </span>

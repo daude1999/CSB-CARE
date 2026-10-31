@@ -92,6 +92,29 @@ test.describe("Rostering & Care Management", () => {
     }
   });
 
+  test("Generate & Optimise proposes changes that are only applied once accepted", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota");
+    await page.getByRole("link", { name: "Fill open slots" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Generate & Optimise Rota" })).toBeVisible();
+    await page.locator("select[name=days]").selectOption("7");
+    await page.getByRole("button", { name: "Generate plan" }).click();
+    await expect(page).toHaveURL(/\/rota\/optimise\/c/);
+    const summary = page.getByRole("region", { name: "Plan summary" });
+    await expect(summary).toContainText("open carer slot");
+    await expect(summary).toContainText("No distances or driving times are used");
+    const acceptAll = page.getByRole("button", { name: "Accept all" });
+    if (await acceptAll.isVisible()) {
+      await acceptAll.click();
+      await expect(page.getByRole("status")).toContainText("accepted");
+      await page.getByRole("button", { name: /^Apply \d+ accepted change/ }).click();
+      await expect(page.getByRole("status")).toContainText("applied");
+      await expect(page.getByText("Carer booked").first()).toBeVisible();
+    }
+    await page.goto("/rota/optimise");
+    await expect(page.getByRole("table")).toBeVisible();
+  });
+
   test("Rota Dashboard is the week roster: carers by day, today's figures, and a visit opens beside it", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
@@ -154,7 +177,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/today", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/visits?layout=list", "/rota/planner", "/rota/build", "/rota/build?roll=1", "/rota/cover", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
+      for (const path of ["/rota", "/rota/today", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/visits?layout=list", "/rota/planner", "/rota/build", "/rota/build?roll=1", "/rota/cover", "/rota/optimise", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
         await page.goto(path);
         await expect(page.locator("main h1").first()).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
