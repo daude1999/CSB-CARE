@@ -362,7 +362,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                                 <td className="whitespace-nowrap tabular-nums">{fmtLondonDate(v.date, { weekday: "short", day: "numeric", month: "short" })}</td>
                                 <td className="whitespace-nowrap tabular-nums">{londonTime(v.start)}–{londonTime(v.end)}</td>
                                 <td>{v.serviceUserName}<span className="block text-[12px] text-slate-500">{v.callType}{v.carersRequired > 1 ? " · double-up" : ""}</span></td>
-                                <td>{v.slots.map((x) => x.fromName ?? "Nobody").join(", ")}</td>
+                                <td>{v.slots.map((x) => x.fromName ?? "empty slot").join(", ")}</td>
                                 <td>
                                   <ul className="space-y-0.5">
                                     {v.slots.map((x) => (
