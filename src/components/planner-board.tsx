@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { SHADE_CLASS, SHADE_TEXT, TONE_CLASS, type ShadeTone, type Tone } from "@/components/roster-tones";
 
 export interface PlannerChip {
   visitId: string;
@@ -10,7 +11,7 @@ export interface PlannerChip {
   time: string;
   label: string;
   title: string;
-  tone: "ok" | "review" | "empty" | "done" | "cancelled";
+  tone: Tone;
   movable: boolean;
 }
 export interface PlannerRow {
@@ -18,15 +19,18 @@ export interface PlannerRow {
   name: string;
   sub: string;
   href?: string;
+  /** The carer is over their weekly hours. */
+  over?: boolean;
   cells: PlannerChip[][];
+  /** Leave or unavailable time shaded on a day, with its label. */
+  shades?: ({ tone: ShadeTone; label: string } | null)[];
 }
 
-const TONE: Record<PlannerChip["tone"], string> = {
+/** The planner keeps its quieter colours; the roster passes `tones` for the state colours. */
+const PLANNER_TONE: Partial<Record<Tone, string>> = {
   ok: "border-[#b9cfea] bg-[#eef4fb] text-[#1d4f91]",
   review: "border-[#f2b8bc] bg-[#fde1e3] text-[#a3242c]",
-  empty: "border-dashed border-[#e4544f] bg-white text-[#a3242c]",
   done: "border-[#bfe3cd] bg-[#eef8f2] text-[#1c7a43]",
-  cancelled: "border-slate-200 bg-slate-50 text-slate-400 line-through",
 };
 
 /**
@@ -36,7 +40,7 @@ const TONE: Record<PlannerChip["tone"], string> = {
  * allocation, and a refusal is shown with its reason. Without a mouse, open the visit (Enter on the chip) and change the
  * carer or day there.
  */
-export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer" }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; moveAction?: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string }) {
+export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer", stateColours = false }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; moveAction?: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string; stateColours?: boolean }) {
   const form = useRef<HTMLFormElement>(null);
   const moveForm = useRef<HTMLFormElement>(null);
   const [drag, setDrag] = useState<{ chip: PlannerChip; day: number; staffId: string } | null>(null);
@@ -77,15 +81,16 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
             <tr key={r.id}>
               <th scope="row" className="sticky left-0 z-10 border-t border-slate-200 bg-white px-2 py-1.5 text-left align-top font-normal">
                 {r.href ? <a href={r.href} className="text-[13.5px] font-medium text-[#1d4f91] no-underline hover:underline">{r.name}</a> : <span className="text-[13.5px] font-medium text-[#a3242c]">{r.name}</span>}
-                <span className="block text-[12px] text-slate-500">{r.sub}</span>
+                <span className={`block text-[12px] ${r.over ? "font-medium text-[#a3242c]" : "text-slate-500"}`}>{r.sub}{r.over ? " · over limit" : ""}</span>
               </th>
               {r.cells.map((cell, di) => {
                 const key = `${r.id}:${di}`;
+                const shade = r.shades?.[di] ?? null;
                 const droppable = canEdit && r.id !== "unassigned" && !!drag && (drag.day === di || !!moveAction) && !(drag.day === di && drag.staffId === r.id);
                 return (
                   <td
                     key={di}
-                    className={`border-l border-t border-slate-200 px-1 py-1 align-top ${droppable && over === key ? "bg-[#e3effb]" : droppable ? "bg-[#f7fafd]" : ""}`}
+                    className={`border-l border-t border-slate-200 px-1 py-1 align-top ${droppable && over === key ? "bg-[#e3effb]" : droppable ? "bg-[#f7fafd]" : shade ? SHADE_CLASS[shade.tone] : ""}`}
                     onDragOver={(e) => {
                       if (!droppable) return;
                       e.preventDefault();
@@ -104,6 +109,7 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
                     }}
                   >
                     <div className="flex min-h-[28px] flex-col gap-[3px]">
+                      {shade ? <span className={`text-[11.5px] font-medium ${SHADE_TEXT[shade.tone]}`}>{shade.label}</span> : null}
                       {cell.map((c) => (
                         <a
                           key={`${c.visitId}-${c.slot}`}
@@ -115,7 +121,7 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
                             setDrag({ chip: c, day: di, staffId: r.id });
                           }}
                           onDragEnd={() => setDrag(null)}
-                          className={`block rounded-[3px] border px-1.5 py-[3px] leading-[15px] no-underline ${TONE[c.tone]} ${canEdit && c.movable ? "cursor-grab" : ""}`}
+                          className={`block rounded-[3px] border px-1.5 py-[3px] leading-[15px] no-underline ${(!stateColours && PLANNER_TONE[c.tone]) || TONE_CLASS[c.tone]} ${canEdit && c.movable ? "cursor-grab" : ""}`}
                         >
                           <span className="tabular-nums">{c.time}</span> {c.label}
                         </a>

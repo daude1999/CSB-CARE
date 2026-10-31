@@ -25,7 +25,7 @@ function dayOfWeek(weeks: number, days: number) {
 }
 
 async function figures(page: Page, date: string) {
-  await page.goto(`/rota?date=${date}`);
+  await page.goto(`/rota/today?date=${date}`);
   const read = async (id: string) => Number(await page.getByTestId(`status-${id}`).locator("span").first().innerText());
   return { scheduled: await read("scheduled-visits"), unassigned: await read("unassigned"), cancelled: await read("cancelled"), onDuty: await read("staff-on-duty") };
 }
@@ -111,7 +111,7 @@ test.describe("Dashboards follow rota changes", () => {
   test("a week nobody has built says so and links to Build Rota", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
     const far = dayOfWeek(6, 1);
-    for (const path of [`/rota?date=${far}`, `/rota/visits?date=${far}`, `/rota/advanced?date=${far}`, `/rota/planner?week=${dayOfWeek(6, 0)}`]) {
+    for (const path of [`/rota/today?date=${far}`, `/rota/visits?date=${far}`, `/rota/advanced?date=${far}`, `/rota/planner?week=${dayOfWeek(6, 0)}`]) {
       await page.goto(path);
       await expect(page.getByRole("status").filter({ hasText: "No rota has been built" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Build this week" })).toHaveAttribute("href", `/rota/build?week=${dayOfWeek(6, 0)}`);
