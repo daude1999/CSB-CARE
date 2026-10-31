@@ -2325,6 +2325,9 @@ model FinanceSettings {
   mileagePencePerMile  Int       @default(45)
   invoicePrefix        String    @default("INV")
   nextInvoiceNumber    Int       @default(1)
+  /// Employer on-costs (employer National Insurance, pension, holiday accrual) added to pay in rota cost estimates,
+  /// as a whole percentage. An assumption set by the organisation; never used for payroll.
+  estimateOnCostPercent Int      @default(0)
   updatedById          String?
   updatedAt            DateTime  @updatedAt
 }
@@ -3017,4 +3020,79 @@ model MissedCallComment {
   createdAt      DateTime       @default(now())
 
   @@index([caseId, createdAt])
+}
+
+enum RotaPlanStatus {
+  DRAFT
+  APPLIED
+  DISCARDED
+}
+
+enum RotaPlanChangeKind {
+  ASSIGN
+  RETIME
+}
+
+enum RotaPlanDecision {
+  PENDING
+  ACCEPTED
+  REJECTED
+  APPLIED
+  FAILED
+}
+
+/// A Generate & Optimise proposal for a date range. It never changes the rota by itself: the coordinator accepts or
+/// rejects each change, and accepted changes are applied one by one through the normal assignment and edit paths.
+model RotaPlan {
+  id                  String           @id @default(cuid())
+  organisationId      String
+  fromDate            DateTime         @db.Date
+  toDate              DateTime         @db.Date
+  areaId              String?
+  /// How gaps between visits are judged: TIME_GAP (a fixed minimum gap, no journey times).
+  mode                String           @default("TIME_GAP")
+  gapMinutes          Int
+  maxShiftMinutes     Int
+  respectWeeklyLimits Boolean          @default(true)
+  status              RotaPlanStatus   @default(DRAFT)
+  summary             Json             @default("{}")
+  createdById         String
+  createdAt           DateTime         @default(now())
+  appliedById         String?
+  appliedAt           DateTime?
+  discardedById       String?
+  discardedAt         DateTime?
+  changes             RotaPlanChange[]
+
+  @@index([organisationId, createdAt])
+}
+
+model RotaPlanChange {
+  id               String             @id @default(cuid())
+  organisationId   String
+  planId           String
+  plan             RotaPlan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  position         Int
+  visitId          String
+  kind             RotaPlanChangeKind
+  slot             AssignmentSlot?
+  staffId          String?
+  /// For RETIME: the visit's time when the plan was made and the proposed time.
+  fromStart        DateTime?
+  fromEnd          DateTime?
+  toStart          DateTime?
+  toEnd            DateTime?
+  eligibility      String?
+  score            Int?
+  reasons          String[]           @default([])
+  warnings         String[]           @default([])
+  /// The visit's lockVersion when the plan was made; a visit changed since then is not touched.
+  visitLockVersion Int
+  decision         RotaPlanDecision   @default(PENDING)
+  outcome          String?
+  decidedById      String?
+  decidedAt        DateTime?
+
+  @@index([planId, position])
+  @@index([organisationId, visitId])
 }

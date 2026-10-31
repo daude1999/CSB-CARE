@@ -24,10 +24,16 @@ function dayOfWeek(weeks: number, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** The Rota Dashboard's figures for one day, and the Daily Rota's for the same day: they must always agree. */
 async function figures(page: Page, date: string) {
-  await page.goto(`/rota/today?date=${date}`);
-  const read = async (id: string) => Number(await page.getByTestId(`status-${id}`).locator("span").first().innerText());
-  return { scheduled: await read("scheduled-visits"), unassigned: await read("unassigned"), cancelled: await read("cancelled"), onDuty: await read("staff-on-duty") };
+  await page.goto(`/rota?date=${date}`);
+  const read = async (id: string) => Number((await page.getByTestId(`kpi-${id}`).locator("[data-value]").innerText()).replace(/,/g, ""));
+  const out = { scheduled: await read("scheduled"), unassigned: await read("unassigned") };
+  await page.goto(`/rota/visits?date=${date}`);
+  const tile = async (name: string) => Number((await page.getByRole("region", { name: "The day's figures" }).getByRole("link", { name: new RegExp(`^${name}`) }).locator("[data-value]").innerText()).replace(/,/g, ""));
+  expect(await tile("Scheduled")).toBe(out.scheduled);
+  expect(await tile("Unassigned")).toBe(out.unassigned);
+  return out;
 }
 
 test.describe("Dashboards follow rota changes", () => {
@@ -53,7 +59,7 @@ test.describe("Dashboards follow rota changes", () => {
     await expect(page.getByRole("status")).toContainText("Visit added");
     const visitId = page.url().match(/\/rota\/visits\/([^?/]+)/)?.[1];
     expect(visitId).toBeTruthy();
-    const link = `a[href^="/rota/visits/${visitId}"]`;
+    const link = `a[href*="${visitId}"]`;
 
     let now = await figures(page, day);
     expect(now.scheduled).toBe(before.scheduled + 1);
@@ -98,9 +104,7 @@ test.describe("Dashboards follow rota changes", () => {
 
     now = await figures(page, day);
     expect(now.scheduled).toBe(before.scheduled);
-    expect(now.cancelled).toBe(before.cancelled + 1);
-    await page.reload();
-    expect(Number(await page.getByTestId("status-cancelled").locator("span").first().innerText())).toBe(before.cancelled + 1);
+    expect(now.unassigned).toBe(before.unassigned);
     await page.goto(`/rota/visits?date=${day}`);
     await expect(page.locator(link)).toHaveCount(0);
     await page.goto(`/rota/visits?date=${day}&cancelled=1&status=CANCELLED`);
@@ -111,7 +115,7 @@ test.describe("Dashboards follow rota changes", () => {
   test("a week nobody has built says so and links to Build Rota", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
     const far = dayOfWeek(6, 1);
-    for (const path of [`/rota/today?date=${far}`, `/rota/visits?date=${far}`, `/rota/advanced?date=${far}`, `/rota/planner?week=${dayOfWeek(6, 0)}`]) {
+    for (const path of [`/rota?date=${far}`, `/rota/visits?date=${far}`, `/rota/advanced?date=${far}`, `/rota/planner?week=${dayOfWeek(6, 0)}`]) {
       await page.goto(path);
       await expect(page.getByRole("status").filter({ hasText: "No rota has been built" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Build this week" })).toHaveAttribute("href", `/rota/build?week=${dayOfWeek(6, 0)}`);

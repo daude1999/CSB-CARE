@@ -59,7 +59,8 @@ test.describe("Portal switching", () => {
 
   test("HR sits in the platform shell; entering and leaving it is a full page load, so its style sheet never leaks", async ({ page }) => {
     await signIn(page);
-    await page.goto("/rota");
+    // The Rota Dashboard and Daily Rota use their own approved header, so read the title bar on another rota page.
+    await page.goto("/rota/unassigned");
     const rotaTitleFont = await page.getByTestId("title-bar").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily);
     await portal(page, "hr").click();
     await expect(page).toHaveURL(/\/hr\/dashboard/);

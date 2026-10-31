@@ -345,7 +345,7 @@ export async function getVisit(ctx: Ctx, visitId: string) {
   const v = await db.visit.findUnique({
     where: { id: visitId },
     include: {
-      serviceUser: { select: { id: true, firstName: true, lastName: true, reference: true, postcode: true, carerGenderPreference: true, areaId: true, branchId: true } },
+      serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, postcode: true, carerGenderPreference: true, riskLevel: true, areaId: true, branchId: true } },
       callType: true,
       area: true,
       runRoute: true,

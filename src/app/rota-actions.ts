@@ -8,6 +8,7 @@ import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
+import { applyPlan, decideChanges, discardPlan, generatePlan, publishPlanVisits } from "@/server/rota/optimise";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
@@ -16,7 +17,7 @@ import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
-import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
+import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, orderRouteDayByTime, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
 import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
@@ -854,6 +855,10 @@ export async function moveStopAction(fd: FormData) {
   return handle(fd, (ctx) => moveStop(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id"), str(fd, "dir") === "up" ? "up" : "down"), "Order changed");
 }
 
+export async function orderRouteByTimeAction(fd: FormData) {
+  return handle(fd, (ctx) => orderRouteDayByTime(ctx, str(fd, "routeId"), str(fd, "date")), "Stops put in time order");
+}
+
 export async function removeRouteAction(fd: FormData) {
   return handle(fd, (ctx) => removeRoute(ctx, routeKind(fd), str(fd, "routeId")), routeKind(fd) === "LIVE" ? "Run route removed" : "Template run route switched off");
 }
@@ -934,4 +939,45 @@ export async function missedBulkAction(fd: FormData) {
     const r = await bulkMissed(ctx, ids(fd, "ids"), action, { coordinatorId: str(fd, "coordinatorId") || undefined, note: str(fd, "note") || undefined });
     return { ok: `${r.done} ${action === "assign" ? "assigned" : "escalated"}${r.skipped.length ? `, ${r.skipped.length} skipped (${[...new Set(r.skipped)].slice(0, 2).join("; ")})` : ""}` };
   }, "Done");
+}
+
+// Generate & Optimise. A plan is a draft: nothing on the rota changes until accepted changes are applied.
+export async function generatePlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const plan = await generatePlan(ctx, { from: str(fd, "from"), days: str(fd, "days"), areaId: str(fd, "areaId"), gapMinutes: str(fd, "gapMinutes"), maxShiftMinutes: str(fd, "maxShiftMinutes"), respectWeeklyLimits: bool(fd, "respectWeeklyLimits") });
+    return `/rota/optimise/${plan.id}`;
+  }, "Plan generated. Nothing has changed on the rota yet: accept or reject each change, then apply.");
+}
+
+export async function decidePlanChangesAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    // A row's own button sends "ACCEPTED|<id>"; the bulk buttons send a decision for the ticked changes.
+    const [rowDecision, rowId] = str(fd, "row").split("|");
+    const decision = rowId ? rowDecision : str(fd, "decision");
+    if (decision !== "ACCEPTED" && decision !== "REJECTED" && decision !== "PENDING") throw new ValidationError("Choose accept or reject");
+    const which = str(fd, "which");
+    const n = await decideChanges(ctx, str(fd, "planId"), rowId ? [rowId] : which === "ALL" || which === "ALL_CLEAN" ? which : ids(fd, "changeIds"), decision);
+    return { ok: `${n} change${n === 1 ? "" : "s"} ${decision === "ACCEPTED" ? "accepted" : decision === "REJECTED" ? "rejected" : "reset"}.` };
+  }, "Saved.");
+}
+
+export async function applyPlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await applyPlan(ctx, str(fd, "planId"));
+    return { ok: `${r.applied} change${r.applied === 1 ? "" : "s"} applied to ${r.visitIds.length} visit${r.visitIds.length === 1 ? "" : "s"}${r.failed ? `; ${r.failed} could not be applied (see each change for why)` : ""}.` };
+  }, "Plan applied.");
+}
+
+export async function discardPlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await discardPlan(ctx, str(fd, "planId"));
+    return "/rota/optimise";
+  }, "Plan discarded. The rota was not changed.");
+}
+
+export async function publishPlanAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await publishPlanVisits(ctx, str(fd, "planId"));
+    return { ok: r.published ? `${r.published} visit${r.published === 1 ? "" : "s"} published to carers.${r.failed ? ` ${r.failed} could not be published.` : ""}` : "Every changed visit was already published." };
+  }, "Published.");
 }

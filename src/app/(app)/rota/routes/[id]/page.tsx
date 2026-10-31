@@ -3,9 +3,9 @@ import { addDays, fmtLondonDate, fromDbDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
-import { getLiveRoute, ROUTE_KIND_LABEL } from "@/server/rota/routes";
+import { gapSummary, getLiveRoute, routeGaps, ROUTE_IDLE_GAP_MIN, ROUTE_KIND_LABEL, ROUTE_TIGHT_GAP_MIN } from "@/server/rota/routes";
 import { suName } from "@/server/rota/queries";
-import { addToRouteAction, moveStopAction, moveToRouteAction, removeFromRouteAction, removeRouteAction } from "@/app/rota-actions";
+import { addToRouteAction, moveStopAction, orderRouteByTimeAction, moveToRouteAction, removeFromRouteAction, removeRouteAction } from "@/app/rota-actions";
 import { RouteChip } from "@/components/route-ui";
 import { Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
@@ -30,15 +30,27 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
         <div className="space-y-3">
           {days.length ? days.map((d) => {
             const list = visits.filter((v) => fromDbDate(v.date) === d);
+            const gaps = routeGaps(list);
+            const g = gapSummary(gaps);
+            const problems = [g.overlaps && `${g.overlaps} overlap${g.overlaps === 1 ? "" : "s"}`, g.tight && `${g.tight} gap${g.tight === 1 ? "" : "s"} under ${ROUTE_TIGHT_GAP_MIN} min`, g.outOfOrder && `${g.outOfOrder} out of time order`, g.idle && `${g.idle} wait${g.idle === 1 ? "" : "s"} over ${ROUTE_IDLE_GAP_MIN / 60} h`].filter(Boolean);
             return (
-              <Card key={d} title={fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })}>
+              <Card
+                key={d}
+                title={fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })}
+                actions={canEdit && g.outOfOrder ? (
+                  <form action={orderRouteByTimeAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="date" value={d} /><button className="btn-secondary px-2 py-0.5 text-[13px]">Put in time order</button></form>
+                ) : null}
+              >
+                <p className={`mb-1 text-[13px] ${g.overlaps || g.outOfOrder ? "text-[#a3242c]" : g.tight ? "text-[#8a5a00]" : "text-slate-600"}`}>
+                  Time-gap check: {problems.length ? problems.join(", ") : "no overlaps or tight gaps"}. Scheduled times only; travel time is not worked out.
+                </p>
                 <ol className="rows">
                   {list.map((v, i) => {
-                    const prev = list[i - 1];
-                    const gap = prev ? Math.round((v.scheduledStart.getTime() - prev.scheduledEnd.getTime()) / 60000) : null;
+                    const gap = gaps.find((x) => x.visitId === v.id);
+                    const bad = gap?.kinds.some((k) => k === "OVERLAP" || k === "OUT_OF_ORDER");
                     return (
                       <li key={v.id} className="py-2 text-[14px]">
-                        {gap !== null ? <p className={`mb-1 text-[12.5px] ${gap < 0 ? "font-medium text-[#a3242c]" : "text-slate-500"}`}>{gap < 0 ? `Overlaps the stop before by ${-gap} minutes` : `${gap} minutes after the stop before (travel time not worked out)`}</p> : null}
+                        {gap ? <p className={`mb-1 text-[12.5px] ${bad ? "font-medium text-[#a3242c]" : gap.kinds.includes("TIGHT") ? "text-[#8a5a00]" : "text-slate-500"}`}>{gap.text}</p> : null}
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="w-6 text-right font-semibold tabular-nums">{i + 1}.</span>
                           <Link href={`/rota/visits/${v.id}`} className="font-medium">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)} {suName(v.serviceUser)}</Link>

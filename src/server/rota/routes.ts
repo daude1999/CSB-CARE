@@ -262,3 +262,64 @@ export async function removeRoute(ctx: Ctx, kind: "LIVE" | "TEMPLATE", routeId: 
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.route_template.disabled", entityType: "RunRouteTemplate", entityId: r.id }, tx);
   });
 }
+
+// ── Time-gap check ──
+// Travel time is never worked out (there is no routing service): the check compares scheduled times only, so a "tight"
+// gap is a prompt for the coordinator, not a judgement that the journey is impossible.
+
+export const ROUTE_TIGHT_GAP_MIN = 10;
+export const ROUTE_IDLE_GAP_MIN = 120;
+
+export type GapKind = "OVERLAP" | "TIGHT" | "IDLE" | "OUT_OF_ORDER";
+export interface RouteGap {
+  /** The stop this note sits above (the later of the pair, in route order). */
+  visitId: string;
+  minutes: number;
+  kinds: GapKind[];
+  text: string;
+}
+
+/** Pure: the gaps between consecutive stops of one day, in route order. Cancelled stops are skipped. */
+export function routeGaps(stops: { id: string; status: string; scheduledStart: Date; scheduledEnd: Date }[], tight = ROUTE_TIGHT_GAP_MIN, idle = ROUTE_IDLE_GAP_MIN): RouteGap[] {
+  const live = stops.filter((s) => s.status !== "CANCELLED");
+  const out: RouteGap[] = [];
+  for (let i = 1; i < live.length; i++) {
+    const a = live[i - 1]!;
+    const b = live[i]!;
+    const minutes = Math.round((b.scheduledStart.getTime() - a.scheduledEnd.getTime()) / 60000);
+    const kinds: GapKind[] = [];
+    if (b.scheduledStart < a.scheduledStart) kinds.push("OUT_OF_ORDER");
+    if (minutes < 0 && !kinds.includes("OUT_OF_ORDER")) kinds.push("OVERLAP");
+    else if (minutes >= 0 && minutes < tight) kinds.push("TIGHT");
+    else if (minutes > idle) kinds.push("IDLE");
+    const text = kinds.includes("OUT_OF_ORDER")
+      ? "Starts before the stop above: the route order is not the time order"
+      : kinds.includes("OVERLAP")
+        ? `Overlaps the stop above by ${-minutes} minutes`
+        : kinds.includes("TIGHT")
+          ? `Only ${minutes} minutes after the stop above (time gap; travel time is not worked out)`
+          : kinds.includes("IDLE")
+            ? `${Math.floor(minutes / 60)} h ${minutes % 60} min gap after the stop above`
+            : `${minutes} minutes after the stop above (travel time not worked out)`;
+    out.push({ visitId: b.id, minutes, kinds, text });
+  }
+  return out;
+}
+
+export function gapSummary(gaps: RouteGap[]) {
+  const n = (k: GapKind) => gaps.filter((g) => g.kinds.includes(k)).length;
+  return { overlaps: n("OVERLAP"), tight: n("TIGHT"), idle: n("IDLE"), outOfOrder: n("OUT_OF_ORDER") };
+}
+
+/** Puts one day's stops of a live route in time order (earliest first). */
+export async function orderRouteDayByTime(ctx: Ctx, routeId: string, date: string) {
+  const scope = await rotaScope(ctx, "rota.edit");
+  const r = await liveInScope(scope, routeId);
+  if (!isIsoDate(date)) throw new ValidationError("Choose a day");
+  await db.$transaction(async (tx) => {
+    const list = await tx.visit.findMany({ where: { runRouteId: r.id, date: dbDate(date) }, orderBy: [{ scheduledStart: "asc" }, { id: "asc" }], select: { id: true } });
+    if (!list.length) throw new NotFoundError("Stops on this day");
+    for (const [n, v] of list.entries()) await tx.visit.update({ where: { id: v.id }, data: { routeOrder: n + 1 } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "route.ordered_by_time", entityType: "RunRoute", entityId: r.id, data: { date, stops: list.length } }, tx);
+  });
+}

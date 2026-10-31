@@ -8,7 +8,8 @@ const KBD = "hidden rounded-[4px] border border-[#dcd9d2] bg-white px-1.5 text-[
 
 /**
  * The top bar's search. On HR pages it searches people and documents through the HR Hub's own search (which also
- * answers Ctrl+K / ⌘K there); everywhere else it searches the policy library.
+ * answers Ctrl+K / ⌘K there); on rostering pages it searches service users, team members and visit references;
+ * everywhere else it searches the policy library.
  */
 export function ShellSearch() {
   const path = usePathname();
@@ -30,12 +31,13 @@ export function ShellSearch() {
       </>
     );
   }
+  const rota = path === "/rota" || path.startsWith("/rota/");
   return (
-    <form action="/policies" method="get" role="search" className="hidden min-w-0 flex-1 sm:block sm:max-w-[776px]">
+    <form action={rota ? "/rota/search" : "/policies"} method="get" role="search" className="hidden min-w-0 flex-1 sm:block sm:max-w-[776px]">
       <label htmlFor="global-search" className="shell-search">
         <MagnifyingGlass size={17} aria-hidden="true" className="shrink-0 text-[#3a4b5e]" />
-        <span className="sr-only">Search policies</span>
-        <input id="global-search" name="q" type="search" placeholder="Search policies, categories, keywords…" className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0b1530] placeholder:text-[#5f6b7a] focus:outline-none" />
+        <span className="sr-only">{rota ? "Search rostering" : "Search policies"}</span>
+        <input id="global-search" name="q" type="search" placeholder={rota ? "Search rostering (e.g. service user, team member, reference)…" : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0b1530] placeholder:text-[#5f6b7a] focus:outline-none" />
         <kbd className={KBD}>⌘ K</kbd>
       </label>
       <SearchShortcut targetId="global-search" />
