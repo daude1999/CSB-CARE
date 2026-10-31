@@ -5,7 +5,7 @@ import { AppError } from "@/lib/errors";
 import { addDays, dbDate, fmtLondonDate, isIsoDate, londonDate, londonToUtc, londonTime, parseHhmm } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
+import { rotaScope, serviceUserWhere, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings } from "@/server/rota/settings";
 import { suName } from "@/server/rota/queries";
 import { checkStaffEligibility, complianceOn, type EligibilityResult } from "@/server/workforce/eligibility";
@@ -42,7 +42,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
         staffReadiness(ctx, s.id),
         listRequirements(ctx),
         db.careTask.findMany({ where: { organisationId: scope.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-        db.serviceUser.findMany({ where: { organisationId: scope.organisationId, status: { in: ["ACTIVE", "PAUSED"] } }, select: { id: true, firstName: true, lastName: true, preferredName: true }, orderBy: { lastName: "asc" }, take: 500 }),
+        db.serviceUser.findMany({ where: { ...serviceUserWhere(scope), status: { in: ["ACTIVE", "PAUSED"] } }, select: { id: true, firstName: true, lastName: true, preferredName: true }, orderBy: { lastName: "asc" }, take: 500 }),
       ])
     : [null, [], [], []];
   // The eligibility checker: any date and time, judged with the same rules as allocation.

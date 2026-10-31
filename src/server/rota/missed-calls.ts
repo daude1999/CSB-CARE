@@ -10,7 +10,7 @@ import { storeEvidenceFile } from "@/server/compliance/evidence";
 import { eligibilityFor } from "@/server/workforce/eligibility";
 import { exceptionDeadline } from "./exceptions";
 import { deriveFlags, suName } from "./queries";
-import { rotaScope, type Scope } from "./scope";
+import { rotaScope, visitWhere, type Scope } from "./scope";
 import { rotaSettings } from "./settings";
 
 /**
@@ -92,7 +92,8 @@ export async function syncMissedCases(organisationId?: string) {
 // ── Scope ────────────────────────────────────────────────────────────────
 
 function caseScope(scope: Scope): Prisma.MissedCallCaseWhereInput {
-  return scope.areaIds ? { organisationId: scope.organisationId, OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : { organisationId: scope.organisationId };
+  // A case without an area is judged by its visit (and so its service user), so it cannot cross branches.
+  return scope.areaIds ? { organisationId: scope.organisationId, AND: [{ OR: [{ areaId: { in: scope.areaIds } }, { areaId: null, visit: visitWhere(scope) }] }] } : { organisationId: scope.organisationId };
 }
 
 async function caseInScope(ctx: Ctx, caseId: string, perm: "rota.monitor" | "rota.edit" = "rota.edit") {
@@ -285,7 +286,7 @@ export async function missedCallRegister(ctx: Ctx, input: Record<string, string 
 
   // The four call rings for the same period and branch, as on the Monitor.
   const visits = await db.visit.findMany({
-    where: { organisationId: scope.organisationId, date: { gte: dbDate(range.from), lte: dbDate(range.to) }, status: { not: "CANCELLED" }, ...(scope.areaIds || branchAreas ? { OR: [{ areaId: { in: branchAreas ?? scope.areaIds ?? [] } }, ...(branchAreas ? [] : [{ areaId: null }])] } : {}) },
+    where: { AND: [visitWhere(scope), branchAreas ? { areaId: { in: branchAreas } } : {}], date: { gte: dbDate(range.from), lte: dbDate(range.to) }, status: { not: "CANCELLED" } },
     select: { id: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { select: { slot: true, removedAt: true, reviewReason: true } } },
   });
   const rings = {

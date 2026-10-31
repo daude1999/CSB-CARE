@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Bank, Car, Printer, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, PhoneX, Pulse, Receipt, Repeat, Notepad, SealCheck, ShieldWarning, Siren, UsersThree, Wallet, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, Bank, Car, Printer, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, PhoneX, Pulse, Receipt, Repeat, Notepad, SealCheck, ShieldWarning, Siren, UsersThree, Wallet, UserSwitch, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -20,6 +20,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
         ["/rota/visits", "Daily Rota", <ListChecks key="i" {...i} />, "rota.view", true],
         ["/rota/advanced", "Advanced Rota", <CalendarDots key="i" {...i} />, "rota.view", true],
         ["/rota/unassigned", "Unassigned Visits", <WarningOctagon key="i" {...i} />, "rota.view", true],
+        ["/rota/cover", "Sickness & Holiday Cover", <UserSwitch key="i" {...i} />, "rota.view", true],
         ["/rota/monitor", "The Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
         ["/rota/missed", "Missed Calls", <PhoneX key="i" {...i} />, "rota.monitor", true],
         ["/rota/exceptions", "Exceptions", <Siren key="i" {...i} />, "rota.monitor", true],

@@ -18,6 +18,7 @@ import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime }
 import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, swapCarersAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
+import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,13 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         </form>
                       ) : null}
                     </div>
+                    {assignable && s !== "SHADOW" && list.some((c) => c.score !== null) ? (
+                      <details className="mt-2" open={!a}>
+                        <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Recommended carers</summary>
+                        <CarerRecommendations list={list} visitId={v.id} slot={s} lockVersion={v.lockVersion} back={back} replacing={!!a} />
+                        <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
+                      </details>
+                    ) : null}
                     {assignable ? (
                       <form action={assignCarerAction} className="mt-2 flex flex-wrap items-center gap-2">
                         <input type="hidden" name="back" value={back} />
@@ -132,7 +140,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
-                              {c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
+                              {c.score !== null ? `${c.score} · ` : ""}{c.name} — {STATE_LABEL[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}{c.advice.length ? ` · check: ${c.advice.join("; ")}` : ""}
                             </option>
                           ))}
                         </select>
@@ -284,7 +292,8 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="visitId" value={v.id} />
                 <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                <input type="hidden" name="date" value={date} />
+                {/* The keyboard way to move a visit to another day, alongside dragging it in the Weekly Planner. */}
+                <label className="block"><span className="label">Date</span><input type="date" name="date" required defaultValue={date} className="input" /></label>
                 <div className="grid grid-cols-2 gap-2">
                   <label><span className="label">Start</span><input type="time" name="start" required defaultValue={hhmm(londonMinute(v.scheduledStart))} className="input" /></label>
                   <label><span className="label">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} className="input" /></label>

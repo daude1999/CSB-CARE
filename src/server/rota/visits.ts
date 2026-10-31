@@ -3,7 +3,7 @@ import type { AssignmentSlot, Prisma, VisitStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
-import { dbDate, isIsoDate, londonDate, londonMinute, londonToUtc } from "@/lib/london";
+import { dbDate, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonMinute, londonToUtc } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { eligibilityFor } from "@/server/workforce/eligibility";
@@ -42,6 +42,14 @@ export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, vis
   if (patch.callTypeId && !(await tx.callType.findFirst({ where: { id: patch.callTypeId, organisationId: scope.organisationId } }))) throw new NotFoundError("Call type");
   const live = await tx.visitAssignment.findMany({ where: { visitId, removedAt: null }, include: { staff: { select: { displayName: true } } } });
   if (patch.carersRequired === 1 && live.some((a) => a.slot === "SECOND")) throw new ValidationError("Remove the second carer before making this a single-carer visit");
+  // One visit per template and day (a database rule that keeps rebuilds from duplicating). Moving a recurring visit onto
+  // a day that already has its visit from the same template would break it, so say so instead of failing.
+  const newDate = londonDate(start);
+  if (newDate !== fromDbDate(v.date) && start < new Date()) throw new ValidationError("A visit cannot be moved into the past");
+  if (v.templateId && newDate !== fromDbDate(v.date)) {
+    const twin = await tx.visit.findFirst({ where: { templateId: v.templateId, date: dbDate(newDate), id: { not: v.id } }, select: { reference: true, status: true } });
+    if (twin) throw new ConflictError(`This service user already has this regular call on ${fmtLondonDate(newDate, { weekday: "long", day: "numeric", month: "long" })} (${twin.reference}${twin.status === "CANCELLED" ? ", cancelled" : ""}). Change that visit instead, or cancel this one.`);
+  }
 
   if (timeChanged) {
     const careTaskIds = (await tx.visitTask.findMany({ where: { visitId }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
@@ -337,7 +345,7 @@ export async function getVisit(ctx: Ctx, visitId: string) {
   const v = await db.visit.findUnique({
     where: { id: visitId },
     include: {
-      serviceUser: { select: { id: true, firstName: true, lastName: true, reference: true, postcode: true, carerGenderPreference: true, areaId: true } },
+      serviceUser: { select: { id: true, firstName: true, lastName: true, reference: true, postcode: true, carerGenderPreference: true, areaId: true, branchId: true } },
       callType: true,
       area: true,
       runRoute: true,

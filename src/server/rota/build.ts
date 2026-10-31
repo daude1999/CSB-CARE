@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { AssignmentSlot, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ValidationError } from "@/lib/errors";
-import { addDays, cycleWeekOf, dbDate, fromDbDate, isIsoDate, isoWeekday, londonDate, londonToUtc, mondayOf } from "@/lib/london";
+import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
+import { addDays, cycleWeekOf, dbDate, fmtLondonDate, fromDbDate, isIsoDate, isoWeekday, londonDate, londonToUtc, mondayOf } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { evaluate, loadFacts, type Facts, type PreferenceFacts } from "@/server/workforce/eligibility";
 import { raiseAlert, reviewStaffImpact } from "@/server/workforce/impact";
 import { rotaSettings } from "./settings";
-import { rotaScope, type Scope } from "./scope";
+import { buildWhere, rotaScope, staffDirectoryWhere, templateScopeWhere, visitWhere, type Scope } from "./scope";
 import { visitReference } from "./visits";
 
 /**
@@ -48,6 +48,12 @@ export interface Skipped {
   date: string;
   reason: string;
 }
+/** Why nothing can be built, in words the office can act on, with the screen that fixes it. */
+export interface BuildBlocker {
+  code: "NO_AREAS" | "NO_TEMPLATES" | "NO_TEMPLATES_THIS_WEEK" | "ALREADY_BUILT" | "ALL_SKIPPED" | "ALL_PASSED";
+  message: string;
+  action?: { label: string; href: string };
+}
 export interface BuildPlan {
   weekStart: string;
   cycleWeek: number;
@@ -59,6 +65,8 @@ export interface BuildPlan {
   flaggedSlots: number;
   forecastMinutes: number;
   checklist: { label: string; ok: boolean; detail: string }[];
+  /** Set when there is nothing to create; the first entry is the main reason. */
+  blockers: BuildBlocker[];
 }
 
 const nameOf = (su: { firstName: string; lastName: string; preferredName: string | null }) => `${su.preferredName || su.firstName} ${su.lastName}`;
@@ -69,7 +77,14 @@ export function parseWeek(weekStart: string) {
   return weekStart;
 }
 
-async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number): Promise<BuildPlan> {
+/** A Week Setting chosen by hand must be a whole number; the cycle length is checked against the settings in plan(). */
+export function parseCycleWeek(v: number | undefined) {
+  if (v === undefined) return undefined;
+  if (!Number.isInteger(v)) throw new ValidationError("Choose a week of the cycle, such as Week 1");
+  return v;
+}
+
+async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number, opts: { allowPast?: boolean } = {}): Promise<BuildPlan> {
   const org = scope.organisationId;
   const settings = await rotaSettings(tx, org);
   const cycleWeek = cycleWeekOverride ?? cycleWeekOf(weekStart, fromDbDate(settings.anchorMonday), settings.cycleLength);
@@ -78,8 +93,10 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
   const permitted = allAreas.map((a) => a.id).filter((id) => !scope.areaIds || scope.areaIds.includes(id));
   const areaIds = areaIdsIn.length ? areaIdsIn.filter((id) => permitted.includes(id)) : permitted;
   if (areaIdsIn.length && areaIds.length !== areaIdsIn.length) throw new ValidationError("One of the chosen areas is not available to you");
-  const includeNoArea = !scope.areaIds && !areaIdsIn.length;
+  // Templates without an area are built when no area is ticked, and only for service users the member may see.
+  const includeNoArea = !areaIdsIn.length;
   const weekEnd = addDays(weekStart, 6);
+  const now = new Date();
 
   const templates = await tx.visitTemplate.findMany({
     where: {
@@ -88,7 +105,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
       cycleWeeks: { has: cycleWeek },
       effectiveFrom: { lte: dbDate(weekEnd) },
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: dbDate(weekStart) } }],
-      AND: [{ OR: [{ areaId: { in: areaIds } }, ...(includeNoArea ? [{ areaId: null }] : [])] }],
+      AND: [{ OR: [{ areaId: { in: areaIds } }, ...(includeNoArea ? [{ areaId: null }] : [])] }, templateScopeWhere(scope)],
     },
     include: { serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, status: true, carerGenderPreference: true, carerPreferences: true } }, callType: { select: { name: true } }, tasks: { select: { careTaskId: true } } },
     orderBy: [{ startMinute: "asc" }],
@@ -98,8 +115,8 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
   const [existing, suAbsences, staffAbsencesAll, unapproved] = await Promise.all([
     tx.visit.findMany({ where: { organisationId: org, templateId: { in: templates.map((t) => t.id) }, date: { gte: dbDate(weekStart), lte: dbDate(weekEnd) } }, select: { templateId: true, date: true } }),
     tx.serviceUserAbsence.findMany({ where: { organisationId: org, cancelledAt: null, serviceUserId: { in: templates.map((t) => t.serviceUserId) }, startsAt: { lt: weekTo }, OR: [{ endsAt: null }, { endsAt: { gt: weekFrom } }] } }),
-    tx.staffAbsence.count({ where: { organisationId: org, status: "APPROVED", startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } } }),
-    tx.staffAbsence.count({ where: { organisationId: org, status: "REQUESTED", startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } } }),
+    tx.staffAbsence.count({ where: { organisationId: org, staff: staffDirectoryWhere(scope, { status: "all" }), status: "APPROVED", startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } } }),
+    tx.staffAbsence.count({ where: { organisationId: org, staff: staffDirectoryWhere(scope, { status: "all" }), status: "REQUESTED", startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } } }),
   ]);
   const built = new Set(existing.map((e) => `${e.templateId}|${fromDbDate(e.date)}`));
   const staffIds = [...new Set(templates.flatMap((t) => [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId]).filter((x): x is string => !!x))];
@@ -125,6 +142,11 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
       }
       const start = londonToUtc(date, t.startMinute);
       const end = new Date(start.getTime() + t.durationMin * 60000);
+      // Building the current week part-way through adds only what is still to come; a past call would show as missed.
+      if (start <= now && !opts.allowPast) {
+        skipped.push({ templateId: t.id, serviceUserName: suName, date, reason: "Start time has already passed" });
+        continue;
+      }
       const away = suAbsences.find((a) => a.serviceUserId === t.serviceUserId && a.startsAt < end && (!a.endsAt || a.endsAt > start));
       if (away) {
         skipped.push({ templateId: t.id, serviceUserName: suName, date, reason: `Service user away (${away.reason.toLowerCase()})` });
@@ -157,6 +179,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
   const unassignedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.slot !== "SHADOW" && s.state === "UNASSIGNED").length, 0);
   const flaggedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.state === "FLAGGED").length, 0);
   const noCarer = templates.filter((t) => !t.preferredStaff1Id || (t.carersRequired === 2 && !t.preferredStaff2Id)).length;
+  const blockers = visits.length ? [] : await whyNothing(tx, scope, { weekStart, cycleWeek, cycleLength: settings.cycleLength, areaIds, includeNoArea, templates: templates.length, alreadyBuilt, skipped });
   return {
     weekStart,
     cycleWeek,
@@ -174,26 +197,106 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
       { label: "Staff holidays and sickness decided", ok: unapproved === 0, detail: `${staffAbsencesAll} approved; ${unapproved} request${unapproved === 1 ? "" : "s"} still waiting for a decision` },
       { label: "Correct cycle week", ok: true, detail: `${weekStart} is Week ${cycleWeek} of ${settings.cycleLength}` },
     ],
+    blockers,
   };
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Works out the precise reason a week has nothing to build, most fundamental first. */
+async function whyNothing(
+  tx: Tx,
+  scope: Scope,
+  p: { weekStart: string; cycleWeek: number; cycleLength: number; areaIds: string[]; includeNoArea: boolean; templates: number; alreadyBuilt: number; skipped: Skipped[] },
+): Promise<BuildBlocker[]> {
+  const out: BuildBlocker[] = [];
+  if (scope.areaIds && !scope.areaIds.length) {
+    out.push({ code: "NO_AREAS", message: "Your account is not linked to any area, so there is nothing you can build. An administrator can give you your branch's areas in Rota Settings.", action: { label: "Open Rota Settings", href: "/rota/settings" } });
+    return out;
+  }
+  if (p.alreadyBuilt) {
+    const built = await tx.rotaBuild.findFirst({ where: { ...buildWhere(scope), weekStart: dbDate(p.weekStart), status: "BUILT" }, orderBy: { builtAt: "desc" }, select: { id: true, builtAt: true } });
+    const pending = built ? await tx.visit.count({ where: { ...visitWhere(scope), rotaBuildId: built.id, publishedAt: null, status: { not: "CANCELLED" } } }) : 0;
+    out.push({
+      code: "ALREADY_BUILT",
+      message: `This week is already built: all ${plural(p.alreadyBuilt, "visit")} from your templates exist${built ? ` (built ${fmtLondonDate(londonDate(built.builtAt), { day: "numeric", month: "long", year: "numeric" })})` : ""}. Building again never creates duplicates.${pending ? ` ${plural(pending, "visit is", "visits are")} not published yet, so carers cannot see them.` : ""}`,
+      action: pending ? { label: "Publish it from the list", href: "/rota/build" } : { label: "Open this week's rota", href: `/rota/visits?date=${p.weekStart}` },
+    });
+    return out;
+  }
+  if (!p.templates) {
+    const templateArea = { OR: [{ areaId: { in: p.areaIds } }, ...(p.includeNoArea ? [{ areaId: null }] : [])] };
+    const anyActive = await tx.visitTemplate.findMany({ where: { organisationId: scope.organisationId, enabled: true, AND: [templateArea, templateScopeWhere(scope)] }, select: { cycleWeeks: true }, take: 2000 });
+    if (!anyActive.length) {
+      out.push({ code: "NO_TEMPLATES", message: "There are no active recurring templates in the chosen areas, so there is nothing to build from. Add templates (or switch existing ones back on) first.", action: { label: "Open Recurring Templates", href: "/rota/templates?state=all" } });
+    } else {
+      const weeks = [...new Set(anyActive.flatMap((t) => t.cycleWeeks))].filter((w) => w >= 1 && w <= p.cycleLength).sort();
+      out.push({
+        code: "NO_TEMPLATES_THIS_WEEK",
+        message: `No active template runs in Week ${p.cycleWeek} of the cycle${weeks.length ? `. Your templates run in ${weeks.map((w) => `Week ${w}`).join(", ")}` : ""}. Check the Week Setting, or the cycle start in Rota Settings, or add Week ${p.cycleWeek} to the templates.`,
+        action: { label: `Open Week ${p.cycleWeek} templates`, href: `/rota/templates?week=${p.cycleWeek}` },
+      });
+    }
+    return out;
+  }
+  if (p.skipped.length) {
+    const passed = p.skipped.filter((s) => s.reason === "Start time has already passed").length;
+    if (passed === p.skipped.length) {
+      out.push({ code: "ALL_PASSED", message: "Every visit in this week has already started or passed, so there is nothing left to build. Choose a later week." });
+    } else {
+      const reasons = [...new Set(p.skipped.map((s) => s.reason))].slice(0, 3).join("; ");
+      out.push({ code: "ALL_SKIPPED", message: `All ${plural(p.skipped.length, "visit")} in this week were skipped (${reasons}). Check service-user absences and care status.`, action: { label: "Open Service Users", href: "/rota/service-users" } });
+    }
+  }
+  return out;
 }
 
 export async function previewBuild(ctx: Ctx, input: { weekStart: string; areaIds?: string[]; cycleWeek?: number }) {
   const scope = await rotaScope(ctx, "rota.build");
-  return plan(db, scope, parseWeek(input.weekStart), input.areaIds ?? [], input.cycleWeek);
+  return plan(db, scope, parseWeek(input.weekStart), input.areaIds ?? [], parseCycleWeek(input.cycleWeek));
+}
+
+/**
+ * The week the Build Rota form should open on: the current week if it has not been built for the member's areas
+ * (only what is still to come gets built), otherwise the first later week that has not been built for all of them.
+ */
+export async function suggestBuildWeek(ctx: Ctx, horizonWeeks = 26) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const thisMonday = mondayOf(londonDate());
+  const areas = (await db.area.findMany({ where: { organisationId: scope.organisationId, active: true, ...(scope.areaIds ? { id: { in: scope.areaIds } } : {}) }, select: { id: true } })).map((a) => a.id);
+  const builds = await db.rotaBuild.findMany({ where: { ...buildWhere(scope), status: "BUILT", weekStart: { gte: dbDate(thisMonday) } }, select: { weekStart: true, areaIds: true } });
+  const covered = new Map<string, Set<string>>();
+  for (const b of builds) {
+    const w = fromDbDate(b.weekStart);
+    const set = covered.get(w) ?? new Set<string>();
+    b.areaIds.forEach((a) => set.add(a));
+    covered.set(w, set);
+  }
+  const isBuilt = (w: string) => {
+    const set = covered.get(w);
+    if (!set) return false;
+    return areas.length ? areas.every((a) => set.has(a)) : true;
+  };
+  for (let i = 0; i <= horizonWeeks; i++) {
+    const w = addDays(thisMonday, i * 7);
+    if (!isBuilt(w)) return { weekStart: w, builtThrough: i ? addDays(w, -1) : null };
+  }
+  return { weekStart: addDays(thisMonday, (horizonWeeks + 1) * 7), builtThrough: addDays(thisMonday, (horizonWeeks + 1) * 7 - 1) };
 }
 
 /** Saves a previewed build. Re-plans inside the transaction (with locks), so the saved week is exactly what the rules allow now. */
-/** `demoHistory` is used only by the demo seed to create last week's history; no action or route passes it. */
+/** `demoHistory` is used only by the demo seeds, to create past weeks and the whole of the current week; no action or route passes it. */
 export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds?: string[]; cycleWeek?: number }, opts: { demoHistory?: boolean } = {}) {
   const scope = await rotaScope(ctx, "rota.build");
   const weekStart = parseWeek(input.weekStart);
+  const cycleWeek = parseCycleWeek(input.cycleWeek);
   if (weekStart < mondayOf(londonDate()) && !opts.demoHistory) throw new ValidationError("Past weeks cannot be built");
   return db.$transaction(
     async (tx) => {
       // One build of an organisation's week at a time; a second click waits, then finds the visits already built.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${weekStart}`}))`;
-      const p = await plan(tx, scope, weekStart, input.areaIds ?? [], input.cycleWeek);
-      if (!p.visits.length) throw new ValidationError(p.alreadyBuilt ? "This week has already been built for these areas. Nothing new to add." : "No visits to build: there are no active templates for this cycle week.");
+      const p = await plan(tx, scope, weekStart, input.areaIds ?? [], cycleWeek, { allowPast: opts.demoHistory });
+      if (!p.visits.length) throw new ValidationError(p.blockers[0]?.message ?? "There is nothing to build for this week.");
       const staffIds = [...new Set(p.visits.flatMap((v) => v.slots.map((s) => s.staffId)).filter((x): x is string => !!x))].sort();
       if (staffIds.length) await tx.$queryRaw`SELECT id FROM "StaffMember" WHERE id = ANY(${staffIds}) ORDER BY id FOR UPDATE`;
       const build = await tx.rotaBuild.create({
@@ -285,10 +388,13 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
 export async function publishBuild(ctx: Ctx, buildId: string) {
   const scope = await rotaScope(ctx, "rota.build");
   return db.$transaction(async (tx) => {
-    const b = await tx.rotaBuild.findFirst({ where: { id: buildId, organisationId: scope.organisationId, status: "BUILT" } });
-    if (!b) throw new ValidationError("Build not found");
+    const b = await tx.rotaBuild.findFirst({ where: { ...buildWhere(scope), id: buildId, status: "BUILT" } });
+    if (!b) throw new NotFoundError("Rota build");
     const now = new Date();
-    const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id, publishedAt: null, status: { not: "CANCELLED" } }, select: { id: true } });
+    // A branch-limited member publishes only the visits in their own areas; another branch's part of a shared build
+    // stays unpublished for that branch to check and publish.
+    const visits = await tx.visit.findMany({ where: { ...visitWhere(scope), rotaBuildId: b.id, publishedAt: null, status: { not: "CANCELLED" } }, select: { id: true } });
+    if (!visits.length) throw new ValidationError("Everything in this build that you look after is already published.");
     // Re-validate every carer on the week before it goes out: anything that changed since the build (an expired
     // certificate, a new restriction, an absence) flags the visit for review. Nobody is reassigned automatically.
     const staffOnBuild = [...new Set((await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staffId: true } })).map((a) => a.staffId))];
@@ -304,7 +410,7 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
         skipDuplicates: true,
       });
     }
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.published", entityType: "RotaBuild", entityId: b.id, data: { visits: visits.length, carersNotified: users.length, flaggedOnRecheck: recheck.flagged } }, tx);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.published", entityType: "RotaBuild", entityId: b.id, data: { visits: visits.length, carersNotified: users.length, flaggedOnRecheck: recheck.flagged, limitedToAreas: scope.areaIds } }, tx);
     return { published: visits.length, carersNotified: users.length, flagged: recheck.flagged };
   }, { timeout: 120_000 });
 }
@@ -314,8 +420,12 @@ export async function deleteBuild(ctx: Ctx, buildId: string, reason: string) {
   const scope = await rotaScope(ctx, "rota.build");
   if (reason.trim().length < 3) throw new ValidationError("Give a reason for deleting the build");
   return db.$transaction(async (tx) => {
-    const b = await tx.rotaBuild.findFirst({ where: { id: buildId, organisationId: scope.organisationId, status: "BUILT" } });
-    if (!b) throw new ValidationError("Build not found");
+    const b = await tx.rotaBuild.findFirst({ where: { ...buildWhere(scope), id: buildId, status: "BUILT" } });
+    if (!b) throw new NotFoundError("Rota build");
+    // Deleting removes the whole week, so a member limited to some areas may delete only a build made for those areas.
+    if (scope.areaIds && b.areaIds.some((a) => !scope.areaIds!.includes(a))) throw new ForbiddenError("This build covers areas outside yours, so only a manager with access to all of them can delete it. Cancel your own visits instead.");
+    const outside = scope.areaIds ? await tx.visit.count({ where: { rotaBuildId: b.id, NOT: visitWhere(scope) } }) : 0;
+    if (outside) throw new ForbiddenError(`This build includes ${outside} visit${outside === 1 ? "" : "s"} outside your areas, so you cannot delete it.`);
     const visits = await tx.visit.findMany({ where: { rotaBuildId: b.id }, select: { id: true, reference: true, status: true, manuallyChanged: true, scheduledStart: true, _count: { select: { clocks: true, visitNotes: true, taskOutcomes: true, correctionRequests: true, marRecords: true } } } });
     const blockers = visits.filter((v) => v.status !== "SCHEDULED" || v.manuallyChanged || v.scheduledStart <= new Date() || v._count.clocks || v._count.visitNotes || v._count.taskOutcomes || v._count.correctionRequests || v._count.marRecords);
     if (blockers.length) throw new ValidationError(`Cannot delete: ${blockers.length} visit${blockers.length === 1 ? " has" : "s have"} started, been changed by hand or been recorded (e.g. ${blockers.slice(0, 3).map((v) => v.reference).join(", ")}). Cancel individual visits instead.`);
@@ -330,10 +440,14 @@ export async function deleteBuild(ctx: Ctx, buildId: string, reason: string) {
 /** Every rota build for the organisation, newest week first, for the All Rotas list. */
 export async function listBuilds(ctx: Ctx) {
   const scope = await rotaScope(ctx, "rota.build");
-  const builds = await db.rotaBuild.findMany({ where: { organisationId: scope.organisationId }, orderBy: [{ weekStart: "desc" }, { builtAt: "desc" }], take: 300 });
-  const pending = builds.length
-    ? await db.visit.groupBy({ by: ["rotaBuildId"], where: { rotaBuildId: { in: builds.map((b) => b.id) }, publishedAt: null, status: { not: "CANCELLED" } }, _count: { _all: true } })
-    : [];
+  const builds = await db.rotaBuild.findMany({ where: buildWhere(scope), orderBy: [{ weekStart: "desc" }, { builtAt: "desc" }], take: 300 });
+  const ids = builds.map((b) => b.id);
+  const [pending, mine] = builds.length
+    ? await Promise.all([
+        db.visit.groupBy({ by: ["rotaBuildId"], where: { ...visitWhere(scope), rotaBuildId: { in: ids }, publishedAt: null, status: { not: "CANCELLED" } }, _count: { _all: true } }),
+        scope.areaIds ? db.visit.groupBy({ by: ["rotaBuildId"], where: { ...visitWhere(scope), rotaBuildId: { in: ids } }, _count: { _all: true } }) : Promise.resolve(null),
+      ])
+    : [[], null];
   const thisMonday = mondayOf(londonDate());
   return builds.map((b) => {
     const weekStart = fromDbDate(b.weekStart);
@@ -344,13 +458,15 @@ export async function listBuilds(ctx: Ctx) {
       current: weekStart === thisMonday,
       future: weekStart > thisMonday,
       cycleWeek: b.cycleWeek,
-      areaIds: b.areaIds,
+      /** Only the member's own areas are named; others are counted, never shown. */
+      areaIds: scope.areaIds ? b.areaIds.filter((a) => scope.areaIds!.includes(a)) : b.areaIds,
+      otherAreas: scope.areaIds ? b.areaIds.filter((a) => !scope.areaIds!.includes(a)).length : 0,
       status: b.status,
       builtById: b.builtById,
       builtAt: b.builtAt,
       deletedById: b.deletedById,
       deletedAt: b.deletedAt,
-      visitCount: b.visitCount,
+      visitCount: mine ? (mine.find((m) => m.rotaBuildId === b.id)?._count._all ?? 0) : b.visitCount,
       unassignedSlots: b.unassignedSlots,
       unpublished: pending.find((p) => p.rotaBuildId === b.id)?._count._all ?? 0,
     };
@@ -360,5 +476,5 @@ export async function listBuilds(ctx: Ctx) {
 /** True when a rota has been built for the week containing `date`, so an empty screen can say why it is empty. */
 export async function weekIsBuilt(ctx: Ctx, date: string) {
   const scope = await rotaScope(ctx, "rota.view");
-  return (await db.rotaBuild.count({ where: { organisationId: scope.organisationId, weekStart: dbDate(mondayOf(date)), status: "BUILT" } })) > 0;
+  return (await db.rotaBuild.count({ where: { ...buildWhere(scope), weekStart: dbDate(mondayOf(date)), status: "BUILT" } })) > 0;
 }

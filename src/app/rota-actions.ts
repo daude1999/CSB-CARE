@@ -2,11 +2,12 @@
 
 import type { AssignmentSlot } from "@prisma/client";
 import { ValidationError } from "@/lib/errors";
-import { londonToUtc, parseHhmm } from "@/lib/london";
+import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, str } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
+import { confirmRollForward } from "@/server/rota/roll-forward";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
@@ -104,6 +105,7 @@ export async function swapCarersAction(fd: FormData) {
 export async function updateVisitAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const date = str(fd, "date");
+    if (!isIsoDate(date)) throw new ValidationError("Choose the date of the visit");
     const start = londonToUtc(date, minuteOf(fd, "start", "Start"));
     const duration = int(fd, "durationMin", "Length");
     if (duration < 5 || duration > 1440) throw new ValidationError("A visit lasts between 5 minutes and 24 hours");
@@ -294,6 +296,14 @@ export async function confirmBuildAction(fd: FormData) {
     await confirmBuild(ctx, { weekStart: str(fd, "weekStart"), areaIds: ids(fd, "areaIds"), cycleWeek: cycle });
     return "/rota/build";
   }, "Rota built. Check it, then publish it to carers.");
+}
+
+export async function rollForwardAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await confirmRollForward(ctx, { sourceWeek: str(fd, "sourceWeek"), targetWeek: str(fd, "targetWeek"), weeks: int(fd, "weeks", "Weeks"), areaIds: ids(fd, "areaIds") });
+    const uncovered = r.builds.reduce((n, b) => n + b.uncovered, 0);
+    return { to: "/rota/build", ok: `Rolled forward into ${r.builds.length} week${r.builds.length === 1 ? "" : "s"}: ${r.plan.visits.length} visits saved as drafts${uncovered ? `, ${uncovered} carer slots need covering` : ""}. Check them, then publish each week.` };
+  }, "Rota rolled forward as drafts. Check it, then publish.");
 }
 
 export async function publishBuildAction(fd: FormData) {

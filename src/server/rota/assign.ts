@@ -1,10 +1,10 @@
 import { Prisma, type AssignmentSlot, type Visit } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { eligibilityFor, type EligibilityResult } from "@/server/workforce/eligibility";
-import { assertInScope, rotaScope, type Scope } from "./scope";
+import { assertInScope, rotaScope, staffDirectoryWhere, type Scope } from "./scope";
 
 type Tx = Prisma.TransactionClient;
 
@@ -12,8 +12,8 @@ type Tx = Prisma.TransactionClient;
 export async function lockVisit(tx: Tx, scope: Scope, visitId: string): Promise<Visit> {
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Visit" WHERE id = ${visitId} AND "organisationId" = ${scope.organisationId} FOR UPDATE`;
   if (!rows[0]) throw new NotFoundError("Visit");
-  const v = await tx.visit.findUniqueOrThrow({ where: { id: visitId } });
-  assertInScope(scope, v, "Visit");
+  const { serviceUser, ...v } = await tx.visit.findUniqueOrThrow({ where: { id: visitId }, include: { serviceUser: { select: { areaId: true, branchId: true } } } });
+  assertInScope(scope, { ...v, serviceUser }, "Visit");
   return v;
 }
 
@@ -57,6 +57,10 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   if (!["SCHEDULED", "MISSED"].includes(visit.status)) throw new ValidationError(`Carers cannot be changed on a ${visit.status.toLowerCase().replace("_", " ")} visit`);
   if (p.slot === "SECOND" && visit.carersRequired < 2) throw new ValidationError("This visit needs one carer. Convert it to a double-up first.");
   await lockStaff(tx, scope.organisationId, p.staffId);
+  // A branch- or area-limited coordinator allocates only their own staff; another branch's carers are that branch's call.
+  if ((scope.areaIds || scope.branchIds) && !(await tx.staffMember.findFirst({ where: { ...staffDirectoryWhere(scope, { status: "all" }), id: p.staffId }, select: { id: true } }))) {
+    throw new ForbiddenError("This carer works in a branch or area outside yours, so you cannot book them. Ask a manager with access to both branches.");
+  }
 
   const live = await tx.visitAssignment.findMany({ where: { visitId: visit.id, removedAt: null } });
   const current = live.find((a) => a.slot === p.slot);

@@ -4,7 +4,8 @@ import { addDays, dbDate, isIsoDate, londonDate } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
 import { rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
 import { rotaSettings } from "./settings";
-import { rotaScope, visitWhere } from "./scope";
+import { rotaScope, serviceUserWhere, staffDirectoryWhere, visitWhere, type Scope } from "./scope";
+import { loadMatchFacts, scoreMatch, type Match } from "./matching";
 
 /**
  * Derived visit indicators. They are computed on read from stored times and settings, so they never go stale:
@@ -101,8 +102,8 @@ export async function rotaLookups(ctx: Ctx) {
     db.area.findMany({ where: { organisationId: org, active: true, ...(scope.areaIds ? { id: { in: scope.areaIds } } : {}) }, orderBy: { name: "asc" } }),
     db.callType.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
     db.careTask.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
-    db.serviceUser.findMany({ where: { organisationId: org, status: { in: ["ACTIVE", "PAUSED", "ASSESSMENT"] }, ...(scope.areaIds ? { OR: [{ areaId: { in: scope.areaIds } }, { areaId: null }] } : {}) }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, areaId: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] }),
-    db.staffMember.findMany({ where: { organisationId: org, employmentStatus: { not: "ARCHIVED" }, hrMissing: false }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, areas: { select: { areaId: true } } }, orderBy: { displayName: "asc" } }),
+    db.serviceUser.findMany({ where: { ...serviceUserWhere(scope), status: { in: ["ACTIVE", "PAUSED", "ASSESSMENT"] } }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, areaId: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] }),
+    db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, areas: { select: { areaId: true } } }, orderBy: { displayName: "asc" } }),
     db.runRouteTemplate.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
   ]);
   return { scope, areas, callTypes, careTasks, serviceUsers, staff, routes };
@@ -114,14 +115,34 @@ export function weekDates(monday: string) {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
+/** The staff a branch- or area-limited member may allocate (null = anyone in the organisation). */
+async function allocatableStaffIds(scope: Scope): Promise<string[] | null> {
+  if (!scope.areaIds && !scope.branchIds) return null;
+  return (await db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true } })).map((s) => s.id);
+}
+
 /** Carers ranked for one slot of a visit (eligible first), with each person's reasons, for the assign picker. */
 export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUserId: string; areaId: string | null; scheduledStart: Date; scheduledEnd: Date; timeLocked: boolean; assignments: { slot: string; staffId: string; removedAt: Date | null }[] }, slot: AssignmentSlot) {
   const scope = await rotaScope(ctx, "rota.view");
   const others = visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId);
   const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
-  const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds });
-  return ranked.filter((r) => !others.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }));
+  const allowed = await allocatableStaffIds(scope);
+  const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, allowed ?? undefined);
+  const list = ranked.filter((r) => !others.includes(r.result.staffId));
+  const facts = await loadMatchFacts(db, scope.organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: visit.id, serviceUserId: visit.serviceUserId, start: visit.scheduledStart, end: visit.scheduledEnd });
+  return orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd }, facts))));
 }
+
+type Ranked = Awaited<ReturnType<typeof rankCarers>>[number];
+function toCandidate(r: Ranked, m: Match) {
+  return { id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message), score: m.score, explain: m.explain, continuity: m.continuity, weekHours: m.weekHours };
+}
+const STATE_ORDER = { ELIGIBLE: 0, REQUIRES_REVIEW: 1, NOT_ELIGIBLE: 2 } as const;
+/** Allowed carers first, best score first; a score never lifts a carer above the eligibility order's hard line. */
+function orderByMatch<T extends { state: keyof typeof STATE_ORDER; score: number | null; name: string }>(list: T[]) {
+  return list.sort((a, b) => (a.state === "NOT_ELIGIBLE" ? 1 : 0) - (b.state === "NOT_ELIGIBLE" ? 1 : 0) || (b.score ?? -1) - (a.score ?? -1) || STATE_ORDER[a.state] - STATE_ORDER[b.state] || a.name.localeCompare(b.name));
+}
+export type Candidate = ReturnType<typeof toCandidate>;
 
 type CandidateVisit = Parameters<typeof visitCandidates>[1];
 
@@ -130,8 +151,15 @@ export async function visitCandidatesMany(ctx: Ctx, visits: { visit: CandidateVi
   const scope = await rotaScope(ctx, "rota.view");
   const tasks = await db.visitTask.findMany({ where: { visitId: { in: visits.map((v) => v.visit.id) } }, select: { visitId: true, careTaskId: true } });
   const others = visits.map(({ visit, slot }) => visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId));
+  const allowed = await allocatableStaffIds(scope);
   const ranked = await rankCarersMany(db, scope.organisationId, visits.map(({ visit, slot }, i) => ({ start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: tasks.filter((t) => t.visitId === visit.id).map((t) => t.careTaskId).filter((x): x is string => !!x), otherSlotStaffIds: others[i] })));
-  return new Map(visits.map(({ visit }, i) => [visit.id, ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId)).map((r) => ({ id: r.result.staffId, name: r.staff?.displayName ?? "", state: r.result.state, readiness: r.result.readiness?.status ?? null, reasons: [...r.result.blocking, ...r.result.warnings].map((x) => x.message), advice: r.result.advice.map((x) => x.message) }))]));
+  const out = new Map<string, Candidate[]>();
+  for (const [i, { visit }] of visits.entries()) {
+    const list = ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId) && (!allowed || allowed.includes(r.result.staffId)));
+    const facts = await loadMatchFacts(db, scope.organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: visit.id, serviceUserId: visit.serviceUserId, start: visit.scheduledStart, end: visit.scheduledEnd });
+    out.set(visit.id, orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd }, facts)))));
+  }
+  return out;
 }
 
 /** Display names for the people who acted on records (audit actors), limited to the caller's organisation. */

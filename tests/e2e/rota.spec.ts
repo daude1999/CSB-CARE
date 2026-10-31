@@ -64,6 +64,34 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("cell", { name: "Yes", exact: true })).toBeVisible();
   });
 
+  test("Roll Forward previews last week's carers against the new week, then saves drafts once", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    // Week 6 ahead is clear of the weeks other tests build.
+    await page.goto(`/rota/build?roll=1&from=${mondayWeeksAhead(1)}&to=${mondayWeeksAhead(6)}&weeks=1`);
+    const dialog = page.getByRole("dialog", { name: "Roll Forward Rota" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel("Roll forward summary")).toContainText("Visits to create");
+    await expect(dialog.getByRole("heading", { name: "Previous rota and proposed rota" })).toBeVisible();
+    await dialog.getByRole("button", { name: /^Save \d+ visits as drafts$/ }).click();
+    await expect(page.getByRole("status")).toContainText("Rolled forward into 1 week");
+    // Doing it again finds everything already in place.
+    await page.goto(`/rota/build?roll=1&from=${mondayWeeksAhead(1)}&to=${mondayWeeksAhead(6)}&weeks=1`);
+    await expect(page.getByRole("dialog", { name: "Roll Forward Rota" }).getByLabel("Roll forward summary")).toContainText(/Visits to create\s*0/);
+  });
+
+  test("Sickness & Holiday Cover lists bookings to cover and replaces a carer through the normal checks", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota/cover");
+    await expect(page.getByRole("heading", { level: 1, name: "Sickness & Holiday Cover" })).toBeVisible();
+    const use = page.getByRole("button", { name: /^Replace with / }).first();
+    if (await use.count()) {
+      await use.click();
+      await expect(page.getByRole("status")).toContainText("Carer assigned");
+    } else {
+      await expect(page.getByText("No absences or flagged bookings in these dates.")).toBeVisible();
+    }
+  });
+
   test("a carer cannot open the office rota or the monitor, and sees their own visits", async ({ page }) => {
     await signIn(page, "carer@care-solution.demo");
     await page.goto("/rota/visits");
@@ -89,7 +117,7 @@ test.describe("Rostering & Care Management", () => {
       // Sign in at desktop width (the signed-in check uses the sidebar, hidden on phones), then resize.
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height: 1000 });
-      for (const path of ["/rota", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
+      for (const path of ["/rota", "/rota/advanced", "/rota/monitor", "/rota/visits", "/rota/planner", "/rota/build", "/rota/build?roll=1", "/rota/cover", "/rota/templates", "/rota/service-users", "/rota/staff", "/rota/care-plans", "/rota/risks", "/rota/incidents", "/rota/finance", "/rota/finance/rates", "/rota/finance/timesheets", "/rota/finance/payroll", "/rota/finance/invoices", "/rota/reports", "/rota/reports?report=carers"]) {
         await page.goto(path);
         await expect(page.locator("main h1").first()).toBeVisible();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

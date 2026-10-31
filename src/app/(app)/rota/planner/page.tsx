@@ -46,11 +46,19 @@ export default async function PlannerPage({ searchParams }: { searchParams: Prom
   }
   // Carers shown: everyone booked this week, plus (when an area is chosen) that area's carers so there is somewhere to drop.
   const staffRows = lk.staff.filter((s) => byStaff.has(s.id) || (sp.area ? s.areas.some((a) => a.areaId === sp.area) : sp.all === "1"));
+  // A carer from another branch booked (by a manager) on one of this member's visits still gets a row, without a link
+  // to their record, so the visit never disappears from the planner.
+  const listed = new Set(staffRows.map((s) => s.id));
+  const visiting = new Map(visits.flatMap((v) => v.assignments.filter((a) => !listed.has(a.staffId)).map((a) => [a.staffId, a.staff.displayName] as const)));
   const rows: PlannerRow[] = [
     { id: "unassigned", name: "Unassigned", sub: `${unassigned.flat().length} visits`, cells: unassigned },
     ...staffRows.map((s) => {
       const r = byStaff.get(s.id) ?? { cells: blank(), minutes: 0 };
       return { id: s.id, name: s.displayName, sub: `${(r.minutes / 60).toFixed(1)} h · ${s.jobTitle}`, href: `/rota/staff/${s.id}`, cells: r.cells };
+    }),
+    ...[...visiting].map(([id, name]) => {
+      const r = byStaff.get(id) ?? { cells: blank(), minutes: 0 };
+      return { id, name, sub: `${(r.minutes / 60).toFixed(1)} h · another branch`, cells: r.cells };
     }),
   ];
   // A drag that needs confirmation comes back with the move in the address, so the coordinator can accept the warnings.
