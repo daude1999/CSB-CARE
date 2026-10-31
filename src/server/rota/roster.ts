@@ -198,23 +198,38 @@ export interface TimelineBlock {
   sub: string;
   title: string;
   tone: ChipTone;
+  /** The visit itself, so a page can select it; one visit can appear on two carers' rows (a double-up). */
+  visitId: string;
+  slot: "PRIMARY" | "SECOND" | "SHADOW" | "OPEN";
+  call: string;
+  span: string;
+  status: VisitStatus;
+  double: boolean;
 }
 export interface TimelineRow {
   id: string;
   name: string;
   sub: string;
+  /** The run route most of this carer's visits that day belong to, when they have one. */
+  run?: string | null;
   href?: string;
   over?: boolean;
   shade?: CellShade | null;
   blocks: TimelineBlock[];
 }
 
+function mostCommon(list: string[]) {
+  const n = new Map<string, number>();
+  for (const x of list) n.set(x, (n.get(x) ?? 0) + 1);
+  return [...n.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+}
+
 /**
  * One day as a timeline, one row per carer (plus Unassigned), for the Daily Rota. Takes the visits the page already
  * loaded with its filters, so search, area and status limits apply unchanged.
  */
-export async function dayTimeline(ctx: Ctx, date: string, visits: Awaited<ReturnType<typeof listVisits>>["rows"]) {
-  const lk = await rotaLookups(ctx);
+export async function dayTimeline(ctx: Ctx, date: string, visits: Awaited<ReturnType<typeof listVisits>>["rows"], lookups?: Awaited<ReturnType<typeof rotaLookups>>) {
+  const lk = lookups ?? (await rotaLookups(ctx));
   const scope = lk.scope;
   const from = londonToUtc(date, 0);
   const to = londonToUtc(addDays(date, 1), 0);
@@ -227,22 +242,25 @@ export async function dayTimeline(ctx: Ctx, date: string, visits: Awaited<Return
   const rows = new Map<string, TimelineRow>();
   const unassigned: TimelineRow = { id: "unassigned", name: "Unassigned", sub: "", blocks: [] };
   const names = new Map(lk.staff.map((s) => [s.id, s]));
+  const runs = new Map<string, string[]>();
   for (const v of visits) {
     const published = !!v.publishedAt;
     const movable = v.status === "SCHEDULED" || v.status === "MISSED";
     const base = { start: minute(v.scheduledStart), end: minute(v.scheduledEnd), href: `/rota/visits/${v.id}` };
     const label = suName(v.serviceUser);
     const span = `${londonTime(v.scheduledStart)}–${londonTime(v.scheduledEnd)}`;
+    const more = { visitId: v.id, call: v.callType.name, span, status: v.status, double: v.carersRequired > 1 };
+    if (v.runRoute) for (const a of v.assignments) runs.set(a.staffId, [...(runs.get(a.staffId) ?? []), v.runRoute.name]);
     for (const a of v.assignments) {
       const review = !!a.reviewReason && movable;
       const row = rows.get(a.staffId) ?? { id: a.staffId, name: a.staff.displayName, sub: "", href: names.has(a.staffId) ? `/rota/staff/${a.staffId}` : undefined, blocks: [] };
-      row.blocks.push({ ...base, id: `${v.id}:${a.slot}`, label: `${label}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? " (2)" : ""}`, sub: `${span} · ${v.callType.name}`, title: `${label}, ${v.callType.name} ${span}${published ? "" : " · draft, not yet published"}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }) });
+      row.blocks.push({ ...base, ...more, slot: a.slot, id: `${v.id}:${a.slot}`, label: `${label}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? " (2)" : ""}`, sub: `${span} · ${v.callType.name}`, title: `${label}, ${v.callType.name} ${span}${published ? "" : " · draft, not yet published"}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }) });
       rows.set(a.staffId, row);
     }
     if (v.status === "CANCELLED" && !v.assignments.length) {
-      unassigned.blocks.push({ ...base, id: `${v.id}:cancelled`, label, sub: `${span} · cancelled`, title: `${label}, ${v.callType.name} ${span} · cancelled`, tone: "cancelled" });
+      unassigned.blocks.push({ ...base, ...more, slot: "OPEN", id: `${v.id}:cancelled`, label, sub: `${span} · cancelled`, title: `${label}, ${v.callType.name} ${span} · cancelled`, tone: "cancelled" });
     } else if (v.flags.unassignedSlots > 0 && v.status !== "CANCELLED") {
-      unassigned.blocks.push({ ...base, id: `${v.id}:open`, label, sub: `${span} · ${v.flags.unassignedSlots} carer${v.flags.unassignedSlots === 1 ? "" : "s"} needed`, title: `${label}, ${v.callType.name} ${span} · no carer yet`, tone: "empty" });
+      unassigned.blocks.push({ ...base, ...more, slot: "OPEN", id: `${v.id}:open`, label, sub: `${span} · ${v.flags.unassignedSlots} carer${v.flags.unassignedSlots === 1 ? "" : "s"} needed`, title: `${label}, ${v.callType.name} ${span} · no carer yet`, tone: "empty" });
     }
   }
   // Carers away today appear even with nothing booked, so the gap is visible.
@@ -252,6 +270,7 @@ export async function dayTimeline(ctx: Ctx, date: string, visits: Awaited<Return
     const mins = r.blocks.filter((b) => b.tone !== "cancelled" && !b.label.endsWith("(shadow)")).reduce((n, b) => n + (b.end - b.start), 0);
     r.sub = `${r.blocks.length} visit${r.blocks.length === 1 ? "" : "s"} · ${(mins / 60).toFixed(1)} h`;
     r.shade = dayShade(date, absences.filter((x) => x.staffId === r.id), pattern.filter((p) => p.staffId === r.id));
+    r.run = mostCommon(runs.get(r.id) ?? []);
   }
   unassigned.sub = `${unassigned.blocks.length} visit${unassigned.blocks.length === 1 ? "" : "s"} to cover`;
   const all = [unassigned, ...list];

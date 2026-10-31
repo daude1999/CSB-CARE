@@ -154,6 +154,7 @@ const settingsSchema = z.object({
   payBasis: z.enum(["SCHEDULED", "ACTUAL"]),
   mileage: z.string().refine((s) => parsePounds(s) !== null, "Enter the mileage rate in pounds, for example 0.45"),
   invoicePrefix: z.string().trim().regex(/^[A-Z0-9-]{1,10}$/, "Use up to 10 capital letters, numbers or dashes"),
+  estimateOnCostPercent: z.coerce.number({ invalid_type_error: "Enter the on-cost as a whole percentage" }).int("Enter the on-cost as a whole percentage").min(0).max(100).default(0),
 });
 
 export async function updateFinanceSettings(ctx: Ctx, input: Record<string, unknown>) {
@@ -163,8 +164,8 @@ export async function updateFinanceSettings(ctx: Ctx, input: Record<string, unkn
   return db.$transaction(async (tx) => {
     if (p.data.defaultPayRateCardId && !(await tx.rateCard.findFirst({ where: { id: p.data.defaultPayRateCardId, organisationId, kind: "PAY" } }))) throw new ValidationError("Choose a pay rate card");
     await financeSettings(tx, organisationId);
-    await tx.financeSettings.update({ where: { organisationId }, data: { defaultPayRateCardId: p.data.defaultPayRateCardId || null, payBasis: p.data.payBasis, mileagePencePerMile: parsePounds(p.data.mileage)!, invoicePrefix: p.data.invoicePrefix, updatedById: ctx.userId } });
-    await audit({ organisationId, actorId: ctx.userId, action: "finance.settings.updated", entityType: "Organisation", entityId: organisationId, data: { payBasis: p.data.payBasis } }, tx);
+    await tx.financeSettings.update({ where: { organisationId }, data: { defaultPayRateCardId: p.data.defaultPayRateCardId || null, payBasis: p.data.payBasis, mileagePencePerMile: parsePounds(p.data.mileage)!, invoicePrefix: p.data.invoicePrefix, estimateOnCostPercent: p.data.estimateOnCostPercent, updatedById: ctx.userId } });
+    await audit({ organisationId, actorId: ctx.userId, action: "finance.settings.updated", entityType: "Organisation", entityId: organisationId, data: { payBasis: p.data.payBasis, estimateOnCostPercent: p.data.estimateOnCostPercent } }, tx);
   });
 }
 

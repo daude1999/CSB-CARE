@@ -1,173 +1,209 @@
-import type { AssignmentSlot } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { ArrowsClockwise, CalendarPlus, Plus, UserSwitch, Faders } from "@phosphor-icons/react/dist/ssr";
+import { CalendarBlank, CalendarCheck, CaretLeft, CaretRight, ChartBar, CheckCircle, ClockCounterClockwise, Clock, FastForward, FirstAidKit, Gauge, Lightning, Target, Users, UsersThree, UserSwitch, Warning, WarningCircle, XCircle, CalendarPlus, Info } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
-import { addDays, fmtLondonDate, londonDate, londonTime, mondayOf } from "@/lib/london";
+import { addDays, londonDate, mondayOf } from "@/lib/london";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { rotaDashboard } from "@/server/rota/dashboard";
-import { rosterWeek } from "@/server/rota/roster";
-import { getVisit } from "@/server/rota/visits";
-import { suName, visitCandidates } from "@/server/rota/queries";
-import { assignCarerAction, moveVisitAction } from "@/app/rota-actions";
-import { Flash, PageHeader, SegmentNav } from "@/components/ui";
-import { NotBuiltNotice, Stepper, VisitStatusBadge } from "@/components/rota-ui";
-import { PlannerBoard } from "@/components/planner-board";
-import { RosterKey } from "@/components/roster-key";
-import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
+import { rotaActivity, rotaOverview } from "@/server/rota/overview";
+import { Flash } from "@/components/ui";
+import { NotBuiltNotice } from "@/components/rota-ui";
+import { weekIsBuilt } from "@/server/rota/build";
+import { AutoSubmitForm } from "@/components/auto-submit";
+import { AttentionRow, CoverageChart, DashPanel, KpiCard, StaffRow, StateBars, ordinalDate } from "@/components/rota-dashboard";
 
 export const dynamic = "force-dynamic";
 
-const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "Lead carer", SECOND: "Second carer", SHADOW: "Shadow" };
+const PERIODS = [
+  ["day", "Today"],
+  ["week", "This Week"],
+  ["next", "Next Week"],
+] as const;
 
-/** One figure in today's strip; each links to the visits it counts. */
-function Fig({ href, label, value, tone }: { href: string; label: string; value: number; tone?: "bad" | "good" }) {
-  return (
-    <li>
-      <Link href={href} className="flex items-baseline gap-1.5 rounded px-2 py-1 no-underline hover:bg-slate-50" data-testid={`today-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
-        <span className={`text-[18px] font-semibold tabular-nums ${tone === "bad" && value ? "text-[#a3242c]" : tone === "good" ? "text-[#1f6f3a]" : "text-navy-900"}`}>{value}</span>
-        <span className="text-[13px] text-slate-600">{label}</span>
-      </Link>
-    </li>
-  );
-}
+const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
 
 /**
- * Rota Dashboard: the week as a roster, one row per carer (or service user), in the style the owner chose on
- * 31 Oct 2026 (Birdie-inspired, original CSB design). Today's call figures sit in one strip on top; planning actions
- * are buttons on the roster; opening a visit shows it in a side panel with the best-matched carers.
+ * Rota Dashboard: the operational overview of care delivery, workforce and rota status for a day or week and one
+ * authorised branch. Laid out to the owner's approved design (31 Oct 2026). Operational only: no money is shown here.
  */
 export default async function RotaDashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "rota.view")) redirect(rotaHome(ctx));
-  const filters = { week: sp.week, area: sp.area || undefined, view: sp.view, cancelled: sp.cancelled === "1", all: sp.all === "1" };
-  const keep = { week: sp.week, area: sp.area, view: sp.view, cancelled: sp.cancelled, all: sp.all };
-  const qs = (extra: Record<string, string | undefined>) => new URLSearchParams(Object.entries({ ...keep, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
-  const r = await rosterWeek(ctx, filters, (id) => `/rota?${qs({ visit: id })}`);
-  const today = await rotaDashboard(ctx, { date: r.today, areaId: sp.area || undefined });
-  const canEdit = hasOrgPermission(ctx, "rota.edit");
+  const o = await rotaOverview(ctx, { date: sp.date, period: sp.period, branch: sp.branch });
+  const activity = await rotaActivity(ctx, { branch: o.branch ?? undefined, take: 4 });
+  const notBuilt = o.performance.total === 0 && !(await weekIsBuilt(ctx, o.range.from));
   const canBuild = hasOrgPermission(ctx, "rota.build");
-  const back = `/rota?${qs({})}`;
-  const c = today.calls;
-
-  // Side panel for one visit, with ranked carers for its first open slot (or the lead slot).
-  const panel = sp.visit ? await getVisit(ctx, sp.visit).catch(() => null) : null;
-  const live = panel ? panel.assignments.filter((a) => !a.removedAt) : [];
-  const openSlot: AssignmentSlot | null = panel ? (["PRIMARY", ...(panel.carersRequired > 1 ? (["SECOND"] as const) : [])] as AssignmentSlot[]).find((s) => !live.some((a) => a.slot === s)) ?? "PRIMARY" : null;
-  const assignable = !!panel && canEdit && ["SCHEDULED", "MISSED"].includes(panel.status);
-  const candidates = panel && openSlot && assignable ? await visitCandidates(ctx, panel, openSlot) : [];
+  const keep = { date: o.date, period: o.period, branch: o.branch ?? undefined };
+  const url = (extra: Record<string, string | undefined>) => `/rota?${new URLSearchParams(Object.entries({ ...keep, ...extra }).filter((e): e is [string, string] => !!e[1]))}`;
+  const step = o.period === "day" ? 1 : 7;
+  const b = o.branch ? `&branch=${o.branch}` : "";
+  const isDay = o.period === "day";
+  // Drill-downs: a day opens the Daily Rota list for that day; a week opens it on the week's first day.
+  const listFor = (extra: string) => `/rota/visits?date=${o.range.from}&layout=list${extra}${b}`;
+  const k = o.kpis;
+  const p = o.performance;
+  const periodLabel = isDay ? (o.date === o.today ? "Today" : ordinalDate(o.date).split(" ")[0]) : o.period === "week" ? "This week" : "Next week";
+  const rangeText = isDay ? ordinalDate(o.date) : `${ordinalDate(o.range.from).replace(/ \d{4}$/, "")} – ${ordinalDate(o.range.to)}`;
+  const nextMonday = addDays(mondayOf(o.today), 7);
 
   return (
-    <>
-      <PageHeader
-        title="Rota Dashboard"
-        back="/"
-        subtitle="The week by carer. Drag a visit to another carer or day; every move is checked against leave, HR checks, clashes and preferences before it is saved. Open a visit to see it beside the roster."
-        actions={
-          <span className="flex flex-wrap gap-2">
-            {canBuild ? <Link href="/rota/build" className="btn-primary inline-flex items-center gap-1.5"><CalendarPlus size={16} aria-hidden />Plan rota</Link> : null}
-            {canBuild ? <Link href={`/rota/build?roll=1&from=${addDays(r.week, -7)}&to=${r.week}&weeks=1`} className="btn-secondary inline-flex items-center gap-1.5"><ArrowsClockwise size={16} aria-hidden />Roll forward</Link> : null}
-            {canBuild ? <Link href={`/rota/optimise?from=${r.week > r.today ? r.week : r.today}`} className="btn-secondary inline-flex items-center gap-1.5"><Faders size={16} aria-hidden />Fill open slots</Link> : null}
-            <Link href="/rota/cover" className="btn-secondary inline-flex items-center gap-1.5"><UserSwitch size={16} aria-hidden />Cover</Link>
-            {canEdit ? <Link href={`/rota/visits/new?date=${r.week >= mondayOf(r.today) && r.week <= r.today ? r.today : r.week}`} className="btn-secondary inline-flex items-center gap-1.5"><Plus size={16} aria-hidden />Add visit</Link> : null}
-          </span>
-        }
-      />
-      <Flash searchParams={sp} />
-
-      <section aria-label="Today" className="panel mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
-        <h2 className="text-[14px] font-semibold text-slate-700">Today, {fmtLondonDate(r.today, { weekday: "short", day: "numeric", month: "short" })}</h2>
-        <ul className="flex flex-wrap gap-x-1">
-          <Fig href={`/rota/visits?date=${r.today}&layout=list`} label="visits" value={c.total} />
-          <Fig href={`/rota/visits?date=${r.today}&layout=list&status=COMPLETED`} label="complete" value={c.complete} tone="good" />
-          <Fig href={`/rota/visits?date=${r.today}&layout=list&view=late`} label="late" value={c.late} tone="bad" />
-          <Fig href={`/rota/missed?period=day&date=${r.today}`} label="missed" value={c.missed} tone="bad" />
-          <Fig href={`/rota/visits?date=${r.today}&layout=list&view=unassigned`} label="unassigned" value={c.unassigned} tone="bad" />
-          {today.exceptions ? <Fig href="/rota/exceptions" label="open exceptions" value={today.exceptions.open} tone="bad" /> : null}
-        </ul>
-        <Link href="/rota/today" className="ml-auto text-[13.5px]">Today at a glance</Link>
-      </section>
-
-      <SegmentNav
-        label="Rota layout"
-        items={[
-          { href: `/rota?${qs({})}`, label: "Week", active: true },
-          { href: `/rota/visits?date=${r.week <= r.today && r.today < addDays(r.week, 7) ? r.today : r.week}`, label: "Day", active: false },
-          { href: `/rota/visits?date=${r.week <= r.today && r.today < addDays(r.week, 7) ? r.today : r.week}&layout=list`, label: "List", active: false },
-        ]}
-      />
-      <section aria-label="Week and filters" className="panel mb-3 flex flex-wrap items-end justify-between gap-3">
-        <Stepper base="/rota" params={keep} param="week" prev={addDays(r.week, -7)} next={addDays(r.week, 7)} label={`w/c ${fmtLondonDate(r.week, { day: "numeric", month: "short", year: "numeric" })}`} />
-        <form method="get" className="flex flex-wrap items-end gap-2">
-          <input type="hidden" name="week" value={r.week} />
-          <label><span className="label">Show</span><select name="view" defaultValue={r.view} className="input"><option value="carers">By carer</option><option value="clients">By service user</option></select></label>
-          <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{r.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-          <fieldset className="flex items-center gap-3 pb-2 text-[14px]">
-            <legend className="sr-only">Display options</legend>
-            <label className="flex items-center gap-1.5"><input type="checkbox" name="all" value="1" defaultChecked={sp.all === "1"} className="h-4 w-4" /> Everyone, even with no visits</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" name="cancelled" value="1" defaultChecked={sp.cancelled === "1"} className="h-4 w-4" /> Cancelled</label>
-          </fieldset>
-          <button className="btn-primary">Show</button>
-          {r.week !== mondayOf(r.today) ? <Link href="/rota" className="btn-secondary">This week</Link> : null}
-        </form>
-      </section>
-
-      {r.notBuilt ? <NotBuiltNotice date={r.week} canBuild={canBuild} /> : null}
-
-      <div className={panel ? "grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]" : ""}>
-        <section className="panel min-w-0" aria-label="Week roster">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <RosterKey tones={["ok", "draft", "active", "done", "missed", "review", "empty"]} shades={r.view === "carers" ? ["leave", "sick", "unavailable", "requested"] : []} />
-            <p className="text-[13px] text-slate-600">
-              <span className="tabular-nums">{r.counts.visits}</span> visits this week
-              {r.counts.emptySlots ? <> · <span className="font-medium tabular-nums text-[#a3242c]">{r.counts.emptySlots}</span> carer slots to fill</> : null}
-              {r.counts.draft ? <> · <span className="tabular-nums">{r.counts.draft}</span> drafts not published{canBuild ? <> (<Link href="/rota/build">publish</Link>)</> : null}</> : null}
-              {r.counts.review ? <> · <span className="tabular-nums">{r.counts.review}</span> to review</> : null}
-            </p>
+    <div className="rota-dash -mt-1">
+      <header className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <CalendarBlank size={40} weight="regular" className="shrink-0 text-[#6b3fd0]" aria-hidden />
+          <div className="min-w-0">
+            <h1 className="text-[28px] font-bold leading-tight text-[#0b1530]">Rota Dashboard</h1>
+            <p className="text-[15px] text-slate-700">Operational overview of care delivery, workforce and rota status</p>
           </div>
-          <PlannerBoard days={r.days} rows={r.rows} action={assignCarerAction} moveAction={r.view === "carers" ? moveVisitAction : undefined} back={back} canEdit={canEdit && r.view === "carers"} rowLabel={r.view === "clients" ? "Service user" : "Carer"} stateColours />
-          {r.truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">This week has more than 4,000 visits. Choose an area to see them all.</p> : null}
-          {!r.rows.some((x) => x.cells.some((cell) => cell.length)) && !r.notBuilt ? <p className="mt-2 text-[14px] text-slate-600">No visits match these filters this week.</p> : null}
-        </section>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {o.branches.length > 1 || o.branch ? (
+            <AutoSubmitForm label="Branch" className="flex items-center">
+              <input type="hidden" name="date" value={o.date} />
+              <input type="hidden" name="period" value={o.period} />
+              <label className="sr-only" htmlFor="dash-branch">Branch</label>
+              <select id="dash-branch" name="branch" defaultValue={o.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] font-medium text-[#0b1530]">
+                <option value="">{o.branches.length > 1 ? "All my branches" : o.branches[0]?.name ?? "All branches"}</option>
+                {o.branches.length > 1 ? o.branches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>) : null}
+              </select>
+            </AutoSubmitForm>
+          ) : (
+            <span className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] font-medium leading-10 text-[#0b1530]">{o.branches[0]?.name ?? "All branches"}</span>
+          )}
+          <Link href={url({ date: addDays(o.date, -step) })} className="flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#0b1530] hover:bg-slate-50" aria-label={isDay ? "Previous day" : "Previous week"}><CaretLeft size={18} aria-hidden /></Link>
+          <AutoSubmitForm label="Date" className="flex items-center">
+            <input type="hidden" name="period" value={o.period} />
+            {o.branch ? <input type="hidden" name="branch" value={o.branch} /> : null}
+            <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#0b1530]">
+              <CalendarBlank size={17} aria-hidden />
+              <span className="sr-only">Date</span>
+              <span aria-hidden className="hidden whitespace-nowrap md:inline">{rangeText}</span>
+              <input type="date" name="date" defaultValue={o.date} className="w-[22px] bg-transparent text-[14px] md:w-[22px] [&::-webkit-datetime-edit]:hidden" aria-label={`Date, ${ordinalDate(o.date)}`} />
+            </label>
+          </AutoSubmitForm>
+          <Link href={url({ date: addDays(o.date, step) })} className="flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#0b1530] hover:bg-slate-50" aria-label={isDay ? "Next day" : "Next week"}><CaretRight size={18} aria-hidden /></Link>
+          <nav aria-label="Period" className="flex rounded-[10px] border border-[#d0d5dd] bg-white p-1">
+            {PERIODS.map(([key, label]) => {
+              const active = o.period === key && (key !== "day" || o.date === o.today);
+              return (
+                <Link key={key} href={url({ period: key, date: o.today })} aria-current={active ? "page" : undefined} className={`rounded-[7px] px-4 py-1.5 text-[14.5px] font-medium no-underline ${active ? "bg-[#6b3fd0] text-white" : "text-[#0b1530] hover:bg-slate-50"}`}>{label}</Link>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+      <Flash searchParams={sp} />
+      {notBuilt ? <NotBuiltNotice date={o.range.from} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
 
-        {panel ? (
-          <aside aria-label="Visit details" className="panel xl:sticky xl:top-3 xl:self-start">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h2 className="text-[18px] font-semibold">{suName(panel.serviceUser)}</h2>
-                <p className="text-[13.5px] text-slate-600">{fmtLondonDate(londonDate(panel.scheduledStart), { weekday: "long", day: "numeric", month: "long" })} · {londonTime(panel.scheduledStart)}–{londonTime(panel.scheduledEnd)} · {panel.callType.name}</p>
-              </div>
-              <Link href={back} aria-label="Close visit details" className="text-[22px] leading-none text-slate-500 no-underline hover:text-navy-900">×</Link>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
-              <VisitStatusBadge status={panel.status} />
-              {!panel.publishedAt && panel.status === "SCHEDULED" ? <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-[#3c4a5c]">Draft, not published</span> : null}
-              {panel.timeLocked ? <span className="rounded-full bg-slate-100 px-2 py-0.5">Time locked</span> : null}
-              <span className="text-slate-500">{panel.reference}</span>
-            </div>
-            <h3 className="mt-3 text-[14px] font-semibold">Carers</h3>
-            <ul className="mt-1 space-y-1 text-[13.5px]">
-              {(["PRIMARY", ...(panel.carersRequired > 1 ? (["SECOND"] as const) : [])] as AssignmentSlot[]).map((s) => {
-                const a = live.find((x) => x.slot === s);
-                return <li key={s}><span className="text-slate-600">{SLOT_LABEL[s]}:</span> {a ? <span className={a.reviewReason ? "text-[#8a5a00]" : ""}>{a.staff.displayName}{a.reviewReason ? ` (needs review: ${a.reviewReason})` : ""}</span> : <span className="font-medium text-[#a3242c]">Not filled</span>}</li>;
-              })}
-            </ul>
-            {assignable && openSlot ? (
-              <>
-                <h3 className="mt-3 text-[14px] font-semibold">{live.some((a) => a.slot === openSlot) ? `Best matches to replace the ${SLOT_LABEL[openSlot].toLowerCase()}` : `Best matches for the ${SLOT_LABEL[openSlot].toLowerCase()}`}</h3>
-                {candidates.some((x) => x.score !== null) ? (
-                  <CarerRecommendations list={candidates} visitId={panel.id} slot={openSlot} lockVersion={panel.lockVersion} back={`/rota?${qs({ visit: panel.id })}`} replacing={live.some((a) => a.slot === openSlot)} />
-                ) : <p className="mt-1 text-[13px] text-[#a3242c]">No one is free and eligible for this time. Open the visit to see each carer&rsquo;s reasons.</p>}
-                <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
-              </>
-            ) : null}
-            <Link href={`/rota/visits/${panel.id}`} className="btn-secondary mt-3 inline-block">Open visit</Link>
-          </aside>
-        ) : sp.visit ? (
-          <p role="alert" className="mt-2 text-[14px] text-[#a3242c]">That visit could not be found, or is outside your areas.</p>
-        ) : null}
+      <section aria-label="Key figures" className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <KpiCard testId="kpi-scheduled" label="Scheduled Visits" value={k.scheduled.value} tone="lavender" icon={<CalendarBlank size={26} aria-hidden />} href={listFor("")} extra={k.scheduled.previous ? <span className="text-slate-600">{k.scheduled.value - k.scheduled.previous >= 0 ? "+" : ""}{k.scheduled.value - k.scheduled.previous} vs {isDay ? "last week" : "week before"}</span> : null} title="Planned visits, not counting cancelled ones" />
+        <KpiCard testId="kpi-completed" label="Completed" value={k.completed.value} extra={`${k.completed.percent.toFixed(1)}%`} tone="green" icon={<CheckCircle size={28} aria-hidden />} href={listFor("&status=COMPLETED")} />
+        <KpiCard testId="kpi-unassigned" label="Unassigned" value={k.unassigned.value} extra={`${k.unassigned.percent.toFixed(1)}%`} tone="amber" icon={<UsersThree size={28} aria-hidden />} href={listFor("&view=unassigned")} title="Visits with at least one carer slot not filled" />
+        <KpiCard testId="kpi-missed" label="Missed" value={k.missed.value} extra={`${k.missed.percent.toFixed(1)}%`} tone="red" icon={<XCircle size={28} aria-hidden />} href={listFor("&status=MISSED")} />
+        <KpiCard testId="kpi-late" label="Late" value={k.late.value} extra={`${k.late.percent.toFixed(1)}%`} tone="orange" icon={<Clock size={28} aria-hidden />} href={listFor("&view=late")} title={`Started, or still not started, more than ${k.late.thresholdMin} minutes after the scheduled time`} />
+      </section>
+
+      <div className="mb-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-[1.2fr_1fr_0.97fr]">
+        <DashPanel title={isDay && o.date === o.today ? "Today's Performance" : `${periodLabel === "Today" ? "Today" : isDay ? "Day" : periodLabel}'s Performance`.replace("This week's", "This Week's").replace("Next week's", "Next Week's")} id="dash-perf" icon={<ChartBar size={26} weight="bold" aria-hidden />}>
+          {p.total ? (
+            <>
+              <StateBars
+                total={p.total}
+                rows={[
+                  { label: "Completed", value: p.states.completed, colour: "#1f9d4c", href: listFor("&status=COMPLETED") },
+                  { label: "In progress", value: p.states.inProgress, colour: "#2f7de1", href: listFor("&status=IN_PROGRESS") },
+                  { label: "Scheduled", value: p.states.due, colour: "#c9c2f2", href: listFor("&status=SCHEDULED") },
+                  { label: "Missed", value: p.states.missed, colour: "#e5484d", href: listFor("&status=MISSED") },
+                  ...(p.states.notDelivered ? [{ label: "Not delivered", value: p.states.notDelivered, colour: "#98a2b3", href: listFor("&status=NOT_DELIVERED") }] : []),
+                ]}
+              />
+              <p className="mt-1.5 border-t border-[#eef0f3] pt-1.5 text-[12.5px] text-slate-600">
+                Each visit is counted once, by its status. Also: <Link href={listFor("&view=unassigned")} className="font-medium text-[#8a5a00]">{p.unassigned} unassigned</Link> · <Link href={listFor("&view=late")} className="font-medium text-[#a14b0f]">{p.late} late</Link>
+                {p.future ? " · nothing can be completed yet on future dates" : ""}
+              </p>
+            </>
+          ) : (
+            <p className="py-6 text-[14px] text-slate-600">No visits are scheduled for {isDay ? "this day" : "this week"}{o.branch ? " in this branch" : ""}.{canBuild ? <> <Link href={`/rota/build?week=${mondayOf(o.range.from)}`} className="underline">Build the rota</Link> if it is missing.</> : null}</p>
+          )}
+        </DashPanel>
+
+        <DashPanel title="Needs Attention" id="dash-attn" icon={<Warning size={26} weight="bold" aria-hidden />} aside={<span className="rounded-full bg-[#e5484d] px-2.5 py-0.5 text-[14px] font-semibold tabular-nums text-white" title="Distinct visits needing action plus staff with readiness problems">{o.attention.total}</span>}>
+          <ul className="-mx-2 space-y-0.5">
+            <AttentionRow icon={<XCircle size={22} aria-hidden />} tone="red" title="Missed visits" text={`${o.attention.missed} visit${o.attention.missed === 1 ? "" : "s"} not completed`} count={o.attention.missed} href={o.attentionHrefs.missed} />
+            <AttentionRow icon={<UsersThree size={22} aria-hidden />} tone="amber" title="Unassigned visits" text={`${o.attention.unassigned} upcoming visit${o.attention.unassigned === 1 ? "" : "s"} without a carer`} count={o.attention.unassigned} href={o.attentionHrefs.unassigned} />
+            <AttentionRow icon={<Users size={22} aria-hidden />} tone="lavender" title="Partial double-ups" text={`${o.attention.partial} visit${o.attention.partial === 1 ? "" : "s"} need a second carer`} count={o.attention.partial} href={o.attentionHrefs.partial} />
+            <AttentionRow icon={<Clock size={22} aria-hidden />} tone="orange" title="Late visits" text={`${o.attention.late} not started, over ${k.late.thresholdMin} minutes late`} count={o.attention.late} href={o.attentionHrefs.late} />
+            <AttentionRow icon={<WarningCircle size={22} aria-hidden />} tone="amber" title="Staff readiness" text={`${o.attention.readiness} carer${o.attention.readiness === 1 ? "" : "s"} with restrictions or checks to act on`} count={o.attention.readiness} href={o.attentionHrefs.readiness} />
+          </ul>
+        </DashPanel>
+
+        <DashPanel title="Staffing & Availability" id="dash-staff" icon={<UsersThree size={26} weight="bold" aria-hidden />} aside={<span className="text-[14px] text-slate-600">({o.staffing.carers} carers)</span>} className="lg:col-span-2 xl:col-span-1">
+          <ul>
+            <StaffRow icon={<CalendarCheck size={22} aria-hidden />} tone="green" label={isDay && o.date === o.today ? "Available today" : `Available ${ordinalDate(o.date).split(" ").slice(0, 2).join(" ")}`} value={o.staffing.available} href="/rota/staff" />
+            <StaffRow icon={<CalendarBlank size={22} aria-hidden />} tone="blue" label="On annual leave" value={o.staffing.onLeave} href={`/rota/cover?from=${o.date}&days=1&kind=HOLIDAY`} />
+            <StaffRow icon={<FirstAidKit size={22} aria-hidden />} tone="red" label="Off sick" value={o.staffing.sick} href={`/rota/cover?from=${o.date}&days=1&kind=SICKNESS`} />
+            <StaffRow icon={<Warning size={22} aria-hidden />} tone="amber" label="Readiness restrictions" value={o.staffing.restrictions} href="/rota/readiness" />
+          </ul>
+          {o.staffing.otherLeave || o.staffing.unavailable ? <p className="mt-1 text-[12.5px] text-slate-500">Also not available: {[o.staffing.otherLeave && `${o.staffing.otherLeave} on other leave`, o.staffing.unavailable && `${o.staffing.unavailable} unavailable all day by their pattern`].filter(Boolean).join(", ")}.</p> : null}
+        </DashPanel>
       </div>
-    </>
+
+      <div className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[1.17fr_1fr]">
+        <DashPanel title="7-Day Visit Coverage" id="dash-cov" icon={<ChartBar size={26} weight="bold" aria-hidden />} aside={<span className="text-[13px] text-slate-500">from {ordinalDate(o.date).split(" ").slice(0, 3).join(" ")}</span>}>
+          <CoverageChart days={o.coverage} hrefFor={(d) => `/rota/visits?date=${d}${b}`} />
+        </DashPanel>
+        <DashPanel title="Key Operational Insights" id="dash-ins" icon={<Target size={26} weight="bold" aria-hidden />}>
+          {o.insights.length ? (
+            <ul>
+              {o.insights.map((i) => (
+                <li key={i.text} className="border-b border-[#eef0f3] last:border-b-0">
+                  <Link href={i.href} className="flex items-center gap-3 px-1 py-[3px] text-[14.5px] text-[#0b1530] no-underline hover:bg-[#f7f7fb]">
+                    <span aria-hidden className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] ${i.tone === "ok" ? "bg-[#ebf7ef] text-[#1c8a4a]" : i.tone === "bad" ? "bg-[#fdeeee] text-[#c8323a]" : i.tone === "warn" ? "bg-[#fdf4e3] text-[#c27a06]" : "bg-[#e8f0fc] text-[#1d5fd0]"}`}>
+                      {i.tone === "ok" ? <CheckCircle size={18} /> : i.tone === "info" ? <Info size={18} /> : <Warning size={18} />}
+                    </span>
+                    <span className="min-w-0 flex-1">{i.text}{i.detail ? <span className="ml-2 text-[13px] text-slate-600">{i.detail}</span> : null}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="py-6 text-[14px] text-slate-600">Nothing needs attention: the next weeks are built and published, and no staffing gaps were found.</p>}
+        </DashPanel>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1.45fr_1fr]">
+        <DashPanel title="Recent Rota Activity" id="dash-act" icon={<ClockCounterClockwise size={26} weight="bold" aria-hidden />} aside={<Link href={`/rota/activity${o.branch ? `?branch=${o.branch}` : ""}`} className="ml-auto text-[14px] font-medium text-[#5a3aa8] no-underline hover:underline">View all activity →</Link>}>
+          {activity.rows.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-[14px]">
+                <thead><tr className="bg-[#f2f4f7] text-[13.5px] font-semibold text-[#0b1530]"><th scope="col" className="px-2.5 py-1 font-semibold">Time</th><th scope="col" className="px-2.5 py-1 font-semibold">Activity</th><th scope="col" className="px-2.5 py-1 font-semibold">Details</th><th scope="col" className="px-2.5 py-1 font-semibold">By</th></tr></thead>
+                <tbody>
+                  {activity.rows.map((r) => (
+                    <tr key={r.id} className="border-b border-[#eef0f3] last:border-b-0 hover:bg-[#f7f7fb]">
+                      <td className="whitespace-nowrap px-2.5 py-1 tabular-nums">{londonDate(r.at) === o.today ? hhmm(r.at) : `${r.at.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" })} ${hhmm(r.at)}`}</td>
+                      <td className="px-2.5 py-1">{r.activity}</td>
+                      <td className="px-2.5 py-1"><Link href={r.href} className="text-[#0b1530] no-underline hover:underline">{r.details}</Link></td>
+                      <td className="px-2.5 py-1">{r.by}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="py-6 text-[14px] text-slate-600">No rota activity has been recorded yet.</p>}
+        </DashPanel>
+        <section aria-labelledby="dash-quick" className="rounded-[10px] border border-[#e4e7ec] bg-[#f6f3fd] px-5 py-3">
+          <div className="mb-2 flex items-center gap-2.5">
+            <Lightning size={26} weight="bold" className="text-[#6b3fd0]" aria-hidden />
+            <h2 id="dash-quick" className="text-[19px] font-bold text-[#0b1530]">Quick Actions</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {canBuild ? <Link href="/rota/build?new=1" className="flex h-12 items-center justify-center gap-2.5 rounded-[8px] bg-[#6b3fd0] text-[15.5px] font-semibold text-white no-underline hover:bg-[#5a33b5]"><CalendarPlus size={22} aria-hidden />Build Rota</Link> : null}
+            {canBuild ? <Link href={`/rota/build?roll=1&from=${mondayOf(o.today)}&to=${nextMonday}&weeks=1`} className="flex h-12 items-center justify-center gap-2.5 rounded-[8px] border border-[#6b3fd0] bg-white text-[15.5px] font-semibold text-[#0b1530] no-underline hover:bg-[#f3f0fc]"><FastForward size={22} className="text-[#6b3fd0]" aria-hidden />Roll Forward</Link> : null}
+            {canBuild ? <Link href={`/rota/optimise?from=${o.range.from > o.today ? o.range.from : o.today}`} className="flex h-12 items-center justify-center gap-2.5 rounded-[8px] border border-[#6b3fd0] bg-white text-[15.5px] font-semibold text-[#0b1530] no-underline hover:bg-[#f3f0fc]"><Gauge size={22} className="text-[#6b3fd0]" aria-hidden />Optimise Rota</Link> : null}
+            <Link href="/rota/cover" className="flex h-12 items-center justify-center gap-2.5 rounded-[8px] border border-[#6b3fd0] bg-white text-[15.5px] font-semibold text-[#0b1530] no-underline hover:bg-[#f3f0fc]"><UserSwitch size={22} className="text-[#6b3fd0]" aria-hidden />Manage Cover</Link>
+            {!canBuild ? <p className="text-[13px] text-slate-600 sm:col-span-2">Building, rolling forward and optimising the rota are open to administrators, care managers and coordinators.</p> : null}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

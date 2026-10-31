@@ -125,3 +125,17 @@ export function staffDirectoryWhere(scope: Scope, f: { area?: string; status?: s
     ...(and.length ? { AND: and } : {}),
   };
 }
+
+/** Branches a member may pick in a branch filter: their granted branches, or every branch in the organisation. */
+export async function authorisedBranches(scope: Scope) {
+  return db.branch.findMany({ where: { organisationId: scope.organisationId, ...(scope.branchIds ? { id: { in: scope.branchIds } } : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+}
+
+/**
+ * The clause for a branch chosen in a filter. A visit belongs to its service user's branch. A branch the member may not
+ * pick matches nothing, so a hand-edited link can never show another branch's visits.
+ */
+export function visitBranchClause(scope: Pick<Scope, "branchIds">, branchId: string): Prisma.VisitWhereInput {
+  if (scope.branchIds && !scope.branchIds.includes(branchId)) return { id: { in: [] } };
+  return { serviceUser: { branchId } };
+}

@@ -2325,6 +2325,9 @@ model FinanceSettings {
   mileagePencePerMile  Int       @default(45)
   invoicePrefix        String    @default("INV")
   nextInvoiceNumber    Int       @default(1)
+  /// Employer on-costs (employer National Insurance, pension, holiday accrual) added to pay in rota cost estimates,
+  /// as a whole percentage. An assumption set by the organisation; never used for payroll.
+  estimateOnCostPercent Int      @default(0)
   updatedById          String?
   updatedAt            DateTime  @updatedAt
 }

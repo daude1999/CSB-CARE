@@ -1,4 +1,4 @@
-import { ArrowsLeftRight, Bank, Car, Printer, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, PhoneX, Pulse, Receipt, Repeat, Notepad, SealCheck, ShieldWarning, Siren, UsersThree, Wallet, UserSwitch, WarningOctagon, Faders } from "@phosphor-icons/react/dist/ssr";
+import { ArrowsLeftRight, Bank, Car, Printer, CalendarCheck, CalendarDots, CalendarPlus, ChartLine, ClipboardText, Coins, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Path, PhoneX, Pulse, Receipt, Repeat, Notepad, SealCheck, ShieldWarning, Siren, UsersThree, Wallet, UserSwitch, WarningOctagon, Faders, ChartBar, CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -10,21 +10,16 @@ import type { ShellItem } from "@/components/portal-switcher";
 type Entry = [href: string, label: string, icon: React.ReactNode, perm: OrgPermission | OrgPermission[], built: boolean];
 
 export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
-  // Sections follow the order of work the office already knows from OnePlan: Home, Rota, Templates, Users,
+  // Sections follow the order of work the office already knows: Rota, Templates, Users,
   // Invoicing/Wages, Reports. Care records sit with the people they belong to.
   const groups: [string, Entry[]][] = [
     [
-      "Home",
-      [
-        ["/rota", "Rota Dashboard", <House key="i" {...i} />, "rota.view", true],
-        ["/rota/today", "Today at a Glance", <ChartLine key="i" {...i} />, "rota.view", true],
-      ],
-    ],
-    [
       "Rota",
       [
+        ["/rota", "Rota Dashboard", <House key="i" {...i} />, "rota.view", true],
         ["/rota/visits", "Daily Rota", <ListChecks key="i" {...i} />, "rota.view", true],
         ["/rota/advanced", "Advanced Rota", <CalendarDots key="i" {...i} />, "rota.view", true],
+        ["/rota/planner", "Weekly Planner", <CalendarBlank key="i" {...i} />, "rota.view", true],
         ["/rota/unassigned", "Unassigned Visits", <WarningOctagon key="i" {...i} />, "rota.view", true],
         ["/rota/cover", "Sickness & Holiday Cover", <UserSwitch key="i" {...i} />, "rota.view", true],
         ["/rota/monitor", "The Monitor", <Pulse key="i" {...i} />, "rota.monitor", true],
@@ -70,6 +65,7 @@ export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
     [
       "Reports",
       [
+        ["/rota/insights", "Rota Insights", <ChartBar key="i" {...i} />, "rota.view", true],
         ["/rota/reports", "Rota Reports", <ChartLine key="i" {...i} />, "rota.view", true],
         ["/rota/settings", "Rota Settings", <GearSix key="i" {...i} />, "rota.settings", true],
       ],

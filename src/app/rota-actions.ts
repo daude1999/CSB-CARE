@@ -17,7 +17,7 @@ import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
-import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
+import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, orderRouteDayByTime, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
 import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
@@ -853,6 +853,10 @@ export async function moveToRouteAction(fd: FormData) {
 
 export async function moveStopAction(fd: FormData) {
   return handle(fd, (ctx) => moveStop(ctx, routeKind(fd), str(fd, "routeId"), str(fd, "id"), str(fd, "dir") === "up" ? "up" : "down"), "Order changed");
+}
+
+export async function orderRouteByTimeAction(fd: FormData) {
+  return handle(fd, (ctx) => orderRouteDayByTime(ctx, str(fd, "routeId"), str(fd, "date")), "Stops put in time order");
 }
 
 export async function removeRouteAction(fd: FormData) {
