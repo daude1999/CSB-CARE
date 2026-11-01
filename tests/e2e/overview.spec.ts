@@ -16,9 +16,12 @@ test.describe("Overview", () => {
   test("shows a coloured tile for each module the person may open, with planned modules labelled", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care Solution Bureau");
-    // Every figure tile links to the page it was counted from.
-    for (const id of ["service-users", "completed", "pending", "missed", "staff", "policies-overdue", "checks-overdue", "branches"]) await expect(page.getByTestId(`stat-${id}`)).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care Solution Bureau CIC");
+    // Approved design (1 Nov 2026): no row of figures above the cards; the Rota card carries today's five figures,
+    // each linking to the page it was counted from, in place of the old planner drawing.
+    await expect(page.getByTestId("overview-stats")).toHaveCount(0);
+    for (const id of ["completed", "pending", "missed", "unassigned", "staff"]) await expect(page.getByTestId(`rota-figure-${id}`)).toBeVisible();
+    await expect(page.getByTestId("tile-rota").getByRole("img")).toHaveCount(0);
     for (const id of ["policy", "rota", "hr", "reporting", "admin"]) await expect(page.getByTestId(`tile-${id}`)).toBeVisible();
     // Electronic call monitoring and service users now live inside Rostering & Care Management.
     for (const id of ["ecm", "service-users"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
@@ -83,4 +86,29 @@ test.describe("Overview", () => {
     await expect(page.getByTestId("tile-policy")).toBeVisible();
     for (const id of ["hr", "admin", "reporting", "rota"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
   });
+
+  test("the header shows the CSB logo, today's London date and time, and the signed-in person, with no search box", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/overview");
+    const header = page.getByTestId("overview-header");
+    await expect(header.getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
+    const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
+    await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
+    await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);
+    const time = (await page.getByTestId("overview-time").innerText()).slice(-5);
+    const [h, m] = london({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).split(":").map(Number);
+    const [sh, sm] = time.split(":").map(Number);
+    expect(Math.abs((h! * 60 + m!) - (sh! * 60 + sm!)) % 1440).toBeLessThanOrEqual(1);
+    // The same signed-in person the shell names in the sidebar.
+    await expect(page.getByTestId("overview-user")).toHaveText(await page.getByTestId("current-user").innerText());
+    await expect(page.getByTestId("overview-role")).not.toBeEmpty();
+    await expect(page.locator("#global-search")).toHaveCount(0);
+    // The account menu offers sign out; other pages keep the standard top bar and its search.
+    await page.getByTestId("account-menu").locator("summary").click();
+    await expect(page.getByTestId("account-menu").getByRole("button", { name: "Sign out" })).toBeVisible();
+    await page.goto("/policies");
+    await expect(page.getByTestId("overview-header")).toHaveCount(0);
+    await expect(page.locator("#global-search")).toBeVisible();
+  });
 });
+

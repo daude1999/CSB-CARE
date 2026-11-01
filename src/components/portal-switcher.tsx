@@ -342,7 +342,7 @@ export function ShellSidebar(props: SidebarProps) {
 }
 
 /** Phones and small tablets: the same sidebar, opened from a menu button as a dialog. */
-export function MobileMenu(props: SidebarProps) {
+export function MobileMenu({ light = false, ...props }: SidebarProps & { light?: boolean }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const pendingHref = usePendingHref();
@@ -365,7 +365,7 @@ export function MobileMenu(props: SidebarProps) {
   }, [open]);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-[6px] text-[#0b1530] hover:bg-black/5 md:hidden" aria-label="Open menu" aria-haspopup="dialog">
+      <button type="button" onClick={() => setOpen(true)} className={`flex h-9 w-9 items-center justify-center rounded-[6px] md:hidden ${light ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`} aria-label="Open menu" aria-haspopup="dialog">
         <List size={22} aria-hidden="true" />
       </button>
       <dialog ref={dialog} onClose={() => setOpen(false)} aria-label="Menu" className="shell-drawer m-0 h-full max-h-none w-[280px] max-w-[85vw] p-0">
