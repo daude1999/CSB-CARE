@@ -7,7 +7,7 @@ import { rotaSettings } from "@/server/rota/settings";
 import { templateScopeWhere } from "@/server/rota/scope";
 import { templateCarerAction } from "@/app/rota-actions";
 import { Flash } from "@/components/ui";
-import { ChoiceGroup, TemplatesHeading, TemplatesTabs } from "@/components/template-ui";
+import { ChoiceGroup, TemplatesHeader } from "@/components/template-ui";
 import { PlannerBoard, type PlannerChip, type PlannerRow } from "@/components/planner-board";
 
 export const dynamic = "force-dynamic";
@@ -53,8 +53,8 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   const q = (w: number) => `/rota/templates/planner?week=${w}${sp.area ? `&area=${sp.area}` : ""}${sp.all ? "&all=1" : ""}`;
   return (
     <>
-      <TemplatesHeading title="Advanced Templates" subtitle="The repeating pattern for one cycle week, by carer. Drag a visit to another carer on the same day to change who it is planned for. The change applies to every day and week that template runs, and weeks already built keep their carers." />
-      <TemplatesTabs active="advanced" canBuild={hasOrgPermission(ctx, "rota.build")} />
+      <TemplatesHeader title="Advanced Templates" subtitle="Repeating visits by carer for one cycle week. Drag a visit to another carer to change who it is planned for." active="advanced" canBuild={hasOrgPermission(ctx, "rota.build")} />
+      <p className="mb-3 text-[13.5px] text-[#475467]">The change applies to every day and week that template runs. Weeks already built keep their carers.</p>
       <Flash searchParams={sp} />
       <div className="mb-3"><ChoiceGroup label="Cycle week" items={Array.from({ length: settings.cycleLength }, (_, i) => ({ href: q(i + 1), label: `Week ${i + 1}`, active: week === i + 1 }))} /></div>
       <section className="panel" aria-label="Template planner">

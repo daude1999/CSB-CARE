@@ -35,6 +35,16 @@ describe("Daily Templates list", () => {
     expect((await templatePage(ctx, {}, { page: 999, per: 10 })).page).toBe(p1.pages);
   });
 
+  it("sorts by service user when asked, by time otherwise", async () => {
+    const ctx = await manager();
+    const bySu = (await templatePage(ctx, {}, { page: 1, per: 200, sort: "su" })).rows.map((r) => r.serviceUser.lastName);
+    expect(bySu).toEqual([...bySu].sort((a, b) => a.localeCompare(b)));
+    const byTime = (await templatePage(ctx, {}, { page: 1, per: 200 })).rows.map((r) => r.startMinute);
+    expect(byTime).toEqual([...byTime].sort((a, b) => a - b));
+    const desc = (await templatePage(ctx, {}, { page: 1, per: 200, dir: "desc" })).rows.map((r) => r.startMinute);
+    expect(desc).toEqual([...desc].sort((a, b) => b - a));
+  });
+
   it("filters by cycle week and weekday; an All Weeks template shows in every week", async () => {
     const ctx = await manager();
     const t = await db.visitTemplate.findFirstOrThrow({ where: { organisationId: orgId, enabled: true, cycleWeeks: { hasEvery: [1, 2, 3, 4] } } });

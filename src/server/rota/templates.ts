@@ -457,7 +457,7 @@ export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
 }
 
 /** One page of the Daily Templates table, with the total that match, so thousands of templates never load at once. */
-export async function templatePage(ctx: Ctx, f: TemplateFilters, paging: { page: number; per: number }) {
+export async function templatePage(ctx: Ctx, f: TemplateFilters, paging: { page: number; per: number; sort?: "time" | "su"; dir?: "asc" | "desc" }) {
   const scope = await rotaScope(ctx);
   const where = await templateWhere(scope, f);
   const per = Math.min(Math.max(Math.trunc(paging.per) || 25, 1), 200);
@@ -467,7 +467,9 @@ export async function templatePage(ctx: Ctx, f: TemplateFilters, paging: { page:
   const rows = await db.visitTemplate.findMany({
     where,
     include: listInclude,
-    orderBy: [{ startMinute: "asc" }, { serviceUser: { lastName: "asc" } }, { id: "asc" }],
+    orderBy: paging.sort === "su"
+      ? [{ serviceUser: { lastName: paging.dir ?? "asc" } }, { serviceUser: { firstName: paging.dir ?? "asc" } }, { startMinute: "asc" }, { id: "asc" }]
+      : [{ startMinute: paging.dir ?? "asc" }, { serviceUser: { lastName: "asc" } }, { id: "asc" }],
     skip: (page - 1) * per,
     take: per,
   });
