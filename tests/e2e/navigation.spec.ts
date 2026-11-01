@@ -177,35 +177,105 @@ test.describe("Sidebar", () => {
     await expect(currentPage(page)).toHaveText("The Monitor");
   });
 
-  test("the Rota menu follows OnePlan's sections: extra pages fold away, open by click or keyboard, and the current page is never hidden", async ({ page }) => {
+  test("the Rota menu is nine destinations and Settings; nested pages light their destination and every old page is a tab", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
     const nav = sidebar(page);
-    const headings = await nav.locator("[data-nav-group]").evaluateAll((els) => els.map((e) => e.getAttribute("data-nav-group")));
-    expect(headings).toEqual(["Rota", "Templates", "Users", "Invoicing/Wages", "Reports", "Settings", "Help & Training"]);
-    await expect(nav.getByRole("link", { name: "Build Rota" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Weekly Planner" })).toBeHidden();
-    await expect(nav.getByRole("link", { name: "Invoicing" })).toBeHidden();
-    await expect(nav.getByText("Preference Manager")).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Preference Manager" })).toHaveCount(0);
+    const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
+    expect(labels).toEqual(["Rota Home", "Daily Rota", "Visits Needing Attention", "The Monitor", "Daily Templates", "Service Users", "Staff & Workforce", "Finance", "Reports", "Settings"]);
+    await expect(nav.locator("[data-nav-group], [data-nav-more]")).toHaveCount(0);
+    await expect(nav.getByText("Planned")).toHaveCount(0);
+    await expect(nav.locator("[data-nav-separated]")).toHaveText("Settings");
 
-    // Opened with the keyboard: the heading is a real button that says whether it is open.
-    const more = nav.getByRole("button", { name: /More rota tools/ });
-    await expect(more).toHaveAttribute("aria-expanded", "false");
-    await more.focus();
+    // Deep links light the parent destination.
+    for (const [href, label] of [
+      ["/rota/missed", "Visits Needing Attention"],
+      ["/rota/unassigned", "Visits Needing Attention"],
+      ["/rota/incidents", "Service Users"],
+      ["/rota/care-plans", "Service Users"],
+      ["/rota/readiness", "Staff & Workforce"],
+      ["/rota/finance/payroll", "Finance"],
+      ["/rota/insights", "Reports"],
+      ["/rota/planner", "Daily Rota"],
+      ["/rota/exceptions", "The Monitor"],
+      ["/rota/routes/templates", "Daily Templates"],
+    ] as const) {
+      await page.goto(href);
+      await expect(currentPage(page), href).toHaveText(label);
+    }
+
+    // Pages that were menu entries are tabs of their workspace, reachable by keyboard.
+    await page.goto("/rota/planner");
+    const tabs = page.getByTestId("rota-tabs-daily");
+    for (const name of ["Daily Rota", "Advanced Rota", "Weekly Planner", "Build Rota", "Generate & Optimise", "Live Run Routes", "Printable Rota", "Sickness & Holiday Cover"]) await expect(tabs.getByRole("link", { name, exact: true })).toBeVisible();
+    await expect(tabs.getByRole("link", { name: "Weekly Planner" })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: "Live Run Routes" }).focus();
     await page.keyboard.press("Enter");
-    await expect(more).toHaveAttribute("aria-expanded", "true");
-    await expect(nav.getByRole("link", { name: "Weekly Planner" })).toBeVisible();
-    await nav.getByRole("button", { name: "Rota", exact: true }).click();
-    await expect(nav.getByRole("link", { name: "Daily Rota" })).toBeHidden();
+    await expect(page).toHaveURL(/\/rota\/routes$/);
+    await expect(currentPage(page)).toHaveText("Daily Rota");
+    await page.goto("/rota/care-plans");
+    for (const name of ["Service Users", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    await page.goto("/rota/finance");
+    for (const name of ["Finance Overview", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
+    await page.goto("/rota/staff");
+    for (const name of ["Team Members", "Staff Readiness"]) await expect(page.getByTestId("rota-tabs-staff").getByRole("link", { name, exact: true })).toBeVisible();
+  });
 
-    // A page inside a folded group opens that group, with the marker on it.
-    await page.goto("/rota/finance/rates?tab=holidays");
-    await expect(currentPage(page)).toHaveText("Bank Holidays");
-    await expect(nav.getByRole("button", { name: "Invoicing/Wages" })).toHaveAttribute("aria-expanded", "true");
-    await page.goto("/rota/missed");
-    await expect(currentPage(page)).toHaveText("Missed Calls");
-    await expect(nav.getByRole("link", { name: "Missed Calls" })).toBeVisible();
+  test("Visits Needing Attention shows Unassigned Visits and Missed Calls together, each leading into its own workflow", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota");
+    await sidebar(page).getByRole("link", { name: "Visits Needing Attention" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Visits Needing Attention" })).toBeVisible();
+    const un = page.getByTestId("attention-unassigned");
+    const mc = page.getByTestId("attention-missed");
+    await expect(un).toBeVisible();
+    await expect(mc).toBeVisible();
+    // Both sections sit side by side on a wide screen.
+    const [a, b] = [await un.boundingBox(), await mc.boundingBox()];
+    expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
+    expect(b!.x).toBeGreaterThan(a!.x + a!.width - 1);
+
+    // The figures match the full pages they come from.
+    const unCount = Number(await page.getByTestId("att-un-visits").textContent());
+    const mcCount = Number(await page.getByTestId("att-mc-open").textContent());
+    await un.getByRole("link", { name: "Open Unassigned Visits" }).click();
+    await expect(page).toHaveURL(/\/rota\/unassigned\?when=week/);
+    await expect(page.getByTestId("sum-visits")).toHaveText(String(unCount));
+    await expect(currentPage(page)).toHaveText("Visits Needing Attention");
+    await page.goBack();
+    await mc.getByRole("link", { name: "Open Missed Calls" }).click();
+    await expect(page).toHaveURL(/\/rota\/missed\?period=custom/);
+    await expect(page.getByText(new RegExp(`^${mcCount} calls? ·`))).toBeVisible();
+    await page.goBack();
+
+    // Find Cover opens the Unassigned Visits panel with its Recommended and Manual tabs.
+    if (unCount > 0) {
+      await un.getByRole("link", { name: /^Find cover for/ }).first().click();
+      await expect(page).toHaveURL(/\/rota\/unassigned\?when=week&cover=/);
+      await expect(page.getByRole("link", { name: /Manual/ }).first()).toBeVisible();
+      await page.goBack();
+      await un.getByRole("link", { name: /^Choose a carer by hand/ }).first().click();
+      await expect(page).toHaveURL(/ctab=manual/);
+      await page.goBack();
+    }
+    // Investigate opens the missed call's case.
+    if (mcCount > 0) {
+      await mc.getByRole("link", { name: /^Investigate/ }).first().click();
+      await expect(page).toHaveURL(/\/rota\/missed\/[^/?]+$/);
+      await expect(currentPage(page)).toHaveText("Visits Needing Attention");
+      await page.goBack();
+    }
+    await un.getByRole("link", { name: "Coverage History" }).click();
+    await expect(page).toHaveURL(/tab=history/);
+  });
+
+  test("a carer sees only their own pages, and cannot open the attention page", async ({ page }) => {
+    await signIn(page, "carer@care-solution.demo");
+    await page.goto("/carer");
+    const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
+    expect(labels).toEqual(["Incidents", "My Visits"]);
+    await page.goto("/rota/attention");
+    await expect(page).not.toHaveURL(/\/rota\/attention/);
   });
 
   test("switching module folds the old pages and opens the new ones; the old list is unreachable while it folds", async ({ page }) => {

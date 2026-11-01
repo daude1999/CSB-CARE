@@ -21,6 +21,10 @@ export type ShellItem = {
   fold?: "open" | "closed";
   /** The page sits in a folded list with this name at the end of its group (for example "More rota tools"). */
   more?: string;
+  /** Set apart from the pages above it by a rule, for an entry that belongs at the foot of the list (Settings). */
+  separated?: boolean;
+  /** A long name that takes two lines rather than being cut off. */
+  wrap?: boolean;
 };
 export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
@@ -238,11 +242,13 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
         </li>
       );
     const active = i.href === activeHref;
+    const long = Boolean(i.wrap);
     return (
-      <li key={i.href}>
-        <Link href={i.href} data-nav-active={active ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} title={i.label} className={`shell-page ${active ? "shell-page-active" : ""}`}>
+      <li key={i.href} className={i.separated ? "mt-[8px] border-t border-white/[0.14] pt-[8px]" : undefined} data-nav-separated={i.separated ? "" : undefined}>
+        <Link href={i.href} data-nav-active={active ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} title={i.label} className={`shell-page ${long ? "h-auto min-h-[29px] py-[6px]" : ""} ${active ? "shell-page-active" : ""}`}>
           <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-          <span className="min-w-0 truncate">{i.label}</span>
+          {/* A long name (such as "Visits Needing Attention") takes two lines rather than being cut off. */}
+          <span className={long ? "min-w-0 leading-[15px]" : "min-w-0 truncate"}>{i.label}</span>
         </Link>
       </li>
     );

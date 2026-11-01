@@ -4,6 +4,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { listRuns } from "@/server/finance/runs";
 import { Flash, PageHeader } from "@/components/ui";
 import { RunList } from "@/components/run-list";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function RunsPage({ searchParams }: { searchParams: Promise
   const week = sp.week && isIsoDate(sp.week) && weeks.includes(sp.week) ? sp.week : weeks[0]!;
   return (
     <>
-      <PageHeader title="Payroll Preparation" back="/rota/finance" subtitle="Weekly pay worked out from approved timesheets and each carer's pay rate. A second person approves the run, then it is exported as a file for your payroll provider. The platform never pays anyone or submits anything to HMRC." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="payroll" />} title="Payroll Preparation" back="/rota/finance" subtitle="Weekly pay worked out from approved timesheets and each carer's pay rate. A second person approves the run, then it is exported as a file for your payroll provider. The platform never pays anyone or submits anything to HMRC." />
       <Flash searchParams={sp} />
       <RunList kind="pay" rows={runs.pay} canPrepare={hasOrgPermission(ctx, "finance.manage")} weeks={weeks} defaultWeek={week} back="/rota/finance/payroll" />
     </>

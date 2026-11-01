@@ -6,6 +6,7 @@ import { rotaLookups, suName } from "@/server/rota/queries";
 import { fmtLondonDate, fromDbDate, londonDate } from "@/lib/london";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { LEVEL } from "@/components/risk-fields";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function RisksPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="risks" />}
         title="Risk Assessments"
         back="/rota"
         subtitle="Every active risk assessment, soonest review first. Carers see the controls for the people they visit. Reviews keep the previous wording in the history; assessments that no longer apply are archived, not deleted."

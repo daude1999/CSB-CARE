@@ -4,6 +4,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { listMileage } from "@/server/finance/mileage";
 import { decideMileageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function MileagePage({ searchParams }: { searchParams: Prom
   const back = `/rota/finance/mileage?status=${status}`;
   return (
     <>
-      <PageHeader title="Mileage" back="/rota/finance" subtitle="Business miles claimed by carers. Distances are what the carer states; they are not worked out from a map. Approved claims are paid through the next pay run at the rate in Tariffs & Funders." actions={<Link href="/rota/finance/payroll" className="btn-secondary">Wages</Link>} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="mileage" />} title="Mileage" back="/rota/finance" subtitle="Business miles claimed by carers. Distances are what the carer states; they are not worked out from a map. Approved claims are paid through the next pay run at the rate in Tariffs & Funders." actions={<Link href="/rota/finance/payroll" className="btn-secondary">Wages</Link>} />
       <Flash searchParams={sp} />
       <SegmentNav label="Claim status" items={[["SUBMITTED", "Waiting"], ["APPROVED", "Approved"], ["REJECTED", "Rejected"], ["ALL", "All"]].map(([k, l]) => ({ href: `/rota/finance/mileage?status=${k}`, label: l!, active: status === k }))} />
       <Card>

@@ -6,6 +6,7 @@ import { DEFAULT_GAP_MINUTES, DEFAULT_MAX_SHIFT, MAX_PLAN_DAYS, listPlans, planR
 import { memberNames, rotaLookups } from "@/server/rota/queries";
 import { generatePlanAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function OptimisePage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="optimise" />}
         title="Generate & Optimise Rota"
         back="/rota"
         subtitle="Proposes a carer for every open slot, using only carers who pass the eligibility checks, and suggests small time changes where they let someone fit. Nothing changes on the rota until you accept changes and apply them."

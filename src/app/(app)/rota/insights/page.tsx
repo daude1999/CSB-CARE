@@ -8,6 +8,7 @@ import { rotaInsights, type Breakdown } from "@/server/rota/insights";
 import { rotaLookups } from "@/server/rota/queries";
 import { Flash, PageHeader } from "@/components/ui";
 import { Stepper } from "@/components/rota-ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="reports" active="insights" />}
         title="Rota Insights"
         back="/rota"
         subtitle="The week's visits, workforce, care hours and money, worked out from the rota as it stands. Every figure links to the records behind it. Money figures are estimates from your rate cards, not payroll or invoices."

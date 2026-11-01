@@ -6,6 +6,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaLookups } from "@/server/rota/queries";
 import { MAX_RANGE_DAYS, ROTA_REPORTS, defaultRange, parseFilters, rotaReport, type RotaReportFilters } from "@/server/rota/reports";
 import { Card, Empty, PageHeader, SegmentNav } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="reports" active="reports" />}
         title="Rota Reports"
         back="/rota"
         subtitle="Worked out from visits and clock times when you open the page, so corrections show straight away. Choose a report, dates and an area; each row links to the records behind it."

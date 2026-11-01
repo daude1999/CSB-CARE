@@ -7,6 +7,7 @@ import { rotaLookups } from "@/server/rota/queries";
 import { createLiveRouteAction } from "@/app/rota-actions";
 import { RouteChip, RouteForm } from "@/components/route-ui";
 import { Card, Empty, Flash, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function LiveRoutesPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Live Run Routes" back="/rota" subtitle="A run route is one carer's (or one area's) round of visits for a week, in the order you set. Build Rota carries template routes into each built week. Routes never assign a carer, and travel times are not worked out." actions={<Link href="/rota/routes/templates" className="btn-secondary">Template Run Routes</Link>} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="routes" />} title="Live Run Routes" back="/rota" subtitle="A run route is one carer's (or one area's) round of visits for a week, in the order you set. Build Rota carries template routes into each built week. Routes never assign a carer, and travel times are not worked out." actions={<Link href="/rota/routes/templates" className="btn-secondary">Template Run Routes</Link>} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-3">
