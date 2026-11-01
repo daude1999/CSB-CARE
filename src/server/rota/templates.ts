@@ -376,11 +376,28 @@ export interface TemplateFilters {
   q?: string;
 }
 
-/** The Daily Templates list: templates for one cycle week and weekday (or all), scoped to the caller's areas. */
-export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
-  const scope = await rotaScope(ctx);
-  const q = f.q?.trim();
-  const where: Prisma.VisitTemplateWhereInput = {
+/** Turns the Daily Templates filters into a query. Every filter narrows the caller's own scope; none can widen it. */
+async function templateWhere(scope: Scope, f: TemplateFilters): Promise<Prisma.VisitTemplateWhereInput> {
+  const q = f.q?.trim().slice(0, 100);
+  let search: Prisma.VisitTemplateWhereInput[] = [];
+  if (q) {
+    const contains = { contains: q, mode: "insensitive" as const };
+    // Staff names live on StaffMember, which a template refers to by id only.
+    const staffIds = (await db.staffMember.findMany({ where: { organisationId: scope.organisationId, displayName: contains }, select: { id: true }, take: 200 })).map((s) => s.id);
+    const ref = /^t-?[a-z0-9]{3,}$/i.test(q) ? q.replace(/^t-?/i, "").toLowerCase() : null;
+    search = [{
+      OR: [
+        { serviceUser: { firstName: contains } },
+        { serviceUser: { lastName: contains } },
+        { serviceUser: { preferredName: contains } },
+        { serviceUser: { reference: contains } },
+        { callType: { name: contains } },
+        ...(ref ? [{ id: { endsWith: ref } }] : []),
+        ...(staffIds.length ? [{ preferredStaff1Id: { in: staffIds } }, { preferredStaff2Id: { in: staffIds } }] : []),
+      ],
+    }];
+  }
+  return {
     organisationId: scope.organisationId,
     AND: [
       templateScopeWhere(scope),
@@ -392,26 +409,103 @@ export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
       ...(f.day ? [{ weekdays: { has: f.day } }] : []),
       ...(f.state === "off" ? [{ enabled: false }] : f.state === "all" ? [] : [{ enabled: true }]),
       ...(f.noCarer ? [{ OR: [{ preferredStaff1Id: null }, { carersRequired: 2, preferredStaff2Id: null }] }] : []),
-      ...(q ? [{ OR: [{ serviceUser: { firstName: { contains: q, mode: "insensitive" as const } } }, { serviceUser: { lastName: { contains: q, mode: "insensitive" as const } } }, { serviceUser: { reference: { contains: q, mode: "insensitive" as const } } }, { callType: { name: { contains: q, mode: "insensitive" as const } } }] }] : []),
+      ...search,
     ],
   };
-  const rows = await db.visitTemplate.findMany({
-    where,
-    include: {
-      serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, riskLevel: true } },
-      callType: { select: { name: true } },
-      _count: { select: { tasks: true } },
-    },
-    orderBy: [{ startMinute: "asc" }, { serviceUser: { lastName: "asc" } }],
-    take: 1000,
-  });
+}
+
+const listInclude = {
+  serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, riskLevel: true } },
+  callType: { select: { name: true } },
+  _count: { select: { tasks: true } },
+} satisfies Prisma.VisitTemplateInclude;
+
+/** Areas, run routes and carers named on a set of templates, looked up inside the caller's organisation only. */
+async function decorate<T extends { areaId: string | null; runRouteTemplateId: string | null; preferredStaff1Id: string | null; preferredStaff2Id: string | null; shadowStaffId: string | null }>(organisationId: string, rows: T[]) {
   const areaIds = [...new Set(rows.map((r) => r.areaId).filter((x): x is string => !!x))];
   const routeIds = [...new Set(rows.map((r) => r.runRouteTemplateId).filter((x): x is string => !!x))];
-  const [areas, routes] = await Promise.all([
-    areaIds.length ? db.area.findMany({ where: { organisationId: scope.organisationId, id: { in: areaIds } }, select: { id: true, name: true, colour: true } }) : [],
-    routeIds.length ? db.runRouteTemplate.findMany({ where: { organisationId: scope.organisationId, id: { in: routeIds } }, select: { id: true, name: true, colour: true, textColour: true } }) : [],
+  const staffIds = [...new Set(rows.flatMap((r) => [r.preferredStaff1Id, r.preferredStaff2Id, r.shadowStaffId]).filter((x): x is string => !!x))];
+  const [areas, routes, staff] = await Promise.all([
+    areaIds.length ? db.area.findMany({ where: { organisationId, id: { in: areaIds } }, select: { id: true, name: true, colour: true } }) : [],
+    routeIds.length ? db.runRouteTemplate.findMany({ where: { organisationId, id: { in: routeIds } }, select: { id: true, name: true, colour: true, textColour: true } }) : [],
+    staffIds.length ? db.staffMember.findMany({ where: { organisationId, id: { in: staffIds } }, select: { id: true, displayName: true, employmentStatus: true, hrMissing: true } }) : [],
   ]);
   const areaById = new Map(areas.map((a) => [a.id, a]));
   const routeById = new Map(routes.map((r) => [r.id, r]));
-  return rows.map((t) => ({ ...t, area: t.areaId ? areaById.get(t.areaId) ?? null : null, runRoute: t.runRouteTemplateId ? routeById.get(t.runRouteTemplateId) ?? null : null }));
+  const staffById = new Map(staff.map((s) => [s.id, s]));
+  const person = (id: string | null) => (id ? staffById.get(id) ?? { id, displayName: "Former staff", employmentStatus: "ARCHIVED" as const, hrMissing: true } : null);
+  return rows.map((t) => ({
+    ...t,
+    area: t.areaId ? areaById.get(t.areaId) ?? null : null,
+    runRoute: t.runRouteTemplateId ? routeById.get(t.runRouteTemplateId) ?? null : null,
+    carer1: person(t.preferredStaff1Id),
+    carer2: person(t.preferredStaff2Id),
+    shadow: person(t.shadowStaffId),
+  }));
+}
+
+/** The Daily Templates list: templates for one cycle week and weekday (or all), scoped to the caller's areas. */
+export async function listTemplates(ctx: Ctx, f: TemplateFilters) {
+  const scope = await rotaScope(ctx);
+  const rows = await db.visitTemplate.findMany({
+    where: await templateWhere(scope, f),
+    include: listInclude,
+    orderBy: [{ startMinute: "asc" }, { serviceUser: { lastName: "asc" } }],
+    take: 1000,
+  });
+  return decorate(scope.organisationId, rows);
+}
+
+/** One page of the Daily Templates table, with the total that match, so thousands of templates never load at once. */
+export async function templatePage(ctx: Ctx, f: TemplateFilters, paging: { page: number; per: number }) {
+  const scope = await rotaScope(ctx);
+  const where = await templateWhere(scope, f);
+  const per = Math.min(Math.max(Math.trunc(paging.per) || 25, 1), 200);
+  const total = await db.visitTemplate.count({ where });
+  const pages = Math.max(1, Math.ceil(total / per));
+  const page = Math.min(pages, Math.max(1, Math.trunc(paging.page) || 1));
+  const rows = await db.visitTemplate.findMany({
+    where,
+    include: listInclude,
+    orderBy: [{ startMinute: "asc" }, { serviceUser: { lastName: "asc" } }, { id: "asc" }],
+    skip: (page - 1) * per,
+    take: per,
+  });
+  return { rows: await decorate(scope.organisationId, rows), total, page, pages, per };
+}
+
+export type TemplateListRow = Awaited<ReturnType<typeof listTemplates>>[number];
+
+/** The template reference shown to staff: the end of its id, so it is stable and searchable. */
+export const templateRef = (id: string) => `T-${id.slice(-6).toUpperCase()}`;
+
+/**
+ * The Template Details panel: one template the caller may see, with plain-language warnings. Returns null when the
+ * template does not exist or belongs to another organisation or area, so a changed URL shows nothing.
+ */
+export async function templateDetails(ctx: Ctx, id: string) {
+  const scope = await rotaScope(ctx);
+  const found = await db.visitTemplate.findFirst({
+    where: { id, organisationId: scope.organisationId, AND: [templateScopeWhere(scope)] },
+    include: { ...listInclude, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, riskLevel: true, status: true } } },
+  });
+  if (!found) return null;
+  const [t] = await decorate(scope.organisationId, [found]);
+  const today = londonDate();
+  const futureVisits = await db.visit.count({ where: { organisationId: scope.organisationId, templateId: id, date: { gte: dbDate(today) }, status: "SCHEDULED" } });
+  const warnings: string[] = [];
+  if (!t!.enabled) warnings.push("Switched off: Build Rota skips this template until it is enabled.");
+  const filled = [t!.preferredStaff1Id, t!.carersRequired > 1 ? t!.preferredStaff2Id : null].filter(Boolean).length;
+  if (filled < t!.carersRequired) warnings.push(filled === 0 ? `No carer planned: needs ${t!.carersRequired === 2 ? "two carers" : "a carer"}.` : "Double-up is missing its second carer.");
+  for (const c of [t!.carer1, t!.carersRequired > 1 ? t!.carer2 : null]) {
+    if (c && (c.employmentStatus === "ARCHIVED" || c.hrMissing)) warnings.push(`${c.displayName} is no longer active in HR. Choose another carer.`);
+    else if (c && c.employmentStatus === "ONBOARDING") warnings.push(`${c.displayName} is still onboarding. Build Rota checks readiness before booking them.`);
+  }
+  if (found.serviceUser.status === "ENDED") warnings.push("This person's care has ended.");
+  else if (found.serviceUser.status === "PAUSED") warnings.push("This person's care is paused.");
+  const from = fromDbDate(t!.effectiveFrom);
+  const to = t!.effectiveTo ? fromDbDate(t!.effectiveTo) : null;
+  if (to && to < today) warnings.push(`Ended on ${to}: no longer built.`);
+  else if (from > today) warnings.push(`Starts on ${from}.`);
+  return { template: t!, effectiveFrom: from, effectiveTo: to, futureVisits, warnings, serviceUserStatus: found.serviceUser.status };
 }
