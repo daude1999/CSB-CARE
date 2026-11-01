@@ -4,7 +4,8 @@ import type { AssignmentSlot } from "@prisma/client";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, safeBack, str } from "./action-kit";
-import { assignCarer, unassignCarer } from "@/server/rota/assign";
+import { assignCarer, coverConfirmation, unassignCarer } from "@/server/rota/assign";
+import { z } from "zod";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
@@ -79,6 +80,30 @@ export async function assignCarerAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await assignCarer(ctx, { visitId: str(fd, "visitId"), slot: slot(fd), staffId: str(fd, "staffId"), acceptWarnings: bool(fd, "acceptWarnings"), lockVersion: optInt(fd, "lockVersion") });
   }, "Carer assigned");
+}
+
+/**
+ * Find Cover's Review Assignment: books one carer into one empty place. The warnings the coordinator saw are sent back
+ * one by one and must be ticked as read; the server re-runs eligibility, availability, bookings, readiness and the
+ * visit version inside the booking transaction and refuses anything new.
+ */
+const confirmCoverSchema = z.object({
+  visitId: z.string().min(1, "Choose a visit"),
+  staffId: z.string().min(1, "Choose a carer"),
+  slot: z.enum(["PRIMARY", "SECOND"], { message: "Choose the carer place" }),
+  lockVersion: z.coerce.number().int(),
+  warnings: z.array(z.string().max(500)).max(30),
+  acknowledged: z.boolean(),
+});
+export async function confirmCoverAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const p = confirmCoverSchema.safeParse({ visitId: str(fd, "visitId"), staffId: str(fd, "staffId"), slot: str(fd, "slot"), lockVersion: str(fd, "lockVersion"), warnings: ids(fd, "warning"), acknowledged: bool(fd, "acknowledged") });
+    if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the details and try again");
+    if (p.data.warnings.length && !p.data.acknowledged) throw new ValidationError("Tick to confirm you have read the warnings before booking this carer");
+    const a = await assignCarer(ctx, { visitId: p.data.visitId, slot: p.data.slot, staffId: p.data.staffId, lockVersion: p.data.lockVersion, acceptWarnings: p.data.acknowledged, acceptedWarnings: p.data.warnings }, "find-cover");
+    const staff = await coverConfirmation(ctx, a.id);
+    return { ok: staff };
+  }, "Carer booked");
 }
 
 export async function unassignCarerAction(fd: FormData) {

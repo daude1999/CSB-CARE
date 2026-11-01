@@ -24,17 +24,24 @@ test.describe("Rostering & Care Management", () => {
 
   test("coordinator works the day: filters visits, assigns a carer, and sees the result", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
-    await page.goto("/rota/unassigned");
+    // The older ?from=&days= link still works (it becomes a custom range); the demo data leaves gaps a week ahead.
+    await page.goto(`/rota/unassigned?from=${new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" })}&days=14`);
     await expect(page.getByRole("heading", { level: 1, name: "Unassigned Visits" })).toBeVisible();
-    const form = page.locator("form:has(select[name=staffId])").first();
-    const select = form.locator("select[name=staffId]");
-    const options = await select.locator("option").count();
-    test.skip(options < 2, "No eligible carer free in the demo data for the first visit");
-    await select.selectOption({ index: 1 });
-    await form.getByLabel("Accept warnings").check();
-    await form.getByRole("button", { name: "Assign" }).click();
-    await expect(page.getByRole("status")).toContainText("Carer assigned");
-
+    const find = page.getByRole("link", { name: /^Find cover for / }).first();
+    test.skip((await find.count()) === 0, "No unassigned visits in the next two weeks of demo data");
+    await find.click();
+    await expect(page).toHaveURL(/cover=/);
+    await expect(page.getByRole("region", { name: "Selected visit" })).toBeVisible();
+    const options = page.locator('aside[aria-labelledby="fc-title"] a[aria-label^="Select "]');
+    test.skip((await options.count()) === 0, "No eligible carer free in the demo data for the first visit");
+    await options.first().click();
+    await expect(page).toHaveURL(/pick=/);
+    await page.getByRole("link", { name: "Review Assignment" }).click();
+    await expect(page.getByRole("heading", { name: "Review Assignment" })).toBeVisible();
+    const ack = page.getByLabel(/I have read these warnings/);
+    if (await ack.count()) await ack.check();
+    await page.getByRole("button", { name: "Confirm Assignment" }).click();
+    await expect(page.getByRole("status")).toContainText("booked for");
     await page.goto("/rota/visits");
     await page.locator("summary", { hasText: "More Filters" }).click();
     await page.getByLabel("Show only").selectOption("unassigned");

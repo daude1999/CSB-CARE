@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
+import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { eligibilityFor, type EligibilityResult } from "@/server/workforce/eligibility";
 import { assertInScope, rotaScope, staffDirectoryWhere, type Scope } from "./scope";
 
@@ -44,6 +45,11 @@ export interface AssignParams {
   acceptWarnings?: boolean;
   /** Optimistic concurrency: the visit version the coordinator was looking at. */
   lockVersion?: number;
+  /**
+   * The exact warnings the coordinator read and accepted on a review screen. When given, a warning that is not on this
+   * list (one that appeared after the review) stops the booking, so nothing is accepted unseen.
+   */
+  acceptedWarnings?: string[];
 }
 
 /**
@@ -71,6 +77,10 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   const result = await eligibilityFor(tx, scope.organisationId, { staffId: p.staffId, start: visit.scheduledStart, end: visit.scheduledEnd, slot: p.slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
   if (result.state === "NOT_ELIGIBLE") throw new EligibilityError(`Cannot allocate: ${result.blocking.map((b) => b.message).join("; ")}`, result);
   if (result.state === "REQUIRES_REVIEW" && !p.acceptWarnings) throw new EligibilityError(`Needs your confirmation: ${result.warnings.map((w) => w.message).join("; ")}`, result);
+  if (p.acceptedWarnings) {
+    const unseen = result.warnings.filter((w) => !p.acceptedWarnings!.includes(w.message));
+    if (unseen.length) throw new EligibilityError(`Something changed since you reviewed this carer. New warning: ${unseen.map((w) => w.message).join("; ")}. Review again.`, result);
+  }
 
   const now = new Date();
   if (current) {
@@ -134,4 +144,14 @@ export async function unassignInTx(tx: Tx, scope: Scope, actorId: string, p: { v
 export async function unassignCarer(ctx: Ctx, p: { visitId: string; slot: AssignmentSlot; reason: string; lockVersion?: number }) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction((tx) => unassignInTx(tx, scope, ctx.userId, p));
+}
+
+/** The short confirmation shown after Find Cover books a carer. Says nothing about acceptance or notifications it cannot prove. */
+export async function coverConfirmation(ctx: Ctx, assignmentId: string) {
+  const scope = await rotaScope(ctx, "rota.view");
+  const a = await db.visitAssignment.findFirst({ where: { id: assignmentId, organisationId: scope.organisationId }, select: { slot: true, staff: { select: { displayName: true } }, visit: { select: { scheduledStart: true, publishedAt: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } } } });
+  if (!a) return "Carer booked";
+  const su = a.visit.serviceUser;
+  const when = `${fmtLondonDate(londonDate(a.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(a.visit.scheduledStart)}`;
+  return `${a.staff.displayName} booked for ${su.preferredName || su.firstName} ${su.lastName}, ${when}${a.slot === "SECOND" ? " (second carer)" : ""}.${a.visit.publishedAt ? " The visit is published, so it shows in their visits; they have not acknowledged it yet." : " The visit is not published to carers yet."}`;
 }
