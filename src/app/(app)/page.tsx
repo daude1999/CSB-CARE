@@ -69,15 +69,15 @@ export default async function Dashboard() {
           <p className="flex items-center gap-1.5 bg-white pb-2 pl-1 pt-2 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
         ) : null}
 
-        <section aria-label="Key figures" className="grid grid-cols-2 gap-[10px] bg-white pb-2 pt-2 xl:grid-cols-4">
+        <section aria-label="Key figures" className="grid grid-cols-1 gap-[10px] bg-white pb-2 pt-2 sm:grid-cols-2 xl:grid-cols-4">
           <Stat value={k.activePolicies} label={ctx.organisationId ? "Active policies" : "Active templates"} note={ctx.organisationId ? "Your organisation's library" : "CSB starter library"} ring="border-[#6d5fc0] text-[#4a3d9c]" href="/policies" />
           <Stat value={k.overdueReviews} label="Reviews overdue" note={k.overdueReviews ? "Past the review date" : "None overdue"} ring="border-[#e4544f] text-[#c3332c]" href="/policies?quick=overdue" />
           <Stat value={k.awaitingApproval} label="Awaiting approval" note="Submitted revisions" ring="border-[#e3934a] text-[#b35e14]" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=awaiting"} />
           <Stat value={k.outstandingAcks} label={dash.manager ? "Sign-offs outstanding" : "To read and sign"} note={dash.manager ? "Staff yet to acknowledge" : "Your reading list"} ring="border-[#4a7fc9] text-[#2f5fa3]" href={dash.manager ? "/staff" : "/acknowledgements"} />
         </section>
 
-        <div className="mt-[10px] grid gap-[10px] lg:grid-cols-3">
-          <section aria-labelledby="attention-heading" className="rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+        <div className="mt-[10px] grid grid-cols-1 gap-[10px] lg:grid-cols-3">
+          <section aria-labelledby="attention-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
             <h2 id="attention-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Needs attention</h2>
             {dash.attention.some((x) => x.count) ? (
               <ul className="mt-2 divide-y divide-slate-100" data-testid="needs-attention">
@@ -94,7 +94,7 @@ export default async function Dashboard() {
             ) : <p className="py-6 text-center text-[14px] text-slate-600">Nothing overdue or waiting on you.</p>}
           </section>
 
-          <section aria-labelledby="activity-heading" className="rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+          <section aria-labelledby="activity-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
             <h2 id="activity-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Recent activity <span className="text-[13px] text-slate-500">last 14 days</span></h2>
             {dash.activity.length ? (
               <ol className="mt-2 space-y-2.5" data-testid="recent-activity">
@@ -108,7 +108,7 @@ export default async function Dashboard() {
             ) : <p className="py-6 text-center text-[14px] text-slate-600">No compliance activity in the last 14 days.</p>}
           </section>
 
-          <section aria-labelledby="quick-heading" className="rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+          <section aria-labelledby="quick-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
             <h2 id="quick-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Quick actions</h2>
             <ul className="mt-2 grid gap-1.5">
               {quickActions.map(([href, label]) => (

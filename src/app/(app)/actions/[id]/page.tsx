@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
+import { hasOrgPermission } from "@/server/auth/rbac";
 import { NotFoundError } from "@/lib/errors";
 import { ACTION_FLOW, actionDetail } from "@/server/compliance/audits";
 import { memberNames } from "@/server/rota/queries";
@@ -49,12 +50,12 @@ export default async function ActionPage({ params, searchParams }: { params: Pro
           <Card title="Where it came from">
             {a.finding ? (
               <div className="space-y-2 text-[14px]">
-                <p>Audit: <Link href={`/audits/${a.finding.audit.id}`}>{a.finding.audit.title}</Link> <span className="text-[13px] text-slate-600">({a.finding.audit.status === "COMPLETED" ? `completed ${fmtDate(a.finding.audit.completedAt)}` : "in progress"})</span></p>
+                <p>Audit: {hasOrgPermission(ctx, "audit.conduct") ? <Link href={`/audits/${a.finding.audit.id}`}>{a.finding.audit.title}</Link> : a.finding.audit.title} <span className="text-[13px] text-slate-600">({a.finding.audit.status === "COMPLETED" ? `completed ${fmtDate(a.finding.audit.completedAt)}` : "in progress"})</span></p>
                 {a.question ? <p>Question {a.question.position + 1}: {a.question.text}</p> : null}
                 <p className="rounded-[3px] bg-[#f5f9fc] px-3 py-2">Finding <StatusBadge status={a.finding.riskRating} />: {a.finding.description}</p>
               </div>
             ) : a.risk ? (
-              <p className="text-[14px]">Mitigation for risk <Link href={`/compliance/risks/${a.risk.id}`}>{a.risk.ref} {a.risk.title}</Link> <RatingChip score={a.risk.residualLikelihood * a.risk.residualImpact} /></p>
+              <p className="text-[14px]">Mitigation for risk {hasOrgPermission(ctx, "risk.view") ? <Link href={`/compliance/risks/${a.risk.id}`}>{a.risk.ref} {a.risk.title}</Link> : `${a.risk.ref} ${a.risk.title}`} <RatingChip score={a.risk.residualLikelihood * a.risk.residualImpact} /></p>
             ) : <p className="text-[14px] text-slate-600">Raised directly, not from an audit or a risk.</p>}
             {a.description ? <p className="mt-3 whitespace-pre-line text-[14px] text-slate-800">{a.description}</p> : null}
           </Card>

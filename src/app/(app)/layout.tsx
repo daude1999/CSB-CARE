@@ -105,7 +105,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1">
         <ShellSidebar {...shell} />
         <div className="shell-main flex min-w-0 flex-1 flex-col">
-          <header className="shell-topbar sticky top-0 z-20 flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
+          <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
             <NavigationProgress renderKey={String(Date.now())} />
             <MobileMenu {...shell} />
             <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>

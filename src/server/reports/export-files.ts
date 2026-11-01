@@ -88,7 +88,7 @@ function drawSummary(doc: Doc, summary: [string, ExportCell][]) {
 }
 
 /** A table that wraps cell text, repeats its header on each new page and never overlaps columns. */
-function drawTable(doc: Doc, t: Pick<ExportTable, "columns" | "rows" | "widths">, empty = "Nothing matches these filters.") {
+function drawTable(doc: Doc, t: Pick<ExportTable, "columns" | "rows" | "widths" | "accent">, empty = "Nothing matches these filters.") {
   const { left, width, bottom } = geometry(doc);
   const weights = t.widths ?? t.columns.map(() => 1);
   const total = weights.reduce((a, b) => a + b, 0);

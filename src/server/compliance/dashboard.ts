@@ -72,7 +72,8 @@ export async function recentActivity(ctx: Ctx, now = new Date(), take = 10): Pro
   const manager = hasOrgPermission(ctx, "staff.view");
   const [pubs, revisions, acks, audits, verified, triaged, reviews] = await Promise.all([
     db.policyPublication.findMany({ where: { ...scope, status: "PUBLISHED", publishedAt: { gte: since } }, orderBy: { publishedAt: "desc" }, take, select: { publishedAt: true, policy: { select: { id: true, ref: true, title: true } }, version: { select: { label: true } } } }),
-    db.policyRevision.findMany({ where: { ...scope, createdAt: { gte: since } }, orderBy: { createdAt: "desc" }, take, select: { id: true, createdAt: true, title: true, policy: { select: { ref: true, title: true } } } }),
+    // Drafts are visible to authors, reviewers and approvers only, so only they see revisions here.
+    canSeeDrafts(ctx) ? db.policyRevision.findMany({ where: { ...scope, createdAt: { gte: since } }, orderBy: { createdAt: "desc" }, take, select: { id: true, createdAt: true, title: true, policy: { select: { ref: true, title: true } } } }) : [],
     orgId && manager ? db.acknowledgement.findMany({ where: { organisationId: orgId, acknowledgedAt: { gte: since } }, orderBy: { acknowledgedAt: "desc" }, take: 500, select: { acknowledgedAt: true, user: { select: { name: true } }, staffMember: { select: { displayName: true } }, publication: { select: { policyId: true, policy: { select: { ref: true } } } } } }) : [],
     orgId && hasOrgPermission(ctx, "audit.conduct") ? db.audit.findMany({ where: { organisationId: orgId, ...auditBranchWhere(ctx), completedAt: { gte: since } }, orderBy: { completedAt: "desc" }, take, select: { id: true, title: true, completedAt: true } }) : [],
     orgId ? db.complianceAction.findMany({ where: { organisationId: orgId, verifiedAt: { gte: since }, ...(hasOrgPermission(ctx, "action.manage") ? {} : { ownerId: ctx.userId }) }, orderBy: { verifiedAt: "desc" }, take, select: { id: true, title: true, verifiedAt: true } }) : [],
@@ -90,6 +91,10 @@ export async function recentActivity(ctx: Ctx, now = new Date(), take = 10): Pro
     ...reviews.map((r) => ({ at: r.createdAt, kind: "Risk reviewed", text: `${r.risk.ref} ${r.risk.title}`, href: `/compliance/risks/${r.risk.id}` })),
   ];
   return items.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, take);
+}
+
+function canSeeDrafts(ctx: Ctx) {
+  return ctx.organisationId ? hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.approve") : hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author");
 }
 
 type AckRow = { acknowledgedAt: Date | null; user: { name: string } | null; staffMember: { displayName: string } | null; publication: { policyId: string; policy: { ref: string } } };

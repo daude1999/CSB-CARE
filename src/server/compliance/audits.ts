@@ -188,19 +188,21 @@ export async function transitionAction(ctx: Ctx, actionId: string, to: string, i
     if (!ev || ev.organisationId !== action.organisationId) throw new NotFoundError("Evidence");
   }
   const now = new Date();
-  const updated = await db.complianceAction.update({
-    where: { id: actionId },
-    data: {
-      status: to,
-      completionNote: to === "COMPLETED" ? input.note : undefined,
-      completionEvidenceId: input.evidenceId ?? undefined,
-      completedAt: to === "COMPLETED" ? now : undefined,
-      verifiedById: to === "VERIFIED" ? ctx.userId : undefined,
-      verifiedAt: to === "VERIFIED" ? now : undefined,
-      closedAt: to === "CLOSED" ? now : undefined,
-      history: { create: { actorId: ctx.userId, from: action.status, to, note: input.note } },
-    },
+  return db.$transaction(async (tx) => {
+    const updated = await tx.complianceAction.update({
+      where: { id: actionId },
+      data: {
+        status: to,
+        completionNote: to === "COMPLETED" ? input.note : undefined,
+        completionEvidenceId: input.evidenceId ?? undefined,
+        completedAt: to === "COMPLETED" ? now : undefined,
+        verifiedById: to === "VERIFIED" ? ctx.userId : undefined,
+        verifiedAt: to === "VERIFIED" ? now : undefined,
+        closedAt: to === "CLOSED" ? now : undefined,
+        history: { create: { actorId: ctx.userId, from: action.status, to, note: input.note } },
+      },
+    });
+    await audit({ organisationId: action.organisationId, actorId: ctx.userId, action: `action.${to.toLowerCase()}`, entityType: "ComplianceAction", entityId: actionId, data: { from: action.status, to } }, tx);
+    return updated;
   });
-  await audit({ organisationId: action.organisationId, actorId: ctx.userId, action: `action.${to.toLowerCase()}`, entityType: "ComplianceAction", entityId: actionId, data: { from: action.status, to } });
-  return updated;
 }

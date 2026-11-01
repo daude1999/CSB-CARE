@@ -31,6 +31,8 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
     take: 500,
   });
   const canUpload = hasOrgPermission(ctx, "evidence.upload");
+  // Link to the supporting record only when this person may open it; otherwise name it as text.
+  const canOpen = (type: string) => (["AUDIT", "AUDIT_ANSWER", "FINDING"].includes(type) ? hasOrgPermission(ctx, "audit.conduct") : type === "RISK" ? hasOrgPermission(ctx, "risk.view") : type === "ACTION" ? hasOrgPermission(ctx, "action.manage") : true);
   const [links, names, targets] = await Promise.all([
     resolveLinks(orgId, docs),
     memberNames(ctx, docs.map((d) => d.uploadedById)),
@@ -68,7 +70,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
                       <tr key={d.id}>
                         <td className="min-w-[200px]"><a href={`/api/evidence/${d.id}`} data-no-progress="" className="break-all">{d.filename}</a><div className="text-[12.5px] text-slate-600">{d.description ?? ""}</div></td>
                         <td className="whitespace-nowrap text-[13px]">{KIND[d.contentType] ?? d.contentType} · {Math.max(1, Math.ceil(d.sizeBytes / 1024))} KB</td>
-                        <td className="min-w-[160px] text-[13px]">{link ? <><span className="text-slate-600">{link.typeLabel}: </span>{link.href ? <Link href={link.href}>{link.label}</Link> : link.label}</> : d.linkedType ? <span className="text-slate-500">Record not available</span> : <span className="text-slate-500">Not linked</span>}</td>
+                        <td className="min-w-[160px] text-[13px]">{link ? <><span className="text-slate-600">{link.typeLabel}: </span>{link.href && canOpen(link.type) ? <Link href={link.href}>{link.label}</Link> : link.label}</> : d.linkedType ? <span className="text-slate-500">Record not available</span> : <span className="text-slate-500">Not linked</span>}</td>
                         <td className="whitespace-nowrap text-[13px]">{names.get(d.uploadedById) ?? "A member"}<div className="text-slate-600">{fmtDate(d.createdAt, true)}</div></td>
                         <td><ScanBadge status={d.scanStatus} /></td>
                       </tr>

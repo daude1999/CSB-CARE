@@ -29,6 +29,9 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
   if (!ctx.organisationId) notFound();
   const orgId = ctx.organisationId;
   const isManager = hasOrgPermission(ctx, "action.manage");
+  // Link to the audit or risk only for people who may open it; others see where the action came from as text.
+  const canAudit = hasOrgPermission(ctx, "audit.conduct");
+  const canRisk = hasOrgPermission(ctx, "risk.view");
   const showAll = isManager && sp.mine !== "1";
   // The old address /actions?closed=1 listed everything, closed included.
   const view: View = sp.closed === "1" ? "all" : sp.view && sp.view in VIEWS ? (sp.view as View) : "open";
@@ -65,7 +68,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
                     return (
                       <tr key={x.id} data-testid={`action-${x.id}`}>
                         <td className="min-w-[220px]"><Link href={`/actions/${x.id}`} className="row-title">{x.title}</Link>{x.isDemo ? <span className="ml-2"><Badge tone="violet">Demo</Badge></span> : null}{x.completionNote ? <div className="mt-0.5 text-[12.5px] text-[#1c7a43]">Done: {x.completionNote.slice(0, 90)}</div> : null}</td>
-                        <td className="min-w-[160px] text-[13px]">{x.finding ? <Link href={`/audits/${x.finding.audit.id}#findings`}>Audit: {x.finding.audit.title}</Link> : x.risk ? <Link href={`/compliance/risks/${x.risk.id}`}>Risk {x.risk.ref}: {x.risk.title}</Link> : <span className="text-slate-600">Raised directly</span>}</td>
+                        <td className="min-w-[160px] text-[13px]">{x.finding ? (canAudit ? <Link href={`/audits/${x.finding.audit.id}#findings`}>Audit: {x.finding.audit.title}</Link> : <span>Audit: {x.finding.audit.title}</span>) : x.risk ? (canRisk ? <Link href={`/compliance/risks/${x.risk.id}`}>Risk {x.risk.ref}: {x.risk.title}</Link> : <span>Risk {x.risk.ref}: {x.risk.title}</span>) : <span className="text-slate-600">Raised directly</span>}</td>
                         <td className="text-[13.5px]">{names.get(x.ownerId) ?? "—"}</td>
                         <td className={`whitespace-nowrap text-[13.5px] tabular-nums ${overdue ? "font-medium text-[#a3242c]" : ""}`}>{fmtDate(x.dueDate)}{overdue ? " · overdue" : ""}</td>
                         <td>{x.finding ? <StatusBadge status={x.finding.riskRating} /> : <span className="text-[13px] text-slate-500">—</span>}</td>
