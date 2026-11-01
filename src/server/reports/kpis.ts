@@ -15,7 +15,7 @@ import { rotaSettings } from "@/server/rota/settings";
  * worked out for the chosen branch (or every branch the member may see). Figures with no branch dimension say so.
  */
 
-export const KPI_GROUPS = { delivery: "Care delivery", workforce: "Workforce", compliance: "Compliance", finance: "Finance" } as const;
+export const KPI_GROUPS = { delivery: "Care delivery", staffing: "Staffing", workforce: "HR, recruitment and readiness", quality: "Care quality", compliance: "Compliance", finance: "Finance" } as const;
 export type KpiGroup = keyof typeof KPI_GROUPS;
 
 export interface KpiScope { organisationId: string; branchIds: string[] | null; from: string; to: string }
@@ -24,6 +24,7 @@ interface KpiDef { key: string; group: KpiGroup; name: string; definition: strin
 
 const pct = (n: number, d: number) => (d ? Math.round((n / d) * 1000) / 10 : null);
 const visitScope = (s: KpiScope): Prisma.VisitWhereInput => (s.branchIds ? { area: { branchId: { in: s.branchIds } } } : {});
+const suScope = (s: KpiScope): Prisma.ServiceUserWhereInput => (s.branchIds ? { area: { branchId: { in: s.branchIds } } } : {});
 const staffScope = (s: KpiScope): Prisma.StaffMemberWhereInput => (s.branchIds ? { branchId: { in: s.branchIds } } : {});
 const inRange = (s: KpiScope) => ({ gte: dbDate(s.from), lte: dbDate(s.to) });
 const pastInRange = (s: KpiScope) => ({ gte: dbDate(s.from), lte: dbDate(s.to < londonDate() ? s.to : addDays(londonDate(), -1)) });
@@ -57,7 +58,7 @@ export const KPIS: KpiDef[] = [
     },
   },
   {
-    key: "unfilled", group: "delivery", name: "Unfilled visits, next 7 days", perm: "rota.view", branchAware: true,
+    key: "unfilled", group: "staffing", name: "Unfilled visits, next 7 days", perm: "rota.view", branchAware: true,
     definition: "Published, not cancelled visits in the next seven days with no carer assigned. Does not depend on the chosen dates.",
     compute: async (s) => {
       const today = londonDate();
@@ -81,6 +82,41 @@ export const KPIS: KpiDef[] = [
     },
   },
   {
+    key: "double-ups-short", group: "staffing", name: "Double-up visits with one carer, next 7 days", perm: "rota.view", branchAware: true,
+    definition: "Scheduled visits in the next seven days that need two or more carers but have fewer booked (shadow carers not counted). Does not depend on the chosen dates.",
+    compute: async (s) => {
+      const today = londonDate();
+      const visits = await db.visit.findMany({ where: { organisationId: s.organisationId, status: "SCHEDULED", carersRequired: { gte: 2 }, date: { gte: dbDate(today), lte: dbDate(addDays(today, 6)) }, assignments: { some: { removedAt: null } }, ...visitScope(s) }, select: { carersRequired: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { id: true } } } });
+      const n = visits.filter((v) => v.assignments.length < v.carersRequired).length;
+      return { value: n, unit: "count", detail: "Need a second carer", href: `/rota/unassigned?when=custom&from=${today}&to=${addDays(today, 6)}&staffing=partial` };
+    },
+  },
+  {
+    key: "bookings-review", group: "staffing", name: "Bookings flagged after a staff change", perm: "rota.view", branchAware: true,
+    definition: "Carer bookings on visits from today onwards that HR, readiness or absence changes flagged for review. The carer stays booked until someone decides.",
+    compute: async (s) => {
+      const n = await db.visitAssignment.count({ where: { organisationId: s.organisationId, removedAt: null, reviewReason: { not: null }, visit: { status: "SCHEDULED", date: { gte: dbDate(londonDate()) }, ...visitScope(s) } } });
+      return { value: n, unit: "count", detail: "Waiting for a decision", href: `/rota/cover?from=${londonDate()}&days=7` };
+    },
+  },
+  {
+    key: "open-candidates", group: "workforce", name: "Candidates in progress", perm: "readiness.view", branchAware: true,
+    definition: "Candidates from Applied to Offer, now. Withdrawn, unsuccessful and onboarding candidates are not counted.",
+    compute: async (s) => {
+      const where = { organisationId: s.organisationId, anonymisedAt: null, ...(s.branchIds ? { branchId: { in: s.branchIds } } : {}) };
+      const [open, offers] = await Promise.all([db.candidate.count({ where: { ...where, stage: { in: ["APPLIED", "SCREENING", "INTERVIEW", "OFFER"] } } }), db.candidate.count({ where: { ...where, stage: "OFFER" } })]);
+      return { value: open, unit: "count", detail: `${offers} at offer stage`, href: "/hr/recruitment" };
+    },
+  },
+  {
+    key: "new-starters", group: "workforce", name: "New starters not yet eligible to work", perm: "readiness.view", branchAware: true,
+    definition: "Staff whose HR status is Onboarding. They can only be booked as shadow carers until HR marks them active and their checks are verified.",
+    compute: async (s) => {
+      const n = await db.staffMember.count({ where: { organisationId: s.organisationId, employmentStatus: "ONBOARDING", hrMissing: false, ...staffScope(s) } });
+      return { value: n, unit: "count", detail: "Onboarding in HR", href: "/rota/readiness" };
+    },
+  },
+  {
     key: "staff-ready", group: "workforce", name: "Staff ready to work", perm: "readiness.view", branchAware: true,
     definition: "Active staff whose readiness is Ready or Ready with restrictions today, out of all active staff. Readiness uses verified evidence only.",
     compute: async (s) => {
@@ -96,6 +132,49 @@ export const KPIS: KpiDef[] = [
     compute: async (s) => {
       const n = await db.staffTrainingRecord.count({ where: { organisationId: s.organisationId, verificationStatus: "SUBMITTED", staff: staffScope(s) } });
       return { value: n, unit: "count", detail: "Records waiting for a check", href: "/rota/readiness?status=PENDING_VERIFICATION" };
+    },
+  },
+  {
+    key: "plans-overdue", group: "quality", name: "Care plans overdue review", perm: "serviceUser.view", branchAware: true,
+    definition: "People with a care plan in use whose review date has passed, now.",
+    compute: async (s) => {
+      const n = await db.carePlan.count({ where: { organisationId: s.organisationId, status: "ACTIVE", reviewDue: { lt: dbDate(londonDate()) }, serviceUser: suScope(s) } });
+      return { value: n, unit: "count", detail: "Past their review date", href: "/rota/care-plans?filter=overdue" };
+    },
+  },
+  {
+    key: "risks-overdue", group: "quality", name: "Risk assessments overdue review", perm: "serviceUser.view", branchAware: true,
+    definition: "Active risk assessments whose review date has passed, now.",
+    compute: async (s) => {
+      const n = await db.riskAssessment.count({ where: { organisationId: s.organisationId, status: "ACTIVE", reviewDue: { lt: dbDate(londonDate()) }, serviceUser: suScope(s) } });
+      return { value: n, unit: "count", detail: "Past their review date", href: "/rota/risks?due=overdue" };
+    },
+  },
+  {
+    key: "incidents-open", group: "quality", name: "Open incidents", perm: "incident.manage", branchAware: true,
+    definition: "Incidents not yet closed, now, with the number marked as safeguarding. Incidents not linked to a person count only under All branches.",
+    compute: async (s) => {
+      const where: Prisma.IncidentWhereInput = { organisationId: s.organisationId, status: { not: "CLOSED" }, ...(s.branchIds ? { serviceUser: suScope(s) } : {}) };
+      const [n, sg] = await Promise.all([db.incident.count({ where }), db.incident.count({ where: { ...where, safeguarding: true } })]);
+      return { value: n, unit: "count", detail: `${sg} safeguarding`, href: "/rota/incidents" };
+    },
+  },
+  {
+    key: "tasks-not-done", group: "quality", name: "Care tasks not done or refused", perm: "rota.view", branchAware: true,
+    definition: "Task outcomes recorded on visits in the period as not done or refused by the person.",
+    compute: async (s) => {
+      const where = { organisationId: s.organisationId, visit: { date: inRange(s), ...visitScope(s) } };
+      const [n, refused] = await Promise.all([db.visitTaskOutcome.count({ where: { ...where, outcome: { in: ["NOT_DONE", "REFUSED"] } } }), db.visitTaskOutcome.count({ where: { ...where, outcome: "REFUSED" } })]);
+      return { value: n, unit: "count", detail: `${refused} refused by the person` };
+    },
+  },
+  {
+    key: "summaries-waiting", group: "quality", name: "Care Summaries waiting for review", perm: "care.plan.approve", branchAware: true,
+    definition: "Care Summaries created but not yet reviewed or dismissed by a manager, now.",
+    compute: async (s) => {
+      const ids = s.branchIds ? (await db.serviceUser.findMany({ where: { organisationId: s.organisationId, ...suScope(s) }, select: { id: true } })).map((x) => x.id) : null;
+      const n = await db.careSummary.count({ where: { organisationId: s.organisationId, status: "UNREVIEWED", ...(ids ? { serviceUserId: { in: ids } } : {}) } });
+      return { value: n, unit: "count", detail: "Unapproved drafts", href: "/rota/care-plans" };
     },
   },
   {
@@ -162,7 +241,7 @@ const filterSchema = z.object({
   branch: z.string().max(40).optional().catch(undefined),
   from: z.string().refine(isIsoDate).optional().catch(undefined),
   to: z.string().refine(isIsoDate).optional().catch(undefined),
-  group: z.enum(["delivery", "workforce", "compliance", "finance"]).optional().catch(undefined),
+  group: z.enum(["delivery", "staffing", "workforce", "quality", "compliance", "finance"]).optional().catch(undefined),
 });
 
 /** Works out the scope from the member's own branch grants; a branch they may not see is refused, never widened. */

@@ -4,6 +4,8 @@ import { hasOrgPermission, hasPlatformPermission, type Ctx } from "../auth/rbac"
 import { outstandingAckWhere } from "../policies/assignment";
 import { riskBand } from "./risks";
 import { auditBranchWhere } from "./audits";
+import { readinessFor } from "../readiness";
+import { dbDate, londonDate } from "@/lib/london";
 
 /**
  * The Compliance Dashboard's figures: "what needs compliance attention today?". Every number is counted from the
@@ -41,6 +43,7 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     orgId && canAudit ? db.auditFinding.count({ where: { organisationId: orgId, riskRating: { in: ["HIGH", "CRITICAL"] }, audit: auditBranchWhere(ctx), actions: { none: { status: { in: ["VERIFIED", "CLOSED"] } } } } }) : 0,
     orgId && canRisk ? db.complianceRisk.findMany({ where: { organisationId: orgId, status: { not: "CLOSED" }, ...(ctx.branchIds ? { OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] } : {}) }, select: { residualLikelihood: true, residualImpact: true, reviewDate: true } }) : [],
   ]);
+  const care = orgId ? await careOperationsLinks(ctx, orgId) : { signoffBlocking: 0, safeguarding: 0, plansOverdue: 0, show: { readiness: false, incidents: false, plans: false } };
   const highRisks = risks.filter((r) => ["HIGH", "EXTREME"].includes(riskBand(r.residualLikelihood * r.residualImpact))).length;
   const overdueRiskReviews = risks.filter((r) => r.reviewDate < now).length;
 
@@ -53,6 +56,9 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     { key: "verify", label: "Actions awaiting verification", count: awaitingVerification, href: "/actions?view=check", tone: "amber" as const, detail: "Completed, need an independent check", show: canActions },
     { key: "risks", label: "High or Extreme risks", count: highRisks, href: "/compliance/risks?band=HIGH_PLUS", tone: "rose" as const, detail: "Residual rating, with controls", show: canRisk },
     { key: "riskReviews", label: "Risk reviews overdue", count: overdueRiskReviews, href: "/compliance/risks?overdue=1", tone: "amber" as const, detail: "Past their review date", show: canRisk },
+    { key: "signoffReadiness", label: "Staff not ready because of policy sign-off", count: care.signoffBlocking, href: "/rota/readiness?status=NOT_READY", tone: "rose" as const, detail: "A required policy is not acknowledged, so they cannot be booked", show: care.show.readiness },
+    { key: "safeguarding", label: "Safeguarding incidents open", count: care.safeguarding, href: "/rota/incidents?safeguarding=1", tone: "rose" as const, detail: "Reported in Care Management, not yet closed", show: care.show.incidents },
+    { key: "carePlans", label: "Care plans overdue review", count: care.plansOverdue, href: "/rota/care-plans?filter=overdue", tone: "amber" as const, detail: "Plan in use past its review date", show: care.show.plans },
     { key: "triage", label: "Regulatory updates to triage", count: triage, href: "/changes?group=triage", tone: "amber" as const, detail: "Detected, not yet decided", show: true },
   ].filter((x) => x.show).map(({ show: _s, ...x }) => x);
 
@@ -111,4 +117,26 @@ function groupAcks(acks: AckRow[]): ActivityItem[] {
     const who = rs.length === 1 ? (first.staffMember?.displayName ?? first.user?.name ?? "A member") : `${rs.length} staff`;
     return { at: first.acknowledgedAt!, kind: "Acknowledged", text: `${who} signed ${first.publication.policy.ref}`, href: `/staff/policy/${first.publication.policyId}` };
   });
+}
+
+/**
+ * Links from compliance into care operations: staff whose readiness fails only because of a policy acknowledgement,
+ * open safeguarding incidents and overdue care-plan reviews. Counted from the same records as the Rota screens they
+ * open, within the member's branches.
+ */
+async function careOperationsLinks(ctx: Ctx, orgId: string) {
+  const show = { readiness: hasOrgPermission(ctx, "readiness.view"), incidents: hasOrgPermission(ctx, "incident.manage"), plans: hasOrgPermission(ctx, "serviceUser.view") };
+  const branch = ctx.branchIds ? { in: ctx.branchIds } : undefined;
+  const suWhere: Prisma.ServiceUserWhereInput = branch ? { area: { branchId: branch } } : {};
+  const [staff, safeguarding, plansOverdue] = await Promise.all([
+    show.readiness ? db.staffMember.findMany({ where: { organisationId: orgId, employmentStatus: "ACTIVE", hrMissing: false, ...(branch ? { branchId: branch } : {}) }, select: { id: true } }) : Promise.resolve([]),
+    show.incidents ? db.incident.count({ where: { organisationId: orgId, safeguarding: true, status: { not: "CLOSED" }, ...(branch ? { serviceUser: suWhere } : {}) } }) : Promise.resolve(0),
+    show.plans ? db.carePlan.count({ where: { organisationId: orgId, status: "ACTIVE", reviewDue: { lt: dbDate(londonDate()) }, serviceUser: suWhere } }) : Promise.resolve(0),
+  ]);
+  let signoffBlocking = 0;
+  if (staff.length) {
+    const r = await readinessFor(db, orgId, staff.map((x) => x.id));
+    signoffBlocking = [...r.values()].filter((x) => x.status === "NOT_READY" && x.components.some((c) => c.category === "POLICY" && c.hardStop && !c.taskLevel && c.state !== "MET" && c.state !== "DUE_SOON")).length;
+  }
+  return { signoffBlocking, safeguarding, plansOverdue, show };
 }
