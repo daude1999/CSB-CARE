@@ -160,14 +160,19 @@ async function transition(tx: Tx, scope: Scope, actorId: string, visitId: string
   return v;
 }
 
-export async function cancelVisitInTx(tx: Tx, scope: Scope, actorId: string, visitId: string, reason: string, lockVersion?: number) {
+/**
+ * Cancels a visit. `charge` is the office's decision: true charges the cancellation, false does not, and null (used when
+ * care ends or the person is away) leaves it to the funder's short-notice rule.
+ */
+export async function cancelVisitInTx(tx: Tx, scope: Scope, actorId: string, visitId: string, reason: string, lockVersion?: number, charge: boolean | null = null) {
   if (reason.trim().length < 3) throw new ValidationError("Give a reason for cancelling");
-  return transition(tx, scope, actorId, visitId, "CANCELLED", reason.trim(), { cancelReason: reason.trim(), cancelledById: actorId, cancelledAt: new Date(), manuallyChanged: true }, lockVersion);
+  const why = charge === null ? reason.trim() : `${reason.trim()} (${charge ? "charged" : "not charged"})`;
+  return transition(tx, scope, actorId, visitId, "CANCELLED", why, { cancelReason: reason.trim(), cancelledById: actorId, cancelledAt: new Date(), cancellationCharge: charge, manuallyChanged: true }, lockVersion);
 }
 
-export async function cancelVisit(ctx: Ctx, visitId: string, reason: string, lockVersion?: number) {
+export async function cancelVisit(ctx: Ctx, visitId: string, reason: string, lockVersion?: number, charge: boolean | null = null) {
   const scope = await rotaScope(ctx, "rota.edit");
-  return db.$transaction((tx) => cancelVisitInTx(tx, scope, ctx.userId, visitId, reason, lockVersion));
+  return db.$transaction((tx) => cancelVisitInTx(tx, scope, ctx.userId, visitId, reason, lockVersion, charge));
 }
 
 /** Brings a cancelled or not-delivered visit back. Carers who were on it are re-checked by the database's double-booking guard. */
@@ -177,7 +182,7 @@ export async function reinstateVisit(ctx: Ctx, visitId: string, reason: string, 
   return db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
     if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be reinstated");
-    return transition(tx, scope, ctx.userId, visitId, "SCHEDULED", reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, notDeliveredReason: null, manuallyChanged: true }, lockVersion);
+    return transition(tx, scope, ctx.userId, visitId, "SCHEDULED", reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, cancellationCharge: null, notDeliveredReason: null, manuallyChanged: true }, lockVersion);
   });
 }
 
@@ -236,7 +241,7 @@ export async function moveVisit(ctx: Ctx, raw: z.input<typeof moveSchema> | Reco
 export type BulkAction =
   | { kind: "assign"; staffId: string; slot: AssignmentSlot; acceptWarnings?: boolean }
   | { kind: "unassign"; slot: AssignmentSlot; reason: string }
-  | { kind: "cancel"; reason: string }
+  | { kind: "cancel"; reason: string; charge: boolean }
   | { kind: "nudge"; minutes: number }
   | { kind: "lock"; locked: boolean }
   | { kind: "publish" }
@@ -285,7 +290,7 @@ export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkActio
             await unassignInTx(tx, scope, ctx.userId, { visitId, slot: action.slot, reason: action.reason });
             break;
           case "cancel":
-            await cancelVisitInTx(tx, scope, ctx.userId, visitId, action.reason);
+            await cancelVisitInTx(tx, scope, ctx.userId, visitId, action.reason, undefined, action.charge);
             break;
           case "nudge": {
             const v = await lockVisit(tx, scope, visitId);
