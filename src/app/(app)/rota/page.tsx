@@ -6,7 +6,6 @@ import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, 
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { BIRTHDAY_WINDOW_DAYS, rotaDashboard, type TeamDayStatus } from "@/server/rota/dashboard";
-import { staffingAlerts, type StaffingAlert } from "@/server/rota/staffing-alerts";
 import type { Birthday } from "@/server/workforce/birthdays";
 import { Flash } from "@/components/ui";
 import { NotBuiltNotice } from "@/components/rota-ui";
@@ -14,6 +13,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { AutoSubmitForm } from "@/components/auto-submit";
 import { DashTable } from "@/components/dash-table";
 import { ordinalDate } from "@/components/rota-dashboard";
+import { LiveLondonTime } from "@/components/live-london-time";
 
 export const dynamic = "force-dynamic";
 
@@ -127,35 +127,6 @@ function QuickAction({ href, icon, label, badge, tone = "#5b2bb5" }: { href: str
   );
 }
 
-const ALERT_TONE: Record<StaffingAlert["tone"], { bar: string; text: string; btn: string }> = {
-  red: { bar: "bg-[#c42b2f]", text: "text-[#a3242c]", btn: "bg-[#5b2bb5] text-white hover:bg-[#4c2398]" },
-  amber: { bar: "bg-[#c0570c]", text: "text-[#8a4a00]", btn: "bg-[#5b2bb5] text-white hover:bg-[#4c2398]" },
-  blue: { bar: "bg-[#0a72b5]", text: "text-[#0a5d94]", btn: "bg-[#5b2bb5] text-white hover:bg-[#4c2398]" },
-};
-
-/** "Coming up": staffing problems for the chosen day and the next, each with one button to the screen that fixes it. */
-function ComingUp({ alerts, dayLabel }: { alerts: StaffingAlert[]; dayLabel: string }) {
-  return (
-    <section aria-labelledby="coming-h" data-testid="coming-up" className="rounded-[10px] border border-[#e4e7ec] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
-      <h2 id="coming-h" className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-[16px] font-bold text-[#101828]">Coming up<span className="text-[13px] font-medium text-[#475467]">Staffing problems for {dayLabel} and the next day, from the rota&apos;s own records</span></h2>
-      {alerts.length ? (
-        <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2 2xl:grid-cols-3">
-          {alerts.map((a) => (
-            <li key={a.key} data-alert={a.key} className="flex min-w-0 items-center gap-3 rounded-[8px] bg-[#fafafc] py-1.5 pl-0 pr-2">
-              <span aria-hidden className={`w-1 self-stretch rounded-full ${ALERT_TONE[a.tone].bar}`} />
-              <span className="min-w-0 flex-1">
-                <span className={`block text-[14.5px] font-semibold ${ALERT_TONE[a.tone].text}`}>{a.text}</span>
-                <span className="block truncate text-[12.5px] text-[#475467]" title={a.why}>{a.why}</span>
-              </span>
-              <Link href={a.href} className={`inline-flex h-9 shrink-0 items-center rounded-[8px] px-3.5 text-[14px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5] ${ALERT_TONE[a.tone].btn}`}>{a.action}</Link>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="text-[14px] text-[#14713a]">No staffing problems found. Every visit has its carers, nobody booked is off, and no missed call is waiting for a decision.</p>}
-    </section>
-  );
-}
-
 /**
  * Rota Dashboard, laid out to the owner's approved reference (31 Oct 2026, modernised OnePlan style): one date drives
  * the page; the day's call outcomes; service users, team members and reminders; the conflict and holiday counters;
@@ -166,7 +137,7 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "rota.view")) redirect(rotaHome(ctx));
   const date = sp.date && isIsoDate(sp.date) ? sp.date : londonDate();
-  const [d, alerts] = await Promise.all([rotaDashboard(ctx, { date, branchId: sp.branch || undefined }), date >= londonDate() ? staffingAlerts(ctx, { date, branchId: sp.branch || undefined }) : Promise.resolve(null)]);
+  const d = await rotaDashboard(ctx, { date, branchId: sp.branch || undefined });
   const c = d.calls;
   const branch = d.branchId ?? undefined;
   const branchName = branch ? d.branches.find((b) => b.id === branch)?.name : d.branches.length === 1 ? d.branches[0]!.name : "All branches";
@@ -179,16 +150,19 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
 
   return (
     <div className="rota-home -mt-1 space-y-3">
-      <header className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+      <header className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-2">
         <div className="min-w-0">
           <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Rota Dashboard</h1>
           <p className="text-[14.5px] text-[#475467]">Visit performance, people and reminders for the day · <span className="font-medium text-[#101828]">{branchName}</span></p>
         </div>
-        <nav aria-label="Change day" className="flex items-center justify-center gap-3">
-          <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
-          <p className="flex items-center gap-2.5 text-[21px] font-bold text-[#3b1f7a]"><CalendarBlank size={24} aria-hidden className="text-[#475467]" /><span>{ordinalDate(date)}</span></p>
-          <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretRight size={20} weight="bold" aria-hidden /></Link>
-        </nav>
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <nav aria-label="Change day" className="flex items-center justify-center gap-2.5">
+            <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
+            <p className="flex items-center gap-2.5 text-[21px] font-bold text-[#3b1f7a]"><CalendarBlank size={24} aria-hidden className="text-[#475467]" /><span>{ordinalDate(date)}</span></p>
+            <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretRight size={20} weight="bold" aria-hidden /></Link>
+          </nav>
+        <p className="text-[16px] font-semibold leading-6 tabular-nums text-[#475467] sm:border-l sm:border-[#d0d5dd] sm:pl-2.5" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
+        </div>
         <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
           {d.branches.length > 1 ? (
             <label><span className="sr-only">Branch</span>
@@ -202,7 +176,6 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
       <Flash searchParams={sp} />
       {d.notBuilt ? <NotBuiltNotice date={date} canBuild={canBuild} /> : null}
       {date === d.today ? <AutoRefresh seconds={60} /> : null}
-      {alerts ? <ComingUp alerts={alerts} dayLabel={date === d.today ? "today" : ordinalDate(date)} /> : null}
 
       <section aria-label="Calls on this day" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         <CallCard tone="green" testId="card-completed" icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />

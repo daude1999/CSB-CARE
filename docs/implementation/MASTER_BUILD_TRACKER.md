@@ -5,6 +5,10 @@ The Rota menu is now Rota Home, Daily Rota, Visits Needing Attention, The Monito
 
 Backlog (these were "Planned" rows in the old menu and are not built): Service User Absences, Preference Manager, Communication Log, Holiday Report, and Help guides and videos.
 
+## Simplified Rota Dashboard (1 Nov 2026, draft PR)
+
+"Coming up" panel removed from `/rota` (services kept), live UK time beside the date. Details: `ROTA_LIVE_SCREENS.md`.
+
 ## Integrated care intelligence build (1 Nov 2026, PR #48, merged)
 
 Recruitment in HR & Workforce, onboarding into readiness, rota "Coming up" alerts and plans for chosen visits, Care
