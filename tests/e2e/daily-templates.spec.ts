@@ -30,6 +30,12 @@ test.describe("Daily Templates", () => {
     await page.getByRole("navigation", { name: "Day" }).getByRole("link", { name: /Mon/ }).click();
     await expect(page).toHaveURL(/week=1.*day=1|day=1.*week=1/);
     await expect(page.getByRole("navigation", { name: "Day" }).getByRole("link", { name: /Mon/ })).toHaveAttribute("aria-current", "true");
+    // The day cards show the real dates of a calendar week in that pattern week; the arrows step a calendar week.
+    await expect(page.getByRole("navigation", { name: "Day" }).getByRole("link", { name: /Mon/ })).toContainText(/\d+ [A-Z][a-z]{2}/);
+    await page.getByRole("link", { name: "Next week" }).click();
+    await expect(page).toHaveURL(/on=\d{4}-\d{2}-\d{2}/);
+    await expect(page.getByRole("navigation", { name: "Cycle week" }).getByRole("link", { name: "Week 2" })).toHaveAttribute("aria-current", "true");
+    await page.getByRole("navigation", { name: "Cycle week" }).getByRole("link", { name: "Week 1" }).click();
     await page.screenshot({ path: `${SHOTS}/daily-templates-1672.png` });
 
     // Clicking a row (not a link) opens Template Details; the close button hides it again.
@@ -38,7 +44,7 @@ test.describe("Daily Templates", () => {
     const panel = page.getByRole("complementary", { name: "Template Details" });
     await expect(panel).toBeVisible();
     await expect(page).toHaveURL(/tpl=/);
-    await expect(panel.getByRole("link", { name: "Edit" })).toBeVisible();
+    await expect(panel.getByRole("link", { name: "Edit Template" })).toBeVisible();
     await expect(panel.getByRole("button", { name: "Duplicate" })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/daily-templates-details-1672.png` });
     await panel.getByRole("link", { name: "Close Template Details" }).click();
@@ -51,16 +57,16 @@ test.describe("Daily Templates", () => {
   test("deactivate asks first, then switches the template off and back on", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/templates?week=all&day=all");
-    await page.locator("tbody tr[data-href]").first().getByRole("link", { name: /^View details of/ }).click();
+    await page.locator("tbody tr[data-href]").first().getByRole("link", { name: /^Open details of template/ }).click();
     const panel = page.getByRole("complementary", { name: "Template Details" });
-    const ref = (await panel.locator("p").first().innerText()).split(" ")[0]!;
+    const ref = (await panel.getByText(/^Ref: /).innerText()).split(" ")[1]!;
     await panel.getByRole("link", { name: "Deactivate" }).click();
     await expect(panel.getByRole("alertdialog")).toContainText(`Deactivate ${ref}?`);
     await panel.getByRole("button", { name: "Yes, deactivate" }).click();
     await expect(page.getByRole("status")).toContainText("1 updated");
-    await expect(panel.getByText("Disabled", { exact: true })).toBeVisible();
-    await panel.getByRole("button", { name: "Enable" }).click();
-    await expect(panel.getByText("Enabled", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Inactive", { exact: true })).toBeVisible();
+    await panel.getByRole("button", { name: "Activate" }).click();
+    await expect(panel.getByText("Active", { exact: true })).toBeVisible();
   });
 
   test("bulk actions say what is missing and apply to the ticked templates", async ({ page }) => {
