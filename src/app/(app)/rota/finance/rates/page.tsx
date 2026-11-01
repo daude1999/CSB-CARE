@@ -7,6 +7,7 @@ import { suName } from "@/server/rota/queries";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, WEEKDAYS } from "@/lib/london";
 import { addBandAction, addBankHolidayAction, createRateCardAction, financeSettingsAction, packageFunderAction, removeBandAction, removeBankHolidayAction, saveFunderAction, staffPayCardAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, PageHeader, SegmentNav } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Funders & Rates" back="/rota/finance" subtitle="Who pays for care, what they are charged and what carers are paid. A rate card that has been used in a run cannot be changed; start a new card from a new date instead, so past runs can always be explained." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active={sp.tab === "holidays" ? "holidays" : "rates"} />} title="Funders & Rates" back="/rota/finance" subtitle="Who pays for care, what they are charged and what carers are paid. A rate card that has been used in a run cannot be changed; start a new card from a new date instead, so past runs can always be explained." />
       <Flash searchParams={sp} />
       <div className="min-w-0 max-w-full"><SegmentNav label="Finance set-up" items={TABS.map(([k, label]) => ({ href: `/rota/finance/rates?tab=${k}`, label, active: tab === k }))} /></div>
 

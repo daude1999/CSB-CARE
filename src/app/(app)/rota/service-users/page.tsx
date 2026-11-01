@@ -6,6 +6,7 @@ import { listServiceUsers } from "@/server/care/service-users";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { Badge, Card, Empty, Flash, PageHeader, StatusBadge } from "@/components/ui";
 import { AreaDot } from "@/components/rota-ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
   const [rows, lk] = await Promise.all([listServiceUsers(ctx, { q: sp.q?.trim() || undefined, status, areaId: sp.area || undefined }), rotaLookups(ctx)]);
   return (
     <>
-      <PageHeader title="Service Users" back="/rota" subtitle="The people you support, with their care package, carer preferences and repeating visits. All names in the demo are fictional." actions={hasOrgPermission(ctx, "serviceUser.edit") ? <Link href="/rota/service-users/new" className="btn-primary">Add service user</Link> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle="The people you support, with their care package, carer preferences and repeating visits. All names in the demo are fictional." actions={hasOrgPermission(ctx, "serviceUser.edit") ? <Link href="/rota/service-users/new" className="btn-primary">Add service user</Link> : null} />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">

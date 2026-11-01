@@ -1,6 +1,11 @@
 # Master build tracker — five-module CSB CRM
 
-## Integrated care intelligence build (1 Nov 2026, Draft PR, awaiting approval)
+## Rota sidebar simplified to nine destinations (1 Nov 2026)
+The Rota menu is now Rota Home, Daily Rota, Visits Needing Attention, The Monitor, Daily Templates, Service Users, Staff & Workforce, Finance and Reports, with Settings at the foot. Former menu pages are workspace tabs at their old addresses. There is a new combined page, `/rota/attention`, which shows Unassigned Visits and Missed Calls together. Notes and the full old-to-new mapping are in `ROTA_NAVIGATION.md`.
+
+Backlog (these were "Planned" rows in the old menu and are not built): Service User Absences, Preference Manager, Communication Log, Holiday Report, and Help guides and videos.
+
+## Integrated care intelligence build (1 Nov 2026, PR #48, merged)
 
 Recruitment in HR & Workforce, onboarding into readiness, rota "Coming up" alerts and plans for chosen visits, Care
 Summary on care plans, Monitor alerts, compliance links and Care Operations Insights. Details: `CARE_INTELLIGENCE_BUILD.md`.
