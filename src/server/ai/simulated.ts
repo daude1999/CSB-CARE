@@ -1,8 +1,8 @@
 import { canonicalForMatch, splitSentences, truncate } from "@/lib/text";
 import { phraseSubstitutions } from "../changes/diff";
 import { suggestCategories, suggestServiceTypes } from "../changes/classify";
-import type { AssistantInput, ChangeAnalysisInput, ImpactInput, LlmProvider, RevisionInput } from "./provider";
-import type { AssistantAnswer, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput } from "./schemas";
+import type { AssistantInput, CareSummaryInput, ChangeAnalysisInput, ImpactInput, LlmProvider, RevisionInput } from "./provider";
+import type { AssistantAnswer, CareSummaryOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput } from "./schemas";
 
 /**
  * Deterministic stand-in for an LLM, used in demos, tests and when no AI
@@ -25,6 +25,15 @@ function overlap(a: string, b: string) {
   for (const w of A) if (B.has(w)) n++;
   return n / Math.min(A.size, B.size);
 }
+
+const CARE_THEMES = [
+  { label: "eating, drinking or appetite", section: "eating and drinking", re: /\b(eat|ate|appetite|meal|breakfast|lunch|dinner|drink|fluid|food)\w*/i },
+  { label: "falls, unsteadiness or mobility", section: "mobility and moving", re: /\b(fall|fell|fallen|unsteady|wobbly|mobility|walking|frame|transfer)\w*/i },
+  { label: "skin, redness or soreness", section: "personal care", re: /\b(skin|red|redness|sore|pressure|bruis|rash)\w*/i },
+  { label: "confusion, memory or mood", section: "health and wellbeing", re: /\b(confus|forget|memory|low mood|upset|tearful|anxious|agitat)\w*/i },
+  { label: "pain", section: "health and wellbeing", re: /\b(pain|ache|hurt)\w*/i },
+  { label: "refused or declined support", section: "about me", re: /\b(refus|declin|did not want)\w*/i },
+] as const;
 
 export class SimulatedProvider implements LlmProvider {
   name = "simulated";
@@ -157,5 +166,35 @@ export class SimulatedProvider implements LlmProvider {
       citations: top.map((c) => ({ chunkId: c.id, quote: quote(c.text) })),
       evidenceGaps: top.length ? ["Simulated assistant lists retrieved material; it does not interpret it."] : ["No matching documents were retrieved."],
     };
+  }
+  /**
+   * Rule-based Care Summary: groups the records by plain keyword themes and counts them. It never interprets what a
+   * record means; every sentence cites the records it counted, and every sentence starts with the SIMULATED label.
+   */
+  async summariseCare(input: CareSummaryInput): Promise<CareSummaryOutput> {
+    const L = "[SIMULATED, rule-based] ";
+    const r = input.records;
+    const of = (kind: string) => r.filter((x) => x.kind === kind);
+    const ids = (xs: { sid: string }[]) => xs.slice(0, 12).map((x) => x.sid);
+    const summary: CareSummaryOutput["summary"] = [];
+    for (const kind of [...new Set(r.map((x) => x.kind))]) {
+      const xs = of(kind);
+      summary.push({ text: `${L}${xs.length} ${kind.toLowerCase()} ${xs.length === 1 ? "record" : "records"} between ${input.from} and ${input.to}.`, sources: ids(xs) });
+    }
+    const changes: CareSummaryOutput["changes"] = [];
+    const nextActions: CareSummaryOutput["nextActions"] = [];
+    for (const t of CARE_THEMES) {
+      const xs = r.filter((x) => t.re.test(x.text));
+      if (xs.length < 2) continue;
+      changes.push({ text: `${L}${xs.length} records mention ${t.label}.`, sources: ids(xs) });
+      nextActions.push({ text: `${L}Consider reviewing the ${t.section} section of the care plan against these records.`, sources: ids(xs) });
+    }
+    const open = r.filter((x) => /\b(open|investigating|overdue|not done|refused|not given)\b/i.test(x.text) && x.kind !== "Visit note");
+    const concerns = open.length ? [{ text: `${L}${open.length} ${open.length === 1 ? "record is" : "records are"} recorded as open, overdue, refused or not done.`, sources: ids(open) }] : [];
+    const gaps = [
+      "Simulated summary counts keyword matches; it does not read or interpret the records.",
+      ...(of("Visit note").length ? [] : ["No visit notes were written in this period."]),
+    ];
+    return { summary, changes, concerns, nextActions, gaps };
   }
 }

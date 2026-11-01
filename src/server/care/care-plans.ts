@@ -109,7 +109,7 @@ export async function carePlanRegister(ctx: Ctx, f: { q?: string; filter?: strin
 }
 
 /** Starts a new draft, copied from the active version if there is one. Only one draft or review can be open at a time. */
-export async function startDraft(ctx: Ctx, serviceUserId: string) {
+export async function startDraft(ctx: Ctx, serviceUserId: string, opts: { sourceSummaryId?: string } = {}) {
   const scope = await rotaScope(ctx, "care.plan.edit");
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "ServiceUser" WHERE id = ${serviceUserId} AND "organisationId" = ${scope.organisationId} FOR UPDATE`;
@@ -118,14 +118,14 @@ export async function startDraft(ctx: Ctx, serviceUserId: string) {
     if (open) throw new ConflictError(`Version ${open.version} is already ${open.status === "DRAFT" ? "being drafted" : "in review"}`);
     const latest = await tx.carePlan.findFirst({ where: { serviceUserId: su.id }, orderBy: { version: "desc" } });
     const active = await tx.carePlan.findFirst({ where: { serviceUserId: su.id, status: "ACTIVE" }, include: { sections: true } });
-    const plan = await tx.carePlan.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, version: (latest?.version ?? 0) + 1, summary: active?.summary ?? null, reviewDue: active?.reviewDue ?? dbDate(addDays(londonDate(), 182)), createdById: ctx.userId } });
+    const plan = await tx.carePlan.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, version: (latest?.version ?? 0) + 1, summary: active?.summary ?? null, reviewDue: active?.reviewDue ?? dbDate(addDays(londonDate(), 182)), createdById: ctx.userId, sourceSummaryId: opts.sourceSummaryId ?? null } });
     await tx.carePlanSection.createMany({
       data: PLAN_SECTIONS.map((s, position) => {
         const prev = active?.sections.find((x) => x.key === s.key);
         return { carePlanId: plan.id, key: s.key, title: s.title, body: prev?.body ?? "", outcomes: prev?.outcomes ?? null, position };
       }),
     });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "careplan.draft.started", entityType: "ServiceUser", entityId: su.id, data: { carePlanId: plan.id, version: plan.version, from: active?.version ?? null } }, tx);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "careplan.draft.started", entityType: "ServiceUser", entityId: su.id, data: { carePlanId: plan.id, version: plan.version, from: active?.version ?? null, careSummaryId: opts.sourceSummaryId ?? null } }, tx);
     return plan;
   });
 }

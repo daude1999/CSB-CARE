@@ -4,10 +4,11 @@ import { fmtLondonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { monitorBoard, type MonitorState } from "@/server/rota/monitor";
+import { monitorAlerts, visitStateLabel } from "@/server/rota/monitor-alerts";
 import { missedMedsCount } from "@/server/care/medication";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { sweepNowAction } from "@/app/rota-actions";
-import { Flash } from "@/components/ui";
+import { Badge, Flash, fmtDate } from "@/components/ui";
 import { CallRing } from "@/components/rota-ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 
@@ -34,6 +35,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
   const complete = b.rows.filter((r) => r.state === "done").length;
   const late = b.rows.filter((r) => r.state === "late" || (r.arrivedLateMin ?? 0) >= b.settings.lateAfterMin).length;
   const missed = b.rows.filter((r) => r.state === "missed").length;
+  const { alerts, folded, older } = await monitorAlerts(ctx, { areaId: sp.area || undefined, lateAfterMin: b.settings.lateAfterMin }, b.now);
   const missedMeds = await missedMedsCount(b.settings.organisationId, b.rows.map((r) => r.id));
   const pct = (n: number) => (total ? ((n / total) * 100).toFixed(2) : "0.00");
   const back = `/rota/monitor${sp.area ? `?area=${sp.area}` : ""}`;
@@ -49,6 +51,34 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
         <CallRing label="Late Calls" value={late} total={total} colour="#b26a00" note={`${pct(late)}% of visits ${b.settings.lateAfterMin} minutes late`} href="/rota/visits?view=late" />
         <CallRing label="Missed Calls" value={missed} total={total} colour="#b42a23" note={`${pct(missed)}% not clocked into`} href="/rota/missed?period=day" />
         <CallRing label="Calls With Missed Meds" value={missedMeds} total={total} colour="#2a6f97" note={missedMeds === null ? "Medication records are switched off" : `${pct(missedMeds)}% with a dose not recorded`} href={missedMeds === null ? undefined : "/rota/exceptions?kind=MISSED_MEDICATION&state=all"} />
+      </section>
+
+      <section className="panel mb-3" aria-labelledby="alerts-title" data-testid="monitor-alerts">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="alerts-title" className="text-[17px] font-semibold text-navy-900">Today&apos;s alerts <span className="ml-1 text-[14px] font-normal text-slate-500">{alerts.length} open</span></h2>
+          <Link href="/rota/exceptions" className="text-[13.5px]">{older ? `${older} open from earlier days in Exceptions` : "All exceptions"}</Link>
+        </div>
+        {alerts.length ? (
+          <div className="relative min-w-0 overflow-x-auto">
+            <table className="table text-[14px]">
+              <thead><tr><th>What</th><th>Who</th><th>When</th><th>Why</th><th>Visit now</th><th>Owner</th><th><span className="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                {alerts.slice(0, 6).map((a) => (
+                  <tr key={a.id}>
+                    <td className="whitespace-nowrap"><Badge tone={a.severity === "CRITICAL" ? "rose" : a.severity === "WARNING" ? "amber" : "slate"}>{a.what}</Badge>{a.overdue ? <div className="mt-0.5 text-[12.5px] font-medium text-[#a3242c]">Past its deadline</div> : null}</td>
+                    <td>{a.person ? <Link href={`/rota/service-users/${a.person.id}`}>{a.person.name}</Link> : "—"}{a.carers.length ? <div className="text-[12.5px] text-slate-600">{a.carers.join(", ")}</div> : a.visit ? <div className="text-[12.5px] text-[#a3242c]">No carer booked</div> : null}</td>
+                    <td className="whitespace-nowrap tabular-nums">{a.visit ? <>Call {londonTime(a.visit.scheduledStart)}</> : null}<div className="text-[12.5px] text-slate-600">Raised {fmtDate(a.raisedAt, true)}</div></td>
+                    <td className="max-w-[340px] text-[13.5px]">{a.why}</td>
+                    <td>{a.visit ? <><Link href={`/rota/visits/${a.visit.id}#attendance`} className="font-semibold">{a.visit.reference}</Link><div><Badge tone={a.visit.state.tone}>{a.visit.state.label}</Badge></div></> : "—"}</td>
+                    <td className="text-[13.5px]">{a.reviewer}{a.deadline ? <div className="text-[12.5px] text-slate-600">due by {londonTime(a.deadline)}</div> : null}</td>
+                    <td><span className="flex flex-wrap gap-1.5">{a.actions.map((x) => <Link key={x.label} href={x.href} className="btn-secondary whitespace-nowrap px-2 py-0.5 text-[13px]">{x.label}</Link>)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="py-3 text-[14px] text-slate-600">No open alerts for today&apos;s calls.</p>}
+        <p className="mt-2 text-[12.5px] text-slate-500">{alerts.length > 6 ? `Showing the 6 most urgent of ${alerts.length}; the rest are in Exceptions. ` : ""}{folded ? `${folded} older ${folded === 1 ? "alert is" : "alerts are"} folded in because the same visit has a newer alert. ` : ""}Each alert is listed once. Alerts are shown in the app only; nothing is sent by text or email.</p>
       </section>
 
       <section className="panel" aria-labelledby="monitor-title">
@@ -86,7 +116,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
                   const outState = outAt ? <span className="text-[#2e7d32]">« Out: {londonTime(outAt.at)}</span> : inAt ? <span className={v.state === "overrun" ? "text-[#8a5a00]" : "text-[#1d6f9e]"}>« {v.state === "overrun" ? "Not clocked out" : "Out:"}</span> : v.state === "late" || v.state === "missed" ? <span className="text-[#8a5a00]">« Late</span> : <span>« Due</span>;
                   return (
                     <tr key={v.id} className={TINT[v.state] ?? ""}>
-                      <td><Link href={`/rota/visits/${v.id}#attendance`} className="font-semibold">{v.reference}</Link><div className="text-[13px] text-[#a3242c]">{fmtLondonDate(b.today)}</div></td>
+                      <td><Link href={`/rota/visits/${v.id}#attendance`} className="font-semibold">{v.reference}</Link><div className="text-[13px] text-[#a3242c]">{fmtLondonDate(b.today)}</div><div className="mt-0.5"><Badge tone={visitStateLabel(v, b.now, b.settings.lateAfterMin).tone}>{visitStateLabel(v, b.now, b.settings.lateAfterMin).label}</Badge></div></td>
                       <td>
                         {v.assignments.length ? v.assignments.map((a) => (
                           <div key={a.id} className="whitespace-nowrap">

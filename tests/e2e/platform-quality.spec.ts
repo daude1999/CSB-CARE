@@ -29,7 +29,8 @@ test.describe("protected Rota screens keep their approved structure", () => {
     await page.goto("/rota");
     await page.waitForLoadState("networkidle");
     expect(await structure(page)).toEqual({
-      headings: ["Rota Dashboard", "All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays", "Quick Actions"],
+      // "Coming up" was added by the care intelligence build (PR #48) and shown to the owner in its screenshots.
+      headings: ["Rota Dashboard", "Coming upStaffing problems for today and the next day, from the rota's own records", "All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays", "Quick Actions"],
       columns: ["Actions", "Forename", "Surname", "DOB", "Next Visit", "Actions", "Forename", "Surname", "Role", "Status", "Reminder", "Due", "Account", "Type", "Overdue", "Team Member", "DOB", "Turns", "Birthday"],
     });
   });

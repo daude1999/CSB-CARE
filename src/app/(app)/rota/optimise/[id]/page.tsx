@@ -159,6 +159,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
                               {c.eligibility === "REQUIRES_REVIEW" ? <Badge tone="amber">Allowed with warnings</Badge> : null}
                             </p>
                             {c.warnings.length ? <p className="mt-1 text-[13px] text-[#8a5a00]">Accepting confirms you have read: {c.warnings.join("; ")}</p> : null}
+                            {editable ? <Link href={`/rota/unassigned?when=custom&from=${londonDate(c.visit.scheduledStart)}&to=${londonDate(c.visit.scheduledStart)}&cover=${c.visitId}&slot=${c.slot ?? "PRIMARY"}&ctab=manual`} className="mt-1 inline-block text-[13px] font-medium">Choose someone else (Manual)</Link> : null}
                             <details className="mt-1 text-[13px] text-slate-600">
                               <summary className="cursor-pointer">Why this carer</summary>
                               <ul className="mt-1 list-disc pl-5">{c.reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>

@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## Integrated care intelligence build (1 Nov 2026, Draft PR, awaiting approval)
+
+Recruitment in HR & Workforce, onboarding into readiness, rota "Coming up" alerts and plans for chosen visits, Care
+Summary on care plans, Monitor alerts, compliance links and Care Operations Insights. Details: `CARE_INTELLIGENCE_BUILD.md`.
+
 ## Unassigned Visits, Find Cover and Coverage History (1 Nov 2026)
 
 `/rota/unassigned` rebuilt in the Daily Rota style with a Find Cover panel (Recommended, Manual, Review then Confirm) and a

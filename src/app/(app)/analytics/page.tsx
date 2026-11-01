@@ -38,7 +38,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Analytics" subtitle={`${scopeName} · ${fmtLondonDate(scope.from)} to ${fmtLondonDate(scope.to)}. Every figure is worked out from your records when you open the page; the definition sits next to each one.`} actions={hasOrgPermission(ctx, "report.export") ? <a href={`/api/analytics?${q({})}`} className="btn-secondary">Download CSV</a> : null} />
+      <PageHeader title="Analytics · Care Operations Insights" subtitle={`${scopeName} · ${fmtLondonDate(scope.from)} to ${fmtLondonDate(scope.to)}. Every figure is worked out from your records when you open the page; the definition sits next to each one.`} actions={hasOrgPermission(ctx, "report.export") ? <a href={`/api/analytics?${q({})}`} className="btn-secondary">Download CSV</a> : null} />
       <section aria-label="Scope" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
           {group ? <input type="hidden" name="group" value={group} /> : null}

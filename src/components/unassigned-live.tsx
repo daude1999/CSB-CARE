@@ -162,7 +162,14 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
               <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                 <input type="hidden" name="back" value={back} />
                 <BulkVisitBar form="bulk" canPublish={canBuild} staff={lk.staff.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
+                {canBuild ? (
+                  <>
+                    <input type="hidden" name="planChosen" value="1" />
+                    <button formAction={generatePlanAction} formNoValidate data-testid="plan-chosen" className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#5b2bb5] bg-white px-3 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]" title="Suggests carers for the ticked visits to compare. Nothing is booked until you accept and confirm.">Find Suitable Carers</button>
+                  </>
+                ) : null}
               </form>
+
             </div>
           ) : null}
           {board.items.length ? (

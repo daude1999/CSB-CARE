@@ -8,6 +8,8 @@ import { rotaSettings } from "@/server/rota/settings";
 import { callTypeActiveAction, careTaskActiveAction, createCallTypeAction, createCareTaskAction, rotaSettingsAction } from "@/app/rota-actions";
 import { Card, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { medicationSwitchAction } from "@/app/medication-actions";
+import { careSummarySwitchAction } from "@/app/care-summary-actions";
+import { getAiProvider } from "@/server/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,8 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
   const org = ctx.organisationId!;
   const [s, callTypes, tasks] = await Promise.all([rotaSettings(db, org), db.callType.findMany({ where: { organisationId: org }, orderBy: { name: "asc" } }), db.careTask.findMany({ where: { organisationId: org }, orderBy: { name: "asc" } })]);
   const back = "/rota/settings";
+  const ai = getAiProvider();
+  const aiName = ai?.summariseCare ? (ai.isSimulated ? "Simulated (rule-based, labelled; no AI and nothing leaves the platform)" : ai.name) : null;
   return (
     <>
       <PageHeader title="Rostering Settings" back="/rota" subtitle="How the rota cycle, allocation checks and call timings work for your organisation. Every change is recorded. Clocking, geofence and carer-app settings take effect when those features are built." />
@@ -131,6 +135,25 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
                 <button className="btn-primary">Switch on medication records</button>
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch medication records on after a clinical review.</p>}
+          </Card>
+          <Card title="Care Summary (AI)">
+            {s.careSummaryEnabledAt ? (
+              <>
+                <p className="text-[14px]">Switched on {fmtDate(s.careSummaryEnabledAt, true)}. Authorised by: {s.careSummaryReviewNote}</p>
+                <p className="mt-1 text-[13px] text-slate-600">AI provider: {aiName ?? "not configured, so summaries cannot be created"}.</p>
+                {hasOrgPermission(ctx, "org.manage") ? (
+                  <form action={careSummarySwitchAction} className="mt-2"><input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="0" /><button className="btn-secondary">Switch off</button></form>
+                ) : null}
+              </>
+            ) : hasOrgPermission(ctx, "org.manage") ? (
+              <form action={careSummarySwitchAction} className="space-y-2">
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="1" />
+                <p className="text-[14px]">Off. Switching on lets coordinators ask the AI provider for a draft summary of a person&apos;s recent records on their care plan. Record text is sent to the provider; names and addresses are not. Summaries are marked unapproved, never change a plan, and the recent records view works whether this is on or off.</p>
+                <p className="text-[13px] text-slate-600">AI provider: {aiName ?? "not configured"}.</p>
+                <label className="block"><span className="label">Who authorised sending care records to the AI provider, and when</span><input name="authorisedBy" required minLength={10} className="input" placeholder="e.g. A. Morgan, registered manager, after DPIA, 1 Nov 2026" /></label>
+                <button className="btn-primary">Switch on Care Summary</button>
+              </form>
+            ) : <p className="text-[14px]">Off. An organisation admin can switch it on after confirming data protection approval.</p>}
           </Card>
           <Card title="Areas">
             <p className="text-[14px]">Areas and which coordinators work in them are managed in <Link href="/admin/areas">Administration → Areas</Link>.</p>

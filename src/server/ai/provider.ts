@@ -1,4 +1,4 @@
-import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer } from "./schemas";
+import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -40,6 +40,22 @@ export interface AssistantInput {
   facts: string[];
 }
 
+/** One care record given to the Care Summary, identified only by a short id (N1, T2…). No names are sent. */
+export interface CareRecordInput {
+  sid: string;
+  kind: string;
+  date: string;
+  text: string;
+}
+
+export interface CareSummaryInput {
+  from: string;
+  to: string;
+  records: CareRecordInput[];
+  /** Counted facts from the database (visits delivered, missed and so on), stated as plain sentences. */
+  facts: string[];
+}
+
 /**
  * Provider abstraction. Implementations must return outputs matching the zod
  * schemas; callers validate again and verify every citation against stored text.
@@ -51,6 +67,8 @@ export interface LlmProvider {
   assessImpact(input: ImpactInput): Promise<ImpactAssessmentOutput>;
   draftRevision(input: RevisionInput): Promise<RevisionDraftOutput>;
   answer(input: AssistantInput): Promise<AssistantAnswer>;
+  /** Care Summary for a person's recorded care. Optional, so providers that do not offer it simply leave it out. */
+  summariseCare?(input: CareSummaryInput): Promise<CareSummaryOutput>;
 }
 
 export class AiUnavailableError extends Error {

@@ -25,6 +25,8 @@ export const planInputSchema = z.object({
   gapMinutes: z.coerce.number().int().min(0, "The gap cannot be negative").max(120, "Use a gap of 2 hours or less"),
   maxShiftMinutes: z.coerce.number().int().min(0).max(60, "Time adjustments are limited to an hour").refine((n) => n % 5 === 0, "Time adjustments go in steps of 5 minutes"),
   respectWeeklyLimits: z.boolean().default(true),
+  /** Plan only these visits (chosen on Unassigned Visits). The dates then come from the visits themselves. */
+  visitIds: z.array(z.string().min(1)).max(200).optional(),
 });
 export type PlanInput = z.input<typeof planInputSchema>;
 
@@ -38,6 +40,8 @@ export interface PlanSummary {
   checks: number;
   budgetSpent: boolean;
   passes: number;
+  /** Set when the coordinator chose the visits to plan on Unassigned Visits. */
+  chosenVisits?: number;
   ms: number;
   travelLabel: string;
 }
@@ -49,9 +53,26 @@ const SLOTS: AssignmentSlot[] = ["PRIMARY", "SECOND"];
  * candidates come from the eligibility service, the pure optimiser chooses among them, and any proposed time change is
  * re-checked with the eligibility service at the new time before it is offered.
  */
+/**
+ * The dates for a plan of chosen visits: from the earliest (never before today) to the latest, at most a week apart.
+ * Visits outside the member's scope are simply not found, so they cannot widen the plan.
+ */
+export async function datesForVisits(scope: Scope, visitIds: string[], today = londonDate()) {
+  const visits = await db.visit.findMany({ where: { AND: [visitWhere(scope), { id: { in: visitIds }, status: "SCHEDULED", date: { gte: dbDate(today) } }] }, select: { date: true } });
+  if (!visits.length) throw new ValidationError("Choose upcoming visits that still need a carer");
+  const dates = visits.map((v) => fromDbDate(v.date)).sort();
+  const from = dates[0]!;
+  const to = dates[dates.length - 1]!;
+  const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+  if (days > MAX_PLAN_DAYS) throw new ValidationError(`Choose visits within ${MAX_PLAN_DAYS} days of each other`);
+  return { from, days };
+}
+
 export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unknown>) {
   const scope = await rotaScope(ctx, "rota.build");
-  const input = planInputSchema.parse(raw);
+  const pre = raw as { visitIds?: unknown };
+  const chosen = Array.isArray(pre.visitIds) && pre.visitIds.length ? await datesForVisits(scope, pre.visitIds.filter((x): x is string => typeof x === "string")) : null;
+  const input = planInputSchema.parse(chosen ? { ...raw, ...chosen } : raw);
   const t0 = Date.now();
   const to = addDays(input.from, input.days - 1);
   const now = new Date();
@@ -59,7 +80,7 @@ export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unk
   if (scope.areaIds && input.areaId && !scope.areaIds.includes(input.areaId)) throw new NotFoundError("Area");
 
   const visits = await db.visit.findMany({
-    where: { AND: [visitWhere(scope), { status: "SCHEDULED", date: { gte: dbDate(input.from), lte: dbDate(to) }, scheduledStart: { gt: now }, ...(input.areaId ? { areaId: input.areaId } : {}) }] },
+    where: { AND: [visitWhere(scope), { status: "SCHEDULED", date: { gte: dbDate(input.from), lte: dbDate(to) }, scheduledStart: { gt: now }, ...(input.areaId ? { areaId: input.areaId } : {}), ...(input.visitIds?.length ? { id: { in: input.visitIds } } : {}) }] },
     include: { serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, staffId: true, removedAt: true } } },
     orderBy: [{ scheduledStart: "asc" }, { id: "asc" }],
     take: 3000,
@@ -132,6 +153,7 @@ export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unk
     passes: result.passes,
     ms: Date.now() - t0,
     travelLabel: travel.label,
+    ...(input.visitIds?.length ? { chosenVisits: input.visitIds.length } : {}),
   };
 
   return db.$transaction(async (tx) => {

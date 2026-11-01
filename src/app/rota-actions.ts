@@ -1002,7 +1002,12 @@ export async function coverInformedAction(fd: FormData) {
 // Generate & Optimise. A plan is a draft: nothing on the rota changes until accepted changes are applied.
 export async function generatePlanAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const plan = await generatePlan(ctx, { from: str(fd, "from"), days: str(fd, "days"), areaId: str(fd, "areaId"), gapMinutes: str(fd, "gapMinutes"), maxShiftMinutes: str(fd, "maxShiftMinutes"), respectWeeklyLimits: bool(fd, "respectWeeklyLimits") });
+    // "Find Suitable Carers" for the visits ticked on Unassigned Visits: the dates come from those visits.
+    const chosen = fd.get("planChosen") === "1" ? fd.getAll("visitIds").filter((x): x is string => typeof x === "string") : [];
+    if (fd.get("planChosen") === "1" && !chosen.length) throw new ValidationError("Tick the visits you want carers for");
+    const plan = chosen.length
+      ? await generatePlan(ctx, { visitIds: chosen, gapMinutes: "10", maxShiftMinutes: "0", respectWeeklyLimits: true })
+      : await generatePlan(ctx, { from: str(fd, "from"), days: str(fd, "days"), areaId: str(fd, "areaId"), gapMinutes: str(fd, "gapMinutes"), maxShiftMinutes: str(fd, "maxShiftMinutes"), respectWeeklyLimits: bool(fd, "respectWeeklyLimits") });
     return `/rota/optimise/${plan.id}`;
   }, "Plan generated. Nothing has changed on the rota yet: accept or reject each change, then apply.");
 }

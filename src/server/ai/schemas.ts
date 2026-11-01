@@ -68,3 +68,19 @@ export const AssistantAnswerSchema = z.object({
   evidenceGaps: z.array(z.string()),
 });
 export type AssistantAnswer = z.infer<typeof AssistantAnswerSchema>;
+
+// ── Care Summary (Care Plans) ──────────────────────────────────────────────
+
+const CarePoint = z.object({
+  text: z.string().describe("One factual sentence in plain English. No diagnosis, no medical conclusion, no medication advice."),
+  sources: z.array(z.string()).describe("The record ids (for example N3, T1, I2) that this sentence is based on. Every point needs at least one."),
+});
+
+export const CareSummarySchema = z.object({
+  summary: z.array(CarePoint).describe("Summary of recent care: what the records say happened, in date order where it helps."),
+  changes: z.array(CarePoint).describe("Possible changes to review: patterns or differences in the records that a manager may want to look at. Describe what was recorded, never what it means clinically."),
+  concerns: z.array(CarePoint).describe("Outstanding concerns: documented issues that the records show as still open or unresolved."),
+  nextActions: z.array(CarePoint).describe("Suggested next actions, phrased as something to check or consider (for example 'Consider reviewing the nutrition section of the care plan'). Never an instruction to change care or medication."),
+  gaps: z.array(z.string()).describe("What the records do not show, or where the evidence is too thin to say anything."),
+});
+export type CareSummaryOutput = z.infer<typeof CareSummarySchema>;
