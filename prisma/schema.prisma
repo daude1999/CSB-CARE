@@ -1045,6 +1045,9 @@ model ComplianceAction {
   organisationId       String
   findingId            String?
   finding              AuditFinding? @relation(fields: [findingId], references: [id])
+  /// A mitigation action for a risk on the organisational risk register.
+  riskId               String?
+  risk                 ComplianceRisk? @relation(fields: [riskId], references: [id])
   title                String
   description          String?
   ownerId              String
@@ -1061,6 +1064,60 @@ model ComplianceAction {
   history              ActionEvent[]
 
   @@index([organisationId, status])
+  @@index([riskId])
+}
+
+/// The organisational risk register: governance and service risks, scored on a 5 x 5 likelihood x impact matrix
+/// (src/server/compliance/risks.ts). Separate from audit findings, corrective actions and service users' care risk
+/// assessments, which may be linked but are different records. Risks are never deleted; they are closed with a reason.
+model ComplianceRisk {
+  id                   String             @id @default(cuid())
+  organisationId       String
+  /// null = the whole organisation.
+  branchId             String?
+  ref                  String
+  title                String
+  description          String
+  category             String
+  /// Inherent risk, before controls: 1 (rare / negligible) to 5 (almost certain / catastrophic).
+  likelihood           Int
+  impact               Int
+  existingControls     String
+  controlEffectiveness String             @default("NOT_ASSESSED") // EFFECTIVE | PARTIALLY_EFFECTIVE | INEFFECTIVE | NOT_ASSESSED
+  /// Residual risk, with the existing controls in place.
+  residualLikelihood   Int
+  residualImpact       Int
+  ownerId              String
+  status               String             @default("OPEN") // OPEN | MONITORING | CLOSED
+  reviewDate           DateTime
+  lastReviewedAt       DateTime?
+  lastReviewedById     String?
+  /// The audit finding the risk was raised from, if any.
+  findingId            String?
+  createdById          String
+  closedAt             DateTime?
+  closedReason         String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  events               RiskEvent[]
+  actions              ComplianceAction[]
+
+  @@unique([organisationId, ref])
+  @@index([organisationId, status])
+}
+
+/// Every change to a risk, in order, with what changed and why. Append-only (database trigger).
+model RiskEvent {
+  id        String         @id @default(cuid())
+  riskId    String
+  risk      ComplianceRisk @relation(fields: [riskId], references: [id], onDelete: Restrict)
+  actorId   String
+  kind      String // CREATED | UPDATED | REVIEWED | CLOSED | REOPENED
+  note      String?
+  changes   Json           @default("{}")
+  createdAt DateTime       @default(now())
+
+  @@index([riskId, createdAt])
 }
 
 model ActionEvent {

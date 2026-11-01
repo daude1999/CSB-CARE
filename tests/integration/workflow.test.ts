@@ -289,7 +289,7 @@ describe("audits and actions", () => {
     const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const reviewer = await ctxFor("reviewer@care-solution.demo", BROOKFIELD);
     const oakMember = await db.user.findUniqueOrThrow({ where: { email: "manager@oakridge.demo" } });
-    await expect(createAction(manager, { title: "x", ownerId: oakMember.id, dueDate: new Date() })).rejects.toThrow(/member/);
+    await expect(createAction(manager, { title: "Fix it", ownerId: oakMember.id, dueDate: new Date() })).rejects.toThrow(/member/);
     const action = await createAction(manager, { title: "Fix", ownerId: reviewer.userId, dueDate: new Date() });
     await expect(transitionAction(reviewer, action.id, "COMPLETED", {})).rejects.toThrow(/Describe/);
     await transitionAction(reviewer, action.id, "COMPLETED", { note: "Done" });

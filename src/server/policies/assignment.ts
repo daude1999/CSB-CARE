@@ -457,6 +457,26 @@ export function signoffCounts(rows: SignoffRow[]) {
   return { ...c, completion: required ? Math.round((c.acknowledged / required) * 100) : null };
 }
 
+/**
+ * Sign-off status grouped by branch or by job title, from the same rows as the counts. Completion is acknowledged out
+ * of everyone still required to read (exempted and withdrawn rows are left out of the denominator).
+ */
+export function signoffByGroup(rows: SignoffRow[], by: "branch" | "role") {
+  const groups = new Map<string, SignoffRow[]>();
+  for (const r of rows) {
+    if (r.b.bucket === "superseded" || r.b.bucket === "withdrawn") continue;
+    const key = by === "branch" ? (r.staffMember?.branch?.name ?? "No branch recorded") : (r.staffMember?.jobTitle || "Office member (no HR record)");
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  }
+  return [...groups.entries()]
+    .map(([name, rs]) => {
+      const acknowledged = rs.filter((r) => r.b.bucket === "acknowledged").length;
+      const required = rs.filter((r) => r.b.bucket !== "exempted").length;
+      return { name, assigned: rs.length, acknowledged, outstanding: rs.filter((r) => r.b.outstanding).length, overdue: rs.filter((r) => r.b.overdue).length, cannotSign: rs.filter((r) => r.b.cannotSign).length, completion: required ? Math.round((acknowledged / required) * 100) : null };
+    })
+    .sort((a, b) => b.overdue - a.overdue || a.name.localeCompare(b.name));
+}
+
 /** The evidence export: one line per row with version, scope, state, timestamps, wording, reminders, escalations and exemptions. Audited. */
 export async function signoffCsv(ctx: Ctx, f: SignoffFilters) {
   const rows = await signoffRows(ctx, f);

@@ -17,7 +17,7 @@ import { DOC_TYPES } from "../../../prisma/seed-data/library/types";
  */
 
 export const LIBRARY_TABS = ["policies", "templates", "archived", "calendar"] as const;
-export const STATUS_KEYS = ["published", "not_approved", "draft", "under_review", "review_due", "overdue"] as const;
+export const STATUS_KEYS = ["published", "not_approved", "draft", "under_review", "approved", "review_due", "overdue", "template", "archived"] as const;
 export const QUICK_KEYS = ["due", "overdue", "recent", "awaiting"] as const;
 export const SORT_KEYS = ["updated", "title", "ref", "review"] as const;
 export const PANE_KEYS = ["document", "overview", "history", "signoff", "linked"] as const;
@@ -39,8 +39,11 @@ export const STATUS_LABELS: Record<StatusKey, string> = {
   not_approved: "Not yet approved",
   draft: "Draft",
   under_review: "Under review",
+  approved: "Approved, not yet published",
   review_due: "Review due",
   overdue: "Review overdue",
+  template: "Starter template",
+  archived: "Archived",
 };
 
 export const QUICK_LABELS: Record<QuickKey, string> = { due: "Due for review", overdue: "Overdue", recent: "Recently updated", awaiting: "Awaiting approval" };
@@ -133,13 +136,19 @@ export function libraryHref(q: LibraryQuery, over: Partial<Record<keyof LibraryQ
 /** The facts a status is derived from. */
 export interface StatusInput {
   currentPublishedVersion: { approved: boolean } | null;
-  openRevision: { submittedAt: Date | null } | null;
+  /** The open revision; draftStatus is its draft version's status (APPROVED or SCHEDULED once approved). */
+  openRevision: { submittedAt: Date | null; draftStatus?: string | null } | null;
   nextReviewDate: Date | null;
+  /** A CSB starter template as a provider sees it: never described as the provider's own approved policy. */
+  starterTemplate?: boolean;
+  archived?: boolean;
 }
 
 /** One status per document, in priority order, so every part of the page says the same thing. */
 export function policyStatus(p: StatusInput, now: Date): StatusKey {
-  if (p.openRevision?.submittedAt) return "under_review";
+  if (p.archived) return "archived";
+  if (p.starterTemplate) return "template";
+  if (p.openRevision?.submittedAt) return p.openRevision.draftStatus === "APPROVED" || p.openRevision.draftStatus === "SCHEDULED" ? "approved" : "under_review";
   if (p.nextReviewDate && p.currentPublishedVersion) {
     if (p.nextReviewDate < now) return "overdue";
     if (p.nextReviewDate.getTime() - now.getTime() <= DUE_WINDOW_DAYS * DAY) return "review_due";
@@ -190,9 +199,9 @@ export async function loadLibraryRows(ctx: Ctx, tab: LibraryTab, now = new Date(
       where: tabWhere(ctx, tab),
       select: {
         id: true, ref: true, title: true, description: true, docType: true, categoryCode: true, serviceTypes: true, kind: true,
-        ownerId: true, reviewerId: true, nextReviewDate: true, updatedAt: true,
+        ownerId: true, reviewerId: true, nextReviewDate: true, updatedAt: true, status: true,
         currentPublishedVersion: { select: { label: true, publishedAt: true, approvals: { where: { decision: "APPROVE" }, select: { id: true }, take: 1 } } },
-        revisions: { where: { closedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, submittedAt: true } },
+        revisions: { where: { closedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, submittedAt: true, draftVersion: { select: { status: true } } } },
       },
     }),
     db.policyCategory.findMany(),
@@ -214,7 +223,7 @@ export async function loadLibraryRows(ctx: Ctx, tab: LibraryTab, now = new Date(
       serviceTypes: p.serviceTypes, kind: p.kind, ownerId: p.ownerId, ownerName: p.ownerId ? (name.get(p.ownerId) ?? null) : null, reviewerId: p.reviewerId,
       version: v?.label ?? null, approved, publishedAt: v?.publishedAt ?? null, updatedAt: p.updatedAt, nextReviewDate: p.nextReviewDate,
       openRevisionId: open?.id ?? null, submitted: Boolean(open?.submittedAt), adopted: adopted.has(p.id),
-      status: policyStatus({ currentPublishedVersion: v ? { approved } : null, openRevision: open, nextReviewDate: p.nextReviewDate }, now),
+      status: policyStatus({ currentPublishedVersion: v ? { approved } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion.status } : null, nextReviewDate: p.nextReviewDate, starterTemplate: p.kind === "MASTER" && Boolean(ctx.organisationId), archived: p.status === "ARCHIVED" }, now),
     };
   });
 }
@@ -421,7 +430,7 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
   ]);
   const person = new Map(people.map((u) => [u.id, u.name]));
   const area = AREA_OF.get(p.categoryCode) ?? null;
-  const status = policyStatus({ currentPublishedVersion: v ? { approved: approvals.length > 0 } : null, openRevision: open, nextReviewDate: p.nextReviewDate }, now);
+  const status = policyStatus({ currentPublishedVersion: v ? { approved: approvals.length > 0 } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion?.status } : null, nextReviewDate: p.nextReviewDate, starterTemplate: p.kind === "MASTER" && Boolean(ctx.organisationId), archived: p.status === "ARCHIVED" }, now);
   const signed = acks.filter((a) => ackBucket(a, now).bucket === "acknowledged").length;
   const overdueAcks = acks.filter((a) => ackBucket(a, now).overdue).length;
 

@@ -2,10 +2,12 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { dashboardMetrics } from "@/server/reports/metrics";
+import { complianceDashboard } from "@/server/compliance/dashboard";
 import { setupChecklist } from "@/server/setup/checklist";
 import { SetupPanel } from "@/components/setup-panel";
-import { CaretDown, DotsThree, Info } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, DotsThree, Info } from "@phosphor-icons/react/dist/ssr";
+import { canUseQueue } from "@/components/compliance-nav";
+import { fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +18,10 @@ export default async function Dashboard() {
   const now = new Date();
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const orgScope = ctx.organisationId ? { organisationId: ctx.organisationId } : { organisationId: null };
-  const m = await dashboardMetrics(ctx);
-  const [org, updatedRecently, ownPolicies, publications, myAcks] = await Promise.all([
+  const dash = await complianceDashboard(ctx, now);
+  const [org, updatedRecently, publications, myAcks] = await Promise.all([
     ctx.organisationId ? db.organisation.findUnique({ where: { id: ctx.organisationId }, select: { name: true, isDemo: true } }) : null,
     db.policyPublication.count({ where: { ...orgScope, status: "PUBLISHED", publishedAt: { gte: monthAgo } } }),
-    db.policy.count({ where: { ...orgScope, status: "ACTIVE" } }),
     db.policyPublication.findMany({ where: { ...orgScope, status: "PUBLISHED" }, orderBy: { publishedAt: "desc" }, take: 20, include: { policy: { include: { category: true } } } }),
     ctx.organisationId ? db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId, supersededAt: null, state: { notIn: ["WITHDRAWN", "EXEMPTED"] } }, select: { publicationId: true, acknowledgedAt: true, dueAt: true } }) : [],
   ]);
@@ -48,47 +49,77 @@ export default async function Dashboard() {
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const steps = canManage ? await setupChecklist(ctx.organisationId!) : [];
   // Only links the person can open: a quick action or figure that leads to "not found" is a dead end.
-  const canStaff = hasOrgPermission(ctx, "staff.view");
   const quickActions = ([
-    ["/queue", "Open the change queue", hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve")],
-    ["/changes", "See regulatory updates", true],
     ["/policies/new", "Create a policy", hasOrgPermission(ctx, "policy.author")],
-    ["/acknowledgements", "My policies to read", Boolean(ctx.organisationId)],
-    ["/reports", "Reports", hasOrgPermission(ctx, "report.view")],
+    ["/queue", "Open the review queue", canUseQueue(ctx)],
+    ["/staff/rules", "Assign staff sign-off", hasOrgPermission(ctx, "signoff.manage")],
+    ["/audits", "Start an audit", hasOrgPermission(ctx, "audit.conduct")],
+    ["/actions", "Create a corrective action", hasOrgPermission(ctx, "action.manage")],
+    ["/compliance/risks/new", "Add a risk", hasOrgPermission(ctx, "risk.manage")],
+    ["/compliance/reports", "View compliance reports", hasOrgPermission(ctx, "report.view")],
+    ["/acknowledgements", "My reading list", Boolean(ctx.organisationId)],
   ] as const).filter(([, , ok]) => ok);
-  const month = now.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
+  const k = dash.kpis;
 
   return (
     <div className="relative min-w-0">
       <h1 className="flex h-[60px] items-center justify-center rounded-t-[6px] bg-[var(--module,#0f2a4f)] px-4 text-[20px] font-medium tracking-normal text-white">Compliance Centre Dashboard</h1>
       <div className="bg-[#f1f2f5] pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-0 pb-3 pt-2">
-          {org?.isDemo ? (
-            <p className="flex items-center gap-1.5 pl-1 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
-          ) : <span />}
-          <details className="relative">
-            <summary className="flex h-[33px] w-[139px] cursor-pointer list-none items-center justify-center gap-2.5 rounded-[4px] border-[1.5px] border-slate-500 bg-white text-[15px] text-slate-800 [&::-webkit-details-marker]:hidden">Quick action <CaretDown size={12} weight="bold" aria-hidden="true" /></summary>
-            <div className="absolute right-0 z-10 mt-1 flex w-56 flex-col rounded-[6px] border border-slate-200 bg-white py-1 shadow-lg">
-              {quickActions.map(([href, label]) => (
-                <Link key={href} href={href!} className="px-3 py-2 text-[14px] text-navy-900 no-underline hover:bg-slate-100">{label}</Link>
-              ))}
-            </div>
-          </details>
-        </div>
+        {org?.isDemo ? (
+          <p className="flex items-center gap-1.5 bg-white pb-2 pl-1 pt-2 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
+        ) : null}
 
-        <section aria-label="Key figures" className="flex flex-wrap gap-[13px] bg-white pb-1.5">
-          <Stat value={updatedRecently} label="Policies Updated" note="In Last 30 days" ring="border-[#e3934a] text-[#b35e14]" href="/policies" />
-          <Stat value={m.newChanges + m.awaitingAssessment} label="Important Changes" note="Waiting for review" ring="border-[#e4544f] text-[#c3332c]" href="/changes" />
-          {canStaff ? (
-            <Stat value={m.outstandingAcks} label="Awaiting Signature" note={m.overdueAcks ? `${m.overdueAcks} past due` : "Staff yet to sign"} ring="border-[#4a7fc9] text-[#2f5fa3]" href="/staff" />
-          ) : (
-            <Stat value={due} label="Awaiting Signature" note={overdue ? `${overdue} past due` : "Policies for you to sign"} ring="border-[#4a7fc9] text-[#2f5fa3]" href="/acknowledgements" />
-          )}
-          <Stat value={ownPolicies} label={ctx.organisationId ? "Custom Policies" : "Templates"} note="Total in library" ring="border-[#6d5fc0] text-[#4a3d9c]" href="/policies" />
+        <section aria-label="Key figures" className="grid grid-cols-1 gap-[10px] bg-white pb-2 pt-2 sm:grid-cols-2 xl:grid-cols-4">
+          <Stat value={k.activePolicies} label={ctx.organisationId ? "Active policies" : "Active templates"} note={ctx.organisationId ? "Your organisation's library" : "CSB starter library"} ring="border-[#6d5fc0] text-[#4a3d9c]" href="/policies" />
+          <Stat value={k.overdueReviews} label="Reviews overdue" note={k.overdueReviews ? "Past the review date" : "None overdue"} ring="border-[#e4544f] text-[#c3332c]" href="/policies?quick=overdue" />
+          <Stat value={k.awaitingApproval} label="Awaiting approval" note="Submitted revisions" ring="border-[#e3934a] text-[#b35e14]" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=awaiting"} />
+          <Stat value={k.outstandingAcks} label={dash.manager ? "Sign-offs outstanding" : "To read and sign"} note={dash.manager ? "Staff yet to acknowledge" : "Your reading list"} ring="border-[#4a7fc9] text-[#2f5fa3]" href={dash.manager ? "/staff" : "/acknowledgements"} />
         </section>
 
-        <section aria-labelledby="recent-heading" className="relative mt-1.5 rounded-[3px] bg-white px-1.5 pb-4 pt-3">
-          <h2 id="recent-heading" className="sr-only">Recently updated policies</h2>
+        <div className="mt-[10px] grid grid-cols-1 gap-[10px] lg:grid-cols-3">
+          <section aria-labelledby="attention-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+            <h2 id="attention-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Needs attention</h2>
+            {dash.attention.some((x) => x.count) ? (
+              <ul className="mt-2 divide-y divide-slate-100" data-testid="needs-attention">
+                {dash.attention.filter((x) => x.count).map((x) => (
+                  <li key={x.key}>
+                    <Link href={x.href} className="flex items-center gap-3 py-2.5 text-slate-800 no-underline hover:bg-slate-50">
+                      <span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1.5 text-[14px] font-semibold tabular-nums ${x.tone === "rose" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#fdf0d8] text-[#8a5a00]"}`}>{x.count}</span>
+                      <span className="min-w-0 flex-1"><span className="block text-[14.5px] leading-5">{x.label}</span><span className="block text-[12.5px] text-slate-600">{x.detail}</span></span>
+                      <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-slate-400" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="py-6 text-center text-[14px] text-slate-600">Nothing overdue or waiting on you.</p>}
+          </section>
+
+          <section aria-labelledby="activity-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+            <h2 id="activity-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Recent activity <span className="text-[13px] text-slate-500">last 14 days</span></h2>
+            {dash.activity.length ? (
+              <ol className="mt-2 space-y-2.5" data-testid="recent-activity">
+                {dash.activity.map((x, n) => (
+                  <li key={n} className="text-[13.5px] leading-5">
+                    <span className="text-[12px] tabular-nums text-slate-500">{fmtDate(x.at, true)}</span> · <span className="font-medium text-slate-800">{x.kind}</span>
+                    <span className="block truncate">{x.href ? <Link href={x.href} className="text-[#1d4f91] no-underline hover:underline">{x.text}</Link> : x.text}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="py-6 text-center text-[14px] text-slate-600">No compliance activity in the last 14 days.</p>}
+          </section>
+
+          <section aria-labelledby="quick-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
+            <h2 id="quick-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Quick actions</h2>
+            <ul className="mt-2 grid gap-1.5">
+              {quickActions.map(([href, label]) => (
+                <li key={href}><Link href={href} className="flex h-[38px] items-center justify-between rounded-[4px] border border-slate-200 px-3 text-[14px] text-slate-800 no-underline hover:border-[#1f5fd1] hover:text-[#0646b1]">{label}<ArrowRight size={14} aria-hidden="true" /></Link></li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        <section aria-labelledby="recent-heading" className="relative mt-[10px] rounded-[3px] bg-white px-1.5 pb-4 pt-3">
+          <h2 id="recent-heading" className="absolute left-[15px] top-3 text-[17px] font-normal tracking-normal text-slate-800">Recently published</h2>
           <ul className="flex flex-wrap justify-end gap-x-[18px] gap-y-1 pr-2.5 text-[14px] text-slate-700" aria-label="Status key">
             <li className="flex items-center gap-[7px]"><StatusMark status="signed" />Affirmed</li>
             <li className="flex items-center gap-[7px]"><StatusMark status="unread" />Unread</li>
@@ -133,7 +164,7 @@ export default async function Dashboard() {
           <div className="mt-4 flex justify-center"><Link href="/policies" className="flex h-[35px] w-[141px] items-center justify-center rounded-[6px] border-[1.5px] border-slate-500 text-[14px] text-slate-800 no-underline hover:border-navy-900">View All ({updatedRecently})</Link></div>
         </section>
 
-        <div className="mt-[17px] grid gap-3 md:grid-cols-2">
+        <div className="mt-[10px] grid gap-3">
           <section aria-labelledby="reading-heading" className="relative flex min-h-[308px] flex-col rounded-[3px] bg-white px-[15px] pt-3">
             <h2 id="reading-heading" className="text-[17px] font-normal tracking-normal text-slate-800">My Reading List</h2>
             <div className="mt-[62px] flex justify-between px-2.5 text-center">
@@ -147,21 +178,6 @@ export default async function Dashboard() {
             <div className="mt-auto flex justify-center pb-6"><Link href="/acknowledgements" className="flex h-[35px] w-[110px] items-center justify-center rounded-[6px] border-[1.5px] border-slate-500 text-[14px] text-slate-800 no-underline hover:border-navy-900">View all</Link></div>
           </section>
 
-          <section aria-labelledby="month-heading" className="relative flex min-h-[308px] flex-col overflow-hidden rounded-[4px] border-[1.5px] border-teal-400 bg-teal-100 px-[15px] pt-4">
-            <h2 id="month-heading" className="text-[19px] font-normal tracking-normal text-navy-900">Monthly Highlights</h2>
-            <div className="mt-2 flex flex-wrap items-start justify-center gap-4 lg:justify-end lg:pr-[220px] xl:pr-[260px]">
-              <Link href="/changes" aria-label="Open the regulatory updates" className="block w-[298px] rounded-[2px] bg-white no-underline px-[15px] py-[14px] shadow-[0_1px_3px_rgb(0_0_0/0.08)]">
-                <div className="relative h-[147px] overflow-hidden bg-navy-900 text-white" aria-hidden="true">
-                  <div className="absolute inset-0 bg-teal-500 [clip-path:polygon(0_0,100%_0,45%_100%,0_100%)]" />
-                  <span className="absolute left-3.5 top-3 text-[11px] font-bold text-navy-900">CSB</span>
-                  <span className="absolute left-3.5 top-[48px] text-[21px] font-bold leading-tight">CSB Monthly</span>
-                  <span className="absolute left-3.5 top-[76px] text-[13px] font-bold">Regulatory Update</span>
-                  <span className="absolute bottom-2 right-2 rounded-full bg-white px-2 py-0.5 text-[9px] font-bold text-navy-900">{month}</span>
-                </div>
-              </Link>
-            </div>
-            <div className="mt-2 flex justify-center pb-5 lg:justify-end lg:pr-[296px] xl:pr-[336px]"><Link href="/changes" className="flex h-9 w-[146px] items-center justify-center rounded-[6px] border-[1.5px] border-slate-500 bg-white text-[14px] text-slate-800 no-underline hover:border-navy-900">View updates</Link></div>
-          </section>
         </div>
       </div>
 

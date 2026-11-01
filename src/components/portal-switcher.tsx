@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CaretDown, List, MapPin, SignOut, Swap, X } from "@phosphor-icons/react";
 import { portalForPath, type Portal } from "@/lib/portals";
-import { mostSpecificActive, splitHref } from "@/lib/navigation";
+import { activeEntryHref, splitHref } from "@/lib/navigation";
 import { MOTION } from "@/lib/motion";
 import { usePendingHref } from "@/components/navigation-progress";
 
@@ -12,6 +12,8 @@ export type ShellItem = {
   href: string;
   label: string;
   icon: React.ReactNode;
+  /** Other addresses that belong to this entry (a workspace's tabs), so the entry stays lit on them. */
+  match?: string[];
   planned?: boolean;
   /** Starts a labelled group of pages in the sidebar. */
   group?: string;
@@ -58,10 +60,10 @@ function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: 
   const ordered = [...portals].sort((a, b) => rank(a.id) - rank(b.id));
   const currentId = portalForPath(target.path);
   const shownId = portalForPath(path);
-  const hrefs = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned).map((i) => i.href);
+  const entries = Object.values(items).flatMap((x) => x ?? []).filter((i) => !i.planned);
   // Only the most specific matching entry is highlighted, so "/rota" (dashboard) is not lit on "/rota/visits".
-  const activeHref = mostSpecificActive(hrefs, target.path, target.params);
-  const shownHref = mostSpecificActive(hrefs, path, params);
+  const activeHref = activeEntryHref(entries, target.path, target.params);
+  const shownHref = activeEntryHref(entries, path, params);
 
   // When the module changes, the old module's pages fold away while the new one's open; on first paint nothing moves.
   const [sections, setSections] = useState({ open: currentId, closing: null as string | null, moved: false });

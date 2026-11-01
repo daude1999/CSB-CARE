@@ -7,8 +7,11 @@ const PILL: Record<StatusKey, string> = {
   not_approved: "bg-[#eef0f3] text-[#4a5564]",
   draft: "bg-[#f1ecfb] text-[#5b3fa8]",
   under_review: "bg-[#e4f0fe] text-[#0454d8]",
+  approved: "bg-[#e3f4f4] text-[#0e6b6b]",
   review_due: "bg-[#fef1d7] text-[#b2510d]",
   overdue: "bg-[#fde4e4] text-[#b42318]",
+  template: "bg-[#eef0f3] text-[#4a5564]",
+  archived: "bg-[#f1f1f1] text-[#5a5a5a]",
 };
 
 const TIP: Record<StatusKey, string> = {
@@ -16,8 +19,11 @@ const TIP: Record<StatusKey, string> = {
   not_approved: "CSB starter text that your organisation has not yet approved",
   draft: "Not yet published",
   under_review: "A revision has been submitted and is waiting for a decision",
+  approved: "The revision has been approved and is waiting to be published",
   review_due: "The next review is due within 60 days",
   overdue: "The review date has passed",
+  template: "CSB starter text. Adopt it and take it through your own review and approval before staff rely on it",
+  archived: "Withdrawn from use; kept for the record",
 };
 
 export function StatusPill({ status, className = "" }: { status: StatusKey; className?: string }) {

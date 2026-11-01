@@ -17,6 +17,24 @@ export function mostSpecificActive(hrefs: string[], path: string, params: URLSea
   return hrefs.filter((h) => isActiveHref(h, path, params)).sort((a, b) => b.length - a.length)[0];
 }
 
+/** A sidebar entry that also stands for other pages: a workspace whose tabs live at their own, older addresses. */
+export type NavEntry = { href: string; match?: string[] };
+
+/**
+ * The entry to light for an address. An entry matches by its own address or by any of its `match` prefixes; the most
+ * specific match wins, so a workspace that owns "/changes" is lit on "/changes/abc" while "/" stays the dashboard only.
+ */
+export function activeEntryHref(entries: NavEntry[], path: string, params: URLSearchParams): string | undefined {
+  let best: { href: string; len: number } | undefined;
+  for (const e of entries) {
+    for (const pattern of [e.href, ...(e.match ?? [])]) {
+      if (!isActiveHref(pattern, path, params)) continue;
+      if (!best || pattern.length > best.len) best = { href: e.href, len: pattern.length };
+    }
+  }
+  return best?.href;
+}
+
 /** Addresses that are files or APIs, never pages: clicking them downloads something and the page stays put. */
 const NOT_PAGES = /^\/(api|pdfjs|brand|hr\/hr-|_next)\//;
 

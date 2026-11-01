@@ -34,7 +34,60 @@ async function scan(buf: Buffer): Promise<"CLEAN" | "INFECTED" | "NOT_SCANNED"> 
 
 export async function uploadEvidence(ctx: Ctx, file: { name: string; type: string; bytes: Buffer }, meta: { description?: string; linkedType?: string; linkedId?: string }) {
   const orgId = requireOrgPermission(ctx, "evidence.upload");
+  if (meta.linkedType || meta.linkedId) {
+    // The record must exist in the caller's own organisation: evidence can never be attached to another tenant's record.
+    if (!meta.linkedType || !meta.linkedId || !isLinkType(meta.linkedType)) throw new ValidationError("Choose the record this evidence supports");
+    await resolveLinks(orgId, [{ linkedType: meta.linkedType, linkedId: meta.linkedId }]).then((m) => {
+      if (!m.has(linkKey(meta.linkedType!, meta.linkedId!))) throw new NotFoundError("Linked record");
+    });
+  }
   return storeEvidenceFile(orgId, ctx.userId, file, meta);
+}
+
+/** The compliance records evidence can support. Missed-call evidence is attached from its own case page. */
+export const LINK_TYPES = { POLICY: "Policy", AUDIT: "Audit", AUDIT_ANSWER: "Audit question", FINDING: "Audit finding", ACTION: "Corrective action", RISK: "Risk" } as const;
+export type LinkType = keyof typeof LINK_TYPES;
+export const isLinkType = (t: string): t is LinkType => t in LINK_TYPES;
+const linkKey = (type: string, id: string) => `${type}:${id}`;
+
+export interface EvidenceLink { type: string; typeLabel: string; label: string; href: string | null }
+
+/**
+ * Names and addresses of the records evidence is linked to, looked up only inside the organisation. A link to a record
+ * that no longer exists (or never belonged to the organisation) is simply not returned.
+ */
+export async function resolveLinks(orgId: string, docs: { linkedType: string | null; linkedId: string | null }[]): Promise<Map<string, EvidenceLink>> {
+  const ids = (t: string) => [...new Set(docs.filter((d) => d.linkedType === t && d.linkedId).map((d) => d.linkedId!))];
+  const [policies, audits, answers, findings, actions, risks, missed] = await Promise.all([
+    ids("POLICY").length ? db.policy.findMany({ where: { id: { in: ids("POLICY") }, organisationId: orgId }, select: { id: true, ref: true, title: true } }) : [],
+    ids("AUDIT").length ? db.audit.findMany({ where: { id: { in: ids("AUDIT") }, organisationId: orgId }, select: { id: true, title: true } }) : [],
+    ids("AUDIT_ANSWER").length ? db.auditAnswer.findMany({ where: { id: { in: ids("AUDIT_ANSWER") }, audit: { organisationId: orgId } }, select: { id: true, auditId: true, question: { select: { text: true, position: true } }, audit: { select: { title: true } } } }) : [],
+    ids("FINDING").length ? db.auditFinding.findMany({ where: { id: { in: ids("FINDING") }, organisationId: orgId }, select: { id: true, auditId: true, description: true } }) : [],
+    ids("ACTION").length ? db.complianceAction.findMany({ where: { id: { in: ids("ACTION") }, organisationId: orgId }, select: { id: true, title: true } }) : [],
+    ids("RISK").length ? db.complianceRisk.findMany({ where: { id: { in: ids("RISK") }, organisationId: orgId }, select: { id: true, ref: true, title: true } }) : [],
+    ids("MISSED_CALL").length ? db.missedCallCase.findMany({ where: { id: { in: ids("MISSED_CALL") }, organisationId: orgId }, select: { id: true } }) : [],
+  ]);
+  const out = new Map<string, EvidenceLink>();
+  const put = (type: string, id: string, label: string, href: string | null) => out.set(linkKey(type, id), { type, typeLabel: type === "MISSED_CALL" ? "Missed call" : LINK_TYPES[type as LinkType], label, href });
+  for (const p of policies) put("POLICY", p.id, `${p.ref} ${p.title}`, `/policies/${p.id}`);
+  for (const a of audits) put("AUDIT", a.id, a.title, `/audits/${a.id}`);
+  for (const a of answers) put("AUDIT_ANSWER", a.id, `${a.audit.title}: question ${a.question.position + 1}`, `/audits/${a.auditId}#q-${a.id}`);
+  for (const f of findings) put("FINDING", f.id, f.description.slice(0, 90), `/audits/${f.auditId}#findings`);
+  for (const a of actions) put("ACTION", a.id, a.title, `/actions/${a.id}`);
+  for (const r of risks) put("RISK", r.id, `${r.ref} ${r.title}`, `/compliance/risks/${r.id}`);
+  for (const m of missed) put("MISSED_CALL", m.id, "Missed call case", `/rota/missed/${m.id}`);
+  return out;
+}
+
+export function linkFor(map: Map<string, EvidenceLink>, d: { linkedType: string | null; linkedId: string | null }) {
+  return d.linkedType && d.linkedId ? (map.get(linkKey(d.linkedType, d.linkedId)) ?? null) : null;
+}
+
+/** Evidence attached to some records of one type, for showing beside those records. Needs evidence.read. */
+export async function evidenceFor(ctx: Ctx, type: LinkType, ids: string[]) {
+  const orgId = requireOrgPermission(ctx, "evidence.read");
+  if (!ids.length) return [];
+  return db.evidenceDocument.findMany({ where: { organisationId: orgId, linkedType: type, linkedId: { in: ids } }, orderBy: { createdAt: "desc" }, select: { id: true, filename: true, linkedId: true, scanStatus: true, createdAt: true, sizeBytes: true } });
 }
 
 /**

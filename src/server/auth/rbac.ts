@@ -30,6 +30,9 @@ export const ORG_PERMISSIONS = {
   "action.manage": ["COMPLIANCE_LEAD", "ORG_ADMIN"],
   "evidence.upload": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR"],
   "evidence.read": ["COMPLIANCE_LEAD", "ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER"],
+  /** The organisational risk register (src/server/compliance/risks.ts). */
+  "risk.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "POLICY_APPROVER"],
+  "risk.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"],
   "staff.view": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   /** Assign policies to staff, exempt, record assessments and correct acknowledgements. */
   "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],

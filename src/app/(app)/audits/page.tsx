@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ComplianceTabs } from "@/components/compliance-nav";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -24,12 +25,12 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const average = scores.length ? Math.round(scores.reduce((n, x) => n + x, 0) / scores.length) : null;
   return (
     <>
-      <PageHeader eyebrow="Care operations · internal audit" title="Audits & Inspections" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
+      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="audits" />} eyebrow="Care operations · internal audit" title="Audits & Improvements" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
       <Flash searchParams={sp} />
       <StatRow>
         <Stat label="Audits" value={audits.length} hint="Recorded so far" tone="violet" />
         <Stat label="In Progress" value={audits.filter((a) => a.status === "IN_PROGRESS").length} hint="Still being completed" tone="amber" />
-        <Stat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Fully answered audits only" tone="green" />
+        <Stat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Internal indicator, not a CQC rating" tone="green" />
         <Stat label="Findings" value={audits.reduce((n, a) => n + a._count.findings, 0)} hint="Raised by audits" tone="rose" href="/actions" />
       </StatRow>
       <div className="grid gap-3 lg:grid-cols-3">

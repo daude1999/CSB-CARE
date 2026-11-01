@@ -15,6 +15,7 @@ export type RequirementRow = {
   lastVerified: string | null;
   policies: number;
   auditQuestions: number;
+  training: number;
   simulated: boolean;
 };
 
@@ -87,8 +88,8 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
         header: "Coverage",
         sortDescFirst: true,
         cell: (c) => (
-          <div className="w-36">
-            <div className="flex items-baseline justify-between text-xs"><span className="text-slate-700">{c.getValue()} {c.getValue() === 1 ? "policy" : "policies"}</span><span className="text-slate-400">{c.row.original.auditQuestions} audit Qs</span></div>
+          <div className="w-44">
+            <div className="flex items-baseline justify-between text-xs"><span className="text-slate-700">{c.getValue()} {c.getValue() === 1 ? "policy" : "policies"}</span><span className="text-slate-500">{c.row.original.auditQuestions} audit Qs · {c.row.original.training} training</span></div>
             <div className="mt-1 h-[6px] rounded-full bg-slate-200"><div className={`h-full rounded-full ${c.getValue() ? "bg-[#3289f8]" : ""}`} style={{ width: `${(c.getValue() / maxPolicies) * 100}%` }} /></div>
           </div>
         ),

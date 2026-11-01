@@ -161,6 +161,12 @@
   .ov-cta { @apply mx-4 mb-3 mt-2.5 flex h-[36px] items-center justify-between rounded-[7px] border bg-white px-3.5 text-[13.5px] font-semibold hover:bg-[#fafbfc]; }
   .ov-preview { @apply mx-3 mt-3 h-[122px] overflow-hidden rounded-[8px] border border-[#e8ebf0] bg-white; }
   .ov-hero { background: #0b2a4a; box-shadow: 0 1px 2px rgb(11 21 48 / 0.08); }
+  /* Policy & Compliance workspace tabs, under a page's title bar (src/components/compliance-nav.tsx). */
+  .ws-tabs { @apply flex overflow-x-auto border-b border-[#e3e6ec] bg-white px-[8px]; scrollbar-width: thin; }
+  .ws-tab { @apply relative flex h-[44px] shrink-0 items-center whitespace-nowrap px-[14px] text-[14px] text-[#2b3b52] no-underline hover:text-[#0b1530]; }
+  .ws-tab[aria-current="page"] { color: #030825; font-weight: 600; }
+  .ws-tab[aria-current="page"]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 3px; background: var(--module, #1f5fd1); border-radius: 2px 2px 0 0; }
+  .ws-tab:focus-visible { outline: 2px solid #0369d5; outline-offset: -2px; border-radius: 4px; }
   .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
