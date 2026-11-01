@@ -22,7 +22,7 @@ import { visitReference } from "./visits";
  */
 
 type Tx = Prisma.TransactionClient;
-export const ROLL_WEEKS = [1, 2, 4] as const;
+export const ROLL_WEEKS = [1, 2, 3, 4] as const;
 export type RollWeeks = (typeof ROLL_WEEKS)[number];
 
 export interface RolledSlot {
@@ -82,7 +82,7 @@ const nameOf = (su: { firstName: string; lastName: string; preferredName: string
 export function parseRollInput(input: { sourceWeek: string; targetWeek: string; weeks: number }) {
   const sourceWeek = parseWeek(input.sourceWeek);
   const targetWeek = parseWeek(input.targetWeek);
-  if (!ROLL_WEEKS.includes(input.weeks as RollWeeks)) throw new ValidationError("Roll forward 1, 2 or 4 weeks");
+  if (!ROLL_WEEKS.includes(input.weeks as RollWeeks)) throw new ValidationError("Roll forward 1, 2, 3 or 4 weeks");
   if (targetWeek <= sourceWeek) throw new ValidationError("The new rota must start after the week you copy from");
   if (targetWeek < mondayOf(londonDate())) throw new ValidationError("The new rota cannot start in a week that has finished");
   return { sourceWeek, targetWeek, weeks: input.weeks as RollWeeks };

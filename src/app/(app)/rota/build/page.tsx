@@ -60,7 +60,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
       planError = e.message;
     }
   }
-  // Roll Forward: copy a built week into the next 1, 2 or 4 weeks as drafts.
+  // Roll Forward: copy a built week into the next 1, 2, 3 or 4 weeks as drafts.
   const builtWeeks = [...new Set(builds.filter((b) => b.status === "BUILT").map((b) => b.weekStart))].sort().reverse();
   const rollFrom = (() => {
     const f = one("from");
