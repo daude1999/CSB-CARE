@@ -9,6 +9,7 @@ import { missedMedsCount } from "@/server/care/medication";
 import { storeEvidenceFile } from "@/server/compliance/evidence";
 import { eligibilityFor } from "@/server/workforce/eligibility";
 import { exceptionDeadline } from "./exceptions";
+import { countedOnce } from "./overview";
 import { deriveFlags, suName } from "./queries";
 import { rotaScope, visitWhere, type Scope } from "./scope";
 import { rotaSettings } from "./settings";
@@ -60,7 +61,7 @@ export const OUTCOMES: Record<string, { label: string; delivered: boolean }> = {
 
 export const STAGE_LABEL: Record<MissedCallStage, string> = { NEW: "New", INVESTIGATING: "Investigating", AWAITING_SIGNOFF: "Awaiting sign-off", CLOSED: "Closed" };
 
-const OPEN_STAGES: MissedCallStage[] = ["NEW", "INVESTIGATING", "AWAITING_SIGNOFF"];
+export const OPEN_STAGES: MissedCallStage[] = ["NEW", "INVESTIGATING", "AWAITING_SIGNOFF"];
 
 // ── Opening cases ────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ export async function syncMissedCases(organisationId?: string) {
 
 // ── Scope ────────────────────────────────────────────────────────────────
 
-function caseScope(scope: Scope): Prisma.MissedCallCaseWhereInput {
+export function caseScope(scope: Scope): Prisma.MissedCallCaseWhereInput {
   // A case without an area is judged by its visit (and so its service user), so it cannot cross branches.
   return scope.areaIds ? { organisationId: scope.organisationId, AND: [{ OR: [{ areaId: { in: scope.areaIds } }, { areaId: null, visit: visitWhere(scope) }] }] } : { organisationId: scope.organisationId };
 }
@@ -127,11 +128,11 @@ async function guardedUpdate(tx: Db, id: string, lockVersion: number | undefined
   if (!r.count) throw new ConflictError("Someone else changed this missed call while you were working on it. Reload the page and try again.");
 }
 
-function requireOpen(c: { stage: MissedCallStage }, allowed: MissedCallStage[] = ["NEW", "INVESTIGATING"]) {
+export function requireOpen(c: { stage: MissedCallStage }, allowed: MissedCallStage[] = ["NEW", "INVESTIGATING"]) {
   if (!allowed.includes(c.stage)) throw new ConflictError(c.stage === "CLOSED" ? "This case is closed. Reopen it first." : "This case is waiting for a manager's sign-off. Ask a manager to send it back first.");
 }
 
-const nextStage = (s: MissedCallStage): MissedCallStage => (s === "NEW" ? "INVESTIGATING" : s);
+export const nextStage = (s: MissedCallStage): MissedCallStage => (s === "NEW" ? "INVESTIGATING" : s);
 
 // ── Filters, KPIs and the register ───────────────────────────────────────
 
@@ -287,11 +288,13 @@ export async function missedCallRegister(ctx: Ctx, input: Record<string, string 
   // The four call rings for the same period and branch, as on the Monitor.
   const visits = await db.visit.findMany({
     where: { AND: [visitWhere(scope), branchAreas ? { areaId: { in: branchAreas } } : {}], date: { gte: dbDate(range.from), lte: dbDate(range.to) }, status: { not: "CANCELLED" } },
-    select: { id: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { select: { slot: true, removedAt: true, reviewReason: true } } },
+    select: { id: true, recoveryOfId: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { select: { slot: true, removedAt: true, reviewReason: true } } },
   });
+  // A recovery visit booked for a missed call in the same period is the same care need: count it once.
+  const counted = countedOnce(visits);
   const rings = {
-    total: visits.length,
-    complete: visits.filter((v) => v.status === "COMPLETED").length,
+    total: counted.length,
+    complete: counted.filter((v) => v.status === "COMPLETED").length,
     late: visits.filter((v) => v.status !== "MISSED" && deriveFlags(v, settings, now).late).length,
     missed: visits.filter((v) => v.status === "MISSED").length,
     missedMeds: await missedMedsCount(scope.organisationId, visits.map((v) => v.id)),

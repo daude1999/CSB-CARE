@@ -86,7 +86,17 @@ export function deliveryState(status: string): "completed" | "inProgress" | "due
  * The five headline figures, shared by the Rota Dashboard and the Daily Rota so the two always agree. Cancelled visits
  * must already be left out. Unassigned means at least one carer slot is empty; late excludes visits marked missed.
  */
-export function visitKpis(visits: { status: string; flags: { unassignedSlots: number; late: boolean } }[]) {
+/**
+ * Leaves out a recovery visit (booked through Find Cover for a missed call) when the missed visit it recovers is in the
+ * same list, so one care need is counted once and the missed visit stays counted as missed.
+ */
+export function countedOnce<T extends { id: string; recoveryOfId?: string | null }>(visits: T[]): T[] {
+  const ids = new Set(visits.map((v) => v.id));
+  return visits.filter((v) => !(v.recoveryOfId && ids.has(v.recoveryOfId)));
+}
+
+export function visitKpis(all: { id: string; recoveryOfId?: string | null; status: string; flags: { unassignedSlots: number; late: boolean } }[]) {
+  const visits = countedOnce(all);
   const total = visits.length;
   const pct = (n: number) => (total ? Math.round((n / total) * 1000) / 10 : 0);
   const completed = visits.filter((v) => v.status === "COMPLETED").length;

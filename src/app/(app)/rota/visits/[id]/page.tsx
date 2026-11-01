@@ -19,6 +19,7 @@ import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, ass
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
+import { recoveryLinks } from "@/server/rota/missed-cover";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "First carer", SEC
 const STATE_LABEL = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", UPDATED: "Visit changed", CANCELLED: "Visit cancelled", REINSTATED: "Visit reinstated",
-  SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded",
+  SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded", RECOVERY_BOOKED: "Recovery visit booked through Find Cover",
 };
 
 export default async function VisitPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -58,6 +59,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const canDecideRequests = hasOrgPermission(ctx, "rota.clockCorrect");
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
+  const recovery = await recoveryLinks(ctx, v.id);
 
   return (
     <>
@@ -67,6 +69,12 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
         subtitle={`Visit ${v.reference} on ${fmtLondonDate(date)}. Changing the time re-checks every carer on it; a carer who cannot do the new time stops the change.`}
       />
       <Flash searchParams={sp} />
+      {recovery.recoveryOf ? (
+        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-[14px]">Recovery visit for missed call <Link href={`/rota/visits/${recovery.recoveryOf.id}`}>{recovery.recoveryOf.reference}</Link>{recovery.recoveryOf.missedCallCase ? <> · <Link href={`/rota/missed/${recovery.recoveryOf.missedCallCase.id}`}>open the investigation</Link></> : null}. It has its own attendance and care records; the missed visit stays recorded as missed.</p>
+      ) : null}
+      {recovery.recoveries.length ? (
+        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-[14px]">Recovery {recovery.recoveries.length === 1 ? "visit" : "visits"} booked: {recovery.recoveries.map((r, i) => <span key={r.id}>{i ? ", " : ""}<Link href={`/rota/visits/${r.id}`}>{r.reference}</Link> ({londonTime(r.scheduledStart)}, {r.status.toLowerCase().replace("_", " ")})</span>)}.</p>
+      ) : null}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-3">
           <Card title="Visit">

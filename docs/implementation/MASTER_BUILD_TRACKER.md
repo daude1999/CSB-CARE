@@ -1,5 +1,12 @@
 # Master build tracker — five-module CSB CRM
 
+## Find Cover inside Missed Calls, phase 1 (1 Nov 2026)
+
+The owner's "Build smart replacement cover inside Missed Calls" brief. Phase 1, the single-visit workflow, is built: a Find
+Cover slide-out panel on `/rota/missed` and on each case books an eligible carer on a linked recovery visit through the
+one assignment path. Phase 2 (whole-day sickness cover) is not built yet. Design, rules, test matrix and limits:
+`MISSED_CALLS_FIND_COVER.md`.
+
 ## Rota Dashboard and Daily Rota Live List, modernised OnePlan style (1 Nov 2026)
 
 The owner changed direction at 23:39 on 31 Oct and approved two images. `/rota` is now the OnePlan-style dashboard (call

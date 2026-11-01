@@ -3,7 +3,7 @@
 import type { AssignmentSlot } from "@prisma/client";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
-import { handle, str } from "./action-kit";
+import { handle, safeBack, str } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
@@ -35,6 +35,7 @@ import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
 import { reconcileWorkforce } from "@/server/workforce/projection";
 import { requireOrgPermission } from "@/server/auth/rbac";
+import { confirmCover, recordServiceUserInformed } from "@/server/rota/missed-cover";
 import { addCaseComment, addCaseEvidence, addFollowUp, assignCoordinator, bulkMissed, completeFollowUp, escalateMissedCase, recordReason, recordReplacement, reopenMissedCase, signOffMissedCase, submitForSignOff } from "@/server/rota/missed-calls";
 
 /** Server actions for Rostering & Care Management. Each reads FormData, calls one domain function and redirects back. */
@@ -939,6 +940,28 @@ export async function missedBulkAction(fd: FormData) {
     const r = await bulkMissed(ctx, ids(fd, "ids"), action, { coordinatorId: str(fd, "coordinatorId") || undefined, note: str(fd, "note") || undefined });
     return { ok: `${r.done} ${action === "assign" ? "assigned" : "escalated"}${r.skipped.length ? `, ${r.skipped.length} skipped (${[...new Set(r.skipped)].slice(0, 2).join("; ")})` : ""}` };
   }, "Done");
+}
+
+/** Find Cover: books the chosen carer on a linked recovery visit, then opens the panel's result step. */
+export async function coverConfirmAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const rank = Number(str(fd, "rank"));
+    const source = str(fd, "source") === "MANUAL" ? "MANUAL" : "RECOMMENDED";
+    const r = await confirmCover(ctx, str(fd, "caseId"), {
+      staffId: str(fd, "staffId"), date: str(fd, "date"), time: str(fd, "time"), source,
+      rank: str(fd, "rank") && Number.isInteger(rank) ? rank : undefined,
+      suggested: fd.getAll("suggested").filter((v): v is string => typeof v === "string").slice(0, 3),
+      acknowledged: fd.getAll("ack").filter((v): v is string => typeof v === "string"),
+      warningReason: str(fd, "warningReason") || undefined,
+      seenRecoveryId: str(fd, "seenRecoveryId"),
+    });
+    const to = safeBack(fd.get("done"), "/rota/missed");
+    return { to, ok: `Cover booked: ${r.staffName} on ${r.reference}.${r.stillNeeded ? ` ${r.stillNeeded} more carer needed.` : ""}` };
+  }, "Cover booked");
+}
+
+export async function coverInformedAction(fd: FormData) {
+  return handle(fd, (ctx) => recordServiceUserInformed(ctx, str(fd, "caseId"), { status: str(fd, "status"), note: str(fd, "note") || undefined }), "Saved");
 }
 
 // Generate & Optimise. A plan is a draft: nothing on the rota changes until accepted changes are applied.

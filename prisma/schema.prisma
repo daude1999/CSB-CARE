@@ -1986,12 +1986,18 @@ model Visit {
   correctionRequests ClockCorrectionRequest[]
   marRecords         MarRecord[]
   missedCallCase     MissedCallCase?
+  /// Set on a recovery visit booked through Find Cover for a missed visit. The missed visit keeps its own status and history.
+  recoveryOfId       String?
+  recoveryOf         Visit?                   @relation("VisitRecovery", fields: [recoveryOfId], references: [id])
+  recoveries         Visit[]                  @relation("VisitRecovery")
+  coversBooked       MissedCallCover[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, date])
   @@index([organisationId, status, date])
   @@index([serviceUserId, date])
   @@index([templateId, date])
+  @@index([recoveryOfId])
 }
 
 enum AssignmentSlot {
@@ -2319,17 +2325,17 @@ model StaffPayRate {
 }
 
 model FinanceSettings {
-  organisationId       String    @id
-  defaultPayRateCardId String?
-  payBasis             TimeBasis @default(ACTUAL)
-  mileagePencePerMile  Int       @default(45)
-  invoicePrefix        String    @default("INV")
-  nextInvoiceNumber    Int       @default(1)
+  organisationId        String    @id
+  defaultPayRateCardId  String?
+  payBasis              TimeBasis @default(ACTUAL)
+  mileagePencePerMile   Int       @default(45)
+  invoicePrefix         String    @default("INV")
+  nextInvoiceNumber     Int       @default(1)
   /// Employer on-costs (employer National Insurance, pension, holiday accrual) added to pay in rota cost estimates,
   /// as a whole percentage. An assumption set by the organisation; never used for payroll.
-  estimateOnCostPercent Int      @default(0)
-  updatedById          String?
-  updatedAt            DateTime  @updatedAt
+  estimateOnCostPercent Int       @default(0)
+  updatedById           String?
+  updatedAt             DateTime  @updatedAt
 }
 
 enum TimesheetStatus {
@@ -2976,11 +2982,17 @@ model MissedCallCase {
   signOffNote           String?
   reopenedAt            DateTime?
   reopenReason          String?
+  /// Whether the service user or their representative has been told about the cover: INFORMED | REPRESENTATIVE_INFORMED | NOT_YET | COULD_NOT_REACH.
+  suInformedStatus      String?
+  suInformedNote        String?
+  suInformedById        String?
+  suInformedAt          DateTime?
   lockVersion           Int                 @default(1)
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   actions               MissedCallAction[]
   comments              MissedCallComment[]
+  covers                MissedCallCover[]
 
   @@index([organisationId, scheduledStart])
   @@index([organisationId, stage])
@@ -3095,4 +3107,44 @@ model RotaPlanChange {
 
   @@index([planId, position])
   @@index([organisationId, visitId])
+}
+
+/// One replacement carer booked through Find Cover for a missed call: the recovery visit and slot they were booked into,
+/// what the eligibility service said at confirmation, which warnings the coordinator accepted and why, and whether the
+/// carer was told in-app. Append-only; the visit and its assignment remain the authoritative booking.
+model MissedCallCover {
+  id                String         @id @default(cuid())
+  organisationId    String
+  caseId            String
+  case              MissedCallCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  /// RECOVERY_VISIT: a new linked visit, because the original visit window has passed.
+  method            String         @default("RECOVERY_VISIT")
+  recoveryVisitId   String
+  recoveryVisit     Visit          @relation(fields: [recoveryVisitId], references: [id], onDelete: Cascade)
+  slot              AssignmentSlot
+  assignmentId      String
+  /// Who was booked on the missed visit (snapshot; null = nobody).
+  originalStaffId   String?
+  staffId           String
+  proposedStart     DateTime
+  proposedEnd       DateTime
+  /// RECOMMENDED (one of the top three) or MANUAL (staff search).
+  source            String
+  recommendedRank   Int?
+  /// The top three carers shown when cover was confirmed.
+  suggestedStaffIds String[]       @default([])
+  eligibility       String
+  /// The safety checks as the server judged them at confirmation: [{label, state, text}].
+  checks            Json           @default("[]")
+  warningsAccepted  String[]       @default([])
+  warningReason     String?
+  confirmedById     String
+  confirmedAt       DateTime       @default(now())
+  /// IN_APP: an in-app notification was created for the carer's linked sign-in. NO_SIGN_IN: the carer has no linked sign-in.
+  notifyStatus      String
+  notificationId    String?
+
+  @@index([caseId])
+  @@index([organisationId, staffId])
+  @@index([recoveryVisitId])
 }

@@ -141,7 +141,7 @@ export function weekDates(monday: string) {
 }
 
 /** The staff a branch- or area-limited member may allocate (null = anyone in the organisation). */
-async function allocatableStaffIds(scope: Scope): Promise<string[] | null> {
+export async function allocatableStaffIds(scope: Scope): Promise<string[] | null> {
   if (!scope.areaIds && !scope.branchIds) return null;
   return (await db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true } })).map((s) => s.id);
 }
@@ -152,10 +152,18 @@ export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUser
   const others = visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId);
   const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
   const allowed = await allocatableStaffIds(scope);
-  const ranked = await rankCarers(db, scope.organisationId, { start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, allowed ?? undefined);
-  const list = ranked.filter((r) => !others.includes(r.result.staffId));
-  const facts = await loadMatchFacts(db, scope.organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: visit.id, serviceUserId: visit.serviceUserId, start: visit.scheduledStart, end: visit.scheduledEnd });
-  return orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd }, facts))));
+  return slotCandidates(scope.organisationId, { visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd, timeLocked: visit.timeLocked, careTaskIds, otherSlotStaffIds: others }, slot, allowed ?? undefined);
+}
+
+/**
+ * The ranking behind visitCandidates for any time window, including a visit that does not exist yet (a recovery visit
+ * for a missed call): the eligibility service judges everyone, then the match score orders the people it allows.
+ */
+export async function slotCandidates(organisationId: string, v: { visitId: string | null; serviceUserId: string; areaId: string | null; start: Date; end: Date; timeLocked: boolean; careTaskIds: string[]; otherSlotStaffIds: string[] }, slot: AssignmentSlot, staffIds?: string[]) {
+  const ranked = await rankCarers(db, organisationId, { start: v.start, end: v.end, slot, visitId: v.visitId, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds: v.careTaskIds }, staffIds);
+  const list = ranked.filter((r) => !v.otherSlotStaffIds.includes(r.result.staffId));
+  const facts = await loadMatchFacts(db, organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: v.visitId, serviceUserId: v.serviceUserId, start: v.start, end: v.end });
+  return orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: v.areaId, start: v.start, end: v.end }, facts))));
 }
 
 type Ranked = Awaited<ReturnType<typeof rankCarers>>[number];
