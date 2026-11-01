@@ -8,7 +8,18 @@ import { mostSpecificActive, splitHref } from "@/lib/navigation";
 import { MOTION } from "@/lib/motion";
 import { usePendingHref } from "@/components/navigation-progress";
 
-export type ShellItem = { href: string; label: string; icon: React.ReactNode; planned?: boolean; /** Starts a labelled group of pages in the sidebar. */ group?: string };
+export type ShellItem = {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  planned?: boolean;
+  /** Starts a labelled group of pages in the sidebar. */
+  group?: string;
+  /** Set on a group's first page to make its heading a button that folds the group; "closed" starts it folded. */
+  fold?: "open" | "closed";
+  /** The page sits in a folded list with this name at the end of its group (for example "More rota tools"). */
+  more?: string;
+};
 export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };
 export type ShellOrganisation = { name: string; branch: string | null; options: { id: string; name: string }[]; currentId: string | null };
@@ -108,16 +119,54 @@ function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: 
   );
 }
 
-/** One module's pages, with a single marker on the guide line that glides to the active page. */
+type PageGroup = { name?: string; fold?: "open" | "closed"; rows: ShellItem[]; more: { name: string; rows: ShellItem[] } | null };
+
+/** Splits a module's flat page list into its groups, each with the pages of its folded "More" list kept apart. */
+export function groupPages(pages: ShellItem[]): PageGroup[] {
+  const out: PageGroup[] = [];
+  for (const p of pages) {
+    if (p.group || !out.length) out.push({ name: p.group, fold: p.fold, rows: [], more: null });
+    const g = out[out.length - 1]!;
+    if (p.more) (g.more ??= { name: p.more, rows: [] }).rows.push(p);
+    else g.rows.push(p);
+  }
+  return out;
+}
+
+const hasPage = (rows: ShellItem[], href?: string) => Boolean(href) && rows.some((r) => !r.planned && r.href === href);
+
+/**
+ * One module's pages, with a single marker on the guide line that glides to the active page. Groups that opt in
+ * (fold) get a heading button that opens and folds them; a group, or its "More" list, always opens when it holds the
+ * page being opened, so the current page is never hidden.
+ */
 function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]; activeHref?: string; shownHref?: string; accent: string }) {
   const list = useRef<HTMLUListElement>(null);
   const marker = useRef<HTMLLIElement>(null);
   const placed = useRef(false);
+  const groups = groupPages(pages);
+  // Only the person's own clicks are remembered; everything else follows the group's default and the open page.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const [seenActive, setSeenActive] = useState(activeHref);
+  if (seenActive !== activeHref) {
+    // Moving to another page re-opens whatever holds it, even if the person folded it earlier.
+    setSeenActive(activeHref);
+    const keep = { ...toggled };
+    for (const g of groups) {
+      if (g.name && hasPage([...g.rows, ...(g.more?.rows ?? [])], activeHref)) delete keep[g.name];
+      if (g.name && g.more && hasPage(g.more.rows, activeHref)) delete keep[`${g.name}/more`];
+    }
+    setToggled(keep);
+  }
+  const isOpen = (key: string, byDefault: boolean, holdsActive: boolean) => toggled[key] ?? (byDefault || holdsActive);
+  const flip = (key: string, now: boolean) => setToggled((t) => ({ ...t, [key]: !now }));
+
   useLayoutEffect(() => {
     const m = marker.current;
     const row = activeHref ? list.current?.querySelector<HTMLElement>('[data-nav-active="true"]') : null;
     if (!m) return;
-    if (!row) {
+    // A row inside a folded group has no layout box: hide the marker rather than point at nothing.
+    if (!row || row.offsetParent === null) {
       m.style.opacity = "0";
       return;
     }
@@ -131,32 +180,65 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
       m.style.transition = "";
       placed.current = true;
     }
-  }, [activeHref, pages]);
+  }, [activeHref, pages, toggled]);
+
   return (
     <ul ref={list} className="relative ml-[8px] space-y-px border-l border-white/[0.14] pl-[6px]">
-      {pages.map((i) => {
-        const heading = i.group ? <li key={`g-${i.group}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{i.group}</li> : null;
-        const row = renderItem(i);
-        return heading ? [heading, row] : row;
+      {groups.map((g, n) => {
+        const all = [...g.rows, ...(g.more?.rows ?? [])];
+        if (!g.fold) {
+          const heading = g.name ? <li key={`g-${g.name}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{g.name}</li> : null;
+          return [heading, ...all.map(renderItem)];
+        }
+        const name = g.name ?? `group-${n}`;
+        const open = isOpen(name, g.fold === "open", hasPage(all, activeHref));
+        const id = `nav-group-${slug(name)}`;
+        return (
+          <li key={`g-${name}`} className="first:[&>button]:pt-[2px]">
+            <button type="button" aria-expanded={open} aria-controls={id} onClick={() => flip(name, open)} data-nav-group={name} className="flex w-full items-center rounded-[4px] px-[7px] pb-[2px] pt-[9px] text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/60 hover:text-white">
+              <span className="min-w-0 flex-1 truncate">{g.name}</span>
+              <CaretDown size={10} weight="bold" aria-hidden="true" className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+            </button>
+            <ul id={id} hidden={!open} className="space-y-px">
+              {g.rows.map(renderItem)}
+              {g.more && g.more.rows.length ? renderMore(name, g.more) : null}
+            </ul>
+          </li>
+        );
       })}
       {/* Last, so it never shifts the rows' spacing or the first heading's "first:" style. */}
       <li ref={marker} aria-hidden="true" className="shell-marker" style={{ background: `color-mix(in srgb, ${accent} 45%, #ffffff)` }} />
     </ul>
   );
 
+  function renderMore(group: string, more: { name: string; rows: ShellItem[] }) {
+    const key = `${group}/more`;
+    const open = isOpen(key, false, hasPage(more.rows, activeHref));
+    const id = `nav-more-${slug(group)}`;
+    return (
+      <li>
+        <button type="button" aria-expanded={open} aria-controls={id} onClick={() => flip(key, open)} data-nav-more={more.name} className="shell-page w-full text-left italic text-white/70">
+          <CaretDown size={10} weight="bold" aria-hidden="true" className={`w-[14px] shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
+          <span className="min-w-0 truncate">{more.name} ({more.rows.length})</span>
+        </button>
+        <ul id={id} hidden={!open} className="space-y-px">{more.rows.map(renderItem)}</ul>
+      </li>
+    );
+  }
+
   function renderItem(i: ShellItem) {
     if (i.planned)
       return (
-        <li key={i.label} className="shell-page cursor-default text-white/45">
+        <li key={i.label} className="shell-page h-auto cursor-default py-[4px] text-white/45" title={`${i.label}: planned, not built yet`}>
           <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
-          <span className="min-w-0 truncate">{i.label}</span>
-          <span className="ml-auto shrink-0 text-[10px]">Planned</span>
+          {/* Two lines, so the page's full name stays readable in the narrow sidebar. */}
+          <span className="min-w-0 leading-[14px]"><span className="block truncate">{i.label}</span><span className="block text-[10px] leading-[12px] text-white/40">Planned</span></span>
         </li>
       );
     const active = i.href === activeHref;
     return (
       <li key={i.href}>
-        <Link href={i.href} data-nav-active={active ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} className={`shell-page ${active ? "shell-page-active" : ""}`}>
+        <Link href={i.href} data-nav-active={active ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} title={i.label} className={`shell-page ${active ? "shell-page-active" : ""}`}>
           <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
           <span className="min-w-0 truncate">{i.label}</span>
         </Link>
@@ -164,6 +246,8 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
     );
   }
 }
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 /** The organisation card: switching is offered only when the person belongs to more than one organisation. */
 function OrganisationCard({ org, switchAction }: { org: ShellOrganisation; switchAction: (fd: FormData) => Promise<void> }) {

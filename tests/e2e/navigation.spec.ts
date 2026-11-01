@@ -177,6 +177,37 @@ test.describe("Sidebar", () => {
     await expect(currentPage(page)).toHaveText("The Monitor");
   });
 
+  test("the Rota menu follows OnePlan's sections: extra pages fold away, open by click or keyboard, and the current page is never hidden", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota");
+    const nav = sidebar(page);
+    const headings = await nav.locator("[data-nav-group]").evaluateAll((els) => els.map((e) => e.getAttribute("data-nav-group")));
+    expect(headings).toEqual(["Rota", "Templates", "Users", "Invoicing/Wages", "Reports", "Settings", "Help & Training"]);
+    await expect(nav.getByRole("link", { name: "Build Rota" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Weekly Planner" })).toBeHidden();
+    await expect(nav.getByRole("link", { name: "Invoicing" })).toBeHidden();
+    await expect(nav.getByText("Preference Manager")).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Preference Manager" })).toHaveCount(0);
+
+    // Opened with the keyboard: the heading is a real button that says whether it is open.
+    const more = nav.getByRole("button", { name: /More rota tools/ });
+    await expect(more).toHaveAttribute("aria-expanded", "false");
+    await more.focus();
+    await page.keyboard.press("Enter");
+    await expect(more).toHaveAttribute("aria-expanded", "true");
+    await expect(nav.getByRole("link", { name: "Weekly Planner" })).toBeVisible();
+    await nav.getByRole("button", { name: "Rota", exact: true }).click();
+    await expect(nav.getByRole("link", { name: "Daily Rota" })).toBeHidden();
+
+    // A page inside a folded group opens that group, with the marker on it.
+    await page.goto("/rota/finance/rates?tab=holidays");
+    await expect(currentPage(page)).toHaveText("Bank Holidays");
+    await expect(nav.getByRole("button", { name: "Invoicing/Wages" })).toHaveAttribute("aria-expanded", "true");
+    await page.goto("/rota/missed");
+    await expect(currentPage(page)).toHaveText("Missed Calls");
+    await expect(nav.getByRole("link", { name: "Missed Calls" })).toBeVisible();
+  });
+
   test("switching module folds the old pages and opens the new ones; the old list is unreachable while it folds", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
@@ -305,7 +336,7 @@ test.describe("Loading and slow pages", () => {
     await expect(page.getByTestId("nav-progress")).toHaveAttribute("data-phase", "loading");
     // The chosen page is shown as selected at once; assistive technology still hears about the page on screen.
     await expect(sidebar(page).locator('[data-nav-active="true"]')).toHaveText("Daily Rota");
-    await expect(currentPage(page)).toHaveText("Rota Dashboard");
+    await expect(currentPage(page)).toHaveText("Rota Home");
     await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
     // After a moment a placeholder in the page's shape takes over; the old page is hidden, not thrown away.
     await expect(page.getByTestId("page-skeleton")).toBeVisible();
@@ -330,7 +361,7 @@ test.describe("Loading and slow pages", () => {
     await page.getByTestId("nav-slow").getByRole("button", { name: "Dismiss" }).click();
     await expect(page.getByTestId("nav-slow")).toHaveCount(0);
     await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
-    await expect(currentPage(page)).toHaveText("Rota Dashboard");
+    await expect(currentPage(page)).toHaveText("Rota Home");
   });
 
   test("a form shows it is working until the server answers, and never before", async ({ page }) => {
