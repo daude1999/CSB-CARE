@@ -21,13 +21,14 @@ describe("the HR Hub inside the platform shell", () => {
     expect(crossesHubEdge("/rota", "/overview")).toBe(false);
   });
 
-  it("lists the HR Hub's screens in the side menu in its original order, with workforce pages only for HR accounts", () => {
+  it("lists the HR Hub's screens in the side menu in its original order (Recruitment added under People), with workforce and recruitment pages only for HR accounts", () => {
     const i = { size: 15 };
     expect(hrItems(ctx({ hrUserId: "admin" }), i).map((x) => x.label)).toEqual([
-      "HR Dashboard", "People", "My Tasks", "Compliance", "Documents", "Training", "Holidays & Sickness", "Availability", "Branches", "Alerts", "Settings",
+      "HR Dashboard", "People", "My Tasks", "Recruitment", "Compliance", "Documents", "Training", "Holidays & Sickness", "Availability", "Branches", "Alerts", "Settings",
     ]);
     const withoutHr = hrItems(ctx({}), i);
     expect(withoutHr.map((x) => x.label)).not.toContain("Availability");
+    expect(withoutHr.map((x) => x.label)).not.toContain("Recruitment");
     // Every group still opens with its heading.
     expect(withoutHr.filter((x) => x.group).map((x) => x.group)).toEqual(["Home", "People", "HR Management", "Organisation"]);
   });

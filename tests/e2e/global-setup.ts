@@ -7,4 +7,5 @@ export default function setup() {
   // PRISMA_JS_ENGINE=1: environments without Prisma's native engines reset through plain SQL (see prisma.config.ts).
   execSync(process.env.PRISMA_JS_ENGINE === "1" ? "node scripts/local-migrate.mjs --reset" : "npx prisma migrate reset --force --skip-generate --skip-seed", { stdio: "inherit", env });
   execSync("npx tsx prisma/seed.ts", { stdio: "inherit", env });
+  execSync("npx tsx prisma/seed-recruitment.ts", { stdio: "inherit", env });
 }
