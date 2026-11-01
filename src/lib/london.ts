@@ -136,3 +136,8 @@ export function fmtLondonDate(date: string, opts: Intl.DateTimeFormatOptions = {
 }
 
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+
+/** The Overview header's clock: "Sun, 1 Nov 2026" and "20:15" in London, whichever side of a clock change. */
+export function londonClock(d: Date = new Date()) {
+  return { date: fmtLondonDate(londonDate(d)), time: londonTime(d) };
+}

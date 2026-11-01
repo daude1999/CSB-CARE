@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, cycleWeekOf, hhmm, isoWeekday, londonDate, londonMinute, londonToUtc, mondayOf, parseHhmm } from "@/lib/london";
+import { addDays, cycleWeekOf, hhmm, isoWeekday, londonClock, londonDate, londonMinute, londonToUtc, mondayOf, parseHhmm } from "@/lib/london";
 
 describe("Europe/London wall-clock times", () => {
   it("converts winter (GMT) and summer (BST) times to the right instant", () => {
@@ -36,5 +36,18 @@ describe("Europe/London wall-clock times", () => {
     expect(parseHhmm("24:00")).toBeNull();
     expect(parseHhmm("7.30")).toBeNull();
     expect(hhmm(425)).toBe("07:05");
+  });
+});
+
+describe("Overview header clock", () => {
+  it("shows the London date and 24-hour time on both sides of a clock change", () => {
+    // Winter (GMT): London matches UTC.
+    expect(londonClock(new Date("2026-11-01T20:15:00Z"))).toEqual({ date: "Sun, 1 Nov 2026", time: "20:15" });
+    // Summer (BST): London is an hour ahead, so 23:30 UTC is already the next day.
+    expect(londonClock(new Date("2026-07-15T23:30:00Z"))).toEqual({ date: "Thu, 16 Jul 2026", time: "00:30" });
+    // The night the clocks went back (25 Oct 2026, 02:00 BST becomes 01:00 GMT).
+    expect(londonClock(new Date("2026-10-25T00:30:00Z")).time).toBe("01:30");
+    expect(londonClock(new Date("2026-10-25T01:30:00Z")).time).toBe("01:30");
+    expect(londonClock(new Date("2026-10-25T02:30:00Z")).time).toBe("02:30");
   });
 });

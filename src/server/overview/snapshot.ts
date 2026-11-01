@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { addDays, dbDate, londonDate, londonMinute } from "@/lib/london";
+import { addDays, dbDate, londonDate } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { branchWhere, memberScope, serviceUserWhere, visitWhere, type Scope } from "@/server/rota/scope";
 
@@ -18,12 +18,6 @@ export interface DailySeries {
   days: { date: string; value: number }[];
 }
 
-export interface RotaBoardRow {
-  staffId: string;
-  name: string;
-  visits: { start: number; end: number; status: string }[];
-}
-
 /** The Rostering figures and previews on the Overview. Null when the person may not see the rota. */
 export interface RotaSnapshot {
   completedToday: number;
@@ -33,9 +27,11 @@ export interface RotaSnapshot {
   missedTrend: Trend;
   completedSeries: DailySeries;
   missedSeries: DailySeries;
-  /** Up to three carers with the most visits today, for the planner preview. */
-  board: RotaBoardRow[];
-  boardWindow: { start: number; end: number };
+  /**
+   * Carers booked on at least one of today's visits that is still going ahead (not cancelled or not delivered),
+   * shadow shifts excluded: the Rota Dashboard's "staff on duty".
+   */
+  staffOnRota: number;
 }
 
 const DAYS = 7;
@@ -61,7 +57,7 @@ export async function rotaSnapshot(ctx: Ctx, now = new Date()): Promise<RotaSnap
     db.visit.count({ where: { ...where, date: dbDate(yesterday), status: "MISSED", statusChangedAt: { lte: sameTimeYesterday } } }),
     db.visit.findMany({
       where: { ...where, date: dbDate(today), status: { notIn: ["CANCELLED"] } },
-      select: { status: true, scheduledStart: true, scheduledEnd: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staff: { select: { id: true, displayName: true, preferredName: true } } } } },
+      select: { status: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staff: { select: { id: true } } } } },
     }),
   ]);
 
@@ -74,21 +70,7 @@ export async function rotaSnapshot(ctx: Ctx, now = new Date()): Promise<RotaSnap
   });
   const count = (status: string) => todays.filter((v) => v.status === status).length;
 
-  const carers = new Map<string, RotaBoardRow>();
-  for (const v of todays) {
-    const start = londonMinute(v.scheduledStart);
-    const end = Math.max(start + 15, londonMinute(v.scheduledEnd) || 1440);
-    for (const a of v.assignments) {
-      const row = carers.get(a.staff.id) ?? { staffId: a.staff.id, name: a.staff.preferredName ?? a.staff.displayName, visits: [] };
-      row.visits.push({ start, end, status: v.status });
-      carers.set(a.staff.id, row);
-    }
-  }
-  const board = [...carers.values()].sort((a, b) => b.visits.length - a.visits.length || a.name.localeCompare(b.name)).slice(0, 3);
-  const minutes = board.flatMap((r) => r.visits.flatMap((v) => [v.start, v.end]));
-  const boardWindow = minutes.length
-    ? { start: Math.floor(Math.min(...minutes) / 60) * 60, end: Math.min(1440, Math.ceil(Math.max(...minutes) / 60) * 60) }
-    : { start: 7 * 60, end: 22 * 60 };
+  const onRota = new Set(todays.filter((v) => v.status !== "NOT_DELIVERED").flatMap((v) => v.assignments.map((a) => a.staff.id)));
 
   return {
     completedToday: count("COMPLETED"),
@@ -98,8 +80,7 @@ export async function rotaSnapshot(ctx: Ctx, now = new Date()): Promise<RotaSnap
     missedTrend: { today: count("MISSED"), yesterday: missedByNowYesterday, upIsGood: false },
     completedSeries: series("COMPLETED"),
     missedSeries: series("MISSED"),
-    board,
-    boardWindow,
+    staffOnRota: onRota.size,
   };
 }
 

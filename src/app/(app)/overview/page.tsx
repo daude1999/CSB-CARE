@@ -6,7 +6,7 @@ import { dashboardMetrics } from "@/server/reports/metrics";
 import { REPORTS } from "@/server/reports/tables";
 import { hrHeadline, hrPeoplePreview, type HrPersonStatus } from "@/server/hr/summary";
 import { rotaHeadline } from "@/server/rota/summary";
-import { activeServiceUsers, activeStaff, rotaSnapshot, signOffSeries, type DailySeries, type RotaBoardRow, type Trend } from "@/server/overview/snapshot";
+import { rotaSnapshot, signOffSeries } from "@/server/overview/snapshot";
 import { employeeRoute } from "@/hr/lib/routes";
 import { ModuleGrid, OverviewBanner, OverviewChart, type ChartSeries } from "@/components/overview-ui";
 import { arrange, overviewOrder } from "@/server/overview/layout";
@@ -15,8 +15,8 @@ import { Flash } from "@/components/ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 import type { Portal, PortalId } from "@/lib/portals";
 import {
-  ArrowDown, ArrowRight, ArrowSquareOut, ArrowUp, Bell, Buildings, CalendarBlank, CalendarDots, CalendarPlus, CaretRight, ChartBar, CheckCircle, ClipboardText,
-  ClockCounterClockwise, FilePlus, FileText, Gear, GearSix, IdentificationBadge, ShieldCheck, UserCirclePlus, UserPlus, Users, UsersThree, WarningCircle,
+  ArrowRight, ArrowSquareOut, Bell, Buildings, CalendarBlank, CalendarDots, CalendarPlus, CaretRight, ChartBar, CheckCircle, ClipboardText,
+  ClockCounterClockwise, FilePlus, FileText, Gear, GearSix, IdentificationBadge, UserCirclePlus, UserPlus, UsersThree, WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
@@ -24,72 +24,6 @@ export const dynamic = "force-dynamic";
 type Figure = [number, string];
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-
-/* ── Top row: organisation card and figures ─────────────────────────────── */
-
-function Sparkline({ series, colour }: { series: DailySeries; colour: string }) {
-  const values = series.days.map((d) => d.value);
-  const max = Math.max(1, ...values);
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 44},${16 - (v / max) * 14}`).join(" ");
-  return (
-    <svg aria-hidden="true" viewBox="-1 -1 46 20" className="h-[18px] w-[40px] shrink-0" fill="none">
-      <polyline points={pts} stroke={colour} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function TrendLine({ trend, series }: { trend: Trend; series: DailySeries }) {
-  const diff = trend.today - trend.yesterday;
-  const good = diff === 0 ? null : (diff > 0) === trend.upIsGood;
-  const colour = good === null ? "#6b7585" : good ? "#15803d" : "#c62828";
-  const pct = trend.yesterday ? Math.round((Math.abs(diff) / trend.yesterday) * 100) : null;
-  const words = diff === 0 ? "same as this time yesterday" : `${diff > 0 ? "up" : "down"} ${pct === null ? Math.abs(diff) : `${pct}%`} on this time yesterday`;
-  return (
-    <span className="flex items-center justify-between gap-1" title={`Today so far: ${trend.today}. Same time yesterday: ${trend.yesterday}.`}>
-      <span className="flex items-center gap-0.5 whitespace-nowrap text-[10.5px] font-semibold" style={{ color: colour }}>
-        {diff > 0 ? <ArrowUp size={11} weight="bold" aria-hidden="true" /> : diff < 0 ? <ArrowDown size={11} weight="bold" aria-hidden="true" /> : null}
-        <span aria-hidden="true">{pct === null ? (diff ? `${diff > 0 ? "+" : "−"}${Math.abs(diff)}` : "0%") : `${pct}%`}</span>
-        <span aria-hidden="true" className="font-normal text-[#7a8494]">vs yday</span>
-        <span className="sr-only">{words}</span>
-      </span>
-      <Sparkline series={series} colour={good === false ? "#e05252" : "#22a35a"} />
-    </span>
-  );
-}
-
-interface StatSpec {
-  key: string;
-  value: number;
-  label: string;
-  href: string;
-  /** HR Hub pages load as a full page. */
-  external?: boolean;
-  icon: React.ReactNode;
-  colour: string;
-  tint: string;
-  trend?: { trend: Trend; series: DailySeries };
-  /** Shown where there is no day-by-day history to compare against. */
-  where: string;
-}
-
-function StatTile({ s }: { s: StatSpec }) {
-  const body = (
-    <>
-      <span aria-hidden="true" className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px]" style={{ background: s.tint, color: s.colour }}>{s.icon}</span>
-      <span className="mt-1.5 block text-[20px] font-bold leading-[24px] text-[#0b1530]">{s.value}</span>
-      <span className="block min-h-[28px] text-[11px] leading-[14px] text-[#4f5b6c]">{s.label}</span>
-      <span className="mt-auto block pt-1.5">
-        {s.trend ? <TrendLine {...s.trend} /> : <span className="flex items-center gap-1 whitespace-nowrap text-[10.5px] text-[#6b7585]"><span className="truncate">{s.where}</span><ArrowRight size={10} aria-hidden="true" className="shrink-0" /></span>}
-      </span>
-    </>
-  );
-  const cls = "ov-stat flex h-full flex-col rounded-[10px] border border-[#e8ebf0] bg-white px-2.5 pb-2 pt-2.5 text-inherit hover:border-[#c9d3e1]";
-  return (
-    <li data-testid={`stat-${s.key}`}>
-      {s.external ? <a href={s.href} className={cls}>{body}</a> : <Link href={s.href} className={cls}>{body}</Link>}
-    </li>
-  );
-}
 
 /* ── Module cards ───────────────────────────────────────────────────────── */
 
@@ -101,6 +35,8 @@ interface CardSpec {
   figures: Figure[];
   note?: string;
   preview: React.ReactNode;
+  /** The Rostering card shows its figures in place of a preview drawing, without the preview frame. */
+  bare?: boolean;
 }
 
 function ModuleLink({ portal, className, style, label, children }: { portal: Portal; className: string; style?: React.CSSProperties; label?: string; children: React.ReactNode }) {
@@ -119,7 +55,7 @@ function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {
           <ArrowSquareOut size={18} aria-hidden="true" />
         </ModuleLink>
       </div>
-      <div className="ov-preview">{spec.preview}</div>
+      <div className={spec.bare ? "ov-rota-figures" : "ov-preview"}>{spec.preview}</div>
       <div className="flex flex-1 gap-3 px-4 pt-2.5">
         <ul className="min-w-0 flex-1 space-y-[3px]">
           {spec.items.map((i) => (
@@ -129,13 +65,15 @@ function ModuleCard({ spec, n }: { spec: CardSpec; n: number }) {
             </li>
           ))}
         </ul>
-        <div className="flex w-[118px] shrink-0 flex-col justify-center gap-1.5 border-l border-[#eef0f3] pl-3">
-          {spec.figures.length ? spec.figures.map(([v, label]) => (
-            <p key={label} className="whitespace-nowrap text-[11.5px] leading-[13px] text-[#4f5b6c]">
-              <span className="block text-[19px] font-bold leading-[21px]" style={{ color: portal.colour }}>{v}</span>{label}
-            </p>
-          )) : <p className="text-[11.5px] text-[#4f5b6c]">{spec.note}</p>}
-        </div>
+        {spec.figures.length || spec.note ? (
+          <div className="flex w-[118px] shrink-0 flex-col justify-center gap-1.5 border-l border-[#eef0f3] pl-3">
+            {spec.figures.length ? spec.figures.map(([v, label]) => (
+              <p key={label} className="whitespace-nowrap text-[11.5px] leading-[13px] text-[#4f5b6c]">
+                <span className="block text-[19px] font-bold leading-[21px]" style={{ color: portal.colour }}>{v}</span>{label}
+              </p>
+            )) : <p className="text-[11.5px] text-[#4f5b6c]">{spec.note}</p>}
+          </div>
+        ) : null}
       </div>
       <ModuleLink portal={portal} className="ov-cta" style={{ color: portal.colour, borderColor: `${portal.colour}88`, background: portal.tint }}>
         <span>Open {portal.name}</span>
@@ -176,48 +114,36 @@ function PolicyPreview({ colour, published, total }: { colour: string; published
   );
 }
 
-const VISIT_COLOURS: Record<string, string> = { SCHEDULED: "#8b6fe0", IN_PROGRESS: "#1f78d1", COMPLETED: "#1f9d6b", MISSED: "#d64545", NOT_DELIVERED: "#9aa3b2" };
-
-function hhmm(min: number) {
-  return `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:00`;
+interface RotaFigure {
+  key: string;
+  value: number;
+  /** The label, with an optional second line so narrow tiles break in a sensible place. */
+  label: [string, string?];
+  href: string;
+  icon: React.ReactNode;
+  colour: string;
+  tint: string;
 }
 
-/** Today's planner for the three busiest carers, drawn from real visits. */
-function RotaPreview({ board, window }: { board: RotaBoardRow[]; window: { start: number; end: number } }) {
-  if (!board.length) return <p className="flex h-full items-center justify-center px-4 text-center text-[12.5px] text-[#5f6b7a]">No carers are booked on visits today.</p>;
-  const span = Math.max(60, window.end - window.start);
-  const hours = Math.max(1, Math.round(span / 60));
-  const step = hours > 10 ? 3 : hours > 5 ? 2 : 1;
-  const marks = Array.from({ length: Math.floor(hours / step) + 1 }, (_, i) => window.start + i * step * 60);
+/**
+ * Today's rota in five figures, in place of a planner drawing. Each is counted from today's visits within the person's
+ * branch and area grants, with the Rota Dashboard's definitions, and opens the page it was counted from.
+ */
+function RotaFigures({ figures }: { figures: RotaFigure[] }) {
   return (
-    <div className="flex h-full flex-col px-3 py-2" role="img" aria-label={`Today's rota for ${board.map((r) => `${r.name}, ${r.visits.length} visits`).join("; ")}`}>
-      <div className="flex text-[9.5px] text-[#7a8494]" aria-hidden="true">
-        <span className="w-[86px] shrink-0 font-medium text-[#3a4658]">Today</span>
-        <span className="relative h-3 flex-1">
-          {marks.map((m) => <span key={m} className="absolute -translate-x-1/2" style={{ left: `${((m - window.start) / span) * 100}%` }}>{hhmm(m)}</span>)}
-        </span>
-      </div>
-      <div className="mt-1 flex min-h-0 flex-1 flex-col justify-around" aria-hidden="true">
-        {board.map((r) => (
-          <div key={r.staffId} className="flex items-center">
-            <span className="flex w-[86px] shrink-0 items-center gap-1.5 pr-1">
-              <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[#ede8fb] text-[8.5px] font-bold text-[#5b3bb5]">{initials(r.name)}</span>
-              <span className="truncate text-[10.5px] text-[#2f3d52]">{r.name.split(" ")[0]}</span>
+    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-6" data-testid="rota-figures">
+      {figures.map((f, i) => (
+        <li key={f.key} className={i < 3 ? "sm:col-span-2" : i === figures.length - 1 && figures.length % 2 ? "col-span-2 sm:col-span-3" : "sm:col-span-3"}>
+          <Link href={f.href} data-testid={`rota-figure-${f.key}`} className="flex h-full min-h-[60px] items-center gap-2 rounded-[9px] border border-[#ebe7f6] bg-[#fbfaff] px-2 py-2 hover:border-[#d9d1f1] hover:bg-[#f6f3fe]">
+            <span aria-hidden="true" className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full" style={{ background: f.tint, color: f.colour }}>{f.icon}</span>
+            <span className="min-w-0">
+              <span className="block text-[21px] font-bold leading-[24px] text-[#0b1530]">{f.value}</span>
+              <span className="block text-[11px] leading-[14px] text-[#3a4658]">{f.label[0]}{f.label[1] ? <> <br className="hidden sm:inline" />{f.label[1]}</> : null}</span>
             </span>
-            <span className="relative h-[16px] flex-1 rounded-[3px] bg-[repeating-linear-gradient(90deg,#f1f3f7_0,#f1f3f7_1px,transparent_1px,transparent_12.5%)]">
-              {r.visits.map((v, i) => (
-                <span key={i} className="absolute top-[2px] h-[12px] rounded-[3px]" style={{ left: `${((v.start - window.start) / span) * 100}%`, width: `${Math.max(1.5, ((v.end - v.start) / span) * 100)}%`, background: VISIT_COLOURS[v.status] ?? "#8b6fe0" }} />
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="flex shrink-0 gap-3 text-[9.5px] leading-[12px] text-[#5f6b7a]">
-        {(["SCHEDULED", "COMPLETED", "MISSED"] as const).map((s) => (
-          <span key={s} className="flex items-center gap-1"><span aria-hidden="true" className="h-[7px] w-[7px] rounded-[2px]" style={{ background: VISIT_COLOURS[s] }} />{s === "SCHEDULED" ? "Planned" : s === "COMPLETED" ? "Completed" : "Missed"}</span>
-        ))}
-      </p>
-    </div>
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -271,8 +197,10 @@ function AdminPreview({ links }: { links: { href: string; label: string; icon: R
 /* ── The page ───────────────────────────────────────────────────────────── */
 
 /**
- * The Overview: the organisation's figures for today, quick actions, one card per module this person may open with a
- * preview drawn from real records, and the items that need attention. Every figure is counted from the database.
+ * The Overview (owner-approved design, 1 Nov 2026): quick actions, one card per module this person may open with a
+ * preview drawn from real records, and the items that need attention. The header (logo, date and time, the signed-in
+ * person) is drawn by the app layout. There is deliberately no row of figures above the cards: each module's figures
+ * sit in its own card. Every figure is counted from the database.
  */
 export default async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await requirePortal("overview");
@@ -282,17 +210,14 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const portals = new Map(portalsFor(ctx).map((p) => [p.id, p] as const));
   const has = (id: PortalId) => portals.has(id);
   const orgId = ctx.organisationId;
-  const [m, hr, people, branches, rotaFigures, rota, serviceUsers, staff, signOffs, org, policyCounts] = await Promise.all([
+  const [m, hr, people, branches, rotaFigures, rota, signOffs, policyCounts] = await Promise.all([
     has("policy") ? dashboardMetrics(ctx) : null,
     has("hr") ? hrHeadline(ctx) : null,
     has("hr") ? hrPeoplePreview(ctx) : null,
     has("admin") && orgId ? db.branch.count({ where: { organisationId: orgId } }) : null,
     has("rota") ? rotaHeadline(ctx) : null,
     has("rota") ? rotaSnapshot(ctx) : null,
-    has("rota") ? activeServiceUsers(ctx) : null,
-    activeStaff(ctx),
     signOffSeries(ctx),
-    orgId ? db.organisation.findUnique({ where: { id: orgId }, select: { name: true } }) : null,
     has("policy") && orgId
       ? Promise.all([db.policy.count({ where: { organisationId: orgId } }), db.policy.count({ where: { organisationId: orgId, status: "ACTIVE" } })])
       : null,
@@ -310,19 +235,6 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const amber = { colour: "#c2410c", tint: "#fff1e6" };
   const red = { colour: "#c62828", tint: "#fdecec" };
   const slate = { colour: "#4b5666", tint: "#eef0f3" };
-  const pink = { colour: "#c0267a", tint: "#fde9f3" };
-
-  const stats: StatSpec[] = [];
-  if (serviceUsers !== null) stats.push({ key: "service-users", value: serviceUsers, label: "Active Service Users", href: "/rota/service-users", icon: <Users size={17} weight="fill" />, ...purple, where: "Service Users" });
-  if (rota) {
-    stats.push({ key: "completed", value: rota.completedToday, label: "Visits Completed Today", href: "/rota/visits", icon: <CheckCircle size={17} weight="fill" />, ...green, trend: { trend: rota.completedTrend, series: rota.completedSeries }, where: "Daily Rota" });
-    stats.push({ key: "pending", value: rota.pendingToday, label: "Pending Visits Today", href: "/rota/visits", icon: <CalendarBlank size={17} weight="fill" />, ...amber, where: "Daily Rota" });
-    stats.push({ key: "missed", value: rota.missedToday, label: "Missed Visits Today", href: "/rota/monitor", icon: <WarningCircle size={17} weight="fill" />, ...red, trend: { trend: rota.missedTrend, series: rota.missedSeries }, where: "The Monitor" });
-  }
-  if (staff !== null) stats.push({ key: "staff", value: staff, label: "Active Staff", href: "/rota/staff", icon: <IdentificationBadge size={17} weight="fill" />, colour: "#1565c0", tint: "#e8f1fc", where: "Team Members" });
-  if (m) stats.push({ key: "policies-overdue", value: m.overdueReviews, label: "Policy Reviews Overdue", href: "/policies?quick=overdue", icon: <FileText size={17} weight="fill" />, ...pink, where: "Policy Library" });
-  if (hr && hrPortal) stats.push({ key: "checks-overdue", value: hr.overdue, label: "HR Checks Overdue", href: hrPortal.home, external: true, icon: <ShieldCheck size={17} weight="fill" />, ...blue, where: "HR & Workforce" });
-  if (branches !== null) stats.push({ key: "branches", value: branches, label: "Total Branches", href: can("org.manage") ? "/admin/branches" : "/settings", icon: <Buildings size={17} weight="fill" />, ...slate, where: "Branches" });
 
   const actions: { label: string; href: string; icon: React.ReactNode; colour: string; tint: string; external?: boolean }[] = [];
   if (policy && can("policy.author")) actions.push({ label: "Create Policy", href: "/policies/new", icon: <FilePlus size={17} />, ...blue });
@@ -343,11 +255,23 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     });
   }
   if (rotaPortal) {
+    // The five figures follow the Rota Dashboard's definitions. "Missed" counts only visits confirmed as missed, never a
+    // visit that is merely late or still waiting for a clock-in; "unassigned" matches the Needs your attention row.
+    const figures: RotaFigure[] = rota && rotaFigures
+      ? [
+          { key: "completed", value: rota.completedToday, label: ["Visits completed", "today"], href: "/rota/visits", icon: <CheckCircle size={16} weight="fill" />, ...green },
+          { key: "pending", value: rota.pendingToday, label: ["Pending visits", "today"], href: "/rota/visits", icon: <CalendarBlank size={16} weight="fill" />, ...amber },
+          { key: "missed", value: rota.missedToday, label: ["Missed visits", "today"], href: "/rota/monitor", icon: <WarningCircle size={16} weight="fill" />, ...red },
+          { key: "unassigned", value: rotaFigures.unassignedToday, label: ["Unassigned visits today"], href: "/rota/visits?view=unassigned", icon: <UsersThree size={16} weight="fill" />, ...purple },
+          { key: "staff", value: rota.staffOnRota, label: ["Active staff on rota"], href: "/rota/staff", icon: <IdentificationBadge size={16} weight="fill" />, colour: "#1565c0", tint: "#edf4fd" },
+        ]
+      : [];
     cards.push({
       key: "rota", portal: rotaPortal, icon: <CalendarDots size={22} />,
       items: ["Service users, care plans and risks", "Templates, Build Rota and the planner", "Live call monitoring and carer mobile", "Timesheets, invoicing and payroll preparation"],
-      figures: rotaFigures ? [[rotaFigures.visitsToday, "visits today"], [rotaFigures.unassignedToday, "unassigned"]] : [], note: "Open your visits.",
-      preview: rota ? <RotaPreview board={rota.board} window={rota.boardWindow} /> : <p className="flex h-full items-center justify-center px-4 text-center text-[12.5px] text-[#5f6b7a]">Open your visits in My Visits.</p>,
+      figures: [], note: figures.length ? undefined : "Open your visits.",
+      bare: figures.length > 0,
+      preview: figures.length ? <RotaFigures figures={figures} /> : <p className="flex h-full items-center justify-center px-4 text-center text-[12.5px] text-[#5f6b7a]">Open your visits in My Visits.</p>,
     });
   }
   if (hrPortal) {
@@ -410,27 +334,11 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   const ordered = ctx.organisationId ? arrange(cards.map((c) => c.key), savedOrder).flatMap((k) => cards.filter((c) => c.key === k)) : cards;
 
-  const orgName = org?.name.replace(/\s+\(DEMO\)$/i, "") ?? "CSB platform administration";
-
   return (
     <div className="ov-root">
-      <div className="space-y-2.5 px-4 pb-6 pt-3 md:px-[16px]">
+      <div className="space-y-2.5 px-4 pb-6 pt-4 md:px-[16px]">
         <Flash searchParams={sp} />
         <AutoRefresh seconds={60} />
-        <section aria-label="Today at a glance" className="flex flex-col gap-3 xl:flex-row">
-          <div className="ov-hero flex shrink-0 flex-col justify-center rounded-[12px] px-[18px] py-3 text-white xl:w-[252px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/csb-monogram-on-dark.png" alt="" className="h-[36px] w-fit" width={356} height={180} />
-            <h1 className="mt-2 font-sans text-[19px] font-semibold leading-[24px] tracking-[-0.01em] text-white" style={{ fontFamily: "inherit" }}>{orgName}</h1>
-            <p className="mt-1 text-[12.5px] leading-[16px] text-white/[0.82]">Integrated care management across policy, workforce, service users, monitoring and compliance.</p>
-          </div>
-          {stats.length ? (
-            <ul className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-4 2xl:grid-cols-8 xl:grid-cols-4" data-testid="overview-stats">
-              {stats.map((s) => <StatTile key={s.key} s={s} />)}
-            </ul>
-          ) : null}
-        </section>
-
         <nav aria-label="Quick actions" className="flex flex-col gap-2 rounded-[10px] border border-[#e8ebf0] bg-white p-[5px] lg:flex-row lg:items-center">
           <h2 className="shrink-0 whitespace-nowrap px-3 text-[14px] font-semibold text-[#0b1530]">Quick Actions</h2>
           <ul className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:flex">

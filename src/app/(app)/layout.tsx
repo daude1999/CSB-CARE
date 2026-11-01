@@ -14,6 +14,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { complianceItems } from "@/components/compliance-nav";
 import { HelpMenu } from "@/components/help-menu";
+import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-header";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
@@ -89,6 +90,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initials = ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("");
   const me = memberships.find((m) => m.organisationId === ctx.organisationId);
   const roleName = me?.jobTitle ?? (me?.roles[0] ? ROLE_NAMES[me.roles[0]] : ctx.platformRoles[0] ? ROLE_NAMES[ctx.platformRoles[0]] : "Member");
+  // The CSB brand leads the Overview header; a customer organisation's own name sits beneath it.
+  const overviewSubtitle = org && !/^care solution bureau\b/i.test(orgName) ? orgName : "Integrated care management";
   const shell = {
     portals,
     items,
@@ -111,26 +114,53 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1">
         <ShellSidebar {...shell} />
         <div className="shell-main flex min-w-0 flex-1 flex-col">
-          <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
-            <NavigationProgress renderKey={String(Date.now())} />
-            <MobileMenu {...shell} />
-            <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
-            <ShellSearch />
-            <div className="ml-auto flex items-center gap-4">
-              {me?.branch?.name ? (
-                <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
-                  <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
-                </span>
-              ) : null}
-              {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
-              <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
-                <Bell size={21} aria-hidden="true" />
-                {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
-              </Link>
-              <HelpMenu assistant={can.assistant} />
-              <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
-            </div>
-          </header>
+          <TopbarSwitch
+            overview={
+              // The Overview's own header, as in the owner's approved design: logo and organisation on the left; the
+              // date and time in London, alerts, help and the signed-in person on the right. No search box here.
+              <header className="ov-topbar sticky top-0 z-[35] flex h-[64px] items-center gap-3 px-[16px] text-white md:h-[72px] md:px-[24px]" data-testid="overview-header">
+                <NavigationProgress renderKey={String(Date.now())} />
+                <MobileMenu {...shell} light />
+                <Monogram className="h-[30px] sm:h-[40px] md:h-[46px]" />
+                <div className="min-w-0">
+                  <h1 className="sr-only truncate text-[16px] sm:not-sr-only sm:block font-semibold leading-[22px] text-white md:text-[20px] md:leading-[26px]">Care Solution Bureau CIC</h1>
+                  <p className="hidden truncate text-[13px] leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
+                </div>
+                <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
+                  <LondonClock initial={Date.now()} />
+                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 lg:block" />
+                  <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-white no-underline hover:bg-white/10 hover:text-white">
+                    <Bell size={22} aria-hidden="true" />
+                    {unread ? <span className="absolute right-[6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#0b2a4a] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
+                  </Link>
+                  <HelpMenu assistant={can.assistant} dark />
+                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 sm:block" />
+                  <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} signOutAction={logoutAction} />
+                </div>
+              </header>
+            }
+          >
+            <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
+              <NavigationProgress renderKey={String(Date.now())} />
+              <MobileMenu {...shell} />
+              <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
+              <ShellSearch />
+              <div className="ml-auto flex items-center gap-4">
+                {me?.branch?.name ? (
+                  <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
+                    <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
+                  </span>
+                ) : null}
+                {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
+                <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
+                  <Bell size={21} aria-hidden="true" />
+                  {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
+                </Link>
+                <HelpMenu assistant={can.assistant} />
+                <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
+              </div>
+            </header>
+          </TopbarSwitch>
           <MainArea>{children}</MainArea>
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
