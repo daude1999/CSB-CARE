@@ -17,7 +17,7 @@ import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, londonMinute, londonTime } from "@/lib/london";
 import { addVisitNoteAction, decideClockCorrectionAction, officeClockAction, assignCarerAction, cancelVisitAction, doubleUpAction, reinstateVisitAction, swapCarersAction, unassignCarerAction, updateVisitAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
-import { AreaDot, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
+import { AreaDot, CancelChargeChoice, cancellationChargeLabel, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
 import { recoveryLinks } from "@/server/rota/missed-cover";
 
@@ -98,7 +98,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Field label="Run route">{v.runRoute?.name ?? "—"}</Field>
             </dl>
             {v.notes ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[14px]">{v.notes}</p> : null}
-            {v.cancelReason ? <p className="mt-3 text-[14px] text-[#a3242c]">Cancelled: {v.cancelReason}</p> : null}
+            {v.cancelReason ? <p className="mt-3 text-[14px] text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
           </Card>
 
           <Card title="Carers">
@@ -331,6 +331,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 <input type="hidden" name="visitId" value={v.id} />
                 <input type="hidden" name="lockVersion" value={v.lockVersion} />
                 <label className="block"><span className="label">Reason</span><input name="reason" required minLength={3} className="input" placeholder="e.g. In hospital" /></label>
+                <CancelChargeChoice />
                 <button className="btn-danger">Cancel visit</button>
               </form>
             </Card>

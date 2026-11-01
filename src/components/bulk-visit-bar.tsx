@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 
-/** Each bulk action and the extra details it needs. The server checks everything again. */
+type Need = "reason" | "reasonOptional" | "charge" | "staff" | "slot" | "slotAll" | "warnings" | "time" | "duration" | "service" | "minutes";
+export type BulkAction = { kind: string; label: string; needs: readonly Need[] };
+
+/** Each Daily Rota bulk action and the extra details it needs. The server checks everything again. */
 const ACTIONS = [
-  { kind: "cancel", label: "Cancel Visits", needs: ["reason"] },
+  { kind: "cancel", label: "Cancel Visits", needs: ["reason", "charge"] },
   { kind: "activate", label: "Activate Visits", needs: ["reason"] },
   { kind: "assign", label: "Reassign Visits", needs: ["staff", "slot", "warnings"] },
   { kind: "unassign", label: "Unassign Visits", needs: ["slot", "reasonOptional"] },
@@ -21,18 +24,36 @@ const ACTIONS = [
   { kind: "single", label: "Revert Double Up To Single", needs: [] },
   { kind: "nudge", label: "Nudge Times", needs: ["minutes"] },
   { kind: "publish", label: "Publish to carers", needs: [] },
-] as const;
+] as const satisfies readonly BulkAction[];
 
-type Kind = (typeof ACTIONS)[number]["kind"];
+/** The Daily Templates bulk actions (they change the repeating pattern, not built visits). */
+const TEMPLATE_ACTIONS = [
+  { kind: "disable", label: "Disable Templates", needs: [] },
+  { kind: "enable", label: "Enable Templates", needs: [] },
+  { kind: "assign", label: "Reassign Templates", needs: ["staff", "slotAll"] },
+  { kind: "unassign", label: "Unassign Templates", needs: ["slotAll"] },
+  { kind: "editTime", label: "Edit Start Time", needs: ["time"] },
+  { kind: "editDuration", label: "Edit Duration", needs: ["duration"] },
+  { kind: "nudge", label: "Nudge Times", needs: ["minutes"] },
+  { kind: "lock", label: "Add Lock(s)", needs: [] },
+  { kind: "unlock", label: "Remove Lock(s)", needs: [] },
+  { kind: "editService", label: "Edit Service Name", needs: ["service"] },
+  { kind: "addAlert", label: "Add Alert", needs: [] },
+  { kind: "removeAlert", label: "Remove Alert", needs: [] },
+  { kind: "duplicate", label: "Duplicate Templates", needs: [] },
+  { kind: "doubleUp", label: "Convert To Double Up", needs: [] },
+  { kind: "single", label: "Revert Double Up To Single", needs: [] },
+] as const satisfies readonly BulkAction[];
+
 type Option = { id: string; name: string };
 
 const FIELD = "h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828]";
 
 /** Counts the ticked visit checkboxes that belong to the bulk form, wherever they sit on the page. */
-function useSelectedCount(form: string) {
+function useSelectedCount(form: string, name: string) {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    const recount = () => setCount(document.querySelectorAll(`input[type=checkbox][form="${form}"][name="visitIds"]:checked`).length);
+    const recount = () => setCount(document.querySelectorAll(`input[type=checkbox][form="${form}"][name="${name}"]:checked`).length);
     recount();
     document.addEventListener("change", recount);
     document.addEventListener("selectall:change", recount);
@@ -40,7 +61,7 @@ function useSelectedCount(form: string) {
       document.removeEventListener("change", recount);
       document.removeEventListener("selectall:change", recount);
     };
-  }, [form]);
+  }, [form, name]);
   return count;
 }
 
@@ -50,23 +71,35 @@ function useSelectedCount(form: string) {
  * why. It must sit inside the bulk form; the form posts to the same server action, which re-checks every visit.
  */
 export function BulkVisitBar({ form, staff, callTypes, canPublish }: { form: string; staff: Option[]; callTypes: Option[]; canPublish: boolean }) {
-  const selected = useSelectedCount(form);
-  const [kind, setKind] = useState<Kind | "">("");
+  return <BulkActionBar form={form} itemName="visitIds" noun="visit" actions={ACTIONS.filter((a) => a.kind !== "publish" || canPublish)} staff={staff} callTypes={callTypes} />;
+}
+
+/** The Daily Templates bulk actions bar. Posts to templateBulkAction, which re-checks every template. */
+export function BulkTemplateBar({ form, staff, callTypes }: { form: string; staff: Option[]; callTypes: Option[] }) {
+  return <BulkActionBar form={form} itemName="templateIds" noun="template" actions={TEMPLATE_ACTIONS} staff={staff} callTypes={callTypes} />;
+}
+
+/** The same bar for any list: which checkboxes count (itemName), what they are called, and which actions it offers. */
+function BulkActionBar({ form, itemName, noun, actions, staff, callTypes }: { form: string; itemName: string; noun: string; actions: readonly BulkAction[]; staff: Option[]; callTypes: Option[] }) {
+  const selected = useSelectedCount(form, itemName);
+  const [kind, setKind] = useState("");
   const [staffId, setStaffId] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState("");
   const [callTypeId, setCallTypeId] = useState("");
   const [reason, setReason] = useState("");
-  const action = ACTIONS.find((a) => a.kind === kind);
+  const [charge, setCharge] = useState<"" | "yes" | "no">("");
+  const action = actions.find((a) => a.kind === kind);
   const needs = new Set<string>(action?.needs ?? []);
 
   const missing =
-    !selected ? "Tick the visits to change first."
+    !selected ? `Tick the ${noun}s to change first.`
     : !action ? "Choose a bulk action."
     : needs.has("staff") && !staffId ? "Choose a carer."
     : needs.has("time") && !time ? "Choose the new start time."
     : needs.has("duration") && !duration ? "Enter the new length in minutes."
     : needs.has("service") && !callTypeId ? "Choose a service call."
+    : needs.has("charge") && !charge ? "Choose Charge or Don't charge."
     : needs.has("reason") && reason.trim().length < 3 ? "Give a reason (at least 3 letters)."
     : null;
 
@@ -77,9 +110,9 @@ export function BulkVisitBar({ form, staff, callTypes, canPublish }: { form: str
       </span>
       <label className="relative">
         <span className="sr-only">Bulk action</span>
-        <select name="kind" aria-label="Bulk action" required value={kind} onChange={(e) => setKind(e.target.value as Kind | "")} className="h-10 w-[210px] appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]">
+        <select name="kind" aria-label="Bulk action" required value={kind} onChange={(e) => setKind(e.target.value)} className="h-10 w-[210px] appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]">
           <option value="" disabled>Bulk Actions…</option>
-          {ACTIONS.filter((a) => a.kind !== "publish" || canPublish).map((a) => <option key={a.kind} value={a.kind}>{a.label}</option>)}
+          {actions.map((a) => <option key={a.kind} value={a.kind}>{a.label}</option>)}
         </select>
         <CaretDown size={15} aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
       </label>
@@ -92,12 +125,12 @@ export function BulkVisitBar({ form, staff, callTypes, canPublish }: { form: str
           </select>
         </label>
       ) : null}
-      {needs.has("slot") ? (
+      {needs.has("slot") || needs.has("slotAll") ? (
         <label><span className="sr-only">Carer place</span>
           <select aria-label="Carer place" name="slot" defaultValue="PRIMARY" className={`${FIELD} w-[120px]`}>
             <option value="PRIMARY">Carer 1</option>
             <option value="SECOND">Carer 2</option>
-            {kind === "unassign" ? <option value="SHADOW">Shadow</option> : null}
+            {kind === "unassign" || needs.has("slotAll") ? <option value="SHADOW">Shadow</option> : null}
           </select>
         </label>
       ) : null}
@@ -113,10 +146,20 @@ export function BulkVisitBar({ form, staff, callTypes, canPublish }: { form: str
         </label>
       ) : null}
       {needs.has("reason") || needs.has("reasonOptional") ? <label><span className="sr-only">Reason</span><input aria-label="Reason" name="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={needs.has("reason") ? "Reason" : "Reason (optional)"} className={`${FIELD} w-[200px]`} /></label> : null}
+      {needs.has("charge") ? (
+        <fieldset className="flex items-center gap-1.5">
+          <legend className="sr-only">Charge for the cancellation?</legend>
+          {([["yes", "Charge"], ["no", "Don't charge"]] as const).map(([value, label]) => (
+            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
+              <input type="radio" name="charge" value={value} checked={charge === value} onChange={() => setCharge(value)} className="h-4 w-4" />{label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
       {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept warnings</label> : null}
 
       <button disabled={Boolean(missing)} aria-describedby="bulk-hint" className="h-10 rounded-[8px] bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]">Go</button>
-      <span id="bulk-hint" className="text-[13px] text-[#667085]" data-testid="bulk-hint">{missing ?? `Ready: ${action?.label.toLowerCase()} for ${selected} visit${selected === 1 ? "" : "s"}.`}</span>
+      <span id="bulk-hint" className="text-[13px] text-[#667085]" data-testid="bulk-hint">{missing ?? `Ready: ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.`}</span>
     </div>
   );
 }

@@ -6,7 +6,8 @@ import { rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
 import { templateScopeWhere } from "@/server/rota/scope";
 import { templateCarerAction } from "@/app/rota-actions";
-import { Flash, PageHeader, SegmentNav } from "@/components/ui";
+import { Flash } from "@/components/ui";
+import { ChoiceGroup, TemplatesHeading, TemplatesTabs } from "@/components/template-ui";
 import { PlannerBoard, type PlannerChip, type PlannerRow } from "@/components/planner-board";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +53,10 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   const q = (w: number) => `/rota/templates/planner?week=${w}${sp.area ? `&area=${sp.area}` : ""}${sp.all ? "&all=1" : ""}`;
   return (
     <>
-      <PageHeader title="Template Planner" back="/rota/templates" subtitle="The repeating pattern for one cycle week, by carer. Drag a visit to another carer on the same day to change who it is planned for. The change applies to every day and week that template runs, and weeks already built keep their carers." />
+      <TemplatesHeading title="Advanced Templates" subtitle="The repeating pattern for one cycle week, by carer. Drag a visit to another carer on the same day to change who it is planned for. The change applies to every day and week that template runs, and weeks already built keep their carers." />
+      <TemplatesTabs active="advanced" canBuild={hasOrgPermission(ctx, "rota.build")} />
       <Flash searchParams={sp} />
-      <SegmentNav label="Cycle week" items={Array.from({ length: settings.cycleLength }, (_, i) => ({ href: q(i + 1), label: `Week ${i + 1}`, active: week === i + 1 }))} />
+      <div className="mb-3"><ChoiceGroup label="Cycle week" items={Array.from({ length: settings.cycleLength }, (_, i) => ({ href: q(i + 1), label: `Week ${i + 1}`, active: week === i + 1 }))} /></div>
       <section className="panel" aria-label="Template planner">
         <form method="get" className="mb-3 flex flex-wrap items-end gap-2">
           <input type="hidden" name="week" value={week} />

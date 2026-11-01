@@ -1960,6 +1960,8 @@ model Visit {
   cancelReason       String?
   cancelledById      String?
   cancelledAt        DateTime?
+  /// The office's decision when cancelling: true charge the cancellation, false do not, null follow the funder's short-notice rule.
+  cancellationCharge Boolean?
   notDeliveredReason String?
   rotaType           RotaType       @default(NORMAL)
   timeLocked         Boolean        @default(false)

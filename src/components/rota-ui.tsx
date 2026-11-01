@@ -140,3 +140,22 @@ export function CallRing({ label, value, total, colour, note, href }: { label: s
   return href ? <Link href={href} className={`${cls} rounded hover:bg-slate-50`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
+
+/** The office must say whether a cancellation is charged. Used on every cancel form; the server refuses a cancel without it. */
+export function CancelChargeChoice({ compact = false }: { compact?: boolean }) {
+  const opt = "flex flex-1 cursor-pointer items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-[14px] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold";
+  return (
+    <fieldset>
+      <legend className={compact ? "mb-1 text-[12.5px] text-slate-600" : "label"}>Charge for this cancellation?</legend>
+      <div className="flex gap-2">
+        <label className={opt}><input type="radio" name="charge" value="yes" required className="h-4 w-4" />Charge</label>
+        <label className={opt}><input type="radio" name="charge" value="no" required className="h-4 w-4" />Don&apos;t charge</label>
+      </div>
+    </fieldset>
+  );
+}
+
+/** Whether a cancelled visit is charged, in words. */
+export function cancellationChargeLabel(charge: boolean | null) {
+  return charge === true ? "Charged" : charge === false ? "Not charged" : "Funder's short-notice rule";
+}
