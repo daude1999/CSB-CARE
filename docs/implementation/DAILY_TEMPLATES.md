@@ -1,0 +1,45 @@
+# Daily Templates (`/rota/templates`)
+
+Owner's brief "CSB-CARE — Final Daily Templates implementation" (1 Nov 2026). The approved image is
+`design-references/CSB_Daily_Templates_Approved_Roll_Forward.png`. It wasn't in the repository when this was built, so
+the page follows the written brief; a side-by-side check against the image is still to do once it is uploaded.
+
+## What the page does
+
+| Area | Behaviour | Code |
+| --- | --- | --- |
+| Heading | "Daily Templates", "Manage repeating care visits (up to N-week cycle)" from `RotaSettings.cycleLength` | `TemplatesHeading` |
+| Views | Daily Templates, Advanced Templates (`/rota/templates/planner`), Build Rota (`/rota/build`) | `TemplatesTabs` |
+| Roll Forward | Outlined purple, far right; opens the existing preview at `/rota/build?roll=1`. Shown only with `rota.build`. Nothing is copied until the coordinator confirms there | `TemplatesTabs` |
+| Cycle week | Week 1 to the organisation's cycle length; filters on the template's `cycleWeeks`, so an All Weeks template shows in every week. A dot marks the cycle week of the current calendar week | `ChoiceGroup` |
+| Day | Monday to Sunday (short names on narrow screens, scrolls on phones). No calendar dates, because a cycle week is a pattern, not a dated week | `ChoiceGroup` |
+| Filters | Search (service user name or reference, template reference `T-XXXXXX`, carer name, call type), Area (authorised areas only), Team Member, Service User, Call Type. More Filters: enabled/disabled/all, short of a carer, every cycle week, every day. All in the URL | `templatePage` |
+| Table | One row per template (a double-up is one row). Ref, Service User, Start, Duration, Carers (1/1, 2/2 green; 1/2 amber; 0/1, 0/2 red), Team Member(s), Service Call, Area, Pattern, Status, View/Edit. Paged on the server (25/50/100) | `templatePage`, `rota-pattern.ts` |
+| Template Details | Opens on a row click or View (`?tpl=`), closes with ×. Pattern, days, times, carers, call, area, settings, dates, notes, warnings and the count of future built visits. Edit, Duplicate (copy starts disabled), Deactivate (asks first) or Enable | `templateDetails` |
+| Bulk actions | Every existing action: enable/disable, reassign, unassign, edit start time, edit duration, nudge, add/remove lock, edit service name, add/remove alert, duplicate, convert to double-up, revert to single. Each template is checked and saved on its own; refusals are reported | `BulkTemplateBar` → `templateBulkAction` |
+
+Advanced Templates now uses the same heading, view tabs, Roll Forward button and week picker. Its grid and
+drag-and-drop are unchanged. Build Rota is unchanged.
+
+## Rules kept
+
+- Templates are the repeating pattern. Nothing on this page changes built visits; a change reaches built visits only
+  through "Apply to built visits" on the template's Edit page, which leaves hand-changed and started visits alone.
+- Every list, count, search and details lookup is limited to the caller's organisation and areas (`templateScopeWhere`).
+  A `?tpl=` id from another branch or organisation shows nothing.
+- Deactivate never deletes; history and built visits are kept.
+- Templates support one or two carers only. Three- or four-carer templates aren't built.
+
+## Tests
+
+- `tests/unit/rota-pattern.test.ts`: pattern, weekday, coverage and duration labels.
+- `tests/integration/daily-templates.test.ts`: paging, week/day filters, every filter, search, double-up as one row,
+  details warnings, disabled duplicate, branch and organisation isolation, create then list.
+- `tests/e2e/daily-templates.spec.ts`: pickers, details open/close, tabs, Roll Forward opens the preview, deactivate
+  with confirmation, bulk action.
+
+## Known limits
+
+- The visual match to the approved image hasn't been checked yet, because the image wasn't uploaded.
+- With the details panel open on screens narrower than about 1600px, the table scrolls sideways to reach Status and the
+  action buttons. The Area column is hidden while the panel is open, because the panel shows it.
