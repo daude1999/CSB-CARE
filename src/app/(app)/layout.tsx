@@ -12,10 +12,12 @@ import { hrItems } from "@/components/hr-nav";
 import { MainArea } from "@/components/main-area";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
+import { complianceItems } from "@/components/compliance-nav";
+import { HelpMenu } from "@/components/help-menu";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Archive, Bell, BookOpenText, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClipboardText, ClockCounterClockwise, Cpu, Eyeglasses, FolderOpen, GearSix, House, ListChecks, Newspaper, Pulse, Question, ShieldCheck, Signature, Sparkle, SquaresFour, UsersThree, Warning, WarningCircle, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -44,21 +46,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const items: Record<string, ShellItem[]> = {
     // The Overview stands alone in the sidebar, as in the approved design; notifications open from the bell.
     overview: [],
-    policy: [
-      ...page("/", "Compliance Dashboard", <Sparkle {...i} />),
-      ...page("/policies", ctx.organisationId ? "Policy Library" : "Template Library", <BookOpenText {...i} />),
-      ...page("/acknowledgements", "My Reading List", <Eyeglasses {...i} />),
-      ...page("/changes", "Regulatory Updates", <Newspaper {...i} />),
-      ...page("/requirements", "Requirements Register", <ListChecks {...i} />),
-      ...page("/queue", "Policy Change Queue", <ClockCounterClockwise {...i} />, can.queue),
-      ...page("/staff", "Staff Sign-off", <Signature {...i} />, can.staff),
-      ...page("/audits", "Audits & Inspections", <ClipboardText {...i} />, can.audits),
-      ...page("/actions", "Actions & Risks", <WarningCircle {...i} />, can.actions),
-      ...page("/evidence", "Evidence Library", <FolderOpen {...i} />, can.evidence),
-      ...page("/reports", "Compliance Reports", <ChartLine {...i} />, can.reports),
-      ...page("/resource-centre", "Resource Centre", <Archive {...i} />),
-      ...page("/interview-prep", "Interview Prep", <ChatTeardropText {...i} />),
-    ],
+    // Six workspaces; their tabs (Regulatory Updates, Review Queue, Evidence Library and so on) keep their own addresses.
+    policy: complianceItems(ctx, i),
     rota: rotaItems(ctx, i),
     reporting: [
       ...page("/analytics", "Analytics", <ChartBar {...i} />, hasOrgPermission(ctx, "analytics.view")),
@@ -132,9 +121,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Bell size={21} aria-hidden="true" />
                 {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
               </Link>
-              <Link href="/assistant" className="flex items-center gap-2 text-[14px] text-[#0b1530] no-underline hover:text-[#0646b1]">
-                <Question size={23} aria-hidden="true" /><span className="sr-only">Help</span>
-              </Link>
+              <HelpMenu assistant={can.assistant} />
               <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
             </div>
           </header>

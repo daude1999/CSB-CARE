@@ -23,11 +23,12 @@ import { Menu } from "@/components/library/menu";
 import { Collapsible, TreeArea } from "@/components/library/tree";
 import { DocTile, fmtShort, Initials, StatusPill } from "@/components/library/parts";
 import { PolicyInspector } from "./inspector";
+import { canUseQueue } from "@/components/compliance-nav";
 import { CaretLeft, CaretRight, Check, Clock, DotsThree, DotsThreeVertical, DownloadSimple, FileDoc, FilePdf, Files, FunnelSimple, ListBullets, MagnifyingGlass, PlusCircle, SquaresFour, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
-const TAB_LABELS: Record<LibraryTab, string> = { policies: "Policies", templates: "Templates", archived: "Archived", calendar: "Review Calendar" };
+const TAB_LABELS: Record<LibraryTab, string> = { policies: "My Policies", templates: "Templates", archived: "Archived", calendar: "Review Calendar" };
 
 export default async function PolicyLibraryPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
@@ -66,6 +67,7 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
                 {t !== "calendar" && view.tabCounts[t] !== undefined ? <span className="sr-only"> ({view.tabCounts[t]})</span> : null}
               </Link>
             ))}
+            {canUseQueue(ctx) ? <Link href="/queue" className="pl-tab whitespace-nowrap">Review &amp; Approval Queue</Link> : null}
           </nav>
           {canCreate ? (
             <div className="flex items-center gap-2 py-2">

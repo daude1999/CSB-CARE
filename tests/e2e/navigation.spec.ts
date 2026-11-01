@@ -275,7 +275,7 @@ test.describe("Page transitions", () => {
 
     // A new page: the content area fades up; the sidebar and top bar do not move.
     seen = watch();
-    await sidebar(page).getByRole("link", { name: "Regulatory Updates" }).click();
+    await sidebar(page).getByRole("link", { name: "Regulatory Monitoring" }).click();
     await expect(page).toHaveURL(/\/changes/);
     expect((await seen).animated).toBe(true);
     expect(await page.evaluate(() => (document.getElementById("main-content") as HTMLElement & { _mark?: boolean })._mark)).toBe(true);

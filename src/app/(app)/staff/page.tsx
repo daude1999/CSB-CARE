@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { ACK_NOT_TRAINING, parseSignoffFilters, signoffCounts, signoffLookups, signoffRows, type SignoffRow } from "@/server/policies/assignment";
+import { ACK_NOT_TRAINING, parseSignoffFilters, signoffByGroup, signoffCounts, signoffLookups, signoffRows, type SignoffRow } from "@/server/policies/assignment";
+import { ComplianceTabs } from "@/components/compliance-nav";
 import { AckBadge, personKey, SignoffFilterForm, SignoffSummary, signoffHref } from "@/components/signoff-ui";
-import { Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function StaffSignoffPage({ searchParams }: { searchParams:
   const ctx = await requireCtx();
   if (!hasOrgPermission(ctx, "staff.view")) notFound();
   const f = parseSignoffFilters(sp);
-  const view = sp.view === "policies" || sp.view === "rows" ? sp.view : "people";
+  const view = sp.view === "policies" || sp.view === "rows" || sp.view === "people" ? sp.view : "overview";
+  const tab = view === "rows" && f.status === "overdue" ? "overdue" : view;
   const [all, lookups] = await Promise.all([signoffRows(ctx, { ...f, status: undefined }), signoffLookups(ctx)]);
   const rows = f.status ? all.filter((r) => (f.status === "overdue" ? r.b.overdue : f.status === "cannot_sign" ? r.b.cannotSign : r.b.bucket === f.status)) : all;
   const c = signoffCounts(all);
@@ -37,16 +39,12 @@ export default async function StaffSignoffPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
+      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active={tab} />} title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
       <Flash searchParams={sp} />
       <SignoffFilterForm f={f} view={view} branches={lookups.branches} roles={lookups.roles} policies={lookups.policies} base={base} />
       <SignoffSummary c={c} base={base} f={fv} />
-      <SegmentNav label="Views" items={[
-        { href: signoffHref(base, { ...fv, view: "people" }), label: "By person", active: view === "people" },
-        { href: signoffHref(base, { ...fv, view: "policies" }), label: "By policy", active: view === "policies" },
-        { href: signoffHref(base, { ...fv, view: "rows" }), label: "Every assignment", active: view === "rows", count: rows.length },
-      ]} />
-      <Card>
+      {view === "overview" ? <Overview rows={rows} all={all.length} f={fv} base={base} /> : (
+      <Card title={view === "rows" ? (tab === "overdue" ? "Overdue reading" : "Every assignment") : undefined} actions={view === "rows" ? <Link href={signoffHref(base, { ...fv, view: "rows" }, { status: undefined })} className="text-[13px]">Every assignment ({all.length})</Link> : undefined}>
         {!rows.length ? <Empty>{all.length ? "Nothing matches these filters." : "No policy has been assigned yet. Publish a policy, or add assignment rules on a policy's sign-off page."}</Empty> : view === "people" ? (
           <table className="table">
             <thead><tr><th>Person</th><th>Role</th><th>Branch</th><th className="text-right">Assigned</th><th className="text-right">Acknowledged</th><th className="text-right">Outstanding</th><th className="text-right">Overdue</th></tr></thead>
@@ -111,6 +109,55 @@ export default async function StaffSignoffPage({ searchParams }: { searchParams:
           </>
         )}
       </Card>
+      )}
     </>
+  );
+}
+
+/** The overview: completion by branch and by role, and the people who need chasing first. Same rows as the counts. */
+function Overview({ rows, all, f, base }: { rows: SignoffRow[]; all: number; f: ReturnType<typeof parseSignoffFilters> & { view: string }; base: string }) {
+  if (!all) return <Card><Empty>No policy has been assigned yet. Publish a policy, or add an assignment rule on the Assignment Rules tab.</Empty></Card>;
+  const overdue = rows.filter((r) => r.b.overdue).sort((a, b) => Number(b.mandatory) - Number(a.mandatory) || (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0));
+  const cannotSign = [...new Map(rows.filter((r) => r.b.cannotSign && r.b.outstanding).map((r) => [personKey(r), r])).values()];
+  const table = (title: string, by: "branch" | "role") => {
+    const g = signoffByGroup(rows, by);
+    return (
+      <Card title={title}>
+        {g.length ? (
+          <div className="overflow-x-auto"><table className="table">
+            <thead><tr><th>{by === "branch" ? "Branch" : "Role"}</th><th className="text-right">Assigned</th><th className="text-right">Signed</th><th className="text-right">Done</th><th className="text-right">Overdue</th></tr></thead>
+            <tbody>{g.map((x) => (
+              <tr key={x.name}><td>{x.name}</td><td className="text-right tabular-nums">{x.assigned}</td><td className="text-right tabular-nums">{x.acknowledged}</td><td className="text-right tabular-nums">{x.completion === null ? "—" : `${x.completion}%`}</td><td className={`text-right tabular-nums ${x.overdue ? "text-[#a3242c]" : ""}`}>{x.overdue}</td></tr>
+            ))}</tbody>
+          </table></div>
+        ) : <Empty>Nothing matches these filters.</Empty>}
+      </Card>
+    );
+  };
+  return (
+    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <Card title={`Overdue, oldest first (${overdue.length})`} actions={overdue.length ? <Link href={signoffHref(base, { ...f, view: "rows" }, { status: "overdue" })} className="text-[13px]">See all overdue</Link> : null}>
+        {overdue.length ? (
+          <ul className="rows">
+            {overdue.slice(0, 8).map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[14px]">
+                <span><Link href={`/staff/person/${personKey(r)}`} className="row-title">{r.person}</Link> <span className="text-slate-600">· {r.publication.policy.ref} {r.publication.policy.title}</span></span>
+                <span className="text-[13px] text-[#a3242c]">due {fmtDate(r.dueAt)}{r.mandatory ? " · mandatory" : ""}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <Empty>Nobody is overdue.</Empty>}
+      </Card>
+      <Card title={`Cannot sign: no linked login (${cannotSign.length})`}>
+        {cannotSign.length ? (
+          <>
+            <p className="mb-2 text-[13px] text-slate-600">These people have reading assigned but no sign-in linked to their HR record, so they cannot acknowledge. An administrator links sign-ins by hand in Administration, Workforce Sync &amp; Logins.</p>
+            <ul className="rows">{cannotSign.slice(0, 8).map((r) => <li key={personKey(r)} className="py-2 text-[14px]"><Link href={`/staff/person/${personKey(r)}`} className="row-title">{r.person}</Link> <span className="text-slate-600">· {r.staffMember?.jobTitle ?? ""}{r.staffMember?.branch ? `, ${r.staffMember.branch.name}` : ""}</span></li>)}</ul>
+          </>
+        ) : <Empty>Everyone with reading assigned can sign.</Empty>}
+      </Card>
+      {table("Status by branch", "branch")}
+      {table("Status by role", "role")}
+    </div>
   );
 }

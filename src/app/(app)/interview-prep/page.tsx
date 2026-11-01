@@ -31,7 +31,7 @@ export default async function InterviewPrep({ searchParams }: { searchParams: Pr
           <ChatCircleText size={38} weight="fill" aria-hidden="true" className="text-navy-900" />
           <div className="min-w-0 flex-1">
             <p className="text-[16px] text-slate-900">{total} likely questions across {INTERVIEW.length} subjects, each with a model answer.</p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-slate-600"><Info size={14} aria-hidden="true" />Use the model answers as a guide. Inspectors want to hear about your own service, in your own words, with real examples.</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-slate-600"><Info size={14} aria-hidden="true" />Guidance only, not guaranteed answers: CQC decides what it asks and what it accepts. Use the model answers as a guide; inspectors want to hear about your own service, in your own words, with real examples.</p>
           </div>
           <Link href={open ? "/interview-prep" : "/interview-prep?open=all"} className="flex h-[34px] items-center rounded-[4px] border-[1.5px] border-slate-500 bg-white px-4 text-[14px] text-slate-800 no-underline hover:border-navy-900">{open ? "Collapse all" : "Expand all"}</Link>
         </section>
@@ -53,7 +53,7 @@ export default async function InterviewPrep({ searchParams }: { searchParams: Pr
                     <li key={n}>
                       <p className="flex gap-3 text-[15.5px] font-medium text-navy-900"><span className="font-mono text-[13px] font-normal leading-6 text-teal-600">Q{n + 1}</span><span><TagText text={q.q} details={details} canEdit={canEditDetails} /></span></p>
                       <div className="ml-9 mt-2 rounded-[3px] border-l-[3px] border-teal-400 bg-teal-50 px-4 py-2.5 text-[14.5px] leading-6 text-slate-800">
-                        <span className="mb-0.5 flex items-center gap-1.5 text-[12px] font-medium uppercase tracking-[0.06em] text-teal-700"><Lightbulb size={14} weight="fill" aria-hidden="true" />Model answer</span>
+                        <span className="mb-0.5 flex items-center gap-1.5 text-[12px] font-medium uppercase tracking-[0.06em] text-teal-700"><Lightbulb size={14} weight="fill" aria-hidden="true" />Model answer (guidance)</span>
                         <TagText text={q.a} details={details} canEdit={canEditDetails} />
                       </div>
                     </li>

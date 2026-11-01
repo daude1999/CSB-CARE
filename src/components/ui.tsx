@@ -7,10 +7,11 @@ import { TitleBar } from "@/components/title-bar";
  * Every inner page opens like the dashboard: the navy title bar, then a white strip
  * with a one-line explanation on the left and the page's actions on the right.
  */
-export function PageHeader({ title, subtitle, actions, back = "/" }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; back?: string | null }) {
+export function PageHeader({ title, subtitle, actions, back = "/", tabs }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; back?: string | null; tabs?: ReactNode }) {
   return (
     <>
       <TitleBar title={title} back={back ?? undefined} />
+      {tabs}
       {subtitle || actions ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[3px] bg-white px-[15px] py-2.5">
           {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 basis-[18rem] items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}

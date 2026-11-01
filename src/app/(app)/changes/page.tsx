@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ComplianceTabs } from "@/components/compliance-nav";
 import type { ChangeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -51,8 +52,9 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
+        tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="updates" />}
         eyebrow="Monitoring · legislation and guidance"
-        title="Regulatory Updates"
+        title="Regulatory Monitoring"
         subtitle="Changes found on the sources CSB monitors. Each one moves through detection, triage, applicability and a decision, and every step is recorded."
       />
       <Flash searchParams={sp} />
@@ -100,7 +102,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
                   </div>
                   <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-700">{c.summary.slice(0, 220)}{c.summary.length > 220 ? "…" : ""}</p>
                   <p className="mt-1.5 text-[12.5px] text-slate-600">
-                    {c.source.name} · <span className={c.classification === "POTENTIALLY_SUBSTANTIVE" ? "text-[#a3242c]" : ""}>{c.classification.replace(/_/g, " ").toLowerCase()}</span> (by {c.classificationBasis})
+                    {c.source.name}{c.officialDate ? ` · source dated ${c.officialDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : ""} · <span className={c.classification === "POTENTIALLY_SUBSTANTIVE" ? "text-[#a3242c]" : ""}>{c.classification.replace(/_/g, " ").toLowerCase()}</span> (by {c.classificationBasis})
                   </p>
                 </div>
                 <div className="space-y-2 text-[13px]">

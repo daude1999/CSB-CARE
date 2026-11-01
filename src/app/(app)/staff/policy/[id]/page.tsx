@@ -5,14 +5,12 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { ackTimeline, materialPublication, parseSignoffFilters, signoffCounts, signoffLookups, signoffRows } from "@/server/policies/assignment";
 import { memberNames } from "@/server/rota/queries";
-import { correctAckAction, createRuleAction, exemptAckAction, recordAckAssessmentAction, withdrawRuleAction } from "@/app/signoff-actions";
-import { AckBadge, AckTimeline, personKey, SignoffFilterForm, SignoffSummary } from "@/components/signoff-ui";
+import { correctAckAction, exemptAckAction, recordAckAssessmentAction, withdrawRuleAction } from "@/app/signoff-actions";
+import { AckBadge, AckTimeline, personKey, RuleForm, SCOPE_LABEL, SignoffFilterForm, SignoffSummary } from "@/components/signoff-ui";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-const SCOPE_LABEL: Record<string, string> = { ORG: "Everyone in the organisation", BRANCH: "Branch", ROLE: "Platform role", JOB_TITLE: "Job title", STAFF: "Named person" };
-const ROLES = ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "CARE_COORDINATOR", "FINANCE_OFFICER", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "STAFF", "CARER"] as const;
 
 /** One policy's sign-off: who it is assigned to and why, each person's state and history, and the manager's actions. */
 export default async function PolicySignoffPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -116,21 +114,7 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
             </ul>
           ) : <p className="text-[13.5px] text-slate-600">No assignment rules: every member of the organisation is asked to read it, as before. Add a rule to target branches, roles or people.</p>}
           {canManage ? (
-            <form action={createRuleAction} className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
-              <input type="hidden" name="back" value={back} /><input type="hidden" name="policyId" value={policy.id} />
-              <label className="col-span-2"><span className="label">Assign to</span><select name="scope" className="input"><option value="ORG">Everyone in the organisation</option><option value="BRANCH">One branch</option><option value="JOB_TITLE">A job title</option><option value="ROLE">A platform role</option><option value="STAFF">Named people</option></select></label>
-              <label><span className="label">Branch</span><select name="branchId" className="input"><option value="">—</option>{lookups.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-              <label><span className="label">Job title</span><select name="jobTitle" className="input"><option value="">—</option>{lookups.roles.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
-              <label><span className="label">Platform role</span><select name="orgRole" className="input"><option value="">—</option>{ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ").toLowerCase()}</option>)}</select></label>
-              <label><span className="label">Due after (days)</span><input type="number" name="dueDays" min={1} max={180} defaultValue={14} className="input" /></label>
-              <label className="col-span-2"><span className="label">Named people</span><select name="staffMemberIds" multiple size={4} className="input">{staff.map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>)}</select></label>
-              <label><span className="label">Priority</span><select name="priority" defaultValue="2" className="input"><option value="1">High risk</option><option value="2">Standard</option><option value="3">Routine</option></select></label>
-              <div className="space-y-1 pt-5">
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="mandatory" defaultChecked className="h-4 w-4" /> Mandatory</label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="requiresAssessment" className="h-4 w-4" /> Needs an assessment</label>
-              </div>
-              <div className="col-span-2"><button className="btn-primary">Add assignment</button> <span className="text-[13px] text-slate-500">The current version is assigned at once.</span></div>
-            </form>
+            <RuleForm back={back} policyId={policy.id} branches={lookups.branches} roles={lookups.roles} staff={staff} />
           ) : null}
         </Card>
       </div>

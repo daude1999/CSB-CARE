@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ComplianceTabs } from "@/components/compliance-nav";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/auth/current";
@@ -34,7 +35,7 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
   ];
   return (
     <>
-      <PageHeader eyebrow="Revisions · draft to publication" title="Policy Change Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
+      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
       <Flash searchParams={sp} />
       <StatRow>
         <Stat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />

@@ -282,13 +282,13 @@ export async function answerAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await answerQuestion(ctx, str(fd, "auditId"), str(fd, "questionId"), str(fd, "response"), str(fd, "notes") || undefined)), "Answer saved");
 }
 export async function findingAction(fd: FormData) {
-  await handle(fd, async (ctx) => void (await addFinding(ctx, str(fd, "auditId"), { description: str(fd, "description"), riskRating: str(fd, "riskRating") })), "Finding added");
+  await handle(fd, async (ctx) => void (await addFinding(ctx, str(fd, "auditId"), { description: str(fd, "description"), riskRating: str(fd, "riskRating"), questionId: str(fd, "questionId") || undefined })), "Finding added");
 }
 export async function completeAuditAction(fd: FormData) {
   await handle(fd, (ctx) => completeAudit(ctx, str(fd, "auditId")), "Audit completed");
 }
 export async function createActionAction(fd: FormData) {
-  await handle(fd, async (ctx) => void (await createAction(ctx, { title: str(fd, "title"), description: str(fd, "description") || undefined, ownerId: str(fd, "ownerId"), dueDate: new Date(str(fd, "dueDate")), findingId: str(fd, "findingId") || undefined })), "Action created");
+  await handle(fd, async (ctx) => void (await createAction(ctx, { title: str(fd, "title"), description: str(fd, "description") || undefined, ownerId: str(fd, "ownerId"), dueDate: new Date(str(fd, "dueDate")), findingId: str(fd, "findingId") || undefined, riskId: str(fd, "riskId") || undefined })), "Action created");
 }
 export async function transitionActionAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await transitionAction(ctx, str(fd, "actionId"), str(fd, "to"), { note: str(fd, "note") || undefined, evidenceId: str(fd, "evidenceId") || undefined })), "Action updated");
