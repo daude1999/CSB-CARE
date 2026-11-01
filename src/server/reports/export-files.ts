@@ -18,6 +18,8 @@ export interface ExportTable {
   summary?: [string, ExportCell][];
   /** Relative column widths for the PDF; defaults to equal. */
   widths?: number[];
+  /** The header colour (the module's colour); defaults to the Rostering purple. */
+  accent?: string;
 }
 
 /** Spreadsheet cells that start with these characters would run as formulas in Excel; they are written as text. */
@@ -42,7 +44,7 @@ export async function toXlsx(t: ExportTable): Promise<Buffer> {
   const header = ws.addRow(t.columns);
   header.font = { bold: true, color: { argb: "FFFFFFFF" } };
   header.eachCell((c) => {
-    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4B2D9C" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${(t.accent ?? "#4b2d9c").replace("#", "").toUpperCase()}` } };
     c.alignment = { vertical: "middle", wrapText: true };
   });
   ws.views = [{ state: "frozen", ySplit: header.number }];
@@ -93,7 +95,7 @@ export async function toPdf(t: ExportTable): Promise<Buffer> {
       if (!headerRow) drawRow(t.columns, true);
     }
     const y = doc.y;
-    if (headerRow) doc.rect(left, y, width, h).fill("#4b2d9c");
+    if (headerRow) doc.rect(left, y, width, h).fill(t.accent ?? "#4b2d9c");
     let x = left;
     texts.forEach((s, i) => {
       doc.fillColor(headerRow ? "#ffffff" : "#22324a").text(s, x + pad, y + pad, { width: cols[i]! - pad * 2 });

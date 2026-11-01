@@ -3,6 +3,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@
 import { audit } from "../audit-log";
 import { requireOrgPermission, type Ctx } from "../auth/rbac";
 import { notify } from "../notifications/notify";
+import { storeEvidenceFile } from "./evidence";
 
 const RESPONSES = ["MET", "PARTIALLY_MET", "NOT_MET", "NOT_APPLICABLE"] as const;
 const RISK = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
@@ -54,7 +55,13 @@ export async function addFinding(ctx: Ctx, auditId: string, input: { description
   if (a.status !== "IN_PROGRESS") throw new ConflictError("Findings are added while the audit is in progress");
   if (!RISK.includes(input.riskRating as never)) throw new ValidationError("Invalid risk rating");
   if (!input.description.trim()) throw new ValidationError("Describe the finding");
-  return db.auditFinding.create({ data: { auditId, organisationId: orgId, description: input.description, riskRating: input.riskRating, questionId: input.questionId } });
+  if (input.questionId) {
+    const q = await db.auditQuestion.findUnique({ where: { id: input.questionId } });
+    if (!q || q.templateId !== a.templateId) throw new NotFoundError("Question");
+  }
+  const f = await db.auditFinding.create({ data: { auditId, organisationId: orgId, description: input.description.trim(), riskRating: input.riskRating, questionId: input.questionId || null } });
+  await audit({ organisationId: orgId, actorId: ctx.userId, action: "audit.finding.added", entityType: "AuditFinding", entityId: f.id, data: { auditId, riskRating: input.riskRating } });
+  return f;
 }
 
 /** How far an audit has got: every question of its template must have a recorded answer before it can be completed. */
@@ -99,17 +106,69 @@ export const ACTION_FLOW: Record<string, string[]> = {
   CLOSED: [],
 };
 
-export async function createAction(ctx: Ctx, input: { title: string; description?: string; ownerId: string; dueDate: Date; findingId?: string }) {
+export async function createAction(ctx: Ctx, input: { title: string; description?: string; ownerId: string; dueDate: Date; findingId?: string; riskId?: string }) {
   const orgId = requireOrgPermission(ctx, "action.manage");
+  if (input.title.trim().length < 3) throw new ValidationError("Give the action a title");
+  if (!(input.dueDate instanceof Date) || Number.isNaN(input.dueDate.getTime())) throw new ValidationError("Give the action a due date");
   const owner = await db.membership.findUnique({ where: { userId_organisationId: { userId: input.ownerId, organisationId: orgId } } });
   if (!owner) throw new ValidationError("Owner must be a member of your organisation");
   if (input.findingId) {
     const f = await db.auditFinding.findUnique({ where: { id: input.findingId } });
     if (!f || f.organisationId !== orgId) throw new NotFoundError("Finding");
   }
-  const action = await db.complianceAction.create({ data: { organisationId: orgId, title: input.title, description: input.description, ownerId: input.ownerId, dueDate: input.dueDate, findingId: input.findingId, history: { create: { actorId: ctx.userId, to: "OPEN", note: "Created" } } } });
-  await notify({ organisationId: orgId, userIds: [input.ownerId], type: "action.assigned", title: `Action assigned: ${input.title}`, body: input.description ?? "", reason: "You are the owner of this compliance action.", links: [{ label: "Open actions", url: "/actions" }], actionUrl: "/actions", dueAt: input.dueDate, dedupeKey: `action-assigned:${action.id}` });
+  if (input.riskId) {
+    const r = await db.complianceRisk.findFirst({ where: { id: input.riskId, organisationId: orgId } });
+    if (!r) throw new NotFoundError("Risk");
+    if (r.status === "CLOSED") throw new ConflictError("This risk is closed. Reopen it before adding actions.");
+  }
+  const action = await db.$transaction(async (tx) => {
+    const a = await tx.complianceAction.create({ data: { organisationId: orgId, title: input.title.trim(), description: input.description, ownerId: input.ownerId, dueDate: input.dueDate, findingId: input.findingId, riskId: input.riskId, history: { create: { actorId: ctx.userId, to: "OPEN", note: "Created" } } } });
+    if (input.riskId) await tx.riskEvent.create({ data: { riskId: input.riskId, actorId: ctx.userId, kind: "UPDATED", note: `Mitigation action added: ${a.title}`, changes: { actionId: a.id } } });
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: "action.created", entityType: "ComplianceAction", entityId: a.id, data: { findingId: input.findingId ?? null, riskId: input.riskId ?? null } }, tx);
+    return a;
+  });
+  await notify({ organisationId: orgId, userIds: [input.ownerId], type: "action.assigned", title: `Action assigned: ${input.title}`, body: input.description ?? "", reason: "You are the owner of this compliance action.", links: [{ label: "Open the action", url: `/actions/${action.id}` }], actionUrl: `/actions/${action.id}`, dueAt: input.dueDate, dedupeKey: `action-assigned:${action.id}` });
   return action;
+}
+
+/** Whether the caller may work on an action: its owner, or a compliance lead or organisation admin. */
+function canWorkOn(ctx: Ctx, action: { ownerId: string }) {
+  return action.ownerId === ctx.userId || ctx.orgRoles.some((r) => r === "COMPLIANCE_LEAD" || r === "ORG_ADMIN");
+}
+
+/**
+ * Attaches a file to an action from the action itself, so the owner never has to upload it elsewhere and find it
+ * again. The owner may attach evidence to their own action even without the general evidence-upload permission;
+ * the file goes through the same type, size and malware checks as every other upload.
+ */
+export async function attachActionEvidence(ctx: Ctx, actionId: string, file: { name: string; type: string; bytes: Buffer }, description?: string) {
+  if (!ctx.organisationId) throw new NotFoundError("Action");
+  const action = await db.complianceAction.findFirst({ where: { id: actionId, organisationId: ctx.organisationId } });
+  if (!action) throw new NotFoundError("Action");
+  if (!canWorkOn(ctx, action)) throw new ForbiddenError("Only the action's owner or a compliance lead can add evidence to it");
+  if (action.status === "CLOSED") throw new ConflictError("This action is closed");
+  return storeEvidenceFile(ctx.organisationId, ctx.userId, file, { description: description?.trim() || `Evidence for action: ${action.title}`, linkedType: "ACTION", linkedId: action.id });
+}
+
+/** One action with where it came from (audit, question, finding, risk), its history, evidence and verification. */
+export async function actionDetail(ctx: Ctx, actionId: string) {
+  if (!ctx.organisationId) throw new NotFoundError("Action");
+  const orgId = ctx.organisationId;
+  const isManager = ctx.orgRoles.some((r) => r === "COMPLIANCE_LEAD" || r === "ORG_ADMIN");
+  const a = await db.complianceAction.findFirst({
+    where: { id: actionId, organisationId: orgId, ...(isManager || ctx.orgRoles.includes("CARE_MANAGER") ? {} : { ownerId: ctx.userId }) },
+    include: {
+      history: { orderBy: { createdAt: "asc" } },
+      finding: { include: { audit: { select: { id: true, title: true, branchId: true, status: true, completedAt: true } } } },
+      risk: { select: { id: true, ref: true, title: true, status: true, residualLikelihood: true, residualImpact: true } },
+    },
+  });
+  if (!a) throw new NotFoundError("Action");
+  // A branch-limited member only sees actions from their branches' audits (or organisation-wide ones).
+  if (ctx.branchIds && a.finding?.audit.branchId && !ctx.branchIds.includes(a.finding.audit.branchId)) throw new NotFoundError("Action");
+  const question = a.finding?.questionId ? await db.auditQuestion.findUnique({ where: { id: a.finding.questionId }, select: { id: true, text: true, position: true } }) : null;
+  const evidence = await db.evidenceDocument.findMany({ where: { organisationId: orgId, OR: [{ linkedType: "ACTION", linkedId: a.id }, ...(a.completionEvidenceId ? [{ id: a.completionEvidenceId }] : [])] }, orderBy: { createdAt: "asc" } });
+  return { ...a, question, evidence, canWork: canWorkOn(ctx, a), canVerify: isManager && a.ownerId !== ctx.userId };
 }
 
 export async function transitionAction(ctx: Ctx, actionId: string, to: string, input: { note?: string; evidenceId?: string } = {}) {
@@ -117,17 +176,19 @@ export async function transitionAction(ctx: Ctx, actionId: string, to: string, i
   if (!action || action.organisationId !== ctx.organisationId) throw new NotFoundError("Action");
   if (!ACTION_FLOW[action.status]?.includes(to)) throw new ConflictError(`Cannot move an action from ${action.status} to ${to}`);
   const isManager = ctx.orgRoles.some((r) => r === "COMPLIANCE_LEAD" || r === "ORG_ADMIN");
+  if (to === "CLOSED" && action.status !== "VERIFIED") throw new ConflictError("An action is closed only after it has been verified");
   if (["VERIFIED", "CLOSED"].includes(to)) {
     if (!isManager) throw new ForbiddenError("Only a compliance lead can verify or close actions");
     if (action.ownerId === ctx.userId) throw new ForbiddenError("Action owners cannot verify their own work");
   } else if (action.ownerId !== ctx.userId && !isManager) throw new ForbiddenError();
   if (to === "COMPLETED" && !input.note?.trim()) throw new ValidationError("Describe what was done to complete the action");
+  if (to === "VERIFIED" && !input.note?.trim()) throw new ValidationError("Record what you checked to verify the action (for example the evidence or records seen)");
   if (input.evidenceId) {
     const ev = await db.evidenceDocument.findUnique({ where: { id: input.evidenceId } });
     if (!ev || ev.organisationId !== action.organisationId) throw new NotFoundError("Evidence");
   }
   const now = new Date();
-  return db.complianceAction.update({
+  const updated = await db.complianceAction.update({
     where: { id: actionId },
     data: {
       status: to,
@@ -140,4 +201,6 @@ export async function transitionAction(ctx: Ctx, actionId: string, to: string, i
       history: { create: { actorId: ctx.userId, from: action.status, to, note: input.note } },
     },
   });
+  await audit({ organisationId: action.organisationId, actorId: ctx.userId, action: `action.${to.toLowerCase()}`, entityType: "ComplianceAction", entityId: actionId, data: { from: action.status, to } });
+  return updated;
 }
