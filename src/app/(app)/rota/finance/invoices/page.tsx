@@ -4,6 +4,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { listRuns } from "@/server/finance/runs";
 import { Flash, PageHeader } from "@/components/ui";
 import { RunList } from "@/components/run-list";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function RunsPage({ searchParams }: { searchParams: Promise
   const week = sp.week && isIsoDate(sp.week) && weeks.includes(sp.week) ? sp.week : weeks[0]!;
   return (
     <>
-      <PageHeader title="Invoice Preparation" back="/rota/finance" subtitle="Weekly invoices worked out from delivered visits, grouped by funder and priced on each funder's charge rate card. A second person approves the run, which numbers the invoices; it is then exported for your accounts system. The platform never sends invoices." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="invoices" />} title="Invoice Preparation" back="/rota/finance" subtitle="Weekly invoices worked out from delivered visits, grouped by funder and priced on each funder's charge rate card. A second person approves the run, which numbers the invoices; it is then exported for your accounts system. The platform never sends invoices." />
       <Flash searchParams={sp} />
       <RunList kind="invoice" rows={runs.invoice} canPrepare={hasOrgPermission(ctx, "finance.manage")} weeks={weeks} defaultWeek={week} back="/rota/finance/invoices" />
     </>

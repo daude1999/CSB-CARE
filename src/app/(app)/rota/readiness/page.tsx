@@ -7,6 +7,7 @@ import { rotaScope } from "@/server/rota/scope";
 import { pendingVerifications, READINESS_LABEL, readinessQueue, type ReadinessStatus } from "@/server/readiness";
 import { ReadinessBadge } from "@/components/readiness-ui";
 import { Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
 
   return (
     <>
-      <PageHeader title="Staff Readiness" back="/rota" subtitle="Whether each person may work, worked out now from HR checks, verified training, observed competency, policy acknowledgement, restrictions, exceptions and open reviews. Allocation, publishing and clock-in use the same rules." actions={hasOrgPermission(ctx, "readiness.manage") ? <Link href="/admin/readiness" className="btn-secondary">Requirements matrix</Link> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="staff" active="readiness" />} title="Staff Readiness" back="/rota" subtitle="Whether each person may work, worked out now from HR checks, verified training, observed competency, policy acknowledgement, restrictions, exceptions and open reviews. Allocation, publishing and clock-in use the same rules." actions={hasOrgPermission(ctx, "readiness.manage") ? <Link href="/admin/readiness" className="btn-secondary">Requirements matrix</Link> : null} />
       <Flash searchParams={sp} />
       <SegmentNav
         label="Readiness status"

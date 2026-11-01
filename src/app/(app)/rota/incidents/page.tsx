@@ -5,6 +5,7 @@ import { listIncidents } from "@/server/care/incidents";
 import { suName } from "@/server/rota/queries";
 import { fmtDate, Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incident-ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="incidents" />}
         title="Incidents"
         back={manage || hasOrgPermission(ctx, "rota.view") ? "/rota" : "/carer"}
         subtitle={manage ? "Incidents and accidents reported by staff, newest first. Serious incidents and safeguarding concerns alert managers in the app at once. The platform never sends notifications to CQC or the local authority; the registered manager does that." : "Incidents you have reported. A manager reviews each one."}

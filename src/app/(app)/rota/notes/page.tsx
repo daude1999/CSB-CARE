@@ -4,6 +4,7 @@ import { requirePortal } from "@/server/auth/portals";
 import { listVisitNotes, NOTE_LABEL } from "@/server/care/visit-record";
 import { suName } from "@/server/rota/queries";
 import { Badge, Card, Empty, fmtDate, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function VisitNotesPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Visit Notes" back="/rota" subtitle="Notes written on visits by carers and the office, newest first. Notes cannot be edited or deleted; concerns also appear on the Exceptions register." actions={<Link href="/rota/exceptions" className="btn-secondary">Exceptions</Link>} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="notes" />} title="Visit Notes" back="/rota" subtitle="Notes written on visits by carers and the office, newest first. Notes cannot be edited or deleted; concerns also appear on the Exceptions register." actions={<Link href="/rota/exceptions" className="btn-secondary">Exceptions</Link>} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
           <label><span className="label">From</span><input type="date" name="from" defaultValue={from} className="input" /></label>

@@ -5,6 +5,7 @@ import { suName } from "@/server/rota/queries";
 import { fmtLondonDate, fromDbDate } from "@/lib/london";
 import { Badge, Card, Empty, Flash, PageHeader, SegmentNav } from "@/components/ui";
 import { AreaDot } from "@/components/rota-ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function CarePlansPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Care Plans" back="/rota" subtitle="Each person's care plan, the version in use, its review date and who has read it. New versions are drafted, sent for approval and approved by a second person; approved versions are kept unchanged." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="care-plans" />} title="Care Plans" back="/rota" subtitle="Each person's care plan, the version in use, its review date and who has read it. New versions are drafted, sent for approval and approved by a second person; approved versions are kept unchanged." />
       <Flash searchParams={sp} />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 max-w-full"><SegmentNav label="Filter care plans" items={FILTERS.map(([k, label]) => ({ href: href(k), label, active: (sp.show ?? "") === k, count: count[k] }))} /></div>

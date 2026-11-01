@@ -4,6 +4,7 @@ import { addDays, dbDate, fmtLondonDate, londonDate, mondayOf } from "@/lib/lond
 import { requireRotaPage } from "@/server/auth/portals";
 import { pounds } from "@/server/finance/pricing";
 import { Badge, Card, Flash, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Finance" back="/rota" subtitle="Weekly preparation of timesheets, payroll and invoices from delivered visits. Every run is checked and approved by a second person. The platform never pays staff, submits payroll or sends invoices: approved runs are exported as files for your payroll provider and accounts system." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="overview" />} title="Finance" back="/rota" subtitle="Weekly preparation of timesheets, payroll and invoices from delivered visits. Every run is checked and approved by a second person. The platform never pays staff, submits payroll or sends invoices: approved runs are exported as files for your payroll provider and accounts system." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Card title="Recent weeks">

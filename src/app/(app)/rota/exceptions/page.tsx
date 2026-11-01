@@ -8,6 +8,7 @@ import { rotaScope } from "@/server/rota/scope";
 import { EXCEPTION_KINDS, listExceptions } from "@/server/rota/exceptions";
 import { assignExceptionOwnerAction, escalateExceptionAction, resolveExceptionAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Exceptions" back="/rota" subtitle="Late, missed and unfinished calls, visits not delivered, allocations needing review and readiness refusals. Give each one an owner and resolve it with what was done; anything past its deadline is escalated to the care managers inside the platform." actions={<Link href="/rota/monitor" className="btn-secondary">The Monitor</Link>} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="monitor" active="exceptions" />} title="Exceptions" back="/rota" subtitle="Late, missed and unfinished calls, visits not delivered, allocations needing review and readiness refusals. Give each one an owner and resolve it with what was done; anything past its deadline is escalated to the care managers inside the platform." actions={<Link href="/rota/monitor" className="btn-secondary">The Monitor</Link>} />
       <Flash searchParams={sp} />
       <SegmentNav label="Exception state" alert items={[
         { href: q({ state: "open" }), label: "Open", active: f.state === "open", count: open },

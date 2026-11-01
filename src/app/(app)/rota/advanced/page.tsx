@@ -11,6 +11,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { longDate, NotBuiltNotice } from "@/components/rota-ui";
 import { weekIsBuilt } from "@/server/rota/build";
 import { TimelineBoard, type BoardCard, type BoardRow, type CardTone } from "@/components/timeline-board";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +143,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
   return (
     <>
       {sp.refresh === "1" ? <AutoRefresh seconds={60} /> : null}
-      <PageHeader title="Advanced Rota" back="/rota" subtitle="The day as a planner board in half-hour slots. Drag a card to another team member (or from Unassigned) to reassign it, or open it to change its time. Every move is checked against holidays, HR checks and clashes before it is saved." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="advanced" />} title="Advanced Rota" back="/rota" subtitle="The day as a planner board in half-hour slots. Drag a card to another team member (or from Unassigned) to reassign it, or open it to change its time. Every move is checked against holidays, HR checks and clashes before it is saved." />
       <Flash searchParams={sp} />
       {notBuilt ? <NotBuiltNotice date={date} canBuild={hasOrgPermission(ctx, "rota.build")} /> : null}
 

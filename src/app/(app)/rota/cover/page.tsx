@@ -7,6 +7,7 @@ import { rotaLookups, suName, visitCandidatesMany, type Candidate } from "@/serv
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { AreaDot, CarerSlots, TimeSpan } from "@/components/rota-ui";
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="cover" />}
         title="Sickness & Holiday Cover"
         back="/rota"
         subtitle="Bookings held by someone who is absent, or flagged after an HR change. Absences never move visits by themselves: pick a replacement here and the full eligibility check runs again."

@@ -14,6 +14,7 @@ import { NotBuiltNotice, Stepper, VisitStatusBadge } from "@/components/rota-ui"
 import { PlannerBoard } from "@/components/planner-board";
 import { RosterKey } from "@/components/roster-key";
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="planner" />}
         title="Weekly Planner"
         back="/rota"
         subtitle="The week by carer. Drag a visit to another carer or day; every move is checked against leave, HR checks, clashes and preferences before it is saved. Open a visit to see it beside the roster."

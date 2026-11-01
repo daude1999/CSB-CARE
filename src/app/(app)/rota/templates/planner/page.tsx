@@ -1,3 +1,4 @@
+import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { hhmm, WEEKDAYS } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
@@ -54,7 +55,7 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   return (
     <>
       <TemplatesHeader title="Advanced Templates" subtitle="Repeating visits by carer for one cycle week. Drag a visit to another carer to change who it is planned for." active="advanced" canBuild={hasOrgPermission(ctx, "rota.build")} />
-      <p className="mb-3 text-[13.5px] text-[#475467]">The change applies to every day and week that template runs. Weeks already built keep their carers.</p>
+      <p className="mb-3 text-[13.5px] text-[#475467]">The change applies to every day and week that template runs. Weeks already built keep their carers. Each carer’s round order is set in <Link href="/rota/routes/templates">Template Run Routes</Link>.</p>
       <Flash searchParams={sp} />
       <div className="mb-3"><ChoiceGroup label="Cycle week" items={Array.from({ length: settings.cycleLength }, (_, i) => ({ href: q(i + 1), label: `Week ${i + 1}`, active: week === i + 1 }))} /></div>
       <section className="panel" aria-label="Template planner">

@@ -86,6 +86,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
           <Link href="/rota" className="btn-secondary justify-self-start">Back</Link>
           <h1 id="monitor-title" className="text-center text-[20px] font-semibold text-[#7b1fa2] sm:text-[24px]">The Monitor</h1>
           <span className="flex items-center gap-2 justify-self-end">
+            <Link href="/rota/exceptions" className="btn-secondary">Exceptions</Link>
             <form action={sweepNowAction}><input type="hidden" name="back" value={back} /><button className="btn-secondary">Check now</button></form>
             {canSettings ? <Link href="/rota/settings" className="text-[#d9473f]" aria-label="Monitor settings" title="Monitor settings"><GearSix size={28} weight="fill" /></Link> : null}
           </span>

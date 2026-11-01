@@ -10,6 +10,7 @@ import { complianceOn } from "@/server/workforce/eligibility";
 import { readinessFor } from "@/server/readiness";
 import { ReadinessBadge } from "@/components/readiness-ui";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Staff & Eligibility" back="/rota" subtitle="Care staff as HR & Workforce records them, with what the rota needs to know. Employment, checks and training are kept in HR and update here automatically; areas, rota participation and matching details are set here." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="staff" active="team" />} title="Staff & Eligibility" back="/rota" subtitle="Care staff as HR & Workforce records them, with what the rota needs to know. Employment, checks and training are kept in HR and update here automatically; areas, rota participation and matching details are set here." />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">

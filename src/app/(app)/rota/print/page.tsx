@@ -3,6 +3,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaLookups, suName } from "@/server/rota/queries";
 import { Card, Flash, PageHeader } from "@/components/ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function PrintRotaPage({ searchParams }: { searchParams: Pr
   );
   return (
     <>
-      <PageHeader title="Printable Rota" back="/rota" subtitle="Download a paper rota as a PDF, per team member or per service user, for up to 31 days. Every print is recorded, and key safe codes are only included when you ask and are allowed to see them." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="print" />} title="Printable Rota" back="/rota" subtitle="Download a paper rota as a PDF, per team member or per service user, for up to 31 days. Every print is recorded, and key safe codes are only included when you ask and are allowed to see them." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Per team member">

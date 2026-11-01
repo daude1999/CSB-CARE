@@ -7,6 +7,7 @@ import { bulkTimesheetsAction, generateTimesheetsAction } from "@/app/rota-actio
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { TimesheetBadge, hours } from "@/components/finance-ui";
 import { Stepper } from "@/components/rota-ui";
+import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Timesheets" back="/rota/finance" subtitle="One timesheet per carer per week, worked out from their visits and clock records. Lines that need a person to check them are marked. A coordinator submits; a finance approver who did not submit them approves." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="timesheets" />} title="Timesheets" back="/rota/finance" subtitle="One timesheet per carer per week, worked out from their visits and clock records. Lines that need a person to check them are marked. A coordinator submits; a finance approver who did not submit them approves." />
       <Flash searchParams={sp} />
       <section className="panel mb-3 flex flex-wrap items-center justify-between gap-3" aria-label="Week">
         <Stepper base="/rota/finance/timesheets" params={{ week, status: sp.status }} param="week" prev={addDays(week, -7)} next={addDays(week, 7)} label={`w/c ${fmtLondonDate(week, { day: "numeric", month: "long", year: "numeric" })}`} />
