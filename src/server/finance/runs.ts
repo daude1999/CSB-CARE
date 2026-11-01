@@ -43,6 +43,15 @@ async function noOpenRun(tx: Tx, table: "payRun" | "invoiceRun", organisationId:
 
 // ── Payroll preparation ──
 
+/**
+ * Whether a cancelled visit is invoiced. The office's choice when cancelling wins. With no choice recorded (care ended,
+ * the person was away), the funder's short-notice rule decides.
+ */
+export function cancellationCharged(v: { cancellationCharge: boolean | null; cancelledAt: Date | null; scheduledStart: Date }, shortNoticeCancelHours: number | null) {
+  if (v.cancellationCharge !== null) return v.cancellationCharge;
+  return shortNoticeCancelHours !== null && v.cancelledAt !== null && v.scheduledStart.getTime() - v.cancelledAt.getTime() < shortNoticeCancelHours * 3600000;
+}
+
 export async function preparePayRun(ctx: Ctx, weekStart: string) {
   const organisationId = requireOrgPermission(ctx, "finance.manage");
   const { start, end } = weekOf(weekStart);
@@ -148,13 +157,14 @@ export async function prepareInvoiceRun(ctx: Ctx, weekStart: string) {
       const day = fromDbDate(v.date);
       const what = `${day} ${name} · ${v.callType.name}`;
       if (v.status === "MISSED") { exceptions.push({ kind: "MISSED", message: `${what}: missed, not charged`, ref: v.id }); continue; }
+      // The office chose not to charge this cancellation.
+      if (v.status === "CANCELLED" && v.cancellationCharge === false) continue;
       if (v.status === "SCHEDULED" || v.status === "IN_PROGRESS") { exceptions.push({ kind: "UNFINISHED", message: `${what}: still ${v.status === "SCHEDULED" ? "not started" : "in progress"}, not charged`, ref: v.id }); continue; }
       const pkg = v.serviceUser.packages.find((p) => p.startDate <= v.date && (p.endDate ? p.endDate >= v.date : p.status === "ACTIVE"));
       const funder = pkg?.funder;
       if (!funder) { exceptions.push({ kind: "NO_FUNDER", message: `${what}: no funded care package on this date`, ref: v.serviceUser.id }); continue; }
       if (v.status === "CANCELLED") {
-        const short = funder.shortNoticeCancelHours !== null && v.cancelledAt && v.scheduledStart.getTime() - v.cancelledAt.getTime() < funder.shortNoticeCancelHours * 3600000;
-        if (!short) continue;
+        if (!cancellationCharged(v, funder.shortNoticeCancelHours)) continue;
       }
       const card = cardOn(cards, funder.chargeRateCardId, v.date);
       if (!card) { exceptions.push({ kind: "NO_CHARGE_RATE", message: `${funder.name}: no charge rate card on ${day}`, ref: funder.id }); continue; }
@@ -166,7 +176,7 @@ export async function prepareInvoiceRun(ctx: Ctx, weekStart: string) {
       const p = priceWork(splitWork(card.bands, day, londonMinute(startAt), minutes, (d) => holidays.has(d), (d) => addDays(d, 1), isoWeekday));
       if (!p) { exceptions.push({ kind: "NO_BAND", message: `${what}: no band on "${card.name}" for all of the visit`, ref: v.id }); continue; }
       const carers = v.carersRequired;
-      byFunder.set(funder.id, [...(byFunder.get(funder.id) ?? []), { visitId: v.id, serviceUserId: v.serviceUser.id, date: v.date, description: `${what}${carers > 1 ? ` (${carers} carers)` : ""}${v.status === "CANCELLED" ? " · short-notice cancellation" : ""}${p.split ? " · split across bands or midnight" : ""}`, minutes: p.minutes * carers, ratePence: p.ratePence, amountPence: p.amountPence * carers, bandLabel: `${card.name} · ${p.bandLabel}` }]);
+      byFunder.set(funder.id, [...(byFunder.get(funder.id) ?? []), { visitId: v.id, serviceUserId: v.serviceUser.id, date: v.date, description: `${what}${carers > 1 ? ` (${carers} carers)` : ""}${v.status === "CANCELLED" ? (v.cancellationCharge ? " · cancellation charged" : " · short-notice cancellation") : ""}${p.split ? " · split across bands or midnight" : ""}`, minutes: p.minutes * carers, ratePence: p.ratePence, amountPence: p.amountPence * carers, bandLabel: `${card.name} · ${p.bandLabel}` }]);
     }
     const funders = await tx.funder.findMany({ where: { organisationId, id: { in: [...byFunder.keys()] } } });
     const totalPence = [...byFunder.values()].flat().reduce((n, l) => n + l.amountPence, 0);

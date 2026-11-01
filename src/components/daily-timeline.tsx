@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, ForkKnife, Prohibit, UsersThree, XCircle, Coffee, Moon, Sun } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, Clock, ForkKnife, Prohibit, UsersThree, XCircle, X, Coffee, Moon, Sun } from "@phosphor-icons/react/dist/ssr";
 import { hhmm } from "@/lib/london";
 import type { TimelineBlock, TimelineRow } from "@/server/rota/roster";
 import { SHADE_CLASS, SHADE_TEXT } from "@/components/roster-tones";
@@ -16,7 +16,7 @@ const CARD: Record<string, string> = {
   IN_PROGRESS: "border-[#c7dbf6] bg-[#e9f1fc]",
   MISSED: "border-[#f3c9c9] bg-[#fdecec]",
   NOT_DELIVERED: "border-[#e4e7ec] bg-[#f2f4f7]",
-  CANCELLED: "border-[#e4e7ec] bg-[#f8f9fb] text-slate-400 line-through",
+  CANCELLED: "border-[#f3c9c9] bg-[#fdf3f3] text-slate-500 line-through decoration-[#b42318] decoration-2",
   SCHEDULED: "border-[#ddd6f6] bg-[#f6f3fd]",
   OPEN: "border-[#f5d9a8] bg-[#fdf3e2]",
   DRAFT: "border-dashed border-[#b8b2d6] bg-white",
@@ -35,7 +35,8 @@ function CallIcon({ b }: { b: TimelineBlock }) {
   if (b.status === "COMPLETED") return <CheckCircle {...p} weight="fill" className="text-[#1f9d4c]" />;
   if (b.status === "MISSED") return <XCircle {...p} weight="fill" className="text-[#e5484d]" />;
   if (b.status === "IN_PROGRESS") return <Clock {...p} className="text-[#2f7de1]" />;
-  if (b.status === "CANCELLED" || b.status === "NOT_DELIVERED") return <Prohibit {...p} className="text-slate-400" />;
+  if (b.status === "CANCELLED") return <X {...p} weight="bold" className="text-[#b42318]" />;
+  if (b.status === "NOT_DELIVERED") return <Prohibit {...p} className="text-slate-400" />;
   if (b.slot === "OPEN") return <UsersThree {...p} className="text-[#c27a06]" />;
   const c = b.call.toLowerCase();
   if (c.includes("lunch") || c.includes("tea") || c.includes("meal")) return <ForkKnife {...p} className="text-[#1f8a4c]" />;

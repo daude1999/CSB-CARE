@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { VisitStatus } from "@prisma/client";
-import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users } from "@phosphor-icons/react/dist/ssr";
+import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -65,10 +65,12 @@ const STATUS_BADGE: Record<VisitStatus, string> = {
   IN_PROGRESS: "bg-[#e6f0fb] text-[#175cd3]",
   COMPLETED: "bg-[#e7f6ec] text-[#14713a]",
   MISSED: "bg-[#fdecec] text-[#b42318]",
-  CANCELLED: "bg-[#f2f4f7] text-[#667085]",
+  CANCELLED: "bg-[#fdecec] text-[#b42318]",
   NOT_DELIVERED: "bg-[#f4f3ff] text-[#5925dc]",
 };
 const ROW_TINT: Partial<Record<VisitStatus, string>> = { MISSED: "bg-[#fffafa]", COMPLETED: "bg-[#f8fdf9]", IN_PROGRESS: "bg-[#f7fbff]", CANCELLED: "bg-[#fafafa] text-[#667085]" };
+/** A cancelled call is struck through in red, selected or not. */
+const STRUCK = "[&>td]:line-through [&>td]:decoration-[#b42318] [&>td]:decoration-2";
 
 /** The carer coverage badge: carers booked of carers needed. A part-staffed visit is amber, never shown as failed. */
 function Coverage({ v }: { v: VisitRow }) {
@@ -311,11 +313,11 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                       const risk = v.serviceUser.riskLevel ? RISK[v.serviceUser.riskLevel] : null;
                       const vd = fromDbDate(v.date);
                       return (
-                        <tr key={v.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
+                        <tr key={v.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
                           <td className="px-2.5 py-2 tabular-nums"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
-                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}><span aria-hidden className="h-2 w-2 rounded-full bg-current" />{VISIT_LABEL[v.status]}</span></td>
+                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}</span></td>
                           <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}

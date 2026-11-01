@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bell, ListChecks, LockSimple, UsersThree } from "@phosphor-icons/react";
+import { Bell, ListChecks, LockSimple, UsersThree, X } from "@phosphor-icons/react";
 
 /**
  * The Advanced Rota board: one row per carer (or service user, area or run route), half-hour columns across the day,
@@ -49,7 +49,7 @@ const TONE: Record<CardTone, string> = {
   progress: "border-[#7cc4e4] bg-[#d6f0fa]",
   done: "border-[#8fcb9d] bg-[#e1f3e5]",
   missed: "border-[#e39a9a] bg-[#fbe0e0]",
-  cancelled: "border-slate-300 bg-slate-100 text-slate-500 line-through",
+  cancelled: "border-[#f3c9c9] bg-[#fdf3f3] text-slate-500 line-through decoration-[#b42318] decoration-2",
   uncovered: "border-dashed border-[#d9473f] bg-white",
 };
 
@@ -140,7 +140,7 @@ export function TimelineBoard({ rows, fromMin, toMin, nowMin, caption, action, b
                       className={`absolute overflow-hidden rounded-[3px] border px-1.5 py-1 text-[12px] leading-tight text-navy-900 no-underline hover:z-[6] hover:shadow-md focus-visible:z-[6] ${action && c.move ? "cursor-grab" : ""} ${TONE[c.tone]}`}
                       style={{ left: x(c.startMin) + 2, width: Math.max(x(c.endMin) - x(c.startMin) - 4, 44), top: lane * 58 + 4, height: 52 }}
                     >
-                      <span className="block truncate font-semibold">{c.title}</span>
+                      <span className="flex items-center gap-1 truncate font-semibold">{c.tone === "cancelled" ? <X size={13} weight="bold" aria-hidden className="shrink-0 text-[#b42318]" /> : null}<span className="truncate">{c.title}</span></span>
                       <span className="block truncate">{c.line}</span>
                       <span className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-slate-600">
                         {c.areaColour ? <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: c.areaColour }} /> : null}

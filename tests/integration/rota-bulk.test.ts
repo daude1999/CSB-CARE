@@ -52,7 +52,7 @@ describe("Daily Rota bulk actions", () => {
   it("activates a cancelled future visit only with a reason", async () => {
     const ctx = await manager();
     const v = await futureVisit();
-    expect((await bulkVisits(ctx, [v.id], { kind: "cancel", reason: "Family visiting" }))[0]!.ok).toBe(true);
+    expect((await bulkVisits(ctx, [v.id], { kind: "cancel", reason: "Family visiting", charge: false }))[0]!.ok).toBe(true);
     await expect(bulkVisits(ctx, [v.id], { kind: "activate", reason: "" })).rejects.toThrow(/reason/);
     const [r] = await bulkVisits(ctx, [v.id], { kind: "activate", reason: "Family plans changed" });
     expect(r!.ok).toBe(true);
