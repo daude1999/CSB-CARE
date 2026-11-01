@@ -109,9 +109,16 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
           </div>
         ) : <p className="py-6 text-center text-[14px] text-slate-500">{q ? "No calls match your search." : "No calls today."}</p>}
         <details className="mt-3 text-[13.5px]">
-          <summary className="cursor-pointer font-medium">How the monitor works</summary>
+          <summary className="cursor-pointer font-medium">What the words mean and how the monitor works</summary>
+          <dl className="mt-2 grid gap-x-4 gap-y-1 text-slate-700 sm:grid-cols-[150px_1fr]" data-testid="monitor-terms">
+            <dt className="font-medium">Late</dt><dd>Nobody has clocked in {b.settings.lateAfterMin} minutes after the planned start.</dd>
+            <dt className="font-medium">Missed</dt><dd>Nobody has clocked in {b.settings.missedAfterMin} minutes after the planned start. This means no attendance was recorded. It does not prove the carer did not go, so check with the carer and the person before deciding what happened.</dd>
+            <dt className="font-medium">Not delivered</dt><dd>Someone has confirmed the visit did not happen.</dd>
+            <dt className="font-medium">Cancelled</dt><dd>The visit was called off in advance. It stays on the list, struck through.</dd>
+            <dt className="font-medium">Missed meds</dt><dd>Counted only when medication records are switched on in Rota Settings.</dd>
+          </dl>
+          <p className="mt-2 text-slate-700">For any problem: open the call’s reference, check with the carer, record what happened, and a manager signs off missed calls on the Missed Calls page.</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">
-            <li>A call is late {b.settings.lateAfterMin} minutes after its start with nobody clocked in, and missed after {b.settings.missedAfterMin} minutes.</li>
             <li>Clock times come from the server when the carer presses the button. Location and NFC checks are not in use.</li>
             <li>Checks run every minute while the background worker runs. On the demo site there is no worker, so use Check now for an immediate check.</li>
             <li>Missed calls are marked once and kept. Nothing is cancelled or reassigned automatically.</li>

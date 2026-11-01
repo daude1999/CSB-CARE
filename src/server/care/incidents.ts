@@ -98,6 +98,21 @@ export async function listIncidents(ctx: Ctx, f: { status?: string; severity?: s
   });
 }
 
+/**
+ * The most recent incidents about one service user, for their record's overview. Null when the person may not see
+ * incidents at all; a reporter without incident.manage sees only their own reports, as on the Incidents page. The
+ * caller has already checked the service user is in the person's scope.
+ */
+export async function recentIncidentsFor(ctx: Ctx, serviceUserId: string, take = 4) {
+  if (!ctx.organisationId || !hasOrgPermission(ctx, "incident.report")) return null;
+  return db.incident.findMany({
+    where: { ...visibleWhere(ctx, ctx.organisationId), serviceUserId },
+    select: { id: true, reference: true, category: true, severity: true, status: true, safeguarding: true, occurredAt: true },
+    orderBy: { occurredAt: "desc" },
+    take,
+  });
+}
+
 export async function getIncident(ctx: Ctx, id: string) {
   const organisationId = requireOrgPermission(ctx, "incident.report");
   const inc = await db.incident.findFirst({ where: { ...visibleWhere(ctx, organisationId), id }, include: { serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } } } });

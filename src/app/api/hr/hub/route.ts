@@ -240,7 +240,7 @@ export async function POST(request: Request) {
     const u = await currentUser();
     if (Number(request.headers.get("content-length") || 0) > 1_000_000)
       fail("Request too large", 413);
-    rateLimit(u.id);
+    await rateLimit(u.id);
     const body = await (await limitedRequest(request, 1_000_000)).json();
     const result = await transaction(u.workspace, (s) => {
       if (body.action === "read-alert") {

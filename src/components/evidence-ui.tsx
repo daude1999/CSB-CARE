@@ -2,8 +2,9 @@ import { Badge, fmtDate, type Tone } from "@/components/ui";
 
 const SCAN: Record<string, { label: string; tone: Tone; tip: string }> = {
   CLEAN: { label: "Scanned: clean", tone: "green", tip: "Checked by the malware scanner" },
-  NOT_SCANNED: { label: "Not scanned", tone: "amber", tip: "No malware scanner is configured. The file's type and size were checked, but treat it as unverified." },
-  PENDING: { label: "Scan pending", tone: "amber", tip: "Waiting for the malware scanner" },
+  NOT_SCANNED: { label: "Not virus-checked", tone: "amber", tip: "No virus scanner is set up yet. The file's type, content and size were checked, but treat it as unverified. It downloads as a file and never opens in the browser." },
+  PENDING: { label: "Virus check pending", tone: "amber", tip: "Waiting for the virus scanner. It cannot be downloaded until the check finishes." },
+  SCAN_FAILED: { label: "Held: check failed", tone: "amber", tip: "The virus check could not finish, so the file is held. Ask an administrator." },
   INFECTED: { label: "Blocked: failed scan", tone: "rose", tip: "The malware scanner rejected this file; it cannot be downloaded" },
 };
 

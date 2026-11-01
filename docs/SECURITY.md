@@ -28,7 +28,9 @@ Database triggers (migration `20261024232000_integrity`) make source versions, a
 ## Web protections
 
 - Server actions are protected by Next.js origin checks; all forms are same-origin. Security headers include CSP, HSTS, `X-Frame-Options: DENY` and `nosniff`.
-- Evidence uploads: 10 MB limit, type detected from file content (not the extension), safe stored names, private storage, downloads only through an authorised route with `Content-Disposition: attachment`. Files flagged by the malware scanner cannot be downloaded.
+- Evidence uploads: 10 MB limit, type detected from file content (not the extension), safe stored names, private storage, downloads only through an authorised route with `Content-Disposition: attachment`.
+- Evidence files: virus-check policy (1 Nov 2026). With `MALWARE_SCAN_URL` set, every upload is scanned before it is stored; the scanner must answer within 20 seconds with JSON `{"infected": boolean}`. A failed or unclear answer refuses the upload (nothing is stored), so a file can never be recorded as clean by mistake. INFECTED files are never served; PENDING and SCAN_FAILED files are held with a message saying what to do. Without a scanner, files are stored as NOT_SCANNED, labelled "Not virus-checked", and served as attachments only; set `EVIDENCE_REQUIRE_SCAN=true` to hold them instead. Once a scanner is configured, an older NOT_SCANNED file is scanned on its first download and the result is recorded and audited. Nothing is deleted automatically. The same rules apply to missed-call evidence.
+- HR Hub API rate limits (120 requests a minute per user, 60 for uploads) are counted in the shared `RateLimitWindow` table, so they hold across every server instance on Vercel. If the database is unreachable the limit falls back to a per-instance memory counter.
 - CSV exports neutralise spreadsheet formulas.
 - External content (source pages, AI outputs) is rendered as text, never as HTML. Source text sent to the model is escaped and marked as untrusted data.
 
@@ -40,5 +42,5 @@ Structured logs redact passwords, tokens, cookies and API keys. The audit log re
 
 - No MFA or SSO yet.
 - Row-level security not yet enabled (above).
-- The malware scanner is an integration point; without one, files are marked NOT_SCANNED.
+- The malware scanner is an integration point; without one, files are marked NOT_SCANNED (see the virus-check policy above).
 - No admin screens yet for user management or for editing the requirements register.

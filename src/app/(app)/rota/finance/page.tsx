@@ -31,7 +31,7 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
         <Card title="Recent weeks">
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">
-              <thead><tr><th>Week</th><th>Timesheets</th><th>Payroll</th><th>Invoices</th></tr></thead>
+              <thead><tr><th>Week</th><th>Timesheets</th><th>Payroll</th><th>Invoices</th><th>Next step</th></tr></thead>
               <tbody>
                 {weeks.map((w) => {
                   const p = pay.find((r) => r.periodStart.getTime() === dbDate(w).getTime());
@@ -47,12 +47,24 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
                       </td>
                       <td>{p ? <Link href={`/rota/finance/payroll/${p.id}`}>{pounds(p.totalPence)} <Badge tone={p.status === "APPROVED" ? "green" : "amber"}>{p.status === "APPROVED" ? "Approved" : "Draft"}</Badge></Link> : <Link href={`/rota/finance/payroll?week=${w}`}>Not prepared</Link>}</td>
                       <td>{i ? <Link href={`/rota/finance/invoices/${i.id}`}>{pounds(i.totalPence)} <Badge tone={i.status === "APPROVED" ? "green" : "amber"}>{i.status === "APPROVED" ? "Approved" : "Draft"}</Badge></Link> : <Link href={`/rota/finance/invoices?week=${w}`}>Not prepared</Link>}</td>
+                      <td>{(() => { const n = nextStep(w, total, count(w, "APPROVED"), p, i); return n.href ? <Link href={n.href} className="font-medium">{n.label}</Link> : <span className="text-[#1c7a43]">{n.label}</span>; })()}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        </Card>
+        <div className="space-y-3">
+        <Card title="How each week is prepared">
+          <ol className="list-decimal space-y-1.5 pl-5 text-[14px]" data-testid="finance-steps">
+            <li><span className="font-medium">Review</span> each carer’s timesheet against their visits.</li>
+            <li><span className="font-medium">Prepare</span> the payroll and invoice runs for the week.</li>
+            <li><span className="font-medium">Check</span> the totals and any lines flagged for attention.</li>
+            <li><span className="font-medium">Approve</span>: a second person approves each run.</li>
+            <li><span className="font-medium">Export</span> the approved files for your payroll provider and accounts system.</li>
+          </ol>
+          <p className="mt-2 text-[12.5px] text-slate-500">The “Next step” column shows where each week has got to.</p>
         </Card>
         <Card title="Set-up">
           <ul className="space-y-2 text-[14px]">
@@ -62,7 +74,21 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
             <li><Link href="/rota/finance/rates?tab=settings">Pay basis, mileage and invoice numbering</Link></li>
           </ul>
         </Card>
+        </div>
       </div>
     </>
   );
+}
+
+type Run = { id: string; status: string } | undefined;
+
+/** The one thing to do next for a week, in the order Review → Prepare → Check → Approve → Export. */
+function nextStep(week: string, timesheets: number, approved: number, pay: Run, inv: Run): { label: string; href: string | null } {
+  if (!timesheets) return { label: "Review timesheets", href: `/rota/finance/timesheets?week=${week}` };
+  if (approved < timesheets) return { label: `Approve timesheets (${timesheets - approved} left)`, href: `/rota/finance/timesheets?week=${week}` };
+  if (!pay) return { label: "Prepare payroll", href: `/rota/finance/payroll?week=${week}` };
+  if (pay.status !== "APPROVED") return { label: "Check and approve payroll", href: `/rota/finance/payroll/${pay.id}` };
+  if (!inv) return { label: "Prepare invoices", href: `/rota/finance/invoices?week=${week}` };
+  if (inv.status !== "APPROVED") return { label: "Check and approve invoices", href: `/rota/finance/invoices/${inv.id}` };
+  return { label: "Ready to export", href: `/rota/finance/payroll/${pay.id}` };
 }

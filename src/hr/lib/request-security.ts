@@ -1,15 +1,12 @@
 import { HttpError } from "./auth";
-const windows = new Map<string, { count: number; until: number }>();
-export function rateLimit(key: string, limit = 120) {
-  const now = Date.now();
-  const current = windows.get(key);
-  if (!current || current.until < now) {
-    windows.set(key, { count: 1, until: now + 60000 });
-    if (windows.size > 10000)
-      for (const [k, v] of windows) if (v.until < now) windows.delete(k);
-    return;
-  }
-  if (++current.count > limit)
+import { overLimit } from "@/server/security/rate-limit";
+
+/**
+ * At most `limit` requests a minute per key (the HR user). Counted in the shared database table, so the limit holds
+ * across every server instance; see src/server/security/rate-limit.ts.
+ */
+export async function rateLimit(key: string, limit = 120) {
+  if (await overLimit(`hr:${key}`, limit))
     throw new HttpError(429, "Too many requests. Please wait a minute.");
 }
 /** Enforce actual streamed byte length, even with a missing or forged Content-Length. */
