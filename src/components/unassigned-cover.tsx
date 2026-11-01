@@ -66,7 +66,7 @@ export async function UnassignedCover({ ctx, sp, back, url }: { ctx: Ctx; sp: Re
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[16px] font-bold text-[#101828]">{suName(v.serviceUser)}</p>
-          <p className="text-[13px] text-[#475467]">Ref: <span className="tabular-nums">{v.reference}</span></p>
+          <p className="text-[13px] text-[#475467]">Ref: <span>{v.reference}</span></p>
         </div>
         <span title={p.why} className={`shrink-0 rounded-[6px] px-2 py-0.5 text-[13px] font-semibold ${p.priority === "URGENT" ? "bg-[#fdecec] text-[#b42318]" : p.priority === "HIGH" ? "bg-[#fdf3d8] text-[#8a5a00]" : "bg-[#eef4ff] text-[#1d4f91]"}`}>{PRIORITY_LABEL[p.priority]}</span>
       </div>

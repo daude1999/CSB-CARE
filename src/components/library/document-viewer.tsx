@@ -141,7 +141,8 @@ function PdfPane({ pdf, error, downloadHref, title, headings, variant, onReader,
   }, []);
 
   // The reader fits pages to a comfortable reading width rather than stretching them across a wide screen.
-  const fitWidth = variant === "reader" ? Math.min(width - 2 * GAP, 920) : width - 2 * GAP;
+  // Two pixels are kept back for the page's border, so a fitted page never forces a sideways scroll bar.
+  const fitWidth = variant === "reader" ? Math.min(width - 2 * GAP - 2, 920) : width - 2 * GAP - 2;
   const scale = !base ? 1 : zoom === "fit" ? Math.max(0.3, Math.min(2.5, fitWidth / base.w)) : zoom / 100;
   const total = pdf?.numPages ?? 0;
 

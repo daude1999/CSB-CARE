@@ -120,7 +120,7 @@ function QuickAction({ href, icon, label, badge, tone = "#5b2bb5" }: { href: str
   return (
     <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-[14px] font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-[#faf8ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
       <span aria-hidden style={{ color: tone }}>{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="line-clamp-2 min-w-0 flex-1 leading-[1.2]">{label}</span>
       {badge ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12.5px] font-bold tabular-nums text-white" style={{ background: tone }}>{badge}</span> : null}
     </Link>
   );
@@ -238,8 +238,8 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
                     <RowActions key="a" items={[{ href: `/rota/advanced?${new URLSearchParams({ date, view: "staff-week", carer: t.id })}`, label: `${t.displayName}: rota`, icon: <CalendarDots size={15} weight="fill" />, tone: "green" }, { href: day({ carer: t.id }), label: `${t.displayName}: Daily Rota`, icon: <IdentificationCard size={15} weight="fill" />, tone: "blue" }, { href: `/rota/staff/${t.id}`, label: `${t.displayName}: eligibility and details`, icon: <User size={14} weight="fill" />, tone: "violet" }]} />,
                     first ?? "",
                     rest.join(" "),
-                    <span key="r" className="block max-w-[100px] truncate" title={t.jobTitle}>{t.jobTitle}</span>,
-                    <span key="s" className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS_PILL[st.status]}`}><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{st.status}</span>,
+                    <span key="r" className="block max-w-[88px] truncate" title={t.jobTitle}>{t.jobTitle}</span>,
+                    <span key="s" className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[12px] font-semibold ${STATUS_PILL[st.status]}`}><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{st.status}</span>,
                   ],
                 };
               })}
@@ -247,7 +247,7 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
           ) : <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">Your role does not include the staff directory.</p>}
         </Panel>
 
-        <Panel id="rem-h" icon={<Alarm size={24} weight="bold" />} title="All Active Reminders" aside={<><span className="hidden text-[12px] text-[#475467] 2xl:inline">Due in {14} days or overdue</span><Link href="/rota/reminders" className="rounded-[7px] bg-[#15803d] px-3 py-1.5 text-[13px] font-semibold text-white no-underline hover:bg-[#116a32]">View All</Link></>}>
+        <Panel id="rem-h" icon={<Alarm size={24} weight="bold" />} title="All Active Reminders" aside={<><span className="hidden whitespace-nowrap text-[12px] text-[#475467] 2xl:inline" title="Due in the next 14 days, or overdue">14 days + overdue</span><Link href="/rota/reminders" className="rounded-[7px] bg-[#15803d] px-3 py-1.5 text-[13px] font-semibold text-white no-underline hover:bg-[#116a32]">View All</Link></>}>
           <DashTable
             label="reminders"
             columns={[{ key: "text", label: "Reminder", sortable: true }, { key: "due", label: "Due", sortable: true }, { key: "account", label: "Account", sortable: true }, { key: "type", label: "Type", sortable: true }, { key: "over", label: "Overdue", sortable: true }]}

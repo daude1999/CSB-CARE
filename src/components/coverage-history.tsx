@@ -265,7 +265,7 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
                     const lr = x.lastReplacement;
                     return (
                       <tr key={x.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] align-top last:border-0 ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ""} hover:bg-[#f9f8fe]`}>
-                        <td className={`${TD} whitespace-nowrap tabular-nums`}>{x.reference}</td>
+                        <td className={`${TD} whitespace-nowrap`}>{x.reference}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{fmtLondonDate(x.date, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
                         <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/service-users/${x.serviceUserId}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2"><User size={16} aria-hidden className="text-[#5b2bb5]" />{x.serviceUser}</Link></td>
                         {cols.has("branch") ? <td className={`${TD} whitespace-nowrap`}>{x.branch}</td> : null}

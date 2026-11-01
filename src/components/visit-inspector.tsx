@@ -123,7 +123,7 @@ export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInsp
         <User size={24} aria-hidden className="mt-0.5 shrink-0 text-[#5b2bb5]" />
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[16px] font-bold text-[#101828] ${v.status === "CANCELLED" ? "line-through decoration-[#b42318] decoration-2" : ""}`}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
-          <p className="text-[13px] text-[#475467]">Ref: <span className="tabular-nums">{v.reference}</span></p>
+          <p className="text-[13px] text-[#475467]">Ref: <span>{v.reference}</span></p>
         </div>
         <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${st.cls}`}>{v.status === "CANCELLED" ? <X size={13} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{st.label}</span>
       </div>

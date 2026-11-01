@@ -22,14 +22,15 @@
   --focus: var(--teal-400);
 }
 
-/* CSB blue: deep navy chrome, the logo's cyan as the signal colour, cool white page, Roboto at an 18px base. */
+/* CSB blue (the default): deep navy chrome, the logo's cyan as the signal colour, cool white page, Inter Variable at an 18px base.
+   Every module (platform pages, Overview, Policy Library, Rota and the HR Hub) uses this one typeface. */
 [data-theme="care"] {
   --navy-950: #0a1c36; --navy-900: #0f2a4f; --navy-800: #143766; --navy-700: #1c4a85; --navy-600: #2a5ea3;
   --teal-50: #edf8fd; --teal-100: #d4effa; --teal-200: #a9def3; --teal-400: #27c4ee; --teal-500: #0ea5d6; --teal-600: #0383b0; --teal-700: #076a90;
   --slate-50: #f6f8fb; --slate-100: #eef2f7; --slate-200: #dde4ee; --slate-300: #c4cfdd; --slate-400: #92a1b5; --slate-500: #5f7086;
   --slate-600: #475769; --slate-700: #344255; --slate-800: #222e3e; --slate-900: #0f2a4f; --slate-950: #0a1525;
   --paper: #f4f7fb;
-  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-sans); --font-label: var(--font-sans); --font-prose: var(--font-sans);
   --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem;
   --heading-weight: 700; --heading-tracking: -0.01em;

@@ -170,9 +170,9 @@
   .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
-  .pl-serif { font-family: "Source Serif 4 Variable", Georgia, serif; }
+  .pl-serif { font-family: inherit; }
   .pl-hero { @apply relative overflow-hidden px-[16px] md:px-[33px]; background: #f5f4f1; min-height: 152px; padding-top: 18px; padding-bottom: 34px; }
-  .pl-h1 { font-family: "Source Serif 4 Variable", Georgia, serif; font-size: 46px; line-height: 50px; font-weight: 600; letter-spacing: -0.012em; color: #0b1530; }
+  .pl-h1 { font-family: inherit; font-size: 40px; line-height: 46px; font-weight: 650; letter-spacing: -0.022em; color: #0b1530; }
   .pl-card { @apply relative z-10 rounded-[10px] bg-white; margin: -18px 16px 0 18px; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 24px rgb(11 21 48 / 0.05); border: 1px solid #efece6; }
   .pl-tab { @apply relative flex h-[47px] items-center px-[24px] text-[14.5px] text-[#2b3b52] hover:text-[#0b1530]; }
   .pl-tab[aria-current="page"] { color: #030825; font-weight: 600; }
@@ -193,7 +193,7 @@
   .pl-row { @apply relative flex gap-[14px] rounded-[8px] border border-transparent px-[18px] py-[16px]; }
   .pl-row:hover { background: #fafbfc; }
   .pl-row-selected, .pl-row-selected:hover { background: #f4f9fc; border-color: #d9e8f5; }
-  .pl-row-title { font-family: "Source Serif 4 Variable", Georgia, serif; font-size: 16px; line-height: 21px; font-weight: 600; color: #0b1530; }
+  .pl-row-title { font-family: inherit; font-size: 15px; line-height: 21px; font-weight: 600; color: #0b1530; }
   .pl-row-title:hover { color: #0646b1; }
   .pl-row-title::before { content: ""; position: absolute; inset: 0; border-radius: 8px; }
   .pl-row :is(a, button, summary, form):not(.pl-row-title) { position: relative; z-index: 1; }
