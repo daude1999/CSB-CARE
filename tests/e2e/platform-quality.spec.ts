@@ -68,9 +68,10 @@ test.describe("usability improvements", () => {
     // Demonstration organisation: its people are labelled as fictional.
     await expect(page.getByText(/Fictional demonstration person/)).toBeVisible();
     // The absence form is folded until needed.
-    await expect(page.getByLabel("Reason", { exact: true })).toBeHidden();
-    await page.getByText("Record an absence").click();
-    await expect(page.getByLabel("Reason", { exact: true })).toBeVisible();
+    const absence = page.locator("details", { has: page.getByText("Record an absence") });
+    await expect(absence.getByLabel("First day")).toBeHidden();
+    await absence.getByText("Record an absence").click();
+    await expect(absence.getByLabel("First day")).toBeVisible();
   });
 
   test("the care plan register shows read-by counts against the carers booked", async ({ page }) => {
@@ -99,7 +100,7 @@ test.describe("usability improvements", () => {
     const advanced = page.locator('button[data-nav-group="Advanced"]');
     await expect(advanced).toHaveAttribute("aria-expanded", "false");
     await advanced.click();
-    await page.getByRole("link", { name: "Audit Log" }).click();
+    await page.getByTestId("portal-pages").getByRole("link", { name: "Audit Log", exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/audit/);
     await expect(page.locator('button[data-nav-group="Advanced"]')).toHaveAttribute("aria-expanded", "true");
   });
