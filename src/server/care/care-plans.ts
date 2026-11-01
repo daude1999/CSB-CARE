@@ -76,11 +76,33 @@ export async function carePlanRegister(ctx: Ctx, f: { q?: string; filter?: strin
     take: 500,
   });
   const today = dbDate(londonDate());
+  // "Read by carers" counts the carers booked in the next 14 days who have read the plan in use, out of all of them,
+  // the same measure the person's care plan page shows. Two queries for the whole register, not one per person.
+  const activeIds = people.flatMap((p) => p.carePlans.filter((c) => c.status === "ACTIVE").map((c) => c.id));
+  const [booked, acks] = await Promise.all([
+    activeIds.length
+      ? db.visitAssignment.findMany({
+          where: { organisationId: scope.organisationId, removedAt: null, visit: { serviceUserId: { in: people.map((p) => p.id) }, status: { in: ["SCHEDULED", "IN_PROGRESS"] }, date: { gte: today, lte: dbDate(addDays(londonDate(), 14)) } } },
+          select: { staffId: true, visit: { select: { serviceUserId: true } } },
+        })
+      : [],
+    activeIds.length ? db.carePlanAcknowledgement.findMany({ where: { organisationId: scope.organisationId, carePlanId: { in: activeIds } }, select: { carePlanId: true, staffId: true } }) : [],
+  ]);
+  const bookedFor = new Map<string, Set<string>>();
+  for (const b of booked) {
+    const set = bookedFor.get(b.visit.serviceUserId) ?? new Set<string>();
+    set.add(b.staffId);
+    bookedFor.set(b.visit.serviceUserId, set);
+  }
+  const readers = new Map<string, Set<string>>();
+  for (const a of acks) readers.set(a.carePlanId, (readers.get(a.carePlanId) ?? new Set<string>()).add(a.staffId));
   const rows = people.map((p) => {
     const active = p.carePlans.find((c) => c.status === "ACTIVE") ?? null;
     const pending = p.carePlans.find((c) => c.status !== "ACTIVE") ?? null;
     const overdue = !!active?.reviewDue && active.reviewDue < today;
-    return { ...p, active, pending, overdue };
+    const visiting = [...(bookedFor.get(p.id) ?? [])];
+    const readByVisiting = active ? { read: visiting.filter((id) => readers.get(active.id)?.has(id)).length, of: visiting.length } : null;
+    return { ...p, active, pending, overdue, readByVisiting };
   });
   const filtered = rows.filter((r) => (f.filter === "none" ? !r.active : f.filter === "overdue" ? r.overdue : f.filter === "review" ? r.pending?.status === "IN_REVIEW" : f.filter === "draft" ? r.pending?.status === "DRAFT" : true));
   return { rows: filtered, totals: { all: rows.length, none: rows.filter((r) => !r.active).length, overdue: rows.filter((r) => r.overdue).length, review: rows.filter((r) => r.pending?.status === "IN_REVIEW").length, draft: rows.filter((r) => r.pending?.status === "DRAFT").length } };

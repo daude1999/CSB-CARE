@@ -29,7 +29,7 @@ Merge the PR."
 
 ## Schema (additive only)
 
-Migration `20261101170000_recruitment_care_summary`: enums `RecruitmentStage`, `RightToWorkStatus`, `InterviewStatus`;
+Migration `20261101200000_recruitment_care_summary`: enums `RecruitmentStage`, `RightToWorkStatus`, `InterviewStatus`;
 tables `Candidate`, `CandidateEvent` (append-only trigger), `CandidateNote`, `CandidateScreening`, `CandidateInterview`,
 `RecruitmentSettings`, `CareSummary` (output, sources and provider frozen by trigger); nullable columns
 `RotaSettings.careSummaryEnabledAt/ById/ReviewNote` and `CarePlan.sourceSummaryId`. No existing column changes.

@@ -70,10 +70,11 @@ test.describe("Care intelligence", () => {
     await expect(page.locator("tr[data-kpi=plans-overdue]")).toContainText("review date has passed");
   });
 
-  test("service user overview has an At a glance summary", async ({ page }) => {
+  test("service user overview shows Recent care next to Care at a glance", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/service-users");
     await page.locator("table a.row-title, table a").first().click();
-    await expect(page.getByTestId("at-a-glance")).toContainText("Care plan");
+    await expect(page.getByTestId("care-at-a-glance")).toBeVisible();
+    await expect(page.getByTestId("recent-care")).toContainText("Care Summary");
   });
 });

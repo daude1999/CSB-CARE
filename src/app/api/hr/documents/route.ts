@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     if (!canEdit(u)) throw new HttpError(403, "Uploads not permitted");
     if (Number(request.headers.get("content-length") || 0) > 11 * 1024 * 1024)
       throw new HttpError(413, "Maximum file size is 10 MB");
-    rateLimit(u.id, 60);
+    await rateLimit(u.id, 60);
     const data = await (
       await limitedRequest(request, 11 * 1024 * 1024)
     ).formData();

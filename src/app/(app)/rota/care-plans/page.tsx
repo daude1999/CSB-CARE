@@ -42,7 +42,7 @@ export default async function CarePlansPage({ searchParams }: { searchParams: Pr
                     <td><AreaDot area={r.area} /></td>
                     <td>{r.active ? <>Version {r.active.version}<div className="text-[12.5px] text-slate-500">approved {r.active.approvedAt ? fmtLondonDate(r.active.approvedAt.toISOString().slice(0, 10)) : ""}</div></> : <Badge tone="rose">No plan in use</Badge>}</td>
                     <td className="tabular-nums">{r.active?.reviewDue ? <span className={r.overdue ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(r.active.reviewDue))}{r.overdue ? " · overdue" : ""}</span> : "—"}</td>
-                    <td className="tabular-nums">{r.active ? r.active._count.acknowledgements : "—"}</td>
+                    <td className="tabular-nums">{r.readByVisiting ? (r.readByVisiting.of ? <span className={r.readByVisiting.read < r.readByVisiting.of ? "text-[#8a5a00]" : ""}>{r.readByVisiting.read} of {r.readByVisiting.of}<span className="block text-[12px] text-slate-500">booked in 14 days</span></span> : <span className="text-slate-500">No carers booked</span>) : "—"}</td>
                     <td>{r.pending ? <Badge tone={r.pending.status === "IN_REVIEW" ? "amber" : "slate"}>Version {r.pending.version} {r.pending.status === "IN_REVIEW" ? "awaiting approval" : "draft"}</Badge> : null}</td>
                   </tr>
                 ))}

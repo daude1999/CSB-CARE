@@ -535,9 +535,8 @@ export async function readCaseEvidence(ctx: Ctx, evidenceId: string) {
   const doc = await db.evidenceDocument.findFirst({ where: { id: evidenceId, organisationId: scope.organisationId, linkedType: "MISSED_CALL" } });
   if (!doc || !doc.linkedId) throw new NotFoundError("Evidence");
   await caseInScope(ctx, doc.linkedId, "rota.monitor");
-  if (doc.scanStatus === "INFECTED") throw new ForbiddenError("This file failed the malware scan and cannot be downloaded");
-  const { storage } = await import("@/server/storage");
-  const bytes = await storage().get(doc.storageKey);
+  const { assertDownloadable } = await import("@/server/compliance/evidence");
+  const bytes = await assertDownloadable(doc, ctx.userId);
   await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "evidence.downloaded", entityType: "EvidenceDocument", entityId: doc.id });
   return { doc, bytes };
 }

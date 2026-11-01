@@ -8,6 +8,8 @@ import { orNotFound } from "@/server/auth/page-guard";
 import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/service-users";
 import { packageCoverage } from "@/server/care/packages";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
+import { recentIncidentsFor } from "@/server/care/incidents";
+import { listRisks } from "@/server/care/risks";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { serviceUserGlance } from "@/server/care/glance";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
@@ -53,6 +55,19 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const glance = tab === "overview" ? await serviceUserGlance(ctx, su) : null;
+  // The overview's "Care at a glance": the plan in use, current risks and recent incidents, each linking to its page.
+  const [plans, risks, incidents] = tab === "overview"
+    ? await Promise.all([
+        db.carePlan.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, status: { in: ["ACTIVE", "DRAFT", "IN_REVIEW"] } }, select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true } }),
+        listRisks(ctx, { serviceUserId: su.id }),
+        recentIncidentsFor(ctx, su.id),
+      ])
+    : [[], [], null];
+  const planInUse = plans.find((p) => p.status === "ACTIVE") ?? null;
+  const planPending = plans.find((p) => p.status !== "ACTIVE") ?? null;
+  const todayDb = dbDate(today);
+  const risksOverdue = risks.filter((r) => r.reviewDue < todayDb).length;
+  const risksHigh = risks.filter((r) => r.level === "HIGH").length;
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
   const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
@@ -62,7 +77,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       <PageHeader
         title={suName(su)}
         back="/rota/service-users"
-        subtitle={`${su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}. Fictional demonstration person.`}
+        subtitle={`${su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
         actions={<StatusBadge status={su.status} />}
       />
       <Flash searchParams={sp} />
@@ -71,13 +86,54 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "overview" ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-3">
+            <Card title="About">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
+                <Field label="Known as">{su.preferredName ?? su.firstName}</Field>
+                <Field label="Date of birth">{su.sensitiveHidden ? <span className="text-slate-500">Restricted</span> : su.dateOfBirth ? fmtDate(su.dateOfBirth) : "—"}</Field>
+                <Field label="First language">{su.firstLanguage ?? "—"}</Field>
+                <Field label="Carer preference">{su.carerGenderPreference === "ANY" ? "No preference" : `${su.carerGenderPreference.toLowerCase()} carers`}</Field>
+                <Field label="Risk">{su.riskLevel ? <Badge tone={su.riskLevel === "HIGH" ? "rose" : su.riskLevel === "MEDIUM" ? "amber" : "slate"}>{su.riskLevel.toLowerCase()}</Badge> : "Not assessed"}</Field>
+                <Field label="Care started">{su.startDate ? fmtDate(su.startDate) : "—"}</Field>
+              </dl>
+              {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
+              {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
+              {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
+            </Card>
+            <Card title="Care at a glance">
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-3" data-testid="care-at-a-glance">
+                <div className="min-w-0">
+                  <dt className="label">Care plan in use</dt>
+                  <dd className="text-[14px]">
+                    {planInUse ? <>Version {planInUse.version}{planInUse.reviewDue ? <span className={`block text-[12.5px] ${planInUse.reviewDue < todayDb ? "font-medium text-[#a3242c]" : "text-slate-600"}`}>Review {planInUse.reviewDue < todayDb ? "overdue since" : "due"} {fmtLondonDate(fromDbDate(planInUse.reviewDue))}</span> : null}</> : <Badge tone="rose">No plan in use</Badge>}
+                    {planPending ? <span className="block text-[12.5px] text-[#8a5a00]">Version {planPending.version} {planPending.status === "IN_REVIEW" ? "awaiting approval" : "in draft"}</span> : null}
+                    <Link href={`/rota/care-plans/${su.id}`} className="mt-1 block text-[13px]">Review care plan</Link>
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="label">Risk assessments</dt>
+                  <dd className="text-[14px]">
+                    {risks.length ? <>{risks.length} current{risksHigh ? <> · <span className="font-medium text-[#a3242c]">{risksHigh} high</span></> : null}{risksOverdue ? <span className="block text-[12.5px] font-medium text-[#a3242c]">{risksOverdue} past review date</span> : <span className="block text-[12.5px] text-slate-600">Next review {fmtLondonDate(fromDbDate(risks[0]!.reviewDue))}</span>}</> : <span className="text-slate-600">None recorded</span>}
+                    <Link href={`/rota/risks?su=${su.id}`} className="mt-1 block text-[13px]">Review risks</Link>
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="label">Recent incidents</dt>
+                  <dd className="text-[14px]">
+                    {incidents === null ? <span className="text-slate-600">Not available to your role</span> : incidents.length ? (
+                      <ul className="space-y-1">
+                        {incidents.map((i) => (
+                          <li key={i.id} className="leading-5"><Link href={`/rota/incidents/${i.id}`}>{i.category}</Link> <span className="text-[12.5px] text-slate-600">{fmtDate(i.occurredAt)} · {i.status === "CLOSED" ? "closed" : i.status === "INVESTIGATING" ? "being investigated" : "open"}{i.safeguarding ? " · safeguarding" : ""}</span></li>
+                        ))}
+                      </ul>
+                    ) : <span className="text-slate-600">None reported</span>}
+                  </dd>
+                </div>
+              </dl>
+            </Card>
             {glance ? (
-              <section aria-labelledby="glance-h" className="card" data-testid="at-a-glance">
-                <h2 id="glance-h" className="mb-3 text-[17px]">At a glance</h2>
+              <section aria-labelledby="glance-h" className="card" data-testid="recent-care">
+                <h2 id="glance-h" className="mb-3 text-[17px]">Recent care</h2>
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Care plan">{glance.plan ? <><Link href={`/rota/care-plans/${su.id}`}>Version {glance.plan.version} in use</Link>{glance.plan.reviewDue ? <span className={`block text-[13px] ${glance.plan.overdue ? "text-[#a3242c]" : "text-slate-600"}`}>Review {glance.plan.overdue ? "overdue since" : "due"} {fmtDate(glance.plan.reviewDue)}</span> : null}{glance.draft ? <span className="block text-[13px] text-slate-600">Version {glance.draft.version} {glance.draft.status === "DRAFT" ? "being drafted" : "awaiting approval"}</span> : null}</> : <Link href={`/rota/care-plans/${su.id}`} className="text-[#a3242c]">No plan in use</Link>}</Field>
-                  <Field label="Risk assessments"><Link href={`/rota/risks?su=${su.id}`}>{glance.risks.active} active</Link><span className="block text-[13px] text-slate-600">{glance.risks.high} high · {glance.risks.overdue ? <span className="text-[#a3242c]">{glance.risks.overdue} review overdue</span> : "none overdue"}</span></Field>
-                  <Field label="Open incidents">{glance.incidents.open ? <><Link href={glance.incidents.open === 1 && glance.incidents.latest ? `/rota/incidents/${glance.incidents.latest.id}` : `/rota/incidents?q=${encodeURIComponent(su.reference)}`} className="text-[#a3242c]">{glance.incidents.open} open</Link><span className="block text-[13px] text-slate-600">{glance.incidents.safeguarding ? `${glance.incidents.safeguarding} safeguarding · ` : ""}latest {glance.incidents.latest?.reference} {glance.incidents.latest?.category}</span></> : "None open"}</Field>
                   <Field label="Carers who visit most (28 days)">{glance.carers.length ? <span className="block text-[14px]">{glance.carers.map((c) => `${c.name} (${c.visits})`).join(", ")}</span> : "No visits booked"}</Field>
                   <Field label="Medication">{glance.medication.on ? <><Link href={`${base}?tab=medication`}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={`block text-[13px] ${glance.medication.exceptions7d ? "text-[#a3242c]" : "text-slate-600"}`}>{glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-slate-600">Medication records are switched off</span>}</Field>
                   <Field label="Care Summary">{glance.summary ? <Link href={`/rota/care-plans/${su.id}?view=summary&summary=${glance.summary.id}`}>{fmtDate(glance.summary.createdAt)}, {glance.summary.status === "UNREVIEWED" ? "not yet reviewed" : glance.summary.status === "REVIEWED" ? "reviewed" : "dismissed"}</Link> : <Link href={`/rota/care-plans/${su.id}?view=summary`}>Recent records</Link>}</Field>
@@ -92,20 +148,6 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 ) : null}
               </section>
             ) : null}
-            <Card title="About">
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
-                <Field label="Known as">{su.preferredName ?? su.firstName}</Field>
-                <Field label="Date of birth">{su.sensitiveHidden ? <span className="text-slate-500">Restricted</span> : su.dateOfBirth ? fmtDate(su.dateOfBirth) : "—"}</Field>
-                <Field label="First language">{su.firstLanguage ?? "—"}</Field>
-                <Field label="Carer preference">{su.carerGenderPreference === "ANY" ? "No preference" : `${su.carerGenderPreference.toLowerCase()} carers`}</Field>
-                <Field label="Risk">{su.riskLevel ? <Badge tone={su.riskLevel === "HIGH" ? "rose" : su.riskLevel === "MEDIUM" ? "amber" : "slate"}>{su.riskLevel.toLowerCase()}</Badge> : "Not assessed"}</Field>
-                <Field label="Care started">{su.startDate ? fmtDate(su.startDate) : "—"}</Field>
-              </dl>
-              {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
-              {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
-              {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
-              <p className="mt-3 text-[12.5px] text-slate-500"><Link href={`/rota/care-plans/${su.id}`}>Care plan</Link> · <Link href={`/rota/risks?su=${su.id}`}>Risk assessments</Link></p>
-            </Card>
             <Card title="Next visits" actions={<Link href={`${base}?tab=visits`} className="btn-secondary py-1">All visits</Link>}>
               {visits.length ? (
                 <ul className="rows">
@@ -149,6 +191,18 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               ) : <Empty>No active care package.</Empty>}
               {coverage ? <Coverage c={coverage} /> : null}
             </Card>
+            <Card title="Key contacts" actions={<Link href={`${base}?tab=people`} className="btn-secondary py-1">All contacts</Link>}>
+              {su.contacts.length ? (
+                <ul className="space-y-2 text-[14px]">
+                  {su.contacts.slice(0, 3).map((c) => (
+                    <li key={c.id}>
+                      <span className="font-medium">{c.name}</span> {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null}
+                      <span className="block text-[12.5px] text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="text-[14px] text-slate-600">No contacts recorded.</p>}
+            </Card>
             <Card title="Getting in">
               <p className="text-[14px]">{su.accessNotes ?? "No access notes."}</p>
               {su.hasKeySafe ? (
@@ -182,7 +236,9 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 </ul>
               ) : <p className="text-[14px] text-slate-600">No current or planned absences.</p>}
               {canEdit && su.status !== "ENDED" ? (
-                <form action={addAbsenceAction} className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
+                <details className="mt-3 border-t border-slate-200 pt-3">
+                <summary className="btn-secondary inline-block cursor-pointer py-1">Record an absence</summary>
+                <form action={addAbsenceAction} className="mt-3 grid grid-cols-2 gap-2">
                   <input type="hidden" name="back" value={back} />
                   <input type="hidden" name="serviceUserId" value={su.id} />
                   <label className="col-span-2"><span className="label">Reason</span><select name="reason" className="input"><option value="HOSPITAL">Hospital</option><option value="RESPITE">Respite</option><option value="HOLIDAY">Holiday</option><option value="OTHER">Other</option></select></label>
@@ -192,6 +248,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   <button className="btn-secondary col-span-2">Record absence</button>
                   <p className="col-span-2 text-[12.5px] text-slate-500">Built visits in the period that have not started are cancelled. No last day means until further notice.</p>
                 </form>
+                </details>
               ) : null}
             </Card>
             {canEdit ? (
