@@ -388,20 +388,25 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   }
 
   // Only items that are real and non-zero, each linking to the page that deals with it.
-  type Attention = { count: number; text: string; where: string; href: string; colour: string; tint: string; icon: React.ReactNode; external?: boolean };
+  // `rank` puts today's care-delivery problems first, then overdue work, then reviews: the first rows are always the
+  // ones that affect people being cared for today.
+  type Attention = { count: number; text: string; where: string; href: string; colour: string; tint: string; icon: React.ReactNode; external?: boolean; rank: number };
   const attention: Attention[] = [];
   const policyTone = { colour: policy?.colour ?? blue.colour, tint: policy?.tint ?? blue.tint };
   if (policy && m) {
-    if (m.draftsAwaitingApproval) attention.push({ count: m.draftsAwaitingApproval, text: m.draftsAwaitingApproval === 1 ? "Policy awaiting approval" : "Policies awaiting approval", where: "Policy & Compliance", href: "/queue", icon: <FileText size={17} />, ...policyTone });
-    if (m.overdueReviews) attention.push({ count: m.overdueReviews, text: m.overdueReviews === 1 ? "Policy review overdue" : "Policy reviews overdue", where: "Policy & Compliance", href: "/policies?quick=overdue", icon: <FileText size={17} />, ...policyTone });
-    if (m.newChanges + m.awaitingAssessment) attention.push({ count: m.newChanges + m.awaitingAssessment, text: "Regulatory changes to review", where: "Policy & Compliance", href: "/changes", icon: <ClipboardText size={17} />, ...policyTone });
-    if (m.overdueAcks && can("staff.view")) attention.push({ count: m.overdueAcks, text: m.overdueAcks === 1 ? "Staff sign-off overdue" : "Staff sign-offs overdue", where: "Policy & Compliance", href: "/staff", icon: <FileText size={17} />, ...policyTone });
-    if (m.overdueActions) attention.push({ count: m.overdueActions, text: m.overdueActions === 1 ? "Action past due date" : "Actions past due date", where: "Policy & Compliance", href: "/actions", icon: <ClipboardText size={17} />, ...policyTone });
+    if (m.draftsAwaitingApproval) attention.push({ rank: 4, count: m.draftsAwaitingApproval, text: m.draftsAwaitingApproval === 1 ? "Policy awaiting approval" : "Policies awaiting approval", where: "Policy & Compliance", href: "/queue", icon: <FileText size={17} />, ...policyTone });
+    if (m.overdueReviews) attention.push({ rank: 3, count: m.overdueReviews, text: m.overdueReviews === 1 ? "Policy review overdue" : "Policy reviews overdue", where: "Policy & Compliance", href: "/policies?quick=overdue", icon: <FileText size={17} />, ...policyTone });
+    if (m.newChanges + m.awaitingAssessment) attention.push({ rank: 5, count: m.newChanges + m.awaitingAssessment, text: "Regulatory changes to review", where: "Policy & Compliance", href: "/changes", icon: <ClipboardText size={17} />, ...policyTone });
+    if (m.overdueAcks && can("staff.view")) attention.push({ rank: 3, count: m.overdueAcks, text: m.overdueAcks === 1 ? "Staff sign-off overdue" : "Staff sign-offs overdue", where: "Policy & Compliance", href: "/staff", icon: <FileText size={17} />, ...policyTone });
+    if (m.overdueActions) attention.push({ rank: 3, count: m.overdueActions, text: m.overdueActions === 1 ? "Action past due date" : "Actions past due date", where: "Policy & Compliance", href: "/actions", icon: <ClipboardText size={17} />, ...policyTone });
   }
-  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ count: rotaFigures.unassignedToday, text: rotaFigures.unassignedToday === 1 ? "Unassigned visit today" : "Unassigned visits today", where: "Rostering & Care Management", href: "/rota/visits?view=unassigned", icon: <CalendarDots size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
-  if (rota?.missedToday) attention.push({ count: rota.missedToday, text: rota.missedToday === 1 ? "Missed visit today" : "Missed visits today", where: "Rostering & Care Management", href: "/rota/monitor", icon: <WarningCircle size={17} weight="fill" />, ...red });
-  if (rotaPortal && rotaFigures?.openAlerts) attention.push({ count: rotaFigures.openAlerts, text: rotaFigures.openAlerts === 1 ? "Rota alert needs attention" : "Rota alerts need attention", where: "Rostering & Care Management", href: "/rota/exceptions", icon: <WarningCircle size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
-  if (hrPortal && hr?.overdue) attention.push({ count: hr.overdue, text: hr.overdue === 1 ? "HR check overdue" : "HR checks overdue", where: "HR & Workforce", href: hrPortal.home, external: true, icon: <UsersThree size={17} />, colour: hrPortal.colour, tint: hrPortal.tint });
+  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ rank: 1, count: rotaFigures.unassignedToday, text: rotaFigures.unassignedToday === 1 ? "Unassigned visit today" : "Unassigned visits today", where: "Rostering & Care Management", href: "/rota/visits?view=unassigned", icon: <CalendarDots size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
+  if (rota?.missedToday) attention.push({ rank: 0, count: rota.missedToday, text: rota.missedToday === 1 ? "Missed visit today" : "Missed visits today", where: "Rostering & Care Management", href: "/rota/monitor", icon: <WarningCircle size={17} weight="fill" />, ...red });
+  if (rotaPortal && rotaFigures?.openAlerts) attention.push({ rank: 1, count: rotaFigures.openAlerts, text: rotaFigures.openAlerts === 1 ? "Rota alert needs attention" : "Rota alerts need attention", where: "Rostering & Care Management", href: "/rota/exceptions", icon: <WarningCircle size={17} />, colour: rotaPortal.colour, tint: rotaPortal.tint });
+  if (hrPortal && hr?.overdue) attention.push({ rank: 2, count: hr.overdue, text: hr.overdue === 1 ? "HR check overdue" : "HR checks overdue", where: "HR & Workforce", href: hrPortal.home, external: true, icon: <UsersThree size={17} />, colour: hrPortal.colour, tint: hrPortal.tint });
+
+  attention.sort((a, b) => a.rank - b.rank);
+  const SHOWN = 6;
 
   const ordered = ctx.organisationId ? arrange(cards.map((c) => c.key), savedOrder).flatMap((k) => cards.filter((c) => c.key === k)) : cards;
 
@@ -459,7 +464,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
             </div>
             {attention.length ? (
               <ul>
-                {attention.slice(0, 5).map((a) => {
+                {attention.slice(0, SHOWN).map((a) => {
                   const inner = (
                     <>
                       <span aria-hidden="true" className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[8px]" style={{ background: a.tint, color: a.colour }}>{a.icon}</span>
@@ -479,6 +484,13 @@ export default async function Overview({ searchParams }: { searchParams: Promise
             ) : (
               <p className="text-[13px] text-[#4f5b6c]">Nothing needs your attention right now.</p>
             )}
+            {attention.length > SHOWN ? (
+              <p className="border-t border-[#f0f1f4] pt-2 text-[12px] text-[#4f5b6c]">
+                {attention.length - SHOWN} more {attention.length - SHOWN === 1 ? "item" : "items"}: {attention.slice(SHOWN).map((a, i) => (
+                  <span key={a.text}>{i ? ", " : ""}{a.external ? <a href={a.href} className="text-[#1565c0]">{a.text.toLowerCase()} ({a.count})</a> : <Link href={a.href} className="text-[#1565c0]">{a.text.toLowerCase()} ({a.count})</Link>}</span>
+                ))}
+              </p>
+            ) : null}
           </section>
           }
         />

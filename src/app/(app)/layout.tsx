@@ -56,18 +56,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ...page("/assistant", "AI Assistant", <ChatTeardropText {...i} />, can.assistant),
     ],
     hr: hrItems(ctx, i),
-    admin: [
-      ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
-      ...page("/admin/users", "Users", <UsersThree {...i} />, can.settings),
-      ...page("/admin/branches", "Branches", <Buildings {...i} />, can.settings),
-      ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
-      ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
-      ...page("/admin/readiness", "Staff Readiness Matrix", <ListChecks {...i} />, hasOrgPermission(ctx, "readiness.manage")),
-      ...page("/admin/audit", "Audit Log", <ClockCounterClockwise {...i} />, can.settings),
-      ...page("/modules", "Modules", <SquaresFour {...i} />),
-      ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
-      ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),
-    ],
+    // Everyday settings first; technical and platform pages sit in a folded "Advanced" group that opens when one of
+    // its pages is open, so office staff are not faced with every configuration screen at once.
+    admin: groupAdmin(
+      [
+        ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
+        ...page("/admin/users", "Users", <UsersThree {...i} />, can.settings),
+        ...page("/admin/branches", "Branches", <Buildings {...i} />, can.settings),
+        ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
+      ],
+      [
+        ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
+        ...page("/admin/readiness", "Staff Readiness Matrix", <ListChecks {...i} />, hasOrgPermission(ctx, "readiness.manage")),
+        ...page("/admin/audit", "Audit Log", <ClockCounterClockwise {...i} />, can.settings),
+        ...page("/modules", "Modules", <SquaresFour {...i} />),
+        ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
+        ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),
+      ],
+    ),
   };
   const portalIcon: Record<string, React.ReactNode> = {
     overview: <House size={20} />,
@@ -144,3 +150,12 @@ const ROLE_NAMES: Record<string, string> = {
   REGULATORY_REVIEWER: "CSB regulatory reviewer",
   CONTENT_EDITOR: "CSB content editor",
 };
+
+/** Labels the Administration pages as an open "Everyday" group and a folded "Advanced" group. */
+function groupAdmin(everyday: ShellItem[], advanced: ShellItem[]): ShellItem[] {
+  if (!everyday.length) return advanced;
+  return [
+    ...everyday.map((p, n) => (n === 0 ? { ...p, group: "Everyday", fold: "open" as const } : p)),
+    ...advanced.map((p, n) => (n === 0 ? { ...p, group: "Advanced", fold: "closed" as const } : p)),
+  ];
+}

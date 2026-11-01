@@ -94,7 +94,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
             </>
           ) : <span className="text-[12.5px] text-slate-500">Exports are for managers</span>}
         </div>
-        <p className="mb-3 rounded bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">You are looking at missed calls only. A call is missed when nobody has clocked in {settings.missedAfterMin} minutes after its start time (Rota Settings). Every missed call opens a case to investigate.</p>
+        <p className="mb-3 rounded bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">You are looking at missed calls only. A call is missed when nobody has clocked in {settings.missedAfterMin} minutes after its start time (Rota Settings). Every missed call opens a case to investigate. A missed call means no attendance was recorded, not that the carer did not go: check with the carer and the person first.</p>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <nav aria-label="Period" className="inline-flex overflow-hidden rounded-md border border-slate-300">
