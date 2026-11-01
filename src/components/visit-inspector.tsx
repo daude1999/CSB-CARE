@@ -56,7 +56,7 @@ function ActionPop({ label, icon, tone = "secondary", children, align = "left", 
       <summary className={`flex ${size === "lg" ? "h-11 text-[15px]" : "h-9 text-[14px]"} cursor-pointer list-none items-center justify-center gap-2 rounded-[8px] border px-3 font-semibold [&::-webkit-details-marker]:hidden ${cls}`}>
         <span aria-hidden>{icon}</span>{label}
       </summary>
-      <div className={`absolute bottom-12 z-40 w-[340px] max-w-[85vw] rounded-[10px] border border-[#e4e7ec] bg-white p-3 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.18)] ${align === "right" ? "right-0" : "left-0"}`}>{children}</div>
+      <div className={`absolute bottom-12 z-40 rounded-[10px] border border-[#e4e7ec] bg-white p-3 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.18)] ${size === "lg" ? "inset-x-0" : `w-[340px] max-w-[85vw] ${align === "right" ? "right-0" : "left-0"}`}`}>{children}</div>
     </details>
   );
 }

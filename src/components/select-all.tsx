@@ -11,6 +11,7 @@ export function SelectAll({ form, name, label = "Select all" }: { form: string; 
         document.querySelectorAll<HTMLInputElement>(`input[type=checkbox][form="${form}"][name="${name}"]`).forEach((c) => {
           c.checked = e.currentTarget.checked;
         });
+        document.dispatchEvent(new Event("selectall:change"));
       }}
     />
   );

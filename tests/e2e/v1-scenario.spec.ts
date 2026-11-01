@@ -63,7 +63,9 @@ test("V1 scenario through the screens: service user → schedule → build → a
   await page.getByRole("button", { name: "Build New Rota" }).click();
   await expect(page.getByRole("status")).toBeVisible();
   await page.goto(`/rota/visits?date=${week}&q=Scenario`);
-  await page.locator("main tr", { hasText: "Scenario" }).locator("a[href^='/rota/visits/']").first().click();
+  // The Daily Rota opens Visit Details beside the list; "Full visit" opens the visit's own page.
+  await page.locator("main tr", { hasText: "Scenario" }).getByRole("link", { name: /^Open details of visit/ }).first().click();
+  await page.getByRole("link", { name: "Full visit" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Scenario");
   const pick = page.locator("form:has(select[name=staffId])").first();
   const option = await pick.locator("select[name=staffId] option:not([disabled])").nth(1).getAttribute("value");

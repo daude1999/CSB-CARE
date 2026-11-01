@@ -17,6 +17,7 @@ import { VISIT_LABEL, NotBuiltNotice } from "@/components/rota-ui";
 import { ordinalDate } from "@/components/rota-dashboard";
 import { weekIsBuilt } from "@/server/rota/build";
 import { SelectAll } from "@/components/select-all";
+import { BulkVisitBar } from "@/components/bulk-visit-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +111,7 @@ function FilterSelect({ name, label, value, children }: { name: string; label: s
   return (
     <label className="relative min-w-0">
       <span className="sr-only">{label}</span>
-      <select name={name} defaultValue={value} className={SEL}>{children}</select>
+      <select name={name} aria-label={label} defaultValue={value} className={SEL}>{children}</select>
       <CaretDown size={15} aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#344054]" />
     </label>
   );
@@ -251,42 +252,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               {canEdit ? (
                 <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                   <input type="hidden" name="back" value={back} />
-                  <label className="relative"><span className="sr-only">Bulk action</span>
-                    <select name="kind" required defaultValue="" className="h-10 w-[200px] appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]">
-                      <option value="" disabled>Bulk Actions…</option>
-                      <option value="cancel">Cancel Visits</option>
-                      <option value="activate">Activate Visits</option>
-                      <option value="assign">Reassign Visits</option>
-                      <option value="unassign">Unassign Visits</option>
-                      <option value="lock">Add Rota Lock(s)</option>
-                      <option value="unlock">Remove Rota Lock(s)</option>
-                      <option value="editTime">Edit Times</option>
-                      <option value="editDuration">Edit Duration</option>
-                      <option value="editService">Edit Service Name</option>
-                      <option value="addAlert">Add Alerts</option>
-                      <option value="removeAlert">Remove Alerts</option>
-                      <option value="shadow">Add Shadow Shifts</option>
-                      <option value="doubleUp">Convert To Double Up</option>
-                      <option value="single">Revert Double Up To Single</option>
-                      <option value="nudge">Nudge Times</option>
-                      {canPublish ? <option value="publish">Publish to carers</option> : null}
-                    </select>
-                    <CaretDown size={15} aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-                  </label>
-                  <button className="h-10 rounded-[8px] bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398]">Go</button>
-                  <details className="relative">
-                    <summary className="flex h-10 cursor-pointer list-none items-center px-1.5 text-[13.5px] font-medium text-[#5b2bb5] [&::-webkit-details-marker]:hidden">Action options</summary>
-                    <div className="absolute left-0 z-30 mt-1 grid w-[300px] gap-2 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
-                      <label><span className="label text-[12px]">Team member (reassign, shadow)</span><select name="staffId" className="input"><option value="">Choose…</option>{lk.staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select></label>
-                      <label><span className="label text-[12px]">Slot</span><select name="slot" className="input"><option value="PRIMARY">Carer 1</option><option value="SECOND">Carer 2</option><option value="SHADOW">Shadow</option></select></label>
-                      <label className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept warnings</label>
-                      <label><span className="label text-[12px]">Minutes (nudge)</span><input type="number" name="minutes" min={-240} max={240} step={5} defaultValue={15} className="input" /></label>
-                      <label><span className="label text-[12px]">New start time (edit times)</span><input type="time" name="time" className="input" /></label>
-                      <label><span className="label text-[12px]">Duration in minutes (edit duration)</span><input type="number" name="duration" min={5} max={1440} step={5} className="input" /></label>
-                      <label><span className="label text-[12px]">Service call (edit service name)</span><select name="callTypeId" className="input"><option value="">Choose…</option>{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-                      <label><span className="label text-[12px]">Reason (cancel, activate, unassign)</span><input name="reason" className="input" /></label>
-                    </div>
-                  </details>
+                  <BulkVisitBar form="bulk" canPublish={canPublish} staff={lk.staff.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
                 </form>
               ) : null}
               <details className="relative ml-auto">
