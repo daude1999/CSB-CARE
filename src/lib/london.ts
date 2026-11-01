@@ -76,6 +76,13 @@ export function isoWeekday(date: string) {
   return w === 0 ? 7 : w;
 }
 
+/** The ISO 8601 (UK) calendar week number of a date string: the week that holds its Thursday. 31 Oct 2026 is week 44. */
+export function isoWeek(date: string) {
+  const thursday = new Date(`${addDays(date, 4 - isoWeekday(date))}T00:00:00Z`);
+  const jan1 = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  return Math.floor((thursday.getTime() - jan1) / 604_800_000) + 1;
+}
+
 /** The Monday on or before a date. */
 export function mondayOf(date: string) {
   return addDays(date, 1 - isoWeekday(date));
