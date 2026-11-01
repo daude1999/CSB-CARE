@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { londonDate } from "@/lib/london";
+import { addDays, londonDate } from "@/lib/london";
 import { setMemberBranches } from "@/server/admin/branches";
 import { sweepCalls } from "@/server/rota/monitor";
 import {
@@ -177,7 +177,8 @@ describe("missed calls", () => {
 
   it("filters, searches and counts the register consistently", async () => {
     const mgr = await manager();
-    const all = await missedCallRegister(mgr, { period: "custom", from: "2020-01-01", to: londonDate() });
+    // Up to a week ahead: an earlier test in this file misses the next upcoming visit, which in the evening is tomorrow's.
+    const all = await missedCallRegister(mgr, { period: "custom", from: "2020-01-01", to: addDays(londonDate(), 7) });
     expect(all.kpis.total).toBe(await db.missedCallCase.count({ where: { organisationId: orgId, scheduledStart: { gte: new Date(`${all.range.from}T00:00:00Z`) } } }));
     expect(all.rows).toHaveLength(all.kpis.total);
     const un = await missedCallRegister(mgr, { period: "custom", from: all.range.from, to: all.range.to, smart: "uninvestigated" });
