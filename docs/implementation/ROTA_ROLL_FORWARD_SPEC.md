@@ -4,11 +4,11 @@ Status: built on branch `claude/project-thread-v3f4gj` (PR #33). Code: `src/serv
 
 ## Purpose
 
-Build Rota creates a week from the regular-call templates. Offices also change a week by hand (a call moved 20 minutes, a carer swapped, an extra visit). Roll Forward copies a built week **as it is now** into the next 1, 2 or 4 weeks, so those changes are not lost, and re-checks every carer for the new dates.
+Build Rota creates a week from the regular-call templates. Offices also change a week by hand (a call moved 20 minutes, a carer swapped, an extra visit). Roll Forward copies a built week **as it is now** into the next 1, 2, 3 or 4 weeks, so those changes are not lost, and re-checks every carer for the new dates.
 
 ## How it works
 
-1. The coordinator opens **Build Rota → Roll Forward** (or "Roll forward" on a built week's row), chooses the week to copy, the first new week and 1, 2 or 4 weeks, and optionally some areas.
+1. The coordinator opens **Build Rota → Roll Forward** (or "Roll forward" on a built week's row), chooses the week to copy, the first new week and 1, 2, 3 or 4 weeks, and optionally some areas.
 2. **Preview** (nothing saved) shows, per visit, the previous carers next to the proposed carers, with one of three outcomes per slot:
    - **Kept**: the same carer passes every eligibility check on the new date.
    - **Review**: the same carer is allowed but has warnings to read (for example a DBS review due).
@@ -30,7 +30,7 @@ Build Rota creates a week from the regular-call templates. Offices also change a
 
 ## Inputs (validated)
 
-`sourceWeek` and `targetWeek` are ISO Monday dates; `weeks` is 1, 2 or 4; `areaIds` are limited to the member's areas. Invalid input gives a readable `ValidationError`.
+`sourceWeek` and `targetWeek` are ISO Monday dates; `weeks` is 1, 2, 3 or 4; `areaIds` are limited to the member's areas. Invalid input gives a readable `ValidationError`.
 
 ## Known limits
 

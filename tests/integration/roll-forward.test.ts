@@ -10,7 +10,7 @@ import { updateVisit } from "@/server/rota/visits";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
- * One-Click Roll Forward: copies a built week, with its hand-made changes, into 1, 2 or 4 following weeks as drafts.
+ * One-Click Roll Forward: copies a built week, with its hand-made changes, into 1, 2, 3 or 4 following weeks as drafts.
  * Carers are re-checked for the new dates, existing visits are never duplicated, and branch limits apply.
  */
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
@@ -28,7 +28,7 @@ beforeAll(async () => {
 
 describe("roll forward", () => {
   it("refuses impossible requests with readable messages", async () => {
-    await expect(previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 3 })).rejects.toThrow(/1, 2 or 4/);
+    await expect(previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 5 })).rejects.toThrow(/1, 2, 3 or 4/);
     await expect(previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(1), weeks: 1 })).rejects.toThrow(/after the week you copy from/);
     await expect(previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: addDays(wk(2), 1), weeks: 1 })).rejects.toThrow(ValidationError);
     await expect(previewRollForward(await ctxFor("finance@care-solution.demo", BROOKFIELD), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 })).rejects.toThrow();
@@ -80,6 +80,11 @@ describe("roll forward", () => {
     expect(theirs[0]!.reason).toContain(a.staff.displayName);
     expect(plan.counts.uncovered).toBeGreaterThanOrEqual(theirs.length);
     expect(new Set(plan.visits.map((v) => v.weekStart))).toEqual(new Set([wk(3), wk(4)]));
+  });
+
+  it("previews three weeks forward, one set of visits per week", async () => {
+    const plan = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(3), weeks: 3 });
+    expect(new Set(plan.visits.map((v) => v.weekStart))).toEqual(new Set([wk(3), wk(4), wk(5)]));
   });
 
   it("rolls four weeks forward in one go, one draft per week", async () => {
