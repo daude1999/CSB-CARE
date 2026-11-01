@@ -199,8 +199,8 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
       </header>
       <Flash searchParams={sp} />
 
-      <div className="mb-3 flex flex-wrap items-start gap-2.5">
-        <AutoSubmitForm label="Filters" className="grid min-w-0 flex-1 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.15fr)_repeat(4,minmax(0,1fr))]">
+      <div className="mb-3 flex flex-col gap-2.5 lg:flex-row lg:items-start">
+        <AutoSubmitForm label="Filters" className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.15fr)_repeat(4,minmax(0,1fr))]">
           {hiddenExcept(["area", "status", "su", "carer", "q", "page", "visit"])}
           <label className="relative min-w-0">
             <span className="sr-only">Search visits by service user, carer or reference</span>
