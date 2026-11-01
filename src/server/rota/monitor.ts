@@ -108,7 +108,7 @@ export async function monitorBoard(ctx: Ctx, opts: { areaId?: string; now?: Date
       orderBy: { scheduledStart: "asc" },
     }),
     db.rotaProcessingRun.findFirst({ where: { kind: "call.sweep", ok: true, OR: [{ organisationId: scope.organisationId }, { organisationId: null }] }, orderBy: { startedAt: "desc" } }),
-    db.rotaAlert.findMany({ where: { organisationId: scope.organisationId, kind: { in: ["LATE", "MISSED"] }, raisedAt: { gte: new Date(now.getTime() - 86400000) }, conditionAt: { not: null } }, select: { raisedAt: true, conditionAt: true } }),
+    db.rotaAlert.findMany({ where: { organisationId: scope.organisationId, kind: { in: ["LATE", "MISSED"] }, raisedAt: { gte: new Date(now.getTime() - 86400000) }, conditionAt: { gte: new Date(now.getTime() - 86400000) } }, select: { raisedAt: true, conditionAt: true } }),
   ]);
 
   const rows = visits.map((v) => {

@@ -53,6 +53,8 @@ export async function getServiceUser(ctx: Ctx, id: string) {
     include: {
       area: true,
       branch: { select: { name: true } },
+      // Only a demonstration organisation's people are labelled as fictional; real records never are.
+      organisation: { select: { isDemo: true } },
       contacts: { orderBy: [{ isEmergency: "desc" }, { name: "asc" }] },
       packages: { orderBy: { startDate: "desc" }, include: { funder: { select: { name: true } } } },
       absences: { where: { cancelledAt: null, OR: [{ endsAt: null }, { endsAt: { gte: new Date() } }] }, orderBy: { startsAt: "asc" } },

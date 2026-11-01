@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCtx } from "@/server/auth/current";
-import { readEvidence } from "@/server/compliance/evidence";
-import { AppError } from "@/lib/errors";
+import { EvidenceHeldError, readEvidence } from "@/server/compliance/evidence";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +19,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     });
   } catch (e) {
     // Not found and forbidden look the same so existence is not revealed across tenants.
-    const status = e instanceof AppError && e.status === 403 && /malware/.test(e.message) ? 403 : 404;
+    // A held file (failed or missing virus check) says why, so the person knows what to do next.
+    const status = e instanceof EvidenceHeldError ? 403 : 404;
     return NextResponse.json({ error: status === 403 ? (e as Error).message : "Not found" }, { status });
   }
 }

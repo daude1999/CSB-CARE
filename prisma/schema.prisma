@@ -80,6 +80,17 @@ model LoginAttempt {
   @@index([key, createdAt])
 }
 
+/// Shared request counters for rate limiting. Every server instance (Vercel functions included) counts in the same
+/// row, so a limit holds however many instances are running. Rows older than an hour are cleared as they are written.
+model RateLimitWindow {
+  key         String
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}
+
 model Organisation {
   id           String   @id @default(cuid())
   name         String
@@ -1148,6 +1159,8 @@ model EvidenceDocument {
   createdAt      DateTime  @default(now())
 
   @@index([organisationId])
+  /// Evidence shown beside the record it supports (policies, audits, missed calls).
+  @@index([organisationId, linkedType, linkedId])
 }
 
 model TrainingRequirement {
@@ -1819,6 +1832,8 @@ model Incident {
 
   @@unique([organisationId, reference])
   @@index([organisationId, status])
+  /// A service user's record lists their recent incidents.
+  @@index([serviceUserId, occurredAt])
 }
 
 // ───────────────────────────── Rostering ─────────────────────────────
@@ -2267,6 +2282,8 @@ model RotaAlert {
 
   @@index([organisationId, resolvedAt])
   @@index([organisationId, deadline])
+  /// The Monitor's alert-speed figure reads alerts raised in the last day.
+  @@index([organisationId, raisedAt])
 }
 
 /// One run of the call-monitoring sweep, so the monitor can show how fresh its figures are.

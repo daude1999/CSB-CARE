@@ -22,14 +22,72 @@ function sniffImage(buf: Buffer): "png" | "jpeg" | null {
   return null;
 }
 
-/** Malware scanning integration point. Configure MALWARE_SCAN_URL to call a scanning service (e.g. Defender for Storage / ClamAV REST). */
-async function scan(buf: Buffer): Promise<"CLEAN" | "INFECTED" | "NOT_SCANNED"> {
+/**
+ * Malware scanning policy (see docs/SECURITY.md, "Evidence files"):
+ *   - With MALWARE_SCAN_URL set, every upload is scanned before it is stored. The scanner must answer within
+ *     SCAN_TIMEOUT_MS with JSON `{ "infected": boolean }`; anything else counts as a failed scan, never as clean,
+ *     and the upload is refused with nothing stored.
+ *   - Without a scanner the file is stored as NOT_SCANNED after its type, content and size checks. Such files can
+ *     be downloaded (as an attachment, never inline) unless EVIDENCE_REQUIRE_SCAN=true, which holds them until a
+ *     scanner is configured. Once a scanner is configured, a NOT_SCANNED file is scanned the first time it is
+ *     downloaded and its status recorded.
+ *   - INFECTED files are never served. PENDING and SCAN_FAILED files are held. Nothing is deleted automatically.
+ */
+export type ScanStatus = "CLEAN" | "INFECTED" | "NOT_SCANNED" | "PENDING" | "SCAN_FAILED";
+const SCAN_TIMEOUT_MS = 20_000;
+
+/** The scanner could not give a clear answer. The caller decides what that means; it is never treated as clean. */
+export class ScanUnavailableError extends Error {}
+
+export const scannerConfigured = () => Boolean(process.env.MALWARE_SCAN_URL);
+const requireScan = () => process.env.EVIDENCE_REQUIRE_SCAN === "true";
+
+/** Calls the configured scanning service (e.g. Defender for Storage or a ClamAV REST wrapper). */
+export async function scanBytes(buf: Buffer): Promise<"CLEAN" | "INFECTED" | "NOT_SCANNED"> {
   const url = process.env.MALWARE_SCAN_URL;
   if (!url) return "NOT_SCANNED";
-  const res = await fetch(url, { method: "POST", body: new Uint8Array(buf), headers: { "Content-Type": "application/octet-stream" } });
-  if (!res.ok) throw new Error(`Malware scan failed: HTTP ${res.status}`);
-  const body = (await res.json()) as { infected?: boolean };
-  return body.infected ? "INFECTED" : "CLEAN";
+  let body: unknown;
+  try {
+    const res = await fetch(url, { method: "POST", body: new Uint8Array(buf), headers: { "Content-Type": "application/octet-stream" }, signal: AbortSignal.timeout(SCAN_TIMEOUT_MS) });
+    if (!res.ok) throw new ScanUnavailableError(`HTTP ${res.status}`);
+    body = await res.json();
+  } catch (e) {
+    throw e instanceof ScanUnavailableError ? e : new ScanUnavailableError(e instanceof Error ? e.name : "scan error");
+  }
+  const infected = typeof body === "object" && body !== null && "infected" in body ? (body as { infected: unknown }).infected : undefined;
+  if (typeof infected !== "boolean") throw new ScanUnavailableError("unexpected scanner response");
+  return infected ? "INFECTED" : "CLEAN";
+}
+
+/** Why a file cannot be downloaded right now, in words the person can act on. Thrown as a 403. */
+export class EvidenceHeldError extends ForbiddenError {}
+
+/**
+ * Applies the scanning policy to one stored file before it is served. Ownership and permission are checked by the
+ * caller first. May record a new scan result (and audits it); never deletes the file.
+ */
+export async function assertDownloadable(doc: { id: string; organisationId: string; scanStatus: string; storageKey: string }, actorId: string): Promise<Buffer> {
+  if (doc.scanStatus === "INFECTED") throw new EvidenceHeldError("This file failed the malware scan and cannot be downloaded. Ask an administrator to review it.");
+  if (doc.scanStatus === "PENDING" || doc.scanStatus === "SCAN_FAILED") throw new EvidenceHeldError("This file is waiting for its virus check and cannot be downloaded yet. Try again later, or ask an administrator.");
+  const bytes = await storage().get(doc.storageKey);
+  if (doc.scanStatus === "NOT_SCANNED") {
+    if (scannerConfigured()) {
+      let result: "CLEAN" | "INFECTED" | "NOT_SCANNED";
+      try {
+        result = await scanBytes(bytes);
+      } catch {
+        throw new EvidenceHeldError("The virus check could not run just now, so the file is held. Try again in a few minutes.");
+      }
+      if (result !== "NOT_SCANNED") {
+        await db.evidenceDocument.update({ where: { id: doc.id }, data: { scanStatus: result } });
+        await audit({ organisationId: doc.organisationId, actorId, action: "evidence.scanned", entityType: "EvidenceDocument", entityId: doc.id, data: { scanStatus: result, when: "on download" } });
+      }
+      if (result === "INFECTED") throw new EvidenceHeldError("This file failed the malware scan and cannot be downloaded. Ask an administrator to review it.");
+    } else if (requireScan()) {
+      throw new EvidenceHeldError("This file has not been virus-checked. Your organisation only allows checked files to be downloaded, so it is held until a scanner is set up.");
+    }
+  }
+  return bytes;
 }
 
 export async function uploadEvidence(ctx: Ctx, file: { name: string; type: string; bytes: Buffer }, meta: { description?: string; linkedType?: string; linkedId?: string }) {
@@ -102,8 +160,15 @@ export async function storeEvidenceFile(orgId: string, actorId: string, file: { 
   if (!(kind in ALLOWED) || !ALLOWED[kind as keyof typeof ALLOWED]!.includes(file.type)) {
     throw new ValidationError("File type not allowed (PDF, DOCX, PNG, JPEG, TXT, CSV) or content does not match its declared type");
   }
-  const scanStatus = await scan(file.bytes);
-  if (scanStatus === "INFECTED") throw new ValidationError("File rejected by malware scan");
+  let scanStatus: ScanStatus;
+  try {
+    scanStatus = await scanBytes(file.bytes);
+  } catch (e) {
+    if (!(e instanceof ScanUnavailableError)) throw e;
+    // Fail closed: a file the scanner could not check is not stored, so it can never be served as if clean.
+    throw new ValidationError("The virus check could not run just now, so the file was not saved. Please try again in a few minutes.");
+  }
+  if (scanStatus === "INFECTED") throw new ValidationError("This file was rejected by the virus check and was not saved.");
   const safeName = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
   const key = `evidence/${orgId}/${randomUUID()}`;
   await storage().put(key, file.bytes, file.type);
@@ -119,8 +184,7 @@ export async function readEvidence(ctx: Ctx, id: string) {
   const orgId = requireOrgPermission(ctx, "evidence.read");
   const doc = await db.evidenceDocument.findUnique({ where: { id } });
   if (!doc || doc.organisationId !== orgId) throw new NotFoundError("Evidence");
-  if (doc.scanStatus === "INFECTED") throw new ForbiddenError("This file failed the malware scan and cannot be downloaded");
-  const bytes = await storage().get(doc.storageKey);
+  const bytes = await assertDownloadable(doc, ctx.userId);
   await audit({ organisationId: orgId, actorId: ctx.userId, action: "evidence.downloaded", entityType: "EvidenceDocument", entityId: id });
   return { doc, bytes };
 }
