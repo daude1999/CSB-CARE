@@ -48,9 +48,50 @@ test.describe("Rostering & Care Management", () => {
     await page.goto("/rota/visits?layout=list");
     const boxes = page.locator("input[name=visitIds]");
     await boxes.nth(0).check();
-    await page.locator("#bulk select[name=kind]").selectOption("cancel");
-    await page.locator("#bulk").getByRole("button", { name: "Go" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: /reason/i }).first()).toBeVisible();
+    const bulk = page.locator("#bulk");
+    const go = bulk.getByRole("button", { name: "Go" });
+    await expect(bulk.getByTestId("bulk-selected")).toHaveText("1 selected");
+    await bulk.locator("select[name=kind]").selectOption("cancel");
+    await expect(go).toBeDisabled();
+    await expect(bulk.getByTestId("bulk-hint")).toContainText("Give a reason");
+    // Too short a reason is still refused by the server, whatever the page allows.
+    await bulk.getByPlaceholder("Reason").fill("ab");
+    await expect(go).toBeDisabled();
+  });
+
+  test("bulk actions show the details each action needs, and Reassign and Lock work from the Daily Rota", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto(`/rota/visits?date=${mondayWeeksAhead(1)}`);
+    const bulk = page.locator("#bulk");
+    const go = bulk.getByRole("button", { name: "Go" });
+    await expect(go).toBeDisabled();
+    await expect(bulk.getByTestId("bulk-hint")).toContainText("Tick the visits");
+    // Select all ticks the page, and the count follows.
+    await page.getByLabel("Select all visits on this page").check();
+    await expect(bulk.getByTestId("bulk-selected")).not.toHaveText("0 selected");
+    await page.getByLabel("Select all visits on this page").uncheck();
+    await expect(bulk.getByTestId("bulk-selected")).toHaveText("0 selected");
+
+    // Reassign: the carer picker appears beside the action, and Go waits for it.
+    await page.locator("input[name=visitIds]").nth(0).check();
+    await bulk.locator("select[name=kind]").selectOption("assign");
+    await expect(bulk.getByLabel("Carer", { exact: true })).toBeVisible();
+    await expect(bulk.getByTestId("bulk-hint")).toHaveText("Choose a carer.");
+    await expect(go).toBeDisabled();
+    await bulk.getByLabel("Carer", { exact: true }).selectOption({ index: 1 });
+    await bulk.getByLabel("Accept warnings").check();
+    await expect(go).toBeEnabled();
+    await go.click();
+    // Each visit is checked by the eligibility service: the result is either an update or a reason it was refused.
+    await expect(page.getByRole("status").or(page.getByRole("alert")).first()).toBeVisible();
+    await expect(page).toHaveURL(/[?&](ok|error)=/);
+
+    // Lock needs nothing else and reports the visits it changed.
+    await page.locator("input[name=visitIds]").nth(1).check();
+    await bulk.locator("select[name=kind]").selectOption("lock");
+    await expect(bulk.getByLabel("Carer", { exact: true })).toHaveCount(0);
+    await go.click();
+    await expect(page.getByRole("status")).toContainText("1 updated");
   });
 
   test("Build Rota previews a future week with its checklist", async ({ page }) => {
@@ -97,7 +138,7 @@ test.describe("Rostering & Care Management", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/visits");
     await page.locator("summary", { hasText: "Actions" }).last().click();
-    await page.getByRole("link", { name: "Generate & Optimise" }).click();
+    await page.getByTestId("main-content").getByRole("link", { name: "Generate & Optimise" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Generate & Optimise Rota" })).toBeVisible();
     await page.locator("select[name=days]").selectOption("7");
     await page.getByRole("button", { name: "Generate plan" }).click();
@@ -195,9 +236,9 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Daily Rota – Live View" })).toBeVisible();
     await expect(page.getByRole("region", { name: "The day's figures" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
-    for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label)).toBeVisible();
+    for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label, { exact: true })).toBeVisible();
     const table = page.getByRole("region", { name: "Visits" }).locator("table");
-    for (const name of ["Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"]) await expect(table.getByRole("columnheader", { name })).toBeVisible();
+    for (const name of ["Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"]) await expect(table.getByRole("columnheader", { name, exact: true })).toBeVisible();
     // No details panel until a visit is chosen.
     await expect(page.getByRole("complementary", { name: "Visit Details" })).toHaveCount(0);
     // Coverage badges read filled/required; the calendar week is a number; Week is "Week n" or a dash.

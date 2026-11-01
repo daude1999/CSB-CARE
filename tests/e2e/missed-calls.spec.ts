@@ -13,7 +13,10 @@ async function signIn(page: Page, email: string) {
 
 test("Missed Calls register: figures, smart filter, and a case investigated to sign-off", async ({ page }) => {
   await signIn(page, "coordinator@care-solution.demo");
-  await page.goto("/rota/missed?period=month");
+  // The last 30 days, not the calendar month: just after midnight on the 1st the month has no missed calls yet.
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  await page.goto(`/rota/missed?period=custom&from=${from}&to=${to}`);
   await expect(page.getByRole("heading", { name: "Missed Calls" })).toBeVisible();
   const figures = page.getByRole("region", { name: "Management figures" });
   for (const label of ["Total missed calls", "Repeat offenders", "High-risk missed visits", "Uninvestigated", "Resolved", "Repeat service-user incidents"]) await expect(figures.getByText(label, { exact: true })).toBeVisible();
@@ -50,7 +53,10 @@ test("Missed Calls register: figures, smart filter, and a case investigated to s
 test("Missed Calls on a phone shows cards and the figures", async ({ page }) => {
   await signIn(page, "manager@care-solution.demo");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/rota/missed?period=month");
+  // The last 30 days, not the calendar month: just after midnight on the 1st the month has no missed calls yet.
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  await page.goto(`/rota/missed?period=custom&from=${from}&to=${to}`);
   await expect(page.getByRole("region", { name: "Management figures" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Export Excel" })).toBeVisible();
 });
