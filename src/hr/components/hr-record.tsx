@@ -16,6 +16,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { Avatar, Badge, ComplianceMeter } from "./ui";
+import { KeyChecks } from "./hr-views";
 import { HRTasks } from "./hr-tasks";
 import { EmployeeChecks, EmployeeDocuments } from "./employee-sections";
 import { documentTitle } from "@/hr/lib/document-groups";
@@ -219,6 +220,7 @@ export function HRRecord({
                   {e.email || "Email not recorded"}
                 </span>
               </div>
+              <KeyChecks checks={required} today={data.today} />
             </div>
             <div className="act">
               {e.email ? (

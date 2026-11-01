@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
+import { HrPageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { AppError } from "@/lib/errors";
 import { requirePortal } from "@/server/auth/portals";
 import { recruitmentAccess, staffChoices } from "@/server/recruitment/access";
 import { COMMON_DOCUMENTS } from "@/server/recruitment/model";
 import { createCandidateAction } from "@/app/recruitment-actions";
-import { Flash, PageHeader } from "@/components/ui";
+import { Flash } from "@/components/ui";
 import { CandidateFields, R_PANEL, R_PRIMARY, R_SECONDARY } from "@/components/recruitment-ui";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export default async function NewCandidatePage({ searchParams }: { searchParams:
   const people = await staffChoices(a.organisationId);
   return (
     <div className="-mt-1">
-      <PageHeader title="Add Candidate" back="/hr/recruitment" subtitle="Record a new application. The candidate starts at Applied; nothing is sent to them." />
+      <HrPageHeader title="Add Candidate" back="/hr/recruitment" subtitle="Record a new application. The candidate starts at Applied; nothing is sent to them." />
       <Flash searchParams={sp} />
       <form action={createCandidateAction} className={`${R_PANEL} p-4`} aria-label="New candidate">
         <input type="hidden" name="back" value="/hr/recruitment/new" />

@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { ACK_NOT_TRAINING, parseSignoffFilters, signoffByGroup, signoffCounts, signoffLookups, signoffRows, type SignoffRow } from "@/server/policies/assignment";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { AckBadge, personKey, SignoffFilterForm, SignoffSummary, signoffHref } from "@/components/signoff-ui";
-import { Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
+import { Card, Empty, Flash, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ export default async function StaffSignoffPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active={tab} />} title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active={tab} />} title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
       <Flash searchParams={sp} />
       <SignoffFilterForm f={f} view={view} branches={lookups.branches} roles={lookups.roles} policies={lookups.policies} base={base} />
       <SignoffSummary c={c} base={base} f={fv} />

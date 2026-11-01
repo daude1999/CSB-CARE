@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { HrPageHeader } from "@/components/module-header";
 import type { ReactNode } from "react";
 import { ArrowSquareOut, CheckCircle, PencilSimple, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
@@ -13,7 +14,7 @@ import { canClose, CHANNEL_LABEL, COMMON_DOCUMENTS, DRIVING_LABEL, INTERVIEW_LAB
 import { read as readHr } from "@/hr/lib/workspace-tx";
 import { employeeRoute } from "@/hr/lib/routes";
 import { candidateNoteAction, closeCandidateAction, eraseCandidateAction, giveScreeningAction, interviewAction, makeOfferAction, markReadyAction, moveStageAction, offerResponseAction, reopenCandidateAction, scheduleInterviewAction, screeningAnswersAction, screeningReviewAction, startOnboardingAction, updateCandidateAction } from "@/app/recruitment-actions";
-import { Empty, Flash, PageHeader } from "@/components/ui";
+import { Empty, Flash } from "@/components/ui";
 import { CandidateFields, DL, EligibilityPill, R_PANEL, R_PRIMARY, R_SECONDARY, RtwBadge, Section, StageBadge, StageSteps } from "@/components/recruitment-ui";
 
 export const dynamic = "force-dynamic";
@@ -181,7 +182,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
 
   return (
     <div className="-mt-1">
-      <PageHeader
+      <HrPageHeader
         title={c.anonymisedAt ? `Application ${c.reference}` : `${c.firstName} ${c.lastName}`}
         back="/hr/recruitment"
         subtitle={<>{c.reference} · {c.roleApplied} · {branch?.name ?? "—"} · recruiter {who(c.recruiterId)}</>}

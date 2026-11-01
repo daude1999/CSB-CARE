@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
+import { CompliancePageHeader } from "@/components/module-header";
 import { requireCtx } from "@/server/auth/current";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { createPolicyAction } from "../../../actions";
-import { Card, Flash, PageHeader } from "@/components/ui";
+import { Card, Flash } from "@/components/ui";
 
 export default async function NewPolicy({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -10,7 +11,7 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
   const [categories, services] = await Promise.all([db.policyCategory.findMany({ orderBy: { name: "asc" } }), db.serviceType.findMany()]);
   return (
     <>
-      <PageHeader eyebrow="Library · new document" title="Create Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
+      <CompliancePageHeader eyebrow="Library · new document" title="Create Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
       <Flash searchParams={sp} />
       <Card title="Policy details">
         <form action={createPolicyAction} className="grid gap-4 md:grid-cols-2">

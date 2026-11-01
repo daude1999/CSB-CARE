@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -8,7 +9,7 @@ import { answerAction, completeAuditAction, createActionAction, findingAction } 
 import { uploadLinkedEvidenceAction } from "@/app/compliance-actions";
 import { evidenceFor } from "@/server/compliance/evidence";
 import { EvidenceList, EvidenceUpload } from "@/components/evidence-ui";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 const RESPONSES = [["MET", "Met"], ["PARTIALLY_MET", "Partially met"], ["NOT_MET", "Not met"], ["NOT_APPLICABLE", "Not applicable"]] as const;
@@ -43,7 +44,7 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
   const canManageActions = hasOrgPermission(ctx, "action.manage");
   return (
     <>
-      <PageHeader back="/audits" title={a.title} subtitle={`${a.template.title}, template version ${a.templateVersion}. Started ${fmtDate(a.startedAt)}.`}
+      <CompliancePageHeader back="/audits" title={a.title} subtitle={`${a.template.title}, template version ${a.templateVersion}. Started ${fmtDate(a.startedAt)}.`}
         actions={open ? (
           <form action={completeAuditAction} className="flex items-center gap-3">
             <input type="hidden" name="auditId" value={a.id} />

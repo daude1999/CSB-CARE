@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -6,7 +7,7 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { auditBranchWhere, auditScore } from "@/server/compliance/audits";
 import { startAuditAction } from "../../actions";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, Stat, StatRow, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const average = scores.length ? Math.round(scores.reduce((n, x) => n + x, 0) / scores.length) : null;
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="audits" />} eyebrow="Care operations · internal audit" title="Audits & Improvements" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="audits" />} eyebrow="Care operations · internal audit" title="Audits & Improvements" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
       <Flash searchParams={sp} />
       <StatRow>
         <Stat label="Audits" value={audits.length} hint="Recorded so far" tone="violet" />

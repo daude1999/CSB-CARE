@@ -1,9 +1,10 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import type { ChangeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
-import { Empty, Flash, PageHeader, Pagination, SegmentNav, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Empty, Flash, Pagination, SegmentNav, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
   const counts = Object.fromEntries(await Promise.all(Object.entries(GROUPS).map(async ([k, statuses]) => [k, await db.regulatoryChange.count({ where: { status: { in: statuses } } })] as const)));
   return (
     <>
-      <PageHeader
+      <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="updates" />}
         eyebrow="Monitoring · legislation and guidance"
         title="Regulatory Monitoring"

@@ -1,10 +1,11 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { freshness } from "@/server/sources/engine";
 import { ComplianceTabs } from "@/components/compliance-nav";
-import { Badge, Card, Empty, fmtDate, PageHeader, SimulatedBadge, StatusBadge, type Tone } from "@/components/ui";
+import { Badge, Card, Empty, fmtDate, SimulatedBadge, StatusBadge, type Tone } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function SourceStatusPage() {
   const manual = live.filter((s) => s.fresh.state === "manual").length;
   return (
     <>
-      <PageHeader
+      <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="sources" />}
         title="Regulatory Monitoring"
         subtitle="The legislation and guidance sources CSB checks for changes. A source is shown as up to date only after a confirmed successful check within its window. Simulated sources are demonstration data, not real monitoring."

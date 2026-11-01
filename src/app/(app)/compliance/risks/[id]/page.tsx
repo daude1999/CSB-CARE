@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -11,7 +12,7 @@ import { createActionAction } from "@/app/actions";
 import { closeRiskAction, reopenRiskAction, reviewRiskAction, updateRiskAction, uploadLinkedEvidenceAction } from "@/app/compliance-actions";
 import { RatingChip, RiskFormFields } from "@/components/risk-register-ui";
 import { EvidenceList, EvidenceUpload } from "@/components/evidence-ui";
-import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Field, Flash, fmtDate, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
 
   return (
     <>
-      <PageHeader back="/compliance/risks" title={`${risk.ref} ${risk.title}`} subtitle={`${RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES] ?? risk.category} · ${branch} · owned by ${names.get(risk.ownerId) ?? "a member"}`} actions={<span className="flex flex-wrap items-center gap-2"><Badge tone={closed ? "slate" : risk.status === "MONITORING" ? "teal" : "amber"}>{RISK_STATUS[risk.status as keyof typeof RISK_STATUS]}</Badge>{overdue ? <Badge tone="rose">Review overdue</Badge> : null}</span>} />
+      <CompliancePageHeader back="/compliance/risks" title={`${risk.ref} ${risk.title}`} subtitle={`${RISK_CATEGORIES[risk.category as keyof typeof RISK_CATEGORIES] ?? risk.category} · ${branch} · owned by ${names.get(risk.ownerId) ?? "a member"}`} actions={<span className="flex flex-wrap items-center gap-2"><Badge tone={closed ? "slate" : risk.status === "MONITORING" ? "teal" : "amber"}>{RISK_STATUS[risk.status as keyof typeof RISK_STATUS]}</Badge>{overdue ? <Badge tone="rose">Review overdue</Badge> : null}</span>} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-3">

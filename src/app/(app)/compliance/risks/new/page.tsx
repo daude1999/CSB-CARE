@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { createRiskAction } from "@/app/compliance-actions";
 import { RiskFormFields } from "@/components/risk-register-ui";
-import { Card, Flash, PageHeader } from "@/components/ui";
+import { Card, Flash } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function NewRiskPage({ searchParams }: { searchParams: Prom
   const back = finding ? `/compliance/risks/new?finding=${finding.id}` : "/compliance/risks/new";
   return (
     <>
-      <PageHeader back="/compliance/risks" title="Add a risk" subtitle="Score the risk before controls (inherent) and with the controls already in place (residual). Ratings use the 5 x 5 matrix on the register and are an internal management tool." />
+      <CompliancePageHeader back="/compliance/risks" title="Add a risk" subtitle="Score the risk before controls (inherent) and with the controls already in place (residual). Ratings use the 5 x 5 matrix on the register and are an internal management tool." />
       <Flash searchParams={sp} />
       <Card>
         {finding ? <p className="mb-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[13.5px] text-slate-700">Raised from a finding in <strong>{finding.audit.title}</strong>: {finding.description}</p> : null}

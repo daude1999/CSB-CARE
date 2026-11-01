@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -8,7 +9,7 @@ import { wordDiff, type SectionChange } from "@/server/changes/diff";
 import type { ChangeAnalysis } from "@/server/ai/schemas";
 import { generateDraftAction, manualAssessmentAction, reviewAssessmentAction, triageAction } from "../../../actions";
 import { InlineDiff } from "@/components/diff";
-import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Field, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <PageHeader back="/changes"
+      <CompliancePageHeader back="/changes"
         eyebrow="Regulatory update"
         title={<span className="flex flex-wrap items-center gap-2">{c.title} <SimulatedBadge show={c.isSimulated} /></span>}
         subtitle={c.summary}

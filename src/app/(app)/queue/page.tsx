@@ -1,10 +1,11 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
-import { Badge, Flash, fmtDate, PageHeader, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Badge, Flash, fmtDate, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
   ];
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
       <Flash searchParams={sp} />
       <StatRow>
         <Stat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />

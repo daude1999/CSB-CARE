@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
+import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { requireCtx } from "@/server/auth/current";
-import { Empty, PageHeader, Stat, StatRow, fmtDate } from "@/components/ui";
+import { Empty, Stat, StatRow, fmtDate } from "@/components/ui";
 import { RequirementsTable } from "@/components/requirements-table";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function RequirementsPage({ searchParams }: { searchParams:
   const unmapped = reqs.filter((r) => !r._count.policyLinks).length;
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="requirements" />} eyebrow="Compliance · what the law and guidance ask" title="Regulatory Monitoring" subtitle="Regulatory requirements mapped to policies, audit questions and training. Entries marked unverified have not yet been checked word-for-word against the official source by a qualified reviewer." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="requirements" />} eyebrow="Compliance · what the law and guidance ask" title="Regulatory Monitoring" subtitle="Regulatory requirements mapped to policies, audit questions and training. Entries marked unverified have not yet been checked word-for-word against the official source by a qualified reviewer." />
       <StatRow>
         <Stat label="Requirements" value={reqs.length} hint="In the register" tone="violet" />
         <Stat label="Verified" value={verified} hint="Checked against the source" tone="green" />

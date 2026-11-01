@@ -1,10 +1,11 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getPolicy } from "@/server/policies/library";
-import { Badge, Card, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { Badge, Card, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export default async function VersionPage({ params }: { params: Promise<{ id: string; vid: string }> }) {
   const { id, vid } = await params;
@@ -15,7 +16,7 @@ export default async function VersionPage({ params }: { params: Promise<{ id: st
   const users = await db.user.findMany({ where: { id: { in: v.approvals.map((a) => a.deciderId) } } });
   return (
     <>
-      <PageHeader back={`/policies/${p.id}`} title={`${p.ref} ${p.title}: ${v.label}`} subtitle={v.changeSummary ?? undefined} actions={<Link className="btn-secondary" href={`/policies/${p.id}`}>Back to policy</Link>} />
+      <CompliancePageHeader back={`/policies/${p.id}`} title={`${p.ref} ${p.title}: ${v.label}`} subtitle={v.changeSummary ?? undefined} actions={<Link className="btn-secondary" href={`/policies/${p.id}`}>Back to policy</Link>} />
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4 flex flex-wrap gap-2"><StatusBadge status={v.status} /><Badge>{v.origin.replace(/_/g, " ").toLowerCase()}</Badge><SimulatedBadge show={v.isSimulated} /></div>

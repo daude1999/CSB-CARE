@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "@/hr/nav";
-import Link from "@/hr/nav";
 import { BranchWorkspace, AlertsWorkspace } from "./workspace-widgets";
 import { EmployeePanel } from "./employee-panel";
 import { health, documentState, documentDue } from "@/hr/lib/presentation";
@@ -49,7 +48,7 @@ import { Avatar, Badge, Drawer, Empty, Field } from "./ui";
 import PdfPreview from "./pdf-preview";
 import { DocumentCentre } from "./document-centre";
 import { HRTasks } from "./hr-tasks";
-import { HRHome } from "./hr-home";
+import { HRHome, TrainingMatrix, DocumentsSplit } from "./hr-views";
 import { HRRecord } from "./hr-record";
 import { HubHeader } from "./hub-header";
 import { HUB_SEARCH_EVENT } from "@/lib/portals";
@@ -389,13 +388,14 @@ function Workspace({
               ? "HR Dashboard"
               : title
         }
-        back={
+        page={
           selected
-            ? "/hr/people?branch=" + scope
-            : section === "dashboard"
-              ? undefined
-              : "/hr/dashboard?branch=" + scope
+            ? "record"
+            : section === "alerts" && tasksPage
+              ? "tasks"
+              : section
         }
+        back={selected ? "/hr/people?branch=" + scope : undefined}
         scope={scope}
         setScope={setScope}
         data={data}
@@ -424,68 +424,7 @@ function Workspace({
             />
           )}
           {section === "training" && (
-            <>
-              <PageHeading
-                title="Training"
-                subtitle="Employee training requirements across your permitted workforce."
-              />
-              <section className="h-sheet">
-                <div className="table-scroll">
-                  <table className="h-dir h-dir--fit">
-                    <thead>
-                      <tr>
-                        <th>Employee</th>
-                        <th>Training requirement</th>
-                        <th>Status</th>
-                        <th>Next review</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.checks
-                        .filter(
-                          (c) =>
-                            activeIds.has(c.employee) &&
-                            /training|certificate|first aid|manual handling|driving/i.test(
-                              c.name + " " + c.category,
-                            ),
-                        )
-                        .map((c) => {
-                          const e = data.employees.find(
-                            (e) => e.id === c.employee,
-                          )!;
-                          return (
-                            <tr key={c.id}>
-                              <td>
-                                <Link
-                                  className="h-emp"
-                                  href={employeeRoute(e.id, scope)}
-                                >
-                                  <Avatar name={e.name} />
-                                  <b>{e.name}</b>
-                                </Link>
-                              </td>
-                              <td>{c.name}</td>
-                              <td>
-                                <Badge>{checkStatus(c, data.today)}</Badge>
-                              </td>
-                              <td>{formatDate(c.due)}</td>
-                              <td>
-                                <Link
-                                  className="h-go"
-                                  href={employeeRoute(e.id, scope)}
-                                >
-                                  Open profile <ChevronRight size={14} />
-                                </Link>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </>
+            <TrainingMatrix data={data} scope={scope} />
           )}
           {section === "people" && !employeeId && (
             <People
@@ -526,7 +465,7 @@ function Workspace({
               />
             ))}
           {section === "documents" && (
-            <DocumentCentre
+            <DocumentsSplit
               data={data}
               scope={scope}
               onOpen={(d) => setModal({ type: "document", document: d })}
@@ -535,7 +474,20 @@ function Workspace({
                   ? setModal({ type: "review", check: c })
                   : openEmployee(c.employee)
               }
-              onUpload={() => setModal({ type: "upload" })}
+              onUpload={(e) => setModal({ type: "upload", employee: e })}
+              categoryView={
+                <DocumentCentre
+                  data={data}
+                  scope={scope}
+                  onOpen={(d) => setModal({ type: "document", document: d })}
+                  onReview={(c) =>
+                    editable
+                      ? setModal({ type: "review", check: c })
+                      : openEmployee(c.employee)
+                  }
+                  onUpload={() => setModal({ type: "upload" })}
+                />
+              }
             />
           )}
           {section === "compliance" && (

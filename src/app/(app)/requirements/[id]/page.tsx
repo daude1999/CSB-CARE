@@ -1,9 +1,10 @@
 import Link from "@/components/link";
+import { CompliancePageHeader } from "@/components/module-header";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { visiblePolicyWhere } from "@/server/auth/rbac";
-import { Card, Empty, Field, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { Card, Empty, Field, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function RequirementPage({ params }: { params: Promise<{ id
   const training = r.trainingLinks.filter((t) => t.training.organisationId === null || t.training.organisationId === ctx.organisationId);
   return (
     <>
-      <PageHeader back="/requirements" title={<span className="flex items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
+      <CompliancePageHeader back="/requirements" title={<span className="flex items-center gap-2">{r.ref} {r.title} <SimulatedBadge show={r.isSimulated} /></span>} subtitle={`${r.exactReference} · ${r.source.name}`} />
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <Card title="Requirement">
