@@ -222,7 +222,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                     return (
                       <tr key={t.id} data-href={open} aria-selected={selected || undefined} className={`cursor-pointer border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-[#f4f1fd]" : cov.state === "none" && t.enabled ? "bg-[#fffafa]" : t.enabled ? "" : "bg-[#fafafa] text-[#667085]"} hover:bg-[#f9f8fe]`}>
                         {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="tbulk" name="templateIds" value={t.id} aria-label={`Select ${ref} ${suName(t.serviceUser)} ${t.callType.name}`} className="h-4 w-4" /></td> : null}
-                        <td className={`${TD} whitespace-nowrap tabular-nums`}><Link href={open} scroll={false} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of template ${ref}`}>{ref}</Link></td>
+                        <td className={`${TD} whitespace-nowrap`}><Link href={open} scroll={false} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of template ${ref}`}>{ref}</Link></td>
                         <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/service-users/${t.serviceUser.id}`} title="Open the service user's record" className="inline-flex items-center gap-2 font-bold text-[#5b2bb5] no-underline hover:underline"><User size={16} weight="fill" aria-hidden />{suName(t.serviceUser)}</Link></td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{hhmm(t.startMinute)}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{durationLabel(t.durationMin)}</td>
@@ -232,7 +232,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                           {cov.state !== "full" ? <span className="font-semibold text-[#b42318]">{cov.filled ? ", 1 needed" : "Unassigned"}</span> : null}
                         </td>
                         <td className={`${TD} max-w-[150px] truncate`} title={t.callType.name}>{t.callType.name}</td>
-                        <td className={`${TD} max-w-[92px] truncate`} title={t.area?.name ?? "No area"}>{t.area ? t.area.name : <span className="text-[#98a2b3]">—</span>}</td>
+                        <td className={`${TD} max-w-[140px] truncate`} title={t.area?.name ?? "No area"}>{t.area ? t.area.name : <span className="text-[#98a2b3]">—</span>}</td>
                         <td className={`${TD} whitespace-nowrap`} title={`Runs ${weekdaysLabel(t.weekdays)}`}>{patternLabel(t.cycleWeeks, cycleLength)}</td>
                         <td className={`${TD} whitespace-nowrap`}><StatusBadge enabled={t.enabled} /></td>
                         <td className={`${TD} whitespace-nowrap`}>

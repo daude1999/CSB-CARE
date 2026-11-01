@@ -20,9 +20,9 @@ const tailwind = require("@tailwindcss/postcss");
 
 const root = process.cwd();
 const styles = path.join(root, "src", "hr", "styles");
-const fonts = `@font-face { font-family: "Geist"; src: url("/brand/fonts/geist-latin.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: "Geist Mono"; src: url("/brand/fonts/geist-mono-latin.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
-`;
+// The HR Hub uses the platform's own typeface, Inter Variable, which the root layout already loads on every page,
+// so the HR style sheet ships no fonts of its own.
+const fonts = "";
 const tailwindCss = require.resolve("tailwindcss/index.css").replaceAll("\\", "/");
 const source = [fonts, ...["globals.css", "hr-tokens.css", "hr-hub.css", "hr-embed.css"].map((f) => readFileSync(path.join(styles, f), "utf8"))]
   .join("\n")

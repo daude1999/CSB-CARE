@@ -124,7 +124,7 @@ function Overview({ rows, all, f, base }: { rows: SignoffRow[]; all: number; f: 
     return (
       <Card title={title}>
         {g.length ? (
-          <div className="overflow-x-auto"><table className="table">
+          <div className="overflow-x-auto"><table className="table min-w-[460px]">
             <thead><tr><th>{by === "branch" ? "Branch" : "Role"}</th><th className="text-right">Assigned</th><th className="text-right">Signed</th><th className="text-right">Done</th><th className="text-right">Overdue</th></tr></thead>
             <tbody>{g.map((x) => (
               <tr key={x.name}><td>{x.name}</td><td className="text-right tabular-nums">{x.assigned}</td><td className="text-right tabular-nums">{x.acknowledged}</td><td className="text-right tabular-nums">{x.completion === null ? "—" : `${x.completion}%`}</td><td className={`text-right tabular-nums ${x.overdue ? "text-[#a3242c]" : ""}`}>{x.overdue}</td></tr>

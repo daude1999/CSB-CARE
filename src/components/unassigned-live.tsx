@@ -194,7 +194,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                       <tr key={v.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ""} hover:bg-[#f9f8fe]`}>
                         {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
                         <td className={TD}><span title={it.why} className={`inline-flex rounded-[6px] px-2 py-0.5 text-[13px] font-semibold ${PRIORITY_BADGE[it.priority]}`}>{PRIORITY_LABEL[it.priority]}<span className="sr-only">: {it.why}</span></span></td>
-                        <td className={`${TD} tabular-nums`}><Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[#101828] no-underline hover:underline">{v.reference}</Link></td>
+                        <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[#101828] no-underline hover:underline">{v.reference}</Link></td>
                         <td className={TD}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
                         <td className={`${TD} tabular-nums`}>{fmtLondonDate(fromDbDate(v.date), { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
                         <td className={`${TD} tabular-nums`}>{londonTime(v.scheduledStart)}</td>
@@ -203,7 +203,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                         <td className={TD}><Coverage item={it} /></td>
                         <td className={`${TD} max-w-[150px] truncate`} title={v.callType.name}>{v.callType.name}</td>
                         <td className={TD}>{v.area ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: v.area.colour }} />{v.area.name}</span> : <span className="text-[#98a2b3]">No area</span>}</td>
-                        <td className={`${TD} max-w-[220px] truncate text-[#344054]`} title={it.reason}>{it.reason}</td>
+                        <td className={`${TD} max-w-[200px] truncate text-[#344054]`} title={it.reason}>{it.reason}</td>
                         <td className={`${TD} text-right`}>
                           {canEdit ? (
                             <Link href={url({ cover: v.id, slot: undefined, ctab: undefined, pick: undefined, mq: undefined })} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`} className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold no-underline ${selected ? "border-[#5b2bb5] bg-[#5b2bb5] text-white" : "border-[#5b2bb5] bg-white text-[#5b2bb5] hover:bg-[#f6f2fd]"}`}><UserPlus size={17} aria-hidden />Find Cover</Link>
