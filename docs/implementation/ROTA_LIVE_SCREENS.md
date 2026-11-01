@@ -173,3 +173,22 @@ These differences from the images remain on purpose:
   - keyboard-only open and reassign;
   - the add, staff, move and cancel acceptance flow, with the dashboard and the Daily Rota agreeing at every step;
   - no overflow at desktop, tablet and phone widths.
+
+## Cancelling: charge or don't charge (owner's request, 1 November 2026)
+
+- Every cancel form asks **"Charge for this cancellation?"** with two choices, **Charge** and **Don't charge**. This applies to Bulk Actions → Cancel Visits, Cancel visit in Visit Details, and the full visit page. The server refuses a cancel with no choice made.
+- The choice is saved on the visit in `Visit.cancellationCharge` and written into the visit history, for example "In hospital (charged)". Reinstating a visit clears it.
+  - **Schema change:** this is one additive nullable column (migration `20261101010000_visit_cancellation_charge`).
+  - **Why a new column:** reusing `Visit.chargeable` would wrongly leave a reinstated visit unbilled.
+  - **When it is empty:** visits cancelled by the system (care ended, service user away) leave it empty.
+- **Invoicing** (`cancellationCharged()` in `src/server/finance/runs.ts`):
+  - When the office chose, its choice decides whether the cancellation is invoiced.
+  - With no choice recorded, the funder's short-notice rule still decides, as before.
+- **How cancelled calls look:**
+  - **Daily Rota:** the row has a red line through it, and its status shows a red **X Cancelled** with "· charged" or "· not charged".
+  - **Visit Details:** the name is struck through, and the reason shows the charge decision.
+  - **Advanced Rota and the carer timeline:** cards get the same red line and an X.
+- **Tests:**
+  - `tests/integration/cancellation-charge.test.ts` covers the invoice decision, single cancel, reinstate and bulk cancel.
+  - The e2e tests in `rota.spec.ts` and `dashboard-refresh.spec.ts` check that the choice is required and that the row is struck through.
+- **Screenshots:** `/mnt/project-files/rota-rebuild/cancel-charge/`.
