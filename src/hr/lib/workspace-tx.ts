@@ -48,6 +48,25 @@ export async function transaction<T>(organisationId: string, fn: (state: State) 
   );
 }
 
+/**
+ * The same locked HR change, followed by platform writes that must commit with it (for example, recording on a
+ * recruitment candidate which employee onboarding created). `after` runs inside the same database transaction, after
+ * the workforce projection, so a failure in either part rolls back both.
+ */
+export async function transactionThen<T, R>(organisationId: string, fn: (state: State) => T, after: (tx: Prisma.TransactionClient, result: T) => Promise<R>, opts: { actorId?: string | null } = {}): Promise<R> {
+  return db.$transaction(
+    async (tx) => {
+      const state = await load(tx, organisationId, true);
+      const upgraded = (state.fixtureVersion || 1) < CURRENT_FIXTURE ? upgradeFixtures(state) : state;
+      const result = fn(upgraded);
+      await save(tx, organisationId, upgraded);
+      await projectWorkforce(tx, organisationId, upgraded, { actorId: opts.actorId });
+      return after(tx, result);
+    },
+    { timeout: 30_000 },
+  );
+}
+
 /** Creates an organisation's HR workspace from a starting document (used by seeding). */
 export async function createWorkspace(organisationId: string, state: State) {
   await db.hrWorkspace.upsert({

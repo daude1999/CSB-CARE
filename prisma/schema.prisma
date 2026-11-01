@@ -1709,6 +1709,8 @@ model CarePlan {
   approvedById     String?
   approvedAt       DateTime?
   supersededAt     DateTime?
+  /// The Care Summary a manager started this review from, if any. The summary text is never copied into the plan.
+  sourceSummaryId  String?
   sections         CarePlanSection[]
   acknowledgements CarePlanAcknowledgement[]
 
@@ -1865,6 +1867,10 @@ model RotaSettings {
   medicationEnabledAt     DateTime?
   medicationEnabledById   String?
   medicationReviewNote    String?
+  /// Care Summary may use the AI service only after an admin records the data-protection and clinical-safety review.
+  careSummaryEnabledAt    DateTime?
+  careSummaryEnabledById  String?
+  careSummaryReviewNote   String?
   updatedById             String?
   updatedAt               DateTime       @updatedAt
 }
@@ -3206,4 +3212,213 @@ model MissedCallCover {
   @@index([caseId])
   @@index([organisationId, staffId])
   @@index([recoveryVisitId])
+}
+
+// ── Recruitment (HR & Workforce → Recruitment) ─────────────────────────────
+// Candidates are not employees. A candidate becomes an employee only when HR authorises onboarding, which creates
+// (or links) the HR Hub employee; rota eligibility still comes only from that employee's verified readiness.
+
+enum RecruitmentStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  ONBOARDING
+  READY
+  WITHDRAWN
+  UNSUCCESSFUL
+}
+
+enum RightToWorkStatus {
+  NOT_CHECKED
+  IN_PROGRESS
+  VERIFIED
+  NOT_ELIGIBLE
+}
+
+enum InterviewStatus {
+  AWAITING_CONFIRMATION
+  CONFIRMED
+  DECLINED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Candidate {
+  id                   String               @id @default(cuid())
+  organisationId       String
+  /// CAN-0001, per organisation.
+  reference            String
+  firstName            String
+  lastName             String
+  email                String?
+  phone                String?
+  roleApplied          String
+  /// The branch the candidate would work from. Access follows the HR account's branches.
+  branchId             String
+  availability         String?
+  experience           String?
+  /// DRIVER_WITH_CAR | DRIVER_NO_CAR | NON_DRIVER | NOT_ASKED
+  driving              String               @default("NOT_ASKED")
+  rightToWork          RightToWorkStatus    @default(NOT_CHECKED)
+  /// Where the application came from, entered by hand (no job-board connection exists).
+  source               String?
+  stage                RecruitmentStage     @default(APPLIED)
+  stageChangedAt       DateTime             @default(now())
+  /// False while the application form is missing required details.
+  applicationComplete  Boolean              @default(true)
+  outstandingDocuments String[]             @default([])
+  recruiterId          String?
+  nextAction           String?
+  nextActionDue        DateTime?            @db.Date
+  /// The candidate agreed to be contacted about this application (the legal basis for any contact).
+  contactConsent       Boolean              @default(false)
+  consentRecordedAt    DateTime?
+  offerMadeAt          DateTime?
+  /// PENDING | ACCEPTED | DECLINED
+  offerResponse        String?
+  offerRespondedAt     DateTime?
+  closedReason         String?
+  closedAt             DateTime?
+  /// Personal details may be removed after this date (unsuccessful or withdrawn applications).
+  retainUntil          DateTime?            @db.Date
+  anonymisedAt         DateTime?
+  /// The HR Hub employee created or linked when onboarding was authorised.
+  hrEmployeeId         String?
+  convertedAt          DateTime?
+  convertedById        String?
+  lockVersion          Int                  @default(1)
+  createdById          String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  events               CandidateEvent[]
+  notes                CandidateNote[]
+  screenings           CandidateScreening[]
+  interviews           CandidateInterview[]
+
+  @@unique([organisationId, reference])
+  @@unique([organisationId, hrEmployeeId])
+  @@index([organisationId, stage])
+  @@index([organisationId, branchId])
+}
+
+/// What happened to a candidate and who did it. Holds no free-text personal data, so it survives anonymisation.
+model CandidateEvent {
+  id             String            @id @default(cuid())
+  organisationId String
+  candidateId    String
+  candidate      Candidate         @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  type           String
+  fromStage      RecruitmentStage?
+  toStage        RecruitmentStage?
+  actorId        String
+  at             DateTime          @default(now())
+  data           Json              @default("{}")
+
+  @@index([candidateId, at])
+}
+
+model CandidateNote {
+  id             String    @id @default(cuid())
+  organisationId String
+  candidateId    String
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  text           String
+  authorId       String
+  createdAt      DateTime  @default(now())
+
+  @@index([candidateId])
+}
+
+/// Structured screening questions given to a candidate, and the answers recorded by the recruiter.
+model CandidateScreening {
+  id             String    @id @default(cuid())
+  organisationId String
+  candidateId    String
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  /// [{ key, question }]
+  questions      Json
+  /// [{ key, answer }] once recorded.
+  answers        Json?
+  /// How the questions were given: PHONE | IN_PERSON | PAPER. No message is sent by the platform.
+  channel        String
+  sentAt         DateTime  @default(now())
+  sentById       String
+  answeredAt     DateTime?
+  recordedById   String?
+  /// PROCEED | HOLD, decided by a person.
+  reviewOutcome  String?
+  reviewNote     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+
+  @@index([candidateId])
+}
+
+model CandidateInterview {
+  id             String          @id @default(cuid())
+  organisationId String
+  candidateId    String
+  candidate      Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  startsAt       DateTime
+  durationMin    Int             @default(45)
+  location       String?
+  interviewerId  String
+  status         InterviewStatus @default(AWAITING_CONFIRMATION)
+  confirmedAt    DateTime?
+  notes          String?
+  /// PASSED | NOT_PASSED, recorded by a person.
+  outcome        String?
+  outcomeAt      DateTime?
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organisationId, startsAt])
+  @@index([candidateId])
+}
+
+/// When recruitment reminders appear for the assigned recruiter (in the app only; nothing is sent to candidates).
+model RecruitmentSettings {
+  organisationId             String   @id
+  remindersOn                Boolean  @default(true)
+  incompleteAfterDays        Int      @default(3)
+  screeningAfterDays         Int      @default(3)
+  interviewConfirmHours      Int      @default(48)
+  referencesAfterDays        Int      @default(7)
+  onboardingDocsAfterDays    Int      @default(5)
+  trainingAfterDays          Int      @default(7)
+  /// How long an unsuccessful or withdrawn application is kept before personal details may be removed.
+  retentionMonths            Int      @default(6)
+  updatedById                String?
+  updatedAt                  DateTime @updatedAt
+}
+
+// ── Care Summary (Care Plans → Care Summary) ───────────────────────────────
+
+/// A summary of a person's recorded care for a period. Provenance is stored with it; it never changes a care record.
+model CareSummary {
+  id             String    @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  fromDate       DateTime  @db.Date
+  toDate         DateTime  @db.Date
+  /// anthropic | simulated
+  provider       String
+  model          String?
+  isSimulated    Boolean   @default(false)
+  requestedById  String
+  createdAt      DateTime  @default(now())
+  /// The records sent to the summariser: [{ id, kind }].
+  sources        Json
+  /// The validated output (every point cites source ids from `sources`).
+  output         Json
+  /// UNREVIEWED | REVIEWED | DISMISSED
+  status         String    @default("UNREVIEWED")
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
+
+  @@index([organisationId, serviceUserId, createdAt])
 }

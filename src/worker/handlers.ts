@@ -1,3 +1,4 @@
+import { raiseRecruitmentReminders } from "@/server/recruitment/onboarding";
 import type { JobHandler } from "@/server/jobs/queue";
 import { checkSource, scheduleDueSources } from "@/server/sources/engine";
 import { analyseChange } from "@/server/changes/workflow";
@@ -46,6 +47,8 @@ export const handlers: Record<string, JobHandler> = {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();
     const reminders = await sendAcknowledgementReminders();
-    return { scheduledChecks: scheduled.length, publications, reminders };
+    // Recruitment reminders go to the recruiter in the app only; nothing is sent to candidates.
+    const recruitmentReminders = await raiseRecruitmentReminders();
+    return { scheduledChecks: scheduled.length, publications, reminders, recruitmentReminders };
   },
 };

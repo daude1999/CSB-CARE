@@ -1,4 +1,4 @@
-import { Bell, Buildings, CalendarDots, ClockCounterClockwise, FolderOpen, GearSix, GraduationCap, House, ListChecks, ShieldCheck, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { Bell, Briefcase, Buildings, CalendarDots, ClockCounterClockwise, FolderOpen, GearSix, GraduationCap, House, ListChecks, ShieldCheck, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import type { Ctx } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -16,6 +16,7 @@ export function hrItems(ctx: Ctx, i: { size: number }): ShellItem[] {
       [
         ["/hr/people", "People", <UsersThree key="i" {...i} />, true],
         ["/hr/alerts?view=tasks", "My Tasks", <ListChecks key="i" {...i} />, true],
+        ["/hr/recruitment", "Recruitment", <Briefcase key="i" {...i} />, hrLogin],
       ],
     ],
     [
