@@ -27,13 +27,16 @@ function dayOfWeek(weeks: number, days: number) {
 /** The Rota Dashboard's figures for one day, and the Daily Rota's for the same day: they must always agree. */
 async function figures(page: Page, date: string) {
   await page.goto(`/rota?date=${date}`);
-  const read = async (id: string) => Number((await page.getByTestId(`kpi-${id}`).locator("[data-value]").innerText()).replace(/,/g, ""));
-  const out = { scheduled: await read("scheduled"), unassigned: await read("unassigned") };
-  await page.goto(`/rota/visits?date=${date}`);
-  const tile = async (name: string) => Number((await page.getByRole("region", { name: "The day's figures" }).getByRole("link", { name: new RegExp(`^${name}`) }).locator("[data-value]").innerText()).replace(/,/g, ""));
-  expect(await tile("Scheduled")).toBe(out.scheduled);
-  expect(await tile("Unassigned")).toBe(out.unassigned);
-  return out;
+  const note = await page.getByTestId("card-completed").innerText();
+  const scheduled = Number(/of ([\d,]+) scheduled visits/.exec(note)?.[1]?.replace(/,/g, ""));
+  const unassigned = Number((await page.getByRole("region", { name: "Quick Actions" }).getByRole("link", { name: /Unassigned Visits/ }).getAttribute("data-count")) ?? 0);
+  const total = async (path: string) => {
+    await page.goto(path);
+    return Number(await page.getByTestId("visit-count").getAttribute("data-total"));
+  };
+  expect(await total(`/rota/visits?date=${date}`)).toBe(scheduled);
+  expect(await total(`/rota/visits?date=${date}&view=unassigned`)).toBe(unassigned);
+  return { scheduled, unassigned };
 }
 
 test.describe("Dashboards follow rota changes", () => {
