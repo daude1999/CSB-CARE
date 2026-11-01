@@ -39,7 +39,7 @@ export async function staffingAlerts(ctx: Ctx, opts: { date?: string; branchId?:
   ]);
   if (next.summary.visits) {
     const label = tomorrow === addDays(today, 1) ? "tomorrow" : `on ${tomorrow}`;
-    out.push({ key: "unassigned", tone: "red", count: next.summary.visits, text: `${next.summary.visits} ${plural(next.summary.visits, "visit", "visits")} ${label} still ${plural(next.summary.visits, "needs", "need")} a care worker`, why: `${next.summary.slots} empty carer ${plural(next.summary.slots, "place", "places")}; ${next.summary.urgent} urgent by the Unassigned Visits priority rule.`, action: "Find Cover", href: `/rota/unassigned?when=custom&from=${tomorrow}&to=${tomorrow}${keep}` });
+    out.push({ key: "unassigned", tone: "red", count: next.summary.visits, text: `${next.summary.visits} ${plural(next.summary.visits, "visit", "visits")} ${label} still ${plural(next.summary.visits, "needs", "need")} a care worker`, why: `${next.summary.slots} empty carer ${plural(next.summary.slots, "place", "places")}; ${next.summary.urgent} urgent by the Unassigned Visits priority rule.`, action: "Find Cover", href: tomorrow === addDays(today, 1) ? `/rota/unassigned?when=tomorrow${keep}` : `/rota/unassigned?when=custom&from=${tomorrow}&to=${tomorrow}${keep}` });
   }
   if (twoDays.summary.visits) {
     out.push({ key: "second", tone: "amber", count: twoDays.summary.visits, text: `${twoDays.summary.visits} double-up ${plural(twoDays.summary.visits, "visit has", "visits have")} only one carer booked`, why: "These visits need two carers. Counted for the chosen day and the day after.", action: "Find Second Carer", href: `/rota/unassigned?when=custom&from=${base}&to=${tomorrow}&staffing=partial${keep}` });

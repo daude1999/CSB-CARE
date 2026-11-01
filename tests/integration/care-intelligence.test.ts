@@ -103,7 +103,7 @@ describe("rota intelligence", () => {
     const a = alerts.find((x) => x.key === "unassigned");
     if (board.summary.visits) {
       expect(a?.count).toBe(board.summary.visits);
-      expect(a?.href).toContain(`from=${tomorrow}&to=${tomorrow}`);
+      expect(a?.href).toContain("when=tomorrow");
     } else expect(a).toBeUndefined();
   });
 
