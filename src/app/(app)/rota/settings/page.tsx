@@ -150,7 +150,7 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
                 <input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="1" />
                 <p className="text-[14px]">Off. Switching on lets coordinators ask the AI provider for a draft summary of a person&apos;s recent records on their care plan. Record text is sent to the provider; names and addresses are not. Summaries are marked unapproved, never change a plan, and the recent records view works whether this is on or off.</p>
                 <p className="text-[13px] text-slate-600">AI provider: {aiName ?? "not configured"}.</p>
-                <label className="block"><span className="label">Who authorised sending care records to the AI provider, and when</span><input name="reviewNote" required minLength={10} className="input" placeholder="e.g. A. Morgan, registered manager, after DPIA, 1 Nov 2026" /></label>
+                <label className="block"><span className="label">Who authorised sending care records to the AI provider, and when</span><input name="authorisedBy" required minLength={10} className="input" placeholder="e.g. A. Morgan, registered manager, after DPIA, 1 Nov 2026" /></label>
                 <button className="btn-primary">Switch on Care Summary</button>
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after confirming data protection approval.</p>}

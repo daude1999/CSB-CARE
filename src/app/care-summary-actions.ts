@@ -5,7 +5,7 @@ import { handle, str } from "./action-kit";
 
 export async function careSummarySwitchAction(fd: FormData) {
   const on = str(fd, "on") === "1";
-  return handle(fd, (ctx) => setCareSummaryEnabled(ctx, on, str(fd, "reviewNote")), on ? "Care Summary switched on" : "Care Summary switched off");
+  return handle(fd, (ctx) => setCareSummaryEnabled(ctx, on, str(fd, "authorisedBy")), on ? "Care Summary switched on" : "Care Summary switched off");
 }
 
 export async function generateCareSummaryAction(fd: FormData) {
