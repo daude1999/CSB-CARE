@@ -94,8 +94,8 @@ test.describe("Overview", () => {
     await expect(header.getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
-    const time = (await page.getByTestId("overview-time").innerText()).replace(/\s+/g, " ").trim();
-    expect(time).toMatch(/^\d{2}:\d{2}$/);
+    await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);
+    const time = (await page.getByTestId("overview-time").innerText()).slice(-5);
     const [h, m] = london({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).split(":").map(Number);
     const [sh, sm] = time.split(":").map(Number);
     expect(Math.abs((h! * 60 + m!) - (sh! * 60 + sm!)) % 1440).toBeLessThanOrEqual(1);

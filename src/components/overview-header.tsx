@@ -57,11 +57,11 @@ export function AccountMenu({ name, initials, role, branch, sample, signOutActio
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-[8px] py-1 pl-1 pr-1.5 hover:bg-white/10 [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
         <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a]">{initials}</span>
-        <span className="hidden min-w-0 text-left sm:block">
+        <span className="hidden min-w-0 text-left lg:block">
           <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-[18px] text-white" data-testid="overview-user">{name}</span>
           <span className="block max-w-[180px] truncate text-[12px] leading-[15px] text-white/80" data-testid="overview-role">{role}</span>
         </span>
-        <CaretDown size={14} weight="bold" aria-hidden="true" className="hidden text-white/85 sm:block" />
+        <CaretDown size={14} weight="bold" aria-hidden="true" className="hidden text-white/85 lg:block" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[250px] overflow-hidden rounded-[8px] border border-slate-200 bg-white py-1 text-[#0b1530] shadow-lg">
         <div className="border-b border-slate-100 px-3 pb-2.5 pt-2">

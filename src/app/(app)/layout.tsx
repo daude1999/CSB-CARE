@@ -121,9 +121,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <header className="ov-topbar sticky top-0 z-[35] flex h-[64px] items-center gap-3 px-[16px] text-white md:h-[72px] md:px-[24px]" data-testid="overview-header">
                 <NavigationProgress renderKey={String(Date.now())} />
                 <MobileMenu {...shell} light />
-                <Monogram className="h-[30px] sm:h-[40px] md:h-[46px]" />
+                <Monogram className="h-[30px] sm:h-[36px] lg:h-[46px]" />
                 <div className="min-w-0">
-                  <h1 className="sr-only truncate text-[16px] sm:not-sr-only sm:block font-semibold leading-[22px] text-white md:text-[20px] md:leading-[26px]">Care Solution Bureau CIC</h1>
+                  <h1 className="truncate text-[16px] font-semibold max-sm:sr-only leading-[22px] text-white md:text-[18px] lg:text-[20px] lg:leading-[26px]">Care Solution Bureau CIC</h1>
                   <p className="hidden truncate text-[13px] leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
