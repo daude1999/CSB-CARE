@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 
-type Need = "reason" | "reasonOptional" | "staff" | "slot" | "slotAll" | "warnings" | "time" | "duration" | "service" | "minutes";
+type Need = "reason" | "reasonOptional" | "charge" | "staff" | "slot" | "slotAll" | "warnings" | "time" | "duration" | "service" | "minutes";
 export type BulkAction = { kind: string; label: string; needs: readonly Need[] };
 
 /** Each Daily Rota bulk action and the extra details it needs. The server checks everything again. */
 const ACTIONS = [
-  { kind: "cancel", label: "Cancel Visits", needs: ["reason"] },
+  { kind: "cancel", label: "Cancel Visits", needs: ["reason", "charge"] },
   { kind: "activate", label: "Activate Visits", needs: ["reason"] },
   { kind: "assign", label: "Reassign Visits", needs: ["staff", "slot", "warnings"] },
   { kind: "unassign", label: "Unassign Visits", needs: ["slot", "reasonOptional"] },
@@ -88,6 +88,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
   const [duration, setDuration] = useState("");
   const [callTypeId, setCallTypeId] = useState("");
   const [reason, setReason] = useState("");
+  const [charge, setCharge] = useState<"" | "yes" | "no">("");
   const action = actions.find((a) => a.kind === kind);
   const needs = new Set<string>(action?.needs ?? []);
   // The approved Daily Templates design joins Go to the action list; it stays separate while extra details are shown.
@@ -100,6 +101,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
     : needs.has("time") && !time ? "Choose the new start time."
     : needs.has("duration") && !duration ? "Enter the new length in minutes."
     : needs.has("service") && !callTypeId ? "Choose a service call."
+    : needs.has("charge") && !charge ? "Choose Charge or Don't charge."
     : needs.has("reason") && reason.trim().length < 3 ? "Give a reason (at least 3 letters)."
     : null;
 
@@ -146,6 +148,16 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
         </label>
       ) : null}
       {needs.has("reason") || needs.has("reasonOptional") ? <label><span className="sr-only">Reason</span><input aria-label="Reason" name="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={needs.has("reason") ? "Reason" : "Reason (optional)"} className={`${FIELD} w-[200px]`} /></label> : null}
+      {needs.has("charge") ? (
+        <fieldset className="flex items-center gap-1.5">
+          <legend className="sr-only">Charge for the cancellation?</legend>
+          {([["yes", "Charge"], ["no", "Don't charge"]] as const).map(([value, label]) => (
+            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
+              <input type="radio" name="charge" value={value} checked={charge === value} onChange={() => setCharge(value)} className="h-4 w-4" />{label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
       {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept warnings</label> : null}
 
       <button disabled={Boolean(missing)} aria-describedby="bulk-hint" title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>

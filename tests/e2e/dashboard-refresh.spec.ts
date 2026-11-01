@@ -99,11 +99,15 @@ test.describe("Dashboards follow rota changes", () => {
     await expect(page.getByText("10:15").first()).toBeVisible();
 
     // Cancel it with a reason: it leaves the scheduled figure, joins the cancelled one, and stays after a reload.
-    await page.locator("form:has(button:text-is('Cancel visit')) input[name=reason]").fill("Family cancelled: test");
+    const cancelForm = page.locator("form:has(button:text-is('Cancel visit'))");
+    await cancelForm.locator("input[name=reason]").fill("Family cancelled: test");
+    // The office must choose whether to charge before the visit can be cancelled.
+    await cancelForm.getByLabel("Don't charge").check();
     await page.getByRole("button", { name: "Cancel visit" }).click();
     await expect(page.getByRole("status")).toContainText("Visit cancelled");
     await page.reload();
     await expect(page.getByText("Family cancelled: test").first()).toBeVisible();
+    await expect(page.getByText("Not charged").first()).toBeVisible();
 
     now = await figures(page, day);
     expect(now.scheduled).toBe(before.scheduled);
@@ -112,6 +116,10 @@ test.describe("Dashboards follow rota changes", () => {
     await expect(page.locator(link)).toHaveCount(0);
     await page.goto(`/rota/visits?date=${day}&cancelled=1&status=CANCELLED`);
     await expect(page.locator(link).first()).toBeAttached();
+    // A cancelled call is struck through with an X, and says it is not charged.
+    const row = page.locator("tr", { has: page.locator(link) }).first();
+    await expect(row).toContainText("Cancelled · not charged");
+    expect(await row.locator("td").nth(2).evaluate((td) => getComputedStyle(td).textDecorationLine)).toContain("line-through");
     expect((await figures(page, nextDay)).scheduled).toBe(beforeNext.scheduled);
   });
 

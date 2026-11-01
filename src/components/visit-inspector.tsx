@@ -3,6 +3,7 @@ import { ArrowSquareOut, ArrowsLeftRight, CalendarBlank, Circle, Clock, FirstAid
 import Link from "@/components/link";
 import { fmtLondonDate, fromDbDate, hhmm, londonMinute, londonTime } from "@/lib/london";
 import { addVisitNoteAction, assignCarerAction, cancelVisitAction, doubleUpAction, swapCarersAction, unassignCarerAction, updateVisitAction, reinstateVisitAction } from "@/app/rota-actions";
+import { CancelChargeChoice, cancellationChargeLabel } from "@/components/rota-ui";
 import { NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { suName } from "@/server/rota/queries";
 import type { VisitInspectorData } from "@/server/rota/inspector";
@@ -15,7 +16,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   COMPLETED: { label: "Completed", cls: "bg-[#eaf6ee] text-[#1c7a43] border-[#cfe9d8]" },
   MISSED: { label: "Missed", cls: "bg-[#fdecec] text-[#a3242c] border-[#f3c9c9]" },
   NOT_DELIVERED: { label: "Not delivered", cls: "bg-[#f2f4f7] text-slate-700 border-[#e4e7ec]" },
-  CANCELLED: { label: "Cancelled", cls: "bg-[#f2f4f7] text-slate-600 border-[#e4e7ec]" },
+  CANCELLED: { label: "Cancelled", cls: "bg-[#fdecec] text-[#b42318] border-[#f3c9c9]" },
 };
 const RISK: Record<string, { label: string; colour: string }> = { LOW: { label: "Low risk", colour: "#1f9d4c" }, MEDIUM: { label: "Medium risk", colour: "#e0a526" }, HIGH: { label: "High risk", colour: "#d9473f" } };
 const EVENT: Record<string, string> = { CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", STATUS: "Status changed", CLOCK: "Clock recorded", TASKS: "Tasks recorded" };
@@ -121,10 +122,10 @@ export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInsp
       <div className="flex items-start gap-3 px-4 pb-2.5 pt-1.5">
         <User size={24} aria-hidden className="mt-0.5 shrink-0 text-[#5b2bb5]" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-bold text-[#101828]"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
+          <p className={`truncate text-[16px] font-bold text-[#101828] ${v.status === "CANCELLED" ? "line-through decoration-[#b42318] decoration-2" : ""}`}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
           <p className="text-[13px] text-[#475467]">Ref: <span className="tabular-nums">{v.reference}</span></p>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${st.cls}`}><span aria-hidden className="h-2 w-2 rounded-full bg-current" />{st.label}</span>
+        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${st.cls}`}>{v.status === "CANCELLED" ? <X size={13} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{st.label}</span>
       </div>
 
       <nav aria-label="Visit details sections" className="flex border-b border-[#e4e7ec] px-3">
@@ -187,7 +188,7 @@ export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInsp
               {v.tasks.length ? <Row icon={<FirstAidKit size={19} />} label="Care tasks"><Link href={tabHref("tasks")} className="text-inherit">{done} of {v.tasks.length} care tasks done</Link></Row> : null}
             </dl>
             {v.notes ? <p className="mt-1.5 rounded-[8px] bg-[#f7f8fa] px-3 py-2 text-[13.5px] text-[#344054]"><span className="font-semibold">Office notes: </span>{v.notes}</p> : null}
-            {v.cancelReason ? <p className="mt-1.5 rounded-[8px] bg-[#fdecec] px-3 py-2 text-[13.5px] text-[#a3242c]">Cancelled: {v.cancelReason}</p> : null}
+            {v.cancelReason ? <p className="mt-1.5 rounded-[8px] bg-[#fdecec] px-3 py-2 text-[13.5px] text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
             {!v.publishedAt && v.status === "SCHEDULED" ? <p className="mt-1.5 text-[12.5px] text-slate-600">Not yet published to carers.</p> : null}
           </>
         ) : null}
@@ -318,6 +319,7 @@ export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInsp
                 {hidden}
                 <p className="font-semibold">Cancel this visit</p>
                 <label className="block"><span className="text-[12.5px] text-slate-600">Reason</span><input name="reason" required minLength={3} placeholder="e.g. In hospital" className="input py-1.5" /></label>
+                <CancelChargeChoice compact />
                 <button className="btn-danger py-1 text-[13.5px]">Cancel visit</button>
               </form>
             </ActionPop>

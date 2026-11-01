@@ -53,10 +53,14 @@ test.describe("Rostering & Care Management", () => {
     await expect(bulk.getByTestId("bulk-selected")).toHaveText("1 selected");
     await bulk.locator("select[name=kind]").selectOption("cancel");
     await expect(go).toBeDisabled();
+    // Cancelling asks whether to charge, then for a reason of at least 3 letters (the server checks both again).
+    await expect(bulk.getByTestId("bulk-hint")).toContainText("Charge or Don't charge");
+    await bulk.getByLabel("Don't charge").check();
     await expect(bulk.getByTestId("bulk-hint")).toContainText("Give a reason");
-    // Too short a reason is still refused by the server, whatever the page allows.
     await bulk.getByPlaceholder("Reason").fill("ab");
     await expect(go).toBeDisabled();
+    await bulk.getByPlaceholder("Reason").fill("Family visiting");
+    await expect(go).toBeEnabled();
   });
 
   test("bulk actions show the details each action needs, and Reassign and Lock work from the Daily Rota", async ({ page }) => {

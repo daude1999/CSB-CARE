@@ -122,8 +122,18 @@ export async function updateVisitAction(fd: FormData) {
   }, "Visit saved");
 }
 
+/** The office must say whether a cancellation is charged: "yes" or "no". */
+function cancelCharge(fd: FormData) {
+  const c = str(fd, "charge");
+  if (c !== "yes" && c !== "no") throw new ValidationError("Choose whether to charge for the cancellation");
+  return c === "yes";
+}
+
 export async function cancelVisitAction(fd: FormData) {
-  return handle(fd, (ctx) => cancelVisit(ctx, str(fd, "visitId"), str(fd, "reason"), optInt(fd, "lockVersion")).then(() => undefined), "Visit cancelled");
+  return handle(fd, async (ctx) => {
+    const charge = cancelCharge(fd);
+    await cancelVisit(ctx, str(fd, "visitId"), str(fd, "reason"), optInt(fd, "lockVersion"), charge);
+  }, "Visit cancelled");
 }
 
 export async function reinstateVisitAction(fd: FormData) {
@@ -170,7 +180,7 @@ export async function bulkVisitsAction(fd: FormData) {
         action = { kind, slot: slot(fd), reason: str(fd, "reason") || "Removed in bulk by the office" };
         break;
       case "cancel":
-        action = { kind, reason: str(fd, "reason") };
+        action = { kind, reason: str(fd, "reason"), charge: cancelCharge(fd) };
         break;
       case "nudge":
         action = { kind, minutes: int(fd, "minutes", "Minutes") };
