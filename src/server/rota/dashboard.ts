@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds, mondayOf } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { exceptionCounts } from "./exceptions";
+import { countedOnce } from "./overview";
 import { listVisits, suName } from "./queries";
 import { authorisedBranches, buildWhere, rotaScope, serviceUserWhere, staffDirectoryWhere, templateScopeWhere, visitBranchClause, visitWhere } from "./scope";
 import { readinessFor } from "@/server/readiness";
@@ -79,7 +80,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
   const live = rows.filter((v) => v.status !== "CANCELLED");
   const onDuty = new Set(live.filter((v) => v.status !== "NOT_DELIVERED").flatMap((v) => v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staffId)));
   const calls = {
-    total: live.length,
+    total: countedOnce(live).length,
     /** Not started and not yet late: still to come. */
     due: live.filter((v) => v.status === "SCHEDULED" && !v.flags.late).length,
     inProgress: live.filter((v) => v.status === "IN_PROGRESS").length,
@@ -87,7 +88,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     /** Double-ups with one of their two carers. */
     partDoubleUps: live.filter((v) => v.carersRequired > 1 && v.flags.unassignedSlots > 0 && v.flags.unassignedSlots < v.carersRequired).length,
     staffOnDuty: onDuty.size,
-    complete: live.filter((v) => v.status === "COMPLETED").length,
+    complete: countedOnce(live).filter((v) => v.status === "COMPLETED").length,
     late: live.filter((v) => v.flags.late && v.status !== "MISSED").length,
     missed: live.filter((v) => v.status === "MISSED").length,
     notDelivered: live.filter((v) => v.status === "NOT_DELIVERED").length,

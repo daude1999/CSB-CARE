@@ -49,5 +49,5 @@ The owner's approved Missed Calls specification, built into Rostering & Care Man
 
 ## Known limits
 
-- A replacement visit is recorded on the case. It does not create a second visit on the rota, change pay or charges, or reassign anyone.
+- The case's own "Replacement care arrangements" form still only records what happened. Since 1 Nov 2026, **Find Cover** books a real recovery visit on the rota through the eligibility service (see `MISSED_CALLS_FIND_COVER.md`).
 - Evidence is virus-scanned only when `MALWARE_SCAN_URL` is set (as for all evidence); otherwise it is marked "not scanned".

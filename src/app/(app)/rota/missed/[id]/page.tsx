@@ -6,6 +6,8 @@ import { getMissedCase, MISSED_REASONS, OUTCOMES, REPLACEMENT_TYPES, replacement
 import { suName } from "@/server/rota/queries";
 import { missedAddActionAction, missedAssignAction, missedCommentAction, missedCompleteActionAction, missedEscalateAction, missedEvidenceAction, missedReasonAction, missedReopenAction, missedReplacementAction, missedSignOffAction, missedSubmitAction } from "@/app/rota-actions";
 import { Badge, Flash, fmtDate, type Tone } from "@/components/ui";
+import { FindCoverPanel } from "@/components/find-cover";
+import { coverStates } from "@/server/rota/missed-cover";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,11 @@ export default async function MissedCasePage({ params, searchParams }: { params:
   const { c, names } = d;
   const candidates = d.canWork ? await replacementCandidates(ctx, c.id) : [];
   const back = `/rota/missed/${c.id}`;
+  const cover = (await coverStates(ctx, [c.id])).get(c.id);
+  const coverOpen = d.canWork && sp.cover === c.id;
+  const coverLink = cover && d.canWork && (cover.canFind || cover.recovery) ? (
+    <Link href={`${back}?cover=${c.id}${cover.canFind ? "" : "&fcStep=done"}`} scroll={false} className={cover.canFind ? "inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[14px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" : "btn-secondary"}>{cover.canFind ? (cover.kind === "partial" ? `Find Cover (${cover.booked}/${cover.required} booked)` : "Find Cover") : "View cover booked"}</Link>
+  ) : null;
   const editable = d.canWork && (c.stage === "NEW" || c.stage === "INVESTIGATING");
   const open = c.stage !== "CLOSED";
   const who = (uid: string | null | undefined) => (uid ? names.get(uid) ?? "A member" : "—");
@@ -106,6 +113,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </Step>
 
           <Step n={2} title="Replacement care arrangements" done={!!c.replacementType}>
+            {coverLink ? <div className="mb-2 flex flex-wrap items-center gap-2">{coverLink}<span className="text-[13px] text-slate-600">{cover?.canFind ? "Book an eligible carer on a recovery visit." : cover?.text}</span></div> : null}
             {c.replacementType ? (
               <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 text-[14px]">
                 <dt className="text-slate-600">Arrangement</dt><dd>{REPLACEMENT_TYPES[c.replacementType] ?? c.replacementType}</dd>
@@ -126,7 +134,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
                 <label className="sm:col-span-2"><span className="label">Note (optional)</span><input name="note" maxLength={2000} defaultValue={c.replacementNote ?? ""} className="input w-full" /></label>
                 <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept eligibility warnings</label>
                 <div><button className="btn-primary">Record arrangement</button></div>
-                <p className="text-[12.5px] text-slate-500 sm:col-span-2">A replacement carer is checked by the same eligibility rules as any booking (DBS, right to work, training, restrictions, the client&apos;s preferences). Nothing on the rota is changed or reassigned.</p>
+                <p className="text-[12.5px] text-slate-500 sm:col-span-2">A replacement carer is checked by the same eligibility rules as any booking (DBS, right to work, training, restrictions, the client&apos;s preferences). This form only records what happened; nothing on the rota is changed. To book a replacement on the rota, use Find Cover.</p>
               </form>
             ) : null}
           </Step>
@@ -241,6 +249,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
               <dt className="text-slate-600">Deadline</dt><dd>{c.deadline ? `${londonTime(c.deadline)} ${fmtLondonDate(londonDate(c.deadline), { day: "numeric", month: "short" })}` : "—"} {d.overdue ? <Badge tone="rose">Overdue</Badge> : null}</dd>
               {c.escalationNote ? <><dt className="text-slate-600">Escalation</dt><dd>{c.escalationNote}</dd></> : null}
             </dl>
+            {coverLink ? <div className="mt-2">{coverLink}</div> : null}
             {d.canWork && open && !c.escalatedAt ? (
               <form action={missedEscalateAction} className="mt-2 flex gap-2">
                 {hidden()}
@@ -276,6 +285,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </section>
         </aside>
       </div>
+      {coverOpen ? <FindCoverPanel ctx={ctx} caseId={c.id} sp={sp} basePath={back} keep={{}} /> : null}
     </>
   );
 }
@@ -293,4 +303,6 @@ const AUDIT_TEXT: Record<string, string> = {
   "rota.missed.signedoff": "Signed off and closed",
   "rota.missed.returned": "Sent back for more investigation",
   "rota.missed.reopened": "Reopened",
+  "rota.missed.cover.confirmed": "Cover booked through Find Cover",
+  "rota.missed.su-informed": "Service user communication recorded",
 };

@@ -7,6 +7,8 @@ import { missedBulkAction } from "@/app/rota-actions";
 import { CallRing } from "@/components/rota-ui";
 import { Badge, Empty, Flash, type Tone } from "@/components/ui";
 import { VISIT_LABEL } from "@/components/rota-ui";
+import { FindCoverPanel } from "@/components/find-cover";
+import { coverStates, type CoverState } from "@/server/rota/missed-cover";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
   const { f, range, kpis, rings, rows, settings } = reg;
   const canWork = hasOrgPermission(ctx, "rota.edit");
   const canExport = hasOrgPermission(ctx, "report.export");
+  const covers = await coverStates(ctx, rows.map((r) => r.id));
 
   const keep: Record<string, string | undefined> = { period: f.period, date: f.date, from: f.period === "custom" ? range.from : undefined, to: f.period === "custom" ? range.to : undefined, q: f.q, carer: f.carer, su: f.su, branch: f.branch, status: f.status, call: f.call, reason: f.reason, stage: f.stage === "all" ? undefined : f.stage, coordinator: f.coordinator, smart: f.smart };
   const href = (over: Record<string, string | undefined>) => {
@@ -33,6 +36,16 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
     return `/rota/missed${p.size ? `?${p}` : ""}`;
   };
   const back = href({});
+  const flat = Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]));
+  const coverId = canWork && typeof flat.cover === "string" ? flat.cover : null;
+  const coverCell = (id: string, compact = false) => {
+    const s: CoverState | undefined = covers.get(id);
+    if (!s) return null;
+    if (s.canFind && canWork) return <Link href={href({ cover: id })} scroll={false} className={`inline-flex items-center rounded-[6px] bg-[#6b46c9] px-2.5 py-1 text-[13px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white ${compact ? "mt-2" : ""}`} aria-label={`Find Cover for ${rows.find((r) => r.id === id)?.visit.reference ?? "this call"}`}>Find Cover{s.kind === "partial" ? ` (${s.booked}/${s.required})` : ""}</Link>;
+    if (s.kind === "booked") return <Link href={canWork ? href({ cover: id, fcStep: "done" }) : `/rota/missed/${id}`} scroll={false} className="no-underline"><Badge tone="green">Cover booked{s.recovery ? ` · ${londonTime(s.recovery.scheduledStart)}` : ""}</Badge></Link>;
+    if (s.kind === "partial") return <Badge tone="amber">{s.booked}/{s.required} carers booked</Badge>;
+    return <span className="text-[12.5px] text-slate-500">{s.kind === "late-arrival" ? "Carer arrived late" : s.kind === "recorded" ? "Recorded on case" : "—"}</span>;
+  };
   const exportHref = (format: string) => `/api/rota/missed/export?${new URLSearchParams(Object.entries({ ...keep, format }).filter((e): e is [string, string] => !!e[1]))}`;
   const anchor = f.date ?? reg.today;
   const step = (n: -1 | 1) => {
@@ -166,7 +179,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
                   <thead className="bg-slate-50 text-left text-[12.5px] text-slate-600">
                     <tr>
                       {canWork ? <th className="px-2 py-2"><span className="sr-only">Select</span></th> : null}
-                      <th className="px-2 py-2">Ref</th><th className="px-2 py-2">Care worker</th><th className="px-2 py-2">Service user</th><th className="px-2 py-2">Branch</th><th className="px-2 py-2">Scheduled</th><th className="px-2 py-2">Visit type</th><th className="px-2 py-2">Reason</th><th className="px-2 py-2">Status</th><th className="px-2 py-2">Coordinator</th><th className="px-2 py-2">Deadline</th>
+                      <th className="px-2 py-2">Ref</th><th className="px-2 py-2">Care worker</th><th className="px-2 py-2">Service user</th><th className="px-2 py-2">Branch</th><th className="px-2 py-2">Scheduled</th><th className="px-2 py-2">Visit type</th><th className="px-2 py-2">Reason</th><th className="px-2 py-2">Status</th><th className="px-2 py-2">Coordinator</th><th className="px-2 py-2">Deadline</th><th className="px-2 py-2">Cover</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -183,6 +196,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
                         <td className="px-2 py-2"><Badge tone={STAGE_TONE[r.stage]}>{STAGE_LABEL[r.stage]}</Badge>{r.escalatedAt && r.stage !== "CLOSED" ? <span className="ml-1"><Badge tone="violet">Escalated</Badge></span> : null}</td>
                         <td className="px-2 py-2">{r.coordinatorName ?? <span className="text-slate-500">Nobody yet</span>}</td>
                         <td className="px-2 py-2 whitespace-nowrap">{r.stage === "CLOSED" ? "—" : r.deadline ? `${londonTime(r.deadline)}${londonDate(r.deadline) !== reg.today ? ` ${fmtLondonDate(londonDate(r.deadline), { day: "numeric", month: "short" })}` : ""}` : "—"}{r.overdue ? <span className="ml-1"><Badge tone="rose">Overdue</Badge></span> : null}</td>
+                        <td className="px-2 py-2 whitespace-nowrap">{coverCell(r.id)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -199,12 +213,14 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
                     {r.highRisk ? <Badge tone="rose">High risk</Badge> : null}
                     <p className="text-[13.5px]">{r.carerName ?? "Unassigned"}{r.repeatCount >= settings.repeatOffenderCount ? ` · repeat ${r.repeatCount}` : ""} · {r.visit.callType.name} · {r.visit.area?.name ?? "No area"}</p>
                     <p className="text-[12.5px] text-slate-600">{reasonLabel(r.reasonCode) ?? "Reason not recorded"} · {r.coordinatorName ?? "no coordinator"}</p>
+                    {coverCell(r.id, true)}
                   </li>
                 ))}
               </ul>
             </>
           ) : <div className="rounded-lg border border-slate-200 bg-white"><Empty>{kpis.total ? "No missed calls match these filters." : "No missed calls in this period."}</Empty></div>}
         </form>
+        {coverId ? <FindCoverPanel ctx={ctx} caseId={coverId} sp={flat} basePath="/rota/missed" keep={Object.fromEntries(Object.entries(keep).filter(([k]) => !k.startsWith("fc")))} /> : null}
         <p className="mt-2 text-[12.5px] text-slate-500">Rows stay pale red until the case is closed; the status is always written out too. A row opens its case. Repeat counts look back {settings.repeatWindowDays} days from {fmtLondonDate(reg.repeatWindow.to)} and leave out calls the investigation found were delivered or were not the care worker&apos;s doing.</p>
       </section>
     </>
