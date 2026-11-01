@@ -9,6 +9,7 @@ import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/servi
 import { packageCoverage } from "@/server/care/packages";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
+import { serviceUserGlance } from "@/server/care/glance";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
@@ -51,6 +52,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
+  const glance = tab === "overview" ? await serviceUserGlance(ctx, su) : null;
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
   const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
@@ -69,6 +71,27 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "overview" ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-3">
+            {glance ? (
+              <section aria-labelledby="glance-h" className="card" data-testid="at-a-glance">
+                <h2 id="glance-h" className="mb-3 text-[17px]">At a glance</h2>
+                <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Care plan">{glance.plan ? <><Link href={`/rota/care-plans/${su.id}`}>Version {glance.plan.version} in use</Link>{glance.plan.reviewDue ? <span className={`block text-[13px] ${glance.plan.overdue ? "text-[#a3242c]" : "text-slate-600"}`}>Review {glance.plan.overdue ? "overdue since" : "due"} {fmtDate(glance.plan.reviewDue)}</span> : null}{glance.draft ? <span className="block text-[13px] text-slate-600">Version {glance.draft.version} {glance.draft.status === "DRAFT" ? "being drafted" : "awaiting approval"}</span> : null}</> : <Link href={`/rota/care-plans/${su.id}`} className="text-[#a3242c]">No plan in use</Link>}</Field>
+                  <Field label="Risk assessments"><Link href={`/rota/risks?su=${su.id}`}>{glance.risks.active} active</Link><span className="block text-[13px] text-slate-600">{glance.risks.high} high · {glance.risks.overdue ? <span className="text-[#a3242c]">{glance.risks.overdue} review overdue</span> : "none overdue"}</span></Field>
+                  <Field label="Open incidents">{glance.incidents.open ? <><Link href={glance.incidents.open === 1 && glance.incidents.latest ? `/rota/incidents/${glance.incidents.latest.id}` : `/rota/incidents?q=${encodeURIComponent(su.reference)}`} className="text-[#a3242c]">{glance.incidents.open} open</Link><span className="block text-[13px] text-slate-600">{glance.incidents.safeguarding ? `${glance.incidents.safeguarding} safeguarding · ` : ""}latest {glance.incidents.latest?.reference} {glance.incidents.latest?.category}</span></> : "None open"}</Field>
+                  <Field label="Carers who visit most (28 days)">{glance.carers.length ? <span className="block text-[14px]">{glance.carers.map((c) => `${c.name} (${c.visits})`).join(", ")}</span> : "No visits booked"}</Field>
+                  <Field label="Medication">{glance.medication.on ? <><Link href={`${base}?tab=medication`}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={`block text-[13px] ${glance.medication.exceptions7d ? "text-[#a3242c]" : "text-slate-600"}`}>{glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-slate-600">Medication records are switched off</span>}</Field>
+                  <Field label="Care Summary">{glance.summary ? <Link href={`/rota/care-plans/${su.id}?view=summary&summary=${glance.summary.id}`}>{fmtDate(glance.summary.createdAt)}, {glance.summary.status === "UNREVIEWED" ? "not yet reviewed" : glance.summary.status === "REVIEWED" ? "reviewed" : "dismissed"}</Link> : <Link href={`/rota/care-plans/${su.id}?view=summary`}>Recent records</Link>}</Field>
+                </dl>
+                {glance.notes.length ? (
+                  <div className="mt-3 border-t border-slate-100 pt-2">
+                    <h3 className="text-[13px] font-medium text-slate-700">Latest visit notes</h3>
+                    <ul className="mt-1 space-y-1 text-[14px]">
+                      {glance.notes.map((n) => <li key={n.id} className="flex gap-2"><span className="w-[132px] shrink-0 text-[13px] text-slate-500">{fmtDate(n.createdAt, true)}</span><Link href={`/rota/visits/${n.visitId}`} className="min-w-0 truncate text-slate-800 no-underline hover:underline" title={n.text}>{n.text}</Link></li>)}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
             <Card title="About">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
                 <Field label="Known as">{su.preferredName ?? su.firstName}</Field>

@@ -7,7 +7,8 @@ import { memberNames, suName } from "@/server/rota/queries";
 import { db } from "@/lib/db";
 import { fmtLondonDate, fromDbDate } from "@/lib/london";
 import { approvePlanAction, discardDraftAction, returnPlanAction, saveDraftAction, startDraftAction } from "@/app/rota-actions";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, type Tone } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav, type Tone } from "@/components/ui";
+import { CareSummaryView } from "@/components/care-summary-view";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,10 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
         back="/rota/care-plans"
         subtitle="The plan carers follow on every visit. Changes are made in a new draft and only reach carers once a second person approves them."
         actions={<><Link href={`/rota/service-users/${su.id}`} className="btn-secondary">Person’s record</Link><Link href={`/rota/risks?su=${su.id}`} className="btn-secondary">Risk assessments ({riskCount})</Link></>}
+        tabs={<SegmentNav label="Care plan views" items={[{ href: base, label: "Care plan", active: sp.view !== "summary" }, { href: `${base}?view=summary`, label: "Care Summary and recent records", active: sp.view === "summary" }]} />}
       />
       <Flash searchParams={sp} />
+      {sp.view === "summary" ? <CareSummaryView ctx={ctx} serviceUserId={su.id} sp={sp} /> : (
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           {!shown ? (
@@ -85,6 +88,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                   <div><dt className="font-medium text-slate-700">Approved</dt><dd>{shown.approvedAt ? `${who(shown.approvedById)}, ${fmtDate(shown.approvedAt)}` : "—"}</dd></div>
                   <div><dt className="font-medium text-slate-700">Review by</dt><dd>{shown.reviewDue ? fmtLondonDate(fromDbDate(shown.reviewDue)) : "—"}</dd></div>
                 </dl>
+                {shown.sourceSummaryId ? <p className="mt-2 text-[12.5px] text-slate-600">This version was started from a <Link href={`${base}?view=summary&summary=${shown.sourceSummaryId}`}>Care Summary</Link>. Its text was written by staff, not copied from the summary.</p> : null}
               </Card>
               {shown.sections.map((s) => (
                 <Card key={s.id} title={s.title}>
@@ -165,6 +169,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
           </Card>
         </aside>
       </div>
+      )}
     </>
   );
 }
