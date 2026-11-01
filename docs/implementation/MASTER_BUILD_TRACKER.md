@@ -1,6 +1,13 @@
 # Master build tracker — five-module CSB CRM
 
-## Final Rota Dashboard and Daily Rota (31 Oct 2026)
+## Rota Dashboard and Daily Rota Live List, modernised OnePlan style (1 Nov 2026)
+
+The owner changed direction at 23:39 on 31 Oct and approved two images. `/rota` is now the OnePlan-style dashboard (call
+cards, people, reminders, issue strip, birthdays, quick actions) and `/rota/visits` is a table-first live list with no
+figure cards and a Visit Details drawer. Definitions, limitations and the 3–4 carer design note are in
+`ROTA_LIVE_SCREENS.md`. The Birdie-style dashboard below is replaced; its services remain for tests and reports.
+
+## Final Rota Dashboard and Daily Rota (31 Oct 2026, replaced 1 Nov)
 
 `/rota` is the operational Rota Dashboard and `/rota/visits` the Daily Rota, both to the owner's approved images. The week roster moved to `/rota/planner`. Also Generate & Optimise and Rota Insights. Definitions, limitations and the acceptance checklist: `ROTA_DASHBOARD_AND_DAILY_ROTA.md` and `ROTA_OPTIMISE_AND_INSIGHTS.md`.
 

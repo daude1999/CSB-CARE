@@ -1,6 +1,6 @@
 import type { AssignmentSlot, Prisma, RotaSettings, VisitStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { addDays, dbDate, isIsoDate, londonDate } from "@/lib/london";
+import { addDays, cycleWeekOf, dbDate, isIsoDate, londonDate, mondayOf } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
 import { rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
 import { rotaSettings } from "./settings";
@@ -65,7 +65,11 @@ export const visitListInclude = {
   area: { select: { id: true, name: true, colour: true } },
   runRoute: { select: { id: true, name: true, colour: true, textColour: true } },
   assignments: { where: { removedAt: null }, select: { id: true, slot: true, staffId: true, removedAt: true, acknowledgedAt: true, reviewReason: true, eligibility: true, staff: { select: { id: true, displayName: true } } } },
-  tasks: { select: { id: true } },
+  /** Each task with its latest recorded outcome, for the Daily Rota checklist column. */
+  tasks: { select: { id: true, outcomes: { select: { outcome: true }, orderBy: { at: "desc" }, take: 1 } } },
+  /** The build that created the visit records the rota pattern week it used (a build can override the calendar). */
+  rotaBuild: { select: { cycleWeek: true } },
+  _count: { select: { visitNotes: true } },
 } satisfies Prisma.VisitInclude;
 
 export type VisitRow = Prisma.VisitGetPayload<{ include: typeof visitListInclude }> & { flags: VisitFlags };
@@ -84,7 +88,7 @@ export async function listVisits(ctx: Ctx, f: VisitFilters, take = 1000): Promis
     ...(f.callTypeId ? { callTypeId: f.callTypeId } : {}),
     ...(f.staffId ? { assignments: { some: { staffId: f.staffId, removedAt: null } } } : {}),
     ...(f.q
-      ? { OR: [{ reference: { contains: f.q, mode: "insensitive" } }, { serviceUser: { lastName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { firstName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { postcode: { contains: f.q, mode: "insensitive" } } }] }
+      ? { OR: [{ reference: { contains: f.q, mode: "insensitive" } }, { serviceUser: { lastName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { firstName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { postcode: { contains: f.q, mode: "insensitive" } } }, { assignments: { some: { removedAt: null, staff: { displayName: { contains: f.q, mode: "insensitive" } } } } }] }
       : {}),
   };
   const where: Prisma.VisitWhereInput = f.branchId ? { AND: [base, visitBranchClause(scope, f.branchId)] } : base;
@@ -111,6 +115,23 @@ export async function rotaLookups(ctx: Ctx) {
     authorisedBranches(scope),
   ]);
   return { scope, areas, callTypes, careTasks, serviceUsers, staff, routes, branches };
+}
+
+/**
+ * The visit's position in the recurring rota pattern (Week 1…cycle length): the week its build used, or for a visit made
+ * from a template without a build record, the cycle week of its date. Null for a one-off visit, which has no pattern.
+ */
+export function patternWeek(v: { date: Date; templateId: string | null; rotaBuild: { cycleWeek: number } | null }, settings: Pick<RotaSettings, "anchorMonday" | "cycleLength">) {
+  if (v.rotaBuild) return v.rotaBuild.cycleWeek;
+  if (!v.templateId) return null;
+  return cycleWeekOf(mondayOf(v.date.toISOString().slice(0, 10)), settings.anchorMonday.toISOString().slice(0, 10), settings.cycleLength);
+}
+
+/** The visit's checklist: tasks, how many have a recorded outcome, and how many were done. */
+export function checklistOf(tasks: { outcomes: { outcome: string }[] }[]) {
+  const recorded = tasks.filter((t) => t.outcomes.length > 0).length;
+  const done = tasks.filter((t) => t.outcomes[0]?.outcome === "DONE").length;
+  return { total: tasks.length, recorded, done, outstanding: tasks.length - recorded };
 }
 
 export const suName = (su: { firstName: string; lastName: string; preferredName?: string | null }) => `${su.preferredName || su.firstName} ${su.lastName}`;

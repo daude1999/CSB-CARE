@@ -62,6 +62,13 @@ const SU_LAST = ["Abbott", "Barnard", "Coombes", "Dunmore", "Fairweather", "Gilc
 export interface UatPeople { manager: string; coordinator: string; finance: string; hrDecider: string }
 
 /** Loads the full-scale test data into the demo organisation of a freshly seeded database (seedDemo with care off). */
+/** A fictional date of birth spread across the year (ages 22 to 60), from a running number. */
+function syntheticDob(n: number) {
+  const day = 1 + ((n * 53) % 365);
+  const d = new Date(Date.UTC(1966 + (n % 38), 0, day));
+  return d.toISOString().slice(0, 10);
+}
+
 export async function seedUatOperations(organisationId: string, people: UatPeople, log: (s: string) => void = () => {}) {
   if (await db.serviceUser.count({ where: { organisationId } })) throw new Error("This organisation already has service users; load test data only into a fresh database");
   const today = londonDate();
@@ -106,12 +113,15 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
           id: `uat-emp-${n}`, org: "csb", staffId: `UAT-${2000 + n}`, name: `${first} ${last}`, branch: b.hr, job: k % 4 === 3 ? "Senior Support Worker" : "Care Support Worker",
           status: "Active", start: addDays(today, -60 - ((n * 37) % 900)), email: `${first}.${last}.${n}@uat.example`.toLowerCase(), phone: "", updated: new Date().toISOString(), version: 1,
           employmentType: k % 3 === 0 ? "Part-time" : "Full-time", department: "Domiciliary care", city: b.name, postcode: `ZZ${(n % 90) + 10} 9UA`,
+          dateOfBirth: syntheticDob(n),
         };
         state.employees.push(e);
         applyRequirements(state, e);
         gender.set(e.id, g);
       }
     }
+    // Synthetic dates of birth for any care employee without one, so the dashboard's team birthdays have records to use.
+    for (const e of state.employees) if (e.org === "csb" && e.status === "Active" && careRoles.has(e.job) && !e.dateOfBirth) e.dateOfBirth = syntheticDob(state.employees.indexOf(e) + 1);
     // Every current care employee's checks are evidenced and verified, except a few kept back on purpose so the
     // compliance scenarios have something real to find (one DBS review due within a fortnight per branch, and one
     // Tower Hamlets carer whose right-to-work evidence has not been uploaded).
