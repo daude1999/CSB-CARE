@@ -32,15 +32,15 @@ test.describe("Care intelligence", () => {
     await expect(page.getByRole("link", { name: /Robin Testcase/ }).first()).toBeVisible();
   });
 
-  test("rota dashboard shows Coming up alerts whose buttons open the matching screen", async ({ page }) => {
+  test("rota dashboard has no Coming up panel; the staffing problems it listed are still on their own screens", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
-    const panel = page.getByTestId("coming-up");
-    if (await panel.count()) {
-      const first = panel.getByRole("link").first();
-      const href = await first.getAttribute("href");
-      await first.click();
-      await expect(page).toHaveURL(new RegExp(href!.split("?")[0]!.replace(/\//g, "\\/")));
+    await expect(page.getByTestId("card-completed")).toBeVisible();
+    await expect(page.getByTestId("coming-up")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /Coming up/ })).toHaveCount(0);
+    for (const path of ["/rota/unassigned", "/rota/missed", "/rota/attention", "/rota/visits?view=review"]) {
+      const res = await page.goto(path);
+      expect(res?.status(), path).toBe(200);
     }
   });
 

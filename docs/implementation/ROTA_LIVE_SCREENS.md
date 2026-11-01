@@ -192,3 +192,17 @@ These differences from the images remain on purpose:
   - `tests/integration/cancellation-charge.test.ts` covers the invoice decision, single cancel, reinstate and bulk cancel.
   - The e2e tests in `rota.spec.ts` and `dashboard-refresh.spec.ts` check that the choice is required and that the row is struck through.
 - **Screenshots:** `/mnt/project-files/rota-rebuild/cancel-charge/`.
+
+## Simplified Rota Dashboard (owner's request, 1 November 2026)
+
+- The **"Coming up"** panel (PR #48) is removed from `/rota`. The four call cards now sit directly under the header.
+  - Only the dashboard presentation went. `src/server/rota/staffing-alerts.ts` and its integration test stay, and the problems it listed are still worked on their own screens: Unassigned Visits (Find Cover, second carers), Missed Calls, Visits Needing Attention, the Daily Rota review view (bookings flagged after HR changes) and the Monitor.
+- The header gains the **current UK time** beside the selected date (`LiveLondonTime` in `src/components/live-london-time.tsx`).
+  - Europe/London, 24-hour HH:MM, GMT or BST from the time zone rules (`londonTime`), never the browser's zone.
+  - It renders the server's instant first (no hydration mismatch), then follows the browser clock, checked every second.
+  - It always shows the real time now; changing the rota date does not move it.
+  - On phones it drops under the date; from small tablets up it sits after the next-day arrow behind a thin divider.
+- To keep the subtitle on one line at 1672 px, the header's column gap is 8 px (was 12 px) and the date arrows' gap 10 px (was 12 px) on large screens. Nothing else in the header, cards or panels changed.
+- **Tests:** `tests/e2e/rota-dashboard-simple.spec.ts` (cards order and no gap, date controls, BST/GMT clock and tick-over with Playwright's fake clock, phone overflow). The protected-structure check in `platform-quality.spec.ts` no longer lists the "Coming up" heading.
+- **Screenshots:** `/mnt/project-files/rota-dashboard-simplification/`.
+- **Noted, not changed:** the blue fourth card is "Unassigned Calls" only while medication records are switched off in Rota Settings; with them on it shows "Calls with Missed Meds" (rule from PR #37). Its note also reads "1 visits short of a carer" for a single visit.
