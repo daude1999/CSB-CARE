@@ -91,7 +91,7 @@
   /* One marker on the guide line glides to the active page (transform only, so nothing reflows). */
   .shell-marker { position: absolute; left: -1.5px; top: 0; margin: 0 !important; width: 2px; height: 0; border-radius: 2px; opacity: 0; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard), height var(--motion-base) var(--ease-standard), opacity var(--motion-fast) linear; }
   /* A module's pages open and fold with the grid-rows technique: no measuring, and only during the change. */
-  .shell-section { display: grid; grid-template-rows: 1fr; }
+  .shell-section { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); }
   .shell-section > div { min-height: 0; }
   .shell-section[data-state="opening"] { animation: shell-open var(--motion-slow) var(--ease-out); }
   .shell-section[data-state="closing"] { animation: shell-close var(--motion-slow) var(--ease-out) forwards; }

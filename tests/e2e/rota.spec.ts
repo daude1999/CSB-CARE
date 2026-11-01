@@ -120,6 +120,8 @@ test.describe("Rostering & Care Management", () => {
   test("Rota Insights shows the week's figures, links to the records, and money estimates for finance roles", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
+    // Reports starts folded in the side menu, as OnePlan's does.
+    await page.getByRole("navigation").getByRole("button", { name: "Reports" }).click();
     await page.getByRole("navigation").getByRole("link", { name: "Rota Insights" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Rota Insights" })).toBeVisible();
     for (const name of ["Visits", "Workforce", "Care hours", "Needs action", "Money this week (estimate)"]) await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
