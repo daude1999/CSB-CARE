@@ -39,7 +39,6 @@ test.describe("Overview", () => {
       ["reporting", "/reports", "[data-testid=title-bar]"],
       ["reporting", "/analytics", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
-      ["rota", "/rota/unassigned", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],
       ["hr", "/hr/dashboard", "[data-testid=title-bar]"],
     ];

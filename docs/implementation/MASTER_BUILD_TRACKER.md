@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## Unassigned Visits, Find Cover and Coverage History (1 Nov 2026)
+
+`/rota/unassigned` rebuilt in the Daily Rota style with a Find Cover panel (Recommended, Manual, Review then Confirm) and a
+Coverage History tab with reconciling figures, a visit timeline and Excel/PDF exports. Rules and limitations: `UNASSIGNED_COVERAGE.md`.
+
 ## Find Cover inside Missed Calls, phase 1 (1 Nov 2026)
 
 The owner's "Build smart replacement cover inside Missed Calls" brief. Phase 1, the single-visit workflow, is built: a Find
