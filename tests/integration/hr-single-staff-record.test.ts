@@ -189,7 +189,9 @@ describe("working patterns on the rota side", () => {
     expect(r.flagged).toBeGreaterThan(0);
     const kept = await db.visitAssignment.findUniqueOrThrow({ where: { id: a.id } });
     expect(kept.removedAt).toBeNull();
-    expect(kept.reviewReason).toMatch(/Not available/);
+    expect(kept.reviewReason).toBeTruthy();
+    const now = await checkStaffEligibility(ctx, { staffId: a.staffId, start: a.visit.scheduledStart, end: a.visit.scheduledEnd, visitId: a.visitId });
+    expect(now.blocking.map((b) => b.code)).toContain("UNAVAILABLE");
     const { pattern, timeOff } = await staffWorkingPattern(ctx, a.staffId);
     const line = pattern.find((p) => p.weekday === weekday && p.kind === "UNAVAILABLE")!;
     expect(line).toBeTruthy();
