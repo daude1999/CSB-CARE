@@ -8,6 +8,7 @@ import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { priceVisit, type Band } from "@/server/finance/pricing";
 import { evaluate, loadFacts, type Facts, type PreferenceFacts } from "@/server/workforce/eligibility";
+import { reconcileMedicationLeads } from "@/server/care/medication-lead";
 import { raiseAlert } from "@/server/workforce/impact";
 import { parseWeek } from "./build";
 import { rotaScope, staffDirectoryWhere, visitWhere, type Scope } from "./scope";
@@ -355,6 +356,7 @@ export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; 
         if (assignmentRows.length) await tx.visitAssignment.createMany({ data: assignmentRows });
         if (taskRows.length) await tx.visitTask.createMany({ data: taskRows });
         await tx.visitEvent.createMany({ data: eventRows });
+      await reconcileMedicationLeads(tx, scope.organisationId, visitRows.flatMap((r) => (r.id ? [r.id] : [])), ctx.userId, `Roll forward to the week of ${week}`, build.id);
         if (uncovered) {
           await raiseAlert(tx, { organisationId: scope.organisationId, kind: "UNASSIGNED", message: `Week of ${week}: ${uncovered} visit slot${uncovered === 1 ? " is" : "s are"} uncovered after rolling the rota forward`, dedupeKey: `build-unassigned:${build.id}`, actionUrl: `/rota/visits?date=${week}&unassigned=1` });
         }

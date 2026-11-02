@@ -1371,6 +1371,7 @@ model StaffMember {
   areas              StaffArea[]
   absences           StaffAbsence[]
   availability       StaffAvailability[]
+  medicationLeads    VisitMedicationLead[]
   assignments        VisitAssignment[]
   preferences        CarerPreference[]
   payRates           StaffPayRate[]
@@ -2085,6 +2086,7 @@ model Visit {
   events             VisitEvent[]
   taskOutcomes       VisitTaskOutcome[]
   correctionRequests ClockCorrectionRequest[]
+  medicationLeads    VisitMedicationLead[]
   marRecords         MarRecord[]
   missedCallCase     MissedCallCase?
   /// Set on a recovery visit booked through Find Cover for a missed visit. The missed visit keeps its own status and history.
@@ -3016,6 +3018,29 @@ model Medication {
   records        MarRecord[]
 
   @@index([organisationId, serviceUserId, status])
+}
+
+/// Who is responsible for medication on a visit. One live row per visit; a change ends the old row and adds a new one,
+/// so the history stays. Ended by a database trigger when the carer leaves the visit, so responsibility never stays with
+/// someone who is no longer booked. Responsibility is not evidence that medication was given: that is the MAR record.
+model VisitMedicationLead {
+  id             String      @id @default(cuid())
+  organisationId String
+  visitId        String
+  visit          Visit       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  staffId        String
+  staff          StaffMember @relation(fields: [staffId], references: [id])
+  /// AUTO (the only carer, checked as competent) | COORDINATOR (chosen by an authorised coordinator)
+  source         String
+  assignedById   String
+  assignedAt     DateTime    @default(now())
+  reason         String?
+  endedAt        DateTime?
+  endedById      String?
+  endReason      String?
+
+  @@index([visitId])
+  @@index([organisationId, staffId])
 }
 
 /// One recorded dose on a visit (append-only; a correction supersedes it with a reason).

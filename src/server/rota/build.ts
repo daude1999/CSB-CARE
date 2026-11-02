@@ -8,6 +8,7 @@ import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { evaluate, loadFacts, type Facts, type PreferenceFacts } from "@/server/workforce/eligibility";
 import { raiseAlert, reviewStaffImpact } from "@/server/workforce/impact";
+import { reconcileMedicationLeads } from "@/server/care/medication-lead";
 import { rotaSettings } from "./settings";
 import { buildWhere, rotaScope, staffDirectoryWhere, templateScopeWhere, visitWhere, type Scope } from "./scope";
 import { visitReference } from "./visits";
@@ -376,6 +377,7 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
       if (assignmentRows.length) await tx.visitAssignment.createMany({ data: assignmentRows });
       if (taskRows.length) await tx.visitTask.createMany({ data: taskRows });
       await tx.visitEvent.createMany({ data: eventRows });
+      await reconcileMedicationLeads(tx, scope.organisationId, visitRows.flatMap((r) => (r.id ? [r.id] : [])), ctx.userId, `Rota build for the week of ${weekStart}`, build.id);
       if (p.unassignedSlots) {
         await raiseAlert(tx, { organisationId: scope.organisationId, kind: "UNASSIGNED", message: `Week of ${weekStart}: ${p.unassignedSlots} visit slot${p.unassignedSlots === 1 ? " is" : "s are"} unassigned after the build`, dedupeKey: `build-unassigned:${build.id}`, actionUrl: `/rota/visits?date=${weekStart}&unassigned=1` });
       }

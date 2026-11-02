@@ -6,6 +6,7 @@ import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { eligibilityFor, type EligibilityResult } from "@/server/workforce/eligibility";
+import { reconcileMedicationLead } from "@/server/care/medication-lead";
 import { assertInScope, rotaScope, staffDirectoryWhere, type Scope } from "./scope";
 
 type Tx = Prisma.TransactionClient;
@@ -108,6 +109,7 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
     await tx.visit.update({ where: { id: visit.id }, data: { lockVersion: { increment: 1 }, ...(opts.markManual !== false ? { manuallyChanged: true } : {}) } });
     await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: visit.id, type: current ? "REASSIGNED" : "ASSIGNED", actorId, reason: opts.reason ?? null, data: { slot: p.slot, staffId: p.staffId, previousStaffId: current?.staffId ?? null, source: opts.source, eligibility: result.state, warnings: created.warningsAccepted } } });
     await audit({ organisationId: scope.organisationId, actorId, action: current ? "visit.reassigned" : "visit.assigned", entityType: "Visit", entityId: visit.id, data: { slot: p.slot, staffId: p.staffId, source: opts.source, eligibility: result.state } }, tx);
+    if (p.slot !== "SHADOW") await reconcileMedicationLead(tx, scope.organisationId, visit.id, actorId);
     return created;
   } catch (e) {
     if (isOverlapViolation(e)) throw new ConflictError("This carer has just been booked for an overlapping visit. Reload and choose someone else.");
@@ -142,6 +144,7 @@ export async function unassignInTx(tx: Tx, scope: Scope, actorId: string, p: { v
   await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: visit.id, type: "UNASSIGNED", actorId, reason: p.reason.trim(), data: { slot: p.slot, staffId: a.staffId } } });
   await tx.rotaAlert.updateMany({ where: { assignmentId: a.id, resolvedAt: null }, data: { resolvedAt: new Date(), resolvedById: actorId, resolution: "Carer removed from the visit" } });
   await audit({ organisationId: scope.organisationId, actorId, action: "visit.unassigned", entityType: "Visit", entityId: visit.id, data: { slot: p.slot, staffId: a.staffId, reason: p.reason.trim() } }, tx);
+  if (p.slot !== "SHADOW") await reconcileMedicationLead(tx, scope.organisationId, visit.id, actorId);
 }
 
 export async function unassignCarer(ctx: Ctx, p: { visitId: string; slot: PlaceKey; reason: string; lockVersion?: number }) {

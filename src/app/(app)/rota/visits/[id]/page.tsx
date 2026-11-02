@@ -9,6 +9,8 @@ import { swapCandidates } from "@/server/rota/swap";
 import { CLOCK_KIND_LABEL, listCorrectionRequests } from "@/server/rota/corrections";
 import { visitMedication } from "@/server/care/medication";
 import { VisitMedication } from "@/components/medication-ui";
+import { MedicationLeadPanel } from "@/components/medication-lead";
+import { medicationLeadView } from "@/server/care/medication-lead";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { deriveFlags, memberNames, rotaLookups, suName, visitCandidates } from "@/server/rota/queries";
@@ -47,7 +49,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const allocated = live.filter(isCarerPlace).length;
   const staffing = staffingOf(v.carersRequired, allocated);
   const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
-  const medication = await visitMedication(ctx, v.id);
+  const [medication, medLead] = await Promise.all([visitMedication(ctx, v.id), medicationLeadView(ctx, v.id)]);
   const swappable = editable ? live.filter(isCarerPlace).map(placeKey) : [];
   const [candidates, lk, names, swaps] = await Promise.all([
     // One ranked list serves every carer place (everyone already on the visit is left out); the shadow has its own.
@@ -131,7 +133,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                       <div>
                         <div className="text-[12.5px] text-slate-500">{SLOT_LABEL(s)}</div>
                         {a ? (
-                          <div className="text-[15px] font-medium text-[#1d4f91]">{a.staff.displayName} <span className="font-normal text-slate-500">· {a.staff.jobTitle}</span></div>
+                          <div className="text-[15px] font-medium text-[#1d4f91]">{a.staff.displayName} <span className="font-normal text-slate-500">· {a.staff.jobTitle}</span>{medLead?.lead?.staffId === a.staffId && s !== "SHADOW" ? <> <Badge tone="violet">Medication Lead</Badge></> : null}</div>
                         ) : (
                           <div className={s === "SHADOW" ? "text-slate-500" : "font-medium text-[#a3242c]"}>{s === "SHADOW" ? "No one shadowing" : "Unassigned"}</div>
                         )}
@@ -210,6 +212,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               })}
             </ul>
             <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
+            {medLead ? <MedicationLeadPanel view={medLead} visitId={v.id} back={back} /> : null}
           </Card>
 
           {comms ? (

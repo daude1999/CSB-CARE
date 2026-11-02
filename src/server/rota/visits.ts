@@ -1,3 +1,4 @@
+import { reconcileMedicationLead } from "@/server/care/medication-lead";
 import { randomBytes } from "node:crypto";
 import type { Prisma, VisitStatus } from "@prisma/client";
 import { MAX_CARERS, parsePlace, placeData, placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
@@ -86,6 +87,8 @@ export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, vis
     });
     await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "EDITED", actorId, data: { source: opts.source, fields: Object.keys(patch).filter((k) => patch[k as keyof VisitPatch] !== undefined), from: { start: v.scheduledStart, end: v.scheduledEnd }, to: { start, end } } } });
     await audit({ organisationId: scope.organisationId, actorId, action: "visit.updated", entityType: "Visit", entityId: visitId, data: { source: opts.source } }, tx);
+    // A visit newly marked for medication support, or moved to a time when a medicine is due, may now need a lead.
+    if (patch.medicationRequired || timeChanged) await reconcileMedicationLead(tx, scope.organisationId, visitId, actorId);
     return updated;
   } catch (e) {
     if (isOverlapViolation(e)) throw new ConflictError("A carer on this visit is already booked at the new time");
