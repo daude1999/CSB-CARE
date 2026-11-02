@@ -9,6 +9,7 @@ import { effectiveClocks } from "@/server/rota/attendance";
 import { rotaScope, serviceUserWhere, visitWhere } from "@/server/rota/scope";
 import { raiseAlert } from "@/server/workforce/impact";
 import { myStaff } from "@/server/workforce/link";
+import { liveLeads, reconcileMedicationLeads } from "./medication-lead";
 
 /**
  * Medication and MAR records, modelled on OnePlan's medication set-up: each person's medicines with dose, route,
@@ -54,6 +55,11 @@ export async function setMedicationEnabled(ctx: Ctx, on: boolean, reviewNote: st
     await tx.rotaSettings.update({ where: { organisationId }, data: on ? { medicationEnabledAt: new Date(), medicationEnabledById: ctx.userId, medicationReviewNote: reviewNote.trim() } : { medicationEnabledAt: null, medicationEnabledById: null } });
     await audit({ organisationId, actorId: ctx.userId, action: on ? "medication.enabled" : "medication.disabled", entityType: "Organisation", entityId: organisationId, data: { reviewNote: reviewNote.trim() || null } }, tx);
   });
+  if (on) {
+    // Visits already on the rota get their Medication Lead now (single-carer visits) or are listed for the office to choose.
+    const upcoming = await db.visit.findMany({ where: { organisationId, status: "SCHEDULED", date: { gte: dbDate(londonDate()), lte: dbDate(addDays(londonDate(), 13)) } }, select: { id: true } });
+    await db.$transaction((tx) => reconcileMedicationLeads(tx, organisationId, upcoming.map((v) => v.id), ctx.userId, "Medication switched on", `enabled:${organisationId}:${Date.now()}`), { timeout: 60_000 });
+  }
 }
 
 // ── Medicines ─────────────────────────────────────────────────────────────
@@ -229,16 +235,19 @@ export async function sweepMissedMedication(now = new Date()) {
   const orgs = (await db.rotaSettings.findMany({ where: { medicationEnabledAt: { not: null } }, select: { organisationId: true } })).map((o) => o.organisationId);
   let raised = 0;
   for (const organisationId of orgs) {
-    const visits = await db.visit.findMany({ where: { organisationId, status: "COMPLETED", date: { gte: dbDate(addDays(londonDate(now), -2)) } }, select: { id: true, reference: true, serviceUserId: true, date: true, scheduledStart: true, assignments: { where: { removedAt: null }, select: { staffId: true }, take: 1 } } });
+    const visits = await db.visit.findMany({ where: { organisationId, status: "COMPLETED", date: { gte: dbDate(addDays(londonDate(now), -2)) } }, select: { id: true, reference: true, serviceUserId: true, date: true, scheduledStart: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true } } } });
     if (!visits.length) continue;
     const meds = await db.medication.findMany({ where: { organisationId, status: "ACTIVE", asRequired: false, serviceUserId: { in: [...new Set(visits.map((v) => v.serviceUserId))] } } });
     const recs = await db.marRecord.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, supersededAt: null }, select: { visitId: true, medicationId: true } });
+    // The Medication Lead answers for a missed dose; other carers on the visit are never marked for it. With no lead,
+    // a single-carer visit names its carer and a multi-carer visit names nobody.
+    const leads = await liveLeads(db, visits.map((v) => v.id));
     const done = new Set(recs.map((r) => `${r.visitId}:${r.medicationId}`));
     for (const v of visits) {
       // Only medicines approved before the visit started could have been given on it.
       const missing = dueAt(meds.filter((m) => m.serviceUserId === v.serviceUserId && m.approvedAt && m.approvedAt <= v.scheduledStart), v).filter((m) => !done.has(`${v.id}:${m.id}`));
       if (!missing.length) continue;
-      const r = await raiseAlert(db, { organisationId, kind: "MISSED_MEDICATION", severity: "CRITICAL", visitId: v.id, staffId: v.assignments[0]?.staffId ?? null, message: `Missed medication on ${v.reference} at ${londonTime(v.scheduledStart)}: ${missing.map((m) => m.name).join(", ")} not recorded`, dedupeKey: `missed-meds:${v.id}`, actionUrl: `/rota/visits/${v.id}#medication` });
+      const r = await raiseAlert(db, { organisationId, kind: "MISSED_MEDICATION", severity: "CRITICAL", visitId: v.id, staffId: leads.get(v.id) ?? (v.assignments.length === 1 ? v.assignments[0]!.staffId : null), message: `Missed medication on ${v.reference} at ${londonTime(v.scheduledStart)}: ${missing.map((m) => m.name).join(", ")} not recorded${leads.has(v.id) ? " (recorded against the Medication Lead)" : v.assignments.length > 1 ? " (no Medication Lead was chosen)" : ""}`, dedupeKey: `missed-meds:${v.id}`, actionUrl: `/rota/visits/${v.id}#medication` });
       if (r.created) raised++;
     }
   }

@@ -1,6 +1,7 @@
 "use server";
 
 import { MAX_CARERS, parsePlace, type PlaceKey } from "@/lib/carer-places";
+import { setMedicationLead } from "@/server/care/medication-lead";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, safeBack, str, withParam } from "./action-kit";
@@ -151,6 +152,12 @@ export async function cancelVisitAction(fd: FormData) {
 
 export async function reinstateVisitAction(fd: FormData) {
   return handle(fd, (ctx) => reinstateVisit(ctx, str(fd, "visitId"), str(fd, "reason") || "Reinstated by the office", optInt(fd, "lockVersion")).then(() => undefined), "Visit reinstated");
+}
+
+export async function setMedicationLeadAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await setMedicationLead(ctx, str(fd, "visitId"), { staffId: str(fd, "staffId"), reason: str(fd, "reason") || undefined, lockVersion: optInt(fd, "lockVersion") });
+  }, "Medication Lead saved");
 }
 
 export async function doubleUpAction(fd: FormData) {

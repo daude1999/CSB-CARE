@@ -5,6 +5,7 @@ import { requirePortal } from "@/server/auth/portals";
 import { myVisits } from "@/server/rota/carer";
 import { myMileage } from "@/server/finance/mileage";
 import { medsForMyVisit } from "@/server/care/medication";
+import { leadForCarer } from "@/server/care/medication-lead";
 import { CarerMedication } from "@/components/medication-ui";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
@@ -29,6 +30,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
   const { staff, settings, visits, lastHandover } = data;
   const claims = await myMileage(ctx);
   const meds = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await medsForMyVisit(staff.organisationId, v)] as const)));
+  const leads = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await leadForCarer(staff.organisationId, v.id)] as const)));
   const now = Date.now();
   const today = londonDate();
   const days = [...new Set(visits.map((v) => fromDbDate(v.date)))];
@@ -69,6 +71,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     {meds.get(v.id) === null && v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; medication records are switched off.</p> : null}
                     <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
+                    {meds.get(v.id)?.length ? <p className="text-[13px] font-medium text-[#5b2bb5]">{leads.get(v.id) ? (leads.get(v.id)!.staffId === staff.id ? "You are the Medication Lead on this visit." : `Medication Lead: ${leads.get(v.id)!.name}.`) : "No Medication Lead chosen yet. The office will confirm who is responsible."}</p> : null}
                     {mine && meds.get(v.id) ? <CarerMedication visitId={v.id} due={meds.get(v.id)!} clockedIn={effectiveClocks(v.clocks).some((c) => c.kind === "IN")} /> : null}
                     {mine ? <TaskControls v={v} /> : null}
                     {mine ? <CorrectionControls v={v} now={now} /> : null}

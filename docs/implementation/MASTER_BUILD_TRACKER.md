@@ -123,7 +123,8 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 11 Reporting and admin | In progress | Rota Reports built (`src/server/rota/reports.ts`, /rota/reports, CSV at /api/rota/reports): delivery by day, hours by person, carer attendance, unfilled visits, call alerts. Reporting & Analytics module and Administration still to do |
 | 6b OnePlan structure | Done | Rota Dashboard, menu, Daily Rota and Advanced Rota rebuilt to OnePlan's structure at the owner's request (see ARCHITECTURE_DECISIONS) |
 | UI polish (29 Oct) | Done on branch `claude/project-thread-i7uu8j` | Navigation and motion pass across all modules: motion tokens, instant portal/sidebar feedback, progress bar, page entrance, placeholders, pending buttons, dialogs, reduced motion, HR boundary kept. See UI_MOTION_AND_NAVIGATION.md |
-| Multi-carer visits (2 Nov) | Draft PR, awaiting screenshot approval | Any number of carers 1 to 20 with numbered places across rota, templates, build, roll forward, unassigned, cover, missed calls, optimiser and bulk. See MULTI_CARER_VISITS.md |
+| Multi-carer visits (2 Nov) | Merged (#60) | Any number of carers 1 to 20 with numbered places across rota, templates, build, roll forward, unassigned, cover, missed calls, optimiser and bulk. See MULTI_CARER_VISITS.md |
+| Medication Lead (2 Nov) | Built, merging | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
 | 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)
