@@ -34,7 +34,7 @@ export const MODULES: Module[] = [
     name: "Staff Policy Read-Tracking & Sign Audit Logs",
     summary: "Send policies to staff, see who has read and signed them, chase anyone overdue and export the audit trail for inspection.",
     features: ["Read & sign from any policy page", "Overdue reminders sent automatically", "Sign-off status by policy and by person", "Full audit trail of who did what and when"],
-    opens: [{ href: "/acknowledgements", label: "My reading list" }, { href: "/staff", label: "Staff sign-off status" }, { href: "/reports", label: "Reports" }],
+    opens: [{ href: "/acknowledgements", label: "My reading list" }, { href: "/staff", label: "Staff sign-off status" }, { href: "/compliance/reports", label: "Reports" }],
   },
   {
     slug: "rotas",

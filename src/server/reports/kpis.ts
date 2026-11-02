@@ -199,7 +199,7 @@ export const KPIS: KpiDef[] = [
     definition: "Active policies whose next review date has passed. Policies belong to the whole organisation, so this ignores the branch.",
     compute: async (s) => {
       const n = await db.policy.count({ where: { organisationId: s.organisationId, status: "ACTIVE", nextReviewDate: { lt: new Date() } } });
-      return { value: n, unit: "count", detail: "Past their review date", href: "/reports?kind=policies" };
+      return { value: n, unit: "count", detail: "Past their review date", href: "/compliance/reports?kind=policies" };
     },
   },
   {

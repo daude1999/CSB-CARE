@@ -266,7 +266,7 @@ function SignOffPane({ data, back }: { data: PolicyInspection; back: string }) {
               </li>
             ))}
           </ul>
-          <Link href="/staff" className="mt-2 inline-block text-[12.5px]">Open Staff Sign-off</Link>
+          <Link href="/staff" className="mt-2 inline-block text-[12.5px]">Open Policy Sign-off</Link>
         </div>
       ) : null}
     </div>

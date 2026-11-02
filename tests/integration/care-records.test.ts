@@ -5,7 +5,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@
 import { addDays, londonDate } from "@/lib/london";
 import { PLAN_SECTIONS, acknowledgePlan, approvePlan, carerCarePlan, discardDraft, draftFingerprint, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
-import { closeIncident, getIncident, listIncidents, reportIncident, triageIncident } from "@/server/care/incidents";
+import { closeIncident, getIncident, incidentDraftFromNote, listIncidents, reportIncident, triageIncident } from "@/server/care/incidents";
 import { myStaff } from "@/server/workforce/link";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
@@ -139,5 +139,20 @@ describe("incidents", () => {
     await expect(closeIncident(m, inc.id, inc.version + 1, "Hospital confirmed a sprain only. Falls risk assessment reviewed.", false)).rejects.toThrow(/notifiable/);
     await closeIncident(m, inc.id, inc.version + 1, "Hospital confirmed a sprain only. Falls risk assessment reviewed.", true);
     expect((await db.incident.findUniqueOrThrow({ where: { id: inc.id } })).status).toBe("CLOSED");
+  });
+});
+
+describe("a visit note becomes an incident without typing it again", () => {
+  it("fills in the person, visit, time and the note's words, only for a note the caller may see", async () => {
+    const ctx = await coordinator();
+    const note = await db.visitNote.findFirstOrThrow({ where: { organisationId: ctx.organisationId! }, include: { visit: true } });
+    const draft = await incidentDraftFromNote(ctx, note.id);
+    expect(draft).toMatchObject({ serviceUserId: note.visit.serviceUserId, visitId: note.visitId, date: londonDate(note.visit.scheduledStart) });
+    expect(draft?.description).toContain(note.text);
+    // Another organisation's note gives no draft, and neither does a carer with no office rota access.
+    const other = await ctxFor("manager@oakridge.demo", OAKRIDGE);
+    expect(await incidentDraftFromNote(other, note.id)).toBeNull();
+    expect(await incidentDraftFromNote(await carer(), note.id)).toBeNull();
+    expect(await incidentDraftFromNote(ctx, "not-a-note")).toBeNull();
   });
 });

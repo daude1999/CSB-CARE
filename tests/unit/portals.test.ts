@@ -46,6 +46,23 @@ describe("portal access", () => {
   });
 });
 
+describe("one home for reports", () => {
+  it("puts Rota Reports, Rota Insights and Compliance Reports in Reporting & Analytics", () => {
+    for (const p of ["/rota/reports", "/rota/insights", "/compliance/reports", "/analytics", "/reports"]) expect(portalForPath(p)).toBe("reporting");
+    // The rest of the rota and of compliance stay where they were.
+    expect(portalForPath("/rota/visits")).toBe("rota");
+    expect(portalForPath("/compliance/risks")).toBe("policy");
+  });
+  it("lets anyone who sees the rota open Reporting, on a report they may use", () => {
+    const coordinator = ctx({ orgRoles: ["CARE_COORDINATOR"] });
+    expect(canUsePortal(coordinator, "reporting")).toBe(true);
+    const home = portalsFor(coordinator).find((p) => p.id === "reporting")?.home;
+    expect(["/analytics", "/compliance/reports", "/rota/reports"]).toContain(home);
+    // Care staff with no rota or report access still do not see it.
+    expect(canUsePortal(ctx({ orgRoles: ["STAFF"] }), "reporting")).toBe(false);
+  });
+});
+
 describe("portal routes", () => {
   it("keeps existing policy addresses in Policy & Compliance", () => {
     for (const p of ["/", "/policies", "/policies/abc", "/changes", "/audits", "/staff", "/acknowledgements"]) expect(portalForPath(p)).toBe("policy");

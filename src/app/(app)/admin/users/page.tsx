@@ -1,3 +1,4 @@
+import { AdminTabs } from "@/components/admin-tabs";
 import { cookies } from "next/headers";
 import Link from "@/components/link";
 import { requirePortal } from "@/server/auth/portals";
@@ -29,7 +30,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Users" back="/settings" subtitle="Everyone who can sign in to your organisation, their roles and the branches they work in. A member with no branches ticked can work in every branch." />
+      <PageHeader title="Users & Logins" back="/settings" tabs={<AdminTabs group="logins" active="users" />} subtitle="Everyone who can sign in to your organisation, their roles and the branches they work in. A member with no branches ticked can work in every branch." />
       <Flash searchParams={sp} />
       {link ? (
         <section aria-label="One-time link" className="panel mb-3 border-l-4 border-l-teal-500">

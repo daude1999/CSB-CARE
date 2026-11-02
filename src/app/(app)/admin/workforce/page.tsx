@@ -1,3 +1,4 @@
+import { AdminTabs } from "@/components/admin-tabs";
 import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
@@ -30,7 +31,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
 
   return (
     <>
-      <PageHeader title="Workforce Sync & Logins" back="/settings" subtitle="HR & Workforce is the source of truth for staff. Every HR change updates the rota's staff list in the same save; re-check below repairs anything out of step. Staff are not sign-ins: a carer gets the carer app only when an administrator links their sign-in here." />
+      <PageHeader title="Users & Logins" back="/settings" tabs={<AdminTabs group="logins" active="workforce" />} subtitle="HR & Workforce is the source of truth for staff. Every HR change updates the rota's staff list in the same save; re-check below repairs anything out of step. Staff are not sign-ins: a carer gets the carer app only when an administrator links their sign-in here." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">

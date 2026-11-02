@@ -2,10 +2,10 @@ import type { IncidentSeverity, IncidentStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
-import { addDays, dbDate, isIsoDate, londonDate, londonToUtc, parseHhmm } from "@/lib/london";
+import { addDays, dbDate, isIsoDate, londonDate, londonTime, londonToUtc, parseHhmm } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
-import { serviceUserWhere, rotaScope } from "@/server/rota/scope";
+import { serviceUserWhere, rotaScope, visitWhere } from "@/server/rota/scope";
 
 type Tx = Prisma.TransactionClient;
 
@@ -187,4 +187,24 @@ export async function reopenIncident(ctx: Ctx, id: string, version: number, reas
     await tx.incident.update({ where: { id: inc.id }, data: { status: "INVESTIGATING", closedById: null, closedAt: null, version: { increment: 1 } } });
     await audit({ organisationId, actorId: ctx.userId, action: "incident.reopened", entityType: "Incident", entityId: inc.id, data: { reason: reason.trim(), previousOutcome: inc.outcome } }, tx);
   });
+}
+
+/**
+ * A visit note turned into an incident report: the person, the visit, when it happened and the note's own words, so
+ * nobody types them again. Only a note on a visit the caller may see; anything else gives no draft (the form is then
+ * blank, as before). Nothing is saved until the reporter checks the details and sends the report.
+ */
+export async function incidentDraftFromNote(ctx: Ctx, noteId: string): Promise<{ serviceUserId: string; visitId: string; date: string; time: string; description: string } | null> {
+  if (!hasOrgPermission(ctx, "rota.view") || !hasOrgPermission(ctx, "incident.report")) return null;
+  const scope = await rotaScope(ctx, "rota.view");
+  const note = await db.visitNote.findFirst({ where: { id: noteId, organisationId: scope.organisationId, visit: visitWhere(scope) }, select: { text: true, createdAt: true, visit: { select: { id: true, serviceUserId: true, scheduledStart: true, reference: true } } } });
+  if (!note) return null;
+  const at = note.visit.scheduledStart;
+  return {
+    serviceUserId: note.visit.serviceUserId,
+    visitId: note.visit.id,
+    date: londonDate(at),
+    time: londonTime(at),
+    description: `From the visit note on ${note.visit.reference}: ${note.text}`,
+  };
 }

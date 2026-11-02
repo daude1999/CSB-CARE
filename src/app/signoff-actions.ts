@@ -3,7 +3,7 @@
 import { handle, str } from "./action-kit";
 import { correctAcknowledgement, createRule, exemptRow, recordAckAssessment, withdrawRule, type RuleInput } from "@/server/policies/assignment";
 
-/** Server actions for Staff Sign-off. Each reads FormData, calls one function in src/server/policies/assignment and redirects back. */
+/** Server actions for Policy Sign-off. Each reads FormData, calls one function in src/server/policies/assignment and redirects back. */
 
 const ids = (fd: FormData, k: string) => fd.getAll(k).filter((x): x is string => typeof x === "string" && x.length > 0);
 

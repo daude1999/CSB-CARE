@@ -19,7 +19,7 @@ import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-he
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
-import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold, IdentificationCard } from "@phosphor-icons/react/dist/ssr";
+import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
@@ -53,8 +53,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     rota: rotaItems(ctx, i),
     reporting: [
       ...page("/analytics", "Analytics", <ChartBar {...i} />, hasOrgPermission(ctx, "analytics.view")),
-      ...page("/reports", "Compliance Reports", <ChartLine {...i} />, can.reports),
+      // Every report is listed here, once. The Rota and Policy menus keep a shortcut to their own reports, which opens
+      // the same page here rather than a second copy.
       ...page("/rota/reports", "Rota Reports", <CalendarDots {...i} />, hasOrgPermission(ctx, "rota.view")),
+      ...page("/rota/insights", "Rota Insights", <Pulse {...i} />, hasOrgPermission(ctx, "rota.view")),
+      ...page(ctx.organisationId ? "/compliance/reports" : "/reports", "Compliance Reports", <ChartLine {...i} />, can.reports),
       ...page("/assistant", "AI Assistant", <ChatTeardropText {...i} />, can.assistant),
     ],
     hr: hrItems(ctx, i),
@@ -62,15 +65,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // its pages is open, so office staff are not faced with every configuration screen at once.
     admin: groupAdmin(
       [
-        ...page("/settings", "System Settings", <Buildings {...i} />, can.settings),
-        ...page("/admin/users", "Users", <UsersThree {...i} />, can.settings),
-        ...page("/admin/branches", "Branches", <Buildings {...i} />, can.settings),
-        ...page("/admin/areas", "Areas", <MapTrifold {...i} />, can.settings),
+        ...page("/settings", "All Settings", <Buildings {...i} />, can.settings),
+        // One entry per job: who can sign in, and where the organisation works. Each opens a page with tabs.
+        ...(can.settings ? [{ href: "/admin/users", label: "Users & Logins", icon: <UsersThree {...i} />, match: ["/admin/workforce"] }] : []),
+        ...(can.settings ? [{ href: "/admin/branches", label: "Branches & Areas", icon: <MapTrifold {...i} />, match: ["/admin/areas"] }] : []),
       ],
       [
-        ...page("/admin/workforce", "Workforce Sync & Logins", <IdentificationCard {...i} />, can.settings),
-        ...page("/admin/readiness", "Staff Readiness Matrix", <ListChecks {...i} />, hasOrgPermission(ctx, "readiness.manage")),
-        ...page("/admin/audit", "Audit Log", <ClockCounterClockwise {...i} />, can.settings),
+        ...page("/admin/readiness", "Staff Readiness Rules", <ListChecks {...i} />, hasOrgPermission(ctx, "readiness.manage")),
+        ...page("/admin/audit", "Activity Log", <ClockCounterClockwise {...i} />, can.settings),
         ...page("/modules", "Modules", <SquaresFour {...i} />),
         ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
         ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),

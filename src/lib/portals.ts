@@ -35,6 +35,10 @@ const PREFIXES: [string, PortalId][] = [
   ["/overview", "overview"],
   // Service users and call monitoring are part of Rostering & Care Management; /service-users redirects there.
   ["/service-users", "rota"],
+  // Reports have one home, Reporting & Analytics, whichever module's records they count.
+  ["/rota/reports", "reporting"],
+  ["/rota/insights", "reporting"],
+  ["/compliance/reports", "reporting"],
   ["/rota", "rota"],
   ["/carer", "rota"],
   ["/workforce", "hr"],

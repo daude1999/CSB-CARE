@@ -16,7 +16,9 @@ export function canUsePortal(ctx: Ctx, id: PortalId): boolean {
     case "hr":
       return Boolean(ctx.organisationId && ctx.hrUserId);
     case "reporting":
-      return hasOrgPermission(ctx, "report.view") || hasOrgPermission(ctx, "analytics.view") || platformAdmin;
+      // Rota Reports and Rota Insights live here too, so anyone who may see the rota may open this portal; each page
+      // and menu entry still checks its own permission.
+      return hasOrgPermission(ctx, "report.view") || hasOrgPermission(ctx, "analytics.view") || hasOrgPermission(ctx, "rota.view") || platformAdmin;
     case "admin":
       return hasOrgPermission(ctx, "org.manage") || platformAdmin;
   }
@@ -27,9 +29,16 @@ export function portalsFor(ctx: Ctx): Portal[] {
   return PORTALS.filter((p) => canUsePortal(ctx, p.id)).map((p) => {
     if (p.id === "admin" && !hasOrgPermission(ctx, "org.manage")) return { ...p, home: "/modules" };
     if (p.id === "rota") return { ...p, home: rotaHome(ctx) };
-    if (p.id === "reporting" && !hasOrgPermission(ctx, "analytics.view")) return { ...p, home: "/reports" };
+    if (p.id === "reporting" && !hasOrgPermission(ctx, "analytics.view")) return { ...p, home: reportingHome(ctx) };
     return p;
   });
+}
+
+/** Where Reporting & Analytics opens for someone without Analytics: their first report. */
+function reportingHome(ctx: Ctx) {
+  if (hasOrgPermission(ctx, "report.view")) return ctx.organisationId ? "/compliance/reports" : "/reports";
+  if (hasOrgPermission(ctx, "rota.view")) return "/rota/reports";
+  return "/reports";
 }
 
 /** Where Rostering & Care Management opens for this person: coordinators get Today, carers their own visits. */

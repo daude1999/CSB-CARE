@@ -12,7 +12,7 @@ import { createVisit } from "@/server/rota/visits";
 import { cancelVisit, getVisit, setDoubleUp, updateVisit } from "@/server/rota/visits";
 import { setTemplateCarer, updateTemplate } from "@/server/rota/templates";
 import { checkStaffEligibility } from "@/server/workforce/eligibility";
-import { decideAbsence, recordAbsence } from "@/server/workforce/absences";
+import { decideAbsence, listAbsences, recordAbsence } from "@/server/workforce/absences";
 import { linkLogin, myStaff } from "@/server/workforce/link";
 import { addAbsence, getServiceUser, revealKeySafe, setServiceUserStatus } from "@/server/care/service-users";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
@@ -248,6 +248,9 @@ describe("HR absences and their effect on the rota", () => {
     const a = await db.visitAssignment.findFirstOrThrow({ where: { visitId: v.id, staffId, removedAt: null } });
     expect(a.reviewReason).toMatch(/holiday/);
     expect(await db.rotaAlert.count({ where: { organisationId: orgId, staffId, resolvedAt: null } })).toBeGreaterThan(0);
+    // The absence list says how many booked visits clash, so the decider can go straight to finding cover.
+    const listed = (await listAbsences(approver, { status: "APPROVED" })).rows.find((x) => x.id === abs.id);
+    expect(listed?.clashes).toBeGreaterThan(0);
   });
 
   it("does not let a Branch Viewer change absences", async () => {

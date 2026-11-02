@@ -53,7 +53,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="cover" />}
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="attention" active="cover" />}
         title="Sickness & Holiday Cover"
         back="/rota"
         subtitle="Bookings held by someone who is absent, or flagged after an HR change. Absences never move visits by themselves: pick a replacement here and the full eligibility check runs again."

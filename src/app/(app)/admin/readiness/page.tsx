@@ -48,7 +48,7 @@ export default async function ReadinessMatrixPage({ searchParams }: { searchPara
 
   return (
     <>
-      <PageHeader title="Staff Readiness Matrix" back="/settings" subtitle="What each role, branch, care task or service user requires before someone may work. Hard stops block allocation and clock-in when not met; advisory ones are flagged for review. Classifications and renewal periods are starting points for your compliance lead to confirm, not legal advice." actions={<><Link href="/rota/readiness" className="btn-secondary">Readiness queue</Link><Link href={showRetired ? back : `${back}?retired=1`} className="btn-secondary">{showRetired ? "Hide retired versions" : "Show retired versions"}</Link></>} />
+      <PageHeader title="Staff Readiness Rules" back="/settings" subtitle="What each role, branch, care task or service user requires before someone may work. Hard stops block allocation and clock-in when not met; advisory ones are flagged for review. Classifications and renewal periods are starting points for your compliance lead to confirm, not legal advice." actions={<><Link href="/rota/readiness" className="btn-secondary">Readiness queue</Link><Link href={showRetired ? back : `${back}?retired=1`} className="btn-secondary">{showRetired ? "Hide retired versions" : "Show retired versions"}</Link></>} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_460px]">
         <Card>

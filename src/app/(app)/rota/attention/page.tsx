@@ -4,7 +4,7 @@ import Link from "@/components/link";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
-import { attentionQueue, GROUP_LABEL, groupAttention, missedFilters, TYPE_LABEL, type AttentionItem, type AttentionQueue, type AttentionType, type CommsEntry, type MissedEntry, type UnassignedEntry } from "@/server/rota/attention-queue";
+import { ATTENTION_TYPES, attentionQueue, GROUP_LABEL, groupAttention, missedFilters, TYPE_LABEL, type AbsentEntry, type AttentionItem, type AttentionQueue, type AttentionType, type CommsEntry, type MissedEntry, type ProblemEntry, type UnassignedEntry } from "@/server/rota/attention-queue";
 import { STAGE_LABEL } from "@/server/rota/missed-calls";
 import { SU_INFORMED } from "@/server/rota/missed-cover";
 import { communicationView, telHref } from "@/server/rota/cover-communication";
@@ -33,10 +33,11 @@ const qs = (p: Keep) => {
 };
 
 /**
- * Visits Needing Attention: one prioritised queue of every visit the office must decide on (unassigned visits, open
- * missed calls and communication still owed after cover), with the selected item's details and actions on the right.
- * Nothing here has its own rules: the rows come from the same services as Unassigned Visits, Missed Calls and Find
- * Cover, with the same permissions, and every action opens that page's own workflow.
+ * Visits Needing Attention: the office's one to-do list of every visit that needs a decision (unassigned visits,
+ * bookings held by a carer who is off, open missed calls, other visit problems from the Exceptions register and
+ * communication still owed after cover), with the selected item's details and actions on the right. Nothing here has
+ * its own rules: the rows come from the same services as the full registers, with the same permissions, and every
+ * action opens that register's own workflow. The Monitor stays the live view of what is happening now.
  */
 export default async function AttentionPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -46,7 +47,7 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
   const queue = await attentionQueue(ctx, { branch: sp.branch });
   const { can, counts } = queue;
   const visible = (t: AttentionType) => can[t];
-  const filter: Filter | null = sp.type === "now" || ((sp.type === "unassigned" || sp.type === "missed" || sp.type === "comms") && visible(sp.type)) ? (sp.type as Filter) : null;
+  const filter: Filter | null = sp.type === "now" || (ATTENTION_TYPES.includes(sp.type as AttentionType) && visible(sp.type as AttentionType)) ? (sp.type as Filter) : null;
   const list = queue.items.filter((i) => (filter === "now" ? i.group === "now" : filter ? i.type === filter : true));
   const groups = groupAttention(list);
   const ordered = groups.flatMap((g) => g.items);
@@ -140,7 +141,9 @@ function Toolbar({ queue, filter, listKeep }: { queue: AttentionQueue; filter: F
   const tabs: { key: Filter | null; label: string; n: number }[] = [
     { key: null, label: "All", n: counts.all },
     ...(can.unassigned ? [{ key: "unassigned" as const, label: "Unassigned", n: counts.unassigned }] : []),
+    ...(can.absent ? [{ key: "absent" as const, label: "Carer off", n: counts.absent }] : []),
     ...(can.missed ? [{ key: "missed" as const, label: "Missed calls", n: counts.missed }] : []),
+    ...(can.problem ? [{ key: "problem" as const, label: "Visit problems", n: counts.problem }] : []),
     ...(can.comms ? [{ key: "comms" as const, label: "Communication", n: counts.comms }] : []),
   ];
   return (
@@ -177,9 +180,11 @@ function QueueFooter({ queue }: { queue: AttentionQueue }) {
   const { can } = queue;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[#eaecf0] px-4 py-3 text-[14px]">
-      <span className="mr-auto text-[#475467]">Unassigned visits for the next 7 days; open missed calls from the last 30 days.</span>
+      <span className="mr-auto text-[#475467]">Unassigned visits and carer-off bookings for the next 7 days; open missed calls from the last 30 days; open visit problems.</span>
       {can.unassigned ? <Link href="/rota/unassigned?when=week" className="font-semibold">Open Unassigned Visits</Link> : null}
+      {can.absent ? <Link href="/rota/cover" className="font-semibold">Open Sickness &amp; Holiday Cover</Link> : null}
       {can.missed ? <Link href={`/rota/missed?${new URLSearchParams(missedFilters(queue.today, queue.branch ?? undefined))}`} className="font-semibold">Open Missed Calls</Link> : null}
+      {can.problem ? <Link href="/rota/exceptions" className="font-semibold">Open Exceptions</Link> : null}
       {can.unassigned ? <Link href="/rota/unassigned?tab=history" className="inline-flex items-center gap-1 font-semibold"><ClockCounterClockwise size={16} aria-hidden />Coverage History</Link> : null}
     </div>
   );
@@ -195,21 +200,28 @@ function toRow(i: AttentionItem, selected: boolean, listKeep: Keep, canEdit: boo
   const time = londonTime(i.start);
   const base = { key: i.key, type: i.type, time, day: dayLabel(i.date, today), serviceUser: i.serviceUser, callType: i.callType, reason: i.reason, selected };
   const name = `${i.serviceUser}, ${i.callType ? `${i.callType.toLowerCase()} ` : ""}${time}, ${TYPE_LABEL[i.type].toLowerCase()}`;
-  const search = `${i.serviceUser} ${i.type === "missed" ? i.carerName ?? "" : ""} ${i.reason} ${i.reference}`.toLowerCase();
+  const search = `${i.serviceUser} ${i.type === "missed" || i.type === "absent" ? i.carerName ?? "" : ""} ${i.reason} ${i.reference}`.toLowerCase();
   const selectHref = qs({ ...listKeep, item: i.key });
   const rowKeep = { ...listKeep, item: i.key };
   let action: QueueRow["action"] = null;
   if (i.type === "unassigned") action = canEdit ? { label: "Find cover", href: coverHref(BASE, rowKeep, { id: i.id }), aria: `Find cover for ${i.serviceUser} at ${time}: recommended carers` } : { label: "View", href: `/rota/visits?date=${i.date}&visit=${i.visitId}`, aria: `View ${i.serviceUser}'s visit at ${time}` };
+  else if (i.type === "absent") action = canEdit ? { label: "Find cover", href: coverHref(BASE, rowKeep, { id: i.visitId, mode: "replace", slot: i.slot }), aria: `Find replacement cover for ${i.carerName} on ${i.serviceUser}'s visit at ${time}` } : { label: "View", href: `/rota/visits?date=${i.date}&visit=${i.visitId}`, aria: `View ${i.serviceUser}'s visit at ${time}` };
   else if (i.type === "missed") action = { label: "Investigate", href: `/rota/missed/${i.id}`, aria: `Investigate ${i.reference}` };
+  else if (i.type === "problem") action = { label: "Resolve", href: problemHref(i), aria: `Resolve ${i.kindLabel.toLowerCase()} for ${i.serviceUser}, ${i.reference}` };
   else action = { label: "Contact", href: coverHref(BASE, rowKeep, i.caseId ? { id: i.caseId, mode: "recovery", tab: "comms" } : { id: i.visitId, tab: "comms" }), aria: `Record communication for ${i.serviceUser}, ${i.reference}` };
   return { ...base, name, search, selectHref, action };
 }
+
+/** The exception in the Exceptions register, where it is given an owner and resolved. */
+const problemHref = (i: ProblemEntry) => `/rota/exceptions?kind=${encodeURIComponent(i.kind)}#exception-${i.id}`;
 
 // ── Detail panel ────────────────────────────────────────────────────────
 
 type DetailData =
   | { type: "unassigned"; recommended: (Candidate & { areas?: string[] })[]; blocked: string | null }
   | { type: "missed" }
+  | { type: "absent" }
+  | { type: "problem" }
   | { type: "comms"; arrangement: string | null; phone: string | null; phoneName: string | null };
 
 async function detailData(ctx: Ctx, item: AttentionItem): Promise<DetailData> {
@@ -219,7 +231,7 @@ async function detailData(ctx: Ctx, item: AttentionItem): Promise<DetailData> {
     if ("error" in ws) return { type: "unassigned", recommended: [], blocked: ws.error };
     return { type: "unassigned", recommended: ws.recommended, blocked: ws.blocked };
   }
-  if (item.type === "missed") return { type: "missed" };
+  if (item.type === "missed" || item.type === "absent" || item.type === "problem") return { type: item.type };
   const view = await communicationView(ctx, { visitId: item.visitId, caseId: item.caseId }).catch(() => null);
   const su = view?.contacts?.serviceUser;
   const contact = view?.contacts?.contacts.find((c) => c.isPrimary && c.phone);
@@ -227,12 +239,12 @@ async function detailData(ctx: Ctx, item: AttentionItem): Promise<DetailData> {
   return { type: "comms", arrangement: view?.arrangementText ?? null, phone, phoneName: su?.phone ? su.name : contact ? `${contact.name}${contact.relationship ? ` (${contact.relationship})` : ""}` : null };
 }
 
-const WHY_TONE = { unassigned: "bg-[#fdf6e3] text-[#7a5200]", missed: "bg-[#fef3f2] text-[#912018]", comms: "bg-[#f0f5ff] text-[#1d4f91]" } as const;
+const WHY_TONE = { unassigned: "bg-[#fdf6e3] text-[#7a5200]", absent: "bg-[#f6f2fd] text-[#4c2398]", missed: "bg-[#fef3f2] text-[#912018]", problem: "bg-[#fff6ed] text-[#9a3412]", comms: "bg-[#f0f5ff] text-[#1d4f91]" } as const;
 const sentence = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 function Detail({ item, data, keep, can, today, idPrefix, bare = false }: { item: AttentionItem; data: DetailData; keep: Keep; can: AttentionQueue["can"]; today: string; idPrefix: string; bare?: boolean }) {
   const s = TYPE_STYLE[item.type];
-  const why = item.type === "unassigned" ? `${item.why}. ${sentence(item.reason)}${item.required > 1 ? ` (${item.filled} of ${item.required} carers booked)` : ""}.` : item.type === "missed" ? (item.warnings.length ? `${sentence(item.warnings.join(", "))}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}` : `${STAGE_LABEL[item.stage]}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}`) : `${item.stateLabel}. Responsible: ${item.owner}.`;
+  const why = item.type === "absent" ? `${sentence(item.reason)}. The visit keeps its booking until someone chooses a replacement.` : item.type === "problem" ? `${sentence(item.message.replace(/[.\s]+$/, ""))}. ${item.owner ? `Owner: ${item.owner}.` : "No owner yet."}` : item.type === "unassigned" ? `${item.why}. ${sentence(item.reason)}${item.required > 1 ? ` (${item.filled} of ${item.required} carers booked)` : ""}.` : item.type === "missed" ? (item.warnings.length ? `${sentence(item.warnings.join(", "))}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}` : `${STAGE_LABEL[item.stage]}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}`) : `${item.stateLabel}. Responsible: ${item.owner}.`;
   return (
     <section aria-labelledby={`${idPrefix}-title`} className={bare ? "" : "overflow-hidden rounded-[14px] border border-[#eaecf0] bg-white"} data-testid="attention-detail" data-item={item.key}>
       <div className="border-b border-[#eaecf0] px-5 pb-4 pt-4">
@@ -245,7 +257,9 @@ function Detail({ item, data, keep, can, today, idPrefix, bare = false }: { item
         <p className={`mt-3 flex gap-2 rounded-[10px] px-3.5 py-2.5 text-[14px] leading-snug ${WHY_TONE[item.type]}`}><Info size={18} aria-hidden className="mt-px shrink-0" /><span>{why}</span></p>
       </div>
       {item.type === "unassigned" && data.type === "unassigned" ? <UnassignedDetail item={item} data={data} keep={keep} canEdit={can.edit} /> : null}
+      {item.type === "absent" ? <AbsentDetail item={item} keep={keep} canEdit={can.edit} /> : null}
       {item.type === "missed" ? <MissedDetail item={item} keep={keep} canEdit={can.edit} /> : null}
+      {item.type === "problem" ? <ProblemDetail item={item} /> : null}
       {item.type === "comms" && data.type === "comms" ? <CommsDetail item={item} data={data} keep={keep} /> : null}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-[#eaecf0] px-5 py-3.5">
         <Link href={`/rota/visits?date=${item.date}&visit=${item.visitId}`} className={TEXT_LINK}>Open visit</Link>
@@ -322,6 +336,35 @@ function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; 
         {item.cover?.kind === "booked" ? <span className="rounded-full bg-[#e3f6ea] px-2.5 py-0.5 text-[13px] font-semibold text-[#1e6b2c]">Cover booked</span> : null}
       </div>
       {item.cover && !item.cover.canFind && item.cover.kind !== "booked" ? <p className="mt-2 text-[13px] text-[#475467]">{item.cover.text}</p> : null}
+    </div>
+  );
+}
+
+function AbsentDetail({ item, keep, canEdit }: { item: AbsentEntry; keep: Keep; canEdit: boolean }) {
+  if (!canEdit) return <p className="px-5 py-4 text-[14px] text-[#475467]">You can see this booking, but choosing a replacement needs rota editing access.</p>;
+  return (
+    <div className="px-5 py-4">
+      <h3 className="mb-2 text-[16px] font-bold text-[#1b1340]">Replacement</h3>
+      <p className="text-[14px] text-[#344054]">{item.carerName} is booked{item.doubleUp ? " on this double-up" : ""}. Nothing moves by itself: choose a replacement and the full eligibility check runs again.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link href={coverHref(BASE, keep, { id: item.visitId, mode: "replace", slot: item.slot })} scroll={false} className={PRIMARY} aria-label={`Find replacement cover for ${item.carerName} on ${item.serviceUser}'s visit at ${londonTime(item.start)}`}><UserPlus size={16} aria-hidden />Find replacement</Link>
+        <Link href={`/rota/staff/${item.staffId}`} className={TEXT_LINK}>{item.carerName}&apos;s rota record</Link>
+      </div>
+    </div>
+  );
+}
+
+function ProblemDetail({ item }: { item: ProblemEntry }) {
+  return (
+    <div className="px-5 py-4">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-[16px] font-bold text-[#1b1340]">{item.kindLabel}</h3>
+        <span className="text-[13.5px] text-[#475467]">{item.deadline ? `Deadline ${fmtLondonDate(londonDate(item.deadline), { day: "numeric", month: "short" })} ${londonTime(item.deadline)}${item.overdue ? " (passed)" : ""}` : "No deadline"}</span>
+      </div>
+      <p className="text-[14px] text-[#344054]">Give it an owner and record how it was resolved in the Exceptions register. Anything past its deadline goes to the care managers inside the platform.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link href={problemHref(item)} className={PRIMARY} aria-label={`Resolve ${item.kindLabel.toLowerCase()} for ${item.serviceUser}, ${item.reference}`}>Resolve</Link>
+      </div>
     </div>
   );
 }

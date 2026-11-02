@@ -1,3 +1,4 @@
+import { AdminTabs } from "@/components/admin-tabs";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePortal } from "@/server/auth/portals";
@@ -26,7 +27,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
   const hrName = new Map(hr.map((b) => [b.id, b.name]));
   return (
     <>
-      <PageHeader title="Branches" back="/settings" subtitle="Each branch maps to its HR & Workforce branch so staff records arrive in the right place. A member given branches sees only those branches' service users, visits, staff, timesheets and audits; one with none covers the whole organisation." />
+      <PageHeader title="Branches & Areas" back="/settings" tabs={<AdminTabs group="places" active="branches" />} subtitle="Each branch maps to its HR & Workforce branch so staff records arrive in the right place. A member given branches sees only those branches' service users, visits, staff, timesheets and audits; one with none covers the whole organisation." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <Card title="Branches">
