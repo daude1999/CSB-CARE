@@ -38,6 +38,9 @@ test.describe("Find Replacement Cover", () => {
     const form = panel.getByRole("form", { name: "Record a communication attempt" });
     await form.getByRole("radio").first().check();
     await form.getByText("Message left", { exact: true }).click();
+    // Demo service users may have no number recorded: the form then asks for the one used.
+    const used = form.getByLabel("Number or address you used");
+    if (await used.count()) await used.fill("020 7946 0123");
     await form.getByLabel("What was communicated (optional)").fill("Left a message about the new carer");
     await expect(panel.locator('[data-unsaved="true"]')).toHaveCount(1);
     await form.getByRole("button", { name: "Save communication" }).click();

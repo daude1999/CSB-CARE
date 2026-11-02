@@ -52,7 +52,8 @@ function urls(basePath: string, keep: Params, state: Params) {
 type U = ReturnType<typeof urls>;
 
 const BADGE = { red: "bg-[#fde8e8] text-[#8a1f1a]", amber: "bg-[#fdf3dc] text-[#7a5200]", slate: "bg-slate-100 text-slate-700" } as const;
-const STATE_CHIP: Record<string, string> = { NOT_CONTACTED: "bg-[#fde8e8] text-[#8a1f1a]", ATTEMPTED: "bg-[#fdf3dc] text-[#7a5200]", UPDATE_NEEDED: "bg-[#fdf3dc] text-[#7a5200]", INFORMED: "bg-[#e6f4ea] text-[#1e6b2c]", NOT_APPLICABLE: "bg-slate-100 text-slate-700" };
+/** A dot on the tab for the communication state; the state itself is read out to screen readers. */
+const STATE_DOT: Record<string, string> = { NOT_CONTACTED: "bg-[#d92d20]", ATTEMPTED: "bg-[#dc8a00]", UPDATE_NEEDED: "bg-[#dc8a00]", INFORMED: "bg-[#12873a]", NOT_APPLICABLE: "bg-slate-400" };
 
 export async function ReplacementCoverPanel({ ctx, sp, basePath, keep, fallback = "fill" }: { ctx: Ctx; sp: Params; basePath: string; keep: Params; fallback?: CoverMode }) {
   const target = coverTargetFrom(sp, fallback);
@@ -90,10 +91,10 @@ export async function ReplacementCoverPanel({ ctx, sp, basePath, keep, fallback 
         {message ? <p role={message.error ? "alert" : "status"} className={`mb-3 mt-3 rounded-[6px] px-3 py-2 text-[13.5px] ${message.error ? "bg-[#fde8e8] text-[#8a1f1a]" : "bg-[#e6f4ea] text-[#1e6b2c]"}`}>{message.text}</p> : null}
         <Summary ws={ws} />
         <nav aria-label="Find Cover sections" className="mt-3 grid grid-cols-2 rounded-[8px] border border-[#d0d5dd] p-0.5">
-          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex h-9 items-center justify-center rounded-[6px] text-[14px] font-semibold no-underline ${tab === "cover" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
-          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex h-9 items-center justify-center gap-1.5 rounded-[6px] text-[14px] font-semibold no-underline ${tab === "comms" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>
+          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight rounded-[6px] text-[14px] font-semibold no-underline ${tab === "cover" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
+          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight gap-1.5 rounded-[6px] text-[14px] font-semibold no-underline ${tab === "comms" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>
             Contact &amp; communication
-            {comms && tab !== "comms" ? <span className={`hidden rounded-full px-1.5 py-0.5 text-[11.5px] font-semibold sm:inline ${STATE_CHIP[comms.kind]}`}>{comms.kind === "INFORMED" ? "Informed" : comms.kind === "NOT_APPLICABLE" ? "N/A" : "Outstanding"}</span> : null}
+            {comms && tab !== "comms" ? <span title={COMMS_LABEL[comms.kind]} className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATE_DOT[comms.kind]}`}><span className="sr-only">: {COMMS_LABEL[comms.kind]}</span></span> : null}
           </Link>
         </nav>
         {tab === "comms" && ws.comms ? (
