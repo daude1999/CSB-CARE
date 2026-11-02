@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -8,7 +9,7 @@ import { memberNames } from "@/server/rota/queries";
 import { progressActionAction } from "@/app/compliance-actions";
 import { EvidenceList } from "@/components/evidence-ui";
 import { RatingChip } from "@/components/risk-register-ui";
-import { Badge, Card, Field, Flash, fmtDate, PageHeader, StatusBadge } from "@/components/ui";
+import { Badge, Card, Field, Flash, fmtDate, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function ActionPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      <PageHeader back="/actions" title={a.title} subtitle={`Owned by ${names.get(a.ownerId) ?? "a member"} · due ${fmtDate(a.dueDate)}`} actions={<span className="flex gap-1"><StatusBadge status={a.status} />{overdue ? <Badge tone="rose">Overdue</Badge> : null}</span>} />
+      <CompliancePageHeader back="/actions" title={a.title} subtitle={`Owned by ${names.get(a.ownerId) ?? "a member"} · due ${fmtDate(a.dueDate)}`} actions={<span className="flex gap-1"><StatusBadge status={a.status} />{overdue ? <Badge tone="rose">Overdue</Badge> : null}</span>} />
       <Flash searchParams={sp} />
       <ol aria-label="Progress" className="panel mb-3 grid grid-cols-5 gap-1 text-center text-[12.5px]">
         {STAGES.map((s, n) => (

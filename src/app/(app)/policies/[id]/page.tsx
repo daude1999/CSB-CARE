@@ -9,7 +9,7 @@ import { newRevisionAction, rollbackAction, confirmImplementationAction, logRead
 import { DOC_TYPES } from "../../../../../prisma/seed-data/library/types";
 import { Badge, Empty, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 import { TabPanel, Tabs, TileTab, TileTabList } from "@/components/tabs";
-import { TitleBar } from "@/components/title-bar";
+import { CompliancePageHeader } from "@/components/module-header";
 import { TagBody, TagText } from "@/components/tag-text";
 import { businessDetails } from "@/server/business";
 import { missingDetails, personaliseSections } from "@/lib/business";
@@ -99,13 +99,21 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
         </div>
       ) : null}
 
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          {[p.category.name, typeName, p.kind === "MASTER" ? "CSB template" : "Our policy"].map((t) => (
-            <span key={t} className="flex items-center gap-1.5 rounded-[4px] border border-slate-400 bg-white px-2.5 py-1 text-[13px] text-slate-800"><Tag size={14} aria-hidden="true" />{t}</span>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <CompliancePageHeader
+        title={<>{p.ref.replace(/^CSB-/, "")} – {p.title}</>}
+        back={p.kind === "MASTER" ? "/policies?tab=templates" : "/policies"}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <VersionLine version={v} />
+            <span className={overdue ? "font-medium text-rose-700" : "text-slate-600"}>{overdue ? `Review overdue since ${fmtDate(p.nextReviewDate)}` : `Next review ${fmtDate(p.nextReviewDate)}`}</span>
+            {p.revisions.some((r) => !r.closedAt) ? <Link href={`/revisions/${p.revisions.find((r) => !r.closedAt)!.id}`}>Revision in progress</Link> : null}
+            {[p.category.name, typeName, p.kind === "MASTER" ? "CSB template" : "Our policy"].map((t) => (
+              <span key={t} className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[12.5px] text-slate-700"><Tag size={13} aria-hidden="true" />{t}</span>
+            ))}
+          </span>
+        }
+        actions={
+          <>
           {v ? (
             <>
               <a className="btn-secondary" href={`/api/policies/${p.id}/download?format=docx`} download data-testid="download-docx"><FileDoc size={16} aria-hidden="true" />Download Word</a>
@@ -136,15 +144,9 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               </form>
             </ActionDialog>
           ) : null}
-        </div>
-      </div>
-
-      <TitleBar title={<>{p.ref.replace(/^CSB-/, "")} – {p.title}</>} />
-      <p className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 bg-white px-4 py-2 text-[13px] shadow-[0_0_0_1px_#eef1f3]">
-        <VersionLine version={v} />
-        <span className={overdue ? "font-medium text-rose-700" : "text-slate-600"}>{overdue ? `Review overdue since ${fmtDate(p.nextReviewDate)}` : `Next review ${fmtDate(p.nextReviewDate)}`}</span>
-        {p.revisions.some((r) => !r.closedAt) ? <Link href={`/revisions/${p.revisions.find((r) => !r.closedAt)!.id}`}>Revision in progress</Link> : null}
-      </p>
+        </>
+        }
+      />
       <Flash searchParams={sp} />
 
       <Tabs defaultValue={view} label="Policy views">

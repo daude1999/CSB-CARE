@@ -1,4 +1,5 @@
 import { SectionEditor } from "@/components/section-editor";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -9,7 +10,7 @@ import { versionDiff } from "@/server/policies/versions";
 import type { RevisionValidation } from "@/server/policies/revise";
 import { commentAction, decideAction, editSectionAction, publishAction, submitAction } from "../../../actions";
 import { PolicyDiffView } from "@/components/diff";
-import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Field, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
 
   return (
     <>
-      <PageHeader back="/queue"
+      <CompliancePageHeader back="/queue"
         eyebrow="Revision · draft"
         title={<span className="flex flex-wrap items-center gap-2">{r.policy.ref} {r.policy.title} <StatusBadge status={v.status} /> <SimulatedBadge show={r.isSimulated} /></span>}
         subtitle={<>{r.title}. Draft {v.label}{r.baseVersion ? `, based on approved ${r.baseVersion.label}` : ""}. <Link href={`/policies/${r.policyId}`}>View current policy</Link></>}

@@ -62,8 +62,16 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     { key: "triage", label: "Regulatory updates to triage", count: triage, href: "/changes?group=triage", tone: "amber" as const, detail: "Detected, not yet decided", show: true },
   ].filter((x) => x.show).map(({ show: _s, ...x }) => x);
 
+  // Review status of the active library: overdue (past the review date), due within 60 days (the Policy Library's
+  // "due for review" window), and current (everything else, including policies with no review date set).
+  const [dueSoon, upcomingReviews] = await Promise.all([
+    db.policy.count({ where: { ...policyWhere, nextReviewDate: { gte: now, lt: new Date(now.getTime() + 60 * DAY) } } }),
+    db.policy.findMany({ where: { ...policyWhere, nextReviewDate: { gte: now } }, orderBy: { nextReviewDate: "asc" }, take: 5, select: { id: true, ref: true, title: true, nextReviewDate: true } }),
+  ]);
   return {
     kpis: { activePolicies, overdueReviews, awaitingApproval, outstandingAcks },
+    reviewStatus: { overdue: overdueReviews, dueSoon, current: Math.max(0, activePolicies - overdueReviews - dueSoon) },
+    upcomingReviews,
     manager,
     attention,
     activity: await recentActivity(ctx, now),

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -8,7 +9,7 @@ import { memberNames } from "@/server/rota/queries";
 import { withdrawRuleAction } from "@/app/signoff-actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { RuleForm, SCOPE_LABEL } from "@/components/signoff-ui";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function AssignmentRulesPage({ searchParams }: { searchPara
 
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="rules" />} title="Staff Sign-off" subtitle="Assignment rules decide who must read each policy. When someone joins, moves branch or changes role in HR, their reading list is brought up to date from these rules." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="rules" />} title="Staff Sign-off" subtitle="Assignment rules decide who must read each policy. When someone joins, moves branch or changes role in HR, their reading list is brought up to date from these rules." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0">

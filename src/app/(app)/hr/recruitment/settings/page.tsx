@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
+import { HrPageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { AppError } from "@/lib/errors";
 import { requirePortal } from "@/server/auth/portals";
 import { recruitmentAccess } from "@/server/recruitment/access";
 import { recruitmentSettings } from "@/server/recruitment/candidates";
 import { recruitmentSettingsAction } from "@/app/recruitment-actions";
-import { Flash, PageHeader } from "@/components/ui";
+import { Flash } from "@/components/ui";
 import { R_PANEL, R_PRIMARY, R_SECONDARY } from "@/components/recruitment-ui";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function RecruitmentSettingsPage({ searchParams }: { search
   );
   return (
     <div className="-mt-1">
-      <PageHeader title="Recruitment: Reminders & Retention" back="/hr/recruitment" subtitle="Reminders appear in the recruiter's notifications and on the Recruitment page. Nothing is sent to candidates: no email, text or job-board connection is set up." />
+      <HrPageHeader title="Recruitment: Reminders & Retention" back="/hr/recruitment" subtitle="Reminders appear in the recruiter's notifications and on the Recruitment page. Nothing is sent to candidates: no email, text or job-board connection is set up." />
       <Flash searchParams={sp} />
       <form action={recruitmentSettingsAction} className={`${R_PANEL} max-w-3xl p-4`}>
         <input type="hidden" name="back" value="/hr/recruitment/settings" />

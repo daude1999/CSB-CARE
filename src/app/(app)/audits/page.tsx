@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -6,7 +7,7 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { auditBranchWhere, auditScore } from "@/server/compliance/audits";
 import { startAuditAction } from "../../actions";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +26,14 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   const average = scores.length ? Math.round(scores.reduce((n, x) => n + x, 0) / scores.length) : null;
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="audits" />} eyebrow="Care operations · internal audit" title="Audits & Improvements" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="audits" />} eyebrow="Care operations · internal audit" title="Audits & Improvements" subtitle="Internal audits against CSB or your own templates. Scores are calculated from recorded answers; findings can be turned into tracked actions." />
       <Flash searchParams={sp} />
-      <StatRow>
-        <Stat label="Audits" value={audits.length} hint="Recorded so far" tone="violet" />
-        <Stat label="In Progress" value={audits.filter((a) => a.status === "IN_PROGRESS").length} hint="Still being completed" tone="amber" />
-        <Stat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Internal indicator, not a CQC rating" tone="green" />
-        <Stat label="Findings" value={audits.reduce((n, a) => n + a._count.findings, 0)} hint="Raised by audits" tone="rose" href="/actions" />
-      </StatRow>
+      <ModuleStatRow>
+        <ModuleStat label="Audits" value={audits.length} hint="Recorded so far" tone="violet" />
+        <ModuleStat label="In Progress" value={audits.filter((a) => a.status === "IN_PROGRESS").length} hint="Still being completed" tone="amber" />
+        <ModuleStat label="Average Score" value={average === null ? "—" : `${average}%`} hint="Internal indicator, not a CQC rating" tone="green" />
+        <ModuleStat label="Findings" value={audits.reduce((n, a) => n + a._count.findings, 0)} hint="Raised by audits" tone="rose" href="/actions" />
+      </ModuleStatRow>
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2" title="Audits">
           {audits.length ? (

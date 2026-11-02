@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { AppError } from "@/lib/errors";
 import { complianceReport, isReportKind, parseReportFilters, REPORT_GROUPS, REPORT_TITLES, type ComplianceReportKind } from "@/server/compliance/reports";
 import { db } from "@/lib/db";
-import { Card, Empty, PageHeader } from "@/components/ui";
+import { Card, Empty } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
 
   return (
     <>
-      <PageHeader title="Compliance Reports" subtitle="Oversight reports from your live records, for the period and branch you choose. Each figure says what it counts. These are internal management reports: they do not certify compliance and are not CQC ratings." />
+      <CompliancePageHeader title="Compliance Reports" subtitle="Oversight reports from your live records, for the period and branch you choose. Each figure says what it counts. These are internal management reports: they do not certify compliance and are not CQC ratings." />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[230px_minmax(0,1fr)]">
         <nav aria-label="Reports" className="panel h-fit lg:sticky lg:top-3">
           {groups.map((g) => (

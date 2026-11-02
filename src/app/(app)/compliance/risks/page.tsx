@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -7,7 +8,7 @@ import { BAND_LABEL, listRisks, parseRiskFilters, RISK_CATEGORIES, RISK_STATUS, 
 import { memberNames } from "@/server/rota/queries";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { RatingChip, RiskMatrix, RiskRef } from "@/components/risk-register-ui";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function RiskRegisterPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader
+      <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="risks" />}
         title="Audits & Improvements"
         subtitle="The risk register: risks to safe, well-led care and to the service, scored before and after controls, each with an owner, a review date and mitigation actions."

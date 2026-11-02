@@ -1,10 +1,11 @@
 import Link from "@/components/link";
+import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { acknowledgeAction } from "../../actions";
 import { ACK_NOT_TRAINING, ACK_WORDING, ackBucket } from "@/server/policies/assignment";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, Stat, StatRow } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +20,14 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
   const overdue = acks.filter((a) => ackBucket(a, now).overdue).length;
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="reading" />} eyebrow="Read and sign" title="My Reading List" subtitle={`Policies published or updated that you have been asked to read and acknowledge. ${ACK_NOT_TRAINING}`} />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="reading" />} eyebrow="Read and sign" title="My Reading List" subtitle={`Policies published or updated that you have been asked to read and acknowledge. ${ACK_NOT_TRAINING}`} />
       <Flash searchParams={sp} />
-      <StatRow>
-        <Stat label="Overdue" value={overdue} hint="Past the due date" tone="rose" />
-        <Stat label="Total Due" value={acks.length - signed} hint="Still to read and sign" tone="amber" />
-        <Stat label="Completed" value={signed} hint="Read and signed" tone="green" />
-        <Stat label="Progress" value={`${acks.length ? Math.round((signed / acks.length) * 100) : 100}%`} hint="Of your reading list" tone="navy" />
-      </StatRow>
+      <ModuleStatRow>
+        <ModuleStat label="Overdue" value={overdue} hint="Past the due date" tone="rose" />
+        <ModuleStat label="Total Due" value={acks.length - signed} hint="Still to read and sign" tone="amber" />
+        <ModuleStat label="Completed" value={signed} hint="Read and signed" tone="green" />
+        <ModuleStat label="Progress" value={`${acks.length ? Math.round((signed / acks.length) * 100) : 100}%`} hint="Of your reading list" tone="navy" />
+      </ModuleStatRow>
       <Card title="Policies to read">
         {acks.length ? (
           <ul className="rows">

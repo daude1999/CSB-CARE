@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -8,7 +9,7 @@ import { memberNames } from "@/server/rota/queries";
 import { uploadLinkedEvidenceAction } from "@/app/compliance-actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { ScanBadge } from "@/components/evidence-ui";
-import { Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { Card, Empty, Flash, fmtDate, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   const base = (linked: string) => `/evidence${linked !== "all" ? `?linked=${linked}` : ""}`;
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="evidence" />} eyebrow="Care operations · supporting records" title="Audits & Improvements" subtitle="The Evidence Library: documents that support policies, audits, findings, corrective actions and risks. Files are checked by type and size; a file is marked clean only after a malware scan." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="evidence" />} eyebrow="Care operations · supporting records" title="Audits & Improvements" subtitle="The Evidence Library: documents that support policies, audits, findings, corrective actions and risks. Files are checked by type and size; a file is marked clean only after a malware scan." />
       <Flash searchParams={sp} />
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">

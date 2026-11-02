@@ -24,7 +24,7 @@ const styles = path.join(root, "src", "hr", "styles");
 // so the HR style sheet ships no fonts of its own.
 const fonts = "";
 const tailwindCss = require.resolve("tailwindcss/index.css").replaceAll("\\", "/");
-const source = [fonts, ...["globals.css", "hr-tokens.css", "hr-hub.css", "hr-embed.css"].map((f) => readFileSync(path.join(styles, f), "utf8"))]
+const source = [fonts, ...["globals.css", "hr-tokens.css", "hr-hub.css", "hr-embed.css", "hr-views.css"].map((f) => readFileSync(path.join(styles, f), "utf8"))]
   .join("\n")
   .replace('@import "tailwindcss";', `@import "${tailwindCss}";`);
 const result = await postcss([tailwind({ base: path.join(root, "src", "hr"), optimize: { minify: true } }), scopeToHub()]).process(source, { from: path.join(styles, "globals.css") });

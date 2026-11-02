@@ -5,7 +5,8 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { complianceDashboard } from "@/server/compliance/dashboard";
 import { setupChecklist } from "@/server/setup/checklist";
 import { SetupPanel } from "@/components/setup-panel";
-import { ArrowRight, DotsThree, Info } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, BookOpenText, CalendarBlank, CalendarX, DotsThree, Info, Plus, Signature, Stamp } from "@phosphor-icons/react/dist/ssr";
+import { CompliancePageHeader, MODULE_PRIMARY } from "@/components/module-header";
 import { canUseQueue } from "@/components/compliance-nav";
 import { fmtDate } from "@/components/ui";
 
@@ -63,61 +64,92 @@ export default async function Dashboard() {
 
   return (
     <div className="relative min-w-0">
-      <h1 className="flex h-[60px] items-center justify-center rounded-t-[6px] bg-[var(--module,#0f2a4f)] px-4 text-[20px] font-medium tracking-normal text-white">Compliance Centre Dashboard</h1>
-      <div className="bg-[#f1f2f5] pb-4">
+      <CompliancePageHeader
+        title="Policy & Compliance"
+        back={null}
+        subtitle={<>Your policies, staff sign-off, audits and regulatory updates. Figures are counted from your own records today ({fmtDate(now)}).</>}
+        actions={hasOrgPermission(ctx, "policy.author") ? <Link href="/policies/new" className={MODULE_PRIMARY}><Plus size={16} weight="bold" aria-hidden="true" />Add policy</Link> : undefined}
+      />
+      <div className="pb-4">
         {org?.isDemo ? (
-          <p className="flex items-center gap-1.5 bg-white pb-2 pl-1 pt-2 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
+          <p className="mb-2 flex items-center gap-1.5 px-1 text-[12px] text-slate-500"><Info size={14} aria-hidden="true" />Sample workspace. Records are illustrative and need human verification.</p>
         ) : null}
 
-        <section aria-label="Key figures" className="grid grid-cols-1 gap-[10px] bg-white pb-2 pt-2 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat value={k.activePolicies} label={ctx.organisationId ? "Active policies" : "Active templates"} note={ctx.organisationId ? "Your organisation's library" : "CSB starter library"} ring="border-[#6d5fc0] text-[#4a3d9c]" href="/policies" />
-          <Stat value={k.overdueReviews} label="Reviews overdue" note={k.overdueReviews ? "Past the review date" : "None overdue"} ring="border-[#e4544f] text-[#c3332c]" href="/policies?quick=overdue" />
-          <Stat value={k.awaitingApproval} label="Awaiting approval" note="Submitted revisions" ring="border-[#e3934a] text-[#b35e14]" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=awaiting"} />
-          <Stat value={k.outstandingAcks} label={dash.manager ? "Sign-offs outstanding" : "To read and sign"} note={dash.manager ? "Staff yet to acknowledge" : "Your reading list"} ring="border-[#4a7fc9] text-[#2f5fa3]" href={dash.manager ? "/staff" : "/acknowledgements"} />
+        <section aria-label="Key figures" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Figure icon={<BookOpenText size={22} aria-hidden="true" />} value={k.activePolicies} label={ctx.organisationId ? "Active policies" : "Active templates"} note={ctx.organisationId ? "Your organisation's library" : "CSB starter library"} href="/policies" />
+          <Figure icon={<CalendarX size={22} aria-hidden="true" />} value={k.overdueReviews} label="Reviews overdue" note="Past the policy's review date" href="/policies?quick=overdue" alert={k.overdueReviews > 0} />
+          <Figure icon={<Stamp size={22} aria-hidden="true" />} value={k.awaitingApproval} label="Awaiting approval" note="Revisions submitted for review" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=awaiting"} />
+          <Figure icon={<Signature size={22} aria-hidden="true" />} value={k.outstandingAcks} label={dash.manager ? "Sign-offs outstanding" : "To read and sign"} note={dash.manager ? "Staff yet to acknowledge" : "Your reading list"} href={dash.manager ? "/staff" : "/acknowledgements"} />
         </section>
 
-        <div className="mt-[10px] grid grid-cols-1 gap-[10px] lg:grid-cols-3">
-          <section aria-labelledby="attention-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
-            <h2 id="attention-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Needs attention</h2>
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <section aria-labelledby="status-heading" className={CARD}>
+            <h2 id="status-heading" className={CARD_H}>Policy review status</h2>
+            <ReviewDonut status={dash.reviewStatus} />
+            <p className="px-4 pb-3 text-[12px] leading-4 text-slate-500">Active policies only. &ldquo;Due soon&rdquo; means a review date in the next 60 days. This is not a compliance rating.</p>
+          </section>
+
+          <section aria-labelledby="attention-heading" className={CARD}>
+            <h2 id="attention-heading" className={CARD_H}>Needs attention</h2>
             {dash.attention.some((x) => x.count) ? (
-              <ul className="mt-2 divide-y divide-slate-100" data-testid="needs-attention">
+              <ul className="divide-y divide-slate-100" data-testid="needs-attention">
                 {dash.attention.filter((x) => x.count).map((x) => (
                   <li key={x.key}>
-                    <Link href={x.href} className="flex items-center gap-3 py-2.5 text-slate-800 no-underline hover:bg-slate-50">
-                      <span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1.5 text-[14px] font-semibold tabular-nums ${x.tone === "rose" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#fdf0d8] text-[#8a5a00]"}`}>{x.count}</span>
-                      <span className="min-w-0 flex-1"><span className="block text-[14.5px] leading-5">{x.label}</span><span className="block text-[12.5px] text-slate-600">{x.detail}</span></span>
+                    <Link href={x.href} className="flex items-center gap-3 px-4 py-2.5 text-slate-800 no-underline hover:bg-slate-50">
+                      <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-medium leading-5">{x.label}</span><span className="block text-[12.5px] text-slate-600">{x.detail}</span></span>
+                      <span className={`min-w-8 rounded-full px-2 text-center text-[13px] font-semibold tabular-nums ${x.tone === "rose" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#fdf0d8] text-[#8a5a00]"}`}>{x.count}</span>
                       <ArrowRight size={14} aria-hidden="true" className="shrink-0 text-slate-400" />
                     </Link>
                   </li>
                 ))}
               </ul>
-            ) : <p className="py-6 text-center text-[14px] text-slate-600">Nothing overdue or waiting on you.</p>}
+            ) : <p className="px-4 py-6 text-center text-[14px] text-slate-600">Nothing overdue or waiting on you.</p>}
           </section>
 
-          <section aria-labelledby="activity-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
-            <h2 id="activity-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Recent activity <span className="text-[13px] text-slate-500">last 14 days</span></h2>
+          <section aria-labelledby="upcoming-heading" className={CARD}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <h2 id="upcoming-heading" className="text-[16px] font-semibold tracking-normal text-slate-900">Upcoming reviews</h2>
+              {ctx.organisationId ? <Link href="/policies?tab=calendar" className="text-[13.5px] font-semibold text-[#1f5fd1] no-underline hover:underline">Review calendar</Link> : null}
+            </div>
+            {dash.upcomingReviews.length ? (
+              <ul className="divide-y divide-slate-100" data-testid="upcoming-reviews">
+                {dash.upcomingReviews.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <CalendarBlank size={18} aria-hidden="true" className="shrink-0 text-[#1f5fd1]" />
+                    <Link href={`/policies/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] font-medium text-slate-900 no-underline hover:underline">{p.title}</Link>
+                    <span className="whitespace-nowrap text-[13px] tabular-nums text-slate-600">{p.nextReviewDate ? fmtDate(p.nextReviewDate) : "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="px-4 py-6 text-center text-[14px] text-slate-600">No review dates set in the future.</p>}
+          </section>
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <section aria-labelledby="activity-heading" className={`${CARD} lg:col-span-2`}>
+            <h2 id="activity-heading" className={CARD_H}>Recent activity <span className="text-[13px] font-normal text-slate-500">last 14 days</span></h2>
             {dash.activity.length ? (
-              <ol className="mt-2 space-y-2.5" data-testid="recent-activity">
-                {dash.activity.map((x, n) => (
-                  <li key={n} className="text-[13.5px] leading-5">
-                    <span className="text-[12px] tabular-nums text-slate-500">{fmtDate(x.at, true)}</span> · <span className="font-medium text-slate-800">{x.kind}</span>
-                    <span className="block truncate">{x.href ? <Link href={x.href} className="text-[#1d4f91] no-underline hover:underline">{x.text}</Link> : x.text}</span>
+              <ol className="divide-y divide-slate-100" data-testid="recent-activity">
+                {dash.activity.slice(0, 6).map((x, n) => (
+                  <li key={n} className="flex flex-wrap items-baseline gap-x-3 px-4 py-2 text-[13.5px] leading-5">
+                    <span className="w-[130px] shrink-0 text-[12px] tabular-nums text-slate-500">{fmtDate(x.at, true)}</span>
+                    <span className="w-[120px] shrink-0 font-medium text-slate-800">{x.kind}</span>
+                    <span className="min-w-0 flex-1 truncate">{x.href ? <Link href={x.href} className="text-[#1d4f91] no-underline hover:underline">{x.text}</Link> : x.text}</span>
                   </li>
                 ))}
               </ol>
-            ) : <p className="py-6 text-center text-[14px] text-slate-600">No compliance activity in the last 14 days.</p>}
+            ) : <p className="px-4 py-6 text-center text-[14px] text-slate-600">No compliance activity in the last 14 days.</p>}
           </section>
 
-          <section aria-labelledby="quick-heading" className="min-w-0 rounded-[3px] bg-white px-[15px] pb-3 pt-3">
-            <h2 id="quick-heading" className="text-[17px] font-normal tracking-normal text-slate-800">Quick actions</h2>
-            <ul className="mt-2 grid gap-1.5">
+          <section aria-labelledby="quick-heading" className={CARD}>
+            <h2 id="quick-heading" className={CARD_H}>Quick actions</h2>
+            <ul className="grid gap-1.5 p-3">
               {quickActions.map(([href, label]) => (
-                <li key={href}><Link href={href} className="flex h-[38px] items-center justify-between rounded-[4px] border border-slate-200 px-3 text-[14px] text-slate-800 no-underline hover:border-[#1f5fd1] hover:text-[#0646b1]">{label}<ArrowRight size={14} aria-hidden="true" /></Link></li>
+                <li key={href}><Link href={href} className="flex h-[36px] items-center justify-between rounded-[6px] border border-slate-200 px-3 text-[14px] text-slate-800 no-underline hover:border-[#1f5fd1] hover:text-[#0646b1]">{label}<ArrowRight size={14} aria-hidden="true" /></Link></li>
               ))}
             </ul>
           </section>
         </div>
-
         <section aria-labelledby="recent-heading" className="relative mt-[10px] rounded-[3px] bg-white px-1.5 pb-4 pt-3">
           <h2 id="recent-heading" className="absolute left-[15px] top-3 text-[17px] font-normal tracking-normal text-slate-800">Recently published</h2>
           <ul className="flex flex-wrap justify-end gap-x-[18px] gap-y-1 pr-2.5 text-[14px] text-slate-700" aria-label="Status key">
@@ -190,15 +222,60 @@ function Sort() {
   return <svg width="9" height="6" viewBox="0 0 9 6" aria-hidden="true" className="ml-1 inline"><path d="M0 0h9L4.5 6z" fill="currentColor" /></svg>;
 }
 
-function Stat({ value, label, note, ring, href }: { value: number; label: string; note: string; ring: string; href: string }) {
+const CARD = "min-w-0 rounded-[8px] border border-slate-200 bg-white";
+const CARD_H = "border-b border-slate-100 px-4 py-3 text-[16px] font-semibold tracking-normal text-slate-900";
+
+function Figure({ icon, value, label, note, href, alert = false }: { icon: React.ReactNode; value: number; label: string; note: string; href: string; alert?: boolean }) {
   return (
-    <Link href={href} className="flex h-[66px] items-center gap-[13px] whitespace-nowrap rounded-[3px] bg-white pl-[13px] pr-3 no-underline shadow-[0_0_0_1px_#eef1f3] hover:shadow-[0_0_0_1px_#c4cfdd]">
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-[17px] ${ring}`}>{value}</span>
-      <span>
-        <span className="block text-[20px] leading-[22px] text-slate-900">{label}</span>
-        <span className="block text-[14px] leading-[18px] text-slate-600">{note}</span>
+    <Link href={href} className="flex min-w-0 items-center gap-3.5 rounded-[8px] border border-slate-200 bg-white px-4 py-3 no-underline hover:border-[#9db8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1f5fd1]">
+      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] ${alert ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#eaf1fd] text-[#1f5fd1]"}`}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-[14px] font-medium text-slate-700">{label}</span>
+        <span className="block text-[26px] font-semibold leading-8 tabular-nums text-slate-900">{value}</span>
+        <span className="block truncate text-[12px] text-slate-500">{note}</span>
       </span>
     </Link>
+  );
+}
+
+/** A ring of the active library by review status, with a linked legend. Counts only; no percentage score. */
+function ReviewDonut({ status }: { status: { current: number; dueSoon: number; overdue: number } }) {
+  const total = status.current + status.dueSoon + status.overdue;
+  const parts = [
+    { label: "Current", n: status.current, colour: "#1c7a43", href: "/policies" },
+    { label: "Due soon", n: status.dueSoon, colour: "#d08700", href: "/policies?quick=due" },
+    { label: "Overdue", n: status.overdue, colour: "#c4323a", href: "/policies?quick=overdue" },
+  ];
+  const r = 44;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-6 px-4 py-4" data-testid="review-status">
+      <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label={`${total} active policies: ${parts.map((p) => `${p.n} ${p.label.toLowerCase()}`).join(", ")}`}>
+        <circle cx="60" cy="60" r={r} fill="none" stroke="#e8ebf0" strokeWidth="14" />
+        {total
+          ? parts.map((p) => {
+              const len = (p.n / total) * c;
+              const el = <circle key={p.label} cx="60" cy="60" r={r} fill="none" stroke={p.colour} strokeWidth="14" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} transform="rotate(-90 60 60)" />;
+              offset += len;
+              return el;
+            })
+          : null}
+        <text x="60" y="58" textAnchor="middle" fontSize="24" fontWeight="600" fill="#0f172a">{total}</text>
+        <text x="60" y="76" textAnchor="middle" fontSize="11" fill="#64748b">policies</text>
+      </svg>
+      <ul className="grid flex-1 gap-2 text-[14px]">
+        {parts.map((p) => (
+          <li key={p.label}>
+            <Link href={p.href} className="flex items-center gap-2 text-slate-800 no-underline hover:underline">
+              <span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ background: p.colour }} />
+              <span className="flex-1">{p.label}</span>
+              <span className="font-semibold tabular-nums">{p.n}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

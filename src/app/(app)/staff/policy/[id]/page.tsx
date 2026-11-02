@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -7,7 +8,7 @@ import { ackTimeline, materialPublication, parseSignoffFilters, signoffCounts, s
 import { memberNames } from "@/server/rota/queries";
 import { correctAckAction, exemptAckAction, recordAckAssessmentAction, withdrawRuleAction } from "@/app/signoff-actions";
 import { AckBadge, AckTimeline, personKey, RuleForm, SCOPE_LABEL, SignoffFilterForm, SignoffSummary } from "@/components/signoff-ui";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
 
   return (
     <>
-      <PageHeader title={`${policy.ref} ${policy.title}`} back="/staff?view=policies" subtitle={pub ? `Staff must acknowledge the version published ${fmtDate(pub.publishedAt)}. A material revision assigns the new version again and keeps every earlier acknowledgement as evidence.` : "This policy has no published version yet, so nothing can be acknowledged."} actions={<Link href={`/policies/${policy.id}`} className="btn-secondary">Open the policy</Link>} />
+      <CompliancePageHeader title={`${policy.ref} ${policy.title}`} back="/staff?view=policies" subtitle={pub ? `Staff must acknowledge the version published ${fmtDate(pub.publishedAt)}. A material revision assigns the new version again and keeps every earlier acknowledgement as evidence.` : "This policy has no published version yet, so nothing can be acknowledged."} actions={<Link href={`/policies/${policy.id}`} className="btn-secondary">Open the policy</Link>} />
       <Flash searchParams={sp} />
       <SignoffFilterForm f={f} branches={lookups.branches} roles={lookups.roles} base={back} />
       <SignoffSummary c={signoffCounts(all)} base={back} f={{ ...f, view: "rows" }} />

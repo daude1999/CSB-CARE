@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
-import { CalendarCheck, GearSix, MagnifyingGlass, Plus, Rows, SquaresFour, UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { HrPageHeader } from "@/components/module-header";
+import { CalendarCheck, Envelope, GearSix, MagnifyingGlass, MapPin, Phone, Plus, Rows, SquaresFour, UserCircle, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { AppError } from "@/lib/errors";
 import { fmtLondonDate, fromDbDate, londonDate, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
-import { recruitmentBoard } from "@/server/recruitment/candidates";
+import { getCandidate, recruitmentBoard } from "@/server/recruitment/candidates";
 import { staffChoices } from "@/server/recruitment/access";
 import { dueReminders } from "@/server/recruitment/onboarding";
-import { REMINDER_LABEL, STAGE_LABEL, PIPELINE } from "@/server/recruitment/model";
-import { Empty, Flash, PageHeader } from "@/components/ui";
+import { manualMoves, REMINDER_LABEL, STAGE_LABEL, PIPELINE } from "@/server/recruitment/model";
+import { moveStageAction } from "@/app/recruitment-actions";
+import { Empty, Flash } from "@/components/ui";
 import { AutoSubmitForm } from "@/components/auto-submit";
 import { R_PANEL, R_PRIMARY, R_SECONDARY, R_TD, R_TH, RtwBadge, StageBadge } from "@/components/recruitment-ui";
 
@@ -35,13 +37,19 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
   const [people, reminders] = await Promise.all([staffChoices(a.organisationId), dueReminders(a.organisationId, a.branchIds)]);
   const name = new Map(people.map((p) => [p.id, p.name]));
   const branchName = new Map(a.branches.map((x) => [x.id, x.name]));
-  const view = sp.view === "pipeline" ? "pipeline" : "list";
+  // The board is the default (owner's approved Recruitment design); the list is one click away.
+  const view = sp.view === "list" ? "list" : "pipeline";
   const f = b.filters;
   const url = (over: Record<string, string | undefined>) => {
-    const p = new URLSearchParams(Object.entries({ q: f.q, stage: f.stage === "open" ? undefined : f.stage, branch: f.branch, recruiter: f.recruiter, focus: f.focus, view: view === "list" ? undefined : view, ...over }).filter((e): e is [string, string] => !!e[1]));
+    const p = new URLSearchParams(Object.entries({ q: f.q, stage: f.stage === "open" ? undefined : f.stage, branch: f.branch, recruiter: f.recruiter, focus: f.focus, view: view === "pipeline" ? undefined : view, candidate: undefined, ...over }).filter((e): e is [string, string] => !!e[1]));
     return `/hr/recruitment${p.size ? `?${p}` : ""}`;
   };
   const today = londonDate();
+  const chosen = view === "pipeline" && sp.candidate ? await getCandidate(ctx, sp.candidate) : null;
+  const boardUrl = (id?: string) => {
+    const base = url({});
+    return id ? `${base}${base.includes("?") ? "&" : "?"}candidate=${encodeURIComponent(id)}` : base;
+  };
   const figure = (n: number, label: string, href: string, testId: string, tone = "text-[#101828]") => (
     <Link href={href} data-testid={testId} className="group flex min-w-0 items-baseline gap-1.5 rounded-[6px] px-1 text-[14px] text-[#344054] no-underline hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c2410c]">
       <strong className={`text-[18px] font-bold tabular-nums ${tone}`}>{n}</strong>{label}
@@ -50,7 +58,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
 
   return (
     <div className="-mt-1">
-      <PageHeader
+      <HrPageHeader
         title="Recruitment"
         back="/hr/dashboard"
         subtitle="Candidates from application to their first day. A candidate is not an employee until HR starts onboarding, and is never booked on visits from here."
@@ -94,7 +102,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
             <AutoSubmitForm label="Filters" className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
               {f.stage !== "open" ? <input type="hidden" name="stage" value={f.stage} /> : null}
               {f.focus ? <input type="hidden" name="focus" value={f.focus} /> : null}
-              {view !== "list" ? <input type="hidden" name="view" value={view} /> : null}
+              {view !== "pipeline" ? <input type="hidden" name="view" value={view} /> : null}
               <label className="relative min-w-[200px] flex-1">
                 <span className="sr-only">Search candidates</span>
                 <MagnifyingGlass size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
@@ -106,8 +114,8 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
               <label><span className="sr-only">Recruiter</span><select name="recruiter" defaultValue={f.recruiter ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px]"><option value="">Any recruiter</option>{people.filter((p) => p.hr).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
             </AutoSubmitForm>
             <div role="group" aria-label="View" className="flex rounded-[8px] border border-[#d0d5dd] bg-white p-0.5">
-              <Link href={url({ view: undefined })} aria-current={view === "list" ? "page" : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-[6px] px-3 text-[14px] font-semibold no-underline ${view === "list" ? "bg-[#fff1e6] text-[#9a3412]" : "text-[#475467]"}`}><Rows size={16} aria-hidden />List</Link>
-              <Link href={url({ view: "pipeline", page: undefined })} aria-current={view === "pipeline" ? "page" : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-[6px] px-3 text-[14px] font-semibold no-underline ${view === "pipeline" ? "bg-[#fff1e6] text-[#9a3412]" : "text-[#475467]"}`}><SquaresFour size={16} aria-hidden />Pipeline</Link>
+              <Link href={url({ view: undefined, page: undefined })} aria-current={view === "pipeline" ? "page" : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-[6px] px-3 text-[14px] font-semibold no-underline ${view === "pipeline" ? "bg-[#fff1e6] text-[#9a3412]" : "text-[#475467]"}`}><SquaresFour size={16} aria-hidden />Board</Link>
+              <Link href={url({ view: "list" })} aria-current={view === "list" ? "page" : undefined} className={`inline-flex h-9 items-center gap-1.5 rounded-[6px] px-3 text-[14px] font-semibold no-underline ${view === "list" ? "bg-[#fff1e6] text-[#9a3412]" : "text-[#475467]"}`}><Rows size={16} aria-hidden />List</Link>
             </div>
           </div>
           {f.focus ? (
@@ -118,25 +126,32 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
           ) : null}
 
           {view === "pipeline" ? (
-            <div className="grid grid-cols-1 gap-3 border-t border-[#eaecf0] p-3.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" data-testid="pipeline">
-              {b.byStage.map((col) => (
-                <section key={col.stage} aria-label={col.label} className="min-w-0 rounded-[8px] bg-[#f9fafb] p-2">
-                  <h3 className="mb-2 flex items-center justify-between px-1 text-[14px] font-bold text-[#101828]">{col.label}<span className="rounded-full bg-white px-2 text-[12.5px] tabular-nums text-[#344054]">{col.items.length}</span></h3>
-                  {col.items.length ? (
-                    <ul className="space-y-2">
-                      {col.items.map((c) => (
-                        <li key={c.id}>
-                          <Link href={`/hr/recruitment/${c.id}`} className="block rounded-[8px] border border-[#e4e7ec] bg-white px-2.5 py-2 no-underline hover:border-[#f9b98a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c2410c]">
-                            <span className="block truncate text-[14px] font-semibold text-[#101828]">{c.firstName} {c.lastName}</span>
-                            <span className="block truncate text-[12.5px] text-[#475467]">{c.roleApplied}</span>
-                            <span className="mt-1 block truncate text-[12.5px] font-medium text-[#9a3412]">{c.next}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="px-1 py-2 text-[13px] text-[#667085]">Nobody at this stage.</p>}
-                </section>
-              ))}
+            <div className="overflow-x-auto border-t border-[#eaecf0]">
+              <div className="grid min-w-[1080px] grid-cols-6 gap-2.5 p-3" data-testid="pipeline">
+                {b.byStage.map((col) => (
+                  <section key={col.stage} aria-label={col.label} className={`min-w-0 rounded-[8px] border p-2 ${col.stage === "READY" ? "border-[#bfe5cc] bg-[#f3fbf6]" : "border-[#eaecf0] bg-[#f9fafb]"}`}>
+                    <h3 className="mb-2 flex items-center justify-between px-1 text-[15px] font-bold text-[#101828]">{col.label}<span className="rounded-full bg-white px-2 text-[12.5px] tabular-nums text-[#344054] ring-1 ring-[#eaecf0]">{col.items.length}</span></h3>
+                    {col.items.length ? (
+                      <ul className="space-y-2">
+                        {col.items.map((c) => {
+                          const on = chosen?.candidate.id === c.id;
+                          return (
+                            <li key={c.id}>
+                              <Link href={boardUrl(c.id)} aria-current={on ? "true" : undefined} className={`block rounded-[8px] border bg-white px-2.5 py-2 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c2410c] ${on ? "border-[#c2410c] ring-2 ring-[#fed7aa]" : "border-[#e4e7ec] hover:border-[#f9b98a]"}`}>
+                                <span className="block truncate text-[14px] font-semibold text-[#101828]">{c.firstName} {c.lastName}</span>
+                                <span className="block truncate text-[12.5px] text-[#475467]">{c.roleApplied}</span>
+                                <span className="mt-1 flex items-center gap-1 truncate text-[12.5px] text-[#475467]"><MapPin size={13} aria-hidden />{branchName.get(c.branchId) ?? "—"}</span>
+                                {c.source ? <span className="block truncate text-[12px] text-[#667085]">Source: {c.source}</span> : null}
+                                <span className="mt-1.5 block rounded-[6px] bg-[#f2f4f7] px-1.5 py-1 text-[12px] leading-4 text-[#344054]"><strong>Next:</strong> {c.next}</span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : <p className="px-1 py-2 text-[13px] text-[#667085]">Nobody at this stage.</p>}
+                  </section>
+                ))}
+              </div>
             </div>
           ) : b.rows.length ? (
             <div className="relative min-w-0 overflow-x-auto border-t border-[#eaecf0]">
@@ -188,6 +203,59 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
           ) : null}
         </section>
 
+        {chosen ? (
+          <aside aria-labelledby="cand-h" className={`${R_PANEL} xl:sticky xl:top-3`} data-testid="candidate-drawer">
+            <div className="flex items-center gap-2 border-b border-[#eaecf0] px-4 py-3">
+              <UserCircle size={20} aria-hidden className="text-[#c2410c]" />
+              <h2 id="cand-h" className="mr-auto text-[16px] font-bold">Candidate details</h2>
+              <Link href={boardUrl()} aria-label="Close candidate details" className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-[#475467] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c2410c]"><X size={18} aria-hidden /></Link>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#fff1e6] text-[16px] font-bold text-[#9a3412]">{chosen.candidate.firstName[0]}{chosen.candidate.lastName[0]}</span>
+              <div className="min-w-0">
+                <p className="truncate text-[17px] font-bold text-[#101828]">{chosen.candidate.firstName} {chosen.candidate.lastName}</p>
+                <p className="truncate text-[13.5px] text-[#475467]">{chosen.candidate.roleApplied} · {branchName.get(chosen.candidate.branchId) ?? "—"}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-2"><StageBadge stage={chosen.candidate.stage} /><span className="text-[12.5px] text-[#667085]">{chosen.candidate.reference}</span></p>
+              </div>
+            </div>
+            <dl className="grid gap-1.5 border-t border-[#f2f4f7] px-4 py-3 text-[13.5px]">
+              <div className="flex items-center gap-2"><dt className="sr-only">Phone</dt><Phone size={15} aria-hidden className="text-[#667085]" /><dd>{chosen.candidate.phone ?? "Phone not recorded"}</dd></div>
+              <div className="flex items-center gap-2"><dt className="sr-only">Email</dt><Envelope size={15} aria-hidden className="text-[#667085]" /><dd className="truncate">{chosen.candidate.email ?? "Email not recorded"}</dd></div>
+              <div className="flex items-center gap-2"><dt className="text-[#667085]">Source:</dt><dd>{chosen.candidate.source ?? "Not recorded"}</dd></div>
+              <div className="flex items-center gap-2"><dt className="text-[#667085]">Right to work:</dt><dd><RtwBadge status={chosen.candidate.rightToWork} /></dd></div>
+              <div className="flex items-center gap-2"><dt className="text-[#667085]">Recruiter:</dt><dd>{chosen.candidate.recruiterId ? name.get(chosen.candidate.recruiterId) ?? "Former member" : "Not assigned"}</dd></div>
+            </dl>
+            {(() => {
+              const upcoming = chosen.candidate.interviews.filter((i) => i.startsAt > new Date() && i.status !== "CANCELLED").sort((x, y) => +x.startsAt - +y.startsAt)[0];
+              return upcoming ? (
+                <p className="mx-4 mb-3 flex items-center gap-2 rounded-[8px] border border-[#eaecf0] px-3 py-2 text-[13.5px]"><CalendarCheck size={18} aria-hidden className="text-[#c2410c]" /><span><strong className="block">Interview</strong>{fmtLondonDate(londonDate(upcoming.startsAt), { weekday: "short", day: "numeric", month: "short" })} at {londonTime(upcoming.startsAt)}</span></p>
+              ) : null;
+            })()}
+            <div className="border-t border-[#f2f4f7] px-4 py-3">
+              <p className="text-[12.5px] font-semibold uppercase tracking-[0.02em] text-[#667085]">Next step</p>
+              <p className="text-[15px] font-semibold text-[#101828]">{chosen.next}</p>
+              {chosen.candidate.outstandingDocuments.length ? (
+                <>
+                  <p className="mt-2.5 text-[12.5px] font-semibold uppercase tracking-[0.02em] text-[#667085]">Documents still needed</p>
+                  <ul className="mt-1 list-disc pl-5 text-[13.5px] text-[#344054]">{chosen.candidate.outstandingDocuments.map((d) => <li key={d}>{d}</li>)}</ul>
+                </>
+              ) : null}
+            </div>
+            <div className="grid gap-2 border-t border-[#eaecf0] p-3">
+              <Link href={`/hr/recruitment/${chosen.candidate.id}`} className={R_PRIMARY}>Open full record</Link>
+              {a.canEdit && manualMoves(chosen.candidate.stage).length ? (
+                <form action={moveStageAction} className="flex flex-wrap items-center gap-1.5 text-[13px]" aria-label="Move stage">
+                  <input type="hidden" name="back" value={boardUrl(chosen.candidate.id)} />
+                  <input type="hidden" name="candidateId" value={chosen.candidate.id} />
+                  <input type="hidden" name="lockVersion" value={chosen.candidate.lockVersion} />
+                  <span className="w-full text-[#475467]">Move to another stage:</span>
+                  {manualMoves(chosen.candidate.stage).map((st) => <button key={st} name="to" value={st} className="rounded-[6px] border border-[#d0d5dd] px-2.5 py-1 font-semibold text-[#344054] hover:bg-slate-50">{STAGE_LABEL[st]}</button>)}
+                </form>
+              ) : null}
+              <p className="text-[12px] text-[#667085]">Screening, interviews, offers and onboarding are recorded on the full record, where each step&apos;s checks apply.</p>
+            </div>
+          </aside>
+        ) : (
         <aside className="space-y-3" aria-label="Interviews and reminders">
           <section id="interviews" aria-labelledby="int-h" className={R_PANEL}>
             <h2 id="int-h" className="flex items-center gap-2 border-b border-[#eaecf0] px-4 py-3 text-[16px] font-bold"><CalendarCheck size={20} aria-hidden className="text-[#c2410c]" />Upcoming interviews</h2>
@@ -224,6 +292,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
             <p className="rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-[13.5px] text-[#7a2e0e]"><strong>{b.erasable}</strong> closed application{b.erasable === 1 ? " is" : "s are"} past {b.erasable === 1 ? "its" : "their"} retention date. <Link href={url({ stage: "closed", focus: undefined })} className="font-semibold">Review closed applications</Link> to remove personal details.</p>
           ) : null}
         </aside>
+        )}
       </div>
     </div>
   );

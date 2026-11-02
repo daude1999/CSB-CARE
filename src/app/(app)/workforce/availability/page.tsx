@@ -1,10 +1,12 @@
 import Link from "@/components/link";
+import { HrPageHeader } from "@/components/module-header";
+import { HrTabs, hrTabs } from "@/components/hr-tabs";
 import { ForbiddenError } from "@/lib/errors";
 import { fmtLondonDate, fromDbDate, hhmm, londonDate, WEEKDAYS } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { absenceStaff, listAvailability } from "@/server/workforce/absences";
 import { addAvailabilityAction, endAvailabilityAction } from "@/app/rota-actions";
-import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
+import { Badge, Card, Empty, Flash } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
   try {
     data = await listAvailability(ctx, sp.staff || undefined);
   } catch (e) {
-    if (e instanceof ForbiddenError) return <><PageHeader title="Availability" back="/hr" /><Card><Empty>{e.message}</Empty></Card></>;
+    if (e instanceof ForbiddenError) return <><HrPageHeader title="Time Off & Availability" back={null} /><Card><Empty>{e.message}</Empty></Card></>;
     throw e;
   }
   const { actor, rows } = data;
@@ -25,7 +27,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title="Availability" back="/hr" subtitle="Each person's usual working pattern. Times marked unavailable block allocation; if someone has available times recorded, visits outside them need a coordinator's review. People with nothing recorded can be booked at any time." />
+      <HrPageHeader title="Time Off & Availability" back={null} tabs={<HrTabs tabs={hrTabs("timeoff", { hrLogin: Boolean(ctx.hrUserId) })} active="availability" label="Time Off & Availability sections" />} subtitle="Each person's usual working pattern. Times marked unavailable block allocation; if someone has available times recorded, visits outside them need a coordinator's review. People with nothing recorded can be booked at any time." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card title="Working patterns" actions={<form method="get" className="flex gap-2"><select name="staff" defaultValue={sp.staff ?? ""} className="input py-1.5 text-[14px]" aria-label="Member of staff"><option value="">Everyone</option>{staff.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select><button className="btn-secondary py-1">Show</button></form>}>

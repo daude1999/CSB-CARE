@@ -1,11 +1,13 @@
 import Link from "@/components/link";
+import { HrPageHeader } from "@/components/module-header";
+import { HrTabs, hrTabs } from "@/components/hr-tabs";
 import { ForbiddenError } from "@/lib/errors";
 import { addDays, fmtLondonDate, londonDate } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { absenceStaff, listAbsences } from "@/server/workforce/absences";
 import { memberNames } from "@/server/rota/queries";
 import { cancelStaffAbsenceAction, decideAbsenceAction, recordAbsenceAction } from "@/app/rota-actions";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,7 @@ export default async function AbsencesPage({ searchParams }: { searchParams: Pro
   try {
     data = await listAbsences(ctx, { status: sp.status ?? "REQUESTED", from: sp.from });
   } catch (e) {
-    if (e instanceof ForbiddenError) return <><PageHeader title="Holidays & Sickness" back="/hr" /><Card><Empty>{e.message}</Empty></Card></>;
+    if (e instanceof ForbiddenError) return <><HrPageHeader title="Time Off & Availability" back={null} /><Card><Empty>{e.message}</Empty></Card></>;
     throw e;
   }
   const { actor, rows } = data;
@@ -31,7 +33,7 @@ export default async function AbsencesPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Holidays & Sickness" back="/hr" subtitle="Staff absences, decided in HR and used by the rota. Holiday and other leave start as requests that someone other than the person who entered them approves. Every decision re-checks the person's booked visits and flags any that clash; nothing is removed automatically." />
+      <HrPageHeader title="Time Off & Availability" back={null} tabs={<HrTabs tabs={hrTabs("timeoff", { hrLogin: Boolean(ctx.hrUserId) })} active="absences" label="Time Off & Availability sections" />} subtitle="Staff absences, decided in HR and used by the rota. Holiday and other leave start as requests that someone other than the person who entered them approves. Every decision re-checks the person's booked visits and flags any that clash; nothing is removed automatically." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div>

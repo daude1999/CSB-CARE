@@ -40,10 +40,14 @@ export function TabPanel({ value, children }: { value: string; children: ReactNo
   );
 }
 
-/** Square icon tiles, as on the QCS-style policy page: the active tile fills navy. */
+/**
+ * The policy page's views (Review Sheet, Policy Text, Versions, Read & Sign...): one row of line tabs with a small
+ * icon, the active one underlined in the module colour (approved Compliance design, 1 Nov 2026). Only the policy page
+ * uses these.
+ */
 export function TileTabList({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <TabsPrimitive.List aria-label={label} className="flex gap-[7px] overflow-x-auto pb-1">
+    <TabsPrimitive.List aria-label={label} className="flex gap-1 overflow-x-auto rounded-t-[6px] border-b border-slate-200 bg-white px-2">
       {children}
     </TabsPrimitive.List>
   );
@@ -53,11 +57,11 @@ export function TileTab({ value, icon, children, count }: { value: string; icon:
   return (
     <TabsPrimitive.Trigger
       value={value}
-      className="relative flex h-[84px] w-[92px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[4px] border border-slate-200 bg-white px-1 text-center text-[10.5px] font-medium uppercase leading-[1.2] tracking-[0.02em] text-slate-700 shadow-[0_1px_2px_rgb(0_0_0/0.06)] transition-colors hover:bg-teal-50 data-[state=active]:border-navy-900 data-[state=active]:bg-navy-900 data-[state=active]:text-white focus-visible:ring-offset-0"
+      className="relative -mb-px flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-[3px] border-transparent px-2.5 text-[14px] font-medium text-slate-600 transition-colors hover:text-slate-900 data-[state=active]:border-[var(--module,#1f5fd1)] data-[state=active]:text-[#0646b1] focus-visible:ring-offset-0 [&_svg]:h-[18px] [&_svg]:w-[18px]"
     >
-      <span aria-hidden="true" className="text-navy-900 [[data-state=active]>&]:text-white">{icon}</span>
+      <span aria-hidden="true" className="flex">{icon}</span>
       {children}
-      {count ? <span className="absolute -right-1 -top-1.5 min-w-[20px] rounded-full bg-[#f06a4d] px-1 text-[10px] font-semibold leading-[18px] text-white">{count}</span> : null}
+      {count ? <span className="min-w-[20px] rounded-full bg-[#fde1e3] px-1.5 text-center text-[11.5px] font-semibold leading-[18px] text-[#a3242c]">{count}</span> : null}
     </TabsPrimitive.Trigger>
   );
 }

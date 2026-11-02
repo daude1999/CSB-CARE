@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
@@ -6,7 +7,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { ACK_NOT_TRAINING, ackTimeline, signoffCounts, signoffRows } from "@/server/policies/assignment";
 import { memberNames } from "@/server/rota/queries";
 import { AckBadge, AckTimeline, personKey } from "@/components/signoff-ui";
-import { Card, Empty, fmtDate, PageHeader } from "@/components/ui";
+import { Card, Empty, fmtDate } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function PersonSignoffPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <PageHeader title={r0.person} back="/staff" subtitle={`${r0.staffMember?.jobTitle ?? "Office member"}${r0.staffMember?.branch ? ` · ${r0.staffMember.branch.name}` : ""} · ${r0.user ? `signs in as ${r0.user.email}` : "no sign-in linked, so cannot acknowledge yet"}. ${c.acknowledged} of ${c.total - c.exempted} acknowledged, ${c.overdue} overdue. ${ACK_NOT_TRAINING}`} actions={staff && hasOrgPermission(ctx, "readiness.view") ? <Link href={`/rota/staff/${staff.id}`} className="btn-secondary">Readiness and training</Link> : null} />
+      <CompliancePageHeader title={r0.person} back="/staff" subtitle={`${r0.staffMember?.jobTitle ?? "Office member"}${r0.staffMember?.branch ? ` · ${r0.staffMember.branch.name}` : ""} · ${r0.user ? `signs in as ${r0.user.email}` : "no sign-in linked, so cannot acknowledge yet"}. ${c.acknowledged} of ${c.total - c.exempted} acknowledged, ${c.overdue} overdue. ${ACK_NOT_TRAINING}`} actions={staff && hasOrgPermission(ctx, "readiness.view") ? <Link href={`/rota/staff/${staff.id}`} className="btn-secondary">Readiness and training</Link> : null} />
       <Card>
         {rows.length ? (
           <ul className="rows">

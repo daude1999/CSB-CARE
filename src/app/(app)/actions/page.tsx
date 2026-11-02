@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -6,7 +7,7 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { createActionAction } from "../../actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
-import { Badge, Card, Empty, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Flash, fmtDate, SegmentNav, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
   const mine = sp.mine === "1" ? "&mine=1" : "";
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="actions" />} eyebrow="Care operations · corrective actions" title="Audits & Improvements" subtitle="Corrective actions from audits, risks and reviews. Completing an action needs a note of what was done; it is then verified by someone other than its owner before it is closed." actions={isManager ? <a href={sp.mine === "1" ? `/actions?view=${view}` : `/actions?view=${view}&mine=1`} className="btn-secondary">{sp.mine === "1" ? "Show everyone's" : "Show only mine"}</a> : null} />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="actions" />} eyebrow="Care operations · corrective actions" title="Audits & Improvements" subtitle="Corrective actions from audits, risks and reviews. Completing an action needs a note of what was done; it is then verified by someone other than its owner before it is closed." actions={isManager ? <a href={sp.mine === "1" ? `/actions?view=${view}` : `/actions?view=${view}&mine=1`} className="btn-secondary">{sp.mine === "1" ? "Show everyone's" : "Show only mine"}</a> : null} />
       <Flash searchParams={sp} />
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">

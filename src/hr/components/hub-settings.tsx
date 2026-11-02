@@ -20,7 +20,7 @@ export function SettingsPage({
   return (
     <>
       <PageHeading
-        title="Settings"
+        title="HR settings"
         subtitle="Explicit access. Clear policies. A controlled path to live data."
       />
       <div className="settings-grid">

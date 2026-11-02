@@ -1,10 +1,11 @@
 import Link from "@/components/link";
+import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
-import { Badge, Flash, fmtDate, PageHeader, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Badge, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -35,14 +36,14 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
   ];
   return (
     <>
-      <PageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
       <Flash searchParams={sp} />
-      <StatRow>
-        <Stat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />
-        <Stat label="Drafts" value={columns[0]!.items.length} hint="Being written" tone="amber" />
-        <Stat label="In Review" value={columns[1]!.items.length} hint="Awaiting review and approval" tone="navy" />
-        <Stat label="Ready to Publish" value={columns[2]!.items.length} hint="Approved or scheduled" tone="green" />
-      </StatRow>
+      <ModuleStatRow>
+        <ModuleStat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />
+        <ModuleStat label="Drafts" value={columns[0]!.items.length} hint="Being written" tone="amber" />
+        <ModuleStat label="In Review" value={columns[1]!.items.length} hint="Awaiting review and approval" tone="navy" />
+        <ModuleStat label="Ready to Publish" value={columns[2]!.items.length} hint="Approved or scheduled" tone="green" />
+      </ModuleStatRow>
       {needsDraft.length ? (
         <section className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-white px-[15px] py-3" aria-labelledby="needs-draft">
           <h2 id="needs-draft" className="flex items-center gap-2 text-[17px]">Revision required, no draft started <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#f06a4d] px-1.5 text-[12px] font-medium text-white">{needsDraft.length}</span></h2>
