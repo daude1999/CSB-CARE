@@ -14,6 +14,8 @@ export type HubData = Omit<State, "settings"> & {
   user: User;
   today: string;
   allBranches: boolean;
+  /** HR employee ids that have a linked CSB sign-in, so Send Reminder can say who gets it. */
+  signIns?: string[];
 };
 export const displayDate = (s: string | null | undefined) =>
   s

@@ -24,6 +24,7 @@ import {
   ListTodo,
   CalendarClock,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
 import { Avatar } from "./ui";
 import {
@@ -43,9 +44,8 @@ import { employeeRoute } from "@/hr/lib/routes";
 
 /* ------------------------------------------------------------------ helpers */
 
-const TRAINING = /training|certificate|first aid|manual handling|medication|moving|infection|fire|food|mca|dols/i;
-export const isTraining = (c: Pick<Check, "name" | "category">) =>
-  c.category === "Training" || (checkCategory(c) !== "DBS" && checkCategory(c) !== "Right to work" && TRAINING.test(`${c.name} ${c.category ?? ""}`));
+export { isTraining } from "@/hr/lib/training";
+import { isTraining } from "@/hr/lib/training";
 
 /** The least healthy status among some checks (Overdue first), or null when none is required. */
 export function worst(checks: Check[], today: string): ReviewStatus | null {
@@ -398,7 +398,7 @@ export function HRHome({
 
 /* ------------------------------------------------- Training & readiness */
 
-export function TrainingMatrix({ data, scope }: { data: HubData; scope: string }) {
+export function TrainingMatrix({ data, scope, onAssign, onRemind }: { data: HubData; scope: string; onAssign?: () => void; onRemind?: () => void }) {
   const people = currentPeople(data);
   const checksOf = usePeopleIndex(data);
   const branchName = branchNameOf(data);
@@ -449,6 +449,14 @@ export function TrainingMatrix({ data, scope }: { data: HubData; scope: string }
     .filter((c) => c.due && dateDays(c.due, data.today) >= 0 && dateDays(c.due, data.today) <= 7 && checkStatus(c, data.today) !== "Up to date")
     .sort((a, b) => a.due!.localeCompare(b.due!));
   const overdue = required.filter((c) => checkStatus(c, data.today) === "Overdue").length;
+  // Courses HR assigned that are due in the next 7 days or already late, shown with the checks above.
+  const assignedSoon = (data.trainingAssignments ?? [])
+    .filter((a) => a.status === "Open" && ids.has(a.employee) && dateDays(a.due, data.today) <= 7)
+    .sort((a, b) => a.due.localeCompare(b.due));
+  const weekItems = [
+    ...assignedSoon.map((a) => ({ key: a.id, employee: a.employee, name: `${a.course} (assigned)`, due: a.due, late: a.due < data.today })),
+    ...thisWeek.map((c) => ({ key: c.id, employee: c.employee, name: c.name, due: c.due!, late: false })),
+  ].sort((a, b) => a.due.localeCompare(b.due));
 
   return (
     <div className="hrv grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_340px]" data-testid="training-matrix">
@@ -514,18 +522,18 @@ export function TrainingMatrix({ data, scope }: { data: HubData; scope: string }
 
       <div className="grid min-w-0 grid-cols-1 gap-3">
         <Panel id="tm-week" title="Due this week" icon={<CalendarDays size={20} />}>
-          <p className="px-4 pt-2.5 text-[13px] text-[#667085]">Checks and training with a review date in the next 7 days.</p>
-          {thisWeek.length ? (
-            <ul className="divide-y divide-[#eef0f3]">
-              {thisWeek.slice(0, 8).map((c) => {
+          <p className="px-4 pt-2.5 text-[13px] text-[#667085]">Checks and training with a review date in the next 7 days, and assigned courses due by then.</p>
+          {weekItems.length ? (
+            <ul className="divide-y divide-[#eef0f3]" data-testid="due-this-week">
+              {weekItems.slice(0, 8).map((c) => {
                 const e = people.find((p) => p.id === c.employee)!;
                 return (
-                  <li key={c.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <li key={c.key} className="flex items-center gap-3 px-4 py-2.5">
                     <span className="min-w-0 flex-1">
                       <Link href={employeeRoute(e.id, scope)} className="hrv-name">{e.name}</Link>
                       <span className="block truncate text-[12.5px] text-[#475467]">{c.name}</span>
                     </span>
-                    <span className="whitespace-nowrap rounded-full bg-[#fdf0d8] px-2 py-0.5 text-[12.5px] font-medium tabular-nums text-[#7a4f00]">{displayDate(c.due)}</span>
+                    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[12.5px] font-medium tabular-nums ${c.late ? "bg-[#fde1e3] text-[#9b1c24]" : "bg-[#fdf0d8] text-[#7a4f00]"}`}>{displayDate(c.due)}</span>
                   </li>
                 );
               })}
@@ -534,14 +542,26 @@ export function TrainingMatrix({ data, scope }: { data: HubData; scope: string }
             <p className="px-4 py-4 text-[14px] text-[#667085]">Nothing due in the next 7 days.</p>
           )}
           <div className="grid gap-2 border-t border-[#eef0f3] p-3">
-            <Link href={`/compliance?branch=${scope}&status=Overdue`} className="hrv-btn hrv-btn--secondary">
-              <AlertTriangle size={16} aria-hidden="true" />
-              {overdue} overdue {overdue === 1 ? "check" : "checks"}
-            </Link>
-            <Link href={`/compliance?branch=${scope}`} className="hrv-btn hrv-btn--primary">
-              <ShieldCheck size={16} aria-hidden="true" />
-              Open the checks register
-            </Link>
+            {onAssign ? (
+              <button type="button" onClick={onAssign} className="hrv-btn hrv-btn--primary">
+                <GraduationCap size={16} aria-hidden="true" />
+                Assign training
+              </button>
+            ) : null}
+            {onRemind ? (
+              <button type="button" onClick={onRemind} className="hrv-btn hrv-btn--secondary">
+                <Mail size={16} aria-hidden="true" />
+                Send reminder
+              </button>
+            ) : null}
+            <p className="flex flex-wrap justify-center gap-x-3 gap-y-1 pt-1 text-[13px]">
+              <Link href={`/compliance?branch=${scope}&status=Overdue`} className="hrv-link">
+                {overdue} overdue {overdue === 1 ? "check" : "checks"}
+              </Link>
+              <Link href={`/compliance?branch=${scope}`} className="hrv-link">
+                Open the checks register
+              </Link>
+            </p>
           </div>
         </Panel>
         <p className="px-1 text-[12.5px] leading-5 text-[#667085]">

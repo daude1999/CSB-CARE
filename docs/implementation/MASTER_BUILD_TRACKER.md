@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## HR Assign Training and Send Reminder (2 Nov 2026, draft PR)
+The two buttons under "Due this week" on Checks & Training now work. Assign Training records a course, date and HR
+follow-up task per person without touching checks or rota readiness; Send Reminder sends an in-app (bell) reminder to
+people with a linked CSB sign-in, once a day, nothing by e-mail or text. Details: `HR_TRAINING_ACTIONS.md`.
+
 ## Find Replacement Cover, Contact & Communication, header Back/Forward (2 Nov 2026, draft PR)
 One shared Find Replacement Cover panel and service for filling an empty place, replacing a booked carer and recovery
 after a missed call, opened from the existing Find Cover buttons. A Contact & Communication tab records each attempt to
