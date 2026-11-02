@@ -1,4 +1,5 @@
-import { Prisma, type AssignmentSlot, type Visit } from "@prisma/client";
+import { Prisma, type Visit } from "@prisma/client";
+import { placeData, placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/server/audit-log";
@@ -39,7 +40,8 @@ export class EligibilityError extends ConflictError {
 
 export interface AssignParams {
   visitId: string;
-  slot: AssignmentSlot;
+  /** The place to fill: "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … or "SHADOW". */
+  slot: PlaceKey;
   staffId: string;
   /** The coordinator has read the warnings (Requires review) and allocates anyway. Recorded on the assignment. */
   acceptWarnings?: boolean;
@@ -61,7 +63,8 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   const visit = await lockVisit(tx, scope, p.visitId);
   if (p.lockVersion !== undefined && p.lockVersion !== visit.lockVersion) throw new ConflictError("This visit changed since you opened it. Reload and try again.");
   if (!["SCHEDULED", "MISSED"].includes(visit.status)) throw new ValidationError(`Carers cannot be changed on a ${visit.status.toLowerCase().replace("_", " ")} visit`);
-  if (p.slot === "SECOND" && visit.carersRequired < 2) throw new ValidationError("This visit needs one carer. Convert it to a double-up first.");
+  const n = placeNumber(p.slot);
+  if (n !== null && n > visit.carersRequired) throw new ValidationError(visit.carersRequired === 1 ? "This visit needs one carer. Convert it to a double-up first." : `This visit needs ${visit.carersRequired} carers, so it has no ${placeLabel(p.slot).toLowerCase()} place. Raise the number of carers needed first.`);
   await lockStaff(tx, scope.organisationId, p.staffId);
   // A branch- or area-limited coordinator allocates only their own staff; another branch's carers are that branch's call.
   if ((scope.areaIds || scope.branchIds) && !(await tx.staffMember.findFirst({ where: { ...staffDirectoryWhere(scope, { status: "all" }), id: p.staffId }, select: { id: true } }))) {
@@ -69,12 +72,12 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
   }
 
   const live = await tx.visitAssignment.findMany({ where: { visitId: visit.id, removedAt: null } });
-  const current = live.find((a) => a.slot === p.slot);
+  const current = live.find((a) => placeKey(a) === p.slot);
   if (current?.staffId === p.staffId) return current;
-  const others = live.filter((a) => a.slot !== p.slot).map((a) => a.staffId);
+  const others = live.filter((a) => placeKey(a) !== p.slot).map((a) => a.staffId);
 
   const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
-  const result = await eligibilityFor(tx, scope.organisationId, { staffId: p.staffId, start: visit.scheduledStart, end: visit.scheduledEnd, slot: p.slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
+  const result = await eligibilityFor(tx, scope.organisationId, { staffId: p.staffId, start: visit.scheduledStart, end: visit.scheduledEnd, slot: placeData(p.slot).slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
   if (result.state === "NOT_ELIGIBLE") throw new EligibilityError(`Cannot allocate: ${result.blocking.map((b) => b.message).join("; ")}`, result);
   if (result.state === "REQUIRES_REVIEW" && !p.acceptWarnings) throw new EligibilityError(`Needs your confirmation: ${result.warnings.map((w) => w.message).join("; ")}`, result);
   if (p.acceptedWarnings) {
@@ -93,7 +96,7 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
       data: {
         organisationId: scope.organisationId,
         visitId: visit.id,
-        slot: p.slot,
+        ...placeData(p.slot),
         staffId: p.staffId,
         startsAt: visit.scheduledStart,
         endsAt: visit.scheduledEnd,
@@ -127,12 +130,12 @@ export async function assignCarer(ctx: Ctx, p: AssignParams, source = "manual") 
   }
 }
 
-export async function unassignInTx(tx: Tx, scope: Scope, actorId: string, p: { visitId: string; slot: AssignmentSlot; reason: string; lockVersion?: number }) {
+export async function unassignInTx(tx: Tx, scope: Scope, actorId: string, p: { visitId: string; slot: PlaceKey; reason: string; lockVersion?: number }) {
   const visit = await lockVisit(tx, scope, p.visitId);
   if (p.lockVersion !== undefined && p.lockVersion !== visit.lockVersion) throw new ConflictError("This visit changed since you opened it. Reload and try again.");
   if (!["SCHEDULED", "MISSED"].includes(visit.status)) throw new ValidationError("Carers can only be removed from visits that have not started");
   if (p.reason.trim().length < 3) throw new ValidationError("Give a reason for removing the carer");
-  const a = await tx.visitAssignment.findFirst({ where: { visitId: visit.id, slot: p.slot, removedAt: null } });
+  const a = await tx.visitAssignment.findFirst({ where: { visitId: visit.id, ...placeData(p.slot), removedAt: null } });
   if (!a) throw new NotFoundError("Assignment");
   await tx.visitAssignment.update({ where: { id: a.id }, data: { removedAt: new Date(), removedById: actorId, removeReason: p.reason.trim() } });
   await tx.visit.update({ where: { id: visit.id }, data: { lockVersion: { increment: 1 }, manuallyChanged: true } });
@@ -141,7 +144,7 @@ export async function unassignInTx(tx: Tx, scope: Scope, actorId: string, p: { v
   await audit({ organisationId: scope.organisationId, actorId, action: "visit.unassigned", entityType: "Visit", entityId: visit.id, data: { slot: p.slot, staffId: a.staffId, reason: p.reason.trim() } }, tx);
 }
 
-export async function unassignCarer(ctx: Ctx, p: { visitId: string; slot: AssignmentSlot; reason: string; lockVersion?: number }) {
+export async function unassignCarer(ctx: Ctx, p: { visitId: string; slot: PlaceKey; reason: string; lockVersion?: number }) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction((tx) => unassignInTx(tx, scope, ctx.userId, p));
 }
@@ -149,9 +152,9 @@ export async function unassignCarer(ctx: Ctx, p: { visitId: string; slot: Assign
 /** The short confirmation shown after Find Cover books a carer. Says nothing about acceptance or notifications it cannot prove. */
 export async function coverConfirmation(ctx: Ctx, assignmentId: string) {
   const scope = await rotaScope(ctx, "rota.view");
-  const a = await db.visitAssignment.findFirst({ where: { id: assignmentId, organisationId: scope.organisationId }, select: { slot: true, staff: { select: { displayName: true } }, visit: { select: { scheduledStart: true, publishedAt: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } } } });
+  const a = await db.visitAssignment.findFirst({ where: { id: assignmentId, organisationId: scope.organisationId }, select: { slot: true, position: true, staff: { select: { displayName: true } }, visit: { select: { scheduledStart: true, publishedAt: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } } } });
   if (!a) return "Carer booked";
   const su = a.visit.serviceUser;
   const when = `${fmtLondonDate(londonDate(a.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(a.visit.scheduledStart)}`;
-  return `${a.staff.displayName} booked for ${su.preferredName || su.firstName} ${su.lastName}, ${when}${a.slot === "SECOND" ? " (second carer)" : ""}.${a.visit.publishedAt ? " The visit is published, so it shows in their visits; they have not acknowledged it yet." : " The visit is not published to carers yet."}`;
+  return `${a.staff.displayName} booked for ${su.preferredName || su.firstName} ${su.lastName}, ${when}${a.slot !== "PRIMARY" && a.slot !== "SHADOW" ? ` (${placeLabel(placeKey(a)).toLowerCase()})` : ""}.${a.visit.publishedAt ? " The visit is published, so it shows in their visits; they have not acknowledged it yet." : " The visit is not published to carers yet."}`;
 }

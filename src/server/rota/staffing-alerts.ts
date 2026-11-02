@@ -42,7 +42,10 @@ export async function staffingAlerts(ctx: Ctx, opts: { date?: string; branchId?:
     out.push({ key: "unassigned", tone: "red", count: next.summary.visits, text: `${next.summary.visits} ${plural(next.summary.visits, "visit", "visits")} ${label} still ${plural(next.summary.visits, "needs", "need")} a care worker`, why: `${next.summary.slots} empty carer ${plural(next.summary.slots, "place", "places")}; ${next.summary.urgent} urgent by the Unassigned Visits priority rule.`, action: "Find Cover", href: tomorrow === addDays(today, 1) ? `/rota/unassigned?when=tomorrow${keep}` : `/rota/unassigned?when=custom&from=${tomorrow}&to=${tomorrow}${keep}` });
   }
   if (twoDays.summary.visits) {
-    out.push({ key: "second", tone: "amber", count: twoDays.summary.visits, text: `${twoDays.summary.visits} double-up ${plural(twoDays.summary.visits, "visit has", "visits have")} only one carer booked`, why: "These visits need two carers. Counted for the chosen day and the day after.", action: "Find Second Carer", href: `/rota/unassigned?when=custom&from=${base}&to=${tomorrow}&staffing=partial${keep}` });
+    // Worded as before while every one is a double-up missing one carer; visits needing three or more carers read generally.
+    const allDoubleUps = twoDays.items.every((i) => i.visit.carersRequired === 2);
+    const n = twoDays.summary.visits;
+    out.push({ key: "second", tone: "amber", count: n, text: allDoubleUps ? `${n} double-up ${plural(n, "visit has", "visits have")} only one carer booked` : `${n} ${plural(n, "visit needing", "visits needing")} two or more carers ${plural(n, "is", "are")} still short`, why: allDoubleUps ? "These visits need two carers. Counted for the chosen day and the day after." : "These visits have some of their carers booked but not all. Counted for the chosen day and the day after.", action: allDoubleUps ? "Find Second Carer" : "Find Missing Carers", href: `/rota/unassigned?when=custom&from=${base}&to=${tomorrow}&staffing=partial${keep}` });
   }
 
   // 3. Bookings with a carer who is off (approved or requested absence) or whose booking HR flagged for review.

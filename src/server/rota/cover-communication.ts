@@ -141,7 +141,7 @@ export const commsOutstanding = (k: CommsKind) => k === "NOT_CONTACTED" || k ===
 const arrangementVisitSelect = {
   id: true, reference: true, status: true, scheduledStart: true, scheduledEnd: true, serviceUserId: true, organisationId: true, areaId: true, recoveryOfId: true,
   serviceUser: { select: { areaId: true, branchId: true } },
-  assignments: { select: { slot: true, staffId: true, removedAt: true, staff: { select: { displayName: true } } } },
+  assignments: { select: { slot: true, position: true, staffId: true, removedAt: true, staff: { select: { displayName: true } } } },
 } satisfies Prisma.VisitSelect;
 
 /** The visit and (for a recovery visit or a missed visit with a case) the case its communication belongs to. */

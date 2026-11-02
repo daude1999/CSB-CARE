@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parsePlace, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/server/audit-log";
@@ -8,7 +9,7 @@ import { rotaScope, visitWhere } from "./scope";
 
 const side = z.object({
   visitId: z.string().min(1),
-  slot: z.enum(["PRIMARY", "SECOND", "SHADOW"]),
+  slot: z.string().transform((v, c) => parsePlace(v) ?? (c.addIssue({ code: "custom", message: "Choose a carer place" }), z.NEVER)),
   lockVersion: z.number().int().nonnegative().optional(),
 });
 
@@ -43,7 +44,7 @@ export async function swapCarers(ctx: Ctx, raw: SwapInput | Record<string, unkno
         }
         const [a, b] = await Promise.all(
           sides.map(async (s) => {
-            const found = await tx.visitAssignment.findFirst({ where: { visitId: s.visitId, slot: s.slot, removedAt: null }, include: { staff: { select: { displayName: true } }, visit: { select: { reference: true } } } });
+            const found = await tx.visitAssignment.findFirst({ where: { visitId: s.visitId, ...placeData(s.slot), removedAt: null }, include: { staff: { select: { displayName: true } }, visit: { select: { reference: true } } } });
             if (!found) throw new NotFoundError("A carer on one of the visits");
             return found;
           }),
@@ -62,7 +63,7 @@ export async function swapCarers(ctx: Ctx, raw: SwapInput | Record<string, unkno
 
         const place = async (to: typeof a, from: typeof a) => {
           try {
-            await assignInTx(tx, scope, ctx.userId, { visitId: to!.visitId, slot: to!.slot, staffId: from!.staffId, acceptWarnings: input.acceptWarnings }, { source: "swap" });
+            await assignInTx(tx, scope, ctx.userId, { visitId: to!.visitId, slot: placeKey(to!), staffId: from!.staffId, acceptWarnings: input.acceptWarnings }, { source: "swap" });
           } catch (e) {
             if (e instanceof EligibilityError) throw new EligibilityError(`Swap refused: ${from!.staff.displayName} cannot take ${to!.visit.reference}. ${e.message}`, e.result);
             if (isOverlapViolation(e) || e instanceof ConflictError) throw new ConflictError(`Swap refused: ${from!.staff.displayName} is already booked during ${to!.visit.reference}.`);
@@ -73,8 +74,8 @@ export async function swapCarers(ctx: Ctx, raw: SwapInput | Record<string, unkno
         await place(b, a);
 
         for (const [x, y] of [[a!, b!], [b!, a!]] as const)
-          await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: x.visitId, type: "SWAPPED", actorId: ctx.userId, reason: input.reason, data: { slot: x.slot, from: x.staffId, to: y.staffId, otherVisitId: y.visitId } } });
-        await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "visit.swapped", entityType: "Visit", entityId: a!.visitId, data: { first: { visitId: a!.visitId, slot: a!.slot, staffId: a!.staffId }, second: { visitId: b!.visitId, slot: b!.slot, staffId: b!.staffId }, reason: input.reason, acceptWarnings: input.acceptWarnings } }, tx);
+          await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: x.visitId, type: "SWAPPED", actorId: ctx.userId, reason: input.reason, data: { slot: placeKey(x), from: x.staffId, to: y.staffId, otherVisitId: y.visitId } } });
+        await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "visit.swapped", entityType: "Visit", entityId: a!.visitId, data: { first: { visitId: a!.visitId, slot: placeKey(a!), staffId: a!.staffId }, second: { visitId: b!.visitId, slot: placeKey(b!), staffId: b!.staffId }, reason: input.reason, acceptWarnings: input.acceptWarnings } }, tx);
         return { first: a!.visit.reference, second: b!.visit.reference, carers: [a!.staff.displayName, b!.staff.displayName] as const };
       },
       { isolationLevel: "ReadCommitted", timeout: 20_000 },
@@ -86,11 +87,11 @@ export async function swapCarers(ctx: Ctx, raw: SwapInput | Record<string, unkno
 }
 
 /** Visits whose carer could swap with the carer on the given visit: same day, scheduled, with a carer, in scope. */
-export async function swapCandidates(ctx: Ctx, visitId: string, slot: "PRIMARY" | "SECOND" | "SHADOW") {
+export async function swapCandidates(ctx: Ctx, visitId: string, slot: PlaceKey) {
   const scope = await rotaScope(ctx, "rota.edit");
   const v = await db.visit.findFirst({ where: { id: visitId, ...visitWhere(scope) } });
   if (!v) throw new NotFoundError("Visit");
-  const mine = await db.visitAssignment.findFirst({ where: { visitId, slot, removedAt: null }, select: { staffId: true } });
+  const mine = await db.visitAssignment.findFirst({ where: { visitId, ...placeData(slot), removedAt: null }, select: { staffId: true } });
   if (!mine) return [];
   const dayStart = new Date(v.scheduledStart.getTime() - 12 * 3600_000);
   const dayEnd = new Date(v.scheduledStart.getTime() + 12 * 3600_000);
@@ -99,12 +100,12 @@ export async function swapCandidates(ctx: Ctx, visitId: string, slot: "PRIMARY" 
       organisationId: scope.organisationId,
       removedAt: null,
       staffId: { not: mine.staffId },
-      slot: { in: ["PRIMARY", "SECOND"] },
+      slot: { not: "SHADOW" },
       visit: { ...visitWhere(scope), id: { not: visitId }, status: "SCHEDULED", scheduledStart: { gte: dayStart, lt: dayEnd } },
     },
     include: { staff: { select: { displayName: true } }, visit: { select: { id: true, reference: true, scheduledStart: true, scheduledEnd: true, lockVersion: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } } },
     orderBy: { visit: { scheduledStart: "asc" } },
     take: 200,
   });
-  return rows.map((r) => ({ visitId: r.visit.id, slot: r.slot, lockVersion: r.visit.lockVersion, reference: r.visit.reference, start: r.visit.scheduledStart, end: r.visit.scheduledEnd, carer: r.staff.displayName, serviceUser: `${r.visit.serviceUser.preferredName ?? r.visit.serviceUser.firstName} ${r.visit.serviceUser.lastName}` }));
+  return rows.map((r) => ({ visitId: r.visit.id, slot: placeKey(r), lockVersion: r.visit.lockVersion, reference: r.visit.reference, start: r.visit.scheduledStart, end: r.visit.scheduledEnd, carer: r.staff.displayName, serviceUser: `${r.visit.serviceUser.preferredName ?? r.visit.serviceUser.firstName} ${r.visit.serviceUser.lastName}` }));
 }

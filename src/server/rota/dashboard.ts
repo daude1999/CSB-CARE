@@ -2,6 +2,7 @@ import "server-only";
 import { missedMedsCount } from "@/server/care/medication";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds, mondayOf } from "@/lib/london";
+import { preferredOf } from "@/lib/carer-places";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { exceptionCounts } from "./exceptions";
 import { countedOnce } from "./overview";
@@ -85,7 +86,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
     due: live.filter((v) => v.status === "SCHEDULED" && !v.flags.late).length,
     inProgress: live.filter((v) => v.status === "IN_PROGRESS").length,
     cancelled: rows.length - live.length,
-    /** Double-ups with one of their two carers. */
+    /** Visits needing two or more carers with some, but not all, booked. */
     partDoubleUps: live.filter((v) => v.carersRequired > 1 && v.flags.unassignedSlots > 0 && v.flags.unassignedSlots < v.carersRequired).length,
     staffOnDuty: onDuty.size,
     complete: countedOnce(live).filter((v) => v.status === "COMPLETED").length,
@@ -117,7 +118,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
       ? db.staffMember.findMany({ where: { ...staffScope, employmentStatus: { not: "ARCHIVED" } }, select: { id: true, displayName: true, preferredName: true, jobTitle: true, employmentStatus: true, workPhone: true, userId: true, hrMissing: true }, orderBy: { displayName: "asc" } })
       : Promise.resolve([]),
     activeReminders(ctx, { branchId, limit: 100 }),
-    db.visitTemplate.findMany({ where: { organisationId: org, enabled: true, ...templateScopeWhere(scope) }, select: { carersRequired: true, preferredStaff1Id: true, preferredStaff2Id: true } }),
+    db.visitTemplate.findMany({ where: { organisationId: org, enabled: true, ...templateScopeWhere(scope) }, select: { carersRequired: true, preferredStaff1Id: true, preferredStaff2Id: true, extraPreferredStaffIds: true } }),
     db.staffAbsence.count({ where: { ...staffInScope, status: "APPROVED", startsAt: { gte: now, lte: soon } } }),
     (() => {
       const { start, end } = londonDayBounds(date);
@@ -130,7 +131,7 @@ export async function rotaDashboard(ctx: Ctx, input: { date?: string; areaId?: s
   // A template conflict is a slot with no carer, or a carer who has left or is no longer in HR.
   const gone = new Set((await db.staffMember.findMany({ where: { organisationId: org, OR: [{ employmentStatus: "ARCHIVED" }, { hrMissing: true }] }, select: { id: true } })).map((s) => s.id));
   const templateConflicts = templates.filter((t) => {
-    const ids = [t.preferredStaff1Id, t.carersRequired > 1 ? t.preferredStaff2Id : null].slice(0, t.carersRequired);
+    const ids = preferredOf(t);
     return ids.some((id) => !id || gone.has(id));
   }).length;
 

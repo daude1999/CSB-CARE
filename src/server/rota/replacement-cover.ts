@@ -1,4 +1,4 @@
-import type { AssignmentSlot } from "@prisma/client";
+import { carerPlaces, isCarerPlace, parsePlace, placeData, placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -32,7 +32,7 @@ export interface CoverTarget {
   mode: CoverMode;
   /** The visit (fill, replace) or the missed-call case (recovery). */
   id: string;
-  slot?: AssignmentSlot;
+  slot?: PlaceKey;
 }
 
 export const MODE_TEXT: Record<CoverMode, { title: string; subtitle: string; review: string; confirm: string }> = {
@@ -41,15 +41,17 @@ export const MODE_TEXT: Record<CoverMode, { title: string; subtitle: string; rev
   recovery: { title: "Find Replacement Cover", subtitle: "Arrange a recovery visit for a missed call. The missed visit stays recorded.", review: "Review Cover", confirm: "Confirm Cover" },
 };
 
-const SLOTS = ["PRIMARY", "SECOND"] as const;
-export const SLOT_LABEL: Record<string, string> = { PRIMARY: "Carer 1", SECOND: "Carer 2", SHADOW: "Shadow" };
+/** "Carer 1" … "Carer N", or "Shadow". */
+export const SLOT_LABEL = { PRIMARY: "Carer 1", SECOND: "Carer 2", SHADOW: "Shadow" } as Record<string, string>;
+export const slotLabel = (k: string) => SLOT_LABEL[k] ?? placeLabel(k);
 
 /** The panel's target from the page's query string. Pages on Missed Calls default to recovery; elsewhere to fill. */
 export function coverTargetFrom(sp: Record<string, string | undefined>, fallback: CoverMode = "fill"): CoverTarget | null {
   const id = sp.cover?.trim();
   if (!id || id.length > 40) return null;
   const mode = sp.fcMode === "replace" || sp.fcMode === "recovery" || sp.fcMode === "fill" ? sp.fcMode : fallback;
-  const slot = SLOTS.find((s) => s === (sp.fcSlot ?? sp.slot));
+  const raw = parsePlace(sp.fcSlot ?? sp.slot);
+  const slot = raw && raw !== "SHADOW" ? raw : undefined;
   return { mode, id, slot };
 }
 
@@ -95,9 +97,9 @@ interface Base {
 export interface VisitCover extends Base {
   kind: "visit";
   mode: "fill" | "replace";
-  slot: AssignmentSlot | null;
+  slot: PlaceKey | null;
   /** The other carer places the coordinator can switch to. */
-  slots: { slot: AssignmentSlot; label: string; current: string | null }[];
+  slots: { slot: PlaceKey; label: string; current: string | null }[];
   current: { staffId: string; name: string } | null;
   lockVersion: number;
   date: string;
@@ -157,10 +159,10 @@ async function recoveryWorkspace(ctx: Ctx, target: CoverTarget, input: CoverInpu
 async function visitWorkspace(ctx: Ctx, target: CoverTarget, input: CoverInput, now: Date): Promise<VisitCover> {
   const scope = await rotaScope(ctx, "rota.edit");
   const v = await getVisit(ctx, target.id);
-  const live = v.assignments.filter((a) => !a.removedAt && a.slot !== "SHADOW");
-  const required = Math.min(2, v.carersRequired);
-  const places = SLOTS.slice(0, required);
-  const occupant = (s: AssignmentSlot) => live.find((a) => a.slot === s) ?? null;
+  const live = v.assignments.filter((a) => !a.removedAt && isCarerPlace(a)).sort((a, b) => a.position - b.position);
+  const required = v.carersRequired;
+  const places = carerPlaces(required);
+  const occupant = (s: PlaceKey) => live.find((a) => placeKey(a) === s) ?? null;
   const open = places.filter((s) => !occupant(s));
   const filled = places.filter((s) => occupant(s));
   // A fill with no empty place left, or a replace with nobody to replace, falls back to the other mode's places.
@@ -178,12 +180,12 @@ async function visitWorkspace(ctx: Ctx, target: CoverTarget, input: CoverInput, 
       { k: "Cover type", v: mode === "fill" ? "Fill an empty carer place" : "Replace a booked care worker" },
       { k: "Visit", v: `${fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short" })} · ${londonTime(v.scheduledStart)}–${londonTime(v.scheduledEnd)} (${minutes} min)` },
       { k: "Visit type", v: `${v.callType.name}${v.area ? ` · ${v.area.name}` : ""}` },
-      { k: "Booked now", v: live.length ? live.map((a) => `${a.staff.displayName} (${SLOT_LABEL[a.slot]})`).join(", ") : "Nobody" },
-      { k: "Carers needed", v: `${required}${required > 1 ? " (double-up)" : ""}` },
-      ...(slot ? [{ k: mode === "fill" ? "Place to fill" : "Place to replace", v: `${SLOT_LABEL[slot]}${current ? `: ${current.staff.displayName}` : ""}`, strong: true }] : []),
+      { k: "Booked now", v: live.length ? live.map((a) => `${a.staff.displayName} (${slotLabel(placeKey(a))})`).join(", ") : "Nobody" },
+      { k: "Carers needed", v: `${required}${required === 2 ? " (double-up)" : required > 2 ? ` (${live.length} booked, ${Math.max(0, required - live.length)} still needed)` : ""}` },
+      ...(slot ? [{ k: mode === "fill" ? "Place to fill" : "Place to replace", v: `${slotLabel(slot)}${current ? `: ${current.staff.displayName}` : ""}`, strong: true }] : []),
     ],
   };
-  const slots = choices.map((s) => ({ slot: s, label: SLOT_LABEL[s]!, current: occupant(s)?.staff.displayName ?? null }));
+  const slots = choices.map((s) => ({ slot: s, label: slotLabel(s), current: occupant(s)?.staff.displayName ?? null }));
   let blocked: string | null = null;
   if (!["SCHEDULED", "MISSED"].includes(v.status) || v.scheduledEnd <= now) blocked = v.status === "MISSED" ? "This visit's time has passed. Cover for a missed call is a recovery visit: open it from Missed Calls." : `This visit is ${v.status.toLowerCase().replace("_", " ")}, so its carers cannot be changed here.`;
   else if (mode === "replace" && v.status !== "SCHEDULED") blocked = "Only a scheduled visit's carer can be replaced.";
@@ -191,12 +193,12 @@ async function visitWorkspace(ctx: Ctx, target: CoverTarget, input: CoverInput, 
   const base = {
     kind: "visit" as const, mode, target: { ...target, mode, slot: slot ?? undefined }, summary, slot, slots, current: current ? { staffId: current.staffId, name: current.staff.displayName } : null,
     lockVersion: v.lockVersion, date, careTasks: v.tasks.map((t) => t.name), comms: { visitId: v.id, caseId: null },
-    carersRequired: required, others: live.filter((a) => a.slot !== slot).map((a) => a.staff.displayName),
+    carersRequired: required, others: live.filter((a) => placeKey(a) !== slot).map((a) => a.staff.displayName),
   };
   if (blocked || !slot) return { ...base, canBook: false, blocked, recommended: [], list: [], areas: [], selected: null };
 
   const careTaskIds = v.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x);
-  const others = live.filter((a) => a.slot !== slot).map((a) => a.staffId);
+  const others = live.filter((a) => placeKey(a) !== slot).map((a) => a.staffId);
   const allowed = await allocatableStaffIds(scope);
   let ranked = await slotCandidates(scope.organisationId, { visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, start: v.scheduledStart, end: v.scheduledEnd, timeLocked: v.timeLocked, careTaskIds, otherSlotStaffIds: others }, slot, allowed ?? undefined);
   // The carer being replaced is shown for clarity but can never be chosen as their own replacement.
@@ -214,7 +216,7 @@ async function visitWorkspace(ctx: Ctx, target: CoverTarget, input: CoverInput, 
     const cand = all.find((c) => c.id === input.staffId);
     if (!cand) throw new NotFoundError("Staff member");
     // A fresh check for the review step: the same call the booking makes again inside its transaction.
-    const result = await eligibilityFor(db, scope.organisationId, { staffId: cand.id, start: v.scheduledStart, end: v.scheduledEnd, slot, visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
+    const result = await eligibilityFor(db, scope.organisationId, { staffId: cand.id, start: v.scheduledStart, end: v.scheduledEnd, slot: placeData(slot).slot, visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds }, { otherSlotStaffIds: others });
     if (current?.staffId === cand.id) result.blocking.unshift({ code: "SAME_CARER", message: cand.reasons[0]! });
     const rank = recommended.findIndex((c) => c.id === cand.id);
     selected = { candidate: cand, result: { ...result, state: result.blocking.length ? "NOT_ELIGIBLE" : result.state }, checks: coverChecks(result), rank: rank >= 0 ? rank : null };
@@ -239,7 +241,7 @@ export { RANK_LABEL };
 const bookSchema = z.object({
   mode: z.enum(["fill", "replace"]),
   visitId: z.string().min(1, "Choose a visit").max(40),
-  slot: z.enum(["PRIMARY", "SECOND"], { message: "Choose the carer place" }),
+  slot: z.string().transform((v, c) => { const k = parsePlace(v); return k && k !== "SHADOW" ? k : (c.addIssue({ code: "custom", message: "Choose the carer place" }), z.NEVER); }),
   staffId: z.string().min(1, "Choose a carer").max(40),
   /** The visit version the coordinator reviewed. */
   lockVersion: z.coerce.number().int(),
@@ -274,9 +276,9 @@ export async function bookCover(ctx: Ctx, raw: BookCoverInput) {
     return await db.$transaction(
       async (tx) => {
         const visit = await lockVisit(tx, scope, d.visitId);
-        if (d.slot === "SECOND" && visit.carersRequired < 2) throw new ValidationError("This visit needs one carer.");
-        const live = await tx.visitAssignment.findMany({ where: { visitId: visit.id, removedAt: null }, select: { id: true, slot: true, staffId: true, staff: { select: { displayName: true } } } });
-        const occupant = live.find((a) => a.slot === d.slot) ?? null;
+        if ((placeNumber(d.slot) ?? 0) > visit.carersRequired) throw new ValidationError(visit.carersRequired === 1 ? "This visit needs one carer." : `This visit needs ${visit.carersRequired} carers, so it has no ${slotLabel(d.slot).toLowerCase()} place.`);
+        const live = await tx.visitAssignment.findMany({ where: { visitId: visit.id, removedAt: null }, select: { id: true, slot: true, position: true, staffId: true, staff: { select: { displayName: true } } } });
+        const occupant = live.find((a) => placeKey(a) === d.slot) ?? null;
         if (occupant?.staffId === d.staffId) return { assignmentId: occupant.id, duplicate: true };
         if ((occupant?.staffId ?? "") !== d.expectStaffId) {
           throw new ConflictError(occupant ? `Someone else has just booked ${occupant.staff.displayName} into this place. Reopen Find Cover to see the visit as it is now.` : "The carer you were replacing has just been removed by someone else. Reopen Find Cover to see the visit as it is now.");
@@ -287,7 +289,7 @@ export async function bookCover(ctx: Ctx, raw: BookCoverInput) {
         const staff = await tx.staffMember.findFirst({ where: { id: d.staffId, organisationId: scope.organisationId }, select: { id: true, displayName: true } });
         if (!staff) throw new NotFoundError("Staff member");
         const careTaskIds = (await tx.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
-        const pre = await eligibilityFor(tx, scope.organisationId, { staffId: staff.id, start: visit.scheduledStart, end: visit.scheduledEnd, slot: d.slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: live.filter((a) => a.slot !== d.slot && a.slot !== "SHADOW").map((a) => a.staffId) });
+        const pre = await eligibilityFor(tx, scope.organisationId, { staffId: staff.id, start: visit.scheduledStart, end: visit.scheduledEnd, slot: placeData(d.slot).slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds }, { otherSlotStaffIds: live.filter((a) => placeKey(a) !== d.slot && a.slot !== "SHADOW").map((a) => a.staffId) });
         if (pre.state === "NOT_ELIGIBLE") throw new EligibilityError(`${staff.displayName} can no longer be booked: ${pre.blocking.map((b) => b.message).join("; ")}`, pre);
         const warnings = pre.warnings.map((w) => w.message);
         const unseen = warnings.filter((w) => !d.acknowledged.includes(w));
@@ -309,7 +311,7 @@ export async function bookCover(ctx: Ctx, raw: BookCoverInput) {
 /** The confirmation line after a fill or replace. Says only what is recorded. */
 export async function bookedText(ctx: Ctx, assignmentId: string) {
   const scope = await rotaScope(ctx, "rota.view");
-  const a = await db.visitAssignment.findFirst({ where: { id: assignmentId, organisationId: scope.organisationId }, select: { slot: true, staff: { select: { displayName: true } }, visit: { select: { reference: true, scheduledStart: true, publishedAt: true } } } });
+  const a = await db.visitAssignment.findFirst({ where: { id: assignmentId, organisationId: scope.organisationId }, select: { slot: true, position: true, staff: { select: { displayName: true } }, visit: { select: { reference: true, scheduledStart: true, publishedAt: true } } } });
   if (!a) return "Cover booked";
-  return `${a.staff.displayName} booked as ${SLOT_LABEL[a.slot]} on ${a.visit.reference}, ${fmtLondonDate(londonDate(a.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(a.visit.scheduledStart)}.${a.visit.publishedAt ? " The visit is published, so it shows in their visits; they have not acknowledged it yet." : " The visit is not published to carers yet."} Remember to record the communication with the service user.`;
+  return `${a.staff.displayName} booked as ${slotLabel(placeKey(a))} on ${a.visit.reference}, ${fmtLondonDate(londonDate(a.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(a.visit.scheduledStart)}.${a.visit.publishedAt ? " The visit is published, so it shows in their visits; they have not acknowledged it yet." : " The visit is not published to carers yet."} Remember to record the communication with the service user.`;
 }

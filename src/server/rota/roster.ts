@@ -1,3 +1,4 @@
+import { openPlaces, placeKey, type PlaceKey } from "@/lib/carer-places";
 import type { AbsenceKind, VisitStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { addDays, fmtLondonDate, fromDbDate, hhmm, isIsoDate, isoWeekday, londonDate, londonTime, londonToUtc, mondayOf } from "@/lib/london";
@@ -16,7 +17,8 @@ import { staffDirectoryWhere } from "./scope";
 export type ChipTone = "ok" | "review" | "empty" | "done" | "cancelled" | "missed" | "draft" | "active";
 export interface RosterChip {
   visitId: string;
-  slot: "PRIMARY" | "SECOND" | "SHADOW";
+  /** The carer place: "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … or "SHADOW". */
+  slot: PlaceKey;
   lockVersion: number;
   href: string;
   time: string;
@@ -135,13 +137,13 @@ export async function rosterWeek(ctx: Ctx, f: RosterFilters, chipHref: (visitId:
       const row = byRow.get(a.staffId) ?? { cells: blank(), minutes: 0 };
       const review = !!a.reviewReason && movable;
       if (review) counts.review++;
-      row.cells[di]!.push({ visitId: v.id, slot: a.slot as RosterChip["slot"], lockVersion: v.lockVersion, href: chipHref(v.id), time, label: `${name}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? " (2)" : ""}`, title: `${span}${state}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }), movable });
+      row.cells[di]!.push({ visitId: v.id, slot: placeKey(a), lockVersion: v.lockVersion, href: chipHref(v.id), time, label: `${name}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? ` (${v.carersRequired})` : ""}`, title: `${span}${state}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }), movable });
       if (v.status !== "CANCELLED" && a.slot !== "SHADOW") row.minutes += minutes;
       byRow.set(a.staffId, row);
     }
     if (v.flags.unassignedSlots > 0 && v.status !== "CANCELLED") {
-      const slot = v.assignments.some((a) => a.slot === "PRIMARY") ? "SECOND" : "PRIMARY";
-      unassigned[di]!.push({ visitId: v.id, slot, lockVersion: v.lockVersion, href: chipHref(v.id), time, label: `${name}${v.carersRequired > 1 ? " (2)" : ""}`, title: `${span} · drag to a carer to assign`, tone: "empty", movable });
+      const slot = openPlaces(v.carersRequired, v.assignments)[0] ?? "PRIMARY";
+      unassigned[di]!.push({ visitId: v.id, slot, lockVersion: v.lockVersion, href: chipHref(v.id), time, label: `${name}${v.carersRequired > 1 ? ` (${v.carersRequired})` : ""}`, title: `${span} · drag to a carer to assign`, tone: "empty", movable });
     }
   }
 
@@ -201,11 +203,13 @@ export interface TimelineBlock {
   tone: ChipTone;
   /** The visit itself, so a page can select it; one visit can appear on two carers' rows (a double-up). */
   visitId: string;
-  slot: "PRIMARY" | "SECOND" | "SHADOW" | "OPEN";
+  slot: PlaceKey | "OPEN";
   call: string;
   span: string;
   status: VisitStatus;
   double: boolean;
+  /** Carers the visit needs (1 to 20). */
+  carers: number;
 }
 export interface TimelineRow {
   id: string;
@@ -250,12 +254,12 @@ export async function dayTimeline(ctx: Ctx, date: string, visits: Awaited<Return
     const base = { start: minute(v.scheduledStart), end: minute(v.scheduledEnd), href: `/rota/visits/${v.id}` };
     const label = suName(v.serviceUser);
     const span = `${londonTime(v.scheduledStart)}–${londonTime(v.scheduledEnd)}`;
-    const more = { visitId: v.id, call: v.callType.name, span, status: v.status, double: v.carersRequired > 1 };
+    const more = { visitId: v.id, call: v.callType.name, span, status: v.status, double: v.carersRequired > 1, carers: v.carersRequired };
     if (v.runRoute) for (const a of v.assignments) runs.set(a.staffId, [...(runs.get(a.staffId) ?? []), v.runRoute.name]);
     for (const a of v.assignments) {
       const review = !!a.reviewReason && movable;
       const row = rows.get(a.staffId) ?? { id: a.staffId, name: a.staff.displayName, sub: "", href: names.has(a.staffId) ? `/rota/staff/${a.staffId}` : undefined, blocks: [] };
-      row.blocks.push({ ...base, ...more, slot: a.slot, id: `${v.id}:${a.slot}`, label: `${label}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? " (2)" : ""}`, sub: `${span} · ${v.callType.name}`, title: `${label}, ${v.callType.name} ${span}${published ? "" : " · draft, not yet published"}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }) });
+      row.blocks.push({ ...base, ...more, slot: placeKey(a), id: `${v.id}:${placeKey(a)}`, label: `${label}${a.slot === "SHADOW" ? " (shadow)" : v.carersRequired > 1 ? ` (${v.carersRequired})` : ""}`, sub: `${span} · ${v.callType.name}`, title: `${label}, ${v.callType.name} ${span}${published ? "" : " · draft, not yet published"}${review ? ` · Needs review: ${a.reviewReason}` : ""}`, tone: chipTone({ status: v.status, published, review }) });
       rows.set(a.staffId, row);
     }
     if (v.status === "CANCELLED" && !v.assignments.length) {

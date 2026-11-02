@@ -58,7 +58,7 @@ export async function printableRota(ctx: Ctx, input: PrintInput): Promise<{ pdf:
     include: {
       serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, addressLine1: true, town: true, postcode: true, keySafeCipher: true } },
       callType: { select: { name: true } },
-      assignments: { where: { removedAt: null }, select: { staffId: true, slot: true, staff: { select: { displayName: true } } } },
+      assignments: { where: { removedAt: null }, select: { staffId: true, slot: true, position: true, staff: { select: { displayName: true } } } },
       runRoute: { select: { name: true } },
     },
     orderBy: [{ date: "asc" }, { routeOrder: { sort: "asc", nulls: "last" } }, { scheduledStart: "asc" }],

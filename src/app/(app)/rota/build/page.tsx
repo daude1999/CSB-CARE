@@ -3,6 +3,7 @@ import { ArrowsClockwise, CheckCircle, Hammer, ProhibitInset } from "@phosphor-i
 import Link from "@/components/link";
 import { AppError } from "@/lib/errors";
 import { fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
+import { carersNeededLabel } from "@/lib/carer-places";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listBuilds, previewBuild, suggestBuildWeek, type BuildPlan } from "@/server/rota/build";
@@ -338,7 +339,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                   <p className="text-[13.5px] text-slate-700">
                     Copying {roll.sourceVisits} visits from {dmy(roll.sourceWeek)} into {roll.targetWeeks.map(dmy).join(", ")}. Care hours {(roll.forecastMinutes / 60).toFixed(1)}. Estimated basic pay for carers kept {pounds(roll.estimatedPayPence)}
                     {roll.slotsWithoutRate ? ` (${roll.slotsWithoutRate} carer slots have no pay rate and are not costed)` : ""}. Estimates use pay rate cards only and are not payroll figures.
-                    {roll.counts.doubleUpsShort ? <span className="text-[#a3242c]"> {roll.counts.doubleUpsShort} double-ups will be short of a carer.</span> : null}
+                    {roll.counts.doubleUpsShort ? <span className="text-[#a3242c]"> {roll.counts.doubleUpsShort} multi-carer visit{roll.counts.doubleUpsShort === 1 ? "" : "s"} will be short of a carer.</span> : null}
                   </p>
                   {roll.blockers.length ? (
                     <div role="alert" className="rounded-[4px] border border-[#f1c2c5] bg-[#fdf0f1] px-3 py-2">
@@ -361,7 +362,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                               <tr key={`${v.sourceVisitId}-${v.date}`}>
                                 <td className="whitespace-nowrap tabular-nums">{fmtLondonDate(v.date, { weekday: "short", day: "numeric", month: "short" })}</td>
                                 <td className="whitespace-nowrap tabular-nums">{londonTime(v.start)}–{londonTime(v.end)}</td>
-                                <td>{v.serviceUserName}<span className="block text-[12px] text-slate-500">{v.callType}{v.carersRequired > 1 ? " · double-up" : ""}</span></td>
+                                <td>{v.serviceUserName}<span className="block text-[12px] text-slate-500">{v.callType}{v.carersRequired > 1 ? ` · ${carersNeededLabel(v.carersRequired).toLowerCase()}` : ""}</span></td>
                                 <td>{v.slots.map((x) => x.fromName ?? "empty slot").join(", ")}</td>
                                 <td>
                                   <ul className="space-y-0.5">

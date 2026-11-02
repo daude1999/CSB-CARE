@@ -1,5 +1,6 @@
 import { CheckCircle, Clock, ForkKnife, Prohibit, UsersThree, XCircle, X, Coffee, Moon, Sun } from "@phosphor-icons/react/dist/ssr";
 import { hhmm } from "@/lib/london";
+import { carersNeededLabel } from "@/lib/carer-places";
 import type { TimelineBlock, TimelineRow } from "@/server/rota/roster";
 import { SHADE_CLASS, SHADE_TEXT } from "@/components/roster-tones";
 import { ScrollIntoNow } from "@/components/scroll-into-now";
@@ -114,7 +115,7 @@ export function DailyTimeline({ rows, axisStart, axisEnd, nowMinute, selected, f
                   {placed.map((b) => {
                     const k = cardKey(b);
                     const isSel = selected === b.visitId;
-                    const label = `${b.label.replace(/ \((2|shadow)\)$/, "")}, ${b.call} ${b.span}, ${b.slot === "OPEN" && b.status !== "CANCELLED" ? "no carer yet" : STATE_WORD[b.status] ?? b.status}${b.double ? ", double-up" : ""}${b.tone === "draft" ? ", not published" : ""}${b.tone === "review" ? ", needs review" : ""}`;
+                    const label = `${b.label.replace(/ \((\d+|shadow)\)$/, "")}, ${b.call} ${b.span}, ${b.slot === "OPEN" && b.status !== "CANCELLED" ? "no carer yet" : STATE_WORD[b.status] ?? b.status}${b.double ? `, ${carersNeededLabel(b.carers).toLowerCase()}` : ""}${b.tone === "draft" ? ", not published" : ""}${b.tone === "review" ? ", needs review" : ""}`;
                     return (
                       <a
                         key={b.id}
@@ -128,11 +129,11 @@ export function DailyTimeline({ rows, axisStart, axisEnd, nowMinute, selected, f
                         <span className="mt-0.5 shrink-0"><CallIcon b={b} /></span>
                         <span className="min-w-0 flex-1 leading-[16px]">
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-[13px] font-semibold text-[#0b1530]">{b.label.replace(/ \((2|shadow)\)$/, "")}</span>
+                            <span className="truncate text-[13px] font-semibold text-[#0b1530]">{b.label.replace(/ \((\d+|shadow)\)$/, "")}</span>
                             {b.slot === "SHADOW" ? <span className="shrink-0 text-[10.5px] text-slate-600">shadow</span> : null}
                           </span>
                           <span className="block truncate text-[12px] text-[#344054]">{b.call} {b.span} ({dur(b.end - b.start)})</span>
-                          {b.double ? <span className="mt-0.5 inline-block rounded-full border border-[#b9a8ee] bg-white px-1.5 text-[10.5px] font-semibold leading-[14px] text-[#5a3aa8]">Double-up{b.slot === "OPEN" && b.status !== "CANCELLED" ? ` · ${b.sub.split(" · ").pop()}` : ""}</span> : b.slot === "OPEN" && b.status !== "CANCELLED" ? <span className="block truncate text-[11.5px] font-medium text-[#8a5a00]">{b.sub.split(" · ").pop()}</span> : b.tone === "draft" ? <span className="block truncate text-[11.5px] text-slate-500">Not published</span> : b.tone === "review" ? <span className="block truncate text-[11.5px] font-medium text-[#7a4b00]">Needs review</span> : null}
+                          {b.double ? <span className="mt-0.5 inline-block rounded-full border border-[#b9a8ee] bg-white px-1.5 text-[10.5px] font-semibold leading-[14px] text-[#5a3aa8]">{carersNeededLabel(b.carers)}{b.slot === "OPEN" && b.status !== "CANCELLED" ? ` · ${b.sub.split(" · ").pop()}` : ""}</span> : b.slot === "OPEN" && b.status !== "CANCELLED" ? <span className="block truncate text-[11.5px] font-medium text-[#8a5a00]">{b.sub.split(" · ").pop()}</span> : b.tone === "draft" ? <span className="block truncate text-[11.5px] text-slate-500">Not published</span> : b.tone === "review" ? <span className="block truncate text-[11.5px] font-medium text-[#7a4b00]">Needs review</span> : null}
                         </span>
                       </a>
                     );

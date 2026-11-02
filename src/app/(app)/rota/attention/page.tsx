@@ -77,9 +77,10 @@ function Figure({ value, label, tone = "text-[#101828]", href, testId }: { value
 }
 
 function Coverage({ item }: { item: UnassignedItem }) {
-  const required = Math.min(2, item.visit.carersRequired);
-  const filled = required - item.openSlots.length;
-  const words = filled === 0 ? (required > 1 ? "both carers missing" : "no carer allocated") : "one carer missing";
+  const required = item.visit.carersRequired;
+  const missing = item.openSlots.length;
+  const filled = required - missing;
+  const words = required === 1 ? "no carer allocated" : filled === 0 ? (required === 2 ? "both carers missing" : `all ${required} carers missing`) : missing === 1 ? "one carer missing" : `${missing} carers missing`;
   return (
     <span title={`${filled} of ${required} carers booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold tabular-nums ${filled === 0 ? "bg-[#fdecec] text-[#b42318]" : "bg-[#fdf3d8] text-[#8a5a00]"}`}>
       <Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span>

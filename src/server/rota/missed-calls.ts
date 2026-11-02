@@ -69,7 +69,7 @@ export const OPEN_STAGES: MissedCallStage[] = ["NEW", "INVESTIGATING", "AWAITING
 export async function openMissedCase(tx: Db, v: { id: string; organisationId: string; serviceUserId: string; areaId: string | null; callTypeId: string; scheduledStart: Date }, now = new Date()) {
   const existing = await tx.missedCallCase.findUnique({ where: { visitId: v.id }, select: { id: true } });
   if (existing) return existing;
-  const booked = await tx.visitAssignment.findMany({ where: { visitId: v.id, removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true, slot: true }, orderBy: { slot: "asc" } });
+  const booked = await tx.visitAssignment.findMany({ where: { visitId: v.id, removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true, slot: true }, orderBy: { position: "asc" } });
   const staffId = booked.find((a) => a.slot === "PRIMARY")?.staffId ?? booked[0]?.staffId ?? null;
   const c = await tx.missedCallCase.create({
     data: { organisationId: v.organisationId, visitId: v.id, staffId, serviceUserId: v.serviceUserId, areaId: v.areaId, callTypeId: v.callTypeId, scheduledStart: v.scheduledStart, detectedAt: now, deadline: exceptionDeadline("MISSED", now) },
@@ -288,7 +288,7 @@ export async function missedCallRegister(ctx: Ctx, input: Record<string, string 
   // The four call rings for the same period and branch, as on the Monitor.
   const visits = await db.visit.findMany({
     where: { AND: [visitWhere(scope), branchAreas ? { areaId: { in: branchAreas } } : {}], date: { gte: dbDate(range.from), lte: dbDate(range.to) }, status: { not: "CANCELLED" } },
-    select: { id: true, recoveryOfId: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { select: { slot: true, removedAt: true, reviewReason: true } } },
+    select: { id: true, recoveryOfId: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { select: { slot: true, position: true, removedAt: true, reviewReason: true } } },
   });
   // A recovery visit booked for a missed call in the same period is the same care need: count it once.
   const counted = countedOnce(visits);

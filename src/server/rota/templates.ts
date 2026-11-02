@@ -6,6 +6,8 @@ import { dbDate, fromDbDate, isIsoDate, londonDate, londonToUtc } from "@/lib/lo
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { assertInScope, rotaScope, serviceUserWhere, templateScopeWhere, type Scope } from "./scope";
+import { MAX_CARERS, placeNumber, preferredOf, type PlaceKey } from "@/lib/carer-places";
+export { preferredOf, preferredFor } from "@/lib/carer-places";
 
 const ids = z.array(z.coerce.number().int());
 export const templateSchema = z
@@ -17,9 +19,11 @@ export const templateSchema = z
     weekdays: ids.refine((w) => w.length > 0 && w.every((n) => n >= 1 && n <= 7), "Choose at least one day"),
     startMinute: z.coerce.number().int().min(0, "Start time is required").max(1439),
     durationMin: z.coerce.number().int().min(5, "A visit lasts at least 5 minutes").max(1440, "A visit lasts at most 24 hours"),
-    carersRequired: z.coerce.number().int().min(1).max(2),
+    carersRequired: z.coerce.number({ invalid_type_error: "Enter how many carers are needed" }).int("Enter a whole number of carers").min(1, "A visit needs at least one carer").max(MAX_CARERS, `A visit can need at most ${MAX_CARERS} carers`),
     preferredStaff1Id: z.string().nullable().optional(),
     preferredStaff2Id: z.string().nullable().optional(),
+    /** Preferred carers for places 3 and above, in order; "" = no preference for that place. */
+    extraPreferredStaffIds: z.array(z.string().max(60)).max(MAX_CARERS - 2).default([]),
     shadowStaffId: z.string().nullable().optional(),
     timeLocked: z.boolean().default(false),
     medicationRequired: z.boolean().default(false),
@@ -32,9 +36,10 @@ export const templateSchema = z
     taskIds: z.array(z.string()).max(30).default([]),
   })
   .refine((t) => !t.effectiveTo || t.effectiveTo >= t.effectiveFrom, { message: "The end date must be after the start date", path: ["effectiveTo"] })
-  .refine((t) => t.carersRequired === 2 || !t.preferredStaff2Id, { message: "A second carer is only for double-up visits", path: ["preferredStaff2Id"] })
+  .refine((t) => t.carersRequired >= 2 || !t.preferredStaff2Id, { message: "A second carer is only for visits needing two or more carers", path: ["preferredStaff2Id"] })
   .refine((t) => !t.preferredStaff1Id || t.preferredStaff1Id !== t.preferredStaff2Id, { message: "The two carers of a double-up must be different people", path: ["preferredStaff2Id"] })
-  .refine((t) => !t.shadowStaffId || (t.shadowStaffId !== t.preferredStaff1Id && t.shadowStaffId !== t.preferredStaff2Id), { message: "The shadow carer must be someone else", path: ["shadowStaffId"] });
+  .refine((t) => { const all = preferredOf(t).filter((x): x is string => !!x); return new Set(all).size === all.length; }, { message: "Each carer place needs a different person", path: ["extraPreferredStaffIds"] })
+  .refine((t) => !t.shadowStaffId || !preferredOf(t).includes(t.shadowStaffId), { message: "The shadow carer must be someone else", path: ["shadowStaffId"] });
 
 export type TemplateInput = z.input<typeof templateSchema>;
 
@@ -56,7 +61,7 @@ async function checkRefs(tx: Prisma.TransactionClient, scope: Scope, t: ReturnTy
     const area = await tx.area.findFirst({ where: { id: t.areaId, organisationId: org } });
     assertInScope(scope, area ? { organisationId: area.organisationId, areaId: area.id } : null, "Area");
   }
-  const staffIds = [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId].filter((x): x is string => !!x);
+  const staffIds = [...preferredOf(t), t.shadowStaffId].filter((x): x is string => !!x);
   if (staffIds.length) {
     const found = await tx.staffMember.count({ where: { organisationId: org, id: { in: staffIds }, employmentStatus: { not: "ARCHIVED" } } });
     if (found !== new Set(staffIds).size) throw new ValidationError("A preferred carer is not an active member of staff");
@@ -77,7 +82,9 @@ function data(t: ReturnType<typeof parse>, areaId: string | null) {
     durationMin: t.durationMin,
     carersRequired: t.carersRequired,
     preferredStaff1Id: t.preferredStaff1Id || null,
-    preferredStaff2Id: t.carersRequired === 2 ? t.preferredStaff2Id || null : null,
+    preferredStaff2Id: t.carersRequired >= 2 ? t.preferredStaff2Id || null : null,
+    // Only the places the template has; trailing empty places are not stored.
+    extraPreferredStaffIds: trimTrailing(preferredOf(t).slice(2).map((x) => x ?? "")),
     shadowStaffId: t.shadowStaffId || null,
     timeLocked: t.timeLocked,
     medicationRequired: t.medicationRequired,
@@ -88,6 +95,12 @@ function data(t: ReturnType<typeof parse>, areaId: string | null) {
     effectiveTo: t.effectiveTo ? dbDate(t.effectiveTo) : null,
     notes: t.notes?.trim() || null,
   };
+}
+
+function trimTrailing(list: string[]) {
+  const out = [...list];
+  while (out.length && !out[out.length - 1]) out.pop();
+  return out;
 }
 
 export async function createTemplate(ctx: Ctx, input: TemplateInput) {
@@ -224,7 +237,7 @@ export async function previewTemplateChanges(ctx: Ctx, templateId: string): Prom
     if (v.status !== "SCHEDULED" || v.clocks.length || v.scheduledStart <= new Date()) return { ...base, apply: false, reason: "Started or finished: history is kept" };
     if (v.manuallyChanged) return { ...base, apply: false, reason: "Changed by hand: left as it is" };
     if (v.timeLocked && diffs.includes("times")) return { ...base, apply: false, reason: "Time locked" };
-    if (v.carersRequired === 2 && t.carersRequired === 1) return { ...base, apply: false, reason: "Reducing a double-up needs a coordinator to choose who stays" };
+    if (t.carersRequired < v.carersRequired) return { ...base, apply: false, reason: v.carersRequired === 2 && t.carersRequired === 1 ? "Reducing a double-up needs a coordinator to choose who stays" : "Reducing the number of carers needs a coordinator to choose who stays" };
     return { ...base, apply: true };
   });
   return { template: t, impacts };
@@ -264,7 +277,7 @@ export async function applyTemplateChanges(ctx: Ctx, templateId: string, templat
  * Moves one slot of a template to another carer (Template Planner). Refused when that carer already has a switched-on
  * template overlapping it on a shared cycle week and day. Built visits are unchanged; Build Rota re-checks everyone.
  */
-export async function setTemplateCarer(ctx: Ctx, templateId: string, version: number, slot: "PRIMARY" | "SECOND" | "SHADOW", staffId: string | null) {
+export async function setTemplateCarer(ctx: Ctx, templateId: string, version: number, slot: PlaceKey, staffId: string | null) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction(async (tx) => {
     const t = await loadTemplate(tx, scope, templateId);
@@ -273,20 +286,21 @@ export async function setTemplateCarer(ctx: Ctx, templateId: string, version: nu
   });
 }
 
-async function setCarerInTx(tx: Prisma.TransactionClient, scope: Scope, actorId: string, t: VisitTemplate, slot: "PRIMARY" | "SECOND" | "SHADOW", staffId: string | null) {
-  if (slot === "SECOND" && t.carersRequired < 2) throw new ValidationError("This template needs one carer");
-  const field = slot === "PRIMARY" ? "preferredStaff1Id" : slot === "SECOND" ? "preferredStaff2Id" : "shadowStaffId";
+async function setCarerInTx(tx: Prisma.TransactionClient, scope: Scope, actorId: string, t: VisitTemplate, slot: PlaceKey, staffId: string | null) {
+  const n = placeNumber(slot);
+  if (n !== null && n > t.carersRequired) throw new ValidationError(t.carersRequired === 1 ? "This template needs one carer" : `This template needs ${t.carersRequired} carers`);
+  const places = preferredOf(t);
   if (staffId) {
     const s = await tx.staffMember.findFirst({ where: { id: staffId, organisationId: scope.organisationId, employmentStatus: { not: "ARCHIVED" }, hrMissing: false } });
     if (!s) throw new NotFoundError("Staff member");
-    const others = [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId].filter((x, i) => x && ["preferredStaff1Id", "preferredStaff2Id", "shadowStaffId"][i] !== field);
+    const others = [...places.filter((_, i) => i + 1 !== n), slot === "SHADOW" ? null : t.shadowStaffId].filter((x): x is string => !!x);
     if (others.includes(staffId)) throw new ValidationError("This carer is already on this visit");
     const clash = await tx.visitTemplate.findFirst({
       where: {
         organisationId: scope.organisationId,
         enabled: true,
         id: { not: t.id },
-        OR: [{ preferredStaff1Id: staffId }, { preferredStaff2Id: staffId }, { shadowStaffId: staffId }],
+        OR: [{ preferredStaff1Id: staffId }, { preferredStaff2Id: staffId }, { shadowStaffId: staffId }, { extraPreferredStaffIds: { has: staffId } }],
         cycleWeeks: { hasSome: t.cycleWeeks },
         weekdays: { hasSome: t.weekdays },
         startMinute: { lt: t.startMinute + t.durationMin },
@@ -295,19 +309,28 @@ async function setCarerInTx(tx: Prisma.TransactionClient, scope: Scope, actorId:
     });
     if (clash && clash.startMinute + clash.durationMin > t.startMinute) throw new ValidationError(`${s.displayName} already has ${clash.serviceUser.firstName} ${clash.serviceUser.lastName} at an overlapping time in this pattern`);
   }
-  await tx.visitTemplate.update({ where: { id: t.id }, data: { [field]: staffId, version: { increment: 1 } } });
+  let data: Prisma.VisitTemplateUpdateInput;
+  if (n === null) data = { shadowStaffId: staffId };
+  else if (n === 1) data = { preferredStaff1Id: staffId };
+  else if (n === 2) data = { preferredStaff2Id: staffId };
+  else {
+    const extra = places.slice(2).map((x) => x ?? "");
+    extra[n - 3] = staffId ?? "";
+    data = { extraPreferredStaffIds: trimTrailing(extra) };
+  }
+  await tx.visitTemplate.update({ where: { id: t.id }, data: { ...data, version: { increment: 1 } } });
   await audit({ organisationId: scope.organisationId, actorId, action: "template.carer.changed", entityType: "VisitTemplate", entityId: t.id, data: { slot, staffId } }, tx);
 }
 
 export type TemplateBulkAction =
-  | { kind: "assign"; staffId: string; slot: "PRIMARY" | "SECOND" | "SHADOW" }
-  | { kind: "unassign"; slot: "PRIMARY" | "SECOND" | "SHADOW" }
+  | { kind: "assign"; staffId: string; slot: PlaceKey }
+  | { kind: "unassign"; slot: PlaceKey }
   | { kind: "editTime"; startMinute: number }
   | { kind: "editDuration"; minutes: number }
   | { kind: "editService"; callTypeId: string }
   | { kind: "lock"; on: boolean }
   | { kind: "alert"; on: boolean }
-  | { kind: "doubleUp"; carers: 1 | 2 };
+  | { kind: "doubleUp"; carers: number };
 
 /**
  * The Daily Templates bulk actions that change a field (OnePlan's Reassign, Unassign, Edit Time, Edit Duration, Edit
@@ -321,6 +344,7 @@ export async function bulkTemplates(ctx: Ctx, templateIds: string[], action: Tem
   if (action.kind === "editTime" && (!Number.isInteger(action.startMinute) || action.startMinute < 0 || action.startMinute > 1439)) throw new ValidationError("Enter a start time");
   if (action.kind === "editDuration" && (!Number.isInteger(action.minutes) || action.minutes < 5 || action.minutes > 1440)) throw new ValidationError("A visit lasts 5 minutes to 24 hours");
   if (action.kind === "editService" && !(await db.callType.findFirst({ where: { id: action.callTypeId, organisationId: scope.organisationId, active: true } }))) throw new NotFoundError("Service call");
+  if (action.kind === "doubleUp" && (!Number.isInteger(action.carers) || action.carers < 1 || action.carers > MAX_CARERS)) throw new ValidationError(`Choose 1 to ${MAX_CARERS} carers`);
   const results: { id: string; ok: boolean; message?: string }[] = [];
   for (const id of [...new Set(templateIds)]) {
     try {
@@ -350,7 +374,8 @@ export async function bulkTemplates(ctx: Ctx, templateIds: string[], action: Tem
             patch = { alertOnLate: action.on };
             break;
           case "doubleUp":
-            patch = action.carers === 2 ? { carersRequired: 2 } : { carersRequired: 1, preferredStaff2Id: null };
+            // Preferred carers beyond the new number are dropped from the pattern; built visits keep their carers.
+            patch = { carersRequired: action.carers, ...(action.carers < 2 ? { preferredStaff2Id: null } : {}), extraPreferredStaffIds: trimTrailing(t.extraPreferredStaffIds.slice(0, Math.max(0, action.carers - 2))) };
             break;
         }
         await tx.visitTemplate.update({ where: { id }, data: { ...patch, version: { increment: 1 } } });
@@ -393,7 +418,7 @@ async function templateWhere(scope: Scope, f: TemplateFilters): Promise<Prisma.V
         { serviceUser: { reference: contains } },
         { callType: { name: contains } },
         ...(ref ? [{ id: { endsWith: ref } }] : []),
-        ...(staffIds.length ? [{ preferredStaff1Id: { in: staffIds } }, { preferredStaff2Id: { in: staffIds } }] : []),
+        ...(staffIds.length ? [{ preferredStaff1Id: { in: staffIds } }, { preferredStaff2Id: { in: staffIds } }, { extraPreferredStaffIds: { hasSome: staffIds } }] : []),
       ],
     }];
   }
@@ -404,14 +429,23 @@ async function templateWhere(scope: Scope, f: TemplateFilters): Promise<Prisma.V
       ...(f.serviceUserId ? [{ serviceUserId: f.serviceUserId }] : []),
       ...(f.areaId ? [{ areaId: f.areaId }] : []),
       ...(f.callTypeId ? [{ callTypeId: f.callTypeId }] : []),
-      ...(f.staffId ? [{ OR: [{ preferredStaff1Id: f.staffId }, { preferredStaff2Id: f.staffId }, { shadowStaffId: f.staffId }] }] : []),
+      ...(f.staffId ? [{ OR: [{ preferredStaff1Id: f.staffId }, { preferredStaff2Id: f.staffId }, { shadowStaffId: f.staffId }, { extraPreferredStaffIds: { has: f.staffId } }] }] : []),
       ...(f.week ? [{ cycleWeeks: { has: f.week } }] : []),
       ...(f.day ? [{ weekdays: { has: f.day } }] : []),
       ...(f.state === "off" ? [{ enabled: false }] : f.state === "all" ? [] : [{ enabled: true }]),
-      ...(f.noCarer ? [{ OR: [{ preferredStaff1Id: null }, { carersRequired: 2, preferredStaff2Id: null }] }] : []),
+      ...(f.noCarer ? [{ OR: [{ preferredStaff1Id: null }, { carersRequired: { gte: 2 }, preferredStaff2Id: null }, { id: { in: await shortExtraTemplateIds(scope.organisationId) } }] }] : []),
       ...search,
     ],
   };
+}
+
+/** Templates needing three or more carers with an empty preferred place from 3 upwards. */
+async function shortExtraTemplateIds(organisationId: string) {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "VisitTemplate"
+    WHERE "organisationId" = ${organisationId} AND "carersRequired" > 2
+      AND cardinality(array_remove("extraPreferredStaffIds", '')) < "carersRequired" - 2`;
+  return rows.map((r) => r.id);
 }
 
 const listInclude = {
@@ -421,10 +455,10 @@ const listInclude = {
 } satisfies Prisma.VisitTemplateInclude;
 
 /** Areas, run routes and carers named on a set of templates, looked up inside the caller's organisation only. */
-async function decorate<T extends { areaId: string | null; runRouteTemplateId: string | null; preferredStaff1Id: string | null; preferredStaff2Id: string | null; shadowStaffId: string | null }>(organisationId: string, rows: T[]) {
+async function decorate<T extends { areaId: string | null; runRouteTemplateId: string | null; carersRequired: number; preferredStaff1Id: string | null; preferredStaff2Id: string | null; extraPreferredStaffIds: string[]; shadowStaffId: string | null }>(organisationId: string, rows: T[]) {
   const areaIds = [...new Set(rows.map((r) => r.areaId).filter((x): x is string => !!x))];
   const routeIds = [...new Set(rows.map((r) => r.runRouteTemplateId).filter((x): x is string => !!x))];
-  const staffIds = [...new Set(rows.flatMap((r) => [r.preferredStaff1Id, r.preferredStaff2Id, r.shadowStaffId]).filter((x): x is string => !!x))];
+  const staffIds = [...new Set(rows.flatMap((r) => [...preferredOf(r), r.shadowStaffId]).filter((x): x is string => !!x))];
   const [areas, routes, staff] = await Promise.all([
     areaIds.length ? db.area.findMany({ where: { organisationId, id: { in: areaIds } }, select: { id: true, name: true, colour: true } }) : [],
     routeIds.length ? db.runRouteTemplate.findMany({ where: { organisationId, id: { in: routeIds } }, select: { id: true, name: true, colour: true, textColour: true } }) : [],
@@ -440,6 +474,8 @@ async function decorate<T extends { areaId: string | null; runRouteTemplateId: s
     runRoute: t.runRouteTemplateId ? routeById.get(t.runRouteTemplateId) ?? null : null,
     carer1: person(t.preferredStaff1Id),
     carer2: person(t.preferredStaff2Id),
+    /** The preferred carer for every place, in order (place 1 first); null = none chosen. */
+    carers: preferredOf(t).map(person),
     shadow: person(t.shadowStaffId),
   }));
 }
@@ -497,9 +533,10 @@ export async function templateDetails(ctx: Ctx, id: string) {
   const futureVisits = await db.visit.count({ where: { organisationId: scope.organisationId, templateId: id, date: { gte: dbDate(today) }, status: "SCHEDULED" } });
   const warnings: string[] = [];
   if (!t!.enabled) warnings.push("Switched off: Build Rota skips this template until it is enabled.");
-  const filled = [t!.preferredStaff1Id, t!.carersRequired > 1 ? t!.preferredStaff2Id : null].filter(Boolean).length;
-  if (filled < t!.carersRequired) warnings.push(filled === 0 ? `No carer planned: needs ${t!.carersRequired === 2 ? "two carers" : "a carer"}.` : "Double-up is missing its second carer.");
-  for (const c of [t!.carer1, t!.carersRequired > 1 ? t!.carer2 : null]) {
+  const filled = t!.carers.filter(Boolean).length;
+  const need = t!.carersRequired;
+  if (filled < need) warnings.push(filled === 0 ? `No carer planned: needs ${need === 1 ? "a carer" : need === 2 ? "two carers" : `${need} carers`}.` : need === 2 ? "Double-up is missing its second carer." : `${need - filled} of ${need} carer places have no carer planned.`);
+  for (const c of t!.carers) {
     if (c && (c.employmentStatus === "ARCHIVED" || c.hrMissing)) warnings.push(`${c.displayName} is no longer active in HR. Choose another carer.`);
     else if (c && c.employmentStatus === "ONBOARDING") warnings.push(`${c.displayName} is still onboarding. Build Rota checks readiness before booking them.`);
   }
