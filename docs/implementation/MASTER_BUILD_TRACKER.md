@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## HR overview, People and Recruitment redesign (2 Nov 2026, draft PR)
+Built to the owner's approved HR concept: the HR Dashboard became "HR overview" (four figures, Action required with
+working Review links, Coming up), People is one clean directory, and Recruitment is a pipeline board of all six real
+stages. Shared HR tokens and components under `.hr-ui`. Details and counting rules: `HR_OVERVIEW_REDESIGN.md`.
+
 ## HR Assign Training and Send Reminder (2 Nov 2026, draft PR)
 The two buttons under "Due this week" on Checks & Training now work. Assign Training records a course, date and HR
 follow-up task per person without touching checks or rota readiness; Send Reminder sends an in-app (bell) reminder to
@@ -124,7 +129,8 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 6b OnePlan structure | Done | Rota Dashboard, menu, Daily Rota and Advanced Rota rebuilt to OnePlan's structure at the owner's request (see ARCHITECTURE_DECISIONS) |
 | UI polish (29 Oct) | Done on branch `claude/project-thread-i7uu8j` | Navigation and motion pass across all modules: motion tokens, instant portal/sidebar feedback, progress bar, page entrance, placeholders, pending buttons, dialogs, reduced motion, HR boundary kept. See UI_MOTION_AND_NAVIGATION.md |
 | Multi-carer visits (2 Nov) | Merged (#60) | Any number of carers 1 to 20 with numbered places across rota, templates, build, roll forward, unassigned, cover, missed calls, optimiser and bulk. See MULTI_CARER_VISITS.md |
-| Medication Lead (2 Nov) | Built, merging | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
+| Medication Lead (2 Nov) | Merged (#61) | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
+| Service user records (2 Nov) | Built, merging | Grouped profile sections (folds in #58); risk assessment versions with actions and who is responsible; who was told about an incident; risk review prompts; visit notes per person; records summary. Documents and body map are a separate build. See SERVICE_USER_RECORDS.md |
 | Documents and Body Map (2 Nov) | Built, PR open | Council Documents and Other Documents (separate sections, versions, restricted sensitive files, audited previews and downloads) and the Digital Body Map (front/back/left/right, follow-ups, photos, manager incident decision) in the service user profile. Files kept in private database storage on Vercel. See SERVICE_USER_DOCUMENTS_BODY_MAP.md |
 | 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 

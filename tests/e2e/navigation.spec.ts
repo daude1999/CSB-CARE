@@ -64,20 +64,22 @@ test.describe("Portal switching", () => {
     const rotaTitleFont = await page.getByTestId("title-bar").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily);
     await portal(page, "hr").click();
     await expect(page).toHaveURL(/\/hr\/dashboard/);
-    // The same sidebar, top bar and module title bar as every other module, with the HR Hub's screens in the menu.
-    await expect(page.getByRole("heading", { level: 1, name: "HR Dashboard" })).toBeVisible();
+    // The same sidebar and top bar as every other module, with the HR Hub's screens in the menu. The HR overview has
+    // the approved light heading instead of a coloured title bar.
+    await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
     await expect(portal(page, "hr")).toHaveClass(/shell-portal-current/);
     await expect(currentPage(page)).toHaveText("HR Dashboard");
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
     await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
-    // The HR Hub's styles stop at its own root: the shell's title bar reads exactly as it does on Rostering.
-    await expect(page.getByTestId("title-bar").locator("h1")).toHaveCSS("font-family", rotaTitleFont);
+    // The HR Hub's styles stop at its own root: the HR heading uses exactly the platform's typeface, as on Rostering.
+    expect(rotaTitleFont.split(",")[0]).toBe('"Inter Variable"');
+    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Inter Variable"');
 
     // Between HR screens the page is not reloaded.
     await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));
     await sidebar(page).getByRole("link", { name: "People", exact: true }).click();
     await expect(page).toHaveURL(/\/hr\/people/);
-    await expect(page.getByTestId("title-bar").getByRole("heading", { level: 1, name: "People" })).toBeVisible();
+    await expect(page.getByTestId("hr-heading").getByRole("heading", { level: 1, name: "People" })).toBeVisible();
     await expect(currentPage(page)).toHaveText("People");
     expect(await page.evaluate(() => (window as unknown as { stay?: number }).stay)).toBe(1);
 
@@ -99,7 +101,7 @@ test.describe("Portal switching", () => {
   test("on HR pages the top-bar search opens the HR Hub's search, from the box or with Ctrl+K", async ({ page }) => {
     await signIn(page);
     await page.goto("/hr/dashboard");
-    await expect(page.getByRole("heading", { level: 1, name: "HR Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
     await page.locator("header").getByRole("button", { name: "Search people or documents" }).first().click();
     const dialog = page.getByRole("dialog", { name: "Search or jump to" });
     await expect(dialog).toBeVisible();
@@ -215,7 +217,9 @@ test.describe("Sidebar", () => {
     await expect(page).toHaveURL(/\/rota\/routes$/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
     await page.goto("/rota/care-plans");
-    for (const name of ["Service Users", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["Service Users", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    // Care plans and risk assessments now open inside each service user's profile.
+    await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name: "Care Plans", exact: true })).toHaveCount(0);
     await page.goto("/rota/finance");
     for (const name of ["Finance Overview", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
     // Staff administration lives in HR & Workforce; the rota keeps its operational staff pages as Daily Rota tabs.

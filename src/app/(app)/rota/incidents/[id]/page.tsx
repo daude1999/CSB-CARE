@@ -30,22 +30,25 @@ export default async function IncidentPage({ params, searchParams }: { params: P
           <Card title="What happened" actions={<span className="flex flex-wrap gap-1"><SeverityBadge severity={i.severity} /><IncidentStatusBadge status={i.status} />{i.safeguarding ? <Badge tone="rose">Safeguarding</Badge> : null}{i.notifiable ? <Badge tone="violet">May need notifying</Badge> : null}</span>}>
             <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Field label="When">{fmtDate(i.occurredAt, true)}</Field>
-              <Field label="Person">{i.serviceUser ? (manage ? <Link href={`/rota/care-plans/${i.serviceUser.id}`}>{suName(i.serviceUser)}</Link> : suName(i.serviceUser)) : "Not about a particular person"}</Field>
+              <Field label="Person">{i.serviceUser ? (manage ? <Link href={`/rota/service-users/${i.serviceUser.id}?tab=incidents`}>{suName(i.serviceUser)}</Link> : suName(i.serviceUser)) : "Not about a particular person"}</Field>
               <Field label="Staff member">{staff?.displayName ?? "—"}</Field>
               <Field label="Visit">{visit ? (manage ? <Link href={`/rota/visits/${visit.id}`}>{visit.reference}</Link> : visit.reference) : "—"}</Field>
             </div>
             <p className="whitespace-pre-line text-[14.5px]">{i.description}</p>
             {i.immediateAction ? <><h3 className="mt-3 text-[13.5px] font-semibold">Immediate action</h3><p className="whitespace-pre-line text-[14.5px]">{i.immediateAction}</p></> : null}
+            <h3 className="mt-3 text-[13.5px] font-semibold">Who was told</h3><p className="whitespace-pre-line text-[14.5px]">{i.peopleNotified ?? <span className="text-slate-600">Not recorded</span>}</p>
             {i.outcome ? <><h3 className="mt-3 text-[13.5px] font-semibold">Outcome</h3><p className="whitespace-pre-line text-[14.5px]">{i.outcome}</p><p className="text-[13px] text-slate-600">Closed by {who(i.closedById)} on {i.closedAt ? fmtDate(i.closedAt, true) : ""}</p></> : null}
           </Card>
           <Card title="Timeline">
             <ol className="rows text-[13.5px]">
               {history.map((h) => {
-                const d = (h.data ?? {}) as { note?: string; reason?: string; to?: { severity?: string; safeguarding?: boolean; notifiable?: boolean } };
+                const d = (h.data ?? {}) as { note?: string; reason?: string; to?: { severity?: string; safeguarding?: boolean; notifiable?: boolean }; peopleNotified?: string | { to?: string | null } | null };
+                const told = typeof d.peopleNotified === "string" ? d.peopleNotified : d.peopleNotified?.to;
                 return (
                   <li key={h.id} className="py-2">
                     <span className="font-medium">{ACTION[h.action] ?? h.action}</span> · {who(h.actorId)} · {fmtDate(h.createdAt, true)}
                     {d.to ? <span className="block text-slate-600">Severity {d.to.severity?.toLowerCase()}{d.to.safeguarding ? ", safeguarding" : ""}{d.to.notifiable ? ", may need notifying" : ""}</span> : null}
+                    {told ? <span className="block text-slate-600">Told: {told}</span> : null}
                     {d.note || d.reason ? <span className="block whitespace-pre-line text-slate-700">{d.note ?? d.reason}</span> : null}
                   </li>
                 );
@@ -65,6 +68,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
                     <label className="block"><span className="label">Severity</span><select name="severity" defaultValue={i.severity} className="input"><option value="LOW">Low</option><option value="MODERATE">Moderate</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></select></label>
                     <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="safeguarding" defaultChecked={i.safeguarding} className="h-4 w-4" /> Safeguarding concern</label>
                     <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="notifiable" defaultChecked={i.notifiable} className="h-4 w-4" /> May need a statutory notification</label>
+                    <label className="block"><span className="label">Who has been told</span><input name="peopleNotified" maxLength={1000} defaultValue={i.peopleNotified ?? ""} className="input" placeholder="Family, GP, social worker, safeguarding team" /></label>
                     <label className="block"><span className="label">Note</span><textarea name="note" rows={2} required minLength={3} className="input" /></label>
                     <button className="btn-secondary">{i.status === "OPEN" ? "Start investigating" : "Save review"}</button>
                   </form>

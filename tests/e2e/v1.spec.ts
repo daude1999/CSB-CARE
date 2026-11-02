@@ -84,7 +84,9 @@ test.describe("Version 1", () => {
     await signIn(page, "coordinator@care-solution.demo");
     await page.goto("/rota/service-users");
     await page.locator("table tbody a").first().click();
-    await page.getByRole("link", { name: "Care package", exact: true }).click();
+    // Care package and Medication sit under the profile's Care group.
+    await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Care", exact: true }).click();
+    await page.getByRole("navigation", { name: "Care sections" }).getByRole("link", { name: "Care package", exact: true }).click();
     await expect(page.getByText(/Repeating visits plan/).first()).toBeVisible();
     const form = page.locator("form:has(input[name=serviceUserId])");
     await form.locator("input[name=reference]").fill("PKG-E2E");
@@ -200,7 +202,9 @@ test.describe("Version 1", () => {
     await expect(page.getByText(/Clinical review: E2E: reviewed by the registered nurse/)).toBeVisible();
     await page.goto("/rota/service-users");
     await page.locator("table tbody a").first().click();
-    await page.getByRole("link", { name: "Medication", exact: true }).click();
+    // Care package and Medication sit under the profile's Care group.
+    await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Care", exact: true }).click();
+    await page.getByRole("navigation", { name: "Care sections" }).getByRole("link", { name: "Medication", exact: true }).click();
     const add = page.locator("form:has(input[name=dose])").first();
     await add.locator("input[name=name]").fill("E2E Paracetamol");
     await add.locator("input[name=dose]").fill("2 tablets");

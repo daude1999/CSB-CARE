@@ -18,6 +18,8 @@ type Tx = Prisma.TransactionClient;
 
 export const INCIDENT_CATEGORIES = ["Fall", "Injury", "Medication error", "Missed or late call", "Safeguarding concern", "Behaviour", "Property or key safe", "Health deterioration", "Complaint", "Other"] as const;
 const SEVERITIES: IncidentSeverity[] = ["LOW", "MODERATE", "HIGH", "CRITICAL"];
+/** Kinds of incident that prompt a review of the person's risk assessments, whatever their severity. */
+const RISK_PROMPT_CATEGORIES = new Set<string>(["Fall", "Injury", "Medication error", "Health deterioration", "Behaviour"]);
 
 const reportSchema = z.object({
   serviceUserId: z.string().optional(),
@@ -28,6 +30,7 @@ const reportSchema = z.object({
   severity: z.enum(["LOW", "MODERATE", "HIGH", "CRITICAL"], { message: "Choose how serious it was" }),
   description: z.string().trim().min(20, "Describe what happened (at least a couple of sentences)").max(8000),
   immediateAction: z.string().trim().max(4000).optional(),
+  peopleNotified: z.string().trim().max(1000).optional(),
   safeguarding: z.boolean().default(false),
 });
 export type ReportInput = z.input<typeof reportSchema>;
@@ -72,12 +75,18 @@ export async function reportIncident(ctx: Ctx, input: ReportInput | Record<strin
       const v = await tx.visit.findFirst({ where: { id: d.visitId, organisationId, ...(d.serviceUserId ? { serviceUserId: d.serviceUserId } : {}) }, select: { id: true } });
       visitId = v?.id ?? null;
     }
-    const inc = await tx.incident.create({ data: { organisationId, reference: await nextReference(tx, organisationId), serviceUserId: d.serviceUserId || null, staffId: staff?.id ?? null, visitId, occurredAt, category: d.category, severity: d.severity, description: d.description, immediateAction: d.immediateAction || null, safeguarding: d.safeguarding || d.category === "Safeguarding concern", reportedById: ctx.userId } });
+    const inc = await tx.incident.create({ data: { organisationId, reference: await nextReference(tx, organisationId), serviceUserId: d.serviceUserId || null, staffId: staff?.id ?? null, visitId, occurredAt, category: d.category, severity: d.severity, description: d.description, immediateAction: d.immediateAction || null, peopleNotified: d.peopleNotified || null, safeguarding: d.safeguarding || d.category === "Safeguarding concern", reportedById: ctx.userId } });
     if (inc.safeguarding || d.severity === "HIGH" || d.severity === "CRITICAL") {
       const title = `${inc.safeguarding ? "Safeguarding concern" : `${d.severity.toLowerCase()} incident`} reported: ${inc.reference}`;
       await tx.notification.createMany({ data: (await managers(tx, organisationId)).filter((u) => u !== ctx.userId).map((userId) => ({ organisationId, userId, type: "incident.reported", title, body: `${d.category}. Open the incident to review it and decide the next steps.`, reason: "You manage incidents for this organisation.", actionUrl: `/rota/incidents/${inc.id}`, dedupeKey: `incident:${inc.id}:${userId}` })), skipDuplicates: true });
     }
-    await audit({ organisationId, actorId: ctx.userId, action: "incident.reported", entityType: "Incident", entityId: inc.id, data: { reference: inc.reference, severity: d.severity, category: d.category, safeguarding: inc.safeguarding } }, tx);
+    // An incident about a person is a prompt to look again at their risk assessments. The prompt never changes an
+    // assessment itself: a manager opens the person's Risk Assessments and decides.
+    if (inc.serviceUserId && (RISK_PROMPT_CATEGORIES.has(d.category) || d.severity === "HIGH" || d.severity === "CRITICAL")) {
+      const title = `Review risk assessments after ${inc.reference}`;
+      await tx.notification.createMany({ data: (await managers(tx, organisationId)).map((userId) => ({ organisationId, userId, type: "risk.review.prompt", title, body: `${d.category} reported for a person you support. Check whether their risk assessments still hold.`, reason: "An incident was reported about a person whose risk assessments you manage.", actionUrl: `/rota/service-users/${inc.serviceUserId}?tab=risks`, dedupeKey: `risk-prompt:${inc.id}:${userId}` })), skipDuplicates: true });
+    }
+    await audit({ organisationId, actorId: ctx.userId, action: "incident.reported", entityType: "Incident", entityId: inc.id, data: { reference: inc.reference, severity: d.severity, category: d.category, safeguarding: inc.safeguarding, peopleNotified: inc.peopleNotified } }, tx);
     return inc;
   });
 }
@@ -131,7 +140,7 @@ async function lockIncident(tx: Tx, organisationId: string, id: string, version:
 }
 
 /** Manager triage: severity, safeguarding and the "may need notifying" reminder, with a note. */
-export async function triageIncident(ctx: Ctx, id: string, version: number, input: { severity: string; safeguarding: boolean; notifiable: boolean; note: string }) {
+export async function triageIncident(ctx: Ctx, id: string, version: number, input: { severity: string; safeguarding: boolean; notifiable: boolean; note: string; peopleNotified?: string }) {
   const organisationId = requireOrgPermission(ctx, "incident.manage");
   const severity = SEVERITIES.find((s) => s === input.severity);
   if (!severity) throw new ValidationError("Choose the severity");
@@ -139,9 +148,11 @@ export async function triageIncident(ctx: Ctx, id: string, version: number, inpu
   return db.$transaction(async (tx) => {
     const inc = await lockIncident(tx, organisationId, id, version);
     if (inc.status === "CLOSED") throw new ValidationError("Reopen the incident before changing it");
-    const { count } = await tx.incident.updateMany({ where: { id: inc.id, version }, data: { severity, safeguarding: input.safeguarding, notifiable: input.notifiable, status: inc.status === "OPEN" ? "INVESTIGATING" : inc.status, investigatorId: inc.investigatorId ?? ctx.userId, version: { increment: 1 } } });
+    const told = input.peopleNotified?.trim().slice(0, 1000);
+    const notified = told !== undefined && told !== (inc.peopleNotified ?? "") ? told || null : undefined;
+    const { count } = await tx.incident.updateMany({ where: { id: inc.id, version }, data: { severity, safeguarding: input.safeguarding, notifiable: input.notifiable, ...(notified !== undefined ? { peopleNotified: notified } : {}), status: inc.status === "OPEN" ? "INVESTIGATING" : inc.status, investigatorId: inc.investigatorId ?? ctx.userId, version: { increment: 1 } } });
     if (!count) throw new ConflictError("Someone else updated this incident since you opened it. Reload and try again.");
-    await audit({ organisationId, actorId: ctx.userId, action: "incident.triaged", entityType: "Incident", entityId: inc.id, data: { from: { severity: inc.severity, safeguarding: inc.safeguarding, notifiable: inc.notifiable }, to: { severity, safeguarding: input.safeguarding, notifiable: input.notifiable }, note: input.note.trim() } }, tx);
+    await audit({ organisationId, actorId: ctx.userId, action: "incident.triaged", entityType: "Incident", entityId: inc.id, data: { from: { severity: inc.severity, safeguarding: inc.safeguarding, notifiable: inc.notifiable }, to: { severity, safeguarding: input.safeguarding, notifiable: input.notifiable }, ...(notified !== undefined ? { peopleNotified: { from: inc.peopleNotified, to: notified } } : {}), note: input.note.trim() } }, tx);
   });
 }
 

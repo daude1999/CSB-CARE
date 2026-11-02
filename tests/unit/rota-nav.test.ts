@@ -88,12 +88,15 @@ describe("the Rota side menu", () => {
     expect(lit(admin, "/rota/visits/v1"), "a visit").toBe("Daily Rota");
   });
 
-  it("keeps every former page reachable as a tab of its destination (or, for Add Visit and Rota Home, its own page)", () => {
+  it("keeps general workspaces as tabs, but care records inside each individual service user", () => {
     const all = (["daily", "attention", "monitor", "templates", "people", "finance", "reports"] as RotaWorkspace[]).flatMap((w) => rotaWorkspaceTabs(admin, w).map((t) => t.href));
     for (const [href] of FORMER) {
-      if (["/rota", "/rota/visits/new", "/rota/settings"].includes(href)) continue;
+      if (["/rota", "/rota/visits/new", "/rota/settings", "/rota/care-plans", "/rota/risks"].includes(href)) continue;
       expect(all, href).toContain(href);
     }
+    expect(rotaWorkspaceTabs(admin, "people").map((t) => t.label)).toEqual(["Service Users", "Incidents", "Visit Notes"]);
+    // Staff who only have incident reporting access must still be able to reach the register.
+    expect(rotaWorkspaceTabs(ctx({ orgRoles: ["STAFF", "CARER"] }), "people").map((t) => t.label)).toEqual(["Incidents"]);
   });
 
   it("has no staff administration: HR pages stay in HR, the rota keeps its operational staff views", () => {

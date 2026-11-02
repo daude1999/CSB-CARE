@@ -29,7 +29,7 @@ test.describe("Service user documents and body map", () => {
     await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Documents" }).click();
     const council = page.getByTestId("documents-council");
     await expect(council.getByTestId("required-council-docs")).toContainText("Council Support Plan: missing");
-    await council.getByText("Upload Document").click();
+    await council.getByText("Upload Document", { exact: true }).click();
     await council.getByLabel("File").setInputFiles(pdf("version one"));
     await council.getByLabel("Document name").fill("Support plan from adult social care");
     await council.getByLabel("Category").selectOption("COUNCIL_SUPPORT_PLAN");
@@ -64,7 +64,8 @@ test.describe("Service user documents and body map", () => {
   test("record a body map observation, then a manager decides no incident is needed", async ({ page }) => {
     await signIn(page);
     await openFirstServiceUser(page);
-    await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Body map" }).click();
+    await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Health and safety" }).click();
+    await page.getByRole("navigation", { name: "Health and safety sections" }).getByRole("link", { name: "Body map" }).click();
     await page.getByRole("link", { name: "Record observation" }).click();
     await page.getByRole("group", { name: "Body map view" }).getByRole("button", { name: "Back", exact: true }).click();
     const svg = page.getByTestId("body-map-svg");

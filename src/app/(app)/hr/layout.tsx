@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+// HR design tokens and shared components; every rule is confined to `.hr-ui` (see the file header).
+import "./hr-ui.css";
 
 export const metadata: Metadata = {
   title: "HR & Workforce",
