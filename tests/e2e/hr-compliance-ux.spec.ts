@@ -27,8 +27,9 @@ test.describe("HR & Workforce, approved design", () => {
     await hubReady(page);
     const pages = sidebar(page).locator("a.shell-page");
     await expect(pages).toHaveText(["HR Dashboard", "People", "Recruitment", "Checks & Training", "Documents", "Time Off & Availability", "Settings"]);
-    await page.getByTestId("hr-tabs").getByRole("link", { name: "My Tasks" }).click();
-    await expect(page).toHaveURL(/\/hr\/alerts\?view=tasks/);
+    await hubReady(page);
+    await page.getByTestId("hr-heading").getByRole("link", { name: "My tasks" }).click();
+    await expect(page).toHaveURL(/\/hr\/alerts\?.*view=tasks/);
     await expect(currentPage(page)).toHaveText("HR Dashboard");
     await page.goto("/hr/compliance");
     await hubReady(page);
@@ -113,26 +114,22 @@ test.describe("HR & Workforce, approved design", () => {
 
   test("Recruitment opens on the board with every real stage; a card opens the record, its menu the quick panel", async ({ page }) => {
     await signIn(page);
-    await page.goto("/hr/recruitment/new");
-    await page.locator("input[name=firstName]").fill("Board");
-    await page.locator("input[name=lastName]").fill("Applicant");
-    await page.locator("input[name=roleApplied]").fill("Care Support Worker");
-    await page.locator("select[name=branchId]").selectOption({ index: 1 });
-    await page.getByRole("button", { name: "Add Candidate" }).click();
     await page.goto("/hr/recruitment");
     await expect(page.getByRole("heading", { level: 1, name: "Recruitment" })).toBeVisible();
     const board = page.getByTestId("pipeline");
     for (const stage of ["Applied", "Screening", "Interview", "Offer", "Onboarding", "Ready for Work"]) await expect(board.getByRole("heading", { level: 2, name: new RegExp(`^${stage}`) })).toBeVisible();
     await expect(board.getByRole("heading", { name: /Compliance/ })).toHaveCount(0);
-    const card = board.getByTestId("applicant-card").filter({ hasText: "Board Applicant" }).first();
-    await expect(card.getByRole("link", { name: "Board Applicant" })).toHaveAttribute("href", /\/hr\/recruitment\/c/);
-    await card.getByLabel("Actions for Board Applicant").click();
+    const applied = board.getByRole("region", { name: /^Applied/ });
+    const name = (await applied.getByTestId("applicant-card").first().locator(".hx-applicant-name").innerText()).trim();
+    const card = board.getByTestId("applicant-card").filter({ hasText: name }).first();
+    await expect(card.getByRole("link", { name })).toHaveAttribute("href", /\/hr\/recruitment\/c/);
+    await card.getByLabel(`Actions for ${name}`).click();
     await card.getByRole("link", { name: /Quick view/ }).click();
     const drawer = page.getByTestId("candidate-drawer");
     await expect(drawer).toBeVisible();
     await expect(drawer.getByRole("button", { name: "Screening" })).toBeVisible();
     await drawer.getByRole("button", { name: "Screening" }).click();
-    await expect(page.getByTestId("pipeline").locator("section", { has: page.getByRole("heading", { name: /^Screening/ }) })).toContainText("Board Applicant");
+    await expect(page.getByTestId("pipeline").getByRole("region", { name: /^Screening/ })).toContainText(name);
     await page.getByLabel("Search applicants").fill("zzz-nobody");
     await page.getByLabel("Search applicants").press("Enter");
     await expect(page).toHaveURL(/q=zzz-nobody/);

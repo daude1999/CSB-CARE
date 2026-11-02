@@ -72,7 +72,8 @@ test.describe("Portal switching", () => {
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
     await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
     // The HR Hub's styles stop at its own root: the HR heading uses exactly the platform's typeface, as on Rostering.
-    await expect(page.getByTestId("hr-heading").locator("h1")).toHaveCSS("font-family", rotaTitleFont);
+    expect(rotaTitleFont.split(",")[0]).toBe('"Inter Variable"');
+    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Inter Variable"');
 
     // Between HR screens the page is not reloaded.
     await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));

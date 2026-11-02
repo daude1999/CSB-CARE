@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## HR overview, People and Recruitment redesign (2 Nov 2026, draft PR)
+Built to the owner's approved HR concept: the HR Dashboard became "HR overview" (four figures, Action required with
+working Review links, Coming up), People is one clean directory, and Recruitment is a pipeline board of all six real
+stages. Shared HR tokens and components under `.hr-ui`. Details and counting rules: `HR_OVERVIEW_REDESIGN.md`.
+
 ## Find Replacement Cover, Contact & Communication, header Back/Forward (2 Nov 2026, draft PR)
 One shared Find Replacement Cover panel and service for filling an empty place, replacing a booked carer and recovery
 after a missed call, opened from the existing Find Cover buttons. A Contact & Communication tab records each attempt to

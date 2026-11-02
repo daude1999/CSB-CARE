@@ -215,7 +215,7 @@
 .hr-ui .hx-applicant-name::after { content: ""; position: absolute; inset: 0; border-radius: 9px; }
 .hr-ui .hx-applicant-name:focus-visible { outline: none; }
 .hr-ui .hx-applicant:has(.hx-applicant-name:focus-visible) { outline: 2px solid var(--hx-accent); outline-offset: 2px; }
-.hr-ui .hx-applicant-role { display: block; font-size: 13px; line-height: 1.35; color: var(--hx-muted); overflow-wrap: anywhere; }
+.hr-ui .hx-applicant-role { display: block; font-size: 13px; line-height: 1.35; color: var(--hx-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hr-ui .hx-applicant-next { display: flex; gap: 8px; margin-top: 11px; font-size: 13px; color: var(--hx-ink-2); }
 .hr-ui .hx-applicant-next svg { flex: none; margin-top: 1px; color: var(--hx-muted); }
 .hr-ui .hx-applicant-when { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12.5px; color: var(--hx-muted); }
@@ -242,8 +242,9 @@
 @media (max-width: 640px) {
   .hr-ui .hx-table.is-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .hr-ui .hx-table.is-stack, .hr-ui .hx-table.is-stack tbody { display: block; }
-  .hr-ui .hx-table.is-stack tr { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 12px 48px 12px 16px; border-bottom: 1px solid var(--hx-divider); }
-  .hr-ui .hx-table.is-stack td { display: block; padding: 0 !important; border: 0; font-size: 13.5px; }
+  .hr-ui .hx-table.is-stack tr { position: relative; display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 4px 10px; padding: 12px 48px 12px 16px; border-bottom: 1px solid var(--hx-divider); }
+  .hr-ui .hx-table.is-stack td { display: block; height: auto !important; min-height: 0; padding: 0 !important; border: 0; font-size: 13.5px; line-height: 1.4; }
+  .hr-ui .hx-table.is-stack tr { height: auto !important; }
   .hr-ui .hx-table.is-stack td:first-child { flex-basis: 100%; }
   .hr-ui .hx-table.is-stack td:last-child { position: absolute; top: 10px; right: 8px; width: auto !important; }
   .hr-ui .hx-table.is-stack tbody tr:hover td { background: none; }

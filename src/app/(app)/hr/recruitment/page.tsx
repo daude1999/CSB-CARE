@@ -150,7 +150,8 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
                                   <HrAvatar name={full} size="sm" />
                                   <span className="min-w-0">
                                     <Link href={`/hr/recruitment/${c.id}`} className="hx-applicant-name">{full}</Link>
-                                    <span className="hx-applicant-role">{c.roleApplied}{a.branches.length > 1 ? ` · ${branchName.get(c.branchId) ?? ""}` : ""}</span>
+                                    <span className="hx-applicant-role" title={c.roleApplied}>{c.roleApplied}</span>
+                                    {a.branches.length > 1 && !f.branch ? <span className="hx-applicant-role">{branchName.get(c.branchId) ?? ""}</span> : null}
                                   </span>
                                 </div>
                                 <details className="hx-menu">
