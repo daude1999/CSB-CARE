@@ -11,7 +11,7 @@ import { AutoSubmitForm } from "@/components/auto-submit";
 import { SelectAll } from "@/components/select-all";
 import { BulkVisitBar } from "@/components/bulk-visit-bar";
 import { FilterSelect, ListFooter, MENU, PANEL, SortHead, SUMMARY_BTN, TD, TH, linker } from "@/components/rota-list-ui";
-import { UnassignedCover } from "@/components/unassigned-cover";
+import { ReplacementCoverPanel } from "@/components/replacement-cover";
 
 const PRIORITY_BADGE: Record<Priority, string> = { URGENT: "bg-[#fdecec] text-[#b42318]", HIGH: "bg-[#fdf3d8] text-[#8a5a00]", NORMAL: "bg-[#eef4ff] text-[#1d4f91]" };
 const mins = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
@@ -155,7 +155,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
       </div>
       {board.truncated ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing the first 2,000 visits short of a carer. Choose fewer days to see the rest.</p> : null}
 
-      <div className={`grid grid-cols-1 items-start gap-4 ${coverOpen ? "xl:grid-cols-[minmax(0,1fr)_400px]" : ""}`}>
+      <div className="grid grid-cols-1 items-start gap-4">
         <section aria-label="Unassigned visits" className={PANEL}>
           {canEdit ? (
             <div className="flex flex-wrap items-center gap-2 px-3.5 py-3">
@@ -230,12 +230,8 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
           )}
           <ListFooter total={board.summary.visits} page={board.page} pages={board.pages} per={f.per} noun="unassigned visit" testId="unassigned-count" href={(p) => url({ page: p ? String(p) : undefined })} hidden={hiddenExcept(["per", "page"])} />
         </section>
-        {coverOpen ? (
-          <div className="xl:sticky xl:top-2">
-            <UnassignedCover ctx={ctx} sp={sp} back={back} url={url} />
-          </div>
-        ) : null}
       </div>
+      {coverOpen ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/unassigned" keep={{ ...params, ...closeCover }} /> : null}
       <p className="mt-2 text-[12.5px] text-[#667085]">Priority rule: {PRIORITY_RULE} A custom range can cover up to 28 days.</p>
     </>
   );

@@ -1,5 +1,12 @@
 # Master build tracker — five-module CSB CRM
 
+## Find Replacement Cover, Contact & Communication, header Back/Forward (2 Nov 2026, draft PR)
+One shared Find Replacement Cover panel and service for filling an empty place, replacing a booked carer and recovery
+after a missed call, opened from the existing Find Cover buttons. A Contact & Communication tab records each attempt to
+tell the service user or their contacts (append-only, corrections keep the original) and lists outstanding
+communication on Visits Needing Attention. Back/Forward buttons in the shared top bar are a separate commit. Details:
+`REPLACEMENT_COVER.md`.
+
 ## Rota sidebar simplified to nine destinations (1 Nov 2026)
 The Rota menu is now Rota Home, Daily Rota, Visits Needing Attention, The Monitor, Daily Templates, Service Users, Staff & Workforce, Finance and Reports, with Settings at the foot. Former menu pages are workspace tabs at their old addresses. There is a new combined page, `/rota/attention`, which shows Unassigned Visits and Missed Calls together. Notes and the full old-to-new mapping are in `ROTA_NAVIGATION.md`.
 

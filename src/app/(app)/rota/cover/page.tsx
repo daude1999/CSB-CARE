@@ -3,16 +3,14 @@ import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { COVER_KINDS, KIND_LABEL, coverBoard, type CoverItem } from "@/server/rota/cover";
-import { rotaLookups, suName, visitCandidatesMany, type Candidate } from "@/server/rota/queries";
+import { rotaLookups, suName } from "@/server/rota/queries";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { AreaDot, CarerSlots, TimeSpan } from "@/components/rota-ui";
-import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
+import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
 import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
-/** Replacements are ranked for this many bookings per page; the rest link to the visit page. */
-const SUGGEST = 30;
 const SLOT_LABEL = { PRIMARY: "Lead carer", SECOND: "Second carer", SHADOW: "Shadow" } as const;
 
 function when(start: Date, end: Date) {
@@ -28,19 +26,12 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
   const [board, lk] = await Promise.all([coverBoard(ctx, { from: sp.from, days: Number(sp.days) || 14, kind: sp.kind, area: sp.area }), rotaLookups(ctx)]);
   const canEdit = hasOrgPermission(ctx, "rota.edit");
 
-  // Visits are keyed by id in the ranking, so lead and second slots are ranked in separate passes.
-  const wanted = canEdit ? board.items.slice(0, SUGGEST) : [];
-  const [lead, second] = await Promise.all(
-    (["PRIMARY", "SECOND"] as const).map((slot) => visitCandidatesMany(ctx, wanted.filter((i) => i.slot === slot).map((i) => ({ visit: i.visit, slot })))),
-  );
-  const ranked = (i: CoverItem): Candidate[] | undefined => (i.slot === "SECOND" ? second : lead)?.get(i.visit.id)?.filter((c) => c.id !== i.staffId);
   const params = new URLSearchParams(Object.entries({ from: board.from, days: String(board.days), kind: board.kind ?? "", area: board.area ?? "" }).filter(([, v]) => v));
-  const back = `/rota/cover?${params}`;
   const c = board.counts;
 
   const Row = ({ item }: { item: CoverItem }) => {
     const v = item.visit;
-    const list = ranked(item);
+    const replaceable = canEdit && v.status === "SCHEDULED" && v.scheduledEnd > new Date() && item.slot !== "SHADOW";
     return (
       <li className="py-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px]">
@@ -52,11 +43,9 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
           <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} />
         </div>
         <p className="mt-1 text-[13px] text-[#8a5a00]">{SLOT_LABEL[item.slot]}: {item.reason}</p>
-        {list ? (
-          list.some((x) => x.score !== null) ? (
-            <CarerRecommendations list={list} visitId={v.id} slot={item.slot} lockVersion={v.lockVersion} back={back} replacing />
-          ) : <p className="mt-1 text-[13px] text-[#a3242c]">No one is free and eligible for this time. <Link href={`/rota/visits/${v.id}`} className="underline">Open the visit</Link> to move it or see every carer&rsquo;s reasons.</p>
-        ) : canEdit ? <p className="mt-1 text-[13px]"><Link href={`/rota/visits/${v.id}`} className="underline">Choose a replacement on the visit page</Link></p> : null}
+        {replaceable ? (
+          <Link href={coverHref("/rota/cover", Object.fromEntries(params), { id: v.id, mode: "replace", slot: item.slot })} scroll={false} className="mt-1.5 inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[13.5px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" aria-label={`Find replacement cover for ${item.staffName} on ${suName(v.serviceUser)}'s visit at ${londonTime(v.scheduledStart)}`}>Find replacement</Link>
+        ) : null}
       </li>
     );
   };
@@ -102,11 +91,12 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
               <ul className="rows">{board.flagged.map((i) => <Row key={`${i.visit.id}:${i.slot}`} item={i} />)}</ul>
             </Card>
           ) : null}
-          {canEdit ? <p className="text-[12.5px] text-slate-500">{SCORE_NOTE}{board.items.length > SUGGEST ? ` Replacements are suggested for the first ${SUGGEST} bookings; open a visit for the rest.` : ""}</p> : null}
+          {canEdit ? <p className="text-[12.5px] text-slate-500">Find replacement opens Find Replacement Cover: recommended and manual choices, the full eligibility check, and the service user&apos;s contacts. The other carer on a double-up stays booked.</p> : null}
         </>
       ) : (
         <Card><Empty>No absences or flagged bookings in these dates.</Empty></Card>
       )}
+      {canEdit && sp.cover ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/cover" keep={Object.fromEntries(params)} fallback="replace" /> : null}
     </>
   );
 }

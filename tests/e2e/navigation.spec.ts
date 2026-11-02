@@ -248,15 +248,18 @@ test.describe("Sidebar", () => {
     await expect(page.getByText(new RegExp(`^${mcCount} calls? ·`))).toBeVisible();
     await page.goBack();
 
-    // Find Cover opens the Unassigned Visits panel with its Recommended and Manual tabs.
+    // Find Cover opens the shared Find Replacement Cover panel on this page, with recommended carers or a manual search.
     if (unCount > 0) {
       await un.getByRole("link", { name: /^Find cover for/ }).first().click();
-      await expect(page).toHaveURL(/\/rota\/unassigned\?when=week&cover=/);
-      await expect(page.getByRole("link", { name: /Manual/ }).first()).toBeVisible();
-      await page.goBack();
+      await expect(page).toHaveURL(/\/rota\/attention\?cover=/);
+      const panel = page.getByRole("dialog", { name: "Find Replacement Cover" });
+      await expect(panel.getByRole("link", { name: "Search Staff Manually" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(panel).toBeHidden();
       await un.getByRole("link", { name: /^Choose a carer by hand/ }).first().click();
-      await expect(page).toHaveURL(/ctab=manual/);
-      await page.goBack();
+      await expect(page).toHaveURL(/fcStep=manual/);
+      await expect(panel.getByRole("heading", { name: "Search staff" })).toBeVisible();
+      await page.keyboard.press("Escape");
     }
     // Investigate opens the missed call's case.
     if (mcCount > 0) {

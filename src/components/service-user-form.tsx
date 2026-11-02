@@ -15,6 +15,8 @@ interface Su {
   town: string | null;
   postcode: string | null;
   phone: string | null;
+  altPhone?: string | null;
+  preferredContactMethod?: string | null;
   accessNotes: string | null;
   carerGenderPreference: string;
   firstLanguage: string | null;
@@ -52,6 +54,8 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit }: 
         {t("town", "Town")}
         {t("postcode", "Postcode")}
         {t("phone", "Phone", { type: "tel" })}
+        {t("altPhone", "Alternative phone", { type: "tel" })}
+        <label><span className="label">Prefers to be contacted by</span><select name="preferredContactMethod" defaultValue={su?.preferredContactMethod ?? ""} className="input"><option value="">Not recorded</option><option value="PHONE">Telephone</option><option value="SMS">Text message</option><option value="EMAIL">Email</option><option value="OTHER">Other (see communication needs)</option></select></label>
         <label className="md:col-span-3"><span className="label">Access notes for carers</span><textarea name="accessNotes" rows={2} defaultValue={su?.accessNotes ?? ""} className="input" /></label>
       </fieldset>
       <fieldset className="grid gap-3 md:grid-cols-3">
