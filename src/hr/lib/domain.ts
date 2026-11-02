@@ -145,6 +145,8 @@ export type View = {
 export type State = {
   fixtureVersion?: number;
   tasks?: HRTask[];
+  trainingAssignments?: TrainingAssignment[];
+  trainingReminders?: TrainingReminder[];
   branches: Branch[];
   users: User[];
   employees: Employee[];
@@ -307,3 +309,33 @@ export function permittedEmployee(e: Employee, user: User): Employee {
     for (const key of privateEmployeeFields) delete result[key];
   return result;
 }
+
+/** A course HR asked one person to complete by a date (Assign Training). Never changes a check or rota readiness. */
+export type TrainingAssignment = {
+  id: string;
+  org: string;
+  employee: string;
+  course: string;
+  /** The person's own training check for this course, when there is one; verifying it completes the assignment. */
+  check: string | null;
+  due: string;
+  note: string | null;
+  status: "Open" | "Completed" | "Cancelled";
+  /** The follow-up HR task created with it. */
+  task: string | null;
+  assignedBy: string;
+  assignedAt: string;
+  closedBy: string | null;
+  closedAt: string | null;
+  version: number;
+};
+/** One in-app training reminder sent to a person (Send Reminder). At most one per person per day. */
+export type TrainingReminder = {
+  id: string;
+  org: string;
+  employee: string;
+  day: string;
+  at: string;
+  by: string;
+  courses: string[];
+};

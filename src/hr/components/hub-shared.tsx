@@ -7,6 +7,7 @@ export type Data = Omit<State, "settings"> & {
   allBranches: boolean;
   user: User;
   today: string;
+  signIns?: string[];
 };
 export type Mutate = (body: unknown) => Promise<Record<string, unknown>>;
 export const formatDate = (s: string | null) =>
