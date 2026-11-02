@@ -58,7 +58,10 @@ test.describe("Daily Rota bulk actions", () => {
     await expect(page).not.toHaveURL(/[?&](ok|error)=/);
     await review.getByRole("button", { name: "Back" }).click();
     await expect(review).toBeHidden();
-    await all.uncheck();
+    // Clicking a part-ticked Select all ticks every row; clicking again clears them.
+    await all.click();
+    await expect(bulk.getByTestId("bulk-selected")).toHaveText(`${n} selected`);
+    await all.click();
     await expect(bulk.getByTestId("bulk-selected")).toHaveText("0 selected");
   });
 
@@ -89,6 +92,13 @@ test.describe("Daily Rota bulk actions", () => {
     await review.getByLabel(`Actual end for ${data.scheduled[0]}`).fill("02:30");
     await review.getByRole("checkbox", { name: /I confirm the care on these 4 visits was delivered/ }).check();
     await page.screenshot({ path: `${SHOTS}/2-review.png` });
+    // The review works on a tablet and a phone too.
+    for (const [w, h, name] of [[834, 1112, "2b-review-tablet"], [390, 844, "2c-review-phone"]] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await expect(confirm).toBeVisible();
+      await page.screenshot({ path: `${SHOTS}/${name}.png` });
+    }
+    await page.setViewportSize({ width: 1672, height: 941 });
     await confirm.click();
 
     const results = page.getByRole("dialog", { name: "Complete Calls: results" });

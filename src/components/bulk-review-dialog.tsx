@@ -84,6 +84,8 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
   const will = rows.filter((r) => r.outcome === "updated");
   const already = rows.filter((r) => r.outcome === "unchanged");
   const refused = rows.filter((r) => r.outcome === "refused" || r.outcome === "error");
+  // A note that applies to every visit that will change is said once, above the list, not on every row.
+  const common = will.length ? (will[0]!.warnings ?? []).filter((w) => will.every((r) => r.warnings?.includes(w))) : [];
 
   async function confirm() {
     const fd = new FormData();
@@ -142,7 +144,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
         if (phase === "running") e.preventDefault();
       }}
       aria-labelledby="bulk-review-title"
-      className="m-auto w-[min(920px,calc(100vw-32px))] max-h-[calc(100vh-48px)] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40"
+      className="m-auto w-[min(1080px,calc(100vw-32px))] max-h-[calc(100vh-48px)] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40"
       data-testid="bulk-review"
     >
       <div className="flex max-h-[calc(100vh-48px)] flex-col">
@@ -181,6 +183,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                 {request.details.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#475467]">{k}</dt><dd className="break-words">{v}</dd></div>)}
               </dl>
               {NOTES[request.kind] ? <p className="mb-3 rounded-[8px] bg-[#f9fafb] px-3 py-2 text-[13.5px] text-[#344054]">{NOTES[request.kind]}</p> : null}
+              {common.length ? <ul className="mb-3 list-disc rounded-[8px] border border-[#fedf89] bg-[#fffaeb] py-2 pl-7 pr-3 text-[13.5px] text-[#93370d]" aria-label="Applies to every visit that will change">{common.map((w) => <li key={w}>{w} (all {plural(will.length, "visit")})</li>)}</ul> : null}
               <div className="overflow-x-auto rounded-[8px] border border-[#eaecf0]">
                 <table className="w-full border-collapse text-[13.5px]">
                   <caption className="sr-only">Selected visits and what will happen to each</caption>
@@ -191,7 +194,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                       <th scope="col" className="px-3 py-2 font-semibold">When</th>
                       <th scope="col" className="px-3 py-2 font-semibold">Status</th>
                       <th scope="col" className="px-3 py-2 font-semibold">Carers</th>
-                      <th scope="col" className="px-3 py-2 font-semibold">What will happen</th>
+                      <th scope="col" className="min-w-[260px] px-3 py-2 font-semibold">What will happen</th>
                       {complete ? <th scope="col" className="px-3 py-2 font-semibold">Actual times (if known)</th> : null}
                     </tr>
                   </thead>
@@ -205,15 +208,15 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                         <td className="px-3 py-2 tabular-nums">{r.carers}</td>
                         <td className="px-3 py-2">
                           {r.outcome === "updated" ? <span className="font-semibold text-[#067647]">Will change</span> : r.outcome === "unchanged" ? <span className="text-[#475467]">No change: {r.message}</span> : <span className="text-[#b42318]"><span className="font-semibold">Cannot change:</span> {r.message}</span>}
-                          {r.warnings?.length ? <ul className="mt-1 list-disc pl-4 text-[12.5px] text-[#93370d]">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
+                          {r.warnings?.some((w) => !common.includes(w)) ? <ul className="mt-1 list-disc pl-4 text-[12.5px] text-[#93370d]">{r.warnings.filter((w) => !common.includes(w)).map((w) => <li key={w}>{w}</li>)}</ul> : null}
                         </td>
                         {complete ? (
                           <td className="whitespace-nowrap px-3 py-2">
                             {r.outcome === "updated" ? (
                               <span className="flex items-center gap-1">
-                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
+                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 w-[104px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                                 <span aria-hidden>–</span>
-                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
+                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 w-[104px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                               </span>
                             ) : null}
                           </td>
