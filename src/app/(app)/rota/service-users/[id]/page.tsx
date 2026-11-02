@@ -10,7 +10,9 @@ import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/servi
 import { packageCoverage } from "@/server/care/packages";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
 import { recentIncidentsFor } from "@/server/care/incidents";
-import { listRisks } from "@/server/care/risks";
+import { IncidentStatusBadge, SeverityBadge } from "@/components/incident-ui";
+import { listRisks, RISK_TYPE_LABEL } from "@/server/care/risks";
+import { LEVEL } from "@/components/risk-fields";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { serviceUserGlance } from "@/server/care/glance";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
@@ -24,13 +26,15 @@ import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communicat
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care Plans"], ["risks", "Risk Assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["history", "History"]] as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ctx = await requireRotaPage("serviceUser.view");
   const su = await orNotFound(getServiceUser(ctx, id));
-  const tab = TABS.find(([k]) => k === sp.tab)?.[0] ?? "overview";
+  const canReportIncident = hasOrgPermission(ctx, "incident.report");
+  const availableTabs = TABS.filter(([key]) => key !== "incidents" || canReportIncident);
+  const tab = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
   const canEdit = hasOrgPermission(ctx, "serviceUser.edit");
   const canKeySafe = hasOrgPermission(ctx, "serviceUser.keysafe");
   const base = `/rota/service-users/${su.id}`;
@@ -57,14 +61,18 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const glance = tab === "overview" ? await serviceUserGlance(ctx, su) : null;
-  // The overview's "Care at a glance": the plan in use, current risks and recent incidents, each linking to its page.
-  const [plans, risks, incidents] = tab === "overview"
-    ? await Promise.all([
-        db.carePlan.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, status: { in: ["ACTIVE", "DRAFT", "IN_REVIEW"] } }, select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true } }),
-        listRisks(ctx, { serviceUserId: su.id }),
-        recentIncidentsFor(ctx, su.id),
-      ])
-    : [[], [], null];
+  // The person owns these records. Only load what the selected profile section needs.
+  const [plans, risks, incidents] = await Promise.all([
+    tab === "overview" || tab === "care-plans"
+      ? db.carePlan.findMany({
+          where: { serviceUserId: su.id, organisationId: su.organisationId, ...(tab === "overview" ? { status: { in: ["ACTIVE", "DRAFT", "IN_REVIEW"] as const } } : {}) },
+          select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true },
+          orderBy: { version: "desc" },
+        })
+      : Promise.resolve([]),
+    tab === "overview" || tab === "risks" ? listRisks(ctx, { serviceUserId: su.id }) : Promise.resolve([]),
+    tab === "overview" || tab === "incidents" ? recentIncidentsFor(ctx, su.id, tab === "incidents" ? 100 : 4) : Promise.resolve(null),
+  ]);
   const planInUse = plans.find((p) => p.status === "ACTIVE") ?? null;
   const planPending = plans.find((p) => p.status !== "ACTIVE") ?? null;
   const todayDb = dbDate(today);
@@ -83,7 +91,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         actions={<StatusBadge status={su.status} />}
       />
       <Flash searchParams={sp} />
-      <SegmentNav label="Service user sections" items={TABS.map(([k, label]) => ({ href: `${base}?tab=${k}`, label, active: tab === k }))} />
+      <SegmentNav label="Service user sections" items={availableTabs.map(([k, label]) => ({ href: `${base}?tab=${k}`, label, active: tab === k }))} />
 
       {tab === "overview" ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -108,14 +116,14 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   <dd className="text-[14px]">
                     {planInUse ? <>Version {planInUse.version}{planInUse.reviewDue ? <span className={`block text-[12.5px] ${planInUse.reviewDue < todayDb ? "font-medium text-[#a3242c]" : "text-slate-600"}`}>Review {planInUse.reviewDue < todayDb ? "overdue since" : "due"} {fmtLondonDate(fromDbDate(planInUse.reviewDue))}</span> : null}</> : <Badge tone="rose">No plan in use</Badge>}
                     {planPending ? <span className="block text-[12.5px] text-[#8a5a00]">Version {planPending.version} {planPending.status === "IN_REVIEW" ? "awaiting approval" : "in draft"}</span> : null}
-                    <Link href={`/rota/care-plans/${su.id}`} className="mt-1 block text-[13px]">Review care plan</Link>
+                    <Link href={`${base}?tab=care-plans`} className="mt-1 block text-[13px]">Review care plans</Link>
                   </dd>
                 </div>
                 <div className="min-w-0">
                   <dt className="label">Risk assessments</dt>
                   <dd className="text-[14px]">
                     {risks.length ? <>{risks.length} current{risksHigh ? <> · <span className="font-medium text-[#a3242c]">{risksHigh} high</span></> : null}{risksOverdue ? <span className="block text-[12.5px] font-medium text-[#a3242c]">{risksOverdue} past review date</span> : <span className="block text-[12.5px] text-slate-600">Next review {fmtLondonDate(fromDbDate(risks[0]!.reviewDue))}</span>}</> : <span className="text-slate-600">None recorded</span>}
-                    <Link href={`/rota/risks?su=${su.id}`} className="mt-1 block text-[13px]">Review risks</Link>
+                    <Link href={`${base}?tab=risks`} className="mt-1 block text-[13px]">Review risks</Link>
                   </dd>
                 </div>
                 <div className="min-w-0">
@@ -268,6 +276,80 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             ) : null}
           </div>
         </div>
+      ) : null}
+
+
+      {tab === "care-plans" ? (
+        <Card title="Care Plans" actions={<Link href={`/rota/care-plans/${su.id}`} className="btn-primary">View or manage care plan</Link>}>
+          <p className="mb-3 text-[13.5px] text-slate-600">Care plans for {suName(su)}. Review the current plan, its status and earlier versions here.</p>
+          {plans.length ? (
+            <div className="relative min-w-0 overflow-x-auto">
+              <table className="table">
+                <thead><tr><th>Version</th><th>Status</th><th>Review due</th><th>Approved</th><th>Record</th></tr></thead>
+                <tbody>
+                  {plans.map((plan) => (
+                    <tr key={plan.id}>
+                      <td className="font-medium">Version {plan.version}</td>
+                      <td><Badge tone={plan.status === "ACTIVE" ? "green" : plan.status === "IN_REVIEW" ? "amber" : "slate"}>{plan.status === "ACTIVE" ? "In use" : plan.status === "IN_REVIEW" ? "Awaiting approval" : plan.status === "DRAFT" ? "Draft" : plan.status.toLowerCase().replaceAll("_", " ")}</Badge></td>
+                      <td>{plan.reviewDue ? <span className={plan.reviewDue < todayDb && plan.status === "ACTIVE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(plan.reviewDue))}</span> : "—"}</td>
+                      <td>{plan.approvedAt ? fmtDate(plan.approvedAt) : "—"}</td>
+                      <td><Link href={`/rota/care-plans/${su.id}?v=${plan.version}`}>Open plan</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <Empty>No care plan recorded for this person.</Empty>}
+        </Card>
+      ) : null}
+
+      {tab === "risks" ? (
+        <Card title="Risk Assessments" actions={hasOrgPermission(ctx, "care.plan.edit") ? <Link href={`/rota/risks/new?su=${su.id}`} className="btn-primary">New assessment</Link> : null}>
+          <p className="mb-3 text-[13.5px] text-slate-600">Active risk assessments specific to {suName(su)}. Each record contains the hazards, controls and review history.</p>
+          {risks.length ? (
+            <div className="relative min-w-0 overflow-x-auto">
+              <table className="table">
+                <thead><tr><th>Assessment</th><th>Type</th><th>Level</th><th>Review due</th></tr></thead>
+                <tbody>
+                  {risks.map((risk) => (
+                    <tr key={risk.id}>
+                      <td><Link href={`/rota/risks/${risk.id}`}>{risk.title}</Link></td>
+                      <td>{RISK_TYPE_LABEL[risk.type]}</td>
+                      <td><Badge tone={LEVEL[risk.level].tone}>{LEVEL[risk.level].label}</Badge></td>
+                      <td className={risk.reviewDue < todayDb ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(risk.reviewDue))}{risk.reviewDue < todayDb ? " · overdue" : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <Empty>No active risk assessments for this person.</Empty>}
+          <Link href={`/rota/risks?su=${su.id}&archived=1`} className="mt-3 inline-block text-[13px]">View archived assessments</Link>
+        </Card>
+      ) : null}
+
+      {tab === "incidents" && canReportIncident ? (
+        <Card title="Incidents" actions={<Link href={`/rota/incidents/new?su=${su.id}`} className="btn-primary">Report an incident</Link>}>
+          <p className="mb-3 text-[13.5px] text-slate-600">Incidents linked to {suName(su)}, including open and closed reports. Records are shown according to your incident permissions.</p>
+          {incidents?.length ? (
+            <div className="relative min-w-0 overflow-x-auto">
+              <table className="table">
+                <thead><tr><th>Reference</th><th>When</th><th>Category</th><th>Severity</th><th>Status</th></tr></thead>
+                <tbody>
+                  {incidents.map((incident) => (
+                    <tr key={incident.id}>
+                      <td><Link href={`/rota/incidents/${incident.id}`}>{incident.reference}</Link></td>
+                      <td>{fmtDate(incident.occurredAt, true)}</td>
+                      <td>{incident.category}{incident.safeguarding ? <> <Badge tone="rose">Safeguarding</Badge></> : null}</td>
+                      <td><SeverityBadge severity={incident.severity} /></td>
+                      <td><IncidentStatusBadge status={incident.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <Empty>No incidents recorded for this person that you have permission to view.</Empty>}
+          {incidents && incidents.length === 100 ? <p className="mt-2 text-[12.5px] text-slate-600">Showing the latest 100 incidents.</p> : null}
+        </Card>
       ) : null}
 
       {tab === "medication" ? (
