@@ -7,6 +7,7 @@ import { DatabaseStorage, setStorageForTests } from "@/server/storage";
 import { documentCounts, getDocument, listDocuments, readDocumentFile, replaceDocument, setDocumentArchived, updateDocumentDetails, uploadDocument, MAX_DOCUMENT_BYTES } from "@/server/care/su-documents";
 import { addObservationPhoto, bodyMapCounts, decideIncident, listObservations, nearestRegion, readObservationPhoto, recordObservation, reviewObservation } from "@/server/care/body-map";
 import { reportIncident } from "@/server/care/incidents";
+import { serviceUserCompliance } from "@/server/care/su-records";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -224,5 +225,21 @@ describe("digital body map", () => {
     await expect(addObservationPhoto(await otherOrg(), o.id, png())).rejects.toBeInstanceOf(NotFoundError);
     await expect(addObservationPhoto(c, o.id, pdf())).rejects.toThrow(/images/);
     expect(await bodyMapCounts(await carer(), suId)).toBeNull();
+  });
+});
+
+describe("records summary on the profile overview", () => {
+  it("shows missing required council documents and outstanding body map follow-ups, linking to their sections", async () => {
+    const c = await coordinator();
+    const rows = await serviceUserCompliance(c, { id: su2Id, organisationId: orgId });
+    const docs = rows.find((r) => r.key === "documents")!;
+    expect(docs.value).toBe("Missing: Council Support Plan");
+    expect(docs.tone).toBe("rose");
+    expect(docs.href).toContain("tab=documents");
+    expect(rows.find((r) => r.key === "bodymap")).toBeUndefined(); // nothing recorded for this person
+    const withMap = await serviceUserCompliance(c, { id: suId, organisationId: orgId });
+    const bm = withMap.find((r) => r.key === "bodymap")!;
+    expect(bm.href).toContain("tab=bodymap");
+    expect(bm.detail).toContain("reviewed");
   });
 });
