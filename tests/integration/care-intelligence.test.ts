@@ -109,7 +109,7 @@ describe("rota intelligence", () => {
 
   it("plans only the visits the coordinator chose, and changes nothing on the rota", async () => {
     const m = await manager();
-    const open = await db.visit.findMany({ where: { organisationId: orgId, status: "SCHEDULED", date: { gte: new Date(`${addDays(londonDate(), 1)}T00:00:00Z`) }, assignments: { none: { removedAt: null } } }, take: 2, select: { id: true } });
+    const open = await db.visit.findMany({ where: { organisationId: orgId, status: "SCHEDULED", date: { gte: new Date(`${addDays(londonDate(), 1)}T00:00:00Z`) }, assignments: { none: { removedAt: null } } }, orderBy: { scheduledStart: "asc" }, take: 2, select: { id: true } });
     if (!open.length) return;
     const before = await db.visitAssignment.count({ where: { organisationId: orgId, removedAt: null } });
     const plan = await generatePlan(m, { visitIds: open.map((v) => v.id), gapMinutes: 10, maxShiftMinutes: 0 });
