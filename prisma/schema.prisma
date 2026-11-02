@@ -1602,6 +1602,8 @@ model ServiceUser {
   visits               Visit[]
   carerPreferences     CarerPreference[]
   medications          Medication[]
+  documents            ServiceUserDocument[]
+  bodyMapObservations  BodyMapObservation[]
 
   @@unique([organisationId, reference])
   @@unique([id, organisationId])
@@ -1873,15 +1875,16 @@ model Incident {
   peopleNotified  String?
   safeguarding    Boolean          @default(false)
   /// Flags that a statutory notification may be needed. The platform never sends one itself.
-  notifiable      Boolean          @default(false)
-  status          IncidentStatus   @default(OPEN)
-  reportedById    String
-  reportedAt      DateTime         @default(now())
-  investigatorId  String?
-  outcome         String?
-  closedById      String?
-  closedAt        DateTime?
-  version         Int              @default(1)
+  notifiable          Boolean              @default(false)
+  status              IncidentStatus       @default(OPEN)
+  reportedById        String
+  reportedAt          DateTime             @default(now())
+  investigatorId      String?
+  outcome             String?
+  closedById          String?
+  closedAt            DateTime?
+  version             Int                  @default(1)
+  bodyMapObservations BodyMapObservation[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, status])
@@ -3587,4 +3590,163 @@ model CareSummary {
   reviewNote     String?
 
   @@index([organisationId, serviceUserId, createdAt])
+}
+
+// ── Service user documents and Digital Body Map ─────────────────────────────
+
+/// Private file bytes, used as the storage provider on hosts without a writable disk (Vercel). Keys are opaque and
+/// carry the organisation; rows are only read by the storage layer after the caller's permission checks.
+model StoredObject {
+  key         String   @id
+  contentType String
+  sizeBytes   Int
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+}
+
+/// Council Documents and Other Documents are two separate profile sections sharing this table.
+enum ServiceUserDocumentSection {
+  COUNCIL
+  OTHER
+}
+
+/// A document held on a service user's record. The file itself lives in versions: replacing adds a version and never
+/// deletes an earlier one. Archiving moves it to "Historical documents"; nothing is ever deleted.
+model ServiceUserDocument {
+  id               String                       @id @default(cuid())
+  organisationId   String
+  serviceUserId    String
+  serviceUser      ServiceUser                  @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  section          ServiceUserDocumentSection
+  /// A key from the section's category list (src/server/care/su-documents.ts).
+  category         String
+  name             String
+  issuingAuthority String?
+  receivedOn       DateTime?                    @db.Date
+  effectiveFrom    DateTime?                    @db.Date
+  expiresOn        DateTime?                    @db.Date
+  notes            String?
+  /// Sensitive documents (ID, medical, financial, or marked so) open only with serviceUser.sensitive.
+  sensitive        Boolean                      @default(false)
+  currentVersion   Int                          @default(1)
+  archivedAt       DateTime?
+  archivedById     String?
+  archiveReason    String?
+  createdById      String
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+  /// Optimistic concurrency for detail edits and replacements.
+  lockVersion      Int                          @default(1)
+  versions         ServiceUserDocumentVersion[]
+
+  @@index([organisationId, serviceUserId, section])
+}
+
+/// One uploaded file of a document. Rows are never edited (database trigger).
+model ServiceUserDocumentVersion {
+  id             String              @id @default(cuid())
+  organisationId String
+  documentId     String
+  document       ServiceUserDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version        Int
+  filename       String
+  contentType    String
+  sizeBytes      Int
+  sha256         String
+  storageKey     String
+  /// CLEAN | NOT_SCANNED (same policy as compliance evidence; INFECTED files are never stored).
+  scanStatus     String
+  changeNote     String?
+  uploadedById   String
+  uploadedAt     DateTime            @default(now())
+
+  @@unique([documentId, version])
+}
+
+enum BodyMapView {
+  FRONT
+  BACK
+  LEFT
+  RIGHT
+}
+
+enum BodyMapStatus {
+  /// Recorded; follow-up or a manager's review may still be due.
+  OPEN
+  /// A reviewer recorded a final outcome.
+  RESOLVED
+}
+
+/// A physical observation marked on the body map. What was observed is kept exactly as first recorded (database
+/// trigger); follow-ups, reviews and the incident decision are added on top.
+model BodyMapObservation {
+  id                   String          @id @default(cuid())
+  organisationId       String
+  serviceUserId        String
+  serviceUser          ServiceUser     @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  view                 BodyMapView
+  /// Position of the mark on the outline, as a percentage of its width and height.
+  x                    Float
+  y                    Float
+  /// The named body area (from the region list), e.g. "Left forearm".
+  region               String
+  locationDetail       String?
+  category             String
+  observedAt           DateTime
+  description          String
+  size                 String?
+  appearance           String?
+  /// NONE | MILD | MODERATE | SEVERE | NOT_ABLE_TO_SAY
+  pain                 String
+  actionTaken          String?
+  personNotified       String?
+  followUpOn           DateTime?       @db.Date
+  status               BodyMapStatus   @default(OPEN)
+  recordedById         String
+  recordedAt           DateTime        @default(now())
+  /// The manager's decision on whether an incident report is needed: LINKED | NOT_REQUIRED (null = not decided).
+  incidentDecision     String?
+  incidentDecisionNote String?
+  incidentDecidedById  String?
+  incidentDecidedAt    DateTime?
+  incidentId           String?
+  incident             Incident?       @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  version              Int             @default(1)
+  reviews              BodyMapReview[]
+  photos               BodyMapPhoto[]
+
+  @@index([organisationId, serviceUserId, observedAt])
+  @@index([organisationId, status, followUpOn])
+}
+
+/// A follow-up or review of an observation. Append-only.
+model BodyMapReview {
+  id             String             @id @default(cuid())
+  organisationId String
+  observationId  String
+  observation    BodyMapObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  reviewedAt     DateTime           @default(now())
+  reviewedById   String
+  outcome        String
+  /// The next follow-up date set by this review (null when resolved or none needed).
+  nextFollowUpOn DateTime?          @db.Date
+  resolved       Boolean            @default(false)
+}
+
+/// A photograph of an observation, held in private storage. Rows are never edited.
+model BodyMapPhoto {
+  id             String             @id @default(cuid())
+  organisationId String
+  observationId  String
+  observation    BodyMapObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  filename       String
+  contentType    String
+  sizeBytes      Int
+  sha256         String
+  storageKey     String
+  /// CLEAN | NOT_SCANNED
+  scanStatus     String
+  caption        String?
+  uploadedById   String
+  uploadedAt     DateTime           @default(now())
 }

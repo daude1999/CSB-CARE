@@ -7,6 +7,8 @@ import { memberNames } from "@/server/rota/queries";
 import { rotaScope, visitWhere } from "@/server/rota/scope";
 import { NOTE_LABEL } from "./visit-record";
 import { reviewState } from "./risks";
+import { bodyMapCounts } from "./body-map";
+import { documentCounts } from "./su-documents";
 
 /**
  * Records that belong to one service user, read for their profile: the visit notes written on their visits, and the
@@ -136,6 +138,31 @@ export async function serviceUserCompliance(ctx: Ctx, su: { id: string; organisa
       detail: notes ? `${notes} ${notes === 1 ? "note" : "notes"} in all` : undefined,
       tone: concerns ? "amber" : "slate",
       href: `${base}?tab=notes`,
+    });
+  }
+
+  const [docs, bodyMap] = await Promise.all([documentCounts(ctx, su.id), bodyMapCounts(ctx, su.id)]);
+  if (docs) {
+    // Only the required council documents (Council Support Plan, Purchase Order) can be missing; optional ones never are.
+    const missing = docs.council.missing.map((m) => m.label);
+    const expired = docs.council.expired + docs.other.expired;
+    rows.push({
+      key: "documents",
+      label: "Documents",
+      value: missing.length ? `Missing: ${missing.join(", ")}` : expired ? `${expired} expired` : "Required documents held",
+      detail: `${docs.council.uploaded} council, ${docs.other.uploaded} other${missing.length && expired ? `, ${expired} expired` : ""}`,
+      tone: missing.length ? "rose" : expired ? "amber" : "green",
+      href: `${base}?tab=documents&section=council`,
+    });
+  }
+  if (bodyMap && bodyMap.total) {
+    rows.push({
+      key: "bodymap",
+      label: "Body map",
+      value: bodyMap.overdue ? `${bodyMap.overdue} follow-up${bodyMap.overdue === 1 ? "" : "s"} overdue` : bodyMap.outstanding ? `${bodyMap.outstanding} follow-up${bodyMap.outstanding === 1 ? "" : "s"} outstanding` : "No follow-ups outstanding",
+      detail: [`${bodyMap.reviewed} reviewed`, bodyMap.awaitingDecision ? `${bodyMap.awaitingDecision} awaiting manager review` : null].filter(Boolean).join(", "),
+      tone: bodyMap.overdue ? "rose" : bodyMap.outstanding || bodyMap.awaitingDecision ? "amber" : "green",
+      href: `${base}?tab=bodymap`,
     });
   }
   return rows;
