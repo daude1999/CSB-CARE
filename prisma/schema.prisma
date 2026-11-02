@@ -1810,8 +1810,37 @@ model RiskAssessment {
   archivedById   String?
   archivedAt     DateTime?
   version        Int          @default(1)
+  /// What still has to be done to reduce the risk (not the standing controls), and who is responsible for it.
+  requiredActions   String?
+  responsiblePerson String?
+  versions          RiskAssessmentVersion[]
 
   @@index([organisationId, serviceUserId])
+}
+
+/// Every saved state of a risk assessment, kept for good: created, each review, archiving. Rows cannot be edited.
+model RiskAssessmentVersion {
+  id                String         @id @default(cuid())
+  organisationId    String
+  riskAssessmentId  String
+  riskAssessment    RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  version           Int
+  change            String
+  reason            String?
+  type              RiskType
+  title             String
+  hazards           String
+  controls          String
+  level             RiskLevel
+  reviewDue         DateTime       @db.Date
+  requiredActions   String?
+  responsiblePerson String?
+  status            RecordStatus
+  changedById       String
+  changedAt         DateTime       @default(now())
+
+  @@unique([riskAssessmentId, version])
+  @@index([organisationId])
 }
 
 enum IncidentSeverity {
@@ -1840,6 +1869,8 @@ model Incident {
   severity        IncidentSeverity
   description     String
   immediateAction String?
+  /// Who was told at the time (family, GP, social worker...), as the reporter wrote it.
+  peopleNotified  String?
   safeguarding    Boolean          @default(false)
   /// Flags that a statutory notification may be needed. The platform never sends one itself.
   notifiable      Boolean          @default(false)

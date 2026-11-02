@@ -129,7 +129,8 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | 6b OnePlan structure | Done | Rota Dashboard, menu, Daily Rota and Advanced Rota rebuilt to OnePlan's structure at the owner's request (see ARCHITECTURE_DECISIONS) |
 | UI polish (29 Oct) | Done on branch `claude/project-thread-i7uu8j` | Navigation and motion pass across all modules: motion tokens, instant portal/sidebar feedback, progress bar, page entrance, placeholders, pending buttons, dialogs, reduced motion, HR boundary kept. See UI_MOTION_AND_NAVIGATION.md |
 | Multi-carer visits (2 Nov) | Merged (#60) | Any number of carers 1 to 20 with numbered places across rota, templates, build, roll forward, unassigned, cover, missed calls, optimiser and bulk. See MULTI_CARER_VISITS.md |
-| Medication Lead (2 Nov) | Built, merging | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
+| Medication Lead (2 Nov) | Merged (#61) | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
+| Service user records (2 Nov) | Built, merging | Grouped profile sections (folds in #58); risk assessment versions with actions and who is responsible; who was told about an incident; risk review prompts; visit notes per person; records summary. Documents and body map are a separate build. See SERVICE_USER_RECORDS.md |
 | 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)

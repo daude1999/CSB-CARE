@@ -6,7 +6,7 @@ import { addDays, fromDbDate, londonDate } from "@/lib/london";
 export const LEVEL: Record<RiskLevel, { label: string; tone: Tone }> = { LOW: { label: "Low", tone: "green" }, MEDIUM: { label: "Medium", tone: "amber" }, HIGH: { label: "High", tone: "rose" } };
 
 /** The fields of a risk assessment, shared by "new" and "review". Server-rendered; no client state. */
-export function RiskFields({ risk }: { risk?: Pick<RiskAssessment, "type" | "title" | "hazards" | "controls" | "level" | "reviewDue"> }) {
+export function RiskFields({ risk }: { risk?: Pick<RiskAssessment, "type" | "title" | "hazards" | "controls" | "level" | "reviewDue" | "requiredActions" | "responsiblePerson"> }) {
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
       <label><span className="label">Type</span>
@@ -19,6 +19,8 @@ export function RiskFields({ risk }: { risk?: Pick<RiskAssessment, "type" | "tit
       <label className="md:col-span-3"><span className="label">Title</span><input name="title" required minLength={3} defaultValue={risk?.title ?? ""} placeholder="e.g. Transfers from bed to chair" className="input" /></label>
       <label className="md:col-span-3"><span className="label">Hazards: what could go wrong, and who could be hurt</span><textarea name="hazards" rows={4} required minLength={10} defaultValue={risk?.hazards ?? ""} className="input" /></label>
       <label className="md:col-span-3"><span className="label">Controls: what carers do to reduce the risk</span><textarea name="controls" rows={5} required minLength={10} defaultValue={risk?.controls ?? ""} className="input" /></label>
+      <label className="md:col-span-2"><span className="label">Actions still required (optional)</span><textarea name="requiredActions" rows={3} maxLength={4000} defaultValue={risk?.requiredActions ?? ""} placeholder="e.g. Ask the OT to assess for a raised toilet seat" className="input" /></label>
+      <label><span className="label">Responsible for the actions</span><input name="responsiblePerson" maxLength={160} defaultValue={risk?.responsiblePerson ?? ""} placeholder="Name or role" className="input" /><span className="mt-1 block text-[12px] text-slate-500">Needed when actions are listed.</span></label>
     </div>
   );
 }

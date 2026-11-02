@@ -64,7 +64,7 @@ test.describe("usability improvements", () => {
     await page.goto("/rota/service-users");
     await page.locator('main a[href^="/rota/service-users/c"]').first().click();
     await expect(page.getByTestId("care-at-a-glance")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Review care plan" })).toBeVisible();
+    await expect(page.getByTestId("care-at-a-glance").locator("li[data-row=care-plan]")).toContainText("Care plan");
     await expect(page.getByRole("heading", { name: "Key contacts" })).toBeVisible();
     // Demonstration organisation: its people are labelled as fictional.
     await expect(page.getByText(/Fictional demonstration person/)).toBeVisible();
