@@ -20,11 +20,13 @@ import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
 import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
+import { ServiceUserDocuments } from "@/components/su-documents";
+import { BodyMapSection } from "@/components/body-map";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -430,6 +432,19 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       ) : null}
 
       {tab === "missed" ? <MissedHistory ctx={ctx} serviceUserId={su.id} /> : null}
+
+      {tab === "documents" ? (
+        <>
+          <nav aria-label="Document sections" className="mb-3 mt-1 flex gap-1.5">
+            {([["council", "Council Documents"], ["other", "Other Documents"]] as const).map(([k, label]) => (
+              <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={(sp.section === "other" ? "other" : "council") === k ? "page" : undefined} className={`rounded-full border px-3.5 py-1.5 text-[14px] no-underline ${(sp.section === "other" ? "other" : "council") === k ? "border-navy-900 bg-navy-900 text-white hover:text-white" : "border-slate-300 bg-white text-navy-900 hover:border-navy-700"}`}>{label}</Link>
+            ))}
+          </nav>
+          <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />
+        </>
+      ) : null}
+
+      {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} base={base} selectedId={sp.obs} recording={sp.record === "1"} /> : null}
 
       {tab === "history" ? (
         <Card title="Record history">
