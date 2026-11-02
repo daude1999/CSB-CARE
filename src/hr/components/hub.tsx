@@ -63,6 +63,7 @@ import {
   Warning,
   WarningOctagon,
 } from "@phosphor-icons/react";
+import { AssignTrainingForm, SendReminderForm } from "./training-actions";
 import { HRRecord } from "./hr-record";
 import { HubHeader } from "./hub-header";
 import { HUB_SEARCH_EVENT } from "@/lib/portals";
@@ -91,6 +92,8 @@ type Modal =
   | { type: "review"; check: Review }
   | { type: "note"; employee: Employee; document?: string }
   | { type: "quick"; employee: Employee }
+  | { type: "assign-training" }
+  | { type: "training-reminder" }
   | null;
 const navigation = [
   { id: "dashboard", name: "Dashboard", icon: Home },
@@ -435,7 +438,12 @@ function Workspace({
             <HrOverview data={data} scope={scope} setScope={setScope} />
           )}
           {section === "training" && (
-            <TrainingMatrix data={data} scope={scope} />
+            <TrainingMatrix
+              data={data}
+              scope={scope}
+              onAssign={editable ? () => setModal({ type: "assign-training" }) : undefined}
+              onRemind={editable ? () => setModal({ type: "training-reminder" }) : undefined}
+            />
           )}
           {section === "people" && !employeeId && (
             <People
@@ -468,6 +476,7 @@ function Workspace({
                     : openEmployee(c.employee)
                 }
                 onNote={() => setModal({ type: "note", employee: selected })}
+                notify={success}
               />
             ) : (
               <Empty
@@ -572,6 +581,12 @@ function Workspace({
               if (doc) setModal({ type: "document", document: doc });
             }}
           />
+        )}
+        {modal?.type === "assign-training" && (
+          <AssignTrainingForm data={data} close={() => setModal(null)} mutate={mutate} done={success} />
+        )}
+        {modal?.type === "training-reminder" && (
+          <SendReminderForm data={data} close={() => setModal(null)} mutate={mutate} done={success} />
         )}
         {modal?.type === "employee" && (
           <EmployeeForm

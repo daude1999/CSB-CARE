@@ -20,6 +20,23 @@ import {
   privateEmployeeFields,
 } from "@/hr/lib/domain";
 import { runReminders } from "@/hr/lib/reminders";
+import { transactionThen } from "@/hr/lib/workspace-tx";
+import { db } from "@/lib/db";
+import { linkedSignIns, createTrainingReminders } from "@/server/workforce/training-reminders";
+import {
+  assignTraining,
+  closeAssignment,
+  completeAssignmentForTask,
+  completeAssignmentsForCheck,
+  planReminders,
+} from "@/hr/lib/training";
+const assignSchema = z.object({
+  employees: z.array(z.string().min(1)).min(1, "Choose at least one person").max(500),
+  course: z.string().trim().min(2, "Enter a course name").max(120),
+  due: z.iso.date(),
+  assignedTo: z.string().default(""),
+  note: z.string().max(500).default(""),
+});
 const employeeSchema = z.object({
   staffId: z
     .string()
@@ -155,6 +172,8 @@ export async function GET(request: Request) {
         (!sensitive(d.category, s.settings[u.org]) || u.sensitive),
     );
     const docIds = new Set(docs.map((d) => d.id));
+    const signIns = canEdit(u) ? [...(await linkedSignIns(db, u.workspace, [...ids])).keys()] : [];
+    const since = new Date(Date.parse(today() + "T00:00:00Z") - 60 * 86400000).toISOString().slice(0, 10);
     return NextResponse.json(
       {
         user: u,
@@ -209,6 +228,9 @@ export async function GET(request: Request) {
             n.state === "Delivered",
         ),
         views: s.views.filter((v) => v.user === u.id && v.org === u.org),
+        trainingAssignments: (s.trainingAssignments || []).filter((a) => a.org === u.org && ids.has(a.employee)),
+        trainingReminders: (s.trainingReminders || []).filter((r) => r.org === u.org && ids.has(r.employee) && r.day >= since),
+        signIns,
         imports: s.imports.filter(
           (i) =>
             u.role === "Organisation Admin" &&
@@ -242,6 +264,23 @@ export async function POST(request: Request) {
       fail("Request too large", 413);
     await rateLimit(u.id);
     const body = await (await limitedRequest(request, 1_000_000)).json();
+    if (body.action === "training-reminder") {
+      // In-app only (the bell). Who has a linked sign-in is read first, re-checked inside the same transaction that
+      // records the reminders, and the notifications commit with the HR history or not at all.
+      if (!canEdit(u)) fail("Your account is read-only", 403);
+      const employees = z.array(z.string().min(1)).min(1, "Choose at least one person").max(500).parse(body.employees);
+      const signIns = await linkedSignIns(db, u.workspace, employees);
+      const day = today();
+      const result = await transactionThen(
+        u.workspace,
+        (s) => planReminders(s, u, [...new Set(employees)], signIns, day),
+        async (tx, plan) => {
+          await createTrainingReminders(tx, u.workspace, plan.plans, u.name, day);
+          return plan.result;
+        },
+      );
+      return NextResponse.json(result);
+    }
     const result = await transaction(u.workspace, (s) => {
       if (body.action === "read-alert") {
         const n = s.notices.find(
@@ -268,6 +307,17 @@ export async function POST(request: Request) {
         return { ok: true };
       }
       if (!canEdit(u)) fail("Your account is read-only", 403);
+      if (body.action === "assign-training") {
+        const input = assignSchema.parse(body.assignment);
+        return assignTraining(s, u, { ...input, employees: [...new Set(input.employees)] }, today());
+      }
+      if (body.action === "close-training") {
+        const input = z
+          .object({ id: z.string().min(1), version: z.number().int(), outcome: z.enum(["Completed", "Cancelled"]) })
+          .parse(body);
+        closeAssignment(s, u, input);
+        return { ok: true };
+      }
       if (body.action === "task") {
         const input = z
           .object({
@@ -335,6 +385,7 @@ export async function POST(request: Request) {
             updated: now,
             version: task.version + 1,
           });
+          if (task.status === "Complete") completeAssignmentForTask(s, u, task.id, now);
         } else {
           if (
             s.tasks.some(
@@ -555,6 +606,7 @@ export async function POST(request: Request) {
           `${c.name} verified; next review ${due || "not recurring"}`,
           e.id,
         );
+        completeAssignmentsForCheck(s, u, c);
         runReminders(s, today(), u.org);
         return { ok: true };
       }

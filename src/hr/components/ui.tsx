@@ -99,6 +99,9 @@ export function Drawer({
       }}
     >
       <Dialog.Portal>
+        {/* The portal renders at the end of <body>, outside the HR Hub's root, and every HR style (form fields,
+            buttons, tokens) is confined to `.cs`. This wrapper puts the panel back inside it without adding a box. */}
+        <div className="cs" style={{ display: "contents" }}>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content className={`drawer ${wide ? "wide" : ""} ${className}`}>
           <header>
@@ -114,6 +117,7 @@ export function Drawer({
           </header>
           <div className="drawer-body">{children}</div>
         </Dialog.Content>
+        </div>
       </Dialog.Portal>
     </Dialog.Root>
   );

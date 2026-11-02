@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useState, type ReactNode } from "react";
+import { AssignedTraining } from "./training-actions";
 import Link from "@/hr/nav";
 import {
   Mail,
@@ -47,6 +48,7 @@ export function HRRecord({
   onReview,
   onNote,
   mutate,
+  notify,
 }: {
   data: HubData;
   employee: Employee;
@@ -57,6 +59,7 @@ export function HRRecord({
   onReview: (c: Check) => void;
   onNote: () => void;
   mutate: (body: unknown) => Promise<Record<string, unknown>>;
+  notify?: (message: string) => void;
 }) {
   const [tab, setTab] = useState("Overview");
   const checks = checksFor(data, e.id);
@@ -553,7 +556,12 @@ export function HRRecord({
           </section>
         )}
         {tab === "Compliance" && <EmployeeChecks {...sectionProps} />}
-        {tab === "Training" && <EmployeeChecks {...sectionProps} training />}
+        {tab === "Training" && (
+          <>
+            <AssignedTraining data={data} employee={e.id} mutate={mutate} notify={notify ?? (() => {})} />
+            <EmployeeChecks {...sectionProps} training />
+          </>
+        )}
         {tab === "Documents" && <EmployeeDocuments {...sectionProps} />}
         {tab === "Activity" && (
           <div className="h-grid">
