@@ -1,4 +1,5 @@
-import type { AssignmentSlot, Prisma, RotaSettings, VisitStatus } from "@prisma/client";
+import type { Prisma, RotaSettings, VisitStatus } from "@prisma/client";
+import { placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { addDays, cycleWeekOf, dbDate, isIsoDate, londonDate, mondayOf } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
@@ -64,7 +65,7 @@ export const visitListInclude = {
   callType: { select: { id: true, name: true } },
   area: { select: { id: true, name: true, colour: true } },
   runRoute: { select: { id: true, name: true, colour: true, textColour: true } },
-  assignments: { where: { removedAt: null }, select: { id: true, slot: true, staffId: true, removedAt: true, acknowledgedAt: true, reviewReason: true, eligibility: true, staff: { select: { id: true, displayName: true } } } },
+  assignments: { where: { removedAt: null }, orderBy: { position: "asc" }, select: { id: true, slot: true, position: true, staffId: true, removedAt: true, acknowledgedAt: true, reviewReason: true, eligibility: true, staff: { select: { id: true, displayName: true } } } },
   /** Each task with its latest recorded outcome, for the Daily Rota checklist column. */
   tasks: { select: { id: true, outcomes: { select: { outcome: true }, orderBy: { at: "desc" }, take: 1 } } },
   /** The build that created the visit records the rota pattern week it used (a build can override the calendar). */
@@ -150,20 +151,21 @@ export async function allocatableStaffIds(scope: Scope): Promise<string[] | null
 }
 
 /** Carers ranked for one slot of a visit (eligible first), with each person's reasons, for the assign picker. */
-export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUserId: string; areaId: string | null; scheduledStart: Date; scheduledEnd: Date; timeLocked: boolean; assignments: { slot: string; staffId: string; removedAt: Date | null }[] }, slot: AssignmentSlot) {
+export async function visitCandidates(ctx: Ctx, visit: { id: string; serviceUserId: string; areaId: string | null; scheduledStart: Date; scheduledEnd: Date; timeLocked: boolean; assignments: { slot: string; position?: number | null; staffId: string; removedAt: Date | null }[] }, slot: PlaceKey | "ANY") {
   const scope = await rotaScope(ctx, "rota.view");
-  const others = visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId);
+  // "ANY": one list for every carer place, leaving out everyone already on the visit (the same people for each place).
+  const others = visit.assignments.filter((a) => !a.removedAt && (slot === "ANY" || placeKey(a) !== slot)).map((a) => a.staffId);
   const careTaskIds = (await db.visitTask.findMany({ where: { visitId: visit.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
   const allowed = await allocatableStaffIds(scope);
-  return slotCandidates(scope.organisationId, { visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd, timeLocked: visit.timeLocked, careTaskIds, otherSlotStaffIds: others }, slot, allowed ?? undefined);
+  return slotCandidates(scope.organisationId, { visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, start: visit.scheduledStart, end: visit.scheduledEnd, timeLocked: visit.timeLocked, careTaskIds, otherSlotStaffIds: others }, slot === "ANY" ? "PRIMARY" : slot, allowed ?? undefined);
 }
 
 /**
  * The ranking behind visitCandidates for any time window, including a visit that does not exist yet (a recovery visit
  * for a missed call): the eligibility service judges everyone, then the match score orders the people it allows.
  */
-export async function slotCandidates(organisationId: string, v: { visitId: string | null; serviceUserId: string; areaId: string | null; start: Date; end: Date; timeLocked: boolean; careTaskIds: string[]; otherSlotStaffIds: string[] }, slot: AssignmentSlot, staffIds?: string[]) {
-  const ranked = await rankCarers(db, organisationId, { start: v.start, end: v.end, slot, visitId: v.visitId, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds: v.careTaskIds }, staffIds);
+export async function slotCandidates(organisationId: string, v: { visitId: string | null; serviceUserId: string; areaId: string | null; start: Date; end: Date; timeLocked: boolean; careTaskIds: string[]; otherSlotStaffIds: string[] }, slot: PlaceKey, staffIds?: string[]) {
+  const ranked = await rankCarers(db, organisationId, { start: v.start, end: v.end, slot: placeData(slot).slot, visitId: v.visitId, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds: v.careTaskIds }, staffIds);
   const list = ranked.filter((r) => !v.otherSlotStaffIds.includes(r.result.staffId));
   const facts = await loadMatchFacts(db, organisationId, list.filter((r) => r.result.state !== "NOT_ELIGIBLE").map((r) => r.result.staffId), { id: v.visitId, serviceUserId: v.serviceUserId, start: v.start, end: v.end });
   return orderByMatch(list.map((r) => toCandidate(r, scoreMatch(r.result.state, r.result.staffId, { areaId: v.areaId, start: v.start, end: v.end }, facts))));
@@ -183,12 +185,12 @@ export type Candidate = ReturnType<typeof toCandidate>;
 type CandidateVisit = Parameters<typeof visitCandidates>[1];
 
 /** visitCandidates for a list of visits in one pass (shared fact loading), keyed by visit id. */
-export async function visitCandidatesMany(ctx: Ctx, visits: { visit: CandidateVisit; slot: AssignmentSlot }[]) {
+export async function visitCandidatesMany(ctx: Ctx, visits: { visit: CandidateVisit; slot: PlaceKey }[]) {
   const scope = await rotaScope(ctx, "rota.view");
   const tasks = await db.visitTask.findMany({ where: { visitId: { in: visits.map((v) => v.visit.id) } }, select: { visitId: true, careTaskId: true } });
-  const others = visits.map(({ visit, slot }) => visit.assignments.filter((a) => !a.removedAt && a.slot !== slot).map((a) => a.staffId));
+  const others = visits.map(({ visit, slot }) => visit.assignments.filter((a) => !a.removedAt && placeKey(a) !== slot).map((a) => a.staffId));
   const allowed = await allocatableStaffIds(scope);
-  const ranked = await rankCarersMany(db, scope.organisationId, visits.map(({ visit, slot }, i) => ({ start: visit.scheduledStart, end: visit.scheduledEnd, slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: tasks.filter((t) => t.visitId === visit.id).map((t) => t.careTaskId).filter((x): x is string => !!x), otherSlotStaffIds: others[i] })));
+  const ranked = await rankCarersMany(db, scope.organisationId, visits.map(({ visit, slot }, i) => ({ start: visit.scheduledStart, end: visit.scheduledEnd, slot: placeData(slot).slot, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: tasks.filter((t) => t.visitId === visit.id).map((t) => t.careTaskId).filter((x): x is string => !!x), otherSlotStaffIds: others[i] })));
   const out = new Map<string, Candidate[]>();
   for (const [i, { visit }] of visits.entries()) {
     const list = ranked[i]!.filter((r) => !others[i]!.includes(r.result.staffId) && (!allowed || allowed.includes(r.result.staffId)));

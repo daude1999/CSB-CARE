@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { addDays, isIsoDate, londonDate, londonMinute, londonTime, mondayOf } from "@/lib/london";
+import { openPlaces, placeKey } from "@/lib/carer-places";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, type VisitRow } from "@/server/rota/queries";
@@ -84,12 +85,12 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
   const rows: BoardRow[] = [];
   if (view === "staff-day" || view === "staff-area") {
     const unassigned = visits.filter((v) => v.flags.unassignedSlots > 0 && v.status !== "CANCELLED");
-    rows.push({ key: "none", label: "Unassigned", danger: true, sub: `${unassigned.length} visit${unassigned.length === 1 ? "" : "s"}`, cards: unassigned.map((v) => ({ ...card(v, suName(v.serviceUser), true), ...(movable(v) ? { move: { slot: v.assignments.some((a) => a.slot === "PRIMARY") ? ("SECOND" as const) : ("PRIMARY" as const), lockVersion: v.lockVersion } } : {}) })) });
+    rows.push({ key: "none", label: "Unassigned", danger: true, sub: `${unassigned.length} visit${unassigned.length === 1 ? "" : "s"}`, cards: unassigned.map((v) => ({ ...card(v, suName(v.serviceUser), true), ...(movable(v) ? { move: { slot: openPlaces(v.carersRequired, v.assignments)[0] ?? "PRIMARY", lockVersion: v.lockVersion } } : {}) })) });
     const byStaff = new Map<string, { name: string; cards: BoardCard[]; minutes: number; areas: Map<string, number> }>();
     for (const v of visits) {
       for (const a of v.assignments) {
         const r = byStaff.get(a.staffId) ?? { name: a.staff.displayName, cards: [] as BoardCard[], minutes: 0, areas: new Map<string, number>() };
-        r.cards.push({ ...card(v, `${suName(v.serviceUser)}${a.slot === "SHADOW" ? " (shadow)" : ""}`), ...(movable(v) ? { move: { slot: a.slot as "PRIMARY" | "SECOND" | "SHADOW", lockVersion: v.lockVersion } } : {}) });
+        r.cards.push({ ...card(v, `${suName(v.serviceUser)}${a.slot === "SHADOW" ? " (shadow)" : ""}`), ...(movable(v) ? { move: { slot: placeKey(a), lockVersion: v.lockVersion } } : {}) });
         if (v.status !== "CANCELLED" && a.slot !== "SHADOW") r.minutes += (v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000;
         const area = v.area?.name ?? "No area";
         r.areas.set(area, (r.areas.get(area) ?? 0) + 1);

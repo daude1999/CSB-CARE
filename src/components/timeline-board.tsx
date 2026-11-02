@@ -1,4 +1,5 @@
 "use client";
+import type { PlaceKey } from "@/lib/carer-places";
 
 import { useRef, useState } from "react";
 import { Bell, ListChecks, LockSimple, UsersThree, X } from "@phosphor-icons/react";
@@ -29,7 +30,7 @@ export interface BoardCard {
   areaColour: string | null;
   label: string;
   /** Set when the card can be dragged to another team member: the carer slot it fills and the visit's version. */
-  move?: { slot: "PRIMARY" | "SECOND" | "SHADOW"; lockVersion: number };
+  move?: { slot: PlaceKey; lockVersion: number };
 }
 
 export interface BoardRow {

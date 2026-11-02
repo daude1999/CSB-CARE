@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AssignmentSlot, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import { carerPlaces, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { ValidationError } from "@/lib/errors";
 import { addDays, cycleWeekOf, dbDate, fromDbDate, isoWeekday, londonDate, londonMinute, londonToUtc, mondayOf } from "@/lib/london";
@@ -26,7 +27,8 @@ export const ROLL_WEEKS = [1, 2, 3, 4] as const;
 export type RollWeeks = (typeof ROLL_WEEKS)[number];
 
 export interface RolledSlot {
-  slot: AssignmentSlot;
+  /** "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … or "SHADOW". */
+  slot: PlaceKey;
   /** The carer on the source visit, if any. */
   fromStaffId: string | null;
   fromName: string | null;
@@ -115,7 +117,7 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     include: {
       serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, status: true, carerGenderPreference: true, carerPreferences: true } },
       callType: { select: { name: true } },
-      assignments: { where: { removedAt: null }, select: { slot: true, staffId: true, staff: { select: { displayName: true } } } },
+      assignments: { where: { removedAt: null }, select: { slot: true, position: true, staffId: true, staff: { select: { displayName: true } } } },
       tasks: { select: { careTaskId: true } },
     },
     orderBy: [{ scheduledStart: "asc" }, { reference: "asc" }],
@@ -170,11 +172,11 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
       }
       const prefs: PreferenceFacts = { carerGenderPreference: v.serviceUser.carerGenderPreference, preferences: v.serviceUser.carerPreferences };
       const careTaskIds = v.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x);
-      const wanted: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), ...(v.assignments.some((a) => a.slot === "SHADOW") ? (["SHADOW"] as const) : [])];
+      const wanted: PlaceKey[] = [...carerPlaces(v.carersRequired), ...(v.assignments.some((a) => a.slot === "SHADOW") ? (["SHADOW"] as const) : [])];
       const slots: RolledSlot[] = [];
       const planId = `roll-${visits.length}`;
       for (const slot of wanted) {
-        const src = v.assignments.find((a) => a.slot === slot);
+        const src = v.assignments.find((a) => placeKey(a) === slot);
         if (!src) {
           slots.push({ slot, fromStaffId: null, fromName: null, staffId: null, staffName: null, state: "UNCOVERED", reason: "No carer on the visit copied from" });
           continue;
@@ -187,14 +189,14 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
           drop(`${name} works in a branch or area outside yours`);
           continue;
         }
-        const r = evaluate(settings, facts, { staffId: src.staffId, start, end, slot, serviceUserId: v.serviceUserId, areaId: v.areaId, careTaskIds }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
+        const r = evaluate(settings, facts, { staffId: src.staffId, start, end, slot: placeData(slot).slot, serviceUserId: v.serviceUserId, areaId: v.areaId, careTaskIds }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
         if (r.state === "NOT_ELIGIBLE") {
           drop(`${name}: ${r.blocking.map((b) => b.message).join("; ")}`);
           continue;
         }
         slots.push({ slot, fromStaffId: src.staffId, fromName: name, staffId: src.staffId, staffName: name, state: r.state === "ELIGIBLE" ? "KEPT" : "REVIEW", reason: r.state === "ELIGIBLE" ? undefined : r.warnings.map((w) => w.message).join("; ") });
         // Book the carer in memory so later visits in this roll forward see the booking.
-        facts.assignments.push({ id: `${planId}-${slot}`, staffId: src.staffId, visitId: planId, slot, startsAt: start, endsAt: end, visit: { reference: "this roll forward" } });
+        facts.assignments.push({ id: `${planId}-${slot}`, staffId: src.staffId, visitId: planId, slot: placeData(slot).slot, startsAt: start, endsAt: end, visit: { reference: "this roll forward" } });
       }
       let payPence: number | null = 0;
       for (const s of slots.filter((x) => x.staffId && x.slot !== "SHADOW")) {
@@ -336,7 +338,7 @@ export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; 
             assignmentRows.push({
               organisationId: scope.organisationId,
               visitId: id,
-              slot: s.slot,
+              ...placeData(s.slot),
               staffId: s.staffId!,
               startsAt: v.start,
               endsAt: v.end,

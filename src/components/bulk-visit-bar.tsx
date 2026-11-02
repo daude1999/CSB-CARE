@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
+import { MAX_CARERS } from "@/lib/carer-places";
 
-type Need = "reason" | "reasonOptional" | "charge" | "staff" | "slot" | "slotAll" | "warnings" | "time" | "duration" | "service" | "minutes";
+type Need = "reason" | "reasonOptional" | "charge" | "staff" | "slot" | "slotAll" | "warnings" | "time" | "duration" | "service" | "minutes" | "carers";
 export type BulkAction = { kind: string; label: string; needs: readonly Need[] };
 
 /** Each Daily Rota bulk action and the extra details it needs. The server checks everything again. */
@@ -22,6 +23,7 @@ const ACTIONS = [
   { kind: "shadow", label: "Add Shadow Shifts", needs: ["staff", "warnings"] },
   { kind: "doubleUp", label: "Convert To Double Up", needs: [] },
   { kind: "single", label: "Revert Double Up To Single", needs: [] },
+  { kind: "setCarers", label: "Change Carers Needed", needs: ["carers"] },
   { kind: "nudge", label: "Nudge Times", needs: ["minutes"] },
   { kind: "publish", label: "Publish to carers", needs: [] },
 ] as const satisfies readonly BulkAction[];
@@ -43,6 +45,7 @@ const TEMPLATE_ACTIONS = [
   { kind: "duplicate", label: "Duplicate Templates", needs: [] },
   { kind: "doubleUp", label: "Convert To Double Up", needs: [] },
   { kind: "single", label: "Revert Double Up To Single", needs: [] },
+  { kind: "setCarers", label: "Change Carers Needed", needs: ["carers"] },
 ] as const satisfies readonly BulkAction[];
 
 type Option = { id: string; name: string };
@@ -89,6 +92,8 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
   const [callTypeId, setCallTypeId] = useState("");
   const [reason, setReason] = useState("");
   const [charge, setCharge] = useState<"" | "yes" | "no">("");
+  const [carers, setCarers] = useState("");
+  const [carersCustom, setCarersCustom] = useState("");
   const action = actions.find((a) => a.kind === kind);
   const needs = new Set<string>(action?.needs ?? []);
   // The approved Daily Templates design joins Go to the action list; it stays separate while extra details are shown.
@@ -101,6 +106,8 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
     : needs.has("time") && !time ? "Choose the new start time."
     : needs.has("duration") && !duration ? "Enter the new length in minutes."
     : needs.has("service") && !callTypeId ? "Choose a service call."
+    : needs.has("carers") && !carers ? "Choose how many carers each visit needs."
+    : needs.has("carers") && carers === "custom" && !(Number(carersCustom) >= 1 && Number(carersCustom) <= MAX_CARERS && Number.isInteger(Number(carersCustom))) ? `Enter a whole number of carers from 1 to ${MAX_CARERS}.`
     : needs.has("charge") && !charge ? "Choose Charge or Don't charge."
     : needs.has("reason") && reason.trim().length < 3 ? "Give a reason (at least 3 letters)."
     : null;
@@ -132,9 +139,22 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
           <select aria-label="Carer place" name="slot" defaultValue="PRIMARY" className={`${FIELD} w-[120px]`}>
             <option value="PRIMARY">Carer 1</option>
             <option value="SECOND">Carer 2</option>
+            {Array.from({ length: MAX_CARERS - 2 }, (_, i) => <option key={i} value={`C${i + 3}`}>Carer {i + 3}</option>)}
             {kind === "unassign" || needs.has("slotAll") ? <option value="SHADOW">Shadow</option> : null}
           </select>
         </label>
+      ) : null}
+      {needs.has("carers") ? (
+        <>
+          <label><span className="sr-only">Carers needed</span>
+            <select aria-label="Carers needed" name="carers" value={carers} onChange={(e) => setCarers(e.target.value)} className={`${FIELD} w-[170px]`}>
+              <option value="">Carers needed…</option>
+              {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n === 1 ? "1 carer" : n === 2 ? "2 carers (double-up)" : `${n} carers`}</option>)}
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+          {carers === "custom" ? <label><span className="sr-only">Exact number of carers</span><input aria-label={`Exact number of carers (1 to ${MAX_CARERS})`} type="number" name="carersCustom" min={1} max={MAX_CARERS} step={1} value={carersCustom} onChange={(e) => setCarersCustom(e.target.value)} className={`${FIELD} w-[90px]`} /></label> : null}
+        </>
       ) : null}
       {needs.has("time") ? <label><span className="sr-only">New start time</span><input aria-label="New start time" type="time" name="time" value={time} onChange={(e) => setTime(e.target.value)} className={FIELD} /></label> : null}
       {needs.has("duration") ? <label><span className="sr-only">New length in minutes</span><input aria-label="New length in minutes" type="number" name="duration" min={5} max={1440} step={5} placeholder="Minutes" value={duration} onChange={(e) => setDuration(e.target.value)} className={`${FIELD} w-[110px]`} /></label> : null}

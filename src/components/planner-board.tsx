@@ -1,11 +1,12 @@
 "use client";
+import type { PlaceKey } from "@/lib/carer-places";
 
 import { useRef, useState } from "react";
 import { SHADE_CLASS, SHADE_TEXT, TONE_CLASS, type ShadeTone, type Tone } from "@/components/roster-tones";
 
 export interface PlannerChip {
   visitId: string;
-  slot: "PRIMARY" | "SECOND" | "SHADOW";
+  slot: PlaceKey;
   lockVersion: number;
   href: string;
   time: string;

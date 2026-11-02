@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AssignmentSlot, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import { carerPlaces, placeData, preferredOf, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, cycleWeekOf, dbDate, fmtLondonDate, fromDbDate, isIsoDate, isoWeekday, londonDate, londonToUtc, mondayOf } from "@/lib/london";
@@ -22,7 +23,8 @@ import { visitReference } from "./visits";
 type Tx = Prisma.TransactionClient;
 
 export interface PlannedSlot {
-  slot: AssignmentSlot;
+  /** "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … or "SHADOW". */
+  slot: PlaceKey;
   staffId: string | null;
   staffName: string | null;
   state: "ASSIGNED" | "FLAGGED" | "UNASSIGNED";
@@ -119,7 +121,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
     tx.staffAbsence.count({ where: { organisationId: org, staff: staffDirectoryWhere(scope, { status: "all" }), status: "REQUESTED", startsAt: { lt: weekTo }, endsAt: { gt: weekFrom } } }),
   ]);
   const built = new Set(existing.map((e) => `${e.templateId}|${fromDbDate(e.date)}`));
-  const staffIds = [...new Set(templates.flatMap((t) => [t.preferredStaff1Id, t.preferredStaff2Id, t.shadowStaffId]).filter((x): x is string => !!x))];
+  const staffIds = [...new Set(templates.flatMap((t) => [...preferredOf(t), t.shadowStaffId]).filter((x): x is string => !!x))];
   const facts: Facts = await loadFacts(tx, org, staffIds, weekFrom, weekTo);
 
   const visits: PlannedVisit[] = [];
@@ -153,8 +155,8 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
         continue;
       }
       const prefs: PreferenceFacts = { carerGenderPreference: t.serviceUser.carerGenderPreference, preferences: t.serviceUser.carerPreferences };
-      const wanted: [AssignmentSlot, string | null][] = [["PRIMARY", t.preferredStaff1Id]];
-      if (t.carersRequired === 2) wanted.push(["SECOND", t.preferredStaff2Id]);
+      const preferred = preferredOf(t);
+      const wanted: [PlaceKey, string | null][] = carerPlaces(t.carersRequired).map((k, i) => [k, preferred[i] ?? null]);
       if (t.shadowStaffId) wanted.push(["SHADOW", t.shadowStaffId]);
       const slots: PlannedSlot[] = [];
       for (const [slot, staffId] of wanted) {
@@ -163,7 +165,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
           continue;
         }
         const name = facts.staff.find((s) => s.id === staffId)?.displayName ?? "Unknown";
-        const r = evaluate(settings, facts, { staffId, start, end, slot, serviceUserId: t.serviceUserId, areaId: t.areaId, careTaskIds: t.tasks.map((x) => x.careTaskId) }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
+        const r = evaluate(settings, facts, { staffId, start, end, slot: placeData(slot).slot, serviceUserId: t.serviceUserId, areaId: t.areaId, careTaskIds: t.tasks.map((x) => x.careTaskId) }, prefs, { otherSlotStaffIds: slots.map((s) => s.staffId).filter((x): x is string => !!x) });
         if (r.state === "NOT_ELIGIBLE") {
           slots.push({ slot, staffId: null, staffName: name, state: "UNASSIGNED", reason: `${name}: ${r.blocking.map((b) => b.message).join("; ")}` });
           if (slot === "SHADOW") slots.pop();
@@ -171,14 +173,14 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
         }
         slots.push({ slot, staffId, staffName: name, state: r.state === "ELIGIBLE" ? "ASSIGNED" : "FLAGGED", reason: r.state === "ELIGIBLE" ? undefined : r.warnings.map((w) => w.message).join("; ") });
         // Book the carer in the in-memory facts so the rest of this build sees the booking.
-        facts.assignments.push({ id: `plan-${visits.length}-${slot}`, staffId, visitId: `plan-${visits.length}`, slot, startsAt: start, endsAt: end, visit: { reference: "this build" } });
+        facts.assignments.push({ id: `plan-${visits.length}-${slot}`, staffId, visitId: `plan-${visits.length}`, slot: placeData(slot).slot, startsAt: start, endsAt: end, visit: { reference: "this build" } });
       }
       visits.push({ templateId: t.id, serviceUserId: t.serviceUserId, serviceUserName: suName, callTypeId: t.callTypeId, callType: t.callType.name, areaId: t.areaId, date, start, end, durationMin: t.durationMin, carersRequired: t.carersRequired, slots });
     }
   }
   const unassignedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.slot !== "SHADOW" && s.state === "UNASSIGNED").length, 0);
   const flaggedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.state === "FLAGGED").length, 0);
-  const noCarer = templates.filter((t) => !t.preferredStaff1Id || (t.carersRequired === 2 && !t.preferredStaff2Id)).length;
+  const noCarer = templates.filter((t) => preferredOf(t).some((x) => !x)).length;
   const blockers = visits.length ? [] : await whyNothing(tx, scope, { weekStart, cycleWeek, cycleLength: settings.cycleLength, areaIds, includeNoArea, templates: templates.length, alreadyBuilt, skipped });
   return {
     weekStart,
@@ -357,7 +359,7 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
           assignmentRows.push({
             organisationId: scope.organisationId,
             visitId: id,
-            slot: s.slot,
+            ...placeData(s.slot),
             staffId: s.staffId!,
             startsAt: v.start,
             endsAt: v.end,

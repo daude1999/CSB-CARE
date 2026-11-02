@@ -1,4 +1,5 @@
-import type { AssignmentSlot } from "@prisma/client";
+import { carerPlaces, carersNeededLabel, isCarerPlace, placeKey, placeLabel, staffingOf, STAFFING_LABEL, type PlaceKey } from "@/lib/carer-places";
+import { CarersNeededField } from "@/components/carers-needed";
 import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -25,7 +26,7 @@ import { communicationStates, COVER_SOURCES } from "@/server/rota/cover-communic
 
 export const dynamic = "force-dynamic";
 
-const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "First carer", SECOND: "Second carer", SHADOW: "Shadowing" };
+const SLOT_LABEL = (k: PlaceKey) => (k === "SHADOW" ? "Shadowing" : placeLabel(k));
 const STATE_LABEL = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", UPDATED: "Visit changed", CANCELLED: "Visit cancelled", REINSTATED: "Visit reinstated",
@@ -42,12 +43,15 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const flags = deriveFlags(v, settings);
   const editable = canEdit && v.status === "SCHEDULED";
   const assignable = canEdit && ["SCHEDULED", "MISSED"].includes(v.status);
-  const slots: AssignmentSlot[] = ["PRIMARY", ...(v.carersRequired > 1 ? (["SECOND"] as const) : []), "SHADOW"];
+  const slots: PlaceKey[] = [...carerPlaces(v.carersRequired), "SHADOW"];
+  const allocated = live.filter(isCarerPlace).length;
+  const staffing = staffingOf(v.carersRequired, allocated);
   const requests = await listCorrectionRequests(ctx, { visitId: v.id, status: "ALL" });
   const medication = await visitMedication(ctx, v.id);
-  const swappable = editable ? live.filter((a) => a.slot !== "SHADOW").map((a) => a.slot) : [];
+  const swappable = editable ? live.filter(isCarerPlace).map(placeKey) : [];
   const [candidates, lk, names, swaps] = await Promise.all([
-    assignable ? Promise.all(slots.map(async (s) => [s, await visitCandidates(ctx, v, s)] as const)) : Promise.resolve([]),
+    // One ranked list serves every carer place (everyone already on the visit is left out); the shadow has its own.
+    assignable ? Promise.all([visitCandidates(ctx, v, "ANY"), visitCandidates(ctx, v, "SHADOW")]).then(([carers, shadow]) => slots.map((s) => [s, s === "SHADOW" ? shadow : carers] as const)) : Promise.resolve([]),
     editable ? rotaLookups(ctx) : Promise.resolve(null),
     memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.assignments.map((a) => a.assignedById), ...v.clocks.map((c) => c.recordedById), ...v.visitNotes.map((n) => n.authorUserId), ...requests.flatMap((r) => [r.requestedById, r.decidedById])]),
     Promise.all(swappable.map(async (s) => [s, await swapCandidates(ctx, v.id, s)] as const)),
@@ -88,9 +92,9 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
           <Card title="Visit">
             <div className="mb-3 flex flex-wrap items-center gap-1.5">
               <VisitStatusBadge status={v.status} />
-              <FlagBadges flags={flags} />
+              <FlagBadges flags={flags} required={v.carersRequired} />
               {v.timeLocked ? <Badge>Time locked</Badge> : null}
-              {v.carersRequired > 1 ? <Badge tone="violet">Double-up</Badge> : null}
+              {v.carersRequired > 1 ? <Badge tone="violet">{carersNeededLabel(v.carersRequired)}</Badge> : null}
               {v.publishedAt ? <Badge tone="green">Published</Badge> : <Badge tone="amber">Not published</Badge>}
               {v.manuallyChanged ? <Badge>Changed by hand</Badge> : null}
             </div>
@@ -110,15 +114,22 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
           </Card>
 
           <Card title="Carers">
+            <div className="mb-1 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-slate-200 pb-3 text-[14px]" aria-label="Staffing">
+              <span>Required <strong className="tabular-nums">{v.carersRequired}</strong></span>
+              <span>Allocated <strong className="tabular-nums">{allocated}</strong></span>
+              <span>Outstanding <strong className="tabular-nums">{Math.max(0, v.carersRequired - allocated)}</strong></span>
+              <Badge tone={staffing === "FULL" ? "green" : staffing === "PARTIAL" ? "amber" : "rose"}>{STAFFING_LABEL[staffing]}</Badge>
+            </div>
             <ul className="rows">
               {slots.map((s) => {
-                const a = live.find((x) => x.slot === s);
+                const a = live.find((x) => placeKey(x) === s);
+                const firstOpen = s === slots.find((k) => k !== "SHADOW" && !live.some((x) => placeKey(x) === k));
                 const list = candidates.find((c) => c[0] === s)?.[1] ?? [];
                 return (
                   <li key={s} className="py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="text-[12.5px] text-slate-500">{SLOT_LABEL[s]}</div>
+                        <div className="text-[12.5px] text-slate-500">{SLOT_LABEL(s)}</div>
                         {a ? (
                           <div className="text-[15px] font-medium text-[#1d4f91]">{a.staff.displayName} <span className="font-normal text-slate-500">· {a.staff.jobTitle}</span></div>
                         ) : (
@@ -129,7 +140,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         {a ? <p className="text-[12.5px] text-slate-500">Assigned by {who(a.assignedById)} {fmtDate(a.assignedAt, true)}{a.acknowledgedAt ? ` · seen by carer ${fmtDate(a.acknowledgedAt, true)}` : ""}</p> : null}
                       </div>
                       {coverable && s !== "SHADOW" ? (
-                        <Link href={coverHref(back, {}, { id: v.id, mode: a ? "replace" : "fill", slot: s })} scroll={false} className="inline-flex items-center rounded-[6px] border border-[#6b46c9] px-2.5 py-1 text-[13.5px] font-semibold text-[#4b2f9a] no-underline hover:bg-[#f6f3fd]" aria-label={a ? `Find replacement cover for ${a.staff.displayName}` : `Find cover for the ${SLOT_LABEL[s].toLowerCase()} place`}>{a ? "Find replacement" : "Find Cover"}</Link>
+                        <Link href={coverHref(back, {}, { id: v.id, mode: a ? "replace" : "fill", slot: s })} scroll={false} className="inline-flex items-center rounded-[6px] border border-[#6b46c9] px-2.5 py-1 text-[13.5px] font-semibold text-[#4b2f9a] no-underline hover:bg-[#f6f3fd]" aria-label={a ? `Find replacement cover for ${a.staff.displayName}` : `Find cover for the ${SLOT_LABEL(s).toLowerCase()} place`}>{a ? "Find replacement" : "Find Cover"}</Link>
                       ) : null}
                       {a && assignable ? (
                         <form action={unassignCarerAction} className="flex items-center gap-2">
@@ -143,7 +154,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                       ) : null}
                     </div>
                     {assignable && s !== "SHADOW" && list.some((c) => c.score !== null) ? (
-                      <details className="mt-2" open={!a}>
+                      <details className="mt-2" open={firstOpen}>
                         <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Recommended carers</summary>
                         <CarerRecommendations list={list} visitId={v.id} slot={s} lockVersion={v.lockVersion} back={back} replacing={!!a} />
                         <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
@@ -155,7 +166,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         <input type="hidden" name="visitId" value={v.id} />
                         <input type="hidden" name="slot" value={s} />
                         <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                        <select name="staffId" required className="input max-w-md flex-1 py-1.5 text-[14px]" aria-label={`${a ? "Replace" : "Choose"} ${SLOT_LABEL[s].toLowerCase()}`}>
+                        <select name="staffId" required className="input max-w-md flex-1 py-1.5 text-[14px]" aria-label={`${a ? "Replace" : "Choose"} ${SLOT_LABEL(s).toLowerCase()}`}>
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
@@ -333,13 +344,13 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 <label className="block"><span className="label">Office notes</span><textarea name="notes" defaultValue={v.notes ?? ""} rows={2} className="input" /></label>
                 <button className="btn-primary">Save visit</button>
               </form>
-              <form action={doubleUpAction} className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3">
+              <form action={doubleUpAction} className="mt-3 space-y-2 border-t border-slate-200 pt-3">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="visitId" value={v.id} />
                 <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                <input type="hidden" name="carersRequired" value={v.carersRequired > 1 ? 1 : 2} />
-                <button className="btn-secondary">{v.carersRequired > 1 ? "Make single-handed" : "Make a double-up"}</button>
-                <span className="text-[12.5px] text-slate-500">{v.carersRequired > 1 ? "Remove the second carer first." : "Adds a second carer slot."}</span>
+                <CarersNeededField defaultValue={v.carersRequired} />
+                <button className="btn-secondary">Change carers needed</button>
+                <p className="text-[12.5px] text-slate-500">Carers already booked stay. To lower the number, first remove the carers from the higher places.</p>
               </form>
             </Card>
           ) : null}
