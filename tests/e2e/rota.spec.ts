@@ -425,6 +425,6 @@ test.describe("Rostering & Care Management", () => {
     await expect(panel.locator("select[name=staffId]").first()).toBeVisible();
     await panel.getByRole("link", { name: "Full visit" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByLabel(/Choose first carer|Replace first carer/)).toBeVisible();
+    await expect(page.getByLabel(/Choose carer 1|Replace carer 1/)).toBeVisible();
   });
 });

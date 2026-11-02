@@ -477,7 +477,7 @@ async function RecoveryResult({ ctx, ws, u }: { ctx: Ctx; ws: RecoveryCover; u: 
           </dl>
           {view.still ? <p className="mt-2 text-[13.5px] font-medium text-[#7a5200]">{view.still} more {view.still === 1 ? "carer is" : "carers are"} needed on this visit.</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {view.still && view.state.canFind ? <Link href={u.at({ fcStep: undefined })} scroll={false} className={PURPLE}>Find the next carer</Link> : null}
+            {view.still && view.state.canFind ? <Link href={u.at({ fcStep: undefined })} scroll={false} className={PURPLE}>{view.still === 1 && view.state.required === 2 ? "Find the second carer" : "Find the next carer"}</Link> : null}
             <Link href={`/rota/visits?date=${londonDate(rv.scheduledStart)}`} className={QUIET}>Open the Daily Rota</Link>
             <Link href={`/rota/missed/${caseId}`} className={QUIET}>Open the case</Link>
           </div>
