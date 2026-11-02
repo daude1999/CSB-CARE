@@ -44,7 +44,8 @@ test.describe("Overview", () => {
       ["reporting", "/analytics", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],
-      ["hr", "/hr/dashboard", "[data-testid=title-bar]"],
+      // The HR overview, People and Recruitment use the approved light heading (no banner); other HR pages keep it.
+      ["hr", "/workforce/absences", "[data-testid=title-bar]"],
     ];
     for (const [id, path, banner] of banners) {
       await page.goto("/overview");

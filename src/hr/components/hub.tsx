@@ -9,7 +9,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "@/hr/nav";
 import { BranchWorkspace, AlertsWorkspace } from "./workspace-widgets";
 import { EmployeePanel } from "./employee-panel";
-import { health, documentState, documentDue } from "@/hr/lib/presentation";
+import { documentState, documentDue } from "@/hr/lib/presentation";
 import {
   Users,
   Files,
@@ -20,13 +20,8 @@ import {
   Settings,
   Search,
   ChevronRight,
-  ChevronLeft,
-  Plus,
   Download,
-  Filter,
-  MoreHorizontal,
   CheckCircle2,
-  SlidersHorizontal,
   FileText,
   ExternalLink,
   ZoomIn,
@@ -48,7 +43,26 @@ import { Avatar, Badge, Drawer, Empty, Field } from "./ui";
 import PdfPreview from "./pdf-preview";
 import { DocumentCentre } from "./document-centre";
 import { HRTasks } from "./hr-tasks";
-import { HRHome, TrainingMatrix, DocumentsSplit } from "./hr-views";
+import { TrainingMatrix, DocumentsSplit } from "./hr-views";
+import { HrOverview } from "./hr-overview";
+import { HxMenu } from "./hx-menu";
+import { HrAvatar, HrBadge, HrEmpty, HrHeading, HrState, HX_PRIMARY } from "@/components/hr-ui";
+import { complianceSummary } from "@/hr/lib/overview";
+import {
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  CaretUp,
+  CaretUpDown,
+  CheckCircle,
+  DotsThree,
+  Funnel,
+  MagnifyingGlass,
+  MinusCircle,
+  Plus as PlusIcon,
+  Warning,
+  WarningOctagon,
+} from "@phosphor-icons/react";
 import { HRRecord } from "./hr-record";
 import { HubHeader } from "./hub-header";
 import { HUB_SEARCH_EVENT } from "@/lib/portals";
@@ -378,9 +392,12 @@ function Workspace({
       </div>
     );
   }
+  // The HR overview and People carry their own light heading (owner's approved HR concept); other screens keep the
+  // module header with its tabs.
+  const ownHeading = !selected && (section === "dashboard" || (section === "people" && !employeeId));
   return (
     <>
-      <HubHeader
+      {ownHeading ? null : <HubHeader
         title={
           selected
             ? selected.name
@@ -399,7 +416,7 @@ function Workspace({
         scope={scope}
         setScope={setScope}
         data={data}
-      />
+      />}
       <div className="cs h-embed">
         <div className={"h-content " + (selected ? "h-record-page" : "h-wrap")}>
           {notice && (
@@ -415,13 +432,7 @@ function Workspace({
             </div>
           )}
           {section === "dashboard" && (
-            <HRHome
-              data={data}
-              scope={scope}
-              onAdd={() => setModal({ type: "employee" })}
-              onUpload={() => setModal({ type: "upload" })}
-              onDocument={(d) => setModal({ type: "document", document: d })}
-            />
+            <HrOverview data={data} scope={scope} setScope={setScope} />
           )}
           {section === "training" && (
             <TrainingMatrix data={data} scope={scope} />
@@ -713,7 +724,11 @@ function People({
   const [due, setDue] = useState(params.get("due") || "");
   const [manager, setManager] = useState(params.get("manager") || "");
   const [sorting, setSorting] = useState<SortingState>([]);
+  // The directory shows name, role, branch, status and compliance; the rest are one click away (More filters).
   const [visibility, setVisibility] = useState<Record<string, boolean>>({
+    staffId: false,
+    lineManager: false,
+    start: false,
     updated: false,
     nextReview: false,
     missing: false,
@@ -760,20 +775,22 @@ function People({
       return employeeStatus(checks(e.id), data.today) === "Checks up to date";
     return true;
   });
+  const branchName = (id: string) => data.branches.find((b) => b.id === id)?.name ?? "";
+  const summaryOf = (e: Employee) => complianceSummary(checks(e.id), data.today);
+  const editable = canEdit(data.user);
   const columns: ColumnDef<Employee>[] = [
     {
       accessorKey: "name",
-      header: "Employee",
+      header: "Name",
       cell: ({ row }) => (
         <button
+          type="button"
           onClick={() => openRecord(row.original)}
-          className="person-cell h-emp"
+          className="hx-person"
+          aria-label={`Open ${row.original.name}'s record`}
         >
-          <Avatar name={row.original.name} />
-          <span>
-            <strong>{row.original.name}</strong>
-            <small>{row.original.email}</small>
-          </span>
+          <HrAvatar name={row.original.name} size="sm" />
+          <span>{row.original.name}</span>
         </button>
       ),
     },
@@ -784,36 +801,44 @@ function People({
     },
     { accessorKey: "job", header: "Role" },
     {
-      accessorKey: "branch",
+      id: "branch",
+      accessorFn: (e) => branchName(e.branch),
       header: "Branch",
-      cell: ({ row }) =>
-        data.branches.find((b) => b.id === row.original.branch)?.name,
     },
     {
       accessorKey: "lineManager",
       header: "Manager",
-      cell: ({ row }) =>
-        row.original.lineManager ? (
-          <span className="h-mgr">
-            <Avatar name={row.original.lineManager} />
-            {row.original.lineManager}
-          </span>
-        ) : (
-          "—"
-        ),
+      cell: ({ row }) => row.original.lineManager || "—",
     },
     {
       accessorKey: "status",
-      header: "Employment",
-      cell: ({ row }) => <Badge variant="neutral">{row.original.status}</Badge>,
+      header: "Status",
+      cell: ({ row }) => {
+        const s = row.original.status;
+        return (
+          <HrBadge tone={s === "Active" ? "good" : s === "Onboarding" ? "info" : s === "Suspended" ? "warn" : "neutral"}>
+            {s === "Onboarding" ? "New starter" : s}
+          </HrBadge>
+        );
+      },
     },
     {
       id: "reviewStatus",
-      accessorFn: (e) => employeeStatus(checks(e.id), data.today),
+      accessorFn: (e) => summaryOf(e).rank,
       header: "Compliance",
-      cell: ({ row }) => (
-        <Badge>{health(checks(row.original.id), data.today)}</Badge>
-      ),
+      cell: ({ row }) => {
+        const c = summaryOf(row.original);
+        return (
+          <span title={c.detail}>
+            <HrState
+              tone={c.tone}
+              icon={c.tone === "good" ? <CheckCircle size={18} weight="fill" /> : c.tone === "neutral" ? <MinusCircle size={18} /> : c.tone === "bad" ? <WarningOctagon size={18} weight="fill" /> : <Warning size={18} weight="fill" />}
+            >
+              {c.label}
+            </HrState>
+          </span>
+        );
+      },
     },
     {
       accessorKey: "start",
@@ -839,25 +864,16 @@ function People({
     {
       id: "missing",
       header: "Missing docs",
-      cell: ({ row }) => (
-        <span className="count-pill">
-          {
-            checks(row.original.id).filter(
-              (c) => checkStatus(c, data.today) === "Missing evidence",
-            ).length
-          }
-        </span>
-      ),
+      cell: ({ row }) =>
+        checks(row.original.id).filter(
+          (c) => checkStatus(c, data.today) === "Missing evidence",
+        ).length,
     },
     {
       id: "documents",
       header: "Documents",
-      cell: ({ row }) => (
-        <span className="item-label">
-          <FileText size={14} />
-          {data.documents.filter((d) => d.employee === row.original.id).length}
-        </span>
-      ),
+      cell: ({ row }) =>
+        data.documents.filter((d) => d.employee === row.original.id).length,
     },
     {
       accessorKey: "updated",
@@ -866,15 +882,20 @@ function People({
     },
     {
       id: "actions",
-      header: "",
+      header: () => <span className="sr-only">Actions</span>,
+      enableSorting: false,
       cell: ({ row }) => (
-        <button
-          className="icon-btn"
-          aria-label={`Quick view ${row.original.name}`}
-          onClick={() => openPeek(row.original)}
-        >
-          <MoreHorizontal size={18} />
-        </button>
+        <HxMenu
+          label={`Actions for ${row.original.name}`}
+          trigger={<DotsThree size={20} weight="bold" />}
+          items={[
+            { label: "Quick view", onSelect: () => openPeek(row.original) },
+            { label: "Open record", onSelect: () => openRecord(row.original) },
+            ...(editable
+              ? [{ label: "Edit details", onSelect: () => setModal({ type: "employee", employee: row.original }) }]
+              : []),
+          ]}
+        />
       ),
     },
   ];
@@ -898,14 +919,14 @@ function People({
   useEffect(() => {
     const url = new URL(window.location.href);
     for (const [key, value] of Object.entries({
-      view,
+      view: view === "All people" ? "" : view,
       q: search,
       employment,
       job,
       review,
       due,
       manager,
-      page: String(pageIndex),
+      page: pageIndex ? String(pageIndex) : "",
     })) {
       if (value) url.searchParams.set(key, value);
       else url.searchParams.delete(key);
@@ -923,338 +944,258 @@ function People({
     setManager("");
     table.setPageIndex(0);
   };
+  const extraFilters = [job, manager, review, due].filter(Boolean).length;
+  const VIEW_LABEL: Record<string, string> = {
+    Active: "active employees",
+    "New starters": "new starters",
+    Archived: "archived employees",
+    "Reviews due": "people with checks due soon",
+    Overdue: "people with an overdue check",
+    "Missing documents": "people missing required evidence",
+    "All clear": "people whose checks are all up to date",
+    "Due soon": "people whose next issue is a check due soon",
+    "Up to date": "people whose checks are all up to date",
+  };
+  const total = filtered.length;
+  const from = total ? pageIndex * 12 + 1 : 0;
+  const to = Math.min(total, (pageIndex + 1) * 12);
   return (
-    <>
-      <PageHeading
+    <div className="hr-ui hx-page" data-testid="hr-people">
+      <HrHeading
         title="People"
-        subtitle="Manage your workforce across CSB."
-        action={
-          <div className="button-group">
-            {canEdit(data.user) && (
-              <button
-                className="secondary-button"
-                onClick={() => router.push("/imports?branch=" + scope)}
-              >
-                <Upload size={16} /> Import CSV
+        actions={
+          <>
+            {editable ? (
+              <HxMenu
+                label="More people actions"
+                triggerClass="hx-btn hx-btn--secondary"
+                trigger={<>More<CaretDown size={14} /></>}
+                items={[
+                  { label: "Import from a spreadsheet (CSV)", onSelect: () => router.push("/imports?branch=" + scope) },
+                  {
+                    label: `Export these ${total} people (CSV)`,
+                    disabled: !total,
+                    onSelect: () => {
+                      const link = document.createElement("a");
+                      link.href = `/api/hr/hub?export=csv&branch=${scope}&ids=${filtered.map((e) => e.id).join(",")}`;
+                      link.download = "csb-people.csv";
+                      link.click();
+                    },
+                  },
+                ]}
+              />
+            ) : null}
+            {editable ? (
+              <button type="button" className={HX_PRIMARY} onClick={() => setModal({ type: "employee" })}>
+                <PlusIcon size={16} weight="bold" aria-hidden="true" />
+                Add employee
               </button>
-            )}
-            <button
-              className="primary"
-              disabled={!canEdit(data.user)}
-              onClick={() => setModal({ type: "employee" })}
-            >
-              <Plus size={17} /> Add employee
-            </button>
-          </div>
+            ) : null}
+          </>
         }
       />
-      <section className="h-sheet people-panel h-directory">
-        <div className="h-tabs" role="tablist" aria-label="Employment views">
-          {[
-            "All employees",
-            "Active",
-            "New starters",
-            "On leave",
-            "Archived",
-          ].map((v) => {
-            const internal = v === "All employees" ? "All people" : v;
-            const count = data.employees.filter((e) =>
-              v === "All employees"
-                ? e.status !== "Archived"
-                : v === "New starters"
-                  ? e.status === "Onboarding"
-                  : e.status === internal,
-            ).length;
-            return (
-              <button
-                key={v}
-                role="tab"
-                aria-selected={view === internal}
-                disabled={v === "On leave"}
-                title={
-                  v === "On leave"
-                    ? "Coming soon — leave status is not tracked"
-                    : undefined
-                }
-                onClick={() => {
-                  setView(internal);
-                  table.setPageIndex(0);
-                }}
-              >
-                {v}
-                <span className="cs-count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="table-toolbar">
-          <div className="local-search">
-            <Search size={16} />
+      <section className="hx-card" aria-label="Employee directory">
+        <div className="hx-toolbar">
+          <label className="hx-search">
+            <span className="sr-only">Search employees</span>
+            <MagnifyingGlass size={17} aria-hidden="true" />
             <input
-              aria-label="Search people"
-              placeholder="Search people…"
+              type="search"
+              className="hx-input"
+              placeholder="Search employees…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 table.setPageIndex(0);
               }}
             />
-          </div>
-          <select
-            aria-label="People branch"
-            value={scope}
-            onChange={(ev) => setScope(ev.target.value)}
-          >
-            <option value="all">Branch: All</option>
-            {data.branches.map((b) => (
-              <option value={b.id} key={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Filter job role"
-            value={job}
-            onChange={(event) => {
-              setJob(event.target.value);
-              table.setPageIndex(0);
-            }}
-          >
-            <option value="">Role</option>
-            {[...new Set(data.employees.map((employee) => employee.job))].map(
-              (role) => (
-                <option key={role}>{role}</option>
-              ),
-            )}
-          </select>
-          <select
-            aria-label="Employment status"
-            value={employment}
-            onChange={(ev) => {
-              setEmployment(ev.target.value);
-              table.setPageIndex(0);
-            }}
-          >
-            <option value="">Employment</option>
-            {["Active", "Onboarding", "Suspended", "Archived"].map((s) => (
-              <option key={s} value={s}>
-                {s === "Onboarding" ? "New starter" : s}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Filter manager"
-            value={manager}
-            onChange={(ev) => {
-              setManager(ev.target.value);
-              table.setPageIndex(0);
-            }}
-          >
-            <option value="">Manager</option>
-            {[
-              ...new Set(
-                data.employees.map((e) => e.lineManager).filter(Boolean),
-              ),
-            ].map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-          <select
-            aria-label="Filter review status"
-            value={review}
-            onChange={(e) => {
-              setReview(e.target.value);
-              table.setPageIndex(0);
-            }}
-          >
-            <option value="">Compliance</option>
-            {Object.keys(priorities).map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-          <button
-            className="secondary-button"
-            disabled={!canEdit(data.user)}
-            onClick={() => {
-              const link = document.createElement("a");
-              link.href = `/api/hr/hub?export=csv&branch=${scope}&ids=${filtered.map((e) => e.id).join(",")}`;
-              link.download = "csb-people.csv";
-              link.click();
-            }}
-          >
-            <Download size={16} /> Export
-          </button>
-          <div className="column-control">
+          </label>
+          <label className="hx-field is-filter">
+            <span>Branch</span>
+            <select
+              className="hx-select"
+              aria-label="Branch"
+              value={scope}
+              onChange={(ev) => setScope(ev.target.value)}
+            >
+              <option value="all">{data.allBranches ? "All branches" : "All my branches"}</option>
+              {data.branches.map((b) => (
+                <option value={b.id} key={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="hx-field is-filter">
+            <span>Status</span>
+            <select
+              className="hx-select"
+              aria-label="Employment status"
+              value={employment}
+              onChange={(ev) => {
+                setEmployment(ev.target.value);
+                table.setPageIndex(0);
+              }}
+            >
+              <option value="">All current staff</option>
+              {["Active", "Onboarding", "Suspended", "Archived"].map((s) => (
+                <option key={s} value={s}>
+                  {s === "Onboarding" ? "New starter" : s}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="hx-toolbar-end">
             <button
-              className="secondary-button"
+              type="button"
+              className="hx-btn hx-btn--quiet"
+              aria-expanded={showColumns}
+              aria-controls="people-more-filters"
               onClick={() => setShowColumns(!showColumns)}
             >
-              <SlidersHorizontal size={15} /> Columns
+              <Funnel size={16} aria-hidden="true" />
+              More filters{extraFilters ? ` (${extraFilters})` : ""}
             </button>
-            {showColumns && (
-              <div className="popover">
+          </div>
+        </div>
+        {showColumns ? (
+          <div id="people-more-filters" className="hx-toolbar" style={{ paddingTop: 0 }}>
+            <label className="hx-field is-filter">
+              <span>Role</span>
+              <select className="hx-select" aria-label="Filter job role" value={job} onChange={(event) => { setJob(event.target.value); table.setPageIndex(0); }}>
+                <option value="">All roles</option>
+                {[...new Set(data.employees.map((employee) => employee.job))].sort().map((role) => (
+                  <option key={role}>{role}</option>
+                ))}
+              </select>
+            </label>
+            <label className="hx-field is-filter">
+              <span>Manager</span>
+              <select className="hx-select" aria-label="Filter manager" value={manager} onChange={(ev) => { setManager(ev.target.value); table.setPageIndex(0); }}>
+                <option value="">Any manager</option>
+                {[...new Set(data.employees.map((e) => e.lineManager).filter(Boolean))].map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label className="hx-field is-filter">
+              <span>Has a check that is</span>
+              <select className="hx-select" aria-label="Filter review status" value={review} onChange={(e) => { setReview(e.target.value); table.setPageIndex(0); }}>
+                <option value="">Any status</option>
+                {Object.keys(priorities).map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+            <label className="hx-field is-filter">
+              <span>A check due by</span>
+              <input type="date" className="hx-input" aria-label="Due by" value={due} onChange={(e) => { setDue(e.target.value); table.setPageIndex(0); }} />
+            </label>
+            <fieldset className="hx-field" style={{ border: 0, padding: 0, margin: 0 }}>
+              <legend className="sr-only">Columns</legend>
+              <span>Extra columns</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 13.5 }}>
                 {table
                   .getAllLeafColumns()
                   .filter((c) => !["name", "actions"].includes(c.id))
                   .map((c) => (
-                    <label key={c.id}>
-                      <input
-                        type="checkbox"
-                        checked={c.getIsVisible()}
-                        onChange={c.getToggleVisibilityHandler()}
-                      />
-                      {typeof c.columnDef.header === "string"
-                        ? c.columnDef.header
-                        : c.id}
+                    <label key={c.id} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <input type="checkbox" checked={c.getIsVisible()} onChange={c.getToggleVisibilityHandler()} />
+                      {typeof c.columnDef.header === "string" ? c.columnDef.header : c.id}
                     </label>
                   ))}
               </div>
-            )}
-          </div>
-        </div>
-        <details className="h-directory-tools">
-          <summary>Saved views & advanced filters</summary>
-          <div className="filter-row">
-            <Filter size={14} />
-            <label>
-              Due by{" "}
-              <input
-                type="date"
-                aria-label="Due by"
-                value={due}
-                onChange={(e) => {
-                  setDue(e.target.value);
-                  table.setPageIndex(0);
-                }}
-              />
-            </label>
-            <button className="text-btn" onClick={reset}>
-              Reset filters
-            </button>
-            <div className="save-view">
-              <select
-                aria-label="Saved views"
-                defaultValue=""
-                onChange={(e) => {
-                  const v = data.views.find((v) => v.id === e.target.value);
-                  if (v) {
-                    const restored = new URL(window.location.href);
-                    for (const [key, value] of Object.entries({
-                      view: v.filters.view || "All people",
-                      q: v.filters.search || "",
-                      employment: v.filters.employment || "",
-                      manager: v.filters.manager || "",
-                      job: v.filters.job || "",
-                      review: v.filters.review || "",
-                      due: v.filters.due || "",
-                      page: "0",
-                    })) {
-                      restored.searchParams.set(key, value);
+            </fieldset>
+            <div className="hx-field">
+              <span>Saved views</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <select
+                  className="hx-select"
+                  style={{ width: "auto" }}
+                  aria-label="Saved views"
+                  defaultValue=""
+                  onChange={(e) => {
+                    const v = data.views.find((v) => v.id === e.target.value);
+                    if (v) {
+                      setView(v.filters.view || "All people");
+                      setSearch(v.filters.search || "");
+                      setEmployment(v.filters.employment || "");
+                      setManager(v.filters.manager || "");
+                      setJob(v.filters.job || "");
+                      setReview(v.filters.review || "");
+                      setDue(v.filters.due || "");
+                      table.setPageIndex(0);
+                      if (v.filters.branch === "all" || data.user.branches.includes(v.filters.branch)) setScope(v.filters.branch);
+                      setVisibility(Object.fromEntries(table.getAllLeafColumns().map((c) => [c.id, v.columns.includes(c.id)])));
                     }
-                    window.history.replaceState(null, "", restored);
-                    setView(v.filters.view || "All people");
-                    setSearch(v.filters.search || "");
-                    setEmployment(v.filters.employment || "");
-                    setManager(v.filters.manager || "");
-                    setJob(v.filters.job || "");
-                    setReview(v.filters.review || "");
-                    setDue(v.filters.due || "");
-                    if (
-                      v.filters.branch === "all" ||
-                      data.user.branches.includes(v.filters.branch)
-                    )
-                      setScope(v.filters.branch);
-                    setVisibility(
-                      Object.fromEntries(
-                        table
-                          .getAllLeafColumns()
-                          .map((c) => [c.id, v.columns.includes(c.id)]),
-                      ),
-                    );
-                  }
-                }}
-              >
-                <option value="">Saved views</option>
-                {data.views.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                aria-label="View name"
-                placeholder="Name this view"
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-              />
-              <button
-                className="text-btn"
-                disabled={!saveName.trim()}
-                onClick={async () => {
-                  try {
-                    await mutate({
-                      action: "save-view",
-                      name: saveName,
-                      filters: {
-                        view,
-                        search,
-                        job,
-                        review,
-                        due,
-                        employment,
-                        manager,
-                        branch: scope,
-                      },
-                      columns: table.getVisibleLeafColumns().map((c) => c.id),
-                    });
-                    notify("Personal view saved.");
-                    setSaveName("");
-                  } catch (e) {
-                    setError((e as Error).message);
-                  }
-                }}
-              >
-                Save view
-              </button>
+                  }}
+                >
+                  <option value="">Open a saved view</option>
+                  {data.views.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+                <input className="hx-input" style={{ width: 180 }} aria-label="View name" placeholder="Name this view" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
+                <button
+                  type="button"
+                  className="hx-btn hx-btn--secondary"
+                  disabled={!saveName.trim()}
+                  onClick={async () => {
+                    try {
+                      await mutate({
+                        action: "save-view",
+                        name: saveName,
+                        filters: { view, search, job, review, due, employment, manager, branch: scope },
+                        columns: table.getVisibleLeafColumns().map((c) => c.id),
+                      });
+                      notify("Personal view saved.");
+                      setSaveName("");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                  }}
+                >
+                  Save view
+                </button>
+                <button type="button" className="hx-link" onClick={reset}>
+                  Reset filters
+                </button>
+              </div>
             </div>
           </div>
-        </details>
-        {error && <div className="error">{error}</div>}
-        <p className="people-table-hint">
-          Scroll horizontally to see branch, role and compliance details.
-        </p>
-        <div className="table-scroll">
-          <table className="people-table h-dir">
+        ) : null}
+        {view !== "All people" ? (
+          <p className="hx-chip" role="status">
+            Showing {VIEW_LABEL[view] ?? view.toLowerCase()} only.
+            <button type="button" className="hx-link" onClick={() => { setView("All people"); table.setPageIndex(0); }}>
+              Show everyone
+            </button>
+          </p>
+        ) : null}
+        {error && <p className="hx-alert" role="alert" style={{ margin: "0 18px 14px" }}>{error}</p>}
+        <div className="hx-table-wrap">
+          <table className="hx-table is-stack" data-testid="people-table">
+            <caption className="sr-only">Employees: name, role, branch, employment status and compliance</caption>
             <thead>
               {table.getHeaderGroups().map((group) => (
                 <tr key={group.id}>
-                  {group.headers.map((header) => (
-                    <th key={header.id}>
-                      {header.column.getCanSort() ? (
-                        <button
-                          className="sort-button"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                          <span>
-                            {header.column.getIsSorted() === "desc"
-                              ? "↓"
-                              : header.column.getIsSorted() === "asc"
-                                ? "↑"
-                                : "↕"}
-                          </span>
-                        </button>
-                      ) : (
-                        flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )
-                      )}
-                    </th>
-                  ))}
+                  {group.headers.map((header) => {
+                    const sorted = header.column.getIsSorted();
+                    return (
+                      <th key={header.id} scope="col" aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}>
+                        {header.column.getCanSort() ? (
+                          <button type="button" className="hx-sort" aria-pressed={Boolean(sorted)} onClick={header.column.getToggleSortingHandler()}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {sorted === "desc" ? <CaretDown size={12} weight="bold" aria-hidden="true" /> : sorted === "asc" ? <CaretUp size={12} weight="bold" aria-hidden="true" /> : <CaretUpDown size={12} aria-hidden="true" />}
+                          </button>
+                        ) : (
+                          flexRender(header.column.columnDef.header, header.getContext())
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               ))}
             </thead>
@@ -1263,56 +1204,61 @@ function People({
                 <tr
                   key={row.id}
                   onClick={(event) => {
-                    if ((event.target as HTMLElement).closest("button,a,input"))
-                      return;
+                    if ((event.target as HTMLElement).closest("button,a,input,ul")) return;
                     openRecord(row.original);
                   }}
+                  style={{ cursor: "pointer" }}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                    <td key={cell.id} style={cell.column.id === "actions" ? { width: 48, textAlign: "right" } : undefined}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          {!filtered.length && (
-            <Empty
-              title="No matching employees"
-              detail="Try another search or reset your filters."
-            />
+          {!total && (
+            <HrEmpty title="No matching employees">
+              Try another search, or{" "}
+              <button type="button" className="hx-link" onClick={reset}>
+                reset the filters
+              </button>
+              .
+            </HrEmpty>
           )}
         </div>
-        <div className="pagination">
-          <span>
-            {filtered.length} employees · Page{" "}
-            {table.getState().pagination.pageIndex + 1} of{" "}
-            {Math.max(1, table.getPageCount())}
+        <div className="hx-pager">
+          <span data-testid="people-count">
+            {total ? `Showing ${from} to ${to} of ${total} ${total === 1 ? "person" : "people"}` : "No people to show"}
           </span>
           <div>
-            <button
-              className="secondary-button"
-              disabled={!table.getCanPreviousPage()}
-              onClick={() => table.previousPage()}
-            >
-              <ChevronLeft size={15} /> Previous
+            <button type="button" className="hx-btn hx-btn--secondary hx-btn--sm" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+              <CaretLeft size={14} aria-hidden="true" /> Previous
             </button>
-            <button
-              className="secondary-button"
-              disabled={!table.getCanNextPage()}
-              onClick={() => table.nextPage()}
-            >
-              Next <ChevronRight size={15} />
+            <button type="button" className="hx-btn hx-btn--secondary hx-btn--sm" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+              Next <CaretRight size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
+}
+const REGISTER_TABS = [
+  "All checks",
+  "Overdue",
+  "Due soon",
+  "Missing evidence",
+  "Awaiting verification",
+  "Up to date",
+];
+/** "Expiring or overdue" (from the HR overview's training row) covers both statuses; any other value is one status. */
+function matchesStatus(actual: string, wanted: string) {
+  if (wanted === "All checks") return true;
+  if (wanted === "Expiring or overdue")
+    return actual === "Overdue" || actual === "Due soon";
+  return actual === wanted;
 }
 function Compliance({
   data,
@@ -1328,7 +1274,12 @@ function Compliance({
       : "All checks",
   );
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
+  // The HR overview's Review links open this register already filtered (?status=…&category=…).
+  const [category, setCategory] = useState(
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("category") || ""
+      : "",
+  );
   const [branch, setBranch] = useState("");
   const active = new Set(
     data.employees.filter((e) => e.status !== "Archived").map((e) => e.id),
@@ -1353,7 +1304,7 @@ function Compliance({
         (c.name + " " + data.employees.find((e) => e.id === c.employee)?.name)
           .toLowerCase()
           .includes(search.toLowerCase()) &&
-        (status === "All checks" || checkStatus(c, data.today) === status),
+        matchesStatus(checkStatus(c, data.today), status),
     )
     .sort(
       (a, b) =>
@@ -1397,14 +1348,7 @@ function Compliance({
       </div>
       <section className="panel bounded-register">
         <div className="tabs">
-          {[
-            "All checks",
-            "Overdue",
-            "Due soon",
-            "Missing evidence",
-            "Awaiting verification",
-            "Up to date",
-          ].map((s) => (
+          {[...REGISTER_TABS, ...(REGISTER_TABS.includes(status) ? [] : [status])].map((s) => (
             <button
               key={s}
               className={status === s ? "active" : ""}

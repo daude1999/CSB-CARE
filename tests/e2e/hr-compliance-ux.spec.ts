@@ -42,20 +42,52 @@ test.describe("HR & Workforce, approved design", () => {
     await expect(currentPage(page)).toHaveText("Settings");
   });
 
-  test("HR Dashboard: figures, a searchable directory, needs attention and quick actions", async ({ page }) => {
+  test("HR overview: priorities, not a directory; each Review opens the filtered screen", async ({ page }) => {
     await signIn(page);
     await page.goto("/hr/dashboard");
     await hubReady(page);
-    await expect(page.getByRole("heading", { level: 1, name: "HR Dashboard" })).toBeVisible();
-    const dir = page.getByTestId("hr-directory");
-    await expect(dir.locator("tbody tr")).toHaveCount(10);
+    await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
+    await expect(page.getByText("Your priorities today")).toBeVisible();
+    for (const id of ["fig-employees", "fig-actions", "fig-starting", "fig-interviews"]) await expect(page.getByTestId(id)).toBeVisible();
+    await expect(page.getByTestId("fig-actions")).not.toContainText("…");
+    // No employee directory on the overview (that is People's job).
+    await expect(page.getByTestId("people-table")).toHaveCount(0);
+    const actions = page.getByTestId("hr-action-required");
+    await expect(actions.getByRole("link", { name: /^Review: .*checks? overdue/ })).toHaveAttribute("href", /\/hr\/compliance\?.*status=Overdue/);
+    await actions.getByRole("link", { name: /^Review: .*missing evidence/ }).click();
+    await expect(page).toHaveURL(/\/hr\/compliance\?.*status=Missing\+evidence/);
+    await hubReady(page);
+    await expect(page.getByRole("button", { name: "Missing evidence" })).toHaveClass(/active/);
+    await page.goBack();
+    await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
+    await page.getByTestId("fig-employees").click();
+    await expect(page).toHaveURL(/\/hr\/people/);
+  });
+
+  test("People: one directory with search, branch and status filters; a name opens the record and Back keeps the filters", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/hr/people");
+    await hubReady(page);
+    await expect(page.getByRole("heading", { level: 1, name: "People" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add employee" })).toHaveCount(1);
+    const table = page.getByTestId("people-table");
+    for (const h of ["Name", "Role", "Branch", "Status", "Compliance"]) await expect(table.getByRole("columnheader", { name: h })).toBeVisible();
+    await page.getByLabel("Employment status").selectOption("Onboarding");
+    for (const s of await table.locator("tbody tr td:nth-child(4)").allInnerTexts()) expect(s).toContain("New starter");
+    await page.getByLabel("Employment status").selectOption("");
     await page.getByRole("searchbox", { name: "Search employees" }).fill("Amelia Hart");
-    await expect(dir.locator("tbody tr")).toHaveCount(2);
-    await expect(page.getByTestId("hr-needs-attention").getByRole("link", { name: /Overdue checks/ })).toHaveAttribute("href", /status=Overdue/);
-    await expect(page.getByRole("button", { name: "Add employee" })).toBeVisible();
-    await dir.getByRole("link", { name: "Amelia Hart" }).first().click();
-    await expect(page).toHaveURL(/\/hr\/people\//);
+    await expect(table.locator("tbody tr")).toHaveCount(2);
+    await expect(page).toHaveURL(/q=Amelia/);
+    await table.getByRole("button", { name: /Open Amelia Hart's record/ }).first().click();
+    await expect(page).toHaveURL(/\/hr\/people\/.+returnTo=/);
     await expect(page.getByTestId("key-checks")).toContainText("Right to work");
+    await page.goBack();
+    await expect(page.getByRole("searchbox", { name: "Search employees" })).toHaveValue("Amelia Hart");
+    // The actions menu: quick view and edit, reachable from the keyboard.
+    await table.getByRole("button", { name: /Actions for Amelia Hart/ }).first().click();
+    await expect(page.getByRole("button", { name: "Edit details" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Edit details" })).toHaveCount(0);
   });
 
   test("Checks & Training matrix and the Documents split view", async ({ page }) => {
@@ -79,17 +111,34 @@ test.describe("HR & Workforce, approved design", () => {
     await expect(page.getByText("DBS & Safeguarding").first()).toBeVisible();
   });
 
-  test("Recruitment opens on the board; a card opens the candidate panel with the real stages only", async ({ page }) => {
+  test("Recruitment opens on the board with every real stage; a card opens the record, its menu the quick panel", async ({ page }) => {
     await signIn(page);
+    await page.goto("/hr/recruitment/new");
+    await page.locator("input[name=firstName]").fill("Board");
+    await page.locator("input[name=lastName]").fill("Applicant");
+    await page.locator("input[name=roleApplied]").fill("Care Support Worker");
+    await page.locator("select[name=branchId]").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Add Candidate" }).click();
     await page.goto("/hr/recruitment");
+    await expect(page.getByRole("heading", { level: 1, name: "Recruitment" })).toBeVisible();
     const board = page.getByTestId("pipeline");
-    for (const stage of ["Applied", "Screening", "Interview", "Offer", "Onboarding", "Ready for Work"]) await expect(board.getByRole("heading", { level: 3, name: new RegExp(`^${stage}`) })).toBeVisible();
+    for (const stage of ["Applied", "Screening", "Interview", "Offer", "Onboarding", "Ready for Work"]) await expect(board.getByRole("heading", { level: 2, name: new RegExp(`^${stage}`) })).toBeVisible();
     await expect(board.getByRole("heading", { name: /Compliance/ })).toHaveCount(0);
-    await board.getByRole("link").first().click();
+    const card = board.getByTestId("applicant-card").filter({ hasText: "Board Applicant" }).first();
+    await expect(card.getByRole("link", { name: "Board Applicant" })).toHaveAttribute("href", /\/hr\/recruitment\/c/);
+    await card.getByLabel("Actions for Board Applicant").click();
+    await card.getByRole("link", { name: /Quick view/ }).click();
     const drawer = page.getByTestId("candidate-drawer");
     await expect(drawer).toBeVisible();
-    await expect(drawer.getByRole("link", { name: "Open full record" })).toHaveAttribute("href", /\/hr\/recruitment\/c/);
-    await drawer.getByRole("link", { name: "Close candidate details" }).click();
+    await expect(drawer.getByRole("button", { name: "Screening" })).toBeVisible();
+    await drawer.getByRole("button", { name: "Screening" }).click();
+    await expect(page.getByTestId("pipeline").locator("section", { has: page.getByRole("heading", { name: /^Screening/ }) })).toContainText("Board Applicant");
+    await page.getByLabel("Search applicants").fill("zzz-nobody");
+    await page.getByLabel("Search applicants").press("Enter");
+    await expect(page).toHaveURL(/q=zzz-nobody/);
+    await expect(page.getByText("No one here matches.").first()).toBeVisible();
+    // An unknown applicant in the address shows no panel rather than an error.
+    await page.goto("/hr/recruitment?candidate=not-a-candidate");
     await expect(drawer).toHaveCount(0);
     await page.getByRole("link", { name: "List" }).click();
     await expect(page.getByTestId("rc-count")).toBeVisible();
@@ -97,11 +146,13 @@ test.describe("HR & Workforce, approved design", () => {
 
   test("a Branch Viewer sees the screens but none of the editing actions", async ({ page }) => {
     await signIn(page, "taylor.reed@care-solution.demo");
-    await page.goto("/hr/dashboard");
+    await page.goto("/hr/people");
     await hubReady(page);
-    await expect(page.getByTestId("hr-directory")).toBeVisible();
+    await expect(page.getByTestId("people-table")).toBeVisible();
     await expect(page.getByRole("button", { name: "Add employee" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Upload document" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "More people actions" })).toHaveCount(0);
+    await page.goto("/hr/recruitment");
+    await expect(page.getByRole("link", { name: "Add applicant" })).toHaveCount(0);
     await page.goto("/hr/documents");
     await hubReady(page);
     await expect(page.getByTestId("documents-split")).toBeVisible();

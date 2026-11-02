@@ -19,7 +19,7 @@ test.describe("Care intelligence", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/hr/recruitment");
     await expect(page.getByRole("heading", { level: 1, name: "Recruitment" })).toBeVisible();
-    await page.getByRole("link", { name: "Add Candidate" }).first().click();
+    await page.getByRole("link", { name: "Add applicant" }).first().click();
     await page.locator("input[name=firstName]").fill("Robin");
     await page.locator("input[name=lastName]").fill("Testcase");
     await page.locator("input[name=email]").fill("robin.testcase@example.test");

@@ -115,6 +115,7 @@ export const listSchema = z.object({
   stage: z.enum(["APPLIED", "SCREENING", "INTERVIEW", "OFFER", "ONBOARDING", "READY", "WITHDRAWN", "UNSUCCESSFUL", "open", "closed"]).catch("open"),
   branch: z.string().max(40).optional().catch(undefined),
   recruiter: z.string().max(40).optional().catch(undefined),
+  role: z.string().trim().max(100).optional().catch(undefined),
   focus: z.enum(["new", "review", "offers", "ready"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).catch(1),
 });
@@ -152,6 +153,7 @@ export async function recruitmentBoard(ctx: Ctx, raw: Record<string, string | un
   if (f.focus === "offers") rows = rows.filter(offerOpen);
   if (f.focus === "ready") rows = rows.filter(readyForAction);
   if (f.recruiter) rows = rows.filter((c) => c.recruiterId === f.recruiter);
+  if (f.role) rows = rows.filter((c) => c.roleApplied.toLowerCase() === f.role!.toLowerCase());
   if (f.q) {
     const q = f.q.toLowerCase();
     rows = rows.filter((c) => `${c.firstName} ${c.lastName} ${c.reference} ${c.roleApplied} ${c.email ?? ""}`.toLowerCase().includes(q));
@@ -171,7 +173,12 @@ export async function recruitmentBoard(ctx: Ctx, raw: Record<string, string | un
     pages,
     rows: rows.slice((page - 1) * per, page * per).map((c) => ({ ...c, next: suggestedNextAction(facts.get(c.id)!, now), waiting: waitingOnCandidate(facts.get(c.id)!, now) })),
     /** Every open candidate grouped by stage, for the pipeline view. */
-    byStage: PIPELINE.map((s) => ({ stage: s, label: STAGE_LABEL[s], items: (f.stage === "open" ? rows : open).filter((c) => c.stage === s).slice(0, 40).map((c) => ({ ...c, next: suggestedNextAction(facts.get(c.id)!, now) })) })),
+    byStage: PIPELINE.map((s) => {
+      const inStage = (f.stage === "open" ? rows : open).filter((c) => c.stage === s);
+      return { stage: s, label: STAGE_LABEL[s], count: inStage.length, items: inStage.slice(0, 40).map((c) => ({ ...c, next: suggestedNextAction(facts.get(c.id)!, now) })) };
+    }),
+    /** The roles candidates in these branches applied for, for the role filter. */
+    roles: [...new Set(all.map((c) => c.roleApplied.trim()))].sort((x, y) => x.localeCompare(y)),
     erasable: all.filter((c) => !isOpen(c.stage) && !c.anonymisedAt && c.retainUntil && fromDbDate(c.retainUntil) < today).length,
   };
 }
