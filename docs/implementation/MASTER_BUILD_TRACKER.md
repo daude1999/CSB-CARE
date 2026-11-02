@@ -1,5 +1,11 @@
 # Master build tracker — five-module CSB CRM
 
+## Daily Rota bulk actions repair and Complete Calls (2 Nov 2026, draft PR)
+All 17 bulk actions were traced from the dropdown to the database and repaired; Complete Calls (office-confirmed
+completion of past visits, no clock or medicine records created) is the 18th. Go opens a review that runs the real
+rules without saving; Confirm applies visit by visit and the results list every visit not changed and why. Audit
+table, rules and limits: `DAILY_ROTA_BULK_ACTIONS.md`.
+
 ## HR overview, People and Recruitment redesign (2 Nov 2026, draft PR)
 Built to the owner's approved HR concept: the HR Dashboard became "HR overview" (four figures, Action required with
 working Review links, Coming up), People is one clean directory, and Recruitment is a pipeline board of all six real

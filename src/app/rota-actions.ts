@@ -4,7 +4,7 @@ import { MAX_CARERS, parsePlace, type PlaceKey } from "@/lib/carer-places";
 import { setMedicationLead } from "@/server/care/medication-lead";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
-import { handle, safeBack, str, withParam } from "./action-kit";
+import { handle, handleData, safeBack, str, withParam } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
@@ -30,7 +30,7 @@ import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageI
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, updateContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
-import { bulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setCarersRequired, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
+import { bulkVisits, previewBulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setCarersRequired, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
@@ -76,14 +76,17 @@ function minuteOf(fd: FormData, k: string, label: string) {
 }
 const ids = (fd: FormData, k: string) => fd.getAll(k).filter((x): x is string => typeof x === "string" && x.length > 0);
 
-/** Lists what a bulk action did, so the coordinator sees each refusal and its reason. */
-function summarise(results: { ok: boolean; message?: string; reference?: string }[]) {
-  const done = results.filter((r) => r.ok).length;
+/** Lists what a bulk action did: what changed, what was already as asked, and each refusal with its reason. */
+function summarise(results: { ok: boolean; outcome?: string; message?: string; reference?: string }[]) {
+  const done = results.filter((r) => (r.outcome ?? (r.ok ? "updated" : "refused")) === "updated").length;
+  const unchanged = results.filter((r) => r.outcome === "unchanged").length;
   const refused = results.filter((r) => !r.ok);
-  if (!refused.length) return `${done} updated`;
+  const head = [`${done} updated`, unchanged ? `${unchanged} already as asked` : null].filter(Boolean).join(", ");
+  if (!refused.length) return head;
   const detail = refused.slice(0, 4).map((r) => `${r.reference ?? "one"}: ${r.message}`).join("; ");
-  if (!done) throw new ValidationError(`None updated. ${detail}${refused.length > 4 ? ` and ${refused.length - 4} more` : ""}`);
-  return `${done} updated, ${refused.length} refused (${detail}${refused.length > 4 ? ` and ${refused.length - 4} more` : ""})`;
+  const more = refused.length > 4 ? ` and ${refused.length - 4} more` : "";
+  if (!done && !unchanged) throw new ValidationError(`None updated. ${detail}${more}`);
+  return `${head}, ${refused.length} not changed (${detail}${more})`;
 }
 
 // ── Visits ────────────────────────────────────────────────────────────────
@@ -184,62 +187,78 @@ export async function createVisitAction(fd: FormData) {
   }, "Visit added");
 }
 
+/** Reads the chosen bulk action and its details from the Daily Rota's bulk form. The domain re-checks every value. */
+function bulkActionFrom(fd: FormData): BulkAction {
+  const kind = str(fd, "kind");
+  switch (kind) {
+    case "assign":
+    case "shadow":
+      if (!str(fd, "staffId")) throw new ValidationError("Choose a carer");
+      return { kind: "assign", staffId: str(fd, "staffId"), slot: kind === "shadow" ? "SHADOW" : slot(fd), acceptWarnings: bool(fd, "acceptWarnings") };
+    case "unassign":
+      return { kind, slot: slot(fd), reason: str(fd, "reason") || "Removed in bulk by the office" };
+    case "cancel":
+      return { kind, reason: str(fd, "reason"), charge: cancelCharge(fd) };
+    case "nudge":
+      return { kind, minutes: int(fd, "minutes", "Minutes") };
+    case "lock":
+    case "unlock":
+      return { kind: "lock", locked: kind === "lock" };
+    case "publish":
+      return { kind };
+    case "activate":
+      return { kind, reason: str(fd, "reason") };
+    case "editTime":
+      return { kind, startMinute: minuteOf(fd, "time", "New start time") };
+    case "editDuration":
+      return { kind, minutes: int(fd, "duration", "Duration") };
+    case "editService":
+      if (!str(fd, "callTypeId")) throw new ValidationError("Choose a service call");
+      return { kind, callTypeId: str(fd, "callTypeId") };
+    case "addAlert":
+    case "removeAlert":
+      return { kind: "alert", on: kind === "addAlert" };
+    case "doubleUp":
+    case "single":
+      return { kind: "convert", to: kind === "doubleUp" ? "double" : "single" };
+    case "setCarers":
+      return { kind: "doubleUp", carers: carersNeeded(fd, "carers") };
+    case "complete": {
+      // Actual times and the reviewed visit version come per visit from the review step: actualStart:<id>, actualEnd:<id>, lockVersion:<id>.
+      const perVisit: Record<string, { actualStart?: string; actualEnd?: string; lockVersion?: number }> = {};
+      for (const [key, value] of fd.entries()) {
+        const m = /^(actualStart|actualEnd|lockVersion):(.+)$/.exec(key);
+        if (!m || typeof value !== "string" || !value.trim()) continue;
+        const row = (perVisit[m[2]!] ??= {});
+        if (m[1] === "lockVersion") {
+          const n = Number(value);
+          if (!Number.isInteger(n)) throw new ValidationError("Review the visits again");
+          row.lockVersion = n;
+        } else row[m[1] as "actualStart" | "actualEnd"] = value.trim();
+      }
+      return { kind, reason: str(fd, "reason"), verifiedBy: str(fd, "verifiedBy"), confirmed: bool(fd, "confirmDelivered"), perVisit };
+    }
+    default:
+      throw new ValidationError("Choose what to do with the selected visits");
+  }
+}
+
+/** Without JavaScript the bulk form posts here: the action runs and the page shows the counts and each refusal. */
 export async function bulkVisitsAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const kind = str(fd, "kind");
-    let action: BulkAction;
-    switch (kind) {
-      case "assign":
-      case "shadow":
-        if (!str(fd, "staffId")) throw new ValidationError("Choose a carer");
-        action = { kind: "assign", staffId: str(fd, "staffId"), slot: kind === "shadow" ? "SHADOW" : slot(fd), acceptWarnings: bool(fd, "acceptWarnings") };
-        break;
-      case "unassign":
-        action = { kind, slot: slot(fd), reason: str(fd, "reason") || "Removed in bulk by the office" };
-        break;
-      case "cancel":
-        action = { kind, reason: str(fd, "reason"), charge: cancelCharge(fd) };
-        break;
-      case "nudge":
-        action = { kind, minutes: int(fd, "minutes", "Minutes") };
-        break;
-      case "lock":
-      case "unlock":
-        action = { kind: "lock", locked: kind === "lock" };
-        break;
-      case "publish":
-        action = { kind };
-        break;
-      case "activate":
-        action = { kind, reason: str(fd, "reason") };
-        break;
-      case "editTime":
-        action = { kind, startMinute: minuteOf(fd, "time", "New start time") };
-        break;
-      case "editDuration":
-        action = { kind, minutes: int(fd, "duration", "Duration") };
-        break;
-      case "editService":
-        if (!str(fd, "callTypeId")) throw new ValidationError("Choose a service call");
-        action = { kind, callTypeId: str(fd, "callTypeId") };
-        break;
-      case "addAlert":
-      case "removeAlert":
-        action = { kind: "alert", on: kind === "addAlert" };
-        break;
-      case "doubleUp":
-      case "single":
-        action = { kind: "doubleUp", carers: kind === "doubleUp" ? 2 : 1 };
-        break;
-      case "setCarers":
-        action = { kind: "doubleUp", carers: carersNeeded(fd, "carers") };
-        break;
-      default:
-        throw new ValidationError("Choose what to do with the selected visits");
-    }
-    const results: BulkResult[] = await bulkVisits(ctx, ids(fd, "visitIds"), action);
+    const results: BulkResult[] = await bulkVisits(ctx, ids(fd, "visitIds"), bulkActionFrom(fd));
     return { ok: summarise(results) };
   }, "Done");
+}
+
+/** The review step: what the chosen action would do to each selected visit, through the real rules, with nothing saved. */
+export async function previewBulkVisitsAction(fd: FormData) {
+  return handleData((ctx) => previewBulkVisits(ctx, ids(fd, "visitIds"), bulkActionFrom(fd)));
+}
+
+/** Confirm: applies the action visit by visit and returns each visit's outcome for the results panel. */
+export async function runBulkVisitsAction(fd: FormData) {
+  return handleData((ctx) => bulkVisits(ctx, ids(fd, "visitIds"), bulkActionFrom(fd)), { revalidate: true });
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────

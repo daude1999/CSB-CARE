@@ -72,6 +72,7 @@ export async function generateTimesheets(ctx: Ctx, weekStart: string) {
         else if (v.status === "NOT_DELIVERED") notes.push(`Not delivered: ${v.notDeliveredReason ?? "no reason recorded"}`);
         else if (v.status === "SCHEDULED") notes.push("Visit never started");
         else if (inAt && !outAt) notes.push("No clock-out");
+        else if (v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" && !(inAt && outAt)) notes.push("Completed by the office with no clock record: check the hours before paying");
         if (inAt && outAt && delivered < (scheduled * settings.shortVisitPercent) / 100) notes.push(`Short visit (${Math.round((delivered / scheduled) * 100)}% of planned)`);
         if (clocks.some((c) => c.method === "OFFICE")) notes.push("Clock time entered by the office");
         const worked = inAt && outAt;

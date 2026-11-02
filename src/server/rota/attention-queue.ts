@@ -5,7 +5,7 @@ import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { authorisedBranches, rotaScope } from "./scope";
 import { suName } from "./queries";
 import { parseUnassigned, unassignedBoard, type Priority } from "./unassigned";
-import { missedCallRegister, VISIT_STATUS_NOW } from "./missed-calls";
+import { missedCallRegister, visitStatusNow } from "./missed-calls";
 import { coverStates, type CoverState } from "./missed-cover";
 import { outstandingCommunication } from "./cover-communication";
 
@@ -167,7 +167,7 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
       const warnings = missedWarnings(r);
       const pressing = r.overdue || r.highRisk;
       const base = { type: "missed" as const, start: r.visit.scheduledStart, pressing };
-      const reason = [r.carerName ?? "No carer was booked", VISIT_STATUS_NOW[r.visit.status], ...warnings].join(" · ");
+      const reason = [r.carerName ?? "No carer was booked", visitStatusNow(r.visit), ...warnings].join(" · ");
       items.push({
         ...base, key: `missed:${r.id}`, id: r.id, visitId: r.visit.id, reference: r.visit.reference, date: londonDate(r.visit.scheduledStart),
         serviceUser: r.serviceUserName, serviceUserId: r.visit.serviceUser.id, callType: r.visit.callType.name, area: r.visit.area?.name ?? null,

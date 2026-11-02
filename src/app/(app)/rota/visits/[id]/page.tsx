@@ -102,7 +102,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
               <Field label="Planned"><TimeSpan start={v.scheduledStart} end={v.scheduledEnd} /></Field>
-              <Field label="Actual">{v.actualStart ? <>{londonTime(v.actualStart)}–{v.actualEnd ? londonTime(v.actualEnd) : "in progress"}</> : "Not started"}</Field>
+              <Field label={v.completionSource === "OFFICE_CONFIRMED" ? "Actual (entered by the office)" : "Actual"}>{v.completionSource === "OFFICE_CONFIRMED" && !v.actualStart ? "Not known (no clock record)" : v.actualStart ? <>{londonTime(v.actualStart)}–{v.actualEnd ? londonTime(v.actualEnd) : "in progress"}</> : "Not started"}</Field>
               <Field label="Area"><AreaDot area={v.area} /></Field>
               <Field label="Service user"><Link href={`/rota/service-users/${v.serviceUser.id}`}>{suName(v.serviceUser)}</Link> <span className="text-slate-500">{v.serviceUser.reference}</span></Field>
               <Field label="Postcode">{v.serviceUser.postcode ?? "—"}</Field>
@@ -112,6 +112,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Field label="Run route">{v.runRoute?.name ?? "—"}</Field>
             </dl>
             {v.notes ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[14px]">{v.notes}</p> : null}
+            {v.completionSource === "OFFICE_CONFIRMED" ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[14px]" data-testid="office-completed"><strong>Completed by the office</strong> (was {v.completedFromStatus ? v.completedFromStatus.toLowerCase().replace("_", " ") : "open"}): {v.completionReason} · confirmed by {v.completionVerifiedBy}{v.completedAt ? ` · ${fmtLondonDate(londonDate(v.completedAt), { day: "numeric", month: "short", year: "numeric" })} ${londonTime(v.completedAt)}` : ""}. No clock-in, clock-out or medicine record was created.</p> : null}
             {v.cancelReason ? <p className="mt-3 text-[14px] text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
           </Card>
 
