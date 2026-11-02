@@ -57,7 +57,10 @@ test.describe("Service user documents and body map", () => {
     // Files are never reachable without signing in.
     const href = `${base.replace(/\/rota\/service-users\/.*/, "")}/api/service-users/documents/x`;
     const anon = await page.context().browser()!.newContext();
-    expect((await anon.request.get(href)).status()).toBe(401);
+    // Without a session the request is sent to the sign-in page and the file is never served.
+    const res = await anon.request.get(href, { maxRedirects: 0 });
+    expect([302, 307, 401]).toContain(res.status());
+    if (res.status() !== 401) expect(res.headers()["location"]).toContain("/login");
     await anon.close();
   });
 

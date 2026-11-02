@@ -130,7 +130,7 @@ describe("a person's visit notes and records summary", () => {
     const su = await getServiceUser(ctx, suId);
     const rows = await serviceUserCompliance(ctx, su);
     const by = new Map(rows.map((r) => [r.key, r]));
-    expect([...by.keys()]).toEqual(["care-plan", "risks", "incidents", "notes"]);
+    expect([...by.keys()]).toEqual(["care-plan", "risks", "incidents", "notes", "documents"]);
     const active = await db.riskAssessment.count({ where: { serviceUserId: suId, status: "ACTIVE" } });
     expect(by.get("risks")!.detail).toContain(`${active} active`);
     const open = await db.incident.count({ where: { serviceUserId: suId, status: { not: "CLOSED" } } });
