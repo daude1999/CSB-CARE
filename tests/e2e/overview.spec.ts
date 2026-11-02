@@ -33,7 +33,8 @@ test.describe("Overview", () => {
     await page.getByTestId("tile-policy").getByRole("link", { name: "Open Policy & Compliance" }).click();
     await expect(page).toHaveURL(/\/$/);
     // The banner blends from the Overview colour into the module's over a quarter of a second, so wait for it to settle.
-    await expect(page.getByRole("heading", { level: 1, name: "Compliance Centre Dashboard" })).toHaveCSS("background-color", tileColour);
+    await expect(page.getByRole("heading", { level: 1, name: "Policy & Compliance" })).toBeVisible();
+    await expect(page.getByTestId("title-bar")).toHaveCSS("background-color", tileColour);
   });
 
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {

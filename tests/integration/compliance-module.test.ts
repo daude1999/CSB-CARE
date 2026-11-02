@@ -165,6 +165,14 @@ describe("compliance dashboard and reports", () => {
     const active = await db.policy.count({ where: { organisationId: m.organisationId!, kind: "CUSTOMER", status: "ACTIVE" } });
     expect(d.kpis.activePolicies).toBe(active);
     expect(d.attention.map((x) => x.key)).toContain("risks");
+    // Review status splits the active library exactly, and upcoming reviews are this organisation's own, soonest first.
+    const rs = d.reviewStatus;
+    expect(rs.current + rs.dueSoon + rs.overdue).toBe(active);
+    expect(rs.overdue).toBe(d.kpis.overdueReviews);
+    const ups = d.upcomingReviews;
+    expect(ups.length).toBeLessThanOrEqual(5);
+    for (let n = 1; n < ups.length; n++) expect(+ups[n]!.nextReviewDate!).toBeGreaterThanOrEqual(+ups[n - 1]!.nextReviewDate!);
+    if (ups.length) expect(await db.policy.count({ where: { id: { in: ups.map((u) => u.id) }, organisationId: { not: m.organisationId! } } })).toBe(0);
     const c = await complianceDashboard(await carer());
     expect(c.attention.map((x) => x.key)).not.toContain("risks");
     expect(c.attention.map((x) => x.key)).not.toContain("findings");

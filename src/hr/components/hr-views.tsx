@@ -45,7 +45,7 @@ import { employeeRoute } from "@/hr/lib/routes";
 
 const TRAINING = /training|certificate|first aid|manual handling|medication|moving|infection|fire|food|mca|dols/i;
 export const isTraining = (c: Pick<Check, "name" | "category">) =>
-  checkCategory(c) === "Training" || TRAINING.test(`${c.name} ${c.category ?? ""}`);
+  c.category === "Training" || (checkCategory(c) !== "DBS" && checkCategory(c) !== "Right to work" && TRAINING.test(`${c.name} ${c.category ?? ""}`));
 
 /** The least healthy status among some checks (Overdue first), or null when none is required. */
 export function worst(checks: Check[], today: string): ReviewStatus | null {
