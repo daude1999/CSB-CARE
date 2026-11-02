@@ -1,245 +1,345 @@
 import { redirect } from "next/navigation";
-import { ClockCounterClockwise, PhoneX, UserPlus, Users, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { Alarm, ArrowClockwise, ChatCircleText, ClockCounterClockwise, Info, PhoneX, UserPlus, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
-import { addDays, fmtLondonDate, fromDbDate, londonDate, londonTime } from "@/lib/london";
-import { suName } from "@/server/rota/queries";
-import { PRIORITY_LABEL, PRIORITY_RULE, parseUnassigned, unassignedBoard, type Priority, type UnassignedItem } from "@/server/rota/unassigned";
-import { missedCallRegister, STAGE_LABEL, VISIT_STATUS_NOW, type MissedRegister } from "@/server/rota/missed-calls";
-import { coverStates } from "@/server/rota/missed-cover";
-import { Badge, Empty, Flash, type Tone } from "@/components/ui";
-import { ChatCircleText } from "@phosphor-icons/react/dist/ssr";
+import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
+import { attentionQueue, GROUP_LABEL, groupAttention, missedFilters, TYPE_LABEL, type AttentionItem, type AttentionQueue, type AttentionType, type CommsEntry, type MissedEntry, type UnassignedEntry } from "@/server/rota/attention-queue";
+import { STAGE_LABEL } from "@/server/rota/missed-calls";
+import { SU_INFORMED } from "@/server/rota/missed-cover";
+import { communicationView, telHref } from "@/server/rota/cover-communication";
+import { coverWorkspaceOrMessage, RANK_LABEL } from "@/server/rota/replacement-cover";
+import type { Candidate } from "@/server/rota/queries";
+import { Flash } from "@/components/ui";
+import { DrawerShell } from "@/components/drawer-shell";
+import { AutoSubmitForm } from "@/components/auto-submit";
 import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
-import { outstandingCommunication } from "@/server/rota/cover-communication";
+import { AttentionQueueList, NarrowOnly, type QueueGroup, type QueueRow } from "@/components/attention-queue";
+import { TYPE_STYLE } from "@/components/attention-style";
 
 export const dynamic = "force-dynamic";
 
-/** How many of each kind of work the page lists before pointing to the full register. */
-const SHOWN = 8;
-/** Open missed-call cases are looked for over this many days, the Missed Calls page's default custom range. */
-const MISSED_DAYS = 30;
+const BASE = "/rota/attention";
+type Filter = "now" | AttentionType;
+type Keep = Record<string, string | undefined>;
 
-const PRIORITY_BADGE: Record<Priority, string> = { URGENT: "bg-[#fdecec] text-[#b42318]", HIGH: "bg-[#fdf3d8] text-[#8a5a00]", NORMAL: "bg-[#eef4ff] text-[#1d4f91]" };
-const STAGE_TONE: Record<string, Tone> = { NEW: "rose", INVESTIGATING: "amber", AWAITING_SIGNOFF: "violet", CLOSED: "green" };
-const ACTION = "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[7px] border px-2.5 text-[13.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
-const PRIMARY = `${ACTION} border-[#5b2bb5] bg-[#5b2bb5] text-white hover:bg-[#4c2398] hover:text-white`;
-const SECONDARY = `${ACTION} border-[#5b2bb5] bg-white text-[#5b2bb5] hover:bg-[#f6f2fd]`;
+const PRIMARY = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-[#5b2bb5] bg-[#5b2bb5] px-3.5 text-[14px] font-semibold text-white no-underline hover:bg-[#4c2398] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const OUTLINE = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-[#5b2bb5] bg-white px-3.5 text-[14px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd] hover:text-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const TEXT_LINK = "text-[14.5px] font-semibold text-[#5b2bb5] no-underline hover:text-[#4c2398] hover:underline";
+
+const qs = (p: Keep) => {
+  const u = new URLSearchParams(Object.entries(p).filter((e): e is [string, string] => !!e[1]));
+  return u.size ? `${BASE}?${u}` : BASE;
+};
 
 /**
- * Visits Needing Attention: the two kinds of visit work the office must act on, side by side on one page. The upper
- * half of each section is a short summary, then the most pressing records with their direct actions, then a link to
- * the full register. Nothing here has its own rules: the figures and rows come from the same services as the
- * Unassigned Visits and Missed Calls pages, and every action opens that page's own workflow (Find Cover, Investigate).
+ * Visits Needing Attention: one prioritised queue of every visit the office must decide on (unassigned visits, open
+ * missed calls and communication still owed after cover), with the selected item's details and actions on the right.
+ * Nothing here has its own rules: the rows come from the same services as Unassigned Visits, Missed Calls and Find
+ * Cover, with the same permissions, and every action opens that page's own workflow.
  */
 export default async function AttentionPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requirePortal("rota");
-  const showUnassigned = hasOrgPermission(ctx, "rota.view");
-  const showMissed = hasOrgPermission(ctx, "rota.monitor");
-  if (!showUnassigned && !showMissed) redirect(rotaHome(ctx));
+  if (!hasOrgPermission(ctx, "rota.view") && !hasOrgPermission(ctx, "rota.monitor")) redirect(rotaHome(ctx));
+
+  const queue = await attentionQueue(ctx, { branch: sp.branch });
+  const { can, counts } = queue;
+  const visible = (t: AttentionType) => can[t];
+  const filter: Filter | null = sp.type === "now" || ((sp.type === "unassigned" || sp.type === "missed" || sp.type === "comms") && visible(sp.type)) ? (sp.type as Filter) : null;
+  const list = queue.items.filter((i) => (filter === "now" ? i.group === "now" : filter ? i.type === filter : true));
+  const groups = groupAttention(list);
+  const ordered = groups.flatMap((g) => g.items);
+  const picked = sp.item ? queue.items.find((i) => i.key === sp.item) ?? null : null;
+  // With nothing chosen, a wide screen shows the first item's details; a narrow one shows the list only.
+  const selected = picked ?? ordered[0] ?? null;
+  const keep: Keep = { type: filter ?? undefined, branch: queue.branch ?? undefined, item: selected?.key };
+  const listKeep: Keep = { type: filter ?? undefined, branch: queue.branch ?? undefined };
+
+  const rows: QueueGroup[] = groups.map((g) => ({ group: g.group, label: GROUP_LABEL[g.group], rows: g.items.map((i) => toRow(i, selected?.key === i.key, listKeep, can.edit, queue.today)) }));
+  const detail = selected ? await detailData(ctx, selected) : null;
 
   return (
     <div className="daily-rota -mt-1">
-      <header className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-[#efeafc] text-[#5b2bb5]"><WarningOctagon size={30} weight="duotone" /></span>
+      <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[12px] bg-[#efeafc] text-[#5b2bb5]"><WarningOctagon size={30} weight="duotone" /></span>
         <div className="mr-auto min-w-0">
           <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Visits Needing Attention</h1>
-          <p className="text-[15px] font-semibold text-[#101828]">Upcoming visits without enough carers, and missed calls still to investigate.</p>
+          <p className="text-[15px] text-[#475467]">One queue for every visit that needs a decision, most urgent first.</p>
         </div>
+        <span className="text-[14px] tabular-nums text-[#475467]" data-testid="attention-updated">Updated {londonTime(queue.now)}</span>
+        <Link href={qs(sp.item ? keep : listKeep)} scroll={false} className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-[14px] font-semibold text-[#344054] no-underline hover:bg-[#f9fafb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]"><ArrowClockwise size={16} aria-hidden />Refresh</Link>
       </header>
       <Flash searchParams={sp} />
-      <div className={`grid grid-cols-1 items-start gap-3 ${showUnassigned && showMissed ? "min-[1400px]:grid-cols-2" : ""}`}>
-        {showUnassigned ? <UnassignedSection ctx={ctx} /> : null}
-        {showMissed ? <MissedSection ctx={ctx} /> : null}
+
+      <nav aria-label="Filter the queue" className="mb-4 grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 xl:grid-cols-4">
+        <Tile href={qs({ ...listKeep, type: "now" })} current={filter === "now"} tone="red" icon={<Alarm size={24} weight="bold" />} label="Act now" value={counts.now} hint={`Overdue or due within 4 hours`} testId="attention-now" />
+        {can.unassigned ? <Tile href={qs({ ...listKeep, type: "unassigned" })} current={filter === "unassigned"} tone="amber" icon={<UserPlus size={24} weight="bold" />} label="Unassigned" value={counts.unassigned} hint="Visits short of a carer this week" testId="attention-unassigned" /> : null}
+        {can.missed ? <Tile href={qs({ ...listKeep, type: "missed" })} current={filter === "missed"} tone="red" icon={<PhoneX size={24} weight="bold" />} label="Missed calls" value={counts.missed} hint={`Open cases still to investigate`} testId="attention-missed" /> : null}
+        {can.comms ? <Tile href={qs({ ...listKeep, type: "comms" })} current={filter === "comms"} tone="blue" icon={<ChatCircleText size={24} weight="bold" />} label="Communication" value={counts.comms} hint="People to tell about cover" testId="attention-comms" /> : null}
+      </nav>
+
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <AttentionQueueList
+          groups={rows}
+          empty="Nothing needs attention here."
+          toolbar={<Toolbar queue={queue} filter={filter} listKeep={listKeep} />}
+          filters={<BranchFilter queue={queue} listKeep={listKeep} />}
+          footer={<QueueFooter queue={queue} />}
+        />
+        <aside aria-label="Selected item" className="hidden xl:sticky xl:top-4 xl:block">
+          <div aria-live="polite">
+            {selected && detail ? <Detail item={selected} data={detail} keep={keep} can={can} today={queue.today} idPrefix="attn-d" /> : <div className="rounded-[14px] border border-[#eaecf0] bg-white px-5 py-10 text-center text-[15px] text-[#475467]">Nothing needs attention here.</div>}
+          </div>
+        </aside>
       </div>
-      {hasOrgPermission(ctx, "rota.edit") ? <CommunicationSectionList ctx={ctx} /> : null}
-      {sp.cover && hasOrgPermission(ctx, "rota.edit") ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/attention" keep={{}} /> : null}
+
+      {picked && detail && !sp.cover ? (
+        <NarrowOnly>
+          <DrawerShell closeHref={qs(listKeep)} labelledBy="attn-m-title" step={picked.key}>
+            <div className="flex items-center justify-between border-b border-[#eaecf0] px-5 py-3">
+              <span className="text-[14px] font-semibold text-[#475467]">Selected item</span>
+              <Link href={qs(listKeep)} scroll={false} aria-label="Close details" className="inline-flex h-9 w-9 items-center justify-center rounded-[6px] text-[20px] leading-none text-slate-600 no-underline hover:bg-slate-100">×</Link>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto" data-scroll aria-live="polite">
+              <Detail item={picked} data={detail} keep={keep} can={can} today={queue.today} idPrefix="attn-m" bare />
+            </div>
+          </DrawerShell>
+        </NarrowOnly>
+      ) : null}
+
+      {sp.cover && can.edit ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath={BASE} keep={keep} /> : null}
     </div>
   );
 }
 
-function SectionHead({ id, icon, title, count, noun, href, linkLabel }: { id: string; icon: React.ReactNode; title: string; count: number; noun: string; href: string; linkLabel: string }) {
+// ── Tiles and toolbar ───────────────────────────────────────────────────
+
+const TILE_TONE = {
+  red: { icon: "bg-[#fdecec] text-[#b42318]", value: "text-[#b42318]", on: "border-[#f2b8b5] bg-[#fef6f5]" },
+  amber: { icon: "bg-[#fdf3d8] text-[#8a5a00]", value: "text-[#8a5a00]", on: "border-[#ecd28b] bg-[#fffaeb]" },
+  blue: { icon: "bg-[#eef4ff] text-[#1d4f91]", value: "text-[#1d4f91]", on: "border-[#b2ccf2] bg-[#f5f8ff]" },
+} as const;
+
+function Tile({ href, current, tone, icon, label, value, hint, testId }: { href: string; current: boolean; tone: keyof typeof TILE_TONE; icon: React.ReactNode; label: string; value: number; hint: string; testId: string }) {
+  const t = TILE_TONE[tone];
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[#eaecf0] px-4 py-3">
-      <span aria-hidden className="text-[#5b2bb5]">{icon}</span>
-      <h2 id={id} className="mr-auto text-[18px] font-bold text-[#101828]">
-        {title} <span className="ml-1 rounded-full bg-[#f2f4f7] px-2 py-0.5 align-middle text-[13px] font-semibold tabular-nums text-[#344054]" data-testid={`${id}-count`}>{count}<span className="sr-only"> {noun}</span></span>
-      </h2>
-      <Link href={href} className="text-[14px] font-semibold">{linkLabel}</Link>
+    <Link href={href} scroll={false} aria-current={current ? "true" : undefined} data-testid={testId} className={`flex items-center gap-3.5 rounded-[14px] border px-4 py-4 text-inherit no-underline hover:border-[#c7b8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5] ${current ? t.on : "border-[#eaecf0] bg-white"}`}>
+      <span aria-hidden className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] ${t.icon}`}>{icon}</span>
+      <span className="shrink-0">
+        <span className="block whitespace-nowrap text-[15px] font-semibold text-[#101828]">{label}</span>
+        <span className={`block text-[28px] font-bold leading-8 tabular-nums ${value ? t.value : "text-[#101828]"}`} data-testid={`${testId}-count`}>{value}</span>
+      </span>
+      <span className="ml-auto min-w-0 max-w-[140px] text-right text-[13px] leading-snug text-[#475467]">{hint}</span>
+    </Link>
+  );
+}
+
+function Toolbar({ queue, filter, listKeep }: { queue: AttentionQueue; filter: Filter | null; listKeep: Keep }) {
+  const { can, counts } = queue;
+  const tabs: { key: Filter | null; label: string; n: number }[] = [
+    { key: null, label: "All", n: counts.all },
+    ...(can.unassigned ? [{ key: "unassigned" as const, label: "Unassigned", n: counts.unassigned }] : []),
+    ...(can.missed ? [{ key: "missed" as const, label: "Missed calls", n: counts.missed }] : []),
+    ...(can.comms ? [{ key: "comms" as const, label: "Communication", n: counts.comms }] : []),
+  ];
+  return (
+      <nav aria-label="Kind of work" className="flex flex-wrap gap-0.5 rounded-[10px] bg-[#f2f4f7] p-1">
+        {tabs.map((t) => {
+          const on = filter === t.key;
+          return (
+            <Link key={t.label} href={qs({ ...listKeep, type: t.key ?? undefined })} scroll={false} aria-current={on ? "page" : undefined} className={`rounded-[8px] px-3 py-1.5 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5] ${on ? "bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.08)]" : "text-[#475467] hover:text-[#101828]"}`}>
+              {t.label} <span className="font-normal tabular-nums text-[#667085]">{t.n}</span>
+            </Link>
+          );
+        })}
+      </nav>
+  );
+}
+
+function BranchFilter({ queue, listKeep }: { queue: AttentionQueue; listKeep: Keep }) {
+  if (queue.branches.length < 2) return null;
+  return (
+        <AutoSubmitForm label="Branch" className="shrink-0">
+          {listKeep.type ? <input type="hidden" name="type" value={listKeep.type} /> : null}
+          <label>
+            <span className="sr-only">Branch</span>
+            <select name="branch" defaultValue={queue.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#344054] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
+              <option value="">All branches</option>
+              {queue.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </label>
+        </AutoSubmitForm>
+  );
+}
+
+function QueueFooter({ queue }: { queue: AttentionQueue }) {
+  const { can } = queue;
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[#eaecf0] px-4 py-3 text-[14px]">
+      <span className="mr-auto text-[#475467]">Unassigned visits for the next 7 days; open missed calls from the last 30 days.</span>
+      {can.unassigned ? <Link href="/rota/unassigned?when=week" className="font-semibold">Open Unassigned Visits</Link> : null}
+      {can.missed ? <Link href={`/rota/missed?${new URLSearchParams(missedFilters(queue.today, queue.branch ?? undefined))}`} className="font-semibold">Open Missed Calls</Link> : null}
+      {can.unassigned ? <Link href="/rota/unassigned?tab=history" className="inline-flex items-center gap-1 font-semibold"><ClockCounterClockwise size={16} aria-hidden />Coverage History</Link> : null}
     </div>
   );
 }
 
-function Figure({ value, label, tone = "text-[#101828]", href, testId }: { value: number; label: string; tone?: string; href?: string; testId?: string }) {
-  const body = <><strong data-testid={testId} className={`block text-[20px] font-bold leading-6 tabular-nums ${value ? tone : "text-[#101828]"}`}>{value}</strong><span className="block text-[12.5px] text-[#475467]">{label}</span></>;
-  return href ? <Link href={href} className="block px-3 py-2 text-inherit no-underline hover:bg-[#f9fafb]">{body}</Link> : <div className="px-3 py-2">{body}</div>;
+// ── Rows ────────────────────────────────────────────────────────────────
+
+function dayLabel(date: string, today: string) {
+  return date === today ? "Today" : fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short" });
 }
 
-function Coverage({ item }: { item: UnassignedItem }) {
-  const required = Math.min(2, item.visit.carersRequired);
-  const filled = required - item.openSlots.length;
-  const words = filled === 0 ? (required > 1 ? "both carers missing" : "no carer allocated") : "one carer missing";
+function toRow(i: AttentionItem, selected: boolean, listKeep: Keep, canEdit: boolean, today: string): QueueRow {
+  const time = londonTime(i.start);
+  const base = { key: i.key, type: i.type, time, day: dayLabel(i.date, today), serviceUser: i.serviceUser, callType: i.callType, reason: i.reason, selected };
+  const name = `${i.serviceUser}, ${i.callType ? `${i.callType.toLowerCase()} ` : ""}${time}, ${TYPE_LABEL[i.type].toLowerCase()}`;
+  const search = `${i.serviceUser} ${i.type === "missed" ? i.carerName ?? "" : ""} ${i.reason} ${i.reference}`.toLowerCase();
+  const selectHref = qs({ ...listKeep, item: i.key });
+  const rowKeep = { ...listKeep, item: i.key };
+  let action: QueueRow["action"] = null;
+  if (i.type === "unassigned") action = canEdit ? { label: "Find cover", href: coverHref(BASE, rowKeep, { id: i.id }), aria: `Find cover for ${i.serviceUser} at ${time}: recommended carers` } : { label: "View", href: `/rota/visits?date=${i.date}&visit=${i.visitId}`, aria: `View ${i.serviceUser}'s visit at ${time}` };
+  else if (i.type === "missed") action = { label: "Investigate", href: `/rota/missed/${i.id}`, aria: `Investigate ${i.reference}` };
+  else action = { label: "Contact", href: coverHref(BASE, rowKeep, i.caseId ? { id: i.caseId, mode: "recovery", tab: "comms" } : { id: i.visitId, tab: "comms" }), aria: `Record communication for ${i.serviceUser}, ${i.reference}` };
+  return { ...base, name, search, selectHref, action };
+}
+
+// ── Detail panel ────────────────────────────────────────────────────────
+
+type DetailData =
+  | { type: "unassigned"; recommended: (Candidate & { areas?: string[] })[]; blocked: string | null }
+  | { type: "missed" }
+  | { type: "comms"; arrangement: string | null; phone: string | null; phoneName: string | null };
+
+async function detailData(ctx: Ctx, item: AttentionItem): Promise<DetailData> {
+  if (item.type === "unassigned") {
+    if (!hasOrgPermission(ctx, "rota.edit")) return { type: "unassigned", recommended: [], blocked: null };
+    const ws = await coverWorkspaceOrMessage(ctx, { id: item.id, mode: "fill" });
+    if ("error" in ws) return { type: "unassigned", recommended: [], blocked: ws.error };
+    return { type: "unassigned", recommended: ws.recommended, blocked: ws.blocked };
+  }
+  if (item.type === "missed") return { type: "missed" };
+  const view = await communicationView(ctx, { visitId: item.visitId, caseId: item.caseId }).catch(() => null);
+  const su = view?.contacts?.serviceUser;
+  const contact = view?.contacts?.contacts.find((c) => c.isPrimary && c.phone);
+  const phone = su?.phone ?? contact?.phone ?? null;
+  return { type: "comms", arrangement: view?.arrangementText ?? null, phone, phoneName: su?.phone ? su.name : contact ? `${contact.name}${contact.relationship ? ` (${contact.relationship})` : ""}` : null };
+}
+
+const WHY_TONE = { unassigned: "bg-[#fdf6e3] text-[#7a5200]", missed: "bg-[#fef3f2] text-[#912018]", comms: "bg-[#f0f5ff] text-[#1d4f91]" } as const;
+const sentence = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+function Detail({ item, data, keep, can, today, idPrefix, bare = false }: { item: AttentionItem; data: DetailData; keep: Keep; can: AttentionQueue["can"]; today: string; idPrefix: string; bare?: boolean }) {
+  const s = TYPE_STYLE[item.type];
+  const why = item.type === "unassigned" ? `${item.why}. ${sentence(item.reason)}${item.required > 1 ? ` (${item.filled} of ${item.required} carers booked)` : ""}.` : item.type === "missed" ? (item.warnings.length ? `${sentence(item.warnings.join(", "))}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}` : `${STAGE_LABEL[item.stage]}. ${item.carerName ? `${item.carerName} was booked.` : "No carer was booked."}`) : `${item.stateLabel}. Responsible: ${item.owner}.`;
   return (
-    <span title={`${filled} of ${required} carers booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold tabular-nums ${filled === 0 ? "bg-[#fdecec] text-[#b42318]" : "bg-[#fdf3d8] text-[#8a5a00]"}`}>
-      <Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span>
-    </span>
+    <section aria-labelledby={`${idPrefix}-title`} className={bare ? "" : "overflow-hidden rounded-[14px] border border-[#eaecf0] bg-white"} data-testid="attention-detail" data-item={item.key}>
+      <div className="border-b border-[#eaecf0] px-5 pb-4 pt-4">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-medium ${s.chip}`}>{s.label}</span>
+          <span className="text-[13.5px] font-semibold tracking-[0.02em] text-[#475467]">{item.reference}</span>
+        </p>
+        <h2 id={`${idPrefix}-title`} className="mt-2 text-[22px] font-bold leading-tight text-[#1b1340]">{item.serviceUser}</h2>
+        <p className="mt-1 text-[14.5px] text-[#475467]">{[dayLabel(item.date, today), londonTime(item.start), item.callType, item.area].filter(Boolean).join(" · ")}</p>
+        <p className={`mt-3 flex gap-2 rounded-[10px] px-3.5 py-2.5 text-[14px] leading-snug ${WHY_TONE[item.type]}`}><Info size={18} aria-hidden className="mt-px shrink-0" /><span>{why}</span></p>
+      </div>
+      {item.type === "unassigned" && data.type === "unassigned" ? <UnassignedDetail item={item} data={data} keep={keep} canEdit={can.edit} /> : null}
+      {item.type === "missed" ? <MissedDetail item={item} keep={keep} canEdit={can.edit} /> : null}
+      {item.type === "comms" && data.type === "comms" ? <CommsDetail item={item} data={data} keep={keep} /> : null}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-[#eaecf0] px-5 py-3.5">
+        <Link href={`/rota/visits?date=${item.date}&visit=${item.visitId}`} className={TEXT_LINK}>Open visit</Link>
+        <Link href={`/rota/service-users/${item.serviceUserId}`} className={TEXT_LINK}>Care plan</Link>
+      </div>
+    </section>
   );
 }
 
-async function UnassignedSection({ ctx }: { ctx: Ctx }) {
-  // The same board as Unassigned Visits on "This Week": today and the next six days, most urgent first.
-  const f = parseUnassigned({ when: "week" }, londonDate());
-  const board = await unassignedBoard(ctx, f);
-  const canEdit = hasOrgPermission(ctx, "rota.edit");
-  const list = "/rota/unassigned?when=week";
-  const rows = board.all.slice(0, SHOWN);
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
+
+function UnassignedDetail({ item, data, keep, canEdit }: { item: UnassignedEntry; data: Extract<DetailData, { type: "unassigned" }>; keep: Keep; canEdit: boolean }) {
+  if (!canEdit) return <p className="px-5 py-4 text-[14px] text-[#475467]">You can see this visit, but booking a carer needs rota editing access.</p>;
+  const cover = coverHref(BASE, keep, { id: item.id });
   return (
-    <section aria-labelledby="attention-unassigned" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white" data-testid="attention-unassigned">
-      <SectionHead id="attention-unassigned" icon={<WarningOctagon size={22} weight="bold" />} title="Unassigned Visits" count={board.summary.visits} noun="unassigned visits" href={list} linkLabel="Open Unassigned Visits" />
-      <div className="grid grid-cols-2 divide-x divide-[#f2f4f7] border-b border-[#eaecf0] sm:grid-cols-4">
-        <Figure value={board.summary.visits} label="Visits this week" testId="att-un-visits" href={list} />
-        <Figure value={board.summary.urgent} label="Urgent" tone="text-[#b42318]" href={`${list}&priority=URGENT`} testId="att-un-urgent" />
-        <Figure value={board.summary.partial} label="Partly staffed" tone="text-[#8a5a00]" href={`${list}&staffing=partial`} />
-        <Figure value={board.summary.slots} label="Empty carer places" />
+    <div className="px-5 py-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-[16px] font-bold text-[#1b1340]">Recommended carers</h3>
+        <span className="text-[13.5px] text-[#475467]">Eligible, best match first</span>
       </div>
-      {rows.length ? (
-        <ul className="divide-y divide-[#f2f4f7]" aria-label="Most urgent unassigned visits">
-          {rows.map((it) => {
-            const v = it.visit;
-            const date = fromDbDate(v.date);
+      {data.blocked ? <p role="status" className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-[14px] text-[#344054]">{data.blocked}</p> : data.recommended.length ? (
+        <ul className="space-y-2.5" aria-label="Recommended carers">
+          {data.recommended.map((c, rank) => {
+            const area = c.explain.some((e) => e.text === "works in this area");
+            const facts = [c.state === "REQUIRES_REVIEW" ? "Check warnings first" : "Free at this time", area ? "works in this area" : null, c.continuity ? `knows ${item.serviceUser.split(" ")[0]}` : null, `${c.weekHours} h this week`].filter(Boolean).join(" · ");
             return (
-              <li key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-[14px]" data-testid="attention-unassigned-row">
-                <div className="w-[118px] shrink-0 tabular-nums">
-                  <span className="block font-semibold text-[#101828]">{fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short" })}</span>
-                  <span className="block text-[13px] text-[#475467]">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)}</span>
-                </div>
-                <div className="min-w-0 flex-1 basis-[180px]">
-                  <Link href={`/rota/service-users/${v.serviceUser.id}`} className="block truncate font-semibold text-[#3b1f99]">{suName(v.serviceUser)}</Link>
-                  <span className="block truncate text-[13px] text-[#475467]" title={it.reason}>{v.callType.name}{v.area ? ` · ${v.area.name}` : ""} · {it.reason}</span>
-                </div>
-                <span title={it.why} className={`inline-flex rounded-[6px] px-2 py-0.5 text-[13px] font-semibold ${PRIORITY_BADGE[it.priority]}`}>{PRIORITY_LABEL[it.priority]}<span className="sr-only">: {it.why}</span></span>
-                <Coverage item={it} />
-                <span className="ml-auto flex gap-1.5">
-                  {canEdit ? (
-                    <>
-                      <Link href={coverHref("/rota/attention", {}, { id: v.id })} scroll={false} className={PRIMARY} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}: recommended carers`}><UserPlus size={16} aria-hidden />Find Cover</Link>
-                      <Link href={`${coverHref("/rota/attention", {}, { id: v.id })}&fcStep=manual`} scroll={false} className={SECONDARY} aria-label={`Choose a carer by hand for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`}>Manual</Link>
-                    </>
-                  ) : <Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className={SECONDARY}>View</Link>}
+              <li key={c.id} className="flex items-center gap-3 rounded-[12px] border border-[#eaecf0] px-3.5 py-3" data-testid="attention-carer">
+                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efeafc] text-[13.5px] font-bold text-[#5b2bb5]">{initials(c.name)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold text-[#3b1f99]">{c.name}</span>
+                  <span className="block text-[13px] leading-snug text-[#475467]">{facts}</span>
                 </span>
+                {c.score !== null ? <span title={`${RANK_LABEL[rank] ?? "Suitable"}: match score from the eligibility ranking`} className="rounded-full bg-[#e3f6ea] px-2 py-0.5 text-[13px] font-semibold tabular-nums text-[#1e6b2c]">{c.score}%<span className="sr-only"> match</span></span> : null}
+                <Link href={`${cover}&fcStep=review&fcStaff=${c.id}&fcSrc=RECOMMENDED`} scroll={false} className={`${OUTLINE} h-8 px-3`} aria-label={`Assign ${c.name} to ${item.serviceUser} at ${londonTime(item.start)}: review and confirm`}>Assign</Link>
               </li>
             );
           })}
         </ul>
-      ) : <div className="p-4"><Empty>No upcoming visits are short of a carer in the next 7 days.</Empty></div>}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#eaecf0] px-4 py-2.5 text-[13.5px]">
-        <span className="mr-auto text-[#475467]">{board.summary.visits > rows.length ? `Showing the ${rows.length} most urgent of ${board.summary.visits}.` : "Upcoming visits only."} <span className="sr-only">{PRIORITY_RULE}</span></span>
-        {board.summary.visits > rows.length ? <Link href={list} className="font-semibold">See all {board.summary.visits}</Link> : null}
-        <Link href="/rota/unassigned?tab=history" className="inline-flex items-center gap-1 font-semibold"><ClockCounterClockwise size={16} aria-hidden />Coverage History</Link>
+      ) : <p className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-[14px] text-[#344054]">No eligible carer is free at this time. Choose a carer by hand to see everyone and why.</p>}
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Link href={`${cover}&fcStep=manual`} scroll={false} className={TEXT_LINK} aria-label={`Choose a carer by hand for ${item.serviceUser} at ${londonTime(item.start)}`}>Choose a carer by hand</Link>
+        <Link href={cover} scroll={false} className={TEXT_LINK}>Open Find Cover</Link>
       </div>
-    </section>
+    </div>
   );
 }
 
-async function MissedSection({ ctx }: { ctx: Ctx }) {
-  // The Missed Calls register itself, filtered to cases that are still open over the last 30 days.
-  const today = londonDate();
-  const filters = { period: "custom", from: addDays(today, -(MISSED_DAYS - 1)), to: today, stage: "open" };
-  const reg: MissedRegister = await missedCallRegister(ctx, filters);
-  const list = `/rota/missed?${new URLSearchParams(filters)}`;
-  const rows = reg.rows.slice(0, SHOWN);
-  const covers = await coverStates(ctx, rows.map((r) => r.id));
-  const canWork = hasOrgPermission(ctx, "rota.edit");
-  const open = reg.rows.length;
-  const notInvestigated = reg.rows.filter((r) => !r.reasonCode).length;
-  const pastDeadline = reg.rows.filter((r) => r.overdue).length;
-  const escalated = reg.rows.filter((r) => r.escalatedAt).length;
+function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; canEdit: boolean }) {
+  const c = item.checks;
+  const told = c.informed === "INFORMED" || c.informed === "REPRESENTATIVE_INFORMED" || c.informed === "RECORDED";
+  const steps = [
+    { done: true, label: "Missed call confirmed", meta: `Found ${fmtLondonDate(londonDate(c.detectedAt), { day: "numeric", month: "short" })} ${londonTime(c.detectedAt)}` },
+    { done: told, label: "Service user safe and contacted", meta: c.informed && c.informed !== "RECORDED" ? SU_INFORMED[c.informed] ?? c.informed : told ? "Recorded on the case" : "Not recorded yet" },
+    { done: c.reasonRecorded, label: "Reason recorded", meta: c.reasonRecorded ? "Recorded" : item.overdue ? "Past the investigation deadline" : "Not recorded yet" },
+    { done: c.signedOff, label: "Manager sign-off", meta: c.signedOff ? "Signed off" : c.submitted ? "Waiting for sign-off" : "Not submitted yet" },
+  ];
   return (
-    <section aria-labelledby="attention-missed" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white" data-testid="attention-missed">
-      <SectionHead id="attention-missed" icon={<PhoneX size={22} weight="bold" />} title="Missed Calls" count={open} noun="open missed-call cases" href={list} linkLabel="Open Missed Calls" />
-      <div className="grid grid-cols-2 divide-x divide-[#f2f4f7] border-b border-[#eaecf0] sm:grid-cols-4">
-        <Figure value={open} label={`Open cases, last ${MISSED_DAYS} days`} testId="att-mc-open" href={list} />
-        <Figure value={notInvestigated} label="No reason recorded" tone="text-[#7a5200]" href={`${list}&smart=uninvestigated`} testId="att-mc-uninvestigated" />
-        <Figure value={pastDeadline} label="Past deadline" tone="text-[#b42318]" href={`/rota/missed?${new URLSearchParams({ ...filters, stage: "overdue" })}`} />
-        <Figure value={escalated} label="Escalated" tone="text-[#b42318]" href={`/rota/missed?${new URLSearchParams({ ...filters, stage: "escalated" })}`} />
+    <div className="px-5 py-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-[16px] font-bold text-[#1b1340]">Investigation</h3>
+        <span className="text-[13.5px] text-[#475467]">{STAGE_LABEL[item.stage]}</span>
       </div>
-      {rows.length ? (
-        <ul className="divide-y divide-[#f2f4f7]" aria-label="Open missed calls, newest first">
-          {rows.map((r) => {
-            const cover = covers.get(r.id);
-            const warnings = [r.overdue ? "Past investigation deadline" : null, r.highRisk ? "High-risk service user" : null, r.escalatedAt ? "Escalated" : null, r.repeatCount ? `Carer missed ${r.repeatCount} recently` : null, !r.coordinatorId ? "No coordinator" : null].filter((w): w is string => !!w);
-            return (
-              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-[14px]" data-testid="attention-missed-row">
-                <div className="w-[118px] shrink-0 tabular-nums">
-                  <span className="block font-semibold text-[#101828]">{fmtLondonDate(londonDate(r.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</span>
-                  <span className="block text-[13px] text-[#475467]">Due {londonTime(r.visit.scheduledStart)}</span>
-                </div>
-                <div className="min-w-0 flex-1 basis-[180px]">
-                  <Link href={`/rota/service-users/${r.visit.serviceUser.id}`} className="block truncate font-semibold text-[#3b1f99]">{r.serviceUserName}</Link>
-                  <span className="block truncate text-[13px] text-[#475467]">{r.carerName ?? "No carer was booked"} · {VISIT_STATUS_NOW[r.visit.status]}</span>
-                  {warnings.length ? <span className="block truncate text-[12.5px] font-medium text-[#9b231d]" title={warnings.join(", ")}>{warnings.join(" · ")}</span> : null}
-                </div>
-                <Badge tone={STAGE_TONE[r.stage] ?? "slate"}>{STAGE_LABEL[r.stage]}</Badge>
-                <span className="ml-auto flex gap-1.5">
-                  {cover?.canFind && canWork ? <Link href={coverHref("/rota/attention", {}, { id: r.id, mode: "recovery" })} scroll={false} className={SECONDARY} aria-label={`Find recovery cover for ${r.visit.reference}`}><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
-                  {cover?.kind === "booked" ? <Badge tone="green">Cover booked</Badge> : null}
-                  <Link href={`/rota/missed/${r.id}`} className={PRIMARY} aria-label={`Investigate ${r.visit.reference}`}>Investigate</Link>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      ) : <div className="p-4"><Empty>No open missed-call cases in the last {MISSED_DAYS} days.</Empty></div>}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[#eaecf0] px-4 py-2.5 text-[13.5px]">
-        <span className="mr-auto text-[#475467]">{open > rows.length ? `Showing the newest ${rows.length} of ${open}.` : `Cases from ${fmtLondonDate(filters.from, { day: "numeric", month: "short" })} to today.`} Closed cases stay in Missed Calls.</span>
-        {open > rows.length ? <Link href={list} className="font-semibold">See all {open}</Link> : null}
-        <Link href="/rota/missed" className="font-semibold">All missed calls</Link>
+      <ol className="space-y-2" aria-label="Investigation stages">
+        {steps.map((st) => (
+          <li key={st.label} className="flex items-start gap-2.5 text-[14px]">
+            <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${st.done ? "bg-[#e3f6ea] text-[#1e6b2c]" : "border border-[#d0d5dd] bg-white text-transparent"}`}>✓</span>
+            <span><span className="sr-only">{st.done ? "Done: " : "To do: "}</span><b className="font-semibold text-[#101828]">{st.label}</b><span className="block text-[13px] text-[#475467]">{st.meta}</span></span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link href={`/rota/missed/${item.id}`} className={PRIMARY} aria-label={`${c.reasonRecorded ? "Open the case" : "Record reason"} for ${item.reference}`}>{c.reasonRecorded ? "Open the case" : "Record reason"}</Link>
+        {item.cover?.canFind && canEdit ? <Link href={coverHref(BASE, keep, { id: item.id, mode: "recovery" })} scroll={false} className={OUTLINE} aria-label={`Find recovery cover for ${item.reference}`}><UserPlus size={16} aria-hidden />Find recovery cover</Link> : null}
+        {item.cover?.kind === "booked" ? <span className="rounded-full bg-[#e3f6ea] px-2.5 py-0.5 text-[13px] font-semibold text-[#1e6b2c]">Cover booked</span> : null}
       </div>
-    </section>
+      {item.cover && !item.cover.canFind && item.cover.kind !== "booked" ? <p className="mt-2 text-[13px] text-[#475467]">{item.cover.text}</p> : null}
+    </div>
   );
 }
 
-/**
- * Communication still owed to service users after cover was arranged: not yet contacted, attempted without
- * confirmation, or arrangements changed since they were told. Each row shows who is responsible and when it is due,
- * and opens the same Find Cover panel on its Contact & communication tab, so the coordinator can finish the record.
- */
-async function CommunicationSectionList({ ctx }: { ctx: Ctx }) {
-  const { items, total } = await outstandingCommunication(ctx);
-  const rows = items.slice(0, SHOWN);
-  const tone = (k: string) => (k === "NOT_CONTACTED" ? "rose" : "amber") as Tone;
+function CommsDetail({ item, data, keep }: { item: CommsEntry; data: Extract<DetailData, { type: "comms" }>; keep: Keep }) {
+  const tel = telHref(data.phone);
+  const sms = tel ? tel.replace(/^tel:/, "sms:") : null;
   return (
-    <section aria-labelledby="attention-comms" className="mt-3 min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white" data-testid="attention-comms">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[#eaecf0] px-4 py-3">
-        <span aria-hidden className="text-[#5b2bb5]"><ChatCircleText size={22} weight="bold" /></span>
-        <h2 id="attention-comms" className="mr-auto text-[18px] font-bold text-[#101828]">
-          Communication Outstanding <span className="ml-1 rounded-full bg-[#f2f4f7] px-2 py-0.5 align-middle text-[13px] font-semibold tabular-nums text-[#344054]" data-testid="attention-comms-count">{total}<span className="sr-only"> visits with communication outstanding</span></span>
-        </h2>
-        <span className="text-[13px] text-[#475467]">After cover was arranged through Find Cover</span>
+    <div className="px-5 py-4">
+      <h3 className="mb-2 text-[16px] font-bold text-[#1b1340]">Replacement</h3>
+      <p className="text-[14px] text-[#344054]">{data.arrangement ?? "The arrangements could not be loaded."}</p>
+      <p className="mt-1 text-[13.5px] text-[#475467]">{item.followUp ? "Follow-up due" : "Due"} {fmtLondonDate(londonDate(item.dueAt), { day: "numeric", month: "short" })} {londonTime(item.dueAt)}{item.overdue ? " (overdue)" : ""}</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {tel ? <a href={tel} className={OUTLINE} aria-label={`Call ${data.phoneName}`}>Call</a> : null}
+        {sms ? <a href={sms} className={OUTLINE} aria-label={`Text ${data.phoneName}`}>Text</a> : null}
+        <Link href={coverHref(BASE, keep, item.caseId ? { id: item.caseId, mode: "recovery", tab: "comms" } : { id: item.visitId, tab: "comms" })} scroll={false} className={PRIMARY} aria-label={`Record communication for ${item.serviceUser}, ${item.reference}`}>Record communication</Link>
       </div>
-      {rows.length ? (
-        <ul className="divide-y divide-[#f2f4f7]" aria-label="Visits with communication outstanding, soonest due first">
-          {rows.map((it) => (
-            <li key={it.visitId} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-[14px]" data-testid="attention-comms-row">
-              <div className="w-[118px] shrink-0 tabular-nums">
-                <span className="block font-semibold text-[#101828]">{fmtLondonDate(londonDate(it.start), { weekday: "short", day: "numeric", month: "short" })}</span>
-                <span className="block text-[13px] text-[#475467]">{londonTime(it.start)}–{londonTime(it.end)}</span>
-              </div>
-              <div className="min-w-0 flex-1 basis-[180px]">
-                <Link href={`/rota/service-users/${it.serviceUserId}`} className="block truncate font-semibold text-[#3b1f99]">{it.serviceUser}</Link>
-                <span className="block truncate text-[13px] text-[#475467]">{it.reference} · Responsible: {it.owner}</span>
-              </div>
-              <Badge tone={tone(it.state.kind)}>{it.state.label}</Badge>
-              <span className={`text-[13px] tabular-nums ${it.overdue ? "font-semibold text-[#b42318]" : "text-[#475467]"}`}>{it.state.followUp ? "Follow-up due" : "Due"} {fmtLondonDate(londonDate(it.dueAt), { day: "numeric", month: "short" })} {londonTime(it.dueAt)}{it.overdue ? " (overdue)" : ""}</span>
-              <span className="ml-auto flex gap-1.5">
-                <Link href={coverHref("/rota/attention", {}, it.caseId ? { id: it.caseId, mode: "recovery", tab: "comms" } : { id: it.visitId, tab: "comms" })} scroll={false} className={PRIMARY} aria-label={`Record communication for ${it.serviceUser}, ${it.reference}`}>Record communication</Link>
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : <div className="p-4"><Empty>No communication is outstanding for cover arranged in the last day or the next two weeks.</Empty></div>}
-      {total > rows.length ? <p className="border-t border-[#eaecf0] px-4 py-2.5 text-[13.5px] text-[#475467]">Showing the {rows.length} due soonest of {total}.</p> : null}
-    </section>
+      <p className="mt-2 text-[13px] text-[#475467]">{tel ? `Calling or texting ${data.phoneName} happens on your phone; record what was said here.` : "No dialable phone number is recorded for the service user or their main contact."}</p>
+    </div>
   );
 }

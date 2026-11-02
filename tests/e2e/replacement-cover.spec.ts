@@ -52,6 +52,8 @@ test.describe("Find Replacement Cover", () => {
 
     // It shows as outstanding on Visits Needing Attention, without blocking anything.
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("heading", { name: /Communication Outstanding/ })).toBeVisible();
+    await expect(page.getByTestId("attention-comms-count")).not.toHaveText("0");
+    await page.getByTestId("attention-comms").click();
+    await expect(page.getByTestId("attention-comms-row").first()).toBeVisible();
   });
 });
