@@ -81,7 +81,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
   const closeCover = { cover: undefined, slot: undefined, ctab: undefined, pick: undefined, mq: undefined, ptab: undefined };
   const back = url(closeCover);
   const areas = lk.areas.filter((a) => !branch || a.branchId === branch);
-  const staffOpts = lk.staff.filter((s) => !branch || !s.branchId || s.branchId === branch);
+  const staffOpts = lk.carers.filter((s) => !branch || !s.branchId || s.branchId === branch);
   const suOpts = lk.serviceUsers.filter((s) => !branch || !s.branchId || s.branchId === branch);
   const more = [branch && lk.branches.length > 1 ? 1 : 0, f.su, f.carer, f.carers, f.when === "custom" ? 1 : 0].filter(Boolean).length;
   const sortLink = (key: string) => url({ sort: key === "priority" ? undefined : key, dir: f.sort === key && f.dir === "asc" ? "desc" : undefined, page: undefined });
@@ -161,7 +161,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
             <div className="flex flex-wrap items-center gap-2 px-3.5 py-3">
               <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                 <input type="hidden" name="back" value={back} />
-                <BulkVisitBar form="bulk" canPublish={canBuild} staff={lk.staff.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
+                <BulkVisitBar form="bulk" canPublish={canBuild} staff={lk.carers.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
                 {canBuild ? (
                   <>
                     <input type="hidden" name="planChosen" value="1" />

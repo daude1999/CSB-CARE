@@ -39,7 +39,7 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
 
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="staff" active="readiness" />} title="Staff Readiness" back="/rota" subtitle="Whether each person may work, worked out now from HR checks, verified training, observed competency, policy acknowledgement, restrictions, exceptions and open reviews. Allocation, publishing and clock-in use the same rules." actions={hasOrgPermission(ctx, "readiness.manage") ? <Link href="/admin/readiness" className="btn-secondary">Requirements matrix</Link> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="readiness" />} title="Staff Readiness" back="/rota" subtitle="Whether each person may work, worked out now from HR checks, verified training, observed competency, policy acknowledgement, restrictions, exceptions and open reviews. Allocation, publishing and clock-in use the same rules." actions={hasOrgPermission(ctx, "readiness.manage") ? <Link href="/admin/readiness" className="btn-secondary">Requirements matrix</Link> : null} />
       <Flash searchParams={sp} />
       <SegmentNav
         label="Readiness status"

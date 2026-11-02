@@ -11,6 +11,7 @@ import { monitorBoard } from "@/server/rota/monitor";
 import { listVisits, rotaLookups, visitCandidates } from "@/server/rota/queries";
 import { getVisit, moveVisit } from "@/server/rota/visits";
 import { assignCarer } from "@/server/rota/assign";
+import { DEFAULT_CARE_ROLES } from "@/server/rota/settings";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -271,7 +272,8 @@ describe("pick lists and moves", () => {
 describe("allocation stays inside the branch", () => {
   it("never offers or books another branch's carer for a branch-limited coordinator", async () => {
     const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, date: dbDate(wk(2)), status: "SCHEDULED", serviceUser: { branchId: branch.Liverpool } }, include: { assignments: true } });
-    const th = await db.staffMember.findFirstOrThrow({ where: { organisationId: orgId, branchId: branch["Tower Hamlets"], employmentStatus: "ACTIVE" } });
+    // A carer in a care role: office staff are never offered as carers to anyone (HR_SINGLE_STAFF_RECORD.md).
+    const th = await db.staffMember.findFirstOrThrow({ where: { organisationId: orgId, branchId: branch["Tower Hamlets"], employmentStatus: "ACTIVE", jobTitle: { in: DEFAULT_CARE_ROLES } } });
     const offered = await visitCandidates(await liverpool(), v, "PRIMARY");
     expect(offered.map((c) => c.id)).not.toContain(th.id);
     expect(offered.length).toBeGreaterThan(0);

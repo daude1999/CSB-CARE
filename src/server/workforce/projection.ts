@@ -13,7 +13,7 @@ import { raiseReviewFlag } from "@/server/readiness/flags";
  * roll back together. Only employees whose projected content changed are written.
  */
 
-const STATUS: Record<Employee["status"], EmploymentStatus> = { Active: "ACTIVE", Onboarding: "ONBOARDING", Archived: "ARCHIVED" };
+const STATUS: Record<Employee["status"], EmploymentStatus> = { Active: "ACTIVE", Onboarding: "ONBOARDING", Suspended: "SUSPENDED", Archived: "ARCHIVED" };
 
 export interface ProjectedCheck {
   hrCheckId: string;

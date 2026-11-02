@@ -142,6 +142,7 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   // 1–4. Employment, role, rota participation.
   if (s.hrMissing) out.blocking.push({ code: "HR_MISSING", message: "The HR record for this person no longer exists" });
   if (s.employmentStatus === "ARCHIVED") out.blocking.push({ code: "ARCHIVED", message: "Archived in HR & Workforce" });
+  if (s.employmentStatus === "SUSPENDED") out.blocking.push({ code: "SUSPENDED", message: "Suspended in HR & Workforce" });
   if (s.employmentStatus === "ONBOARDING" && input.slot !== "SHADOW") out.blocking.push({ code: "ONBOARDING", message: "Still onboarding: can only shadow another carer" });
   if (s.startDate && s.startDate.toISOString().slice(0, 10) > date) out.blocking.push({ code: "NOT_STARTED", message: `Starts on ${s.startDate.toISOString().slice(0, 10)}` });
   if (s.leavingDate && s.leavingDate.toISOString().slice(0, 10) < date) out.blocking.push({ code: "LEFT", message: `Left on ${s.leavingDate.toISOString().slice(0, 10)}` });
@@ -242,6 +243,17 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   return { staffId: s.id, state, blocking: out.blocking, warnings: out.warnings, advice: travelAndRest(facts, s.id, input), compliance, restrictions, readiness };
 }
 
+/**
+ * Who appears in carer lists at all: HR employees in a care role (Rota Settings) unless rota participation is switched
+ * off, plus anyone whose participation has been switched on by hand. Office and other non-care employees never appear
+ * as carers just because HR employs them. Being in the pool says nothing about eligibility for a visit, which
+ * evaluate() still judges; the pool only decides who is listed.
+ */
+export function inRotaPool(settings: Pick<RotaSettings, "careRoleTitles">, s: { jobTitle: string; hrMissing: boolean; employmentStatus: string; profile: { rotaEnabled: boolean | null } | null }) {
+  if (s.hrMissing || s.employmentStatus === "ARCHIVED") return false;
+  return s.profile?.rotaEnabled ?? isCareRole(settings, s.jobTitle);
+}
+
 /** Eligibility for one person and one time window, for coordinators. */
 export async function checkStaffEligibility(ctx: Ctx, input: EligibilityInput, tx: Db = db): Promise<EligibilityResult> {
   const organisationId = requireOrgPermission(ctx, "rota.view");
@@ -263,7 +275,7 @@ export async function rankCarers(tx: Db, organisationId: string, input: Omit<Eli
   const order = { ELIGIBLE: 0, REQUIRES_REVIEW: 1, NOT_ELIGIBLE: 2 };
   return ids
     .map((id) => ({ staff: facts.staff.find((s) => s.id === id), result: evaluate(settings, facts, { ...input, staffId: id }, prefs) }))
-    .filter((r) => r.staff)
+    .filter((r) => r.staff && inRotaPool(settings, r.staff))
     .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName));
 }
 
@@ -283,7 +295,7 @@ export async function rankCarersMany(tx: Db, organisationId: string, inputs: (Om
   return inputs.map(({ otherSlotStaffIds, ...input }) =>
     ids
       .map((id) => ({ staff: facts.staff.find((s) => s.id === id), result: evaluate(settings, facts, { ...input, staffId: id }, prefs.get(input.serviceUserId ?? "") ?? null, { otherSlotStaffIds }) }))
-      .filter((r) => r.staff)
+      .filter((r) => r.staff && inRotaPool(settings, r.staff))
       .sort((a, b) => order[a.result.state] - order[b.result.state] || a.staff!.displayName.localeCompare(b.staff!.displayName)),
   );
 }

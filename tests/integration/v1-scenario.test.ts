@@ -32,6 +32,8 @@ import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
  */
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
 const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
+// Training evidence is recorded by HR & Workforce: a coordinator who also holds the Group HR account.
+const hrCoordinator = async () => ({ ...(await coordinator()), hrUserId: "group" });
 const finance = () => ctxFor("finance@care-solution.demo", BROOKFIELD);
 const MIN = 60_000;
 const EMAIL = "riley.scenario@example.com";
@@ -103,7 +105,7 @@ describe("Version 1 principal scenario", () => {
         continue;
       }
       if (req.category === "TRAINING" || req.category === "QUALIFICATION") {
-        const rec = await recordTraining(await coordinator(), staff.id, { requirementId: req.id, completedAt: addDays(today, -3), provider: "Scenario training", evidenceNote: "Certificate seen" });
+        const rec = await recordTraining(await hrCoordinator(), staff.id, { requirementId: req.id, completedAt: addDays(today, -3), provider: "Scenario training", evidenceNote: "Certificate seen" });
         await verifyTraining(await manager(), rec.id, "VERIFIED", "Certificate checked");
       }
       if (req.category === "COMPETENCY" || req.requiresPractical) {

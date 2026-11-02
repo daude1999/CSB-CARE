@@ -181,7 +181,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                 <span className="px-1.5"><SelectAll form="tbulk" name="templateIds" label="Select all templates on this page" /></span>
                 <form id="tbulk" action={templateBulkAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                   <input type="hidden" name="back" value={back} />
-                  <BulkTemplateBar form="tbulk" staff={lk.staff.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
+                  <BulkTemplateBar form="tbulk" staff={lk.carers.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
                 </form>
               </>
             ) : null}

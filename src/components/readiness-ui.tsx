@@ -42,7 +42,8 @@ export function ReadinessPanel({ profile, back, requirements, careTasks, service
   requirements: ReadinessRequirement[];
   careTasks: { id: string; name: string }[];
   serviceUsers: { id: string; name: string }[];
-  can: { record: boolean; verify: boolean; exception: boolean; evidence: boolean };
+  /** hrEvidence: may enter, verify or assess training and competency (an HR account covering this person). */
+  can: { record: boolean; verify: boolean; exception: boolean; evidence: boolean; hrEvidence: boolean };
   me: string;
 }) {
   const { staff, result, records, assessments, restrictions, exceptions, flags, history, names } = profile;
@@ -84,7 +85,7 @@ export function ReadinessPanel({ profile, back, requirements, careTasks, service
         </tbody>
       </table>
 
-      {pending.length && can.verify ? (
+      {pending.length && can.verify && can.hrEvidence ? (
         <section className="mt-4" aria-label="Evidence awaiting verification">
           <h3 className="mb-1.5 text-[15px]">Awaiting verification</h3>
           <ul className="rows">
@@ -106,7 +107,8 @@ export function ReadinessPanel({ profile, back, requirements, careTasks, service
       ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-2">
-        {can.record ? (
+        {(can.record || can.verify) && !can.hrEvidence ? <p className="text-[13px] text-slate-500" data-testid="readiness-hr-only">Training and competency evidence is recorded and verified in HR & Workforce, by people with an HR account for this person.</p> : null}
+        {can.record && can.hrEvidence ? (
           <details className="rounded border border-slate-200 p-3">
             <summary className="cursor-pointer text-[14.5px] font-medium">Record training or a qualification</summary>
             <form action={recordTrainingAction} className="mt-2 grid grid-cols-2 gap-2">
@@ -122,7 +124,7 @@ export function ReadinessPanel({ profile, back, requirements, careTasks, service
           </details>
         ) : null}
 
-        {can.verify && assessable.length ? (
+        {can.verify && can.hrEvidence && assessable.length ? (
           <details className="rounded border border-slate-200 p-3">
             <summary className="cursor-pointer text-[14.5px] font-medium">Record a competency assessment</summary>
             <form action={recordAssessmentAction} className="mt-2 grid grid-cols-2 gap-2">

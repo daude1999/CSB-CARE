@@ -39,7 +39,7 @@ export default async function TemplateRoutesPage({ searchParams }: { searchParam
             </table>
           ) : <Empty>No template run routes yet.</Empty>}
         </Card>
-        {canEdit ? <Card title="Add New Template Run Route"><RouteForm action={createTemplateRouteAction} back="/rota/routes/templates" staff={lk.staff} areas={lk.areas} withWeek={false} /></Card> : null}
+        {canEdit ? <Card title="Add New Template Run Route"><RouteForm action={createTemplateRouteAction} back="/rota/routes/templates" staff={lk.carers} areas={lk.areas} withWeek={false} /></Card> : null}
       </div>
     </>
   );
