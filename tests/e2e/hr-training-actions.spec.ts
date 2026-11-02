@@ -49,7 +49,7 @@ test.describe("Checks & Training actions", () => {
     await hubReady(page);
     await page.getByRole("button", { name: "Send reminder" }).click();
     const form = page.getByTestId("send-reminder-form");
-    await expect(form).toContainText("Nothing is sent by email or text");
+    await expect(page.getByRole("dialog", { name: "Send training reminder" })).toContainText("Nothing is sent by email or text");
     await expect(form.getByText("No CSB sign-in: tell them yourself").first()).toBeVisible();
     const send = form.getByRole("button", { name: /^Send \d+ reminders?$/ });
     if (await send.isVisible()) {

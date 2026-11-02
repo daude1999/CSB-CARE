@@ -52,3 +52,16 @@ so their fields and buttons had lost their styling. `Drawer` now wraps the panel
 - E-mail or text reminders (needs the owner's review of outbound messages first).
 - Reminders for staff without a CSB sign-in.
 - Staff Sign-off "Send Reminder" in Policy & Compliance (policy reminders already run automatically in-app).
+
+## Test results (2 Nov 2026, local, isolated databases)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | passed |
+| `npm run lint` | passed |
+| `npm run test:hr` | 22 passed (8 new in `tests/hr/training.test.ts`) |
+| `npm test` (Vitest, `csb_test`) | 79 files, 639 passed, 0 failed (includes 5 new in `tests/integration/hr-training-actions.test.ts`) |
+| `npm run build` | succeeded |
+| `npx playwright test hr-training-actions hr-compliance-ux hr-staff-record navigation` | 34 passed, 1 failed (a wrong selector in the new test: the banner sits outside the form); fixed, re-run `hr-training-actions`: 3 passed |
+
+No file under Rota, the Overview, or the shared page header changed.
