@@ -1,5 +1,7 @@
 # Find Cover inside Missed Calls (phase 1, 1 Nov 2026)
 
+> **2 Nov 2026:** Find Cover now opens the shared Find Replacement Cover panel, which adds a Contact & communication tab. See `REPLACEMENT_COVER.md`; the rules below still apply.
+
 The owner's brief "Build smart replacement cover inside Missed Calls". Phase 1 is the single-visit workflow. Phase 2,
 whole-day sickness cover, is **not built yet** (see the end of this page).
 

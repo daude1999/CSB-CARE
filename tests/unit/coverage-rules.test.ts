@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { attendanceRate, classify, coveragePeriod, perCarerAttendance, staffingHistory, tally, type AssignmentRow } from "@/server/rota/coverage";
 import { allocationReason, parseUnassigned, priorityOf } from "@/server/rota/unassigned";
-import { assignmentChecks } from "@/server/rota/unassigned-cover";
+import { coverChecks } from "@/server/rota/missed-cover";
 import type { EligibilityResult } from "@/server/workforce/eligibility";
 
 const at = (iso: string) => new Date(iso);
@@ -138,18 +138,18 @@ describe("unassigned priority and reasons", () => {
   });
 });
 
-describe("assignment checks", () => {
+describe("assignment checks (shared by every kind of Find Cover)", () => {
   const base: EligibilityResult = { staffId: "s", state: "ELIGIBLE", blocking: [], warnings: [], advice: [], compliance: { dbs: "Up to date", rightToWork: "Up to date", training: "3 of 3 up to date" }, restrictions: [], readiness: null };
   it("shows a check as passed only from the service's own result", () => {
-    const checks = assignmentChecks(base);
-    expect(checks.find((c) => c.label === "DBS")).toMatchObject({ state: "ok", text: "Recorded in HR: up to date" });
-    expect(checks.every((c) => c.state === "ok")).toBe(true);
+    const checks = coverChecks(base);
+    expect(checks.find((c) => c.label === "DBS check")).toMatchObject({ state: "ok", text: "Verified in HR" });
+    expect(checks.filter((c) => c.state === "fail" || c.state === "warn")).toEqual([]);
   });
   it("turns blocking reasons into failures and warnings into warnings; unknown codes are never dropped", () => {
-    const checks = assignmentChecks({ ...base, state: "NOT_ELIGIBLE", blocking: [{ code: "OVERLAP", message: "Already booked 09:00–09:30 (V-1)" }, { code: "NEW_RULE", message: "Something new" }], warnings: [{ code: "MAX_HOURS", message: "Would exceed their 40 hour weekly limit" }], advice: [{ code: "TRAVEL", message: "Only 5 minutes after the previous visit" }] });
-    expect(checks.find((c) => c.label === "Existing bookings")).toMatchObject({ state: "fail" });
+    const checks = coverChecks({ ...base, state: "NOT_ELIGIBLE", blocking: [{ code: "OVERLAP", message: "Already booked 09:00–09:30 (V-1)" }, { code: "NEW_RULE", message: "Something new" }], warnings: [{ code: "MAX_HOURS", message: "Would exceed their 40 hour weekly limit" }], advice: [{ code: "TRAVEL", message: "Only 5 minutes after the previous visit" }] });
+    expect(checks.find((c) => c.label === "Rota clashes")).toMatchObject({ state: "fail" });
     expect(checks.find((c) => c.label === "Weekly hours")).toMatchObject({ state: "warn" });
     expect(checks.find((c) => c.text === "Something new")).toMatchObject({ state: "fail" });
-    expect(checks.find((c) => c.label === "Time between bookings")?.text).toContain("not a journey time");
+    expect(checks.find((c) => c.label === "Time between visits")?.text).toContain("not a travel time");
   });
 });

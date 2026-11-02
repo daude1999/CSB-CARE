@@ -68,7 +68,7 @@ function ActionPop({ label, icon, tone = "secondary", children, align = "left", 
  * unchanged. Completed, missed-and-closed and cancelled visits cannot be moved or re-staffed here. After an action the
  * page comes back to the same day, filters and visit.
  */
-export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInspectorData; tab: string; back: string; closeHref: string }) {
+export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { data: VisitInspectorData; tab: string; back: string; closeHref: string; findCoverHref?: string }) {
   const { visit: v, live, flags, editable, assignable, canEdit, candidates, swaps, names } = data;
   const st = STATUS[v.status] ?? STATUS.SCHEDULED!;
   const date = fromDbDate(v.date);
@@ -283,6 +283,7 @@ export function VisitInspector({ data, tab, back, closeHref }: { data: VisitInsp
         </div>
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
           <Link href={`/rota/visits/${v.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={16} aria-hidden />Full visit</Link>
+          {findCoverHref && assignable && v.scheduledEnd > new Date() ? <Link href={findCoverHref} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd]" title="Find Replacement Cover: fill an empty place or replace a booked carer, and record communication with the service user"><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
           {editable && swaps.length ? (
             <ActionPop label="Swap shift" icon={<ArrowsLeftRight size={16} />} tone="link" className="[&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-[13px]">
               {swaps.map(({ slot, list }) => {

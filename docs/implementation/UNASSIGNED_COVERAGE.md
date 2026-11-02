@@ -1,5 +1,7 @@
 # Unassigned Visits, Find Cover and Coverage History (1 Nov 2026)
 
+> **2 Nov 2026:** Find Cover now opens the shared Find Replacement Cover panel, which adds a Contact & communication tab. See `REPLACEMENT_COVER.md`; the rules below still apply.
+
 Owner's brief "CSB-CARE — UNASSIGNED VISITS REDESIGN + SMART COVER + COVERAGE HISTORY". The screen at `/rota/unassigned`
 now matches the Daily Rota (`/rota/visits`) in type, colour, tables, filters, inspector and pagination. The sidebar is unchanged.
 The concept image was a guide only; the written brief wins where they differ.

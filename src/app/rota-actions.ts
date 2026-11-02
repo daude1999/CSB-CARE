@@ -3,9 +3,8 @@
 import type { AssignmentSlot } from "@prisma/client";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
-import { handle, safeBack, str } from "./action-kit";
-import { assignCarer, coverConfirmation, unassignCarer } from "@/server/rota/assign";
-import { z } from "zod";
+import { handle, safeBack, str, withParam } from "./action-kit";
+import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
@@ -28,7 +27,7 @@ import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submit
 import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
-import { addAbsence, addContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
+import { addAbsence, addContact, updateContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
 import { bulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
@@ -38,6 +37,8 @@ import { reconcileWorkforce } from "@/server/workforce/projection";
 import { addRotaAvailability, endRotaAvailability } from "@/server/rota/staff-availability";
 import { requireOrgPermission } from "@/server/auth/rbac";
 import { confirmCover, recordServiceUserInformed } from "@/server/rota/missed-cover";
+import { bookCover, bookedText } from "@/server/rota/replacement-cover";
+import { closeContactFollowUp, correctContactAttempt, recordContactAttempt } from "@/server/rota/cover-communication";
 import { addCaseComment, addCaseEvidence, addFollowUp, assignCoordinator, bulkMissed, completeFollowUp, escalateMissedCase, recordReason, recordReplacement, reopenMissedCase, signOffMissedCase, submitForSignOff } from "@/server/rota/missed-calls";
 
 /** Server actions for Rostering & Care Management. Each reads FormData, calls one domain function and redirects back. */
@@ -81,30 +82,6 @@ export async function assignCarerAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await assignCarer(ctx, { visitId: str(fd, "visitId"), slot: slot(fd), staffId: str(fd, "staffId"), acceptWarnings: bool(fd, "acceptWarnings"), lockVersion: optInt(fd, "lockVersion") });
   }, "Carer assigned");
-}
-
-/**
- * Find Cover's Review Assignment: books one carer into one empty place. The warnings the coordinator saw are sent back
- * one by one and must be ticked as read; the server re-runs eligibility, availability, bookings, readiness and the
- * visit version inside the booking transaction and refuses anything new.
- */
-const confirmCoverSchema = z.object({
-  visitId: z.string().min(1, "Choose a visit"),
-  staffId: z.string().min(1, "Choose a carer"),
-  slot: z.enum(["PRIMARY", "SECOND"], { message: "Choose the carer place" }),
-  lockVersion: z.coerce.number().int(),
-  warnings: z.array(z.string().max(500)).max(30),
-  acknowledged: z.boolean(),
-});
-export async function confirmCoverAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const p = confirmCoverSchema.safeParse({ visitId: str(fd, "visitId"), staffId: str(fd, "staffId"), slot: str(fd, "slot"), lockVersion: str(fd, "lockVersion"), warnings: ids(fd, "warning"), acknowledged: bool(fd, "acknowledged") });
-    if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the details and try again");
-    if (p.data.warnings.length && !p.data.acknowledged) throw new ValidationError("Tick to confirm you have read the warnings before booking this carer");
-    const a = await assignCarer(ctx, { visitId: p.data.visitId, slot: p.data.slot, staffId: p.data.staffId, lockVersion: p.data.lockVersion, acceptWarnings: p.data.acknowledged, acceptedWarnings: p.data.warnings }, "find-cover");
-    const staff = await coverConfirmation(ctx, a.id);
-    return { ok: staff };
-  }, "Carer booked");
 }
 
 export async function unassignCarerAction(fd: FormData) {
@@ -447,6 +424,8 @@ function serviceUserInput(fd: FormData) {
     town: str(fd, "town"),
     postcode: str(fd, "postcode"),
     phone: str(fd, "phone"),
+    altPhone: fd.has("altPhone") ? str(fd, "altPhone") : undefined,
+    preferredContactMethod: fd.has("preferredContactMethod") ? str(fd, "preferredContactMethod") : undefined,
     accessNotes: str(fd, "accessNotes"),
     carerGenderPreference: (["FEMALE", "MALE"] as const).find((g) => g === str(fd, "carerGenderPreference")) ?? "ANY",
     firstLanguage: str(fd, "firstLanguage"),
@@ -476,8 +455,19 @@ export async function serviceUserStatusAction(fd: FormData) {
   }, "Status changed");
 }
 
+function contactInput(fd: FormData) {
+  return {
+    kind: str(fd, "kind"), name: str(fd, "name"), relationship: str(fd, "relationship"), phone: str(fd, "phone"), email: str(fd, "email"), isEmergency: bool(fd, "isEmergency"), canReceiveUpdates: bool(fd, "canReceiveUpdates"),
+    altPhone: str(fd, "altPhone"), preferredContactMethod: str(fd, "preferredContactMethod"), isPrimary: bool(fd, "isPrimary"), authorityType: str(fd, "authorityType"), authorityScope: str(fd, "authorityScope"),
+  };
+}
+
 export async function addContactAction(fd: FormData) {
-  return handle(fd, (ctx) => addContact(ctx, str(fd, "serviceUserId"), { kind: str(fd, "kind"), name: str(fd, "name"), relationship: str(fd, "relationship"), phone: str(fd, "phone"), email: str(fd, "email"), isEmergency: bool(fd, "isEmergency"), canReceiveUpdates: bool(fd, "canReceiveUpdates") }), "Contact added");
+  return handle(fd, (ctx) => addContact(ctx, str(fd, "serviceUserId"), contactInput(fd)), "Contact added");
+}
+
+export async function updateContactAction(fd: FormData) {
+  return handle(fd, (ctx) => updateContact(ctx, str(fd, "serviceUserId"), str(fd, "contactId"), contactInput(fd)), "Contact saved");
 }
 
 export async function removeContactAction(fd: FormData) {
@@ -1008,6 +998,52 @@ export async function coverConfirmAction(fd: FormData) {
     const to = safeBack(fd.get("done"), "/rota/missed");
     return { to, ok: `Cover booked: ${r.staffName} on ${r.reference}.${r.stillNeeded ? ` ${r.stillNeeded} more carer needed.` : ""}` };
   }, "Cover booked");
+}
+
+/** Find Replacement Cover for an existing visit: fills an empty place or replaces the booked carer in one place. */
+export async function coverBookAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const mode = str(fd, "mode") === "replace" ? "replace" : "fill";
+    const r = await bookCover(ctx, {
+      mode, visitId: str(fd, "visitId"), slot: str(fd, "slot"), staffId: str(fd, "staffId"), lockVersion: Number(str(fd, "lockVersion")), expectStaffId: str(fd, "expectStaffId"),
+      source: str(fd, "source") === "RECOMMENDED" ? "RECOMMENDED" : "MANUAL", rank: str(fd, "rank") ? Number(str(fd, "rank")) : undefined,
+      acknowledged: fd.getAll("ack").filter((v): v is string => typeof v === "string"),
+      warningReason: str(fd, "warningReason") || undefined, replaceReason: str(fd, "replaceReason") || undefined,
+    });
+    const to = safeBack(fd.get("done"), "/rota/visits");
+    return { to, ok: r.duplicate ? "This carer is already booked in this place. Nothing was changed." : await bookedText(ctx, r.assignmentId) };
+  }, "Cover booked");
+}
+
+/** The fields of the communication form, shared by a new entry and a correction. */
+function attemptFields(fd: FormData) {
+  return {
+    visitId: str(fd, "visitId"), caseId: str(fd, "caseId") || undefined, recipient: str(fd, "recipient"), via: str(fd, "via"),
+    otherName: str(fd, "otherName"), otherRelationship: str(fd, "otherRelationship"), otherAddress: str(fd, "otherAddress"),
+    method: str(fd, "method"), outcome: str(fd, "outcome"), notApplicableReason: str(fd, "notApplicableReason"), notes: str(fd, "notes"),
+    contactedDate: bool(fd, "earlier") ? str(fd, "contactedDate") : "", contactedTime: bool(fd, "earlier") ? str(fd, "contactedTime") : "",
+    followUp: bool(fd, "followUp"), followUpOwnerId: str(fd, "followUpOwnerId"), followUpDate: str(fd, "followUpDate"), followUpTime: str(fd, "followUpTime"),
+    clientToken: str(fd, "clientToken"),
+  };
+}
+
+/** Records one attempt to contact the service user or their representative. Nothing is sent from the platform. */
+export async function coverContactAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await recordContactAttempt(ctx, attemptFields(fd));
+    return { to: withParam(safeBack(fd.get("back")), "fcSaved", str(fd, "clientToken")), ok: r.duplicate ? "Already saved: this entry was recorded once." : "Communication saved. Nothing was sent from the platform." };
+  }, "Communication saved");
+}
+
+export async function coverContactCorrectAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await correctContactAttempt(ctx, str(fd, "attemptId"), { ...attemptFields(fd), reason: str(fd, "reason") });
+    return { to: withParam(safeBack(fd.get("back")), "fcSaved", str(fd, "clientToken")), ok: r.duplicate ? "Already saved: this correction was recorded once." : "Correction saved. The original entry is kept." };
+  }, "Correction saved");
+}
+
+export async function coverFollowUpCloseAction(fd: FormData) {
+  return handle(fd, (ctx) => closeContactFollowUp(ctx, str(fd, "attemptId"), str(fd, "note")), "Follow-up closed");
 }
 
 export async function coverInformedAction(fd: FormData) {

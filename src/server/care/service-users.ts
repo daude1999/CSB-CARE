@@ -88,6 +88,8 @@ const detailsSchema = z.object({
   town: opt,
   postcode: z.string().trim().max(10).optional(),
   phone: opt,
+  altPhone: opt,
+  preferredContactMethod: z.enum(["PHONE", "SMS", "EMAIL", "OTHER"]).or(z.literal("")).optional(),
   accessNotes: z.string().trim().max(2000).optional(),
   carerGenderPreference: z.enum(["ANY", "FEMALE", "MALE"]),
   firstLanguage: opt,
@@ -120,6 +122,9 @@ function detailData(ctx: Ctx, d: z.output<typeof detailsSchema>) {
     town: d.town ?? null,
     postcode: d.postcode?.toUpperCase() || null,
     phone: d.phone ?? null,
+    // Optional contact fields: left as they are when a form does not send them, never invented.
+    ...(d.altPhone !== undefined ? { altPhone: d.altPhone ?? null } : {}),
+    ...(d.preferredContactMethod !== undefined ? { preferredContactMethod: d.preferredContactMethod || null } : {}),
     accessNotes: d.accessNotes || null,
     carerGenderPreference: d.carerGenderPreference,
     firstLanguage: d.firstLanguage ?? null,
@@ -206,7 +211,21 @@ const contactSchema = z.object({
   email: z.string().trim().email("Enter a valid e-mail address").or(z.literal("")).optional(),
   isEmergency: z.boolean(),
   canReceiveUpdates: z.boolean(),
+  altPhone: opt,
+  preferredContactMethod: z.enum(["PHONE", "SMS", "EMAIL", "OTHER"]).or(z.literal("")).optional(),
+  isPrimary: z.boolean().optional(),
+  /** Recorded authority only, chosen by the office. Never set from the contact type or from being next of kin. */
+  authorityType: z.enum(["LPA_HEALTH", "LPA_FINANCE", "DEPUTY", "OTHER"]).or(z.literal("")).optional(),
+  authorityScope: opt,
 });
+
+function contactData(d: z.output<typeof contactSchema>) {
+  if (d.authorityScope && !d.authorityType) throw new ValidationError("Choose the type of authority before describing what it covers");
+  return {
+    kind: d.kind, name: d.name, relationship: d.relationship ?? null, phone: d.phone ?? null, email: d.email || null, isEmergency: d.isEmergency, canReceiveUpdates: d.canReceiveUpdates,
+    altPhone: d.altPhone ?? null, preferredContactMethod: d.preferredContactMethod || null, isPrimary: !!d.isPrimary, authorityType: d.authorityType || null, authorityScope: d.authorityType ? d.authorityScope ?? null : null,
+  };
+}
 
 export async function addContact(ctx: Ctx, serviceUserId: string, input: z.input<typeof contactSchema> | Record<string, unknown>) {
   const scope = await rotaScope(ctx, "serviceUser.edit");
@@ -214,8 +233,32 @@ export async function addContact(ctx: Ctx, serviceUserId: string, input: z.input
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the contact");
   return db.$transaction(async (tx) => {
     await loadSu(tx, scope, serviceUserId);
-    const c = await tx.serviceUserContact.create({ data: { organisationId: scope.organisationId, serviceUserId, ...r.data, relationship: r.data.relationship ?? null, phone: r.data.phone ?? null, email: r.data.email || null } });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.contact.added", entityType: "ServiceUser", entityId: serviceUserId, data: { kind: c.kind } }, tx);
+    const data = contactData(r.data);
+    // One primary contact per person: marking a new one moves the mark.
+    if (data.isPrimary) await tx.serviceUserContact.updateMany({ where: { serviceUserId, organisationId: scope.organisationId, isPrimary: true }, data: { isPrimary: false } });
+    const c = await tx.serviceUserContact.create({ data: { organisationId: scope.organisationId, serviceUserId, ...data } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.contact.added", entityType: "ServiceUser", entityId: serviceUserId, data: { kind: c.kind, contactId: c.id } }, tx);
+  });
+}
+
+/**
+ * Changes a contact's current details. Communication already recorded keeps its own copy of the name and number used,
+ * so editing a number here never rewrites history.
+ */
+export async function updateContact(ctx: Ctx, serviceUserId: string, contactId: string, input: z.input<typeof contactSchema> | Record<string, unknown>) {
+  const scope = await rotaScope(ctx, "serviceUser.edit");
+  const r = contactSchema.safeParse(input);
+  if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the contact");
+  return db.$transaction(async (tx) => {
+    await loadSu(tx, scope, serviceUserId);
+    const before = await tx.serviceUserContact.findFirst({ where: { id: contactId, serviceUserId, organisationId: scope.organisationId } });
+    if (!before) throw new NotFoundError("Contact");
+    const data = contactData(r.data);
+    if (data.isPrimary) await tx.serviceUserContact.updateMany({ where: { serviceUserId, organisationId: scope.organisationId, isPrimary: true, id: { not: contactId } }, data: { isPrimary: false } });
+    await tx.serviceUserContact.update({ where: { id: contactId }, data });
+    const changed = (Object.keys(data) as (keyof typeof data)[]).filter((k) => before[k] !== data[k]);
+    // Field names only: no numbers or names in the audit entry.
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.contact.updated", entityType: "ServiceUser", entityId: serviceUserId, data: { contactId, changed } }, tx);
   });
 }
 

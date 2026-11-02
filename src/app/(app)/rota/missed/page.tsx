@@ -7,7 +7,7 @@ import { missedBulkAction } from "@/app/rota-actions";
 import { CallRing } from "@/components/rota-ui";
 import { Badge, Empty, Flash, type Tone } from "@/components/ui";
 import { VISIT_LABEL } from "@/components/rota-ui";
-import { FindCoverPanel } from "@/components/find-cover";
+import { ReplacementCoverPanel } from "@/components/replacement-cover";
 import { coverStates, type CoverState } from "@/server/rota/missed-cover";
 
 export const dynamic = "force-dynamic";
@@ -220,7 +220,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
             </>
           ) : <div className="rounded-lg border border-slate-200 bg-white"><Empty>{kpis.total ? "No missed calls match these filters." : "No missed calls in this period."}</Empty></div>}
         </form>
-        {coverId ? <FindCoverPanel ctx={ctx} caseId={coverId} sp={flat} basePath="/rota/missed" keep={Object.fromEntries(Object.entries(keep).filter(([k]) => !k.startsWith("fc")))} /> : null}
+        {coverId ? <ReplacementCoverPanel ctx={ctx} sp={{ ...flat, cover: coverId }} basePath="/rota/missed" keep={keep} fallback="recovery" /> : null}
         <p className="mt-2 text-[12.5px] text-slate-500">Rows stay pale red until the case is closed; the status is always written out too. A row opens its case. Repeat counts look back {settings.repeatWindowDays} days from {fmtLondonDate(reg.repeatWindow.to)} and leave out calls the investigation found were delivered or were not the care worker&apos;s doing.</p>
       </section>
     </>

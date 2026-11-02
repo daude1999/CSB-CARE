@@ -1,5 +1,12 @@
 # Master build tracker — five-module CSB CRM
 
+## Find Replacement Cover, Contact & Communication, header Back/Forward (2 Nov 2026, draft PR)
+One shared Find Replacement Cover panel and service for filling an empty place, replacing a booked carer and recovery
+after a missed call, opened from the existing Find Cover buttons. A Contact & Communication tab records each attempt to
+tell the service user or their contacts (append-only, corrections keep the original) and lists outstanding
+communication on Visits Needing Attention. Back/Forward buttons in the shared top bar are a separate commit. Details:
+`REPLACEMENT_COVER.md`.
+
 ## HR & Workforce as the single staff record (2 Nov 2026, draft PR)
 "Staff & Workforce" left the Rota menu. Its operational pages are now Daily Rota tabs at the same addresses. HR gains a Suspended status, which blocks bookings and flags future visits. Carer lists show only HR care roles. Coordinators keep working patterns on each staff page. There is a guarded "Open HR record" link, and an identity report and backfill (`npm run workforce:identity`). Details: `HR_SINGLE_STAFF_RECORD.md`. Open decision: where training and competency evidence is recorded.
 

@@ -6,7 +6,7 @@ import { getMissedCase, MISSED_REASONS, OUTCOMES, REPLACEMENT_TYPES, replacement
 import { suName } from "@/server/rota/queries";
 import { missedAddActionAction, missedAssignAction, missedCommentAction, missedCompleteActionAction, missedEscalateAction, missedEvidenceAction, missedReasonAction, missedReopenAction, missedReplacementAction, missedSignOffAction, missedSubmitAction } from "@/app/rota-actions";
 import { Badge, Flash, fmtDate, type Tone } from "@/components/ui";
-import { FindCoverPanel } from "@/components/find-cover";
+import { ReplacementCoverPanel } from "@/components/replacement-cover";
 import { coverStates } from "@/server/rota/missed-cover";
 
 export const dynamic = "force-dynamic";
@@ -285,7 +285,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </section>
         </aside>
       </div>
-      {coverOpen ? <FindCoverPanel ctx={ctx} caseId={c.id} sp={sp} basePath={back} keep={{}} /> : null}
+      {coverOpen ? <ReplacementCoverPanel ctx={ctx} sp={{ ...sp, cover: c.id }} basePath={back} keep={{}} fallback="recovery" /> : null}
     </>
   );
 }

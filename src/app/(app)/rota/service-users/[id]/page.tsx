@@ -13,11 +13,12 @@ import { listRisks } from "@/server/care/risks";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { serviceUserGlance } from "@/server/care/glance";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
-import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
+import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
+import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
 
 export const dynamic = "force-dynamic";
 
@@ -347,12 +348,28 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             {su.contacts.length ? (
               <ul className="rows">
                 {su.contacts.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-start justify-between gap-2 py-2.5 text-[14px]">
-                    <div>
-                      <div className="font-medium">{c.name} {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null} {c.canReceiveUpdates ? <Badge tone="teal">Can receive updates</Badge> : null}</div>
-                      <div className="text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}{c.email ? ` · ${c.email}` : ""}</div>
+                  <li key={c.id} className="py-2.5 text-[14px]">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="font-medium">{c.name} {c.isPrimary ? <Badge tone="violet">Primary contact</Badge> : null} {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null} {c.canReceiveUpdates ? <Badge tone="teal">Can receive updates</Badge> : null}</div>
+                        <div className="text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}{c.altPhone ? ` · alt. ${c.altPhone}` : ""}{c.email ? ` · ${c.email}` : ""}</div>
+                        {c.authorityType ? <div className="text-[13px] text-slate-600">Authority: {AUTHORITY_LABEL[c.authorityType as keyof typeof AUTHORITY_LABEL] ?? c.authorityType}{c.authorityScope ? ` (${c.authorityScope})` : ""}</div> : null}
+                        {c.preferredContactMethod ? <div className="text-[13px] text-slate-600">Prefers: {PREFERRED_LABEL[c.preferredContactMethod] ?? c.preferredContactMethod}</div> : null}
+                      </div>
+                      {canEdit ? <form action={removeContactAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="contactId" value={c.id} /><button className="btn-secondary py-0.5 text-[13px]">Remove</button></form> : null}
                     </div>
-                    {canEdit ? <form action={removeContactAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="contactId" value={c.id} /><button className="btn-secondary py-0.5 text-[13px]">Remove</button></form> : null}
+                    {canEdit ? (
+                      <details className="mt-1.5">
+                        <summary className="cursor-pointer text-[13px] font-medium text-[#1d4f91]">Edit {c.name}</summary>
+                        <form action={updateContactAction} className="mt-2 grid gap-2 md:grid-cols-2">
+                          <input type="hidden" name="back" value={back} />
+                          <input type="hidden" name="serviceUserId" value={su.id} />
+                          <input type="hidden" name="contactId" value={c.id} />
+                          <ContactFields c={c} />
+                          <button className="btn-secondary md:col-span-2">Save contact</button>
+                        </form>
+                      </details>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -361,16 +378,11 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               <form action={addContactAction} className="mt-3 grid gap-2 border-t border-slate-200 pt-3 md:grid-cols-2">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="serviceUserId" value={su.id} />
-                <label><span className="label">Type</span><select name="kind" className="input">{Object.entries(CONTACT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-                <label><span className="label">Name</span><input name="name" required className="input" /></label>
-                <label><span className="label">Relationship</span><input name="relationship" className="input" /></label>
-                <label><span className="label">Phone</span><input name="phone" type="tel" className="input" /></label>
-                <label className="md:col-span-2"><span className="label">E-mail</span><input name="email" type="email" className="input" /></label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="isEmergency" className="h-4 w-4" /> Emergency contact</label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="canReceiveUpdates" className="h-4 w-4" /> Can receive updates</label>
+                <ContactFields />
                 <button className="btn-secondary md:col-span-2">Add contact</button>
               </form>
             ) : null}
+            <p className="mt-2 text-[12.5px] text-slate-500">Emergency contact, permission to receive updates and authority to act are recorded separately. Being next of kin does not give authority. Communication already recorded keeps the number used at the time.</p>
           </Card>
           <Card title="Carer preferences">
             {su.carerPreferences.length ? (
@@ -469,5 +481,27 @@ function PackageForm({ action, hidden, back, p, funders, canFund, submit, today 
       ) : <p className="text-[12.5px] text-slate-600">Finance links the funder.</p>}
       <button className="btn-primary">{submit}</button>
     </form>
+  );
+}
+
+type ContactRow = { kind: string; name: string; relationship: string | null; phone: string | null; altPhone: string | null; email: string | null; isEmergency: boolean; canReceiveUpdates: boolean; isPrimary: boolean; preferredContactMethod: string | null; authorityType: string | null; authorityScope: string | null };
+
+/** The contact fields, shared by Add contact and Edit. Optional fields stay empty unless the office fills them in. */
+function ContactFields({ c }: { c?: ContactRow }) {
+  return (
+    <>
+      <label><span className="label">Type</span><select name="kind" defaultValue={c?.kind} className="input">{Object.entries(CONTACT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <label><span className="label">Name</span><input name="name" required defaultValue={c?.name} className="input" /></label>
+      <label><span className="label">Relationship</span><input name="relationship" defaultValue={c?.relationship ?? ""} className="input" /></label>
+      <label><span className="label">Phone</span><input name="phone" type="tel" defaultValue={c?.phone ?? ""} className="input" /></label>
+      <label><span className="label">Alternative phone</span><input name="altPhone" type="tel" defaultValue={c?.altPhone ?? ""} className="input" /></label>
+      <label><span className="label">E-mail</span><input name="email" type="email" defaultValue={c?.email ?? ""} className="input" /></label>
+      <label><span className="label">Prefers to be contacted by</span><select name="preferredContactMethod" defaultValue={c?.preferredContactMethod ?? ""} className="input"><option value="">Not recorded</option><option value="PHONE">Telephone</option><option value="SMS">Text message</option><option value="EMAIL">Email</option><option value="OTHER">Other</option></select></label>
+      <label><span className="label">Recorded authority to act</span><select name="authorityType" defaultValue={c?.authorityType ?? ""} className="input"><option value="">None recorded</option>{Object.entries(AUTHORITY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <label className="md:col-span-2"><span className="label">What the authority covers (optional)</span><input name="authorityScope" maxLength={500} defaultValue={c?.authorityScope ?? ""} className="input" placeholder="For example: health and welfare decisions, registered with the OPG" /></label>
+      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="isPrimary" defaultChecked={c?.isPrimary} className="h-4 w-4" /> Primary contact</label>
+      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="isEmergency" defaultChecked={c?.isEmergency} className="h-4 w-4" /> Emergency contact</label>
+      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="canReceiveUpdates" defaultChecked={c?.canReceiveUpdates} className="h-4 w-4" /> Can receive updates</label>
+    </>
   );
 }
