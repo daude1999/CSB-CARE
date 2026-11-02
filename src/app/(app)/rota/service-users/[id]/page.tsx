@@ -2,6 +2,7 @@ import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { addDays, dbDate, fmtLondonDate, fromDbDate, hhmm, londonDate, londonTime, WEEKDAYS } from "@/lib/london";
+import { preferredOf } from "@/lib/carer-places";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
@@ -49,7 +50,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const [lk, visits, history, coverage, funders] = await Promise.all([
     rotaLookups(ctx),
     tab === "visits" || tab === "overview"
-      ? db.visit.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, date: { gte: dbDate(addDays(today, tab === "visits" ? -14 : 0)), lte: dbDate(addDays(today, tab === "visits" ? 14 : 2)) } }, orderBy: { scheduledStart: "asc" }, include: { callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, reviewReason: true, staff: { select: { id: true, displayName: true } } } } } })
+      ? db.visit.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, date: { gte: dbDate(addDays(today, tab === "visits" ? -14 : 0)), lte: dbDate(addDays(today, tab === "visits" ? 14 : 2)) } }, orderBy: { scheduledStart: "asc" }, include: { callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, position: true, reviewReason: true, staff: { select: { id: true, displayName: true } } } } } })
       : Promise.resolve([]),
     tab === "history" ? db.auditLog.findMany({ where: { organisationId: su.organisationId, entityType: "ServiceUser", entityId: su.id }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
     tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
@@ -173,7 +174,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                         <td><Link href={`/rota/templates/${t.id}`}>{t.callType.name}</Link></td>
                         <td className="tabular-nums">{hhmm(t.startMinute)} · {t.durationMin}m</td>
                         <td>{t.weekdays.length === 7 ? "Every day" : t.weekdays.map((d) => WEEKDAYS[d - 1]!.slice(0, 2)).join(" ")} · weeks {t.cycleWeeks.join(", ")}</td>
-                        <td>{[t.preferredStaff1Id, t.carersRequired > 1 ? t.preferredStaff2Id : undefined].filter((x) => x !== undefined).map((x) => (x ? staffName.get(x) ?? "Former staff" : "No carer")).join(" + ")}</td>
+                        <td>{preferredOf(t).map((x) => (x ? staffName.get(x) ?? "Former staff" : "No carer")).join(" + ")}</td>
                       </tr>
                     ))}
                   </tbody>

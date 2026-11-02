@@ -148,7 +148,7 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
     unassignedTotal = board.summary.visits;
     for (const it of board.all) {
       const v = it.visit;
-      const required = Math.min(2, v.carersRequired);
+      const required = v.carersRequired;
       const base = { type: "unassigned" as const, start: v.scheduledStart, pressing: false };
       items.push({
         ...base, key: `unassigned:${v.id}`, id: v.id, visitId: v.id, reference: v.reference, date: fromDbDate(v.date),

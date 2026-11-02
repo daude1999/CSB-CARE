@@ -5,6 +5,7 @@ import { DrawerShell } from "@/components/drawer-shell";
 import { CarerOption, CHECK_TONE, CoverHeader, PURPLE, QUIET, SafetyChecks } from "@/components/cover-ui";
 import { CommunicationSection } from "@/components/cover-communication";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
+import { placeLabel } from "@/lib/carer-places";
 import type { Ctx } from "@/server/auth/rbac";
 import { coverRecord } from "@/server/rota/missed-cover";
 import { communicationStates, COMMS_LABEL } from "@/server/rota/cover-communication";
@@ -338,7 +339,7 @@ function VisitDone({ ws, u, comms }: { ws: VisitCover; u: U; comms: string | nul
 
 function TimeForm({ ws, u, step }: { ws: RecoveryCover; u: U; step?: string }) {
   const view = ws.view;
-  if (view.state.recovery) return <p className="mt-4 text-[13.5px] text-slate-700">Recovery visit <b>{view.state.recovery.reference}</b> is already booked for {fmtLondonDate(londonDate(view.state.recovery.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(view.state.recovery.scheduledStart)}. Choose the {view.slot === "SECOND" ? "second" : "first"} carer for it.</p>;
+  if (view.state.recovery) return <p className="mt-4 text-[13.5px] text-slate-700">Recovery visit <b>{view.state.recovery.reference}</b> is already booked for {fmtLondonDate(londonDate(view.state.recovery.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(view.state.recovery.scheduledStart)}. Choose {placeLabel(view.slot)} for it.</p>;
   return (
     <form method="get" className="mt-4 rounded-[8px] border border-slate-200 p-3" aria-label="Proposed recovery time">
       {u.hidden({ fcDate: undefined, fcTime: undefined, fcStep: step })}
@@ -423,7 +424,7 @@ function RecoveryReview({ ws, u, sp }: { ws: RecoveryCover; u: U; sp: Params }) 
         ["Replacement", <b key="r">{sel.candidate.name}</b>],
         ["Recovery visit", `${view.state.recovery ? `${view.state.recovery.reference}, ` : "New visit, "}${fmtLondonDate(londonDate(start), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(start)}–${londonTime(end)}`],
         ["Duration", `${s.minutes} min`],
-        ["Staffing", `${view.slot === "SECOND" ? "Second" : "First"} of ${s.carersRequired} ${s.carersRequired === 1 ? "carer" : "carers"}`],
+        ["Staffing", `${placeLabel(view.slot)} of ${s.carersRequired} ${s.carersRequired === 1 ? "carer" : "carers"}`],
         ["Eligibility", blocked ? "Not eligible" : sel.result.state === "REQUIRES_REVIEW" ? "Allowed, with warnings to review" : "Passes every check"],
       ]} />
       <h4 className="mb-1.5 mt-4 text-[14.5px] font-semibold text-slate-900">Safety checks</h4>
@@ -470,13 +471,13 @@ async function RecoveryResult({ ctx, ws, u }: { ctx: Ctx; ws: RecoveryCover; u: 
           <h3 id="fc-done" className="text-[16px] font-semibold text-[#1e6b2c]" data-autofocus tabIndex={-1}>{view.still ? "Cover partly booked" : "Cover booked"}</h3>
           <dl className="mt-2 grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 text-[13.5px]">
             <dt className="text-slate-600">Recovery visit</dt><dd><Link href={`/rota/visits/${rv.id}`}>{rv.reference}</Link>, {fmtLondonDate(londonDate(rv.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(rv.scheduledStart)}–{londonTime(rv.scheduledEnd)}</dd>
-            <dt className="text-slate-600">Replacement</dt><dd>{live.map((x) => `${x.staffName} (${x.slot === "SECOND" ? "second" : "first"} carer)`).join(", ") || "Nobody now"}</dd>
+            <dt className="text-slate-600">Replacement</dt><dd>{live.map((x) => `${x.staffName} (${placeLabel(x.slot)})`).join(", ") || "Nobody now"}</dd>
             <dt className="text-slate-600">Carer told</dt><dd>{live.map((x) => (x.notifyStatus === "IN_APP" ? `${x.staffName}: in-app notification${x.notificationReadAt ? ", opened" : ", not opened yet"}` : `${x.staffName}: no sign-in linked, phone them`)).join("; ")}</dd>
             <dt className="text-slate-600">Missed visit</dt><dd>{view.summary.reference} stays recorded as missed; the investigation stays open.</dd>
           </dl>
-          {view.still ? <p className="mt-2 text-[13.5px] font-medium text-[#7a5200]">{view.still} more {view.still === 1 ? "carer is" : "carers are"} needed on this double-up.</p> : null}
+          {view.still ? <p className="mt-2 text-[13.5px] font-medium text-[#7a5200]">{view.still} more {view.still === 1 ? "carer is" : "carers are"} needed on this visit.</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {view.still && view.state.canFind ? <Link href={u.at({ fcStep: undefined })} scroll={false} className={PURPLE}>Find the second carer</Link> : null}
+            {view.still && view.state.canFind ? <Link href={u.at({ fcStep: undefined })} scroll={false} className={PURPLE}>Find the next carer</Link> : null}
             <Link href={`/rota/visits?date=${londonDate(rv.scheduledStart)}`} className={QUIET}>Open the Daily Rota</Link>
             <Link href={`/rota/missed/${caseId}`} className={QUIET}>Open the case</Link>
           </div>

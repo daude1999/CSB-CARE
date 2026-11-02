@@ -1,3 +1,4 @@
+import { carerPlaces, placeKey } from "@/lib/carer-places";
 import type { VisitStatus } from "@prisma/client";
 import Link from "@/components/link";
 import { Badge, type Tone } from "@/components/ui";
@@ -14,10 +15,11 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
 }
 
 /** Late, short, unassigned and needs-review are worked out on read; they are shown next to the stored status. */
-export function FlagBadges({ flags }: { flags: VisitFlags }) {
+export function FlagBadges({ flags, required }: { flags: VisitFlags; /** Carers needed; when given, a part-staffed visit reads "1 of 4 places open". */ required?: number }) {
+  const part = required !== undefined && required > 1 && flags.unassignedSlots > 0 && flags.unassignedSlots < required;
   return (
     <>
-      {flags.unassignedSlots ? <Badge tone="rose">{flags.unassignedSlots === 1 ? "Unassigned" : `${flags.unassignedSlots} unassigned`}</Badge> : null}
+      {flags.unassignedSlots ? <Badge tone="rose">{part ? `${flags.unassignedSlots} of ${required} places open` : flags.unassignedSlots === 1 ? "Unassigned" : `${flags.unassignedSlots} unassigned`}</Badge> : null}
       {flags.late ? <Badge tone="amber" title={flags.lateBy !== null ? `${flags.lateBy} minutes after the planned start` : undefined}>{flags.overdueStart ? "Not started" : "Late"}{flags.lateBy !== null ? ` ${flags.lateBy}m` : ""}</Badge> : null}
       {flags.short ? <Badge tone="amber">Short</Badge> : null}
       {flags.review.length ? <Badge tone="rose" title={flags.review.join("; ")}>Needs review</Badge> : null}
@@ -35,13 +37,13 @@ export function TimeSpan({ start, end }: { start: Date; end: Date }) {
 }
 
 /** The carers on a visit, one chip per slot, with empty slots shown in red. */
-export function CarerSlots({ assignments, carersRequired, cancelled }: { assignments: { slot: string; reviewReason: string | null; staff: { id: string; displayName: string } }[]; carersRequired: number; cancelled?: boolean }) {
-  const slots = ["PRIMARY", ...(carersRequired > 1 ? ["SECOND"] : [])];
+export function CarerSlots({ assignments, carersRequired, cancelled }: { assignments: { slot: string; position?: number; reviewReason: string | null; staff: { id: string; displayName: string } }[]; carersRequired: number; cancelled?: boolean }) {
+  const slots = carerPlaces(carersRequired);
   const shadow = assignments.find((a) => a.slot === "SHADOW");
   return (
     <span className="flex flex-wrap gap-1">
       {slots.map((s) => {
-        const a = assignments.find((x) => x.slot === s);
+        const a = assignments.find((x) => placeKey(x) === s);
         if (!a) return cancelled ? null : <span key={s} className="rounded-[3px] border border-dashed border-[#e4544f] px-1.5 text-[12.5px] text-[#a3242c]">Unassigned</span>;
         return (
           <span key={s} title={a.reviewReason ?? undefined} className={`rounded-[3px] px-1.5 text-[12.5px] ${a.reviewReason ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#e3effb] text-[#1d4f91]"}`}>

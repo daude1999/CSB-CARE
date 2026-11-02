@@ -1,4 +1,5 @@
-import type { AssignmentSlot, Prisma, RotaPlanDecision } from "@prisma/client";
+import type { Prisma, RotaPlanDecision } from "@prisma/client";
+import { openPlaces, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -46,7 +47,6 @@ export interface PlanSummary {
   travelLabel: string;
 }
 
-const SLOTS: AssignmentSlot[] = ["PRIMARY", "SECOND"];
 
 /**
  * Builds a plan for the open carer slots in a date range and saves it as a draft. Nothing on the rota changes here:
@@ -68,6 +68,8 @@ export async function datesForVisits(scope: Scope, visitIds: string[], today = l
   return { from, days };
 }
 
+const planSlot = (k: PlaceKey) => { const d = placeData(k); return { slot: d.slot, slotPosition: d.slot === "ADDITIONAL" ? d.position : null }; };
+
 export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unknown>) {
   const scope = await rotaScope(ctx, "rota.build");
   const pre = raw as { visitIds?: unknown };
@@ -81,23 +83,25 @@ export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unk
 
   const visits = await db.visit.findMany({
     where: { AND: [visitWhere(scope), { status: "SCHEDULED", date: { gte: dbDate(input.from), lte: dbDate(to) }, scheduledStart: { gt: now }, ...(input.areaId ? { areaId: input.areaId } : {}), ...(input.visitIds?.length ? { id: { in: input.visitIds } } : {}) }] },
-    include: { serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, staffId: true, removedAt: true } } },
+    include: { serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, position: true, staffId: true, removedAt: true } } },
     orderBy: [{ scheduledStart: "asc" }, { id: "asc" }],
     take: 3000,
   });
-  const open = visits.flatMap((v) => SLOTS.slice(0, Math.min(2, v.carersRequired)).filter((s) => !v.assignments.some((a) => a.slot === s)).map((slot) => ({ visit: v, slot })));
-  const [lead, second] = await Promise.all((["PRIMARY", "SECOND"] as const).map((slot) => visitCandidatesMany(ctx, open.filter((o) => o.slot === slot))));
+  const open = visits.flatMap((v) => openPlaces(v.carersRequired, v.assignments).map((slot) => ({ visit: v, slot })));
+  // Every open place on a visit has the same allowed carers (everyone already on the visit is left out), so rank once per visit.
+  const firstOpen = [...new Map(open.map((o) => [o.visit.id, o])).values()];
+  const ranked = await visitCandidatesMany(ctx, firstOpen);
 
   const slots: SlotIn[] = open.map(({ visit: v, slot }) => ({
     visitId: v.id,
-    slot: slot as "PRIMARY" | "SECOND",
+    slot,
     serviceUserId: v.serviceUserId,
     label: `${suName(v.serviceUser)} · ${v.callType.name}`,
     start: v.scheduledStart,
     end: v.scheduledEnd,
     fixedTime: v.timeLocked || v.assignments.length > 0,
     lockVersion: v.lockVersion,
-    candidates: ((slot === "SECOND" ? second : lead).get(v.id) ?? [])
+    candidates: (ranked.get(v.id) ?? [])
       .filter((c) => c.state !== "NOT_ELIGIBLE" && c.score !== null)
       .map((c) => ({ staffId: c.id, name: c.name, state: c.state as "ELIGIBLE" | "REQUIRES_REVIEW", score: c.score!, reasons: c.explain.map((e) => `${e.points > 0 ? "+" : ""}${e.points} ${e.text}`), warnings: c.state === "REQUIRES_REVIEW" ? c.reasons : [] })),
   }));
@@ -131,7 +135,7 @@ export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unk
     if (p.retime) {
       const v = visits.find((x) => x.id === p.visitId)!;
       const careTaskIds = (await db.visitTask.findMany({ where: { visitId: v.id }, select: { careTaskId: true } })).map((t) => t.careTaskId).filter((x): x is string => !!x);
-      const r = await eligibilityFor(db, scope.organisationId, { staffId: p.staffId, start: p.retime.toStart, end: p.retime.toEnd, slot: p.slot, visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds });
+      const r = await eligibilityFor(db, scope.organisationId, { staffId: p.staffId, start: p.retime.toStart, end: p.retime.toEnd, slot: placeData(p.slot).slot, visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, timeLocked: v.timeLocked, careTaskIds });
       if (r.state === "NOT_ELIGIBLE") {
         const s = slots.find((x) => x.visitId === p.visitId && x.slot === p.slot)!;
         unfilled.push({ visitId: s.visitId, slot: s.slot, label: s.label, start: s.start, reason: `Moving the visit would fit ${p.name}, but at the new time: ${r.blocking.map((b) => b.message).join("; ")}` });
@@ -166,7 +170,7 @@ export async function generatePlan(ctx: Ctx, raw: PlanInput | Record<string, unk
       if (p.retime && !rows.some((r) => r.visitId === p.visitId && r.kind === "RETIME")) {
         rows.push({ organisationId: scope.organisationId, planId: plan.id, position: position++, visitId: p.visitId, kind: "RETIME", fromStart: p.retime.fromStart, fromEnd: p.retime.fromEnd, toStart: p.retime.toStart, toEnd: p.retime.toEnd, visitLockVersion: p.lockVersion, reasons: [`Moves the visit ${Math.round((p.retime.toStart.getTime() - p.retime.fromStart.getTime()) / 60000)} minutes so ${p.name} can do it`] });
       }
-      rows.push({ organisationId: scope.organisationId, planId: plan.id, position: position++, visitId: p.visitId, kind: "ASSIGN", slot: p.slot, staffId: p.staffId, eligibility: p.state, score: p.score, reasons: [...p.reasons, ...(p.viaSwap ? ["Found by moving another proposed booking to a different carer"] : [])], warnings: p.warnings, visitLockVersion: p.lockVersion });
+      rows.push({ organisationId: scope.organisationId, planId: plan.id, position: position++, visitId: p.visitId, kind: "ASSIGN", ...planSlot(p.slot), staffId: p.staffId, eligibility: p.state, score: p.score, reasons: [...p.reasons, ...(p.viaSwap ? ["Found by moving another proposed booking to a different carer"] : [])], warnings: p.warnings, visitLockVersion: p.lockVersion });
     }
     if (rows.length) await tx.rotaPlanChange.createMany({ data: rows });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.plan.generated", entityType: "RotaPlan", entityId: plan.id, data: { from: input.from, to, openSlots: summary.openSlots, proposed: summary.proposed, retimed: summary.retimed } }, tx);
@@ -264,7 +268,7 @@ export async function applyPlan(ctx: Ctx, planId: string): Promise<ApplyResult> 
             if (c.kind === "RETIME") {
               await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledStart: c.toStart!, scheduledEnd: c.toEnd! }, { source: "optimiser", lockVersion });
             } else {
-              await assignInTx(tx, scope, ctx.userId, { visitId, slot: c.slot!, staffId: c.staffId!, acceptWarnings: c.eligibility === "REQUIRES_REVIEW", lockVersion }, { source: "optimiser" });
+              await assignInTx(tx, scope, ctx.userId, { visitId, slot: placeKey({ slot: c.slot!, position: c.slotPosition }), staffId: c.staffId!, acceptWarnings: c.eligibility === "REQUIRES_REVIEW", lockVersion }, { source: "optimiser" });
             }
             lockVersion = undefined; // the visit is now row-locked by this transaction
             outcomes.set(c.id, { decision: "APPLIED", outcome: c.kind === "RETIME" ? "Time changed" : "Carer booked" });

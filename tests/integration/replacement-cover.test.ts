@@ -1,3 +1,4 @@
+import type { PlaceKey } from "@/lib/carer-places";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { randomUUID } from "node:crypto";
@@ -34,14 +35,14 @@ async function futureVisit(carers: 1 | 2 = 1) {
   });
 }
 
-async function workspace(ctx: Ctx, visitId: string, mode: "fill" | "replace", opts: { slot?: "PRIMARY" | "SECOND" | "SHADOW"; staffId?: string } = {}): Promise<VisitCover> {
+async function workspace(ctx: Ctx, visitId: string, mode: "fill" | "replace", opts: { slot?: PlaceKey; staffId?: string } = {}): Promise<VisitCover> {
   const w = await coverWorkspace(ctx, { mode, id: visitId, slot: opts.slot }, { staffId: opts.staffId });
   if (w.kind !== "visit") throw new Error("Expected visit cover");
   return w;
 }
 
 /** Reviews the carer exactly as the panel does, then books with what the review showed. */
-async function book(ctx: Ctx, visitId: string, mode: "fill" | "replace", opts: { slot?: "PRIMARY" | "SECOND"; staffId?: string; skip?: string[] } = {}, over: Partial<BookCoverInput> = {}) {
+async function book(ctx: Ctx, visitId: string, mode: "fill" | "replace", opts: { slot?: PlaceKey; staffId?: string; skip?: string[] } = {}, over: Partial<BookCoverInput> = {}) {
   const w = await workspace(ctx, visitId, mode, opts);
   const staffId = opts.staffId ?? w.recommended.find((c) => !(opts.skip ?? []).includes(c.id))?.id;
   if (!staffId) throw new Error("No carer to pick in the demo data");

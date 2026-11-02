@@ -1,4 +1,5 @@
-import type { AssignmentSlot, MissedCallStage, Prisma, VisitStatus } from "@prisma/client";
+import type { MissedCallStage, Prisma, VisitStatus } from "@prisma/client";
+import { isCarerPlace, openPlaces, placeData, placeLabel, placeNumber, placeOf, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -45,7 +46,7 @@ const coverCaseInclude = {
       area: { select: { name: true } },
       serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, riskLevel: true, branchId: true, areaId: true, status: true, risks: { where: { level: "HIGH", status: "ACTIVE", archivedAt: null }, select: { id: true }, take: 1 } } },
       tasks: { select: { careTaskId: true, name: true, position: true }, orderBy: { position: "asc" } },
-      assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true, slot: true, staff: { select: { displayName: true } } }, orderBy: { slot: "asc" } },
+      assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true, slot: true, position: true, staff: { select: { displayName: true } } }, orderBy: { position: "asc" } },
     },
   },
   covers: {
@@ -54,7 +55,7 @@ const coverCaseInclude = {
       recoveryVisit: {
         select: {
           id: true, reference: true, status: true, date: true, scheduledStart: true, scheduledEnd: true, carersRequired: true, actualStart: true, actualEnd: true, lockVersion: true,
-          assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { id: true, slot: true, staffId: true, acknowledgedAt: true, staff: { select: { displayName: true } } }, orderBy: { slot: "asc" } },
+          assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { id: true, slot: true, position: true, staffId: true, acknowledgedAt: true, staff: { select: { displayName: true } } }, orderBy: { position: "asc" } },
         },
       },
     },
@@ -194,10 +195,10 @@ async function poolIds(scope: Scope, branchId: string | null, all: boolean) {
   return (await db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), AND: and }, select: { id: true } })).map((s) => s.id);
 }
 
-/** The free carer slot on a recovery visit, or PRIMARY for a new one. */
-function freeSlot(recovery: RecoveryVisit | null): AssignmentSlot {
+/** The first free carer place on a recovery visit, or place 1 for a new one. */
+function freeSlot(recovery: RecoveryVisit | null): PlaceKey {
   if (!recovery) return "PRIMARY";
-  return recovery.assignments.some((a) => a.slot === "PRIMARY") ? "SECOND" : "PRIMARY";
+  return openPlaces(recovery.carersRequired, recovery.assignments)[0] ?? placeOf(recovery.assignments.filter(isCarerPlace).length + 1);
 }
 
 /** Original carers cannot cover their own missed call from here: if they are on their way, it is a late arrival. */
@@ -264,7 +265,7 @@ export async function findCoverView(ctx: Ctx, caseId: string, input: FindCoverIn
   if (input.staffId) {
     const cand = ordered.find((x) => x.id === input.staffId);
     if (!cand) throw new NotFoundError("Staff member");
-    const result = await eligibilityFor(db, scope.organisationId, { staffId: cand.id, start: window.start, end: window.end, slot, visitId: recovery?.id ?? null, serviceUserId: su.id, areaId: c.visit.areaId, timeLocked: false, careTaskIds }, { otherSlotStaffIds: recovery?.assignments.map((a) => a.staffId) ?? [] });
+    const result = await eligibilityFor(db, scope.organisationId, { staffId: cand.id, start: window.start, end: window.end, slot: placeData(slot).slot, visitId: recovery?.id ?? null, serviceUserId: su.id, areaId: c.visit.areaId, timeLocked: false, careTaskIds }, { otherSlotStaffIds: recovery?.assignments.map((a) => a.staffId) ?? [] });
     if (originalIds.includes(cand.id)) result.blocking.unshift({ code: "BOOKED_ON_MISSED", message: cand.reasons[0]! });
     const rank = recommended.findIndex((x) => x.id === cand.id);
     selected = { candidate: cand, result: { ...result, state: result.blocking.length ? "NOT_ELIGIBLE" : result.state }, checks: coverChecks(result), rank: rank >= 0 ? rank + 1 : null };
@@ -326,7 +327,7 @@ export async function confirmCover(ctx: Ctx, caseId: string, raw: ConfirmCoverIn
         const others = recovery?.assignments.map((a) => a.staffId) ?? [];
 
         // Re-judge against current data before anything is written, so warnings the coordinator never saw are refused.
-        const pre = await eligibilityFor(tx, scope.organisationId, { staffId: staff.id, start: window.start, end: window.end, slot, visitId: recovery?.id ?? null, serviceUserId: c.visit.serviceUserId, areaId: c.visit.areaId, timeLocked: false, careTaskIds }, { otherSlotStaffIds: others });
+        const pre = await eligibilityFor(tx, scope.organisationId, { staffId: staff.id, start: window.start, end: window.end, slot: placeData(slot).slot, visitId: recovery?.id ?? null, serviceUserId: c.visit.serviceUserId, areaId: c.visit.areaId, timeLocked: false, careTaskIds }, { otherSlotStaffIds: others });
         if (pre.state === "NOT_ELIGIBLE") throw new EligibilityError(`${staff.displayName} can no longer cover this visit: ${pre.blocking.map((b) => b.message).join("; ")}`, pre);
         const warnings = pre.warnings.map((w) => w.message);
         const unseen = warnings.filter((w) => !d.acknowledged.includes(w));
@@ -384,7 +385,7 @@ export async function confirmCover(ctx: Ctx, caseId: string, raw: ConfirmCoverIn
         const checks = coverChecks(pre);
         const cover = await tx.missedCallCover.create({
           data: {
-            organisationId: scope.organisationId, caseId: c.id, recoveryVisitId: recovery.id, slot, assignmentId: assignment.id,
+            organisationId: scope.organisationId, caseId: c.id, recoveryVisitId: recovery.id, slot: placeData(slot).slot, slotPosition: placeNumber(slot), assignmentId: assignment.id,
             originalStaffId: c.staffId, staffId: staff.id, proposedStart: window.start, proposedEnd: window.end,
             source: d.source, recommendedRank: d.source === "RECOMMENDED" ? d.rank ?? null : null, suggestedStaffIds: d.suggested,
             eligibility: pre.state, checks: checks.map((k) => ({ label: k.label, state: k.state, text: k.text })), warningsAccepted: warnings, warningReason: warnings.length ? d.warningReason ?? null : null,
@@ -395,7 +396,7 @@ export async function confirmCover(ctx: Ctx, caseId: string, raw: ConfirmCoverIn
           where: { id: c.id },
           data: {
             replacementType: "REPLACEMENT_VISIT",
-            replacementStaffId: c.replacementStaffId && slot === "SECOND" ? c.replacementStaffId : staff.id,
+            replacementStaffId: c.replacementStaffId && slot !== "PRIMARY" ? c.replacementStaffId : staff.id,
             replacementWarnings: [...c.replacementWarnings, ...warnings],
             replacementNote: `Recovery visit ${recovery.reference} booked through Find Cover for ${fmtLondonDate(londonDate(window.start), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(window.start)}.`,
             replacementById: ctx.userId, replacementAt: now,
@@ -405,7 +406,7 @@ export async function confirmCover(ctx: Ctx, caseId: string, raw: ConfirmCoverIn
           },
         });
         const told = notifyStatus === "IN_APP" ? "in-app notification created for the carer" : "the carer has no linked sign-in, so nobody was notified; phone them";
-        await tx.missedCallComment.create({ data: { organisationId: scope.organisationId, caseId: c.id, authorId: "system", kind: "SYSTEM", body: `Cover booked by ${ctx.userName}: ${staff.displayName} on recovery visit ${recovery.reference}, ${fmtLondonDate(londonDate(window.start), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(window.start)}–${londonTime(window.end)} (${slot === "SECOND" ? "second carer" : "first carer"}); ${told}.${warnings.length ? ` Warnings accepted: ${warnings.join("; ")}. Reason: ${d.warningReason}` : ""}` } });
+        await tx.missedCallComment.create({ data: { organisationId: scope.organisationId, caseId: c.id, authorId: "system", kind: "SYSTEM", body: `Cover booked by ${ctx.userName}: ${staff.displayName} on recovery visit ${recovery.reference}, ${fmtLondonDate(londonDate(window.start), { weekday: "short", day: "numeric", month: "short" })} ${londonTime(window.start)}–${londonTime(window.end)} (${slot === "PRIMARY" ? "first carer" : slot === "SECOND" ? "second carer" : placeLabel(slot).toLowerCase()}); ${told}.${warnings.length ? ` Warnings accepted: ${warnings.join("; ")}. Reason: ${d.warningReason}` : ""}` } });
         await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.missed.cover.confirmed", entityType: "MissedCallCase", entityId: c.id, data: { coverId: cover.id, recoveryVisitId: recovery.id, slot, staffId: staff.id, originalStaffId: c.staffId, source: d.source, eligibility: pre.state, warnings, warningReason: d.warningReason ?? null, notifyStatus, start: window.start.toISOString() } }, tx);
         const bookedNow = (state.recovery?.assignments.length ?? 0) + 1;
         return { coverId: cover.id, recoveryVisitId: recovery.id, reference: recovery.reference, notifyStatus, staffName: staff.displayName, stillNeeded: Math.max(0, recovery.carersRequired - bookedNow) };

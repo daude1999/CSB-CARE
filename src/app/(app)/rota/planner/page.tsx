@@ -1,4 +1,4 @@
-import type { AssignmentSlot } from "@prisma/client";
+import { carerPlaces, placeKey, placeLabel, type PlaceKey } from "@/lib/carer-places";
 import { redirect } from "next/navigation";
 import { ArrowsClockwise, CalendarPlus, Plus, UserSwitch, Faders } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
@@ -18,7 +18,7 @@ import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
-const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "Lead carer", SECOND: "Second carer", SHADOW: "Shadow" };
+const SLOT_LABEL = (k: PlaceKey) => (k === "PRIMARY" ? "Lead carer" : k === "SECOND" ? "Second carer" : placeLabel(k));
 
 /**
  * Weekly Planner (Advanced Rota): the week as a roster, one row per carer (or service user), in the style the owner chose on
@@ -40,7 +40,7 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
   // Side panel for one visit, with ranked carers for its first open slot (or the lead slot).
   const panel = sp.visit ? await getVisit(ctx, sp.visit).catch(() => null) : null;
   const live = panel ? panel.assignments.filter((a) => !a.removedAt) : [];
-  const openSlot: AssignmentSlot | null = panel ? (["PRIMARY", ...(panel.carersRequired > 1 ? (["SECOND"] as const) : [])] as AssignmentSlot[]).find((s) => !live.some((a) => a.slot === s)) ?? "PRIMARY" : null;
+  const openSlot: PlaceKey | null = panel ? carerPlaces(panel.carersRequired).find((s) => !live.some((a) => placeKey(a) === s)) ?? "PRIMARY" : null;
   const assignable = !!panel && canEdit && ["SCHEDULED", "MISSED"].includes(panel.status);
   const candidates = panel && openSlot && assignable ? await visitCandidates(ctx, panel, openSlot) : [];
 
@@ -122,16 +122,16 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
             </div>
             <h3 className="mt-3 text-[14px] font-semibold">Carers</h3>
             <ul className="mt-1 space-y-1 text-[13.5px]">
-              {(["PRIMARY", ...(panel.carersRequired > 1 ? (["SECOND"] as const) : [])] as AssignmentSlot[]).map((s) => {
-                const a = live.find((x) => x.slot === s);
-                return <li key={s}><span className="text-slate-600">{SLOT_LABEL[s]}:</span> {a ? <span className={a.reviewReason ? "text-[#8a5a00]" : ""}>{a.staff.displayName}{a.reviewReason ? ` (needs review: ${a.reviewReason})` : ""}</span> : <span className="font-medium text-[#a3242c]">Not filled</span>}</li>;
+              {carerPlaces(panel.carersRequired).map((s) => {
+                const a = live.find((x) => placeKey(x) === s);
+                return <li key={s}><span className="text-slate-600">{SLOT_LABEL(s)}:</span> {a ? <span className={a.reviewReason ? "text-[#8a5a00]" : ""}>{a.staff.displayName}{a.reviewReason ? ` (needs review: ${a.reviewReason})` : ""}</span> : <span className="font-medium text-[#a3242c]">Not filled</span>}</li>;
               })}
             </ul>
             {assignable && openSlot ? (
               <>
-                <h3 className="mt-3 text-[14px] font-semibold">{live.some((a) => a.slot === openSlot) ? `Best matches to replace the ${SLOT_LABEL[openSlot].toLowerCase()}` : `Best matches for the ${SLOT_LABEL[openSlot].toLowerCase()}`}</h3>
+                <h3 className="mt-3 text-[14px] font-semibold">{live.some((a) => placeKey(a) === openSlot) ? `Best matches to replace the ${SLOT_LABEL(openSlot).toLowerCase()}` : `Best matches for the ${SLOT_LABEL(openSlot).toLowerCase()}`}</h3>
                 {candidates.some((x) => x.score !== null) ? (
-                  <CarerRecommendations list={candidates} visitId={panel.id} slot={openSlot} lockVersion={panel.lockVersion} back={`/rota/planner?${qs({ visit: panel.id })}`} replacing={live.some((a) => a.slot === openSlot)} />
+                  <CarerRecommendations list={candidates} visitId={panel.id} slot={openSlot} lockVersion={panel.lockVersion} back={`/rota/planner?${qs({ visit: panel.id })}`} replacing={live.some((a) => placeKey(a) === openSlot)} />
                 ) : <p className="mt-1 text-[13px] text-[#a3242c]">No one is free and eligible for this time. Open the visit to see each carer&rsquo;s reasons.</p>}
                 <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
               </>
