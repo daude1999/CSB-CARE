@@ -62,3 +62,33 @@ export const MODULE_PRIMARY =
 /** A secondary action: white with a grey border. */
 export const MODULE_SECONDARY =
   "inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-slate-300 bg-white px-3.5 text-[14px] font-medium text-slate-800 no-underline hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
+
+const FIGURE_TONE = {
+  navy: "text-slate-900",
+  teal: "text-[#1d4f91]",
+  rose: "text-[#a3242c]",
+  amber: "text-[#8a5a00]",
+  green: "text-[#1c7a43]",
+  violet: "text-slate-900",
+} as const;
+
+/**
+ * A key figure on an HR or Compliance page (approved designs): label, number, short note, on a white card with a thin
+ * border. Same props as the shared `Stat`, which other modules keep. The tone colours the number only, and only for
+ * meaning (red overdue, amber attention, green done).
+ */
+export function ModuleStat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: keyof typeof FIGURE_TONE; hint?: string }) {
+  const body = (
+    <span className="min-w-0">
+      <span className="block text-[14px] font-medium text-slate-700">{label}</span>
+      <span className={`block text-[24px] font-semibold leading-8 tabular-nums ${FIGURE_TONE[tone]}`}>{value}</span>
+      {hint ? <span className="block truncate text-[12px] text-slate-500">{hint}</span> : null}
+    </span>
+  );
+  const cls = "flex min-w-0 items-center rounded-[8px] border border-slate-200 bg-white px-4 py-2.5 no-underline";
+  return href ? <Link href={href} className={`${cls} hover:border-[#9db8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--module,#1f5fd1)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+export function ModuleStatRow({ children, label = "Key figures" }: { children: ReactNode; label?: string }) {
+  return <section aria-label={label} className="mb-3 grid grid-cols-2 gap-3 xl:grid-cols-4">{children}</section>;
+}

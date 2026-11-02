@@ -80,3 +80,5 @@
 .cs .hrv-keychecks li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e5e8ed; border-radius: 8px; background: #fff; font-size: 13.5px; }
 .cs .hrv-keychecks li > :last-child { margin-left: auto; }
 @media (max-width: 900px) { .cs .hrv-keychecks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Every HR Hub screen sits close under its header (the approved designs have no large inner page margin). */
+.cs.h-embed .h-content.h-wrap { max-width: none; padding: 4px 0 32px; }

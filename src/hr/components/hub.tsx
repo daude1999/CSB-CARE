@@ -1363,7 +1363,7 @@ function Compliance({
   return (
     <>
       <PageHeading
-        title="Compliance"
+        title="Checks register"
         subtitle="Evidence, decisions and organisational review dates in one place."
       />
       <div className="category-summary-strip">

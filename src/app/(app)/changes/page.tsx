@@ -1,10 +1,10 @@
 import Link from "@/components/link";
-import { CompliancePageHeader } from "@/components/module-header";
+import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import type { ChangeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
-import { Empty, Flash, Pagination, SegmentNav, SimulatedBadge, Stat, StatRow, StatusBadge } from "@/components/ui";
+import { Empty, Flash, Pagination, SegmentNav, SimulatedBadge, StatusBadge } from "@/components/ui";
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
@@ -59,12 +59,12 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         subtitle="Changes found on the sources CSB monitors. Each one moves through detection, triage, applicability and a decision, and every step is recorded."
       />
       <Flash searchParams={sp} />
-      <StatRow>
-        <Stat label="Open Updates" value={counts.open} hint="Still being worked through" tone="amber" href="/changes?group=open" />
-        <Stat label="Awaiting Triage" value={counts.triage} hint="Not yet classified" tone="rose" href="/changes?group=triage" />
-        <Stat label="Impact Assessment" value={counts.assessment} hint="Checking our policies" tone="navy" href="/changes?group=assessment" />
-        <Stat label="Closed" value={counts.closed} hint="Decided and recorded" tone="green" href="/changes?group=closed" />
-      </StatRow>
+      <ModuleStatRow>
+        <ModuleStat label="Open Updates" value={counts.open} hint="Still being worked through" tone="amber" href="/changes?group=open" />
+        <ModuleStat label="Awaiting Triage" value={counts.triage} hint="Not yet classified" tone="rose" href="/changes?group=triage" />
+        <ModuleStat label="Impact Assessment" value={counts.assessment} hint="Checking our policies" tone="navy" href="/changes?group=assessment" />
+        <ModuleStat label="Closed" value={counts.closed} hint="Decided and recorded" tone="green" href="/changes?group=closed" />
+      </ModuleStatRow>
       <SegmentNav alert label="Update stage" items={tabs.map(([k, label]) => ({ href: `/changes?group=${k}`, label, active: group === k, count: k === "all" ? undefined : counts[k] }))} />
       <section aria-label="Regulatory updates" className="panel rounded-tl-none">
         <form className="mb-3 flex flex-wrap items-center gap-2" role="search">
