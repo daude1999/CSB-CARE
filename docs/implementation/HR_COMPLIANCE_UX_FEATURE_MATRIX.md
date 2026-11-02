@@ -76,8 +76,8 @@ These are left out of the screens rather than shown as dead buttons.
 
 | Mock-up element | Why not |
 |---|---|
-| HR "Assign Training" button | There is no training-assignment feature; training requirements come from HR Settings per role. |
-| HR "Send Reminder" (training) | Reminders are automatic in-app notices; there is no manual send and no email/SMS service. |
+| ~~HR "Assign Training" button~~ | Built 2 Nov 2026, see `HR_TRAINING_ACTIONS.md`. |
+| ~~HR "Send Reminder" (training)~~ | Built 2 Nov 2026 as an in-app (bell) reminder only, see `HR_TRAINING_ACTIONS.md`. |
 | HR "Request Missing Documents" | No outbound request to employees exists. |
 | HR "Mark Verified" as a one-click button | Verification goes through Review, which records the decision, reviewer and next date (second-person rule). The Documents view links to Review. |
 | HR "Open Absences" figure | Absences live in the platform database, not the HR Hub data the dashboard reads; shown on Time Off instead. "New starters" and "Open HR tasks" are shown. |
