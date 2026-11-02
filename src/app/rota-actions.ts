@@ -704,7 +704,7 @@ export async function reportIncidentAction(fd: FormData) {
 }
 
 export async function triageIncidentAction(fd: FormData) {
-  return handle(fd, (ctx) => triageIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), { severity: str(fd, "severity"), safeguarding: bool(fd, "safeguarding"), notifiable: bool(fd, "notifiable"), note: str(fd, "note") }), "Incident updated");
+  return handle(fd, (ctx) => triageIncident(ctx, str(fd, "incidentId"), int(fd, "version", "Version"), { severity: str(fd, "severity"), safeguarding: bool(fd, "safeguarding"), notifiable: bool(fd, "notifiable"), note: str(fd, "note"), peopleNotified: fd.has("peopleNotified") ? String(fd.get("peopleNotified") ?? "") : undefined }), "Incident updated");
 }
 
 export async function incidentNoteAction(fd: FormData) {

@@ -29,6 +29,7 @@ export default async function NewIncidentPage({ searchParams }: { searchParams: 
           <label><span className="label">How serious</span><select name="severity" required defaultValue="" className="input"><option value="" disabled>Choose…</option><option value="LOW">Low: no harm</option><option value="MODERATE">Moderate: minor harm</option><option value="HIGH">High: harm needing treatment</option><option value="CRITICAL">Critical: serious harm or death</option></select></label>
           <label className="md:col-span-2"><span className="label">What happened</span><textarea name="description" rows={6} required minLength={20} className="input" /></label>
           <label className="md:col-span-2"><span className="label">What you did straight away (optional)</span><textarea name="immediateAction" rows={3} className="input" /></label>
+          <label className="md:col-span-2"><span className="label">Who was told (optional)</span><input name="peopleNotified" maxLength={1000} className="input" placeholder="e.g. Daughter by phone at 10:15; GP surgery; the office" /></label>
           <label className="flex items-center gap-2 text-[14px] md:col-span-2"><input type="checkbox" name="safeguarding" className="h-4 w-4" /> I think this is a safeguarding concern (abuse or neglect)</label>
           <div className="md:col-span-2"><button className="btn-primary">Send report</button></div>
         </form>

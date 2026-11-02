@@ -11,7 +11,10 @@ import { packageCoverage } from "@/server/care/packages";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
 import { recentIncidentsFor } from "@/server/care/incidents";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incident-ui";
-import { listRisks, RISK_TYPE_LABEL } from "@/server/care/risks";
+import { listRisks, RISK_TYPE_LABEL, REVIEW_STATE_LABEL, reviewState } from "@/server/care/risks";
+import { serviceUserCompliance, serviceUserVisitNotes } from "@/server/care/su-records";
+import { NOTE_LABEL } from "@/server/care/visit-record";
+import { ServiceUserCompliance } from "@/components/su-compliance";
 import { LEVEL } from "@/components/risk-fields";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { serviceUserGlance } from "@/server/care/glance";
@@ -26,15 +29,36 @@ import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communicat
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care Plans"], ["risks", "Risk Assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Details"], ["missed", "Missed calls"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["history", "History"]] as const;
+type TabKey = (typeof TABS)[number][0];
+/**
+ * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
+ * than one shows them as a second row. A group is hidden when none of its sections may be opened. Other sections
+ * (documents, body map) join their group by key once they exist.
+ */
+const GROUPS: { label: string; tabs: string[] }[] = [
+  { label: "Overview", tabs: ["overview"] },
+  { label: "Personal details", tabs: ["details"] },
+  { label: "Care", tabs: ["care-plans", "risks", "package", "medication"] },
+  { label: "Health and safety", tabs: ["incidents", "bodymap"] },
+  { label: "Visits", tabs: ["visits", "notes", "missed"] },
+  { label: "Documents", tabs: ["documents"] },
+  { label: "Contacts & carers", tabs: ["people"] },
+  { label: "History", tabs: ["history"] },
+];
+const REVIEW_TONE = { OVERDUE: "rose", DUE_SOON: "amber", IN_DATE: "green" } as const;
 
 export default async function ServiceUserPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ctx = await requireRotaPage("serviceUser.view");
   const su = await orNotFound(getServiceUser(ctx, id));
   const canReportIncident = hasOrgPermission(ctx, "incident.report");
-  const availableTabs = TABS.filter(([key]) => key !== "incidents" || canReportIncident);
-  const tab = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
+  const canNotes = hasOrgPermission(ctx, "rota.view");
+  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes));
+  const tab: TabKey = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
+  const tabLabel = new Map<string, string>(availableTabs);
+  const groups = GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => tabLabel.has(t)) })).filter((g) => g.tabs.length);
+  const group = groups.find((g) => g.tabs.includes(tab)) ?? groups[0]!;
   const canEdit = hasOrgPermission(ctx, "serviceUser.edit");
   const canKeySafe = hasOrgPermission(ctx, "serviceUser.keysafe");
   const base = `/rota/service-users/${su.id}`;
@@ -60,24 +84,18 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
-  const glance = tab === "overview" ? await serviceUserGlance(ctx, su) : null;
+  const [glance, compliance] = tab === "overview" ? await Promise.all([serviceUserGlance(ctx, su), serviceUserCompliance(ctx, su)]) : [null, []];
   // The person owns these records. Only load what the selected profile section needs.
-  const [plans, risks, incidents] = await Promise.all([
-    tab === "overview" || tab === "care-plans"
-      ? db.carePlan.findMany({
-          where: { serviceUserId: su.id, organisationId: su.organisationId, ...(tab === "overview" ? { status: { in: ["ACTIVE", "DRAFT", "IN_REVIEW"] as const } } : {}) },
-          select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true },
-          orderBy: { version: "desc" },
-        })
+  const [plans, risks, archivedRisks, incidents, notes] = await Promise.all([
+    tab === "care-plans"
+      ? db.carePlan.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId }, select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true }, orderBy: { version: "desc" } })
       : Promise.resolve([]),
-    tab === "overview" || tab === "risks" ? listRisks(ctx, { serviceUserId: su.id }) : Promise.resolve([]),
-    tab === "overview" || tab === "incidents" ? recentIncidentsFor(ctx, su.id, tab === "incidents" ? 100 : 4) : Promise.resolve(null),
+    tab === "risks" ? listRisks(ctx, { serviceUserId: su.id }) : Promise.resolve([]),
+    tab === "risks" ? listRisks(ctx, { serviceUserId: su.id, archived: true }) : Promise.resolve([]),
+    tab === "incidents" ? recentIncidentsFor(ctx, su.id, 100) : Promise.resolve(null),
+    tab === "notes" ? serviceUserVisitNotes(ctx, su.id, { category: sp.category, days: Number(sp.days) || undefined, q: sp.q?.trim().slice(0, 100) || undefined }) : Promise.resolve(null),
   ]);
-  const planInUse = plans.find((p) => p.status === "ACTIVE") ?? null;
-  const planPending = plans.find((p) => p.status !== "ACTIVE") ?? null;
   const todayDb = dbDate(today);
-  const risksOverdue = risks.filter((r) => r.reviewDue < todayDb).length;
-  const risksHigh = risks.filter((r) => r.level === "HIGH").length;
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
   const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
@@ -91,7 +109,14 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         actions={<StatusBadge status={su.status} />}
       />
       <Flash searchParams={sp} />
-      <SegmentNav label="Service user sections" items={availableTabs.map(([k, label]) => ({ href: `${base}?tab=${k}`, label, active: tab === k }))} />
+      <SegmentNav label="Service user sections" items={groups.map((g) => ({ href: `${base}?tab=${g.tabs[0]}`, label: g.label, active: g === group }))} />
+      {group.tabs.length > 1 ? (
+        <nav aria-label={`${group.label} sections`} className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
+          {group.tabs.map((t) => (
+            <Link key={t} href={`${base}?tab=${t}`} aria-current={t === tab ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${t === tab ? "bg-[#1d4f91] font-medium text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{tabLabel.get(t)}</Link>
+          ))}
+        </nav>
+      ) : null}
 
       {tab === "overview" ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -109,37 +134,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
               {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
             </Card>
-            <Card title="Care at a glance">
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-3" data-testid="care-at-a-glance">
-                <div className="min-w-0">
-                  <dt className="label">Care plan in use</dt>
-                  <dd className="text-[14px]">
-                    {planInUse ? <>Version {planInUse.version}{planInUse.reviewDue ? <span className={`block text-[12.5px] ${planInUse.reviewDue < todayDb ? "font-medium text-[#a3242c]" : "text-slate-600"}`}>Review {planInUse.reviewDue < todayDb ? "overdue since" : "due"} {fmtLondonDate(fromDbDate(planInUse.reviewDue))}</span> : null}</> : <Badge tone="rose">No plan in use</Badge>}
-                    {planPending ? <span className="block text-[12.5px] text-[#8a5a00]">Version {planPending.version} {planPending.status === "IN_REVIEW" ? "awaiting approval" : "in draft"}</span> : null}
-                    <Link href={`${base}?tab=care-plans`} className="mt-1 block text-[13px]">Review care plans</Link>
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="label">Risk assessments</dt>
-                  <dd className="text-[14px]">
-                    {risks.length ? <>{risks.length} current{risksHigh ? <> · <span className="font-medium text-[#a3242c]">{risksHigh} high</span></> : null}{risksOverdue ? <span className="block text-[12.5px] font-medium text-[#a3242c]">{risksOverdue} past review date</span> : <span className="block text-[12.5px] text-slate-600">Next review {fmtLondonDate(fromDbDate(risks[0]!.reviewDue))}</span>}</> : <span className="text-slate-600">None recorded</span>}
-                    <Link href={`${base}?tab=risks`} className="mt-1 block text-[13px]">Review risks</Link>
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="label">Recent incidents</dt>
-                  <dd className="text-[14px]">
-                    {incidents === null ? <span className="text-slate-600">Not available to your role</span> : incidents.length ? (
-                      <ul className="space-y-1">
-                        {incidents.map((i) => (
-                          <li key={i.id} className="leading-5"><Link href={`/rota/incidents/${i.id}`}>{i.category}</Link> <span className="text-[12.5px] text-slate-600">{fmtDate(i.occurredAt)} · {i.status === "CLOSED" ? "closed" : i.status === "INVESTIGATING" ? "being investigated" : "open"}{i.safeguarding ? " · safeguarding" : ""}</span></li>
-                        ))}
-                      </ul>
-                    ) : <span className="text-slate-600">None reported</span>}
-                  </dd>
-                </div>
-              </dl>
-            </Card>
+            <ServiceUserCompliance rows={compliance} />
             {glance ? (
               <section aria-labelledby="glance-h" className="card" data-testid="recent-care">
                 <h2 id="glance-h" className="mb-3 text-[17px]">Recent care</h2>
@@ -280,7 +275,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
 
 
       {tab === "care-plans" ? (
-        <Card title="Care Plans" actions={<Link href={`/rota/care-plans/${su.id}`} className="btn-primary">View or manage care plan</Link>}>
+        <Card title="Care plans" actions={<Link href={`/rota/care-plans/${su.id}`} className="btn-primary">View or manage care plan</Link>}>
           <p className="mb-3 text-[13.5px] text-slate-600">Care plans for {suName(su)}. Review the current plan, its status and earlier versions here.</p>
           {plans.length ? (
             <div className="relative min-w-0 overflow-x-auto">
@@ -304,26 +299,69 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       ) : null}
 
       {tab === "risks" ? (
-        <Card title="Risk Assessments" actions={hasOrgPermission(ctx, "care.plan.edit") ? <Link href={`/rota/risks/new?su=${su.id}`} className="btn-primary">New assessment</Link> : null}>
-          <p className="mb-3 text-[13.5px] text-slate-600">Active risk assessments specific to {suName(su)}. Each record contains the hazards, controls and review history.</p>
+        <Card title="Risk assessments" actions={hasOrgPermission(ctx, "care.plan.edit") ? <Link href={`/rota/risks/new?su=${su.id}`} className="btn-primary">New assessment</Link> : null}>
+          <p className="mb-3 text-[13.5px] text-slate-600">Active risk assessments for {suName(su)}, soonest review first. Open one to read its hazards, controls, actions still required and every saved version.</p>
           {risks.length ? (
             <div className="relative min-w-0 overflow-x-auto">
               <table className="table">
-                <thead><tr><th>Assessment</th><th>Type</th><th>Level</th><th>Review due</th></tr></thead>
+                <thead><tr><th>Assessment</th><th>Category</th><th>Level</th><th>Review</th><th>Actions required</th><th>Version</th></tr></thead>
                 <tbody>
-                  {risks.map((risk) => (
-                    <tr key={risk.id}>
-                      <td><Link href={`/rota/risks/${risk.id}`}>{risk.title}</Link></td>
-                      <td>{RISK_TYPE_LABEL[risk.type]}</td>
-                      <td><Badge tone={LEVEL[risk.level].tone}>{LEVEL[risk.level].label}</Badge></td>
-                      <td className={risk.reviewDue < todayDb ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(risk.reviewDue))}{risk.reviewDue < todayDb ? " · overdue" : ""}</td>
-                    </tr>
-                  ))}
+                  {risks.map((risk) => {
+                    const state = reviewState(risk.reviewDue, today);
+                    return (
+                      <tr key={risk.id}>
+                        <td><Link href={`/rota/risks/${risk.id}`}>{risk.title}</Link></td>
+                        <td>{RISK_TYPE_LABEL[risk.type]}</td>
+                        <td><Badge tone={LEVEL[risk.level].tone}>{LEVEL[risk.level].label}</Badge></td>
+                        <td><span className="tabular-nums">{fmtLondonDate(fromDbDate(risk.reviewDue))}</span> <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge></td>
+                        <td className="max-w-[260px]">{risk.requiredActions ? <span className="line-clamp-2" title={risk.requiredActions}>{risk.responsiblePerson}: {risk.requiredActions}</span> : <span className="text-slate-500">None</span>}</td>
+                        <td className="tabular-nums">{risk.version}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           ) : <Empty>No active risk assessments for this person.</Empty>}
-          <Link href={`/rota/risks?su=${su.id}&archived=1`} className="mt-3 inline-block text-[13px]">View archived assessments</Link>
+          {archivedRisks.length ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Archived assessments ({archivedRisks.length})</summary>
+              <ul className="rows mt-1 text-[14px]">
+                {archivedRisks.map((r) => <li key={r.id} className="py-1.5"><Link href={`/rota/risks/${r.id}`}>{r.title}</Link> <span className="text-[13px] text-slate-600">{RISK_TYPE_LABEL[r.type]}{r.archivedAt ? ` · archived ${fmtDate(r.archivedAt)}` : ""}</span></li>)}
+              </ul>
+            </details>
+          ) : <p className="mt-3 text-[13px] text-slate-600">No archived assessments.</p>}
+        </Card>
+      ) : null}
+
+      {tab === "notes" && notes ? (
+        <Card title="Visit notes">
+          <form method="get" className="mb-3 flex flex-wrap items-end gap-2" aria-label="Filter visit notes">
+            <input type="hidden" name="tab" value="notes" />
+            <label><span className="label">Period</span><select name="days" defaultValue={String(notes.days)} className="input"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option></select></label>
+            <label><span className="label">Kind</span><select name="category" defaultValue={sp.category ?? ""} className="input"><option value="">Any</option>{Object.entries(NOTE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+            <label><span className="label">Contains</span><input name="q" defaultValue={sp.q ?? ""} className="input" /></label>
+            <button className="btn-primary">Apply</button>
+            <Link href={`${base}?tab=notes`} className="btn-secondary">Clear</Link>
+          </form>
+          {notes.notes.length ? (
+            <ul className="rows">
+              {notes.notes.map((n) => (
+                <li key={n.id} className="py-3 text-[14.5px]">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-600">
+                    <Badge tone={n.category === "CONCERN" ? "rose" : n.category === "HANDOVER" ? "violet" : "slate"}>{NOTE_LABEL[n.category] ?? n.category}</Badge>
+                    <Link href={`/rota/visits/${n.visit.id}`} className="row-title">{fmtLondonDate(londonDate(n.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} · {n.visit.callType}</Link>
+                    <span className="tabular-nums">planned {londonTime(n.visit.scheduledStart)}–{londonTime(n.visit.scheduledEnd)}</span>
+                    <span>{n.actualMinutes !== null ? `actual ${n.actualMinutes} min` : "no clock times"}</span>
+                    <span className="ml-auto">{n.author}{n.fromOffice ? " (office)" : ""} · {fmtDate(n.createdAt, true)}</span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-line">{n.text}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <Empty>No visit notes for this person in this period.</Empty>}
+          {notes.notes.length === 300 ? <p className="mt-2 text-[13px] text-slate-600">Showing the newest 300. Narrow the period or kind to see older notes.</p> : null}
+          <p className="mt-2 text-[12.5px] text-slate-500">Notes are written on visits by carers and the office and cannot be edited or deleted.</p>
         </Card>
       ) : null}
 

@@ -2,42 +2,61 @@ import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
-import { RISK_TYPE_LABEL, getRisk } from "@/server/care/risks";
+import { RISK_TYPE_LABEL, REVIEW_STATE_LABEL, getRisk, reviewState } from "@/server/care/risks";
 import { memberNames, suName } from "@/server/rota/queries";
-import { fmtLondonDate, fromDbDate, londonDate } from "@/lib/london";
+import { fmtLondonDate, fromDbDate } from "@/lib/london";
 import { archiveRiskAction, reviewRiskAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { LEVEL, RiskFields } from "@/components/risk-fields";
 
 export const dynamic = "force-dynamic";
 
-const ACTION: Record<string, string> = { "risk.created": "Assessed", "risk.reviewed": "Reviewed", "risk.archived": "Archived" };
+const CHANGE: Record<string, string> = { CREATED: "Assessed", REVIEWED: "Reviewed", ARCHIVED: "Archived", RECORDED_BEFORE_HISTORY: "Version on record when history began" };
+const REVIEW_TONE = { OVERDUE: "rose", DUE_SOON: "amber", IN_DATE: "green" } as const;
 
+/** One risk assessment: its current content (or an earlier saved version), every version, review and archive. */
 export default async function RiskPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const ctx = await requireRotaPage("serviceUser.view");
-  const { risk: r, history } = await orNotFound(getRisk(ctx, id));
+  const { risk: r, versions } = await orNotFound(getRisk(ctx, id));
   const canEdit = hasOrgPermission(ctx, "care.plan.edit") && r.status === "ACTIVE";
-  const names = await memberNames(ctx, [r.assessedById, r.archivedById, ...history.map((h) => h.actorId)]);
+  const names = await memberNames(ctx, [r.assessedById, r.archivedById, ...versions.map((v) => v.changedById)]);
   const who = (u: string | null) => (u ? names.get(u) ?? "Former member" : "System");
   const back = `/rota/risks/${r.id}`;
-  const due = fromDbDate(r.reviewDue);
+  const profile = `/rota/service-users/${r.serviceUser.id}?tab=risks`;
+  // An earlier version is shown read-only; the current content is the assessment itself.
+  const old = sp.v ? versions.find((v) => String(v.version) === sp.v && v.version !== r.version) ?? null : null;
+  const shown = old ?? r;
+  const state = r.status === "ACTIVE" ? reviewState(r.reviewDue) : null;
 
   return (
     <>
-      <PageHeader title={r.title} back={`/rota/risks?su=${r.serviceUser.id}`} subtitle={`${RISK_TYPE_LABEL[r.type]} risk assessment for ${suName(r.serviceUser)}.`} actions={<Link href={`/rota/care-plans/${r.serviceUser.id}`} className="btn-secondary">Care plan</Link>} />
+      <PageHeader title={r.title} back={profile} subtitle={`${RISK_TYPE_LABEL[r.type]} risk assessment for ${suName(r.serviceUser)}.`} actions={<Link href={`/rota/care-plans/${r.serviceUser.id}`} className="btn-secondary">Care plan</Link>} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-3">
-          <Card title="Assessment" actions={<span className="flex gap-1"><Badge tone={LEVEL[r.level].tone}>{LEVEL[r.level].label} risk</Badge>{r.status === "ARCHIVED" ? <Badge>Archived</Badge> : null}</span>}>
+          {old ? (
+            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
+              You are reading version {old.version}, saved {fmtDate(old.changedAt, true)}. It is kept for the record and cannot be changed. <Link href={back}>Back to the current version</Link>
+            </p>
+          ) : null}
+          <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
+            {old && old.title !== r.title ? <p className="mb-2 text-[14px]"><span className="font-medium">Title then:</span> {old.title}</p> : null}
             <h3 className="text-[13.5px] font-semibold">Hazards</h3>
-            <p className="mb-3 whitespace-pre-line text-[14.5px]">{r.hazards}</p>
+            <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.hazards}</p>
             <h3 className="text-[13.5px] font-semibold">Controls carers follow</h3>
-            <p className="whitespace-pre-line text-[14.5px]">{r.controls}</p>
-            <p className="mt-3 text-[13px] text-slate-600">Last assessed by {who(r.assessedById)} on {fmtDate(r.assessedAt)}. Review by <span className={r.status === "ACTIVE" && due < londonDate() ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(due)}</span>.</p>
+            <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.controls}</p>
+            <h3 className="text-[13.5px] font-semibold">Actions still required</h3>
+            {shown.requiredActions ? (
+              <p className="whitespace-pre-line text-[14.5px]">{shown.requiredActions}<span className="mt-1 block text-[13px] text-slate-600">Responsible: {shown.responsiblePerson}</span></p>
+            ) : <p className="text-[14px] text-slate-600">None recorded.</p>}
+            <p className="mt-3 text-[13px] text-slate-600">
+              {old ? <>{CHANGE[old.change] ?? old.change} by {who(old.changedById)}. Review was due {fmtLondonDate(fromDbDate(old.reviewDue))}.</> : <>Last assessed by {who(r.assessedById)} on {fmtDate(r.assessedAt)}. Review by <span className={state === "OVERDUE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(r.reviewDue))}</span>.</>}
+            </p>
           </Card>
-          {canEdit ? (
+          {canEdit && !old ? (
             <Card title="Review this assessment">
+              <p className="mb-2 text-[13px] text-slate-600">Saving a review keeps this version as it is and starts version {r.version + 1}.</p>
               <form action={reviewRiskAction} className="space-y-3">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="riskId" value={r.id} />
@@ -49,21 +68,22 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           ) : null}
         </div>
         <aside className="space-y-3">
-          <Card title="History">
-            {history.length ? (
-              <ul className="rows text-[13.5px]">
-                {history.map((h) => {
-                  const d = (h.data ?? {}) as { reason?: string; previous?: { level?: string; reviewDue?: string } };
+          <Card title="Versions">
+            {versions.length ? (
+              <ol className="rows text-[13.5px]" aria-label="Saved versions, newest first">
+                {versions.map((v) => {
+                  const current = v.version === r.version;
+                  const here = old ? old.version === v.version : current;
                   return (
-                    <li key={h.id} className="py-2">
-                      <span className="font-medium">{ACTION[h.action] ?? h.action}</span> · {who(h.actorId)} · {fmtDate(h.createdAt, true)}
-                      {d.previous ? <span className="block text-slate-600">Before: {d.previous.level?.toLowerCase()} risk, review by {d.previous.reviewDue}</span> : null}
-                      {d.reason ? <span className="block text-slate-600">{d.reason}</span> : null}
+                    <li key={v.id} className="py-2" aria-current={here ? "true" : undefined}>
+                      <span className="font-medium">{current ? `Version ${v.version} (current)` : <Link href={`${back}?v=${v.version}`}>Version {v.version}</Link>}</span> · {CHANGE[v.change] ?? v.change}
+                      <span className="block text-slate-600">{who(v.changedById)} · {fmtDate(v.changedAt, true)} · {LEVEL[v.level].label.toLowerCase()} risk</span>
+                      {v.reason ? <span className="block text-slate-600">{v.reason}</span> : null}
                     </li>
                   );
                 })}
-              </ul>
-            ) : <Empty>No history.</Empty>}
+              </ol>
+            ) : <Empty>No versions saved.</Empty>}
           </Card>
           {canEdit ? (
             <Card title="No longer applies">

@@ -215,7 +215,9 @@ test.describe("Sidebar", () => {
     await expect(page).toHaveURL(/\/rota\/routes$/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
     await page.goto("/rota/care-plans");
-    for (const name of ["Service Users", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["Service Users", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    // Care plans and risk assessments now open inside each service user's profile.
+    await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name: "Care Plans", exact: true })).toHaveCount(0);
     await page.goto("/rota/finance");
     for (const name of ["Finance Overview", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
     // Staff administration lives in HR & Workforce; the rota keeps its operational staff pages as Daily Rota tabs.

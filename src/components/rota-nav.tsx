@@ -59,8 +59,8 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
     case "people":
       return [
         { key: "directory", label: "Service Users", href: "/rota/service-users", perm: "serviceUser.view" },
-        // These records now live under each service user's profile. Keep the organisation-wide
-        // incident register as the entry point only for roles that cannot open Service Users.
+        // Care plans and risk assessments live in each service user's profile. The incident register stays here for
+        // the organisation-wide view; each profile also lists that person's incidents.
         { key: "incidents", label: "Incidents", href: "/rota/incidents", perm: ["incident.manage", "incident.report"] },
         { key: "notes", label: "Visit Notes", href: "/rota/notes", perm: "rota.view" },
       ];
@@ -85,7 +85,7 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
 /** A workspace's tabs this person may open, in order. */
 export function rotaWorkspaceTabs(ctx: Ctx, ws: RotaWorkspace): RotaTab[] {
   return tabDefs(ws)
-    .filter((t) => can(ctx, t.perm) && !(ws === "people" && t.key === "incidents" && hasOrgPermission(ctx, "serviceUser.view")))
+    .filter((t) => can(ctx, t.perm))
     .map(({ key, label, href }) => ({ key, label, href }));
 }
 
@@ -106,7 +106,7 @@ function destination(ctx: Ctx, d: Destination, i: { size: number }): ShellItem |
   const icon = label === "Incidents" ? <FirstAidKit key="i" {...i} /> : d.icon;
   const match = rest.map((t) => t.href.split("?")[0]!).filter((h, n, all) => h !== home!.href && all.indexOf(h) === n);
   // Preserve the Service Users sidebar highlight on legacy detail links, notification targets and bookmarked registers.
-  if (d.ws === "people" && hasOrgPermission(ctx, "serviceUser.view")) match.push("/rota/care-plans", "/rota/risks", "/rota/incidents");
+  if (d.ws === "people" && hasOrgPermission(ctx, "serviceUser.view")) match.push("/rota/care-plans", "/rota/risks");
   return { href: home!.href, label, icon, ...(match.length ? { match } : {}), ...(label.length > 22 ? { wrap: true } : {}) };
 }
 
