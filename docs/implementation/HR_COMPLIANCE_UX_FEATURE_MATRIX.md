@@ -109,6 +109,23 @@ No file under `src/app/(app)/rota`, `src/server/rota`, `src/components/rota-*`, 
 only by the policy page) and `scripts/build-hr-css.mjs` (one extra input file). Rota Dashboard, Daily Rota and Overview
 screenshots before and after are in the review pack.
 
+Proof: `main` (`a83a98d`) and this branch were both built and run side by side against the same demo database, and the
+Overview, Rota Dashboard and Daily Rota were captured at 1672×941 within the same minute. All three pairs are
+**pixel-identical (0 changed pixels)**: `side-by-side/frozen-identical__*.png` in the review pack. (The earlier BEFORE
+set was taken the previous evening, so its visit counts and clock differ; that is data and time, not layout.)
+
+## Test results (2 Nov 2026, local, isolated databases)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | passed |
+| `npm run lint` | passed |
+| `npm run test:hr` | 14 passed |
+| `npm test` (Vitest, `csb_test`) | 74 files, 587 passed, 0 failed |
+| `npm run build` | succeeded |
+| `npx playwright test` (all, `csb_e2e`) | 131 passed, 1 failed (phone overflow on Documents) |
+| fix, rebuild, `npx playwright test hr-compliance-ux overview navigation` | 35 passed, 0 failed |
+
 ## Limitations
 
 - HR figures are worked out in the browser from the HR Hub data already sent to it; they follow the branch picker.
