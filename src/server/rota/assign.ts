@@ -57,7 +57,7 @@ export interface AssignParams {
  * inside a transaction that holds the visit and carer row locks, so the eligibility result is still true at commit.
  * The database's exclusion constraint is the final guard against double-booking.
  */
-export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: AssignParams, opts: { source: string; markManual?: boolean } = { source: "manual" }) {
+export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: AssignParams, opts: { source: string; markManual?: boolean; reason?: string } = { source: "manual" }) {
   const visit = await lockVisit(tx, scope, p.visitId);
   if (p.lockVersion !== undefined && p.lockVersion !== visit.lockVersion) throw new ConflictError("This visit changed since you opened it. Reload and try again.");
   if (!["SCHEDULED", "MISSED"].includes(visit.status)) throw new ValidationError(`Carers cannot be changed on a ${visit.status.toLowerCase().replace("_", " ")} visit`);
@@ -84,7 +84,7 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
 
   const now = new Date();
   if (current) {
-    await tx.visitAssignment.update({ where: { id: current.id }, data: { removedAt: now, removedById: actorId, removeReason: `Replaced (${opts.source})` } });
+    await tx.visitAssignment.update({ where: { id: current.id }, data: { removedAt: now, removedById: actorId, removeReason: opts.reason ?? `Replaced (${opts.source})` } });
     // Alerts about the replaced carer's booking (for example a review flag after sickness) are answered by replacing them.
     await tx.rotaAlert.updateMany({ where: { assignmentId: current.id, resolvedAt: null }, data: { resolvedAt: now, resolvedById: actorId, resolution: "Carer replaced on the visit" } });
   }
@@ -103,7 +103,7 @@ export async function assignInTx(tx: Tx, scope: Scope, actorId: string, p: Assig
       },
     });
     await tx.visit.update({ where: { id: visit.id }, data: { lockVersion: { increment: 1 }, ...(opts.markManual !== false ? { manuallyChanged: true } : {}) } });
-    await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: visit.id, type: current ? "REASSIGNED" : "ASSIGNED", actorId, data: { slot: p.slot, staffId: p.staffId, previousStaffId: current?.staffId ?? null, source: opts.source, eligibility: result.state, warnings: created.warningsAccepted } } });
+    await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId: visit.id, type: current ? "REASSIGNED" : "ASSIGNED", actorId, reason: opts.reason ?? null, data: { slot: p.slot, staffId: p.staffId, previousStaffId: current?.staffId ?? null, source: opts.source, eligibility: result.state, warnings: created.warningsAccepted } } });
     await audit({ organisationId: scope.organisationId, actorId, action: current ? "visit.reassigned" : "visit.assigned", entityType: "Visit", entityId: visit.id, data: { slot: p.slot, staffId: p.staffId, source: opts.source, eligibility: result.state } }, tx);
     return created;
   } catch (e) {

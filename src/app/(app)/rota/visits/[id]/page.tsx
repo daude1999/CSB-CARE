@@ -20,6 +20,8 @@ import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/compone
 import { AreaDot, CancelChargeChoice, cancellationChargeLabel, FlagBadges, TimeSpan, VisitStatusBadge } from "@/components/rota-ui";
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
 import { recoveryLinks } from "@/server/rota/missed-cover";
+import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
+import { communicationStates, COVER_SOURCES } from "@/server/rota/cover-communication";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,7 @@ const SLOT_LABEL: Record<AssignmentSlot, string> = { PRIMARY: "First carer", SEC
 const STATE_LABEL = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", UPDATED: "Visit changed", CANCELLED: "Visit cancelled", REINSTATED: "Visit reinstated",
-  SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded", RECOVERY_BOOKED: "Recovery visit booked through Find Cover",
+  SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", ALLOCATION_FLAGGED: "Allocation needs review", ALLOCATION_CLEARED: "Review cleared", STATUS: "Status changed", CLOCK: "Clock recorded", RECOVERY_BOOKED: "Recovery visit booked through Find Cover", CONTACT_RECORDED: "Communication with the service user recorded", CONTACT_CORRECTED: "Communication entry corrected",
 };
 
 export default async function VisitPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -60,6 +62,12 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
   const recovery = await recoveryLinks(ctx, v.id);
+  const coverable = assignable && v.scheduledEnd > new Date();
+  const coverBooked = v.events.some((e) => ["ASSIGNED", "REASSIGNED"].includes(e.type) && COVER_SOURCES.includes(String((e.data as { source?: unknown } | null)?.source ?? "")));
+  const commsAll = canEdit ? (await communicationStates(ctx, [v.id])).get(v.id) ?? null : null;
+  // Shown once cover was arranged through Find Cover or something has been recorded; other visits need no message.
+  const comms = commsAll && (commsAll.effective.length || coverBooked || recovery.recoveryOf) ? commsAll : null;
+  const caseId = recovery.recoveryOf?.missedCallCase?.id ?? recovery.missedCallCase?.id ?? null;
 
   return (
     <>
@@ -120,6 +128,9 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         {a?.warningsAccepted.length ? <p className="mt-1 text-[13px] text-[#8a5a00]">Allocated with warnings accepted: {a.warningsAccepted.join("; ")}</p> : null}
                         {a ? <p className="text-[12.5px] text-slate-500">Assigned by {who(a.assignedById)} {fmtDate(a.assignedAt, true)}{a.acknowledgedAt ? ` · seen by carer ${fmtDate(a.acknowledgedAt, true)}` : ""}</p> : null}
                       </div>
+                      {coverable && s !== "SHADOW" ? (
+                        <Link href={coverHref(back, {}, { id: v.id, mode: a ? "replace" : "fill", slot: s })} scroll={false} className="inline-flex items-center rounded-[6px] border border-[#6b46c9] px-2.5 py-1 text-[13.5px] font-semibold text-[#4b2f9a] no-underline hover:bg-[#f6f3fd]" aria-label={a ? `Find replacement cover for ${a.staff.displayName}` : `Find cover for the ${SLOT_LABEL[s].toLowerCase()} place`}>{a ? "Find replacement" : "Find Cover"}</Link>
+                      ) : null}
                       {a && assignable ? (
                         <form action={unassignCarerAction} className="flex items-center gap-2">
                           <input type="hidden" name="back" value={back} />
@@ -189,6 +200,15 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
             </ul>
             <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
           </Card>
+
+          {comms ? (
+            <Card title="Contact & communication">
+              <p className="text-[14px]"><b className="font-semibold">{comms.label}</b>{comms.kind === "NOT_APPLICABLE" && comms.reason ? `: ${comms.reason}` : ""}{comms.effective.length ? ` · ${comms.effective.length} ${comms.effective.length === 1 ? "entry" : "entries"} recorded` : ""}</p>
+              {comms.followUp ? <p className="mt-1 text-[13.5px] text-[#8a5a00]">Follow-up {comms.followUp.dueAt ? `due ${fmtDate(comms.followUp.dueAt, true)}` : "open"}{comms.followUp.overdue ? " (overdue)" : ""}</p> : null}
+              <p className="mt-1 text-[12.5px] text-slate-500">What the service user or their representative has been told about this visit&apos;s arrangements. Recorded by staff; nothing is sent from the platform.</p>
+              <Link href={`${coverHref(back, {}, { id: caseId ?? v.id, mode: caseId ? "recovery" : v.carersRequired > live.filter((x) => x.slot !== "SHADOW").length ? "fill" : "replace", tab: "comms" })}`} scroll={false} className="mt-2 inline-block text-[14px] font-semibold">Open communication history</Link>
+            </Card>
+          ) : null}
 
           <Card title="Tasks">
             {v.tasks.length ? (
@@ -363,6 +383,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
           </Card>
         </div>
       </div>
+      {canEdit && sp.cover ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath={back} keep={{}} /> : null}
     </>
   );
 }

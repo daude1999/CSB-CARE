@@ -33,7 +33,8 @@ test("Find Cover opens from the register and closes back to the same filters", a
   const panel = page.getByRole("dialog", { name: "Find Replacement Cover" });
   await expect(panel).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`cover=${made.single.caseId}`));
-  await expect(panel.getByText("Find an eligible care worker for this visit.")).toBeVisible();
+  await expect(panel.getByText("Arrange a recovery visit for a missed call. The missed visit stays recorded.")).toBeVisible();
+  await expect(panel.getByRole("navigation", { name: "Find Cover sections" }).getByRole("link", { name: /Contact & communication/ })).toBeVisible();
   await expect(panel.getByRole("region", { name: "The missed visit" })).toContainText(made.single.reference);
   const recs = panel.getByRole("list", { name: "Recommended carers" }).getByRole("radio");
   expect(await recs.count()).toBeLessThanOrEqual(3);

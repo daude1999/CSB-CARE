@@ -11,7 +11,7 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
-const panel = (page: Page) => page.locator('aside[aria-labelledby="fc-title"]');
+const panel = (page: Page) => page.getByRole("dialog", { name: "Find Replacement Cover" });
 
 test.describe("Unassigned Visits and Coverage History", () => {
   test.use({ viewport: { width: 1672, height: 941 } });
@@ -29,29 +29,32 @@ test.describe("Unassigned Visits and Coverage History", () => {
     test.skip((await find.count()) === 0, "No unassigned visits in the next two weeks of demo data");
     await find.first().click();
     await expect(page).toHaveURL(/cover=/);
-    await expect(panel(page).getByRole("region", { name: "Selected visit" })).toBeVisible();
+    await expect(panel(page).getByRole("region", { name: "The visit" })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/1-recommended.png` });
 
     // Manual uses the same candidate list, searched by name.
-    await panel(page).getByRole("navigation", { name: "How to choose a carer" }).getByRole("link", { name: "Manual" }).click();
-    await expect(page).toHaveURL(/ctab=manual/);
-    await expect(panel(page).getByPlaceholder("Search care workers by name...")).toBeVisible();
+    await panel(page).getByRole("link", { name: "Search Staff Manually" }).click();
+    await expect(page).toHaveURL(/fcStep=manual/);
+    await expect(panel(page).getByRole("heading", { name: "Search staff" })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/2-manual.png` });
 
-    const options = panel(page).locator('a[aria-label^="Select "]');
+    const options = panel(page).getByRole("list", { name: "Staff" }).getByRole("radio", { disabled: false });
     test.skip((await options.count()) === 0, "No carer the rules allow for this visit");
-    const name = ((await options.first().getAttribute("aria-label")) ?? "").replace(/^Select /, "");
-    await options.first().click();
-    await expect(page).toHaveURL(/pick=/);
-    await panel(page).getByRole("link", { name: "Review Assignment" }).click();
-    await expect(panel(page).getByRole("heading", { name: "Review Assignment" })).toBeVisible();
+    await options.first().check();
+    await panel(page).getByRole("button", { name: "Review Cover" }).click();
+    await expect(page).toHaveURL(/fcStaff=/);
+    await expect(panel(page).getByRole("heading", { name: "Review Replacement Cover" })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/3-review.png` });
-    const ack = page.getByLabel(/I have read these warnings/);
-    if (await ack.count()) await ack.check();
-    await page.getByRole("button", { name: "Confirm Assignment" }).click();
+    for (const box of await panel(page).getByRole("checkbox").all()) await box.check();
+    const reason = panel(page).getByLabel("Why this carer is right despite the warnings");
+    if (await reason.count()) await reason.fill("Reviewed with the family by phone");
+    await panel(page).getByRole("button", { name: "Confirm Cover" }).click();
+    await expect(panel(page).getByRole("heading", { name: /^Cover (partly )?booked$/ })).toBeVisible();
     // The message only claims what is recorded: booked, and whether carers can see it yet. Never "accepted".
-    await expect(page.getByRole("status")).toContainText(`${name} booked for`);
-    await expect(page.getByRole("status")).not.toContainText("accepted");
+    await expect(panel(page).getByRole("status").first()).toContainText("booked as");
+    await expect(panel(page).getByRole("status").first()).not.toContainText("accepted");
+    // Communication is separate from booking: still outstanding until someone records it.
+    await expect(panel(page).getByText("Booking cover does not record that anyone was told.")).toBeVisible();
   });
 
   test("coverage history: figures reconcile, drill into the table, show a visit's history and export", async ({ page }) => {

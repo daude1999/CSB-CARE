@@ -1569,7 +1569,11 @@ model ServiceUser {
   town                  String?
   postcode              String?
   phone                 String?
+  /// A second number for the person, when they have one.
+  altPhone              String?
   email                 String?
+  /// How the person prefers to be contacted: PHONE | SMS | EMAIL | OTHER (null = not recorded).
+  preferredContactMethod String?
   /// How to get in, parking, pets. Shown to carers on their own visits.
   accessNotes           String?
   /// AES-256-GCM ciphertext. Revealed only with serviceUser.keysafe, and every reveal is audited.
@@ -1587,6 +1591,7 @@ model ServiceUser {
   updatedAt             DateTime          @updatedAt
 
   contacts         ServiceUserContact[]
+  coverContactAttempts CoverContactAttempt[]
   absences         ServiceUserAbsence[]
   packages         CarePackage[]
   carePlans        CarePlan[]
@@ -1628,8 +1633,20 @@ model ServiceUserContact {
   address           String?
   isEmergency       Boolean     @default(false)
   canReceiveUpdates Boolean     @default(false)
+  /// The person the office calls first. Recorded by hand; never inferred from being next of kin.
+  isPrimary         Boolean     @default(false)
+  /// A second number for this contact, when recorded.
+  altPhone          String?
+  /// PHONE | SMS | EMAIL | OTHER (null = not recorded).
+  preferredContactMethod String?
+  /// Recorded authority to act for the service user: LPA_HEALTH | LPA_FINANCE | DEPUTY | OTHER (null = none recorded).
+  /// Never set automatically: being next of kin gives no authority.
+  authorityType     String?
+  /// What the recorded authority covers, in the office's words.
+  authorityScope    String?
   notes             String?
   createdAt         DateTime    @default(now())
+  coverContactAttempts CoverContactAttempt[]
 
   @@index([serviceUserId])
 }
@@ -2073,6 +2090,7 @@ model Visit {
   recoveryOf         Visit?                   @relation("VisitRecovery", fields: [recoveryOfId], references: [id])
   recoveries         Visit[]                  @relation("VisitRecovery")
   coversBooked       MissedCallCover[]
+  contactAttempts    CoverContactAttempt[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, date])
@@ -3077,6 +3095,7 @@ model MissedCallCase {
   actions               MissedCallAction[]
   comments              MissedCallComment[]
   covers                MissedCallCover[]
+  contactAttempts       CoverContactAttempt[]
 
   @@index([organisationId, scheduledStart])
   @@index([organisationId, stage])
@@ -3227,10 +3246,72 @@ model MissedCallCover {
   /// IN_APP: an in-app notification was created for the carer's linked sign-in. NO_SIGN_IN: the carer has no linked sign-in.
   notifyStatus      String
   notificationId    String?
+  contactAttempts   CoverContactAttempt[]
 
   @@index([caseId])
   @@index([organisationId, staffId])
   @@index([recoveryVisitId])
+}
+
+/// One attempt to tell the service user (or someone acting for them) about cover arrangements, recorded from Find
+/// Cover. Append-only: a database trigger refuses edits except closing the follow-up once. A correction is a new row
+/// pointing at the original (correctsId), so the original stays. The recipient's name and the number or address used
+/// are copied at the time, so later profile edits never rewrite history. Recording an SMS or e-mail does not mean the
+/// platform sent one; nothing is sent from here.
+model CoverContactAttempt {
+  id                    String                @id @default(cuid())
+  organisationId        String
+  serviceUserId         String
+  serviceUser           ServiceUser           @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  /// The visit whose arrangements were discussed (the recovery visit once one is booked).
+  visitId               String
+  visit                 Visit                 @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  missedCallCaseId      String?
+  missedCallCase        MissedCallCase?       @relation(fields: [missedCallCaseId], references: [id], onDelete: Cascade)
+  missedCallCoverId     String?
+  missedCallCover       MissedCallCover?      @relation(fields: [missedCallCoverId], references: [id], onDelete: SetNull)
+  /// SERVICE_USER | CONTACT | OTHER
+  recipientKind         String
+  contactId             String?
+  contact               ServiceUserContact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  recipientName         String
+  recipientRelationship String?
+  /// The telephone number or address actually used, as it was at the time.
+  recipientAddress      String?
+  /// The recorded authority shown at the time (snapshot), if any.
+  recipientAuthority    String?
+  /// PHONE | SMS | EMAIL | OTHER
+  method                String
+  /// INFORMED | NO_ANSWER | MESSAGE_LEFT | UNSUCCESSFUL | NOT_APPLICABLE
+  outcome               String
+  notApplicableReason   String?
+  notes                 String?
+  /// The arrangements as they stood when this was recorded: carers, start and end. Compared with the visit now.
+  arrangement           Json
+  arrangementKey        String
+  /// When the contact actually happened (may be earlier than createdAt).
+  contactedAt           DateTime
+  createdAt             DateTime              @default(now())
+  createdById           String
+  followUpRequired      Boolean               @default(false)
+  followUpOwnerId       String?
+  followUpDueAt         DateTime?
+  followUpDoneAt        DateTime?
+  followUpDoneById      String?
+  followUpDoneNote      String?
+  /// Set on a correction: the entry it corrects. The original is kept unchanged.
+  correctsId            String?
+  corrects              CoverContactAttempt?  @relation("AttemptCorrection", fields: [correctsId], references: [id], onDelete: Cascade)
+  corrections           CoverContactAttempt[] @relation("AttemptCorrection")
+  correctionReason      String?
+  /// One per form submission, so a double click saves one entry.
+  clientToken           String
+
+  @@unique([organisationId, clientToken])
+  @@index([organisationId, visitId, contactedAt])
+  @@index([organisationId, followUpOwnerId, followUpDoneAt])
+  @@index([missedCallCaseId])
+  @@index([serviceUserId])
 }
 
 // ── Recruitment (HR & Workforce → Recruitment) ─────────────────────────────

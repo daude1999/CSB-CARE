@@ -9,6 +9,7 @@ import { Logo, Monogram } from "@/components/brand";
 import { MobileMenu, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { ShellSearch } from "@/components/shell-search";
 import { hrItems } from "@/components/hr-nav";
+import { AppHistory, HistoryButtons } from "@/components/history-nav";
 import { MainArea } from "@/components/main-area";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
@@ -143,6 +144,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
               <NavigationProgress renderKey={String(Date.now())} />
               <MobileMenu {...shell} />
+              <div className="hidden sm:block"><HistoryButtons /></div>
               <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
               <ShellSearch />
               <div className="ml-auto flex items-center gap-4">
@@ -162,6 +164,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </header>
           </TopbarSwitch>
           <MainArea>{children}</MainArea>
+          <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
       </div>

@@ -9,7 +9,7 @@ import { assignCarer } from "@/server/rota/assign";
 import { coverageReport, coverageTimeline, exportCoverage, parseCoverage } from "@/server/rota/coverage";
 import { listVisits } from "@/server/rota/queries";
 import { parseUnassigned, unassignedBoard } from "@/server/rota/unassigned";
-import { coverOptions } from "@/server/rota/unassigned-cover";
+import { coverWorkspace, type VisitCover } from "@/server/rota/replacement-cover";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -18,6 +18,12 @@ import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
  */
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
 const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
+type Ctx = Awaited<ReturnType<typeof manager>>;
+async function coverOptions(ctx: Ctx, id: string, input: { q?: string; pick?: string } = {}): Promise<VisitCover> {
+  const w = await coverWorkspace(ctx, { mode: "fill", id }, { q: input.q, staffId: input.pick });
+  if (w.kind !== "visit") throw new Error("Expected visit cover");
+  return w;
+}
 const PAST = addDays(londonDate(), -40);
 const FUTURE = addDays(londonDate(), 20);
 let orgId = "";
@@ -207,8 +213,8 @@ describe("Unassigned Visits and Find Cover", () => {
     expect(o.recommended.every((c) => c.state !== "NOT_ELIGIBLE" && c.score !== null)).toBe(true);
     const someone = o.list[o.list.length - 1]!;
     const m = (await coverOptions(await manager(), ids.open!, { q: someone.name.slice(0, 5) }))!;
-    expect(m.manual.some((c) => c.id === someone.id)).toBe(true);
-    expect(m.manual.every((c) => c.name.toLowerCase().includes(someone.name.slice(0, 5).toLowerCase()))).toBe(true);
+    expect(m.list.some((c) => c.id === someone.id)).toBe(true);
+    expect(m.list.every((c) => c.name.toLowerCase().includes(someone.name.slice(0, 5).toLowerCase()))).toBe(true);
     // A carer who cannot do the visit is shown with the reason, never offered as a recommendation.
     const blocked = o.list.find((c) => c.state === "NOT_ELIGIBLE");
     if (blocked) {
@@ -222,13 +228,13 @@ describe("Unassigned Visits and Find Cover", () => {
     const o = (await coverOptions(mgr, ids.open!))!;
     const pick = o.list.find((c) => c.state === "REQUIRES_REVIEW") ?? o.recommended[0]!;
     const review = (await coverOptions(mgr, ids.open!, { pick: pick.id }))!;
-    expect(review.pick?.candidate.id).toBe(pick.id);
-    expect(review.pick!.checks.length).toBeGreaterThan(5);
-    await expect(assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: review.pick!.result.warnings.map((w) => w.message), lockVersion: o.visit.lockVersion - 1 })).rejects.toBeInstanceOf(ConflictError);
-    if (review.pick!.result.warnings.length) {
-      await expect(assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: [], lockVersion: o.visit.lockVersion })).rejects.toThrow(/New warning/);
+    expect(review.selected?.candidate.id).toBe(pick.id);
+    expect(review.selected!.checks.length).toBeGreaterThan(5);
+    await expect(assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: review.selected!.result.warnings.map((w) => w.message), lockVersion: o.lockVersion - 1 })).rejects.toBeInstanceOf(ConflictError);
+    if (review.selected!.result.warnings.length) {
+      await expect(assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: [], lockVersion: o.lockVersion })).rejects.toThrow(/New warning/);
     }
-    const a = await assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: review.pick!.result.warnings.map((w) => w.message), lockVersion: o.visit.lockVersion }, "find-cover");
+    const a = await assignCarer(mgr, { visitId: ids.open!, slot: "PRIMARY", staffId: pick.id, acceptWarnings: true, acceptedWarnings: review.selected!.result.warnings.map((w) => w.message), lockVersion: o.lockVersion }, "find-cover");
     expect(a.assignedById).toBe(managerId);
     const ev = await db.visitEvent.findFirstOrThrow({ where: { visitId: ids.open, type: "ASSIGNED" } });
     expect(ev.data).toMatchObject({ source: "find-cover", staffId: pick.id });
@@ -244,9 +250,9 @@ describe("Unassigned Visits and Find Cover", () => {
     expect(o.slot).toBe("SECOND");
     const same = o.list.find((c) => c.id === staff[0]);
     expect(same === undefined || same.state === "NOT_ELIGIBLE").toBe(true);
-    await expect(assignCarer(mgr, { visitId: ids.half!, slot: "SECOND", staffId: staff[0]!, acceptWarnings: true, lockVersion: o.visit.lockVersion })).rejects.toThrow();
+    await expect(assignCarer(mgr, { visitId: ids.half!, slot: "SECOND", staffId: staff[0]!, acceptWarnings: true, lockVersion: o.lockVersion })).rejects.toThrow();
     const pick = o.recommended[0]!;
-    await assignCarer(mgr, { visitId: ids.half!, slot: "SECOND", staffId: pick.id, acceptWarnings: true, acceptedWarnings: pick.reasons.length ? (await coverOptions(mgr, ids.half!, { pick: pick.id }))!.pick!.result.warnings.map((w) => w.message) : [], lockVersion: o.visit.lockVersion });
+    await assignCarer(mgr, { visitId: ids.half!, slot: "SECOND", staffId: pick.id, acceptWarnings: true, acceptedWarnings: pick.reasons.length ? (await coverOptions(mgr, ids.half!, { pick: pick.id })).selected!.result.warnings.map((w) => w.message) : [], lockVersion: o.lockVersion });
     const live = await db.visitAssignment.findMany({ where: { visitId: ids.half, removedAt: null }, orderBy: { slot: "asc" } });
     expect(live.map((a) => [a.slot, a.staffId])).toEqual([["PRIMARY", staff[0]], ["SECOND", pick.id]]);
   });
@@ -257,7 +263,7 @@ describe("Unassigned Visits and Find Cover", () => {
     const c = await coordinator();
     const extra = await visit("lpl", FUTURE, 15 * 60);
     expect((await unassignedBoard(c, f())).all.some((i) => i.visit.id === extra.id)).toBe(false);
-    expect(await coverOptions(c, extra.id)).toBeNull();
+    await expect(coverOptions(c, extra.id)).rejects.toThrow(/outside your/);
     await expect(assignCarer(c, { visitId: extra.id, slot: "PRIMARY", staffId: staff[1]! })).rejects.toBeInstanceOf(Error);
     const liverpoolVisit = await db.visit.findFirst({ where: { organisationId: orgId, serviceUser: { branchId: branch.Liverpool }, status: "SCHEDULED", scheduledStart: { gt: new Date() } } });
     if (liverpoolVisit) await expect(assignCarer(c, { visitId: liverpoolVisit.id, slot: "SHADOW", staffId: staff[1]! })).rejects.toBeInstanceOf(ForbiddenError);

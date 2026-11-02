@@ -12,6 +12,7 @@ import { Empty, Flash } from "@/components/ui";
 import { dayTimeline } from "@/server/rota/roster";
 import { DailyTimeline } from "@/components/daily-timeline";
 import { VisitInspector } from "@/components/visit-inspector";
+import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
 import { AutoSubmitForm } from "@/components/auto-submit";
 import { VISIT_LABEL, NotBuiltNotice } from "@/components/rota-ui";
 import { ordinalDate } from "@/components/rota-dashboard";
@@ -392,10 +393,11 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
 
         {inspector ? (
           <div className="xl:sticky xl:top-2">
-            <VisitInspector data={inspector} tab={sp.tab ?? "details"} back={back} closeHref={url({ visit: undefined, tab: undefined })} />
+            <VisitInspector data={inspector} tab={sp.tab ?? "details"} back={back} closeHref={url({ visit: undefined, tab: undefined })} findCoverHref={coverHref("/rota/visits", { ...params, tab: sp.tab }, { id: inspector.visit.id })} />
           </div>
         ) : sp.visit ? <p className="text-[13px] text-slate-600">That visit is not available to you, or no longer exists.</p> : null}
       </div>
+      {sp.cover && hasOrgPermission(ctx, "rota.edit") ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/visits" keep={{ ...params, tab: sp.tab }} /> : null}
     </div>
   );
 }

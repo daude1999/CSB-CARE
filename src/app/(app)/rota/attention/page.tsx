@@ -9,6 +9,9 @@ import { PRIORITY_LABEL, PRIORITY_RULE, parseUnassigned, unassignedBoard, type P
 import { missedCallRegister, STAGE_LABEL, VISIT_STATUS_NOW, type MissedRegister } from "@/server/rota/missed-calls";
 import { coverStates } from "@/server/rota/missed-cover";
 import { Badge, Empty, Flash, type Tone } from "@/components/ui";
+import { ChatCircleText } from "@phosphor-icons/react/dist/ssr";
+import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
+import { outstandingCommunication } from "@/server/rota/cover-communication";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +53,8 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
         {showUnassigned ? <UnassignedSection ctx={ctx} /> : null}
         {showMissed ? <MissedSection ctx={ctx} /> : null}
       </div>
+      {hasOrgPermission(ctx, "rota.edit") ? <CommunicationSectionList ctx={ctx} /> : null}
+      {sp.cover && hasOrgPermission(ctx, "rota.edit") ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/attention" keep={{}} /> : null}
     </div>
   );
 }
@@ -118,8 +123,8 @@ async function UnassignedSection({ ctx }: { ctx: Ctx }) {
                 <span className="ml-auto flex gap-1.5">
                   {canEdit ? (
                     <>
-                      <Link href={`${list}&cover=${v.id}`} className={PRIMARY} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}: recommended carers`}><UserPlus size={16} aria-hidden />Find Cover</Link>
-                      <Link href={`${list}&cover=${v.id}&ctab=manual`} className={SECONDARY} aria-label={`Choose a carer by hand for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`}>Manual</Link>
+                      <Link href={coverHref("/rota/attention", {}, { id: v.id })} scroll={false} className={PRIMARY} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}: recommended carers`}><UserPlus size={16} aria-hidden />Find Cover</Link>
+                      <Link href={`${coverHref("/rota/attention", {}, { id: v.id })}&fcStep=manual`} scroll={false} className={SECONDARY} aria-label={`Choose a carer by hand for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`}>Manual</Link>
                     </>
                   ) : <Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className={SECONDARY}>View</Link>}
                 </span>
@@ -177,7 +182,7 @@ async function MissedSection({ ctx }: { ctx: Ctx }) {
                 </div>
                 <Badge tone={STAGE_TONE[r.stage] ?? "slate"}>{STAGE_LABEL[r.stage]}</Badge>
                 <span className="ml-auto flex gap-1.5">
-                  {cover?.canFind && canWork ? <Link href={`${list}&cover=${r.id}`} className={SECONDARY} aria-label={`Find recovery cover for ${r.visit.reference}`}><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
+                  {cover?.canFind && canWork ? <Link href={coverHref("/rota/attention", {}, { id: r.id, mode: "recovery" })} scroll={false} className={SECONDARY} aria-label={`Find recovery cover for ${r.visit.reference}`}><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
                   {cover?.kind === "booked" ? <Badge tone="green">Cover booked</Badge> : null}
                   <Link href={`/rota/missed/${r.id}`} className={PRIMARY} aria-label={`Investigate ${r.visit.reference}`}>Investigate</Link>
                 </span>
@@ -191,6 +196,50 @@ async function MissedSection({ ctx }: { ctx: Ctx }) {
         {open > rows.length ? <Link href={list} className="font-semibold">See all {open}</Link> : null}
         <Link href="/rota/missed" className="font-semibold">All missed calls</Link>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Communication still owed to service users after cover was arranged: not yet contacted, attempted without
+ * confirmation, or arrangements changed since they were told. Each row shows who is responsible and when it is due,
+ * and opens the same Find Cover panel on its Contact & communication tab, so the coordinator can finish the record.
+ */
+async function CommunicationSectionList({ ctx }: { ctx: Ctx }) {
+  const { items, total } = await outstandingCommunication(ctx);
+  const rows = items.slice(0, SHOWN);
+  const tone = (k: string) => (k === "NOT_CONTACTED" ? "rose" : "amber") as Tone;
+  return (
+    <section aria-labelledby="attention-comms" className="mt-3 min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white" data-testid="attention-comms">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[#eaecf0] px-4 py-3">
+        <span aria-hidden className="text-[#5b2bb5]"><ChatCircleText size={22} weight="bold" /></span>
+        <h2 id="attention-comms" className="mr-auto text-[18px] font-bold text-[#101828]">
+          Communication Outstanding <span className="ml-1 rounded-full bg-[#f2f4f7] px-2 py-0.5 align-middle text-[13px] font-semibold tabular-nums text-[#344054]" data-testid="attention-comms-count">{total}<span className="sr-only"> visits with communication outstanding</span></span>
+        </h2>
+        <span className="text-[13px] text-[#475467]">After cover was arranged through Find Cover</span>
+      </div>
+      {rows.length ? (
+        <ul className="divide-y divide-[#f2f4f7]" aria-label="Visits with communication outstanding, soonest due first">
+          {rows.map((it) => (
+            <li key={it.visitId} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-[14px]" data-testid="attention-comms-row">
+              <div className="w-[118px] shrink-0 tabular-nums">
+                <span className="block font-semibold text-[#101828]">{fmtLondonDate(londonDate(it.start), { weekday: "short", day: "numeric", month: "short" })}</span>
+                <span className="block text-[13px] text-[#475467]">{londonTime(it.start)}–{londonTime(it.end)}</span>
+              </div>
+              <div className="min-w-0 flex-1 basis-[180px]">
+                <Link href={`/rota/service-users/${it.serviceUserId}`} className="block truncate font-semibold text-[#3b1f99]">{it.serviceUser}</Link>
+                <span className="block truncate text-[13px] text-[#475467]">{it.reference} · Responsible: {it.owner}</span>
+              </div>
+              <Badge tone={tone(it.state.kind)}>{it.state.label}</Badge>
+              <span className={`text-[13px] tabular-nums ${it.overdue ? "font-semibold text-[#b42318]" : "text-[#475467]"}`}>{it.state.followUp ? "Follow-up due" : "Due"} {fmtLondonDate(londonDate(it.dueAt), { day: "numeric", month: "short" })} {londonTime(it.dueAt)}{it.overdue ? " (overdue)" : ""}</span>
+              <span className="ml-auto flex gap-1.5">
+                <Link href={coverHref("/rota/attention", {}, it.caseId ? { id: it.caseId, mode: "recovery", tab: "comms" } : { id: it.visitId, tab: "comms" })} scroll={false} className={PRIMARY} aria-label={`Record communication for ${it.serviceUser}, ${it.reference}`}>Record communication</Link>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : <div className="p-4"><Empty>No communication is outstanding for cover arranged in the last day or the next two weeks.</Empty></div>}
+      {total > rows.length ? <p className="border-t border-[#eaecf0] px-4 py-2.5 text-[13.5px] text-[#475467]">Showing the {rows.length} due soonest of {total}.</p> : null}
     </section>
   );
 }
