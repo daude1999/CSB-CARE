@@ -1,4 +1,5 @@
 import type { AssignmentSlot, Prisma, VisitStatus } from "@prisma/client";
+import { placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/errors";
@@ -85,6 +86,8 @@ export const isUncovered = (o: Outcome) => o === "MISSED" || o === "NOT_DELIVERE
 export interface AssignmentRow {
   id: string;
   slot: AssignmentSlot;
+  /** The carer place number (1, 2, 3 …); 0 for a shadow. */
+  position?: number;
   staffId: string;
   assignedAt: Date;
   assignedById: string;
@@ -94,7 +97,8 @@ export interface AssignmentRow {
 }
 
 export interface Replacement {
-  slot: AssignmentSlot;
+  /** "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … */
+  slot: PlaceKey;
   fromStaffId: string;
   toStaffId: string;
   at: Date;
@@ -110,9 +114,9 @@ export interface Replacement {
  * The original carer of a place is the first person ever assigned to it, never the current one.
  */
 export function staffingHistory(rows: AssignmentRow[], scheduledStart: Date, lateMin: number) {
-  const bySlot = new Map<AssignmentSlot, AssignmentRow[]>();
-  for (const r of [...rows].filter((r) => r.slot !== "SHADOW").sort((a, b) => a.assignedAt.getTime() - b.assignedAt.getTime() || a.id.localeCompare(b.id))) bySlot.set(r.slot, [...(bySlot.get(r.slot) ?? []), r]);
-  const slots = (["PRIMARY", "SECOND"] as AssignmentSlot[]).filter((s) => bySlot.has(s));
+  const bySlot = new Map<PlaceKey, AssignmentRow[]>();
+  for (const r of [...rows].filter((r) => r.slot !== "SHADOW").sort((a, b) => a.assignedAt.getTime() - b.assignedAt.getTime() || a.id.localeCompare(b.id))) bySlot.set(placeKey(r), [...(bySlot.get(placeKey(r)) ?? []), r]);
+  const slots = [...bySlot.keys()].sort((a, b) => (placeNumber(a) ?? 0) - (placeNumber(b) ?? 0));
   const original = slots.map((s) => bySlot.get(s)![0]!.staffId);
   const current = slots.flatMap((s) => bySlot.get(s)!.filter((r) => !r.removedAt).map((r) => r.staffId));
   const replacements: Replacement[] = [];
@@ -224,7 +228,7 @@ async function loadFacts(scope: Scope, f: CoverageFilters, now: Date): Promise<F
   const [visits, ins, assigns] = await Promise.all([
     db.visit.findMany({ where, select: { id: true, reference: true, date: true, status: true, scheduledStart: true, serviceUser: { select: { branchId: true, firstName: true, lastName: true, preferredName: true } } }, take: MAX_VISITS + 1 }),
     db.visitClock.findMany({ where: { organisationId: scope.organisationId, kind: "IN", visit: where }, select: { id: true, visitId: true, staffId: true, kind: true, at: true, supersedesId: true } }),
-    db.visitAssignment.findMany({ where: { organisationId: scope.organisationId, slot: { not: "SHADOW" }, visit: where }, select: { id: true, visitId: true, slot: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true } }),
+    db.visitAssignment.findMany({ where: { organisationId: scope.organisationId, slot: { not: "SHADOW" }, visit: where }, select: { id: true, visitId: true, slot: true, position: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true } }),
   ]);
   if (visits.length > MAX_VISITS) throw new ValidationError("This period holds too many visits to report at once. Choose a shorter period or one branch.");
   const attended = new Set(effectiveClocks(ins).map((c) => c.visitId));
@@ -311,7 +315,7 @@ const detailSelect = {
   serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, branch: { select: { name: true } } } },
   area: { select: { name: true } },
   callType: { select: { name: true } },
-  assignments: { where: { slot: { not: "SHADOW" } }, select: { id: true, slot: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true, acknowledgedAt: true, staff: { select: { displayName: true } } } },
+  assignments: { where: { slot: { not: "SHADOW" } }, select: { id: true, slot: true, position: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true, acknowledgedAt: true, staff: { select: { displayName: true } } } },
   clocks: { select: { id: true, staffId: true, kind: true, at: true, supersedesId: true, method: true } },
   missedCallCase: { select: { id: true, stage: true, escalatedAt: true, outcome: true, replacementType: true } },
 } satisfies Prisma.VisitSelect;
@@ -433,7 +437,6 @@ export interface TimelineItem {
 }
 
 const EVENT_TITLE: Record<string, string> = { CREATED: "Visit created", EDITED: "Visit changed", PUBLISHED: "Published to carers", TASKS: "Care tasks recorded", NOTE: "Note added" };
-const SLOT_WORD: Record<string, string> = { PRIMARY: "carer 1", SECOND: "carer 2" };
 
 /**
  * The visit's history in time order, built only from stored records: assignments (with who assigned and removed and
@@ -446,7 +449,7 @@ export async function coverageTimeline(ctx: Ctx, visitId: string, lateMin = DEFA
     where: { AND: [visitWhere(scope), { id: visitId }] },
     select: {
       ...detailSelect,
-      assignments: { select: { id: true, slot: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true, acknowledgedAt: true, reviewReason: true, reviewFlaggedAt: true, warningsAccepted: true, staff: { select: { displayName: true } } } },
+      assignments: { select: { id: true, slot: true, position: true, staffId: true, assignedAt: true, assignedById: true, removedAt: true, removedById: true, removeReason: true, acknowledgedAt: true, reviewReason: true, reviewFlaggedAt: true, warningsAccepted: true, staff: { select: { displayName: true } } } },
       events: { select: { id: true, type: true, fromStatus: true, toStatus: true, actorId: true, reason: true, data: true, createdAt: true }, orderBy: { createdAt: "asc" } },
       clocks: { select: { id: true, staffId: true, kind: true, at: true, supersedesId: true, method: true, reason: true, recordedById: true, createdAt: true } },
       missedCallCase: { select: { id: true, stage: true, detectedAt: true, escalatedAt: true, escalatedById: true, escalationNote: true, replacementType: true, replacementStaffId: true, replacementAt: true, replacementById: true, outcome: true, signedOffAt: true, signedOffById: true } },
@@ -465,9 +468,9 @@ export async function coverageTimeline(ctx: Ctx, visitId: string, lateMin = DEFA
   const rows = [...v.assignments].filter((a) => a.slot !== "SHADOW").sort((a, b) => a.assignedAt.getTime() - b.assignedAt.getTime());
   const seenSlot = new Set<string>();
   for (const a of rows) {
-    const first = !seenSlot.has(a.slot);
-    seenSlot.add(a.slot);
-    items.push({ at: a.assignedAt, title: `${first ? "Assigned" : "Replacement assigned"}: ${a.staff.displayName} (${SLOT_WORD[a.slot] ?? a.slot.toLowerCase()})`, detail: a.warningsAccepted.length ? `Warnings accepted: ${a.warningsAccepted.join("; ")}` : null, actor: actor(a.assignedById), tone: "staff" });
+    const first = !seenSlot.has(placeKey(a));
+    seenSlot.add(placeKey(a));
+    items.push({ at: a.assignedAt, title: `${first ? "Assigned" : "Replacement assigned"}: ${a.staff.displayName} (${placeLabel(placeKey(a)).toLowerCase()})`, detail: a.warningsAccepted.length ? `Warnings accepted: ${a.warningsAccepted.join("; ")}` : null, actor: actor(a.assignedById), tone: "staff" });
     if (a.reviewFlaggedAt) items.push({ at: a.reviewFlaggedAt, title: `Flagged for review: ${a.staff.displayName}`, detail: a.reviewReason ?? "Reason not recorded", actor: "System", tone: "alert" });
     if (a.acknowledgedAt) items.push({ at: a.acknowledgedAt, title: `${a.staff.displayName} acknowledged the visit`, detail: null, actor: a.staff.displayName, tone: "info" });
     if (a.removedAt) items.push({ at: a.removedAt, title: `${a.staff.displayName} removed from the visit`, detail: a.removeReason ?? "Reason not recorded", actor: actor(a.removedById), tone: "staff" });

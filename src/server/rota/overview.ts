@@ -36,7 +36,7 @@ const visitSelect = {
   serviceUserId: true,
   serviceUser: { select: { firstName: true, lastName: true, preferredName: true } },
   callType: { select: { name: true } },
-  assignments: { where: { removedAt: null }, select: { slot: true, staffId: true, removedAt: true, reviewReason: true } },
+  assignments: { where: { removedAt: null }, select: { slot: true, position: true, staffId: true, removedAt: true, reviewReason: true } },
 } satisfies Prisma.VisitSelect;
 type Row = Prisma.VisitGetPayload<{ select: typeof visitSelect }>;
 
@@ -261,7 +261,7 @@ async function notBuiltAhead(scope: Scope, today: string) {
 }
 
 async function allocatedShare(where: Prisma.VisitWhereInput, from: string, to: string, settings: Awaited<ReturnType<typeof rotaSettings>>) {
-  const rows = await db.visit.findMany({ where: { AND: [where, { date: { gte: dbDate(from), lte: dbDate(to) }, status: { not: "CANCELLED" } }] }, select: { status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { where: { removedAt: null }, select: { slot: true, removedAt: true, reviewReason: true } } } });
+  const rows = await db.visit.findMany({ where: { AND: [where, { date: { gte: dbDate(from), lte: dbDate(to) }, status: { not: "CANCELLED" } }] }, select: { status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, actualEnd: true, carersRequired: true, assignments: { where: { removedAt: null }, select: { slot: true, position: true, removedAt: true, reviewReason: true } } } });
   if (!rows.length) return null;
   const open = rows.filter((v) => deriveFlags(v, settings).unassignedSlots > 0).length;
   return Math.round(((rows.length - open) / rows.length) * 1000) / 10;

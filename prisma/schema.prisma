@@ -1052,10 +1052,10 @@ model AuditFinding {
 }
 
 model ComplianceAction {
-  id                   String        @id @default(cuid())
+  id                   String          @id @default(cuid())
   organisationId       String
   findingId            String?
-  finding              AuditFinding? @relation(fields: [findingId], references: [id])
+  finding              AuditFinding?   @relation(fields: [findingId], references: [id])
   /// A mitigation action for a risk on the organisational risk register.
   riskId               String?
   risk                 ComplianceRisk? @relation(fields: [riskId], references: [id])
@@ -1063,15 +1063,15 @@ model ComplianceAction {
   description          String?
   ownerId              String
   dueDate              DateTime
-  status               String        @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
+  status               String          @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
   completionNote       String?
   completionEvidenceId String?
   completedAt          DateTime?
   verifiedById         String?
   verifiedAt           DateTime?
   closedAt             DateTime?
-  isDemo               Boolean       @default(false)
-  createdAt            DateTime      @default(now())
+  isDemo               Boolean         @default(false)
+  createdAt            DateTime        @default(now())
   history              ActionEvent[]
 
   @@index([organisationId, status])
@@ -1545,62 +1545,62 @@ enum RiskLevel {
 }
 
 model ServiceUser {
-  id                    String            @id @default(cuid())
-  organisationId        String
-  organisation          Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branchId              String?
-  branch                Branch?           @relation(fields: [branchId], references: [id])
-  areaId                String?
-  area                  Area?             @relation(fields: [areaId], references: [id])
-  reference             String
-  firstName             String
-  lastName              String
-  preferredName         String?
-  dateOfBirth           DateTime?         @db.Date
-  gender                String?
-  pronouns              String?
-  nhsNumber             String?
-  status                ServiceUserStatus @default(ENQUIRY)
-  startDate             DateTime?         @db.Date
-  endDate               DateTime?         @db.Date
-  endReason             String?
-  addressLine1          String?
-  addressLine2          String?
-  town                  String?
-  postcode              String?
-  phone                 String?
+  id                     String            @id @default(cuid())
+  organisationId         String
+  organisation           Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branchId               String?
+  branch                 Branch?           @relation(fields: [branchId], references: [id])
+  areaId                 String?
+  area                   Area?             @relation(fields: [areaId], references: [id])
+  reference              String
+  firstName              String
+  lastName               String
+  preferredName          String?
+  dateOfBirth            DateTime?         @db.Date
+  gender                 String?
+  pronouns               String?
+  nhsNumber              String?
+  status                 ServiceUserStatus @default(ENQUIRY)
+  startDate              DateTime?         @db.Date
+  endDate                DateTime?         @db.Date
+  endReason              String?
+  addressLine1           String?
+  addressLine2           String?
+  town                   String?
+  postcode               String?
+  phone                  String?
   /// A second number for the person, when they have one.
-  altPhone              String?
-  email                 String?
+  altPhone               String?
+  email                  String?
   /// How the person prefers to be contacted: PHONE | SMS | EMAIL | OTHER (null = not recorded).
   preferredContactMethod String?
   /// How to get in, parking, pets. Shown to carers on their own visits.
-  accessNotes           String?
+  accessNotes            String?
   /// AES-256-GCM ciphertext. Revealed only with serviceUser.keysafe, and every reveal is audited.
-  keySafeCipher         String?
-  keySafeUpdatedAt      DateTime?
-  carerGenderPreference GenderPreference  @default(ANY)
-  firstLanguage         String?
-  communicationNeeds    String?
-  carePreferences       String?
-  riskLevel             RiskLevel?
-  riskSummary           String?
-  version               Int               @default(1)
-  createdById           String?
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  keySafeCipher          String?
+  keySafeUpdatedAt       DateTime?
+  carerGenderPreference  GenderPreference  @default(ANY)
+  firstLanguage          String?
+  communicationNeeds     String?
+  carePreferences        String?
+  riskLevel              RiskLevel?
+  riskSummary            String?
+  version                Int               @default(1)
+  createdById            String?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
-  contacts         ServiceUserContact[]
+  contacts             ServiceUserContact[]
   coverContactAttempts CoverContactAttempt[]
-  absences         ServiceUserAbsence[]
-  packages         CarePackage[]
-  carePlans        CarePlan[]
-  risks            RiskAssessment[]
-  incidents        Incident[]
-  templates        VisitTemplate[]
-  visits           Visit[]
-  carerPreferences CarerPreference[]
-  medications      Medication[]
+  absences             ServiceUserAbsence[]
+  packages             CarePackage[]
+  carePlans            CarePlan[]
+  risks                RiskAssessment[]
+  incidents            Incident[]
+  templates            VisitTemplate[]
+  visits               Visit[]
+  carerPreferences     CarerPreference[]
+  medications          Medication[]
 
   @@unique([organisationId, reference])
   @@unique([id, organisationId])
@@ -1621,32 +1621,32 @@ enum ContactKind {
 }
 
 model ServiceUserContact {
-  id                String      @id @default(cuid())
-  organisationId    String
-  serviceUserId     String
-  serviceUser       ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
-  kind              ContactKind
-  name              String
-  relationship      String?
-  phone             String?
-  email             String?
-  address           String?
-  isEmergency       Boolean     @default(false)
-  canReceiveUpdates Boolean     @default(false)
+  id                     String                @id @default(cuid())
+  organisationId         String
+  serviceUserId          String
+  serviceUser            ServiceUser           @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  kind                   ContactKind
+  name                   String
+  relationship           String?
+  phone                  String?
+  email                  String?
+  address                String?
+  isEmergency            Boolean               @default(false)
+  canReceiveUpdates      Boolean               @default(false)
   /// The person the office calls first. Recorded by hand; never inferred from being next of kin.
-  isPrimary         Boolean     @default(false)
+  isPrimary              Boolean               @default(false)
   /// A second number for this contact, when recorded.
-  altPhone          String?
+  altPhone               String?
   /// PHONE | SMS | EMAIL | OTHER (null = not recorded).
   preferredContactMethod String?
   /// Recorded authority to act for the service user: LPA_HEALTH | LPA_FINANCE | DEPUTY | OTHER (null = none recorded).
   /// Never set automatically: being next of kin gives no authority.
-  authorityType     String?
+  authorityType          String?
   /// What the recorded authority covers, in the office's words.
-  authorityScope    String?
-  notes             String?
-  createdAt         DateTime    @default(now())
-  coverContactAttempts CoverContactAttempt[]
+  authorityScope         String?
+  notes                  String?
+  createdAt              DateTime              @default(now())
+  coverContactAttempts   CoverContactAttempt[]
 
   @@index([serviceUserId])
 }
@@ -1941,41 +1941,43 @@ enum RotaType {
 
 /// A recurring visit: which cycle weeks and weekdays, when, how long, how many carers.
 model VisitTemplate {
-  id                 String         @id @default(cuid())
-  organisationId     String
-  serviceUserId      String
-  serviceUser        ServiceUser    @relation(fields: [serviceUserId], references: [id])
-  callTypeId         String
-  callType           CallType       @relation(fields: [callTypeId], references: [id])
-  areaId             String?
+  id                     String         @id @default(cuid())
+  organisationId         String
+  serviceUserId          String
+  serviceUser            ServiceUser    @relation(fields: [serviceUserId], references: [id])
+  callTypeId             String
+  callType               CallType       @relation(fields: [callTypeId], references: [id])
+  areaId                 String?
   /// Cycle weeks 1–4 this visit happens in.
-  cycleWeeks         Int[]
+  cycleWeeks             Int[]
   /// ISO weekdays 1 (Monday) … 7 (Sunday).
-  weekdays           Int[]
+  weekdays               Int[]
   /// Local (Europe/London) wall-clock start, minutes after midnight.
-  startMinute        Int
-  durationMin        Int
-  carersRequired     Int            @default(1)
-  preferredStaff1Id  String?
-  preferredStaff2Id  String?
-  shadowStaffId      String?
-  timeLocked         Boolean        @default(false)
-  medicationRequired Boolean        @default(false)
-  alertOnLate        Boolean        @default(true)
-  rotaType           RotaType       @default(NORMAL)
-  runRouteTemplateId String?
+  startMinute            Int
+  durationMin            Int
+  carersRequired         Int            @default(1)
+  preferredStaff1Id      String?
+  preferredStaff2Id      String?
+  /// Preferred carers for places 3 and above, in place order ("" = no preference for that place).
+  extraPreferredStaffIds String[]       @default([])
+  shadowStaffId          String?
+  timeLocked             Boolean        @default(false)
+  medicationRequired     Boolean        @default(false)
+  alertOnLate            Boolean        @default(true)
+  rotaType               RotaType       @default(NORMAL)
+  runRouteTemplateId     String?
   /// Position on its template run route, carried into each built visit.
-  routeOrder         Int?
-  enabled            Boolean        @default(true)
-  effectiveFrom      DateTime       @db.Date
-  effectiveTo        DateTime?      @db.Date
-  notes              String?
-  version            Int            @default(1)
-  createdById        String
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  tasks              TemplateTask[]
-  visits             Visit[]
+  routeOrder             Int?
+  enabled                Boolean        @default(true)
+  effectiveFrom          DateTime       @db.Date
+  effectiveTo            DateTime?      @db.Date
+  notes                  String?
+  version                Int            @default(1)
+  createdById            String
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  tasks                  TemplateTask[]
+  visits                 Visit[]
 
   @@index([organisationId, serviceUserId])
   @@index([organisationId, enabled])
@@ -2100,10 +2102,12 @@ model Visit {
   @@index([recoveryOfId])
 }
 
+/// PRIMARY is carer place 1, SECOND place 2, ADDITIONAL places 3 and above (numbered by VisitAssignment.position).
 enum AssignmentSlot {
   PRIMARY
   SECOND
   SHADOW
+  ADDITIONAL
 }
 
 /// A carer in one slot of a visit. Removing a carer keeps the row (removedAt) for history.
@@ -2113,6 +2117,8 @@ model VisitAssignment {
   visitId          String
   visit            Visit          @relation(fields: [visitId], references: [id], onDelete: Cascade)
   slot             AssignmentSlot
+  /// The carer place number: 1 (PRIMARY), 2 (SECOND), 3+ (ADDITIONAL), 0 for a shadow. Kept in step with slot by a database trigger.
+  position         Int            @default(0)
   staffId          String
   staff            StaffMember    @relation(fields: [staffId], references: [id])
   /// Copied from the visit by a database trigger; used by the no-double-booking exclusion constraint.
@@ -3042,18 +3048,18 @@ enum MissedCallStage {
 
 /// The investigation of one missed call. Opened automatically when a visit is marked missed, one per visit, never deleted.
 model MissedCallCase {
-  id                    String              @id @default(cuid())
+  id                    String                @id @default(cuid())
   organisationId        String
-  visitId               String              @unique
-  visit                 Visit               @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visitId               String                @unique
+  visit                 Visit                 @relation(fields: [visitId], references: [id], onDelete: Cascade)
   /// Snapshot at detection: who was booked (null = nobody), for whom, where and when. Kept even if the rota changes later.
   staffId               String?
   serviceUserId         String
   areaId                String?
   callTypeId            String
   scheduledStart        DateTime
-  detectedAt            DateTime            @default(now())
-  stage                 MissedCallStage     @default(NEW)
+  detectedAt            DateTime              @default(now())
+  stage                 MissedCallStage       @default(NEW)
   deadline              DateTime?
   coordinatorId         String?
   coordinatorAssignedAt DateTime?
@@ -3068,7 +3074,7 @@ model MissedCallCase {
   replacementArrivedAt  DateTime?
   clientInformed        String?
   replacementNote       String?
-  replacementWarnings   String[]            @default([])
+  replacementWarnings   String[]              @default([])
   replacementById       String?
   replacementAt         DateTime?
   escalatedAt           DateTime?
@@ -3089,9 +3095,9 @@ model MissedCallCase {
   suInformedNote        String?
   suInformedById        String?
   suInformedAt          DateTime?
-  lockVersion           Int                 @default(1)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  lockVersion           Int                   @default(1)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
   actions               MissedCallAction[]
   comments              MissedCallComment[]
   covers                MissedCallCover[]
@@ -3191,6 +3197,8 @@ model RotaPlanChange {
   visitId          String
   kind             RotaPlanChangeKind
   slot             AssignmentSlot?
+  /// The carer place number for ADDITIONAL slots (3+).
+  slotPosition     Int?
   staffId          String?
   /// For RETIME: the visit's time when the plan was made and the proposed time.
   fromStart        DateTime?
@@ -3216,15 +3224,17 @@ model RotaPlanChange {
 /// what the eligibility service said at confirmation, which warnings the coordinator accepted and why, and whether the
 /// carer was told in-app. Append-only; the visit and its assignment remain the authoritative booking.
 model MissedCallCover {
-  id                String         @id @default(cuid())
+  id                String                @id @default(cuid())
   organisationId    String
   caseId            String
-  case              MissedCallCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  case              MissedCallCase        @relation(fields: [caseId], references: [id], onDelete: Cascade)
   /// RECOVERY_VISIT: a new linked visit, because the original visit window has passed.
-  method            String         @default("RECOVERY_VISIT")
+  method            String                @default("RECOVERY_VISIT")
   recoveryVisitId   String
-  recoveryVisit     Visit          @relation(fields: [recoveryVisitId], references: [id], onDelete: Cascade)
+  recoveryVisit     Visit                 @relation(fields: [recoveryVisitId], references: [id], onDelete: Cascade)
   slot              AssignmentSlot
+  /// The carer place number for ADDITIONAL slots (3+).
+  slotPosition      Int?
   assignmentId      String
   /// Who was booked on the missed visit (snapshot; null = nobody).
   originalStaffId   String?
@@ -3235,14 +3245,14 @@ model MissedCallCover {
   source            String
   recommendedRank   Int?
   /// The top three carers shown when cover was confirmed.
-  suggestedStaffIds String[]       @default([])
+  suggestedStaffIds String[]              @default([])
   eligibility       String
   /// The safety checks as the server judged them at confirmation: [{label, state, text}].
-  checks            Json           @default("[]")
-  warningsAccepted  String[]       @default([])
+  checks            Json                  @default("[]")
+  warningsAccepted  String[]              @default([])
   warningReason     String?
   confirmedById     String
-  confirmedAt       DateTime       @default(now())
+  confirmedAt       DateTime              @default(now())
   /// IN_APP: an in-app notification was created for the carer's linked sign-in. NO_SIGN_IN: the carer has no linked sign-in.
   notifyStatus      String
   notificationId    String?
@@ -3481,18 +3491,18 @@ model CandidateInterview {
 
 /// When recruitment reminders appear for the assigned recruiter (in the app only; nothing is sent to candidates).
 model RecruitmentSettings {
-  organisationId             String   @id
-  remindersOn                Boolean  @default(true)
-  incompleteAfterDays        Int      @default(3)
-  screeningAfterDays         Int      @default(3)
-  interviewConfirmHours      Int      @default(48)
-  referencesAfterDays        Int      @default(7)
-  onboardingDocsAfterDays    Int      @default(5)
-  trainingAfterDays          Int      @default(7)
+  organisationId          String   @id
+  remindersOn             Boolean  @default(true)
+  incompleteAfterDays     Int      @default(3)
+  screeningAfterDays      Int      @default(3)
+  interviewConfirmHours   Int      @default(48)
+  referencesAfterDays     Int      @default(7)
+  onboardingDocsAfterDays Int      @default(5)
+  trainingAfterDays       Int      @default(7)
   /// How long an unsuccessful or withdrawn application is kept before personal details may be removed.
-  retentionMonths            Int      @default(6)
-  updatedById                String?
-  updatedAt                  DateTime @updatedAt
+  retentionMonths         Int      @default(6)
+  updatedById             String?
+  updatedAt               DateTime @updatedAt
 }
 
 // ── Care Summary (Care Plans → Care Summary) ───────────────────────────────

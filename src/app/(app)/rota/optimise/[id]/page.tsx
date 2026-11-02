@@ -1,3 +1,4 @@
+import { placeKey, placeLabel } from "@/lib/carer-places";
 import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { NotFoundError } from "@/lib/errors";
@@ -13,7 +14,7 @@ import { AreaDot } from "@/components/rota-ui";
 export const dynamic = "force-dynamic";
 
 const DECISION = { PENDING: ["To decide", "slate"], ACCEPTED: ["Accepted", "teal"], REJECTED: ["Rejected", "rose"], APPLIED: ["Applied", "green"], FAILED: ["Not applied", "rose"] } as const;
-const SLOT = { PRIMARY: "Lead carer", SECOND: "Second carer", SHADOW: "Shadow" } as const;
+const SLOT = (k: string) => (k === "PRIMARY" ? "Lead carer" : k === "SECOND" ? "Second carer" : placeLabel(k));
 const day = (iso: string) => fmtLondonDate(iso, { weekday: "long", day: "numeric", month: "long" });
 
 export default async function PlanPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -154,12 +155,12 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
                         ) : (
                           <>
                             <p className="mt-1 text-[14px]">
-                              <strong className="font-medium">{SLOT[c.slot ?? "PRIMARY"]}: {c.staffName}</strong>
+                              <strong className="font-medium">{SLOT(placeKey({ slot: c.slot ?? "PRIMARY", position: c.slotPosition }))}: {c.staffName}</strong>
                               {c.score !== null ? <span className="text-slate-600"> · match {c.score}</span> : null}
                               {c.eligibility === "REQUIRES_REVIEW" ? <Badge tone="amber">Allowed with warnings</Badge> : null}
                             </p>
                             {c.warnings.length ? <p className="mt-1 text-[13px] text-[#8a5a00]">Accepting confirms you have read: {c.warnings.join("; ")}</p> : null}
-                            {editable ? <Link href={`/rota/unassigned?when=custom&from=${londonDate(c.visit.scheduledStart)}&to=${londonDate(c.visit.scheduledStart)}&cover=${c.visitId}&slot=${c.slot ?? "PRIMARY"}&ctab=manual`} className="mt-1 inline-block text-[13px] font-medium">Choose someone else (Manual)</Link> : null}
+                            {editable ? <Link href={`/rota/unassigned?when=custom&from=${londonDate(c.visit.scheduledStart)}&to=${londonDate(c.visit.scheduledStart)}&cover=${c.visitId}&slot=${placeKey({ slot: c.slot ?? "PRIMARY", position: c.slotPosition })}&ctab=manual`} className="mt-1 inline-block text-[13px] font-medium">Choose someone else (Manual)</Link> : null}
                             <details className="mt-1 text-[13px] text-slate-600">
                               <summary className="cursor-pointer">Why this carer</summary>
                               <ul className="mt-1 list-disc pl-5">{c.reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>
@@ -191,7 +192,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
             {summary.unfilled.map((u) => (
               <li key={`${u.visitId}:${u.slot}`} className="py-2.5 text-[14px]">
                 <span className="tabular-nums text-slate-600">{fmtLondonDate(londonDate(new Date(u.start)), { weekday: "short", day: "numeric", month: "short" })} {londonTime(new Date(u.start))}</span>{" "}
-                <Link href={`/rota/visits/${u.visitId}`} className="row-title">{u.label}</Link> <span className="text-slate-600">· {SLOT[u.slot as keyof typeof SLOT] ?? u.slot}</span>
+                <Link href={`/rota/visits/${u.visitId}`} className="row-title">{u.label}</Link> <span className="text-slate-600">· {SLOT(u.slot)}</span>
                 <p className="text-[13px] text-[#8a5a00]">{u.reason}</p>
               </li>
             ))}

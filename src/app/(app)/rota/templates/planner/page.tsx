@@ -1,6 +1,7 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { hhmm, WEEKDAYS } from "@/lib/london";
+import { placeOf, preferredOf, type PlaceKey } from "@/lib/carer-places";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaLookups, suName } from "@/server/rota/queries";
@@ -30,9 +31,9 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   const byStaff = new Map<string, { cells: PlannerChip[][]; minutes: number }>();
   const empty = blank();
   for (const t of templates) {
-    const label = `${suName(t.serviceUser)}${t.carersRequired > 1 ? " (2)" : ""}`;
+    const label = `${suName(t.serviceUser)}${t.carersRequired > 1 ? ` (${t.carersRequired})` : ""}`;
     const title = `${t.callType.name} ${hhmm(t.startMinute)} for ${t.durationMin} minutes`;
-    const slots: ["PRIMARY" | "SECOND" | "SHADOW", string | null][] = [["PRIMARY", t.preferredStaff1Id], ...(t.carersRequired > 1 ? [["SECOND", t.preferredStaff2Id] as ["SECOND", string | null]] : []), ...(t.shadowStaffId ? [["SHADOW", t.shadowStaffId] as ["SHADOW", string]] : [])];
+    const slots: [PlaceKey, string | null][] = [...preferredOf(t).map((id, i): [PlaceKey, string | null] => [placeOf(i + 1), id]), ...(t.shadowStaffId ? [["SHADOW", t.shadowStaffId] as [PlaceKey, string]] : [])];
     for (const day of t.weekdays) {
       for (const [slot, staffId] of slots) {
         const chip: PlannerChip = { visitId: t.id, slot, lockVersion: t.version, href: `/rota/templates/${t.id}`, time: hhmm(t.startMinute), label: slot === "SHADOW" ? `${label} (shadow)` : label, title, tone: staffId ? "ok" : "empty", movable: true };

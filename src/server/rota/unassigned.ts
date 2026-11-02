@@ -1,4 +1,5 @@
-import type { AssignmentSlot, Prisma, RiskLevel, VisitStatus } from "@prisma/client";
+import type { Prisma, RiskLevel, VisitStatus } from "@prisma/client";
+import { isCarerPlace, openPlaces, placeKey, placeLabel, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { addDays, daysBetween, isIsoDate, londonDate } from "@/lib/london";
@@ -37,12 +38,13 @@ export function priorityOf(v: { status: VisitStatus; scheduledStart: Date; riskL
 }
 
 /** Why a place is empty, from the visit's own records. A removal keeps its stated reason. */
-export function allocationReason(v: { carersRequired: number; rotaBuildId: string | null; templateId: string | null }, live: { slot: string }[], removed: { slot: string; removeReason: string | null; removedAt: Date | null; staffName: string }[]) {
-  const filled = new Set(live.filter((a) => a.slot !== "SHADOW").map((a) => a.slot));
-  const open: AssignmentSlot[] = (["PRIMARY", "SECOND"] as AssignmentSlot[]).slice(0, Math.min(2, v.carersRequired)).filter((s) => !filled.has(s));
-  const lastRemoved = removed.filter((r) => open.includes(r.slot as AssignmentSlot) && r.removedAt).sort((a, b) => b.removedAt!.getTime() - a.removedAt!.getTime())[0];
+export function allocationReason(v: { carersRequired: number; rotaBuildId: string | null; templateId: string | null }, live: { slot: string; position?: number | null }[], removed: { slot: string; position?: number | null; removeReason: string | null; removedAt: Date | null; staffName: string }[]) {
+  const filled = live.filter(isCarerPlace).length;
+  const open = openPlaces(v.carersRequired, live);
+  const lastRemoved = removed.filter((r) => open.includes(placeKey(r)) && r.removedAt).sort((a, b) => b.removedAt!.getTime() - a.removedAt!.getTime())[0];
   if (lastRemoved) return `${lastRemoved.staffName} removed: ${lastRemoved.removeReason ?? "reason not recorded"}`;
-  if (filled.size && v.carersRequired > 1) return "Second carer needed (double-up)";
+  if (filled && v.carersRequired === 2) return "Second carer needed (double-up)";
+  if (filled && v.carersRequired > 2) return `${open.length} of ${v.carersRequired} carers still needed (${open.map(placeLabel).join(", ")})`;
   if (v.rotaBuildId || v.templateId) return v.carersRequired > 1 ? "No carers when the rota was built" : "No carer when the rota was built";
   return "New visit, not yet allocated";
 }
@@ -94,7 +96,8 @@ export interface UnassignedItem {
   priority: Priority;
   why: string;
   reason: string;
-  openSlots: AssignmentSlot[];
+  /** The empty carer places, in order. */
+  openSlots: PlaceKey[];
 }
 
 const SORTS: Record<UnassignedFilters["sort"], (a: UnassignedItem, b: UnassignedItem) => number> = {
@@ -116,7 +119,7 @@ async function shortVisitIds(organisationId: string, from: string, to: string, n
       AND v.date >= ${from}::date AND v.date <= ${to}::date
       AND v.status IN ('SCHEDULED', 'MISSED')
       AND v."scheduledEnd" > ${now}
-      AND (SELECT count(*) FROM "VisitAssignment" a WHERE a."visitId" = v.id AND a."removedAt" IS NULL AND a.slot <> 'SHADOW') < LEAST(v."carersRequired", 2)
+      AND (SELECT count(*) FROM "VisitAssignment" a WHERE a."visitId" = v.id AND a."removedAt" IS NULL AND a.slot <> 'SHADOW') < v."carersRequired"
     ORDER BY v."scheduledStart", v.reference
     LIMIT ${MAX_ROWS + 1}`;
   return rows.map((r) => r.id);
@@ -135,25 +138,24 @@ export async function unassignedBoard(ctx: Ctx, f: UnassignedFilters, now = new 
   if (f.q) and.push({ OR: [{ reference: { contains: f.q, mode: "insensitive" } }, { serviceUser: { firstName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { lastName: { contains: f.q, mode: "insensitive" } } }, { serviceUser: { reference: { contains: f.q, mode: "insensitive" } } }] });
   const visits = ids.length ? await db.visit.findMany({ where: { AND: and }, include: visitListInclude, orderBy: [{ scheduledStart: "asc" }, { reference: "asc" }] }) : [];
   const removed = visits.length
-    ? await db.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: { not: null }, slot: { not: "SHADOW" } }, select: { visitId: true, slot: true, removeReason: true, removedAt: true, staff: { select: { displayName: true } } } })
+    ? await db.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: { not: null }, slot: { not: "SHADOW" } }, select: { visitId: true, slot: true, position: true, removeReason: true, removedAt: true, staff: { select: { displayName: true } } } })
     : [];
   let items: UnassignedItem[] = visits.map((v) => {
     const row: VisitRow = { ...v, flags: deriveFlags(v, settings, now) };
     const p = priorityOf({ status: v.status, scheduledStart: v.scheduledStart, riskLevel: v.serviceUser.riskLevel }, now);
-    const filled = new Set(v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.slot));
-    const openSlots = (["PRIMARY", "SECOND"] as AssignmentSlot[]).slice(0, Math.min(2, v.carersRequired)).filter((s) => !filled.has(s));
+    const openSlots = openPlaces(v.carersRequired, v.assignments);
     const reason = allocationReason(v, v.assignments, removed.filter((r) => r.visitId === v.id).map((r) => ({ ...r, staffName: r.staff.displayName })));
     return { visit: row, priority: p.priority, why: p.why, reason, openSlots };
   });
   if (f.priority) items = items.filter((i) => i.priority === f.priority);
-  if (f.staffing) items = items.filter((i) => (f.staffing === "none" ? i.openSlots.length === Math.min(2, i.visit.carersRequired) : i.openSlots.length < Math.min(2, i.visit.carersRequired)));
+  if (f.staffing) items = items.filter((i) => (f.staffing === "none" ? i.openSlots.length === i.visit.carersRequired : i.openSlots.length < i.visit.carersRequired));
   if (f.carers) items = items.filter((i) => (f.carers === "double" ? i.visit.carersRequired > 1 : i.visit.carersRequired === 1));
   const dir = f.dir === "desc" ? -1 : 1;
   items.sort((a, b) => dir * SORTS[f.sort](a, b) || a.visit.scheduledStart.getTime() - b.visit.scheduledStart.getTime() || a.visit.reference.localeCompare(b.visit.reference));
   const summary = {
     visits: items.length,
     urgent: items.filter((i) => i.priority === "URGENT").length,
-    partial: items.filter((i) => i.openSlots.length < Math.min(2, i.visit.carersRequired)).length,
+    partial: items.filter((i) => i.openSlots.length < i.visit.carersRequired).length,
     slots: items.reduce((n, i) => n + i.openSlots.length, 0),
   };
   const pages = Math.max(1, Math.ceil(items.length / f.per));
