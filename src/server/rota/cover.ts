@@ -1,4 +1,5 @@
-import type { AbsenceKind, AssignmentSlot } from "@prisma/client";
+import type { AbsenceKind } from "@prisma/client";
+import { placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { addDays, isIsoDate, londonDate, londonToUtc } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
@@ -24,7 +25,8 @@ export interface CoverFilters {
 
 export interface CoverItem {
   visit: VisitRow;
-  slot: AssignmentSlot;
+  /** "PRIMARY" (carer 1), "SECOND" (carer 2), "C3" … */
+  slot: PlaceKey;
   staffId: string;
   staffName: string;
   /** Why the booking needs cover: the absence, or the HR change recorded on the booking. */
@@ -70,7 +72,7 @@ export async function coverBoard(ctx: Ctx, f: CoverFilters, now = new Date()) {
       OR: [{ staffId: { in: absentIds } }, ...(kind ? [] : [{ reviewReason: { not: null } }])],
       visit: { AND: [visitWhere(scope)], status: "SCHEDULED", ...(area ? { areaId: area } : {}) },
     },
-    select: { visitId: true, slot: true, staffId: true, startsAt: true, endsAt: true, reviewReason: true, staff: { select: { displayName: true } } },
+    select: { visitId: true, slot: true, position: true, staffId: true, startsAt: true, endsAt: true, reviewReason: true, staff: { select: { displayName: true } } },
     orderBy: { startsAt: "asc" },
   });
   const settings = await rotaSettings(db, org);
@@ -86,9 +88,9 @@ export async function coverBoard(ctx: Ctx, f: CoverFilters, now = new Date()) {
     const abs = absences.find((a) => a.staffId === h.staffId && a.startsAt < h.endsAt && a.endsAt > h.startsAt);
     if (abs) {
       const label = `${KIND_LABEL[abs.kind].toLowerCase()}${abs.status === "REQUESTED" ? " (requested, not yet approved)" : ""}`;
-      byAbsence.set(abs.id, [...(byAbsence.get(abs.id) ?? []), { visit, slot: h.slot, staffId: h.staffId, staffName: h.staff.displayName, reason: `${h.staff.displayName} is on ${label}` }]);
+      byAbsence.set(abs.id, [...(byAbsence.get(abs.id) ?? []), { visit, slot: placeKey(h), staffId: h.staffId, staffName: h.staff.displayName, reason: `${h.staff.displayName} is on ${label}` }]);
     } else if (h.reviewReason) {
-      flagged.push({ visit, slot: h.slot, staffId: h.staffId, staffName: h.staff.displayName, reason: h.reviewReason });
+      flagged.push({ visit, slot: placeKey(h), staffId: h.staffId, staffName: h.staff.displayName, reason: h.reviewReason });
     }
   }
 

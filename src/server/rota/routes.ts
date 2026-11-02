@@ -144,7 +144,7 @@ export async function getTemplateRoute(ctx: Ctx, id: string) {
   const r = await templateInScope(scope, id);
   const [templates, candidates] = await Promise.all([
     db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: r.id }, include: { serviceUser: suSelect, callType: { select: { name: true } } }, orderBy: [{ routeOrder: { sort: "asc", nulls: "last" } }, { startMinute: "asc" }] }),
-    db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: null, enabled: true, AND: [templateScopeWhere(scope), r.staffId ? { OR: [{ preferredStaff1Id: r.staffId }, { preferredStaff2Id: r.staffId }] } : r.areaId ? { areaId: r.areaId } : {}] }, include: { serviceUser: suSelect }, orderBy: { startMinute: "asc" }, take: 300 }),
+    db.visitTemplate.findMany({ where: { organisationId: scope.organisationId, runRouteTemplateId: null, enabled: true, AND: [templateScopeWhere(scope), r.staffId ? { OR: [{ preferredStaff1Id: r.staffId }, { preferredStaff2Id: r.staffId }, { extraPreferredStaffIds: { has: r.staffId } }] } : r.areaId ? { areaId: r.areaId } : {}] }, include: { serviceUser: suSelect }, orderBy: { startMinute: "asc" }, take: 300 }),
   ]);
   const owner = r.staffId ? (await db.staffMember.findUnique({ where: { id: r.staffId }, select: { displayName: true } }))?.displayName : r.areaId ? (await db.area.findUnique({ where: { id: r.areaId }, select: { name: true } }))?.name : null;
   const others = [];

@@ -208,7 +208,7 @@ export function evaluate(settings: RotaSettings, facts: Facts, input: Eligibilit
   }
 
   // 12. Double-up: one person cannot fill two slots.
-  if (opts.otherSlotStaffIds?.includes(s.id)) out.blocking.push({ code: "DOUBLE_UP_SAME", message: "Already in the other slot of this double-up" });
+  if (opts.otherSlotStaffIds?.includes(s.id)) out.blocking.push({ code: "DOUBLE_UP_SAME", message: "Already booked in another carer place on this visit" });
 
   // 13. Areas.
   if (input.areaId && s.areas.length && !s.areas.some((a) => a.areaId === input.areaId)) out.warnings.push({ code: "AREA", message: "Does not usually work in this area" });

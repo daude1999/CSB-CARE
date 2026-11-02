@@ -11,7 +11,7 @@ const NOW = londonToUtc("2026-11-03", 10 * 60);
 const MIN = 60_000;
 type Rv = CoverCase["covers"][number]["recoveryVisit"];
 const rv = (status: Rv["status"], booked: number, required = 1): { recoveryVisit: Rv } => ({
-  recoveryVisit: { id: "rv", reference: "V-1", status, date: new Date("2026-11-03"), scheduledStart: new Date(NOW.getTime() + 60 * MIN), scheduledEnd: new Date(NOW.getTime() + 90 * MIN), carersRequired: required, actualStart: null, actualEnd: null, lockVersion: 1, assignments: Array.from({ length: booked }, (_, i) => ({ id: `a${i}`, slot: i ? "SECOND" : "PRIMARY", staffId: `s${i}`, acknowledgedAt: null, staff: { displayName: `S${i}` } })) },
+  recoveryVisit: { id: "rv", reference: "V-1", status, date: new Date("2026-11-03"), scheduledStart: new Date(NOW.getTime() + 60 * MIN), scheduledEnd: new Date(NOW.getTime() + 90 * MIN), carersRequired: required, actualStart: null, actualEnd: null, lockVersion: 1, assignments: Array.from({ length: booked }, (_, i) => ({ id: `a${i}`, slot: i ? "SECOND" : "PRIMARY", position: i + 1, staffId: `s${i}`, acknowledgedAt: null, staff: { displayName: `S${i}` } })) },
 });
 const base = { stage: "NEW" as const, replacementType: null, scheduledStart: new Date(NOW.getTime() - 60 * MIN), visit: { status: "MISSED" as const, carersRequired: 1, actualStart: null }, covers: [] as { recoveryVisit: Rv }[] };
 

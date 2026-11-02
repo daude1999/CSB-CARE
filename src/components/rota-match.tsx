@@ -1,4 +1,4 @@
-import type { AssignmentSlot } from "@prisma/client";
+import type { PlaceKey } from "@/lib/carer-places";
 import { assignCarerAction } from "@/app/rota-actions";
 import type { Candidate } from "@/server/rota/queries";
 
@@ -9,7 +9,7 @@ const STATE_LABEL = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_
  * slot is held). Only carers the eligibility service allows have a score; Assign still goes through the server's
  * assignment path, which checks everything again. Choosing a "check first" carer records that the warnings were read.
  */
-export function CarerRecommendations({ list, visitId, slot, lockVersion, back, replacing, take = 3 }: { list: Candidate[]; visitId: string; slot: AssignmentSlot; lockVersion: number; back: string; replacing: boolean; take?: number }) {
+export function CarerRecommendations({ list, visitId, slot, lockVersion, back, replacing, take = 3 }: { list: Candidate[]; visitId: string; slot: PlaceKey; lockVersion: number; back: string; replacing: boolean; take?: number }) {
   const top = list.filter((c) => c.score !== null).slice(0, take);
   if (!top.length) return null;
   return (

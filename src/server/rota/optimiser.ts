@@ -1,3 +1,4 @@
+import type { PlaceKey } from "@/lib/carer-places";
 /**
  * Generate & Optimise: the pure allocation core. It is deterministic (same input, same plan) and bounded (a fixed
  * budget of checks), and it only ever chooses among carers the eligibility service has already allowed. A suitability
@@ -43,7 +44,7 @@ export interface CandidateIn {
 
 export interface SlotIn {
   visitId: string;
-  slot: "PRIMARY" | "SECOND";
+  slot: PlaceKey;
   serviceUserId: string;
   label: string;
   start: Date;
@@ -77,7 +78,7 @@ export interface OptimiseInput {
 
 export interface Proposal {
   visitId: string;
-  slot: "PRIMARY" | "SECOND";
+  slot: PlaceKey;
   staffId: string;
   name: string;
   state: CandidateIn["state"];
@@ -93,7 +94,7 @@ export interface Proposal {
 
 export interface Unfilled {
   visitId: string;
-  slot: "PRIMARY" | "SECOND";
+  slot: PlaceKey;
   label: string;
   start: Date;
   reason: string;

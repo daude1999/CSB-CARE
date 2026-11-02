@@ -8,10 +8,11 @@ import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { AreaDot, CarerSlots, TimeSpan } from "@/components/rota-ui";
 import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
 import { RotaTabs } from "@/components/rota-nav";
+import { placeLabel } from "@/lib/carer-places";
 
 export const dynamic = "force-dynamic";
 
-const SLOT_LABEL = { PRIMARY: "Lead carer", SECOND: "Second carer", SHADOW: "Shadow" } as const;
+const SLOT_LABEL = (k: string) => (k === "PRIMARY" ? "Lead carer" : k === "SECOND" ? "Second carer" : placeLabel(k));
 
 function when(start: Date, end: Date) {
   const a = londonDate(start);
@@ -38,11 +39,11 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
           <TimeSpan start={v.scheduledStart} end={v.scheduledEnd} />
           <span className="text-slate-600">{fmtLondonDate(londonDate(v.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</span>
           <Link href={`/rota/visits/${v.id}`} className="row-title">{suName(v.serviceUser)}</Link>
-          <span className="text-slate-600">{v.callType.name}{v.carersRequired > 1 ? " · double-up" : ""}</span>
+          <span className="text-slate-600">{v.callType.name}{v.carersRequired === 2 ? " · double-up" : v.carersRequired > 2 ? ` · ${v.carersRequired} carers` : ""}</span>
           <AreaDot area={v.area} />
           <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} />
         </div>
-        <p className="mt-1 text-[13px] text-[#8a5a00]">{SLOT_LABEL[item.slot]}: {item.reason}</p>
+        <p className="mt-1 text-[13px] text-[#8a5a00]">{SLOT_LABEL(item.slot)}: {item.reason}</p>
         {replaceable ? (
           <Link href={coverHref("/rota/cover", Object.fromEntries(params), { id: v.id, mode: "replace", slot: item.slot })} scroll={false} className="mt-1.5 inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[13.5px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" aria-label={`Find replacement cover for ${item.staffName} on ${suName(v.serviceUser)}'s visit at ${londonTime(v.scheduledStart)}`}>Find replacement</Link>
         ) : null}

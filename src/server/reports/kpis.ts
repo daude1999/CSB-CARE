@@ -82,13 +82,13 @@ export const KPIS: KpiDef[] = [
     },
   },
   {
-    key: "double-ups-short", group: "staffing", name: "Double-up visits with one carer, next 7 days", perm: "rota.view", branchAware: true,
+    key: "double-ups-short", group: "staffing", name: "Multi-carer visits short of a carer, next 7 days", perm: "rota.view", branchAware: true,
     definition: "Scheduled visits in the next seven days that need two or more carers but have fewer booked (shadow carers not counted). Does not depend on the chosen dates.",
     compute: async (s) => {
       const today = londonDate();
       const visits = await db.visit.findMany({ where: { organisationId: s.organisationId, status: "SCHEDULED", carersRequired: { gte: 2 }, date: { gte: dbDate(today), lte: dbDate(addDays(today, 6)) }, assignments: { some: { removedAt: null } }, ...visitScope(s) }, select: { carersRequired: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { id: true } } } });
       const n = visits.filter((v) => v.assignments.length < v.carersRequired).length;
-      return { value: n, unit: "count", detail: "Need a second carer", href: `/rota/unassigned?when=custom&from=${today}&to=${addDays(today, 6)}&staffing=partial` };
+      return { value: n, unit: "count", detail: "Need another carer", href: `/rota/unassigned?when=custom&from=${today}&to=${addDays(today, 6)}&staffing=partial` };
     },
   },
   {

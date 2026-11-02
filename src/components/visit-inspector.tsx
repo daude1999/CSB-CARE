@@ -9,6 +9,7 @@ import { suName } from "@/server/rota/queries";
 import type { VisitInspectorData } from "@/server/rota/inspector";
 import { READINESS_LABEL } from "@/server/readiness";
 import { fmtDate } from "@/components/ui";
+import { MAX_CARERS, isCarerPlace, placeKey, placeLabel, placeNumber } from "@/lib/carer-places";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   SCHEDULED: { label: "Scheduled", cls: "bg-[#f3f0fc] text-[#5a3aa8] border-[#ddd6f6]" },
@@ -21,7 +22,6 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 const RISK: Record<string, { label: string; colour: string }> = { LOW: { label: "Low risk", colour: "#1f9d4c" }, MEDIUM: { label: "Medium risk", colour: "#e0a526" }, HIGH: { label: "High risk", colour: "#d9473f" } };
 const EVENT: Record<string, string> = { CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", STATUS: "Status changed", CLOCK: "Clock recorded", TASKS: "Tasks recorded" };
 const STATE_WORD = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
-const SLOT = { PRIMARY: "Carer 1", SECOND: "Carer 2", SHADOW: "Shadow" } as const;
 const TABS = [
   ["details", "Details"],
   ["notes", "Notes"],
@@ -73,7 +73,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
   const st = STATUS[v.status] ?? STATUS.SCHEDULED!;
   const date = fromDbDate(v.date);
   const planned = mins(v.scheduledStart, v.scheduledEnd);
-  const carers = live.filter((a) => a.slot !== "SHADOW");
+  const carers = live.filter(isCarerPlace).sort((a, b) => a.position - b.position);
   const shadow = live.find((a) => a.slot === "SHADOW");
   const acked = carers.length > 0 && carers.every((a) => a.acknowledgedAt);
   const risk = v.serviceUser.riskLevel ? RISK[v.serviceUser.riskLevel] : null;
@@ -87,19 +87,21 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
       <input type="hidden" name="lockVersion" value={v.lockVersion} />
     </>
   );
-  const openSlots = data.slots.filter((s) => !live.some((a) => a.slot === s));
+  const openSlots = data.slots.filter((s) => !live.some((a) => placeKey(a) === s));
+  // Lowering the number of carers is offered only while the last place is empty (nobody is ever taken off silently).
+  const lastPlaceEmpty = !carers.some((a) => placeNumber(placeKey(a)) === v.carersRequired);
   const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
   const done = v.tasks.filter((t) => t.outcomes[0]?.outcome === "DONE").length;
 
   const assignForm = (slot: (typeof data.slots)[number]) => {
     const list = candidates.find((c) => c.slot === slot)?.list ?? [];
-    const current = live.find((a) => a.slot === slot);
+    const current = live.find((a) => placeKey(a) === slot);
     return (
       <form key={slot} action={assignCarerAction} className="mb-3 space-y-1.5 last:mb-0">
         {hidden}
         <input type="hidden" name="slot" value={slot} />
         <label className="block">
-          <span className="text-[12.5px] text-slate-600">{SLOT[slot]}{current ? ` · now ${current.staff.displayName}` : " · open"}</span>
+          <span className="text-[12.5px] text-slate-600">{placeLabel(slot)}{current ? ` · now ${current.staff.displayName}` : " · open"}</span>
           <select name="staffId" required className="input py-1.5 text-[13.5px]">
             <option value="">{current ? "Replace with…" : "Choose a carer…"}</option>
             {list.map((c) => <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>{c.score !== null ? `${c.score} · ` : ""}{c.name} — {STATE_WORD[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}</option>)}
@@ -161,7 +163,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
                       {assignable ? (
                         <form action={unassignCarerAction} className="inline-flex">
                           {hidden}
-                          <input type="hidden" name="slot" value={a.slot} />
+                          <input type="hidden" name="slot" value={placeKey(a)} />
                           <button aria-label={`Remove ${a.staff.displayName} from this visit`} title="Remove from this visit" className="flex h-5 w-5 items-center justify-center rounded-full text-[#344054] hover:bg-white"><X size={12} weight="bold" aria-hidden /></button>
                         </form>
                       ) : <span className="w-1" />}
@@ -175,11 +177,11 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
                     {openSlots.map((s) => assignForm(s))}
                     <p className="mt-2 text-[12px] text-slate-500">Carers who are not eligible cannot be chosen. The check runs again when you save.</p>
                   </ActionPop>
-                ) : editable && v.carersRequired === 1 ? (
+                ) : editable && v.carersRequired < MAX_CARERS ? (
                   <form action={doubleUpAction} className="mt-2">
                     {hidden}
-                    <input type="hidden" name="carersRequired" value="2" />
-                    <button className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#5b2bb5] px-4 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title="Make this a double-up, then choose the second carer"><Plus size={16} weight="bold" aria-hidden />Add Carer</button>
+                    <input type="hidden" name="carersRequired" value={v.carersRequired + 1} />
+                    <button className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#5b2bb5] px-4 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title={v.carersRequired === 1 ? "Make this a double-up, then choose the second carer" : `Add a place for carer ${v.carersRequired + 1}, then choose the carer`}><Plus size={16} weight="bold" aria-hidden />Add Carer</button>
                   </form>
                 ) : null}
               </Row>
@@ -287,12 +289,12 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
           {editable && swaps.length ? (
             <ActionPop label="Swap shift" icon={<ArrowsLeftRight size={16} />} tone="link" className="[&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-[13px]">
               {swaps.map(({ slot, list }) => {
-                const current = live.find((a) => a.slot === slot);
+                const current = live.find((a) => placeKey(a) === slot);
                 return list.length ? (
                   <form key={slot} action={swapCarersAction} className="mb-3 space-y-1.5 last:mb-0">
                     {hidden}
                     <input type="hidden" name="slot" value={slot} />
-                    <label className="block"><span className="text-[12.5px] text-slate-600">Swap {current?.staff.displayName ?? SLOT[slot]} with</span>
+                    <label className="block"><span className="text-[12.5px] text-slate-600">Swap {current?.staff.displayName ?? placeLabel(slot)} with</span>
                       <select name="with" required className="input py-1.5 text-[13.5px]">
                         <option value="">Choose a visit…</option>
                         {list.map((c) => <option key={`${c.visitId}-${c.slot}`} value={`${c.visitId}|${c.slot}|${c.lockVersion}`}>{londonTime(c.start)}–{londonTime(c.end)} {c.serviceUser} · {c.carer}</option>)}
@@ -307,11 +309,11 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
               <p className="text-[12px] text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
             </ActionPop>
           ) : null}
-          {editable && v.carersRequired > 1 && carers.length < 2 ? (
+          {editable && v.carersRequired > 1 && carers.length < v.carersRequired && (v.carersRequired === 2 || lastPlaceEmpty) ? (
             <form action={doubleUpAction}>
               {hidden}
-              <input type="hidden" name="carersRequired" value="1" />
-              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title="Change this visit back to one carer">Make single</button>
+              <input type="hidden" name="carersRequired" value={v.carersRequired - 1} />
+              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title={v.carersRequired === 2 ? "Change this visit back to one carer" : `Remove the empty carer ${v.carersRequired} place`}>{v.carersRequired === 2 ? "Make single" : "Remove empty place"}</button>
             </form>
           ) : null}
           {editable ? (

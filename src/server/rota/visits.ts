@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import type { AssignmentSlot, Prisma, VisitStatus } from "@prisma/client";
+import type { Prisma, VisitStatus } from "@prisma/client";
+import { MAX_CARERS, parsePlace, placeData, placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -41,7 +42,15 @@ export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, vis
   if (end.getTime() - start.getTime() > 24 * 3600_000) throw new ValidationError("A visit lasts at most 24 hours");
   if (patch.callTypeId && !(await tx.callType.findFirst({ where: { id: patch.callTypeId, organisationId: scope.organisationId } }))) throw new NotFoundError("Call type");
   const live = await tx.visitAssignment.findMany({ where: { visitId, removedAt: null }, include: { staff: { select: { displayName: true } } } });
-  if (patch.carersRequired === 1 && live.some((a) => a.slot === "SECOND")) throw new ValidationError("Remove the second carer before making this a single-carer visit");
+  if (patch.carersRequired !== undefined) {
+    if (!Number.isInteger(patch.carersRequired) || patch.carersRequired < 1 || patch.carersRequired > MAX_CARERS) throw new ValidationError(`A visit needs 1 to ${MAX_CARERS} carers`);
+    // Lowering the number never removes anyone silently: the coordinator takes the carers off the higher places first.
+    const beyond = live.filter((a) => (placeNumber(placeKey(a)) ?? 0) > patch.carersRequired!).sort((a, b) => a.position - b.position);
+    if (beyond.length) {
+      const who = beyond.map((a) => `${a.staff.displayName} (${placeLabel(placeKey(a))})`).join(", ");
+      throw new ValidationError(patch.carersRequired === 1 && beyond.length === 1 && beyond[0]!.slot === "SECOND" ? "Remove the second carer before making this a single-carer visit" : `Remove ${who} before lowering this visit to ${patch.carersRequired} carer${patch.carersRequired === 1 ? "" : "s"}`);
+    }
+  }
   // One visit per template and day (a database rule that keeps rebuilds from duplicating). Moving a recurring visit onto
   // a day that already has its visit from the same template would break it, so say so instead of failing.
   const newDate = londonDate(start);
@@ -100,7 +109,7 @@ const newVisitSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose a date"),
   startMinute: z.coerce.number().int().min(0).max(1439),
   durationMin: z.coerce.number().int().min(5).max(1440),
-  carersRequired: z.coerce.number().int().min(1).max(2).default(1),
+  carersRequired: z.coerce.number({ invalid_type_error: "Enter how many carers are needed" }).int("Enter a whole number of carers").min(1, "A visit needs at least one carer").max(MAX_CARERS, `A visit can need at most ${MAX_CARERS} carers`).default(1),
   medicationRequired: z.boolean().default(false),
   timeLocked: z.boolean().default(false),
   notes: z.string().max(2000).optional(),
@@ -186,14 +195,18 @@ export async function reinstateVisit(ctx: Ctx, visitId: string, reason: string, 
   });
 }
 
-export async function setDoubleUp(ctx: Ctx, visitId: string, carersRequired: 1 | 2, lockVersion?: number) {
+/** Changes how many carers a visit needs. Carers already booked stay; lowering is refused while a higher place is filled. */
+export async function setCarersRequired(ctx: Ctx, visitId: string, carersRequired: number, lockVersion?: number) {
   const scope = await rotaScope(ctx, "rota.edit");
   return db.$transaction((tx) => updateVisitInTx(tx, scope, ctx.userId, visitId, { carersRequired }, { source: "manual", lockVersion }));
 }
 
+/** Older name, kept for callers that only switch between one and two carers. */
+export const setDoubleUp = setCarersRequired;
+
 const moveSchema = z.object({
   visitId: z.string().min(1),
-  slot: z.enum(["PRIMARY", "SECOND", "SHADOW"]),
+  slot: z.string().transform((v, c) => parsePlace(v) ?? (c.addIssue({ code: "custom", message: "Choose a carer place" }), z.NEVER)),
   lockVersion: z.number().int().nonnegative().optional(),
   toDate: z.string().refine(isIsoDate, "Choose the day to move the visit to"),
   /** The carer who should do the visit after the move; null leaves the slot empty. */
@@ -221,7 +234,7 @@ export async function moveVisit(ctx: Ctx, raw: z.input<typeof moveSchema> | Reco
         const fromDate = londonDate(v.scheduledStart);
         if (d.toDate !== fromDate && v.timeLocked) throw new ValidationError("This visit's time is locked. Unlock it before moving it to another day.");
         if (d.toDate !== fromDate && londonToUtc(d.toDate, londonMinute(v.scheduledStart)) < new Date()) throw new ValidationError("A visit cannot be moved into the past");
-        const current = await tx.visitAssignment.findFirst({ where: { visitId: v.id, slot: d.slot, removedAt: null } });
+        const current = await tx.visitAssignment.findFirst({ where: { visitId: v.id, ...placeData(d.slot), removedAt: null } });
         if (current && current.staffId !== d.staffId) await unassignInTx(tx, scope, ctx.userId, { visitId: v.id, slot: d.slot, reason: "Moved in the planner" });
         if (d.toDate !== fromDate) {
           const start = londonToUtc(d.toDate, londonMinute(v.scheduledStart));
@@ -239,8 +252,8 @@ export async function moveVisit(ctx: Ctx, raw: z.input<typeof moveSchema> | Reco
 }
 
 export type BulkAction =
-  | { kind: "assign"; staffId: string; slot: AssignmentSlot; acceptWarnings?: boolean }
-  | { kind: "unassign"; slot: AssignmentSlot; reason: string }
+  | { kind: "assign"; staffId: string; slot: PlaceKey; acceptWarnings?: boolean }
+  | { kind: "unassign"; slot: PlaceKey; reason: string }
   | { kind: "cancel"; reason: string; charge: boolean }
   | { kind: "nudge"; minutes: number }
   | { kind: "lock"; locked: boolean }
@@ -250,7 +263,7 @@ export type BulkAction =
   | { kind: "editDuration"; minutes: number }
   | { kind: "editService"; callTypeId: string }
   | { kind: "alert"; on: boolean }
-  | { kind: "doubleUp"; carers: 1 | 2 };
+  | { kind: "doubleUp"; carers: number };
 
 export interface BulkResult {
   visitId: string;
@@ -270,6 +283,7 @@ export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkActio
   if (action.kind === "nudge" && (!Number.isInteger(action.minutes) || action.minutes === 0 || Math.abs(action.minutes) > 240)) throw new ValidationError("Move times by 1 to 240 minutes");
   if (action.kind === "editTime" && (!Number.isInteger(action.startMinute) || action.startMinute < 0 || action.startMinute > 1439)) throw new ValidationError("Enter a start time");
   if (action.kind === "editDuration" && (!Number.isInteger(action.minutes) || action.minutes < 5 || action.minutes > 1440)) throw new ValidationError("A visit lasts 5 minutes to 24 hours");
+  if (action.kind === "doubleUp" && (!Number.isInteger(action.carers) || action.carers < 1 || action.carers > MAX_CARERS)) throw new ValidationError(`Choose 1 to ${MAX_CARERS} carers`);
   if (action.kind === "activate" && action.reason.trim().length < 3) throw new ValidationError("Give a reason for activating");
   if (action.kind === "editService" && !(await db.callType.findFirst({ where: { id: action.callTypeId, organisationId: scope.organisationId, active: true } }))) throw new NotFoundError("Service call");
   const refs = new Map((await db.visit.findMany({ where: { id: { in: visitIds }, organisationId: scope.organisationId }, select: { id: true, reference: true } })).map((v) => [v.id, v.reference]));

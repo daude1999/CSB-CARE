@@ -17,12 +17,13 @@ const PRIORITY_BADGE: Record<Priority, string> = { URGENT: "bg-[#fdecec] text-[#
 const mins = (a: Date, b: Date) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
 const dur = (m: number) => (m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`);
 
-/** Carers booked of carers needed: 0/1, 0/2 and 1/2 are the only states on this list (full visits are not unassigned). */
+/** Carers booked of carers needed, e.g. 0/1, 1/2 or 2/4 (full visits are not unassigned). */
 function Coverage({ item }: { item: UnassignedItem }) {
-  const required = Math.min(2, item.visit.carersRequired);
-  const filled = required - item.openSlots.length;
+  const required = item.visit.carersRequired;
+  const missing = item.openSlots.length;
+  const filled = required - missing;
   const tone = filled === 0 ? "bg-[#fdecec] text-[#b42318]" : "bg-[#fdf3d8] text-[#8a5a00]";
-  const words = filled === 0 ? (required > 1 ? "both carers missing" : "no carer allocated") : "one carer missing";
+  const words = required === 1 ? "no carer allocated" : filled === 0 ? (required === 2 ? "both carers missing" : `all ${required} carers missing`) : missing === 1 ? "one carer missing" : `${missing} carers missing`;
   return <span title={`${filled} of ${required} carers booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold tabular-nums ${tone}`}><Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
 }
 
@@ -125,7 +126,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
               <label><span className="label">Service user</span><select name="su" defaultValue={f.su ?? ""} className="input"><option value="">Any service user</option>{suOpts.map((s) => <option key={s.id} value={s.id}>{suName(s)}</option>)}</select></label>
               <label><span className="label">Team member already booked</span><select name="carer" defaultValue={f.carer ?? ""} className="input"><option value="">Anyone</option>{staffOpts.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select></label>
-              <label><span className="label">Carers needed</span><select name="carers" defaultValue={f.carers ?? ""} className="input"><option value="">Single or double-up</option><option value="single">Single</option><option value="double">Double-up</option></select></label>
+              <label><span className="label">Carers needed</span><select name="carers" defaultValue={f.carers ?? ""} className="input"><option value="">Any number</option><option value="single">Single carer</option><option value="double">Two or more carers</option></select></label>
               <div className="flex gap-2"><button className="btn-primary">Apply</button><Link href={url({ branch: undefined, su: undefined, carer: undefined, carers: undefined, q: undefined, area: undefined, priority: undefined, call: undefined, staffing: undefined, when: undefined, from: undefined, to: undefined, page: undefined, ...closeCover })} className="btn-secondary">Clear all</Link></div>
             </form>
           </details>

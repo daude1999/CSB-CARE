@@ -1,15 +1,18 @@
 import type { VisitTemplate } from "@prisma/client";
 import { fromDbDate, hhmm, londonDate, WEEKDAYS } from "@/lib/london";
+import { preferredOf } from "@/lib/carer-places";
 import { suName, type rotaLookups } from "@/server/rota/queries";
+import { TemplateCarersFields } from "@/components/template-carers";
 
 type Lookups = Awaited<ReturnType<typeof rotaLookups>>;
 
 /** The rota template form, used to create and to edit a template. Validation happens on the server (templateSchema). */
 export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string }) {
   // The HR-fed carer pool, plus whoever the template already names so an existing choice is never silently dropped.
-  const keep = new Set([t?.preferredStaff1Id, t?.preferredStaff2Id, t?.shadowStaffId].filter((x): x is string => !!x));
+  const preferred = t ? preferredOf(t) : [null];
+  const keep = new Set([...preferred, t?.shadowStaffId].filter((x): x is string => !!x));
   const pool = new Set(lk.carers.map((s) => s.id));
-  const staffOpt = lk.staff.filter((s) => pool.has(s.id) || keep.has(s.id)).map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>);
+  const staffOpts = lk.staff.filter((s) => pool.has(s.id) || keep.has(s.id)).map((s) => ({ id: s.id, label: `${s.displayName} · ${s.jobTitle}` }));
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="back" value={back} />
@@ -40,14 +43,9 @@ export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, s
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <label><span className="label">Start (UK time)</span><input type="time" name="start" required defaultValue={t ? hhmm(t.startMinute) : "08:00"} className="input" /></label>
         <label><span className="label">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={t?.durationMin ?? 30} className="input" /></label>
-        <label><span className="label">Carers needed</span><select name="carersRequired" defaultValue={t?.carersRequired ?? 1} className="input"><option value={1}>One</option><option value={2}>Two (double-up)</option></select></label>
         <input type="hidden" name="rotaType" value={t?.rotaType ?? "NORMAL"} />
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <label><span className="label">First carer</span><select name="preferredStaff1Id" defaultValue={t?.preferredStaff1Id ?? ""} className="input"><option value="">Leave unassigned</option>{staffOpt}</select></label>
-        <label><span className="label">Second carer (double-ups)</span><select name="preferredStaff2Id" defaultValue={t?.preferredStaff2Id ?? ""} className="input"><option value="">None</option>{staffOpt}</select></label>
-        <label><span className="label">Shadow carer</span><select name="shadowStaffId" defaultValue={t?.shadowStaffId ?? ""} className="input"><option value="">None</option>{staffOpt}</select></label>
-      </div>
+      <TemplateCarersFields options={staffOpts} carersRequired={t?.carersRequired ?? 1} preferred={preferred} shadowStaffId={t?.shadowStaffId ?? null} />
       <fieldset>
         <legend className="label">Tasks</legend>
         <div className="grid grid-cols-2 gap-1 md:grid-cols-3">

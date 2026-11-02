@@ -226,54 +226,49 @@ test.describe("Sidebar", () => {
     await expect(page.getByTestId("rota-tabs-daily").getByRole("link", { name: "Staff & Eligibility" })).toHaveAttribute("aria-current", "page");
   });
 
-  test("Visits Needing Attention shows Unassigned Visits and Missed Calls together, each leading into its own workflow", async ({ page }) => {
+  test("Visits Needing Attention lists unassigned visits and missed calls in one queue, each leading into its own workflow", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
     await sidebar(page).getByRole("link", { name: "Visits Needing Attention" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Visits Needing Attention" })).toBeVisible();
-    const un = page.getByTestId("attention-unassigned");
-    const mc = page.getByTestId("attention-missed");
-    await expect(un).toBeVisible();
-    await expect(mc).toBeVisible();
-    // Both sections sit side by side on a wide screen.
-    const [a, b] = [await un.boundingBox(), await mc.boundingBox()];
-    expect(Math.abs(a!.y - b!.y)).toBeLessThan(2);
-    expect(b!.x).toBeGreaterThan(a!.x + a!.width - 1);
+    const queue = page.getByTestId("attention-queue");
+    await expect(page.getByTestId("attention-unassigned")).toBeVisible();
+    await expect(page.getByTestId("attention-missed")).toBeVisible();
 
     // The figures match the full pages they come from.
-    const unCount = Number(await page.getByTestId("att-un-visits").textContent());
-    const mcCount = Number(await page.getByTestId("att-mc-open").textContent());
-    await un.getByRole("link", { name: "Open Unassigned Visits" }).click();
+    const unCount = Number(await page.getByTestId("attention-unassigned-count").textContent());
+    const mcCount = Number(await page.getByTestId("attention-missed-count").textContent());
+    await queue.getByRole("link", { name: "Open Unassigned Visits" }).click();
     await expect(page).toHaveURL(/\/rota\/unassigned\?when=week/);
     await expect(page.getByTestId("sum-visits")).toHaveText(String(unCount));
     await expect(currentPage(page)).toHaveText("Visits Needing Attention");
     await page.goBack();
-    await mc.getByRole("link", { name: "Open Missed Calls" }).click();
+    await queue.getByRole("link", { name: "Open Missed Calls" }).click();
     await expect(page).toHaveURL(/\/rota\/missed\?period=custom/);
     await expect(page.getByText(new RegExp(`^${mcCount} calls? ·`))).toBeVisible();
     await page.goBack();
 
     // Find Cover opens the shared Find Replacement Cover panel on this page, with recommended carers or a manual search.
     if (unCount > 0) {
-      await un.getByRole("link", { name: /^Find cover for/ }).first().click();
-      await expect(page).toHaveURL(/\/rota\/attention\?cover=/);
+      await queue.getByRole("link", { name: /^Find cover for/ }).first().click();
+      await expect(page).toHaveURL(/\/rota\/attention\?.*cover=/);
       const panel = page.getByRole("dialog", { name: "Find Replacement Cover" });
       await expect(panel.getByRole("link", { name: "Search Staff Manually" })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(panel).toBeHidden();
-      await un.getByRole("link", { name: /^Choose a carer by hand/ }).first().click();
+      await page.getByTestId("attention-detail").getByRole("link", { name: /^Choose a carer by hand/ }).click();
       await expect(page).toHaveURL(/fcStep=manual/);
       await expect(panel.getByRole("heading", { name: "Search staff" })).toBeVisible();
       await page.keyboard.press("Escape");
     }
     // Investigate opens the missed call's case.
     if (mcCount > 0) {
-      await mc.getByRole("link", { name: /^Investigate/ }).first().click();
+      await queue.getByRole("link", { name: /^Investigate/ }).first().click();
       await expect(page).toHaveURL(/\/rota\/missed\/[^/?]+$/);
       await expect(currentPage(page)).toHaveText("Visits Needing Attention");
       await page.goBack();
     }
-    await un.getByRole("link", { name: "Coverage History" }).click();
+    await queue.getByRole("link", { name: "Coverage History" }).click();
     await expect(page).toHaveURL(/tab=history/);
   });
 

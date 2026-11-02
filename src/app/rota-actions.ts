@@ -1,6 +1,6 @@
 "use server";
 
-import type { AssignmentSlot } from "@prisma/client";
+import { MAX_CARERS, parsePlace, type PlaceKey } from "@/lib/carer-places";
 import { ValidationError } from "@/lib/errors";
 import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, safeBack, str, withParam } from "./action-kit";
@@ -29,7 +29,7 @@ import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageI
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, updateContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
-import { bulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setDoubleUp, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
+import { bulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setCarersRequired, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
@@ -43,11 +43,20 @@ import { addCaseComment, addCaseEvidence, addFollowUp, assignCoordinator, bulkMi
 
 /** Server actions for Rostering & Care Management. Each reads FormData, calls one domain function and redirects back. */
 
-const SLOTS: AssignmentSlot[] = ["PRIMARY", "SECOND", "SHADOW"];
-function slot(fd: FormData): AssignmentSlot {
-  const s = str(fd, "slot") as AssignmentSlot;
-  if (!SLOTS.includes(s)) throw new ValidationError("Choose a slot");
+/** The carer place a form names: "PRIMARY", "SECOND", "C3" … or "SHADOW". */
+function slot(fd: FormData): PlaceKey {
+  const s = parsePlace(str(fd, "slot"));
+  if (!s) throw new ValidationError("Choose a carer place");
   return s;
+}
+/** "Carers needed": 1–6 from the list, or the number typed in when Custom is chosen. */
+function carersNeeded(fd: FormData, key = "carersRequired") {
+  const raw = str(fd, key) || "1";
+  const value = raw === "custom" ? str(fd, `${key}Custom`) : raw;
+  if (raw === "custom" && !value) throw new ValidationError("Enter how many carers are needed");
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_CARERS) throw new ValidationError(`Carers needed must be a whole number from 1 to ${MAX_CARERS}`);
+  return n;
 }
 const bool = (fd: FormData, k: string) => fd.get(k) === "on" || fd.get(k) === "true" || fd.get(k) === "1";
 function int(fd: FormData, k: string, label: string) {
@@ -146,9 +155,7 @@ export async function reinstateVisitAction(fd: FormData) {
 
 export async function doubleUpAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const n = int(fd, "carersRequired", "Carers");
-    if (n !== 1 && n !== 2) throw new ValidationError("A visit needs one or two carers");
-    await setDoubleUp(ctx, str(fd, "visitId"), n, optInt(fd, "lockVersion"));
+    await setCarersRequired(ctx, str(fd, "visitId"), carersNeeded(fd), optInt(fd, "lockVersion"));
   }, "Visit updated");
 }
 
@@ -160,7 +167,7 @@ export async function createVisitAction(fd: FormData) {
       date: str(fd, "date"),
       startMinute: minuteOf(fd, "start", "Start"),
       durationMin: Number(str(fd, "durationMin")),
-      carersRequired: Number(str(fd, "carersRequired") || 1),
+      carersRequired: carersNeeded(fd),
       medicationRequired: bool(fd, "medicationRequired"),
       timeLocked: bool(fd, "timeLocked"),
       notes: str(fd, "notes") || undefined,
@@ -217,6 +224,9 @@ export async function bulkVisitsAction(fd: FormData) {
       case "single":
         action = { kind: "doubleUp", carers: kind === "doubleUp" ? 2 : 1 };
         break;
+      case "setCarers":
+        action = { kind: "doubleUp", carers: carersNeeded(fd, "carers") };
+        break;
       default:
         throw new ValidationError("Choose what to do with the selected visits");
     }
@@ -238,9 +248,10 @@ function templateInput(fd: FormData): TemplateInput {
     weekdays: nums("weekdays"),
     startMinute: minuteOf(fd, "start", "Start"),
     durationMin: Number(str(fd, "durationMin")),
-    carersRequired: Number(str(fd, "carersRequired") || 1),
+    carersRequired: carersNeeded(fd),
     preferredStaff1Id: opt("preferredStaff1Id"),
     preferredStaff2Id: opt("preferredStaff2Id"),
+    extraPreferredStaffIds: fd.getAll("extraPreferredStaffIds").map((x) => String(x).trim()),
     shadowStaffId: opt("shadowStaffId"),
     timeLocked: bool(fd, "timeLocked"),
     medicationRequired: bool(fd, "medicationRequired"),
@@ -269,7 +280,7 @@ export async function templateBulkAction(fd: FormData) {
     const list = ids(fd, "templateIds");
     if (!list.length) throw new ValidationError("Select at least one template");
     const kind = str(fd, "kind");
-    const tslot = (): "PRIMARY" | "SECOND" | "SHADOW" => (str(fd, "slot") === "SECOND" ? "SECOND" : str(fd, "slot") === "SHADOW" ? "SHADOW" : "PRIMARY");
+    const tslot = (): PlaceKey => parsePlace(str(fd, "slot")) ?? "PRIMARY";
     let action: TemplateBulkAction | null = null;
     if (kind === "assign") {
       if (!str(fd, "staffId")) throw new ValidationError("Choose a team member");
@@ -283,6 +294,7 @@ export async function templateBulkAction(fd: FormData) {
     } else if (kind === "lock" || kind === "unlock") action = { kind: "lock", on: kind === "lock" };
     else if (kind === "addAlert" || kind === "removeAlert") action = { kind: "alert", on: kind === "addAlert" };
     else if (kind === "doubleUp" || kind === "single") action = { kind: "doubleUp", carers: kind === "doubleUp" ? 2 : 1 };
+    else if (kind === "setCarers") action = { kind: "doubleUp", carers: carersNeeded(fd, "carers") };
     const results = kind === "enable" || kind === "disable" ? await setTemplatesEnabled(ctx, list, kind === "enable") : kind === "nudge" ? await nudgeTemplates(ctx, list, int(fd, "minutes", "Minutes")) : kind === "duplicate" ? await duplicateTemplates(ctx, list) : action ? await bulkTemplates(ctx, list, action) : null;
     if (!results) throw new ValidationError("Choose what to do with the selected templates");
     const refused = results.filter((r) => !r.ok);

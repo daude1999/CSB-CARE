@@ -1,4 +1,4 @@
-import type { AssignmentSlot } from "@prisma/client";
+import { carerPlaces, isCarerPlace, placeKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
@@ -26,13 +26,15 @@ export async function visitInspector(ctx: Ctx, visitId: string) {
   const live = v.assignments.filter((a) => !a.removedAt);
   const editable = canEdit && v.status === "SCHEDULED";
   const assignable = canEdit && ["SCHEDULED", "MISSED"].includes(v.status);
-  const slots: AssignmentSlot[] = v.carersRequired > 1 ? ["PRIMARY", "SECOND"] : ["PRIMARY"];
-  const swappable = editable ? live.filter((a) => a.slot !== "SHADOW").map((a) => a.slot) : [];
-  const [candidates, swaps, names] = await Promise.all([
-    assignable ? Promise.all(slots.map(async (s) => ({ slot: s, list: await visitCandidates(ctx, v, s) }))) : Promise.resolve([]),
+  const slots = carerPlaces(v.carersRequired);
+  const swappable = editable ? live.filter(isCarerPlace).map(placeKey) : [];
+  const [shared, swaps, names] = await Promise.all([
+    // One ranked list serves every place: it leaves out everyone already on the visit, and the save re-checks the carer.
+    assignable ? visitCandidates(ctx, v, "ANY") : Promise.resolve([]),
     Promise.all(swappable.map(async (s) => ({ slot: s, list: await swapCandidates(ctx, v.id, s) }))),
     memberNames(ctx, [...v.events.map((e) => e.actorId), ...v.visitNotes.map((n) => n.authorUserId)]),
   ]);
+  const candidates = assignable ? slots.map((s) => ({ slot: s, list: shared })) : [];
   return { visit: v, live, flags: deriveFlags(v, settings), editable, assignable, canEdit, slots, candidates, swaps, names };
 }
 
