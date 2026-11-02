@@ -17,7 +17,7 @@ export type Employee = {
   name: string;
   branch: string;
   job: string;
-  status: "Active" | "Onboarding" | "Archived";
+  status: "Active" | "Onboarding" | "Suspended" | "Archived";
   start: string;
   email: string;
   phone: string;

@@ -2,7 +2,7 @@ import type { AssignmentSlot, Prisma, RotaSettings, VisitStatus } from "@prisma/
 import { db } from "@/lib/db";
 import { addDays, cycleWeekOf, dbDate, isIsoDate, londonDate, mondayOf } from "@/lib/london";
 import type { Ctx } from "@/server/auth/rbac";
-import { rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
+import { inRotaPool, rankCarers, rankCarersMany } from "@/server/workforce/eligibility";
 import { rotaSettings } from "./settings";
 import { authorisedBranches, rotaScope, serviceUserWhere, staffDirectoryWhere, visitBranchClause, visitWhere, type Scope } from "./scope";
 import { loadMatchFacts, scoreMatch, type Match } from "./matching";
@@ -105,16 +105,19 @@ export async function listVisits(ctx: Ctx, f: VisitFilters, take = 1000): Promis
 export async function rotaLookups(ctx: Ctx) {
   const scope = await rotaScope(ctx, "rota.view");
   const org = scope.organisationId;
-  const [areas, callTypes, careTasks, serviceUsers, staff, routes, branches] = await Promise.all([
+  const [areas, callTypes, careTasks, serviceUsers, staff, routes, branches, settings] = await Promise.all([
     db.area.findMany({ where: { organisationId: org, active: true, ...(scope.areaIds ? { id: { in: scope.areaIds } } : {}) }, orderBy: { name: "asc" } }),
     db.callType.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
     db.careTask.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
     db.serviceUser.findMany({ where: { ...serviceUserWhere(scope), status: { in: ["ACTIVE", "PAUSED", "ASSESSMENT"] } }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, areaId: true, branchId: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] }),
-    db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, branchId: true, areas: { select: { areaId: true } } }, orderBy: { displayName: "asc" } }),
+    db.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true, hrMissing: true, branchId: true, areas: { select: { areaId: true } }, profile: { select: { rotaEnabled: true } } }, orderBy: { displayName: "asc" } }),
     db.runRouteTemplate.findMany({ where: { organisationId: org, active: true }, orderBy: { name: "asc" } }),
     authorisedBranches(scope),
+    rotaSettings(db, org),
   ]);
-  return { scope, areas, callTypes, careTasks, serviceUsers, staff, routes, branches };
+  // `staff` names everyone in scope (for history and labels); `carers` is the HR-fed pool that pickers and staff rows offer.
+  const carers = staff.filter((s) => inRotaPool(settings, s));
+  return { scope, areas, callTypes, careTasks, serviceUsers, staff, carers, routes, branches };
 }
 
 /**

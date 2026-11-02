@@ -1036,7 +1036,7 @@ function People({
             }}
           >
             <option value="">Employment</option>
-            {["Active", "Onboarding", "Archived"].map((s) => (
+            {["Active", "Onboarding", "Suspended", "Archived"].map((s) => (
               <option key={s} value={s}>
                 {s === "Onboarding" ? "New starter" : s}
               </option>
@@ -1616,7 +1616,7 @@ function EmployeeForm({
                 setEmploymentStatus(e.target.value as Employee["status"])
               }
             >
-              {["Active", "Onboarding", "Archived"].map((s) => (
+              {["Active", "Onboarding", "Suspended", "Archived"].map((s) => (
                 <option key={s} value={s}>
                   {s === "Onboarding" ? "New starter" : s}
                 </option>

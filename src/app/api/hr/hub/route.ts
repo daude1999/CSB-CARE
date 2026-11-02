@@ -30,7 +30,7 @@ const employeeSchema = z.object({
   name: z.string().trim().min(2).max(100),
   branch: z.string().min(1),
   job: z.string().trim().min(2).max(100),
-  status: z.enum(["Active", "Onboarding", "Archived"]),
+  status: z.enum(["Active", "Onboarding", "Suspended", "Archived"]),
   start: z.iso.date(),
   email: z.union([z.literal(""), z.email()]).default(""),
   phone: z.string().max(30).default(""),

@@ -1323,6 +1323,8 @@ model AuditLog {
 enum EmploymentStatus {
   ACTIVE
   ONBOARDING
+  /// Suspended in HR: still employed, never bookable. Future visits are flagged, not removed.
+  SUSPENDED
   ARCHIVED
 }
 

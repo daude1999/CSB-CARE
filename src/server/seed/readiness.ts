@@ -66,7 +66,9 @@ export async function seedReadinessMatrix(organisationId: string, createdByUserI
 export async function seedReadinessDemo(organisationId: string, people: { manager: string; coordinator: string }) {
   await seedReadinessMatrix(organisationId, people.manager);
   const manager = await ctxForUser(people.manager, organisationId);
-  const coordinator = await ctxForUser(people.coordinator, organisationId);
+  // Training evidence is HR's (HR_SINGLE_STAFF_RECORD.md): the demo enterer acts with the Group HR account, so every
+  // synthetic record still has an enterer and a different verifier.
+  const coordinator = { ...(await ctxForUser(people.coordinator, organisationId)), hrUserId: "group" };
   const reqs = await db.readinessRequirement.findMany({ where: { organisationId, status: "ACTIVE" } });
   const byKey = new Map(reqs.map((r) => [r.key, r]));
   const settings = await db.rotaSettings.findUnique({ where: { organisationId } });

@@ -18,6 +18,7 @@
     "db:reset": "prisma migrate reset --force",
     "db:reset:local": "node scripts/local-reset.mjs",
     "org:create": "tsx scripts/create-organisation.ts",
+    "workforce:identity": "tsx scripts/workforce-identity.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate && node scripts/prepare-pdfjs.mjs",

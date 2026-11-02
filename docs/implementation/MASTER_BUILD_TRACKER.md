@@ -1,5 +1,8 @@
 # Master build tracker — five-module CSB CRM
 
+## HR & Workforce as the single staff record (2 Nov 2026, draft PR)
+"Staff & Workforce" left the Rota menu. Its operational pages are now Daily Rota tabs at the same addresses. HR gains a Suspended status, which blocks bookings and flags future visits. Carer lists show only HR care roles. Coordinators keep working patterns on each staff page. There is a guarded "Open HR record" link, and an identity report and backfill (`npm run workforce:identity`). Details: `HR_SINGLE_STAFF_RECORD.md`. Open decision: where training and competency evidence is recorded.
+
 ## Rota sidebar simplified to nine destinations (1 Nov 2026)
 The Rota menu is now Rota Home, Daily Rota, Visits Needing Attention, The Monitor, Daily Templates, Service Users, Staff & Workforce, Finance and Reports, with Settings at the foot. Former menu pages are workspace tabs at their old addresses. There is a new combined page, `/rota/attention`, which shows Unassigned Visits and Missed Calls together. Notes and the full old-to-new mapping are in `ROTA_NAVIGATION.md`.
 
