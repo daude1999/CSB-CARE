@@ -1,5 +1,10 @@
 # Master build tracker — five-module CSB CRM
 
+## HR overview, People and Recruitment redesign (2 Nov 2026, draft PR)
+Built to the owner's approved HR concept: the HR Dashboard became "HR overview" (four figures, Action required with
+working Review links, Coming up), People is one clean directory, and Recruitment is a pipeline board of all six real
+stages. Shared HR tokens and components under `.hr-ui`. Details and counting rules: `HR_OVERVIEW_REDESIGN.md`.
+
 ## HR Assign Training and Send Reminder (2 Nov 2026, draft PR)
 The two buttons under "Due this week" on Checks & Training now work. Assign Training records a course, date and HR
 follow-up task per person without touching checks or rota readiness; Send Reminder sends an in-app (bell) reminder to
