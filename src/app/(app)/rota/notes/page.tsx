@@ -1,6 +1,7 @@
 import Link from "@/components/link";
 import { addDays, isIsoDate, londonDate, londonDayBounds, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
+import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisitNotes, NOTE_LABEL } from "@/server/care/visit-record";
 import { suName } from "@/server/rota/queries";
 import { Badge, Card, Empty, fmtDate, PageHeader } from "@/components/ui";
@@ -16,6 +17,7 @@ export default async function VisitNotesPage({ searchParams }: { searchParams: P
   const from = sp.from && isIsoDate(sp.from) ? sp.from : addDays(today, -6);
   const to = sp.to && isIsoDate(sp.to) && sp.to >= from ? sp.to : from > today ? from : today;
   const q = sp.q?.trim().slice(0, 100) || undefined;
+  const canIncident = hasOrgPermission(ctx, "incident.report");
   const notes = await listVisitNotes(ctx, { from: londonDayBounds(from).start, to: londonDayBounds(to).end, category: sp.category, q });
 
   return (
@@ -43,6 +45,7 @@ export default async function VisitNotesPage({ searchParams }: { searchParams: P
                   <span className="ml-auto">written {fmtDate(n.createdAt, true)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-line">{n.text}</p>
+                {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="mt-1 inline-block text-[13px] font-medium">Make this an incident</Link> : null}
               </li>
             ))}
           </ul>

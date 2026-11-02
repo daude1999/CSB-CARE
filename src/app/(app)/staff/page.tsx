@@ -21,7 +21,7 @@ function group(rows: SignoffRow[], key: (r: SignoffRow) => string) {
 const tally = (rows: SignoffRow[]) => ({ assigned: rows.filter((r) => r.b.bucket !== "withdrawn").length, done: rows.filter((r) => r.b.bucket === "acknowledged").length, outstanding: rows.filter((r) => r.b.outstanding).length, overdue: rows.filter((r) => r.b.overdue).length, cannotSign: rows.some((r) => r.b.cannotSign) });
 
 /**
- * Staff Sign-off: who has been asked to read which policy version, who has opened and acknowledged it, what is overdue
+ * Policy Sign-off: who has been asked to read which policy version, who has opened and acknowledged it, what is overdue
  * and who cannot sign because they have no login. Counts, lists, drill-downs and the CSV come from one set of rows.
  */
 export default async function StaffSignoffPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -40,7 +40,7 @@ export default async function StaffSignoffPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active={tab} />} title="Staff Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active={tab} />} title="Policy Sign-off" subtitle={`Who has been asked to read each published policy version, and whether they have opened, acknowledged or been assessed on it. ${ACK_NOT_TRAINING}`} actions={<><a href={csv} className="btn-secondary">Export CSV</a><Link href="/rota/readiness" className="btn-secondary">Staff readiness</Link></>} />
       <Flash searchParams={sp} />
       <SignoffFilterForm f={f} view={view} branches={lookups.branches} roles={lookups.roles} policies={lookups.policies} base={base} />
       <SignoffSummary c={c} base={base} f={fv} />
@@ -152,7 +152,7 @@ function Overview({ rows, all, f, base }: { rows: SignoffRow[]; all: number; f: 
       <Card title={`Cannot sign: no linked login (${cannotSign.length})`}>
         {cannotSign.length ? (
           <>
-            <p className="mb-2 text-[13px] text-slate-600">These people have reading assigned but no sign-in linked to their HR record, so they cannot acknowledge. An administrator links sign-ins by hand in Administration, Workforce Sync &amp; Logins.</p>
+            <p className="mb-2 text-[13px] text-slate-600">These people have reading assigned but no sign-in linked to their HR record, so they cannot acknowledge. An administrator links sign-ins by hand in Administration, Users &amp; Logins.</p>
             <ul className="rows">{cannotSign.slice(0, 8).map((r) => <li key={personKey(r)} className="py-2 text-[14px]"><Link href={`/staff/person/${personKey(r)}`} className="row-title">{r.person}</Link> <span className="text-slate-600">· {r.staffMember?.jobTitle ?? ""}{r.staffMember?.branch ? `, ${r.staffMember.branch.name}` : ""}</span></li>)}</ul>
           </>
         ) : <Empty>Everyone with reading assigned can sign.</Empty>}

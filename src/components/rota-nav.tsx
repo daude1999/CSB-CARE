@@ -15,6 +15,9 @@ import type { ShellItem } from "@/components/portal-switcher";
  * There is no staff administration here: HR & Workforce owns the employee (creation, personal and employment details,
  * documents, checks, holidays and sickness). The rota keeps only its operational staff pages, Staff & Eligibility and
  * Staff Readiness, as Daily Rota tabs (HR_SINGLE_STAFF_RECORD.md).
+ *
+ * Every visit problem lives under Visits Needing Attention, the one to-do list: its full registers (Unassigned Visits,
+ * Sickness & Holiday Cover, Missed Calls and Exceptions) are its tabs. The Monitor is the live view only.
  */
 export type RotaWorkspace = "daily" | "attention" | "monitor" | "templates" | "people" | "finance" | "reports";
 export type RotaTab = { key: string; label: string; href: string };
@@ -34,7 +37,6 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
         { key: "optimise", label: "Generate & Optimise", href: "/rota/optimise", perm: "rota.view" },
         { key: "routes", label: "Live Run Routes", href: "/rota/routes", perm: "rota.view" },
         { key: "print", label: "Printable Rota", href: "/rota/print", perm: "rota.view" },
-        { key: "cover", label: "Sickness & Holiday Cover", href: "/rota/cover", perm: "rota.view" },
         // Operational staff views: who can work, their working pattern, bookings and eligibility. Read from HR.
         { key: "staff", label: "Staff & Eligibility", href: "/rota/staff", perm: "staff.directory" },
         { key: "readiness", label: "Staff Readiness", href: "/rota/readiness", perm: "readiness.view" },
@@ -43,12 +45,13 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
       return [
         { key: "attention", label: "Visits Needing Attention", href: "/rota/attention", perm: ["rota.view", "rota.monitor"] },
         { key: "unassigned", label: "Unassigned Visits", href: "/rota/unassigned", perm: "rota.view" },
+        { key: "cover", label: "Sickness & Holiday Cover", href: "/rota/cover", perm: "rota.view" },
         { key: "missed", label: "Missed Calls", href: "/rota/missed", perm: "rota.monitor" },
+        { key: "exceptions", label: "Exceptions", href: "/rota/exceptions", perm: "rota.monitor" },
       ];
     case "monitor":
       return [
         { key: "monitor", label: "The Monitor", href: "/rota/monitor", perm: "rota.monitor" },
-        { key: "exceptions", label: "Exceptions", href: "/rota/exceptions", perm: "rota.monitor" },
       ];
     case "templates":
       return [

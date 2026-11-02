@@ -21,7 +21,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Audit Log" back="/settings" subtitle="Every recorded change in your organisation: who did it, what and when. Entries cannot be edited or deleted." actions={<a href={`/api/admin/audit?${qs({})}`} className="btn-secondary">Download CSV</a>} />
+      <PageHeader title="Activity Log" back="/settings" subtitle="Every recorded change in your organisation: who did it, what and when. Entries cannot be edited or deleted." actions={<a href={`/api/admin/audit?${qs({})}`} className="btn-secondary">Download CSV</a>} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
           <label><span className="label">Who</span><select name="actor" defaultValue={f.actor ?? ""} className="input"><option value="">Anyone</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>

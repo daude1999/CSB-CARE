@@ -11,7 +11,7 @@ export function AckBadge({ bucket, overdue, cannotSign }: { bucket: AckBucket; o
     <span className="inline-flex flex-wrap gap-1">
       <Badge tone={TONE[bucket]}>{BUCKET_LABEL[bucket]}</Badge>
       {overdue ? <Badge tone="rose">Overdue</Badge> : null}
-      {cannotSign ? <Badge tone="rose" title="This person has no sign-in linked, so they cannot acknowledge. Link one in Administration > Workforce Sync & Logins.">Cannot sign: no login</Badge> : null}
+      {cannotSign ? <Badge tone="rose" title="This person has no sign-in linked, so they cannot acknowledge. Link one in Administration > Users & Logins.">Cannot sign: no login</Badge> : null}
     </span>
   );
 }
@@ -19,7 +19,7 @@ export function AckBadge({ bucket, overdue, cannotSign }: { bucket: AckBucket; o
 /** The drill-down key for a person: their staff record, or their sign-in when they have no staff record. */
 export const personKey = (r: { staffMemberId: string | null; userId: string | null }) => (r.staffMemberId ? `s-${r.staffMemberId}` : `u-${r.userId}`);
 
-/** Builds a Staff Sign-off link that keeps the current filters. */
+/** Builds a Policy Sign-off link that keeps the current filters. */
 export function signoffHref(base: string, f: SignoffFilters & { view?: string }, over: Record<string, string | undefined> = {}) {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries({ ...f, ...over })) if (v) q.set(k, String(v));

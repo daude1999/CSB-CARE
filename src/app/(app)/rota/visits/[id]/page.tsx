@@ -64,6 +64,8 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
   const inForce = new Set(effectiveClocks(v.clocks).map((c) => c.id));
   const carerName = (staffId: string | null) => v.assignments.find((a) => a.staffId === staffId)?.staff.displayName ?? "Carer";
   const canNote = hasOrgPermission(ctx, "rota.edit");
+  // A note that describes harm or a near miss becomes an incident report already filled in from the note.
+  const canIncident = hasOrgPermission(ctx, "incident.report");
   const canDecideRequests = hasOrgPermission(ctx, "rota.clockCorrect");
   const canClock = hasOrgPermission(ctx, "rota.clockCorrect") && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) && live.length > 0;
   const nowMinute = date === londonDate() ? londonMinute(new Date()) : londonMinute(v.scheduledStart);
@@ -285,6 +287,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                   <li key={n.id} className="py-2 text-[14px]">
                     <span className="text-[12.5px] text-slate-500">{NOTE_LABEL[n.category] ?? `${n.category.toLowerCase().replace("_", " ")} note`} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
                     <p>{n.text}</p>
+                    {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="text-[13px] font-medium">Make this an incident</Link> : null}
                   </li>
                 ))}
               </ul>

@@ -20,7 +20,7 @@ export default async function RisksPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="risks" />}
-        title="Risk Assessments"
+        title="Service User Risk Assessments"
         back="/rota"
         subtitle="Every active risk assessment, soonest review first. Carers see the controls for the people they visit. Reviews keep the previous wording in the history; assessments that no longer apply are archived, not deleted."
         actions={canEdit ? <Link href={`/rota/risks/new${sp.su ? `?su=${sp.su}` : ""}`} className="btn-primary">New assessment</Link> : null}

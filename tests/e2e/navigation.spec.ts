@@ -31,7 +31,7 @@ const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
   { id: "policy", home: "/", title: /Policy & Compliance/, colour: "rgb(31, 95, 209)" },
   { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(107, 70, 201)" },
   { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(11, 111, 153)" },
-  { id: "admin", home: "/settings", title: /System Settings/, colour: "rgb(75, 86, 102)" },
+  { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(75, 86, 102)" },
 ];
 
 test.describe("Portal switching", () => {
@@ -141,7 +141,7 @@ test.describe("Portal switching", () => {
     for (const id of ["rota", "hr", "reporting", "admin"]) await expect(portal(page, id)).toHaveCount(0);
     // A typed address is checked on the server too.
     await page.goto("/settings");
-    await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("System Settings");
+    await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Settings");
     await page.goto("/hr/dashboard");
     await expect(page).not.toHaveURL(/\/hr\/dashboard/);
   });
@@ -198,9 +198,10 @@ test.describe("Sidebar", () => {
       ["/rota/readiness", "Daily Rota"],
       ["/rota/staff", "Daily Rota"],
       ["/rota/finance/payroll", "Finance"],
-      ["/rota/insights", "Reports"],
+      ["/rota/insights", "Rota Insights"],
       ["/rota/planner", "Daily Rota"],
-      ["/rota/exceptions", "The Monitor"],
+      ["/rota/exceptions", "Visits Needing Attention"],
+      ["/rota/cover", "Visits Needing Attention"],
       ["/rota/routes/templates", "Daily Templates"],
     ] as const) {
       await page.goto(href);
@@ -210,7 +211,7 @@ test.describe("Sidebar", () => {
     // Pages that were menu entries are tabs of their workspace, reachable by keyboard.
     await page.goto("/rota/planner");
     const tabs = page.getByTestId("rota-tabs-daily");
-    for (const name of ["Daily Rota", "Advanced Rota", "Weekly Planner", "Build Rota", "Generate & Optimise", "Live Run Routes", "Printable Rota", "Sickness & Holiday Cover"]) await expect(tabs.getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["Daily Rota", "Advanced Rota", "Weekly Planner", "Build Rota", "Generate & Optimise", "Live Run Routes", "Printable Rota"]) await expect(tabs.getByRole("link", { name, exact: true })).toBeVisible();
     await expect(tabs.getByRole("link", { name: "Weekly Planner" })).toHaveAttribute("aria-current", "page");
     await tabs.getByRole("link", { name: "Live Run Routes" }).focus();
     await page.keyboard.press("Enter");

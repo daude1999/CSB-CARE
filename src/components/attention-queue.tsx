@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChatCircleText, MagnifyingGlass, PhoneX, UserPlus } from "@phosphor-icons/react";
+import { ChatCircleText, ClockCountdown, MagnifyingGlass, PhoneX, UserMinus, UserPlus } from "@phosphor-icons/react";
 import Link from "@/components/link";
 import { TYPE_STYLE, type QueueType } from "@/components/attention-style";
 
@@ -41,10 +41,12 @@ const GROUP_DOT = { now: "bg-[#d92d20]", today: "bg-[#b07a00]", week: "bg-[#6670
 export function TypeIcon({ type, size = 20 }: { type: QueueType; size?: number }) {
   if (type === "unassigned") return <UserPlus size={size} weight="bold" aria-hidden />;
   if (type === "missed") return <PhoneX size={size} weight="bold" aria-hidden />;
+  if (type === "absent") return <UserMinus size={size} weight="bold" aria-hidden />;
+  if (type === "problem") return <ClockCountdown size={size} weight="bold" aria-hidden />;
   return <ChatCircleText size={size} weight="bold" aria-hidden />;
 }
 
-const TESTID: Record<QueueType, string> = { unassigned: "attention-unassigned-row", missed: "attention-missed-row", comms: "attention-comms-row" };
+const TESTID: Record<QueueType, string> = { unassigned: "attention-unassigned-row", absent: "attention-absent-row", missed: "attention-missed-row", problem: "attention-problem-row", comms: "attention-comms-row" };
 
 export function AttentionQueueList({ groups, toolbar, filters, footer, empty }: { groups: QueueGroup[]; toolbar: ReactNode; filters?: ReactNode; footer?: ReactNode; empty: string }) {
   const [q, setQ] = useState("");

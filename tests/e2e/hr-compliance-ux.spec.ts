@@ -180,7 +180,7 @@ test.describe("Policy & Compliance, approved design", () => {
     await expect(page.getByTestId("upcoming-reviews").getByRole("link").first()).toHaveAttribute("href", /\/policies\/c/);
     await expect(page.getByRole("link", { name: "Add policy" })).toBeVisible();
     // The six workspaces are unchanged.
-    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"]);
+    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Policy Sign-off", "Audits & Improvements", "Compliance Reports"]);
   });
 
   test("a care worker gets their reading, not management actions", async ({ page }) => {
