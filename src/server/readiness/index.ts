@@ -8,6 +8,7 @@ import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/
 import { rotaScope, staffDirectoryWhere } from "@/server/rota/scope";
 import { evaluateReadiness, type ReadinessContext, type ReadinessResult, type ReadinessStatus } from "./evaluate";
 import { loadReadinessFacts } from "./facts";
+import { requireHrEvidenceEditor } from "@/server/workforce/hr-record";
 import { raiseReviewFlag } from "./flags";
 
 export { raiseReviewFlag } from "./flags";
@@ -147,6 +148,7 @@ export async function recordTraining(ctx: Ctx, staffId: string, input: z.input<t
   if (d.expiresAt && d.expiresAt <= d.completedAt) throw new ValidationError("Expiry must be after completion");
   return db.$transaction(async (tx) => {
     const { s, organisationId } = await staffInScope(tx, ctx, staffId, "readiness.record");
+    await requireHrEvidenceEditor(ctx, s);
     const req = await activeRequirement(tx, organisationId, d.requirementId);
     if (req.category === "POLICY") throw new ValidationError("Policy requirements are met by reading and acknowledging the policy, not by a record");
     if (d.evidenceId && !(await tx.evidenceDocument.findFirst({ where: { id: d.evidenceId, organisationId } }))) throw new NotFoundError("Evidence");
@@ -167,7 +169,8 @@ export async function verifyTraining(ctx: Ctx, recordId: string, decision: "VERI
     const organisationId = requireOrgPermission(ctx, "readiness.verify");
     const row = await tx.staffTrainingRecord.findFirst({ where: { id: recordId, organisationId }, include: { requirement: true } });
     if (!row) throw new NotFoundError("Record");
-    await staffInScope(tx, ctx, row.staffId, "readiness.verify");
+    const { s } = await staffInScope(tx, ctx, row.staffId, "readiness.verify");
+    await requireHrEvidenceEditor(ctx, s);
     if (row.verificationStatus !== "SUBMITTED") throw new ConflictError("This record has already been decided");
     if (row.enteredById === ctx.userId) throw new ForbiddenError("Someone other than the person who entered the record must verify it");
     await tx.staffTrainingRecord.update({ where: { id: row.id }, data: { verificationStatus: decision, verifiedById: ctx.userId, verifiedAt: new Date(), verificationNote: note.trim() || null } });
@@ -199,6 +202,7 @@ export async function recordAssessment(ctx: Ctx, staffId: string, input: z.input
   if (d.outcome === "NOT_YET_COMPETENT" && !d.remedialAction) throw new ValidationError("Say what happens next for someone not yet competent");
   return db.$transaction(async (tx) => {
     const { s, organisationId } = await staffInScope(tx, ctx, staffId, "readiness.verify");
+    await requireHrEvidenceEditor(ctx, s);
     const req = await activeRequirement(tx, organisationId, d.requirementId);
     if (s.userId === ctx.userId) throw new ForbiddenError("Nobody assesses their own competence");
     const row = await tx.competencyAssessment.create({

@@ -97,7 +97,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
       }
     }
     // Team members in the chosen area are listed even with no visits, so there is somewhere to drop a card.
-    if (sp.area) for (const st of lk.staff.filter((x) => x.areas.some((a) => a.areaId === sp.area) && !byStaff.has(x.id))) byStaff.set(st.id, { name: st.displayName, cards: [], minutes: 0, areas: new Map([[lk.areas.find((a) => a.id === sp.area)?.name ?? "No area", 0]]) });
+    if (sp.area) for (const st of lk.carers.filter((x) => x.areas.some((a) => a.areaId === sp.area) && !byStaff.has(x.id))) byStaff.set(st.id, { name: st.displayName, cards: [], minutes: 0, areas: new Map([[lk.areas.find((a) => a.id === sp.area)?.name ?? "No area", 0]]) });
     const list = [...byStaff.entries()].map(([id, r]) => ({ id, ...r, mainArea: [...r.areas.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? "No area" }));
     list.sort((a, b) => (view === "staff-area" ? a.mainArea.localeCompare(b.mainArea) : 0) || a.name.localeCompare(b.name));
     for (const r of list) rows.push({ key: r.id, label: <Link href={`/rota/staff/${r.id}`}>{r.name}</Link>, sub: `${(r.minutes / 60).toFixed(1)} h`, group: view === "staff-area" ? r.mainArea : undefined, dropStaffId: canEdit ? r.id : undefined, cards: r.cards });

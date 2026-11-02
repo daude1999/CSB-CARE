@@ -254,7 +254,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               {canEdit ? (
                 <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                   <input type="hidden" name="back" value={back} />
-                  <BulkVisitBar form="bulk" canPublish={canPublish} staff={lk.staff.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
+                  <BulkVisitBar form="bulk" canPublish={canPublish} staff={lk.carers.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
                 </form>
               ) : null}
               <details className="relative ml-auto">

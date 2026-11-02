@@ -46,7 +46,8 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
       }
     }
   }
-  const staffRows = lk.staff.filter((s) => byStaff.has(s.id) || (sp.area ? s.areas.some((a) => a.areaId === sp.area) : sp.all === "1"));
+  const pool = new Set(lk.carers.map((s) => s.id));
+  const staffRows = lk.staff.filter((s) => byStaff.has(s.id) || (pool.has(s.id) && (sp.area ? s.areas.some((a) => a.areaId === sp.area) : sp.all === "1")));
   const rows: PlannerRow[] = [
     { id: "unassigned", name: "No carer", sub: `${empty.flat().length} slots`, cells: empty },
     ...staffRows.map((s) => ({ id: s.id, name: s.displayName, sub: `${((byStaff.get(s.id)?.minutes ?? 0) / 60).toFixed(1)} h in Week ${week}`, href: `/rota/staff/${s.id}`, cells: byStaff.get(s.id)?.cells ?? blank() })),

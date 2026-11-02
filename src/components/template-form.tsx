@@ -6,7 +6,10 @@ type Lookups = Awaited<ReturnType<typeof rotaLookups>>;
 
 /** The rota template form, used to create and to edit a template. Validation happens on the server (templateSchema). */
 export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string }) {
-  const staffOpt = lk.staff.map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>);
+  // The HR-fed carer pool, plus whoever the template already names so an existing choice is never silently dropped.
+  const keep = new Set([t?.preferredStaff1Id, t?.preferredStaff2Id, t?.shadowStaffId].filter((x): x is string => !!x));
+  const pool = new Set(lk.carers.map((s) => s.id));
+  const staffOpt = lk.staff.filter((s) => pool.has(s.id) || keep.has(s.id)).map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>);
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="back" value={back} />

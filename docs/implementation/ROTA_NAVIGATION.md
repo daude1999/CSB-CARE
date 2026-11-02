@@ -1,4 +1,6 @@
-# Rota navigation: nine destinations and Settings
+# Rota navigation: eight destinations and Settings
+
+> **Update, 2 November 2026 (HR as the single staff record):** "Staff & Workforce" left the Rota menu. HR & Workforce owns the employee. The rota's operational staff pages, Staff & Eligibility (`/rota/staff`) and Staff Readiness (`/rota/readiness`), are now Daily Rota tabs at the same addresses. Holidays & Sickness and Availability stay in the HR menu, and each rota staff page now shows and keeps the working pattern. See `HR_SINGLE_STAFF_RECORD.md`.
 
 Owner's brief of 1 November 2026 ("Complete Rota sidebar simplification & navigation restructure").
 The aim is **simple on the surface, powerful underneath**. The brief changes navigation only.
@@ -12,9 +14,8 @@ No page, route, service, model, permission or eligibility rule was removed or ch
 4. The Monitor
 5. Daily Templates
 6. Service Users
-7. Staff & Workforce
-8. Finance
-9. Reports
+7. Finance
+8. Reports
 
 **Settings** sits at the foot, behind a rule.
 
@@ -54,13 +55,13 @@ Their own buttons already lead to the other pages. A pixel check confirmed that 
 | Daily Templates | `/rota/templates` | rota.view | Daily Templates | Sidebar |
 | Advanced Templates | `/rota/templates/planner` | rota.view | Daily Templates | The Templates view switch |
 | Template Run Routes | `/rota/routes/templates` | rota.view | Daily Templates | A link on Advanced Templates, the Live Run Routes button, or the tabs |
-| Team Members | `/rota/staff` | staff.directory | Staff & Workforce | Sidebar (first tab) |
-| Staff Time Off | `/workforce/absences` | HR portal and HR login | Staff & Workforce | The "Holidays & Sickness" tab (opens in HR) |
+| Team Members | `/rota/staff` | staff.directory | Daily Rota | The "Staff & Eligibility" tab (was Staff & Workforce until 2 Nov) |
+| Staff Time Off | `/workforce/absences` | HR portal and HR login | HR & Workforce | The HR menu (Workforce group). Shown read-only on each rota staff page |
 | Service Users | `/rota/service-users` | serviceUser.view | Service Users | Sidebar |
 | Care Plans | `/rota/care-plans` | serviceUser.view | Service Users | The tabs, and each profile |
 | Risk Assessments | `/rota/risks` | serviceUser.view | Service Users | The tabs, and each profile |
 | Incidents | `/rota/incidents` | incident.report or manage | Service Users | The tabs. Carers see it as its own "Incidents" entry |
-| Staff Readiness | `/rota/readiness` | readiness.view | Staff & Workforce | The tabs |
+| Staff Readiness | `/rota/readiness` | readiness.view | Daily Rota | The Daily Rota tabs (was Staff & Workforce until 2 Nov) |
 | Invoicing | `/rota/finance/invoices` | finance.view | Finance | The Finance tabs |
 | Wages | `/rota/finance/payroll` | finance.view | Finance | The Finance tabs |
 | Timesheets | `/rota/finance/timesheets` | finance.view | Finance | The Finance tabs |
@@ -73,7 +74,7 @@ Their own buttons already lead to the other pages. A pixel check confirmed that 
 | Rota Settings | `/rota/settings` | rota.settings | Settings | Sidebar foot |
 | My Visits (carers) | `/carer` | visit.own | Unchanged | Shown only to carers |
 
-Added to Staff & Workforce: an **Availability** tab (`/workforce/availability`). It is the existing HR page, shown only to people with an HR login.
+Availability: the HR page (`/workforce/availability`) is in the HR menu. Coordinators keep working patterns on each rota staff page (Availability card).
 
 Removed: the five rows marked **Planned** (Service User Absences, Preference Manager, Communication Log, Holiday Report and Guides and videos). They were labels, not links, so no working feature is affected. They are added to the backlog in `MASTER_BUILD_TRACKER.md`.
 

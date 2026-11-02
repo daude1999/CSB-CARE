@@ -21,6 +21,7 @@ const badgeTones: Record<string, BadgeTone> = {
   active: "neutral",
   onboarding: "neutral",
   "new starter": "neutral",
+  suspended: "warning",
   archived: "outline",
   "not applicable": "outline",
   "previous version": "outline",
