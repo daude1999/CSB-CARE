@@ -82,3 +82,12 @@
 @media (max-width: 900px) { .cs .hrv-keychecks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Every HR Hub screen sits close under its header (the approved designs have no large inner page margin). */
 .cs.h-embed .h-content.h-wrap { max-width: none; padding: 4px 0 32px; }
+@media (max-width: 560px) { .cs .hrv-keychecks { grid-template-columns: minmax(0, 1fr); } }
+.cs .hrv-keychecks { min-width: 0; }
+
+/* Documents split view: one column on phones and tablets (never wider than the screen), list + detail from 1024px. */
+.hrv-split{grid-template-columns:minmax(0,1fr)}
+.hrv-split>*{min-width:0}
+@media (min-width:1024px){.hrv-split{grid-template-columns:400px minmax(0,1fr)}}
+/* Screen-reader-only labels inside a scrolling table must not stretch the page sideways. */
+.hrv .overflow-x-auto{position:relative}

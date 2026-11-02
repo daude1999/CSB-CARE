@@ -109,8 +109,9 @@ test.describe("HR & Workforce, approved design", () => {
   });
 
   test("no sideways scrolling on a phone", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    // Sign in at desktop width (the account menu sits in the sidebar, which folds away on a phone), then narrow.
     await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
     for (const path of ["/hr/dashboard", "/hr/training", "/hr/documents", "/hr/recruitment", "/"]) {
       await page.goto(path);
       if (path.startsWith("/hr/") && path !== "/hr/recruitment") await hubReady(page);

@@ -241,7 +241,7 @@ export function HRHome({
   ];
 
   return (
-    <div className="hrv grid gap-3" data-testid="hr-dashboard">
+    <div className="hrv grid grid-cols-1 gap-3" data-testid="hr-dashboard">
       <h2 className="sr-only" data-testid="dashboard-title">
         HR Dashboard
       </h2>
@@ -313,7 +313,7 @@ export function HRHome({
           <Pager page={current} pages={pages} setPage={setPage} total={rows.length} size={size} noun="employees" />
         </Panel>
 
-        <div className="grid gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3">
           <Panel id="hr-attention" title="Needs attention" icon={<AlertTriangle size={20} />}>
             <ul className="divide-y divide-[#eef0f3]" data-testid="hr-needs-attention">
               {attention.map((a) => (
@@ -512,7 +512,7 @@ export function TrainingMatrix({ data, scope }: { data: HubData; scope: string }
         <Pager page={current} pages={pages} setPage={setPage} total={rows.length} size={size} noun="employees" />
       </Panel>
 
-      <div className="grid gap-3">
+      <div className="grid min-w-0 grid-cols-1 gap-3">
         <Panel id="tm-week" title="Due this week" icon={<CalendarDays size={20} />}>
           <p className="px-4 pt-2.5 text-[13px] text-[#667085]">Checks and training with a review date in the next 7 days.</p>
           {thisWeek.length ? (
@@ -623,7 +623,7 @@ export function DocumentsSplit({
 
   if (byCategory)
     return (
-      <div className="hrv grid gap-3">
+      <div className="hrv grid grid-cols-1 gap-3">
         {summary}
         <div>{categoryView}</div>
       </div>
@@ -631,9 +631,9 @@ export function DocumentsSplit({
 
   const docs = selected ? data.documents.filter((d) => d.employee === selected.e.id).sort((a, b) => b.uploaded.localeCompare(a.uploaded)) : [];
   return (
-    <div className="hrv grid gap-3" data-testid="documents-split">
+    <div className="hrv grid grid-cols-1 gap-3" data-testid="documents-split">
       {summary}
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[400px_minmax(0,1fr)]">
+      <div className="hrv-split grid items-start gap-3">
         <Panel id="docs-people" title="Employees" icon={<Users size={20} />}>
           <div className="px-3 pt-3">
             <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search by name, role or branch…" label="Search employees" />
