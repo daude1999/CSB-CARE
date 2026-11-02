@@ -177,12 +177,12 @@ test.describe("Sidebar", () => {
     await expect(currentPage(page)).toHaveText("The Monitor");
   });
 
-  test("the Rota menu is nine destinations and Settings; nested pages light their destination and every old page is a tab", async ({ page }) => {
+  test("the Rota menu is eight destinations and Settings; nested pages light their destination and every old page is a tab", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
     const nav = sidebar(page);
     const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
-    expect(labels).toEqual(["Rota Home", "Daily Rota", "Visits Needing Attention", "The Monitor", "Daily Templates", "Service Users", "Staff & Workforce", "Finance", "Reports", "Settings"]);
+    expect(labels).toEqual(["Rota Home", "Daily Rota", "Visits Needing Attention", "The Monitor", "Daily Templates", "Service Users", "Finance", "Reports", "Settings"]);
     await expect(nav.locator("[data-nav-group], [data-nav-more]")).toHaveCount(0);
     await expect(nav.getByText("Planned")).toHaveCount(0);
     await expect(nav.locator("[data-nav-separated]")).toHaveText("Settings");
@@ -193,7 +193,8 @@ test.describe("Sidebar", () => {
       ["/rota/unassigned", "Visits Needing Attention"],
       ["/rota/incidents", "Service Users"],
       ["/rota/care-plans", "Service Users"],
-      ["/rota/readiness", "Staff & Workforce"],
+      ["/rota/readiness", "Daily Rota"],
+      ["/rota/staff", "Daily Rota"],
       ["/rota/finance/payroll", "Finance"],
       ["/rota/insights", "Reports"],
       ["/rota/planner", "Daily Rota"],
@@ -217,8 +218,10 @@ test.describe("Sidebar", () => {
     for (const name of ["Service Users", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
     await page.goto("/rota/finance");
     for (const name of ["Finance Overview", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
+    // Staff administration lives in HR & Workforce; the rota keeps its operational staff pages as Daily Rota tabs.
     await page.goto("/rota/staff");
-    for (const name of ["Team Members", "Staff Readiness"]) await expect(page.getByTestId("rota-tabs-staff").getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["Staff & Eligibility", "Staff Readiness"]) await expect(page.getByTestId("rota-tabs-daily").getByRole("link", { name, exact: true })).toBeVisible();
+    await expect(page.getByTestId("rota-tabs-daily").getByRole("link", { name: "Staff & Eligibility" })).toHaveAttribute("aria-current", "page");
   });
 
   test("Visits Needing Attention shows Unassigned Visits and Missed Calls together, each leading into its own workflow", async ({ page }) => {

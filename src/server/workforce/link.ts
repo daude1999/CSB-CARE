@@ -45,6 +45,6 @@ export async function myStaff(ctx: Ctx) {
   const organisationId = requireOrgPermission(ctx, "visit.own");
   const staff = await db.staffMember.findFirst({ where: { organisationId, userId: ctx.userId } });
   if (!staff) throw new ForbiddenError("Your sign-in is not linked to a staff record yet. Ask your office to link it.");
-  if (staff.employmentStatus === "ARCHIVED" || staff.hrMissing) throw new ForbiddenError("Your staff record is not active");
+  if (staff.employmentStatus === "ARCHIVED" || staff.employmentStatus === "SUSPENDED" || staff.hrMissing) throw new ForbiddenError("Your staff record is not active");
   return staff;
 }

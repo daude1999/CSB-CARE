@@ -48,7 +48,7 @@ export default async function LiveRoutesPage({ searchParams }: { searchParams: P
           <Card title="Future weeks">{table(future, "No run routes for future weeks yet.")}</Card>
           <Card title="Past weeks">{table(past, "No run routes in the last eight weeks.")}</Card>
         </div>
-        {canEdit ? <Card title="Add a run route"><RouteForm action={createLiveRouteAction} back="/rota/routes" staff={lk.staff} areas={lk.areas} withWeek defaultWeek={thisWeek} /></Card> : null}
+        {canEdit ? <Card title="Add a run route"><RouteForm action={createLiveRouteAction} back="/rota/routes" staff={lk.carers} areas={lk.areas} withWeek defaultWeek={thisWeek} /></Card> : null}
       </div>
     </>
   );

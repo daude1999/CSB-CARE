@@ -42,14 +42,14 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="staff" active="team" />} title="Staff & Eligibility" back="/rota" subtitle="Care staff as HR & Workforce records them, with what the rota needs to know. Employment, checks and training are kept in HR and update here automatically; areas, rota participation and matching details are set here." />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="daily" active="staff" />} title="Staff & Eligibility" back="/rota" subtitle="Care staff as HR & Workforce records them, with what the rota needs to know. Employment, checks and training are kept in HR and update here automatically; areas, rota participation and matching details are set here." />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
           <label><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Name, staff number, role" className="input w-56" /></label>
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <label><span className="label">Roles</span><select name="role" defaultValue={sp.role ?? ""} className="input"><option value="">Care roles</option><option value="all">Everyone</option></select></label>
-          <label><span className="label">Employment</span><select name="status" defaultValue={sp.status ?? ""} className="input"><option value="">Active and onboarding</option><option value="all">Include left and archived</option></select></label>
+          <label><span className="label">Employment</span><select name="status" defaultValue={sp.status ?? ""} className="input"><option value="">Current (active, onboarding, suspended)</option><option value="all">Include left and archived</option></select></label>
           <label className="flex items-center gap-1.5 pb-2 text-[14px]"><input type="checkbox" name="problems" value="1" defaultChecked={sp.problems === "1"} className="h-4 w-4" /> HR checks need attention</label>
           <button className="btn-primary">Apply</button>
           <Link href="/rota/staff" className="btn-secondary">Clear</Link>

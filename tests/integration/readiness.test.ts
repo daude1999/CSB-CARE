@@ -17,6 +17,8 @@ import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
  */
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
 const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
+// Training evidence is recorded by HR & Workforce: a coordinator who also holds the Group HR account.
+const hrCoordinator = async () => ({ ...(await coordinator()), hrUserId: "group" });
 const carer = () => ctxFor("carer@care-solution.demo", BROOKFIELD);
 let orgId = "";
 
@@ -68,7 +70,7 @@ describe("evidence and verification", () => {
     expect(before.status).toBe("NOT_READY");
     expect(before.reasons.join(" ")).toMatch(/Safeguarding adults: expired/);
     const sg = await req("safeguarding-adults");
-    const rec = await recordTraining(await coordinator(), id, { requirementId: sg.id, completedAt: londonDate(), provider: "Test provider", result: "Pass" });
+    const rec = await recordTraining(await hrCoordinator(), id, { requirementId: sg.id, completedAt: londonDate(), provider: "Test provider", result: "Pass" });
     // Unverified evidence does not count: the old verified record still decides, and it has expired.
     expect((await statusOf(id)).components.find((c) => c.key === "safeguarding-adults")?.state).toBe("EXPIRED");
     await verifyTraining(await manager(), rec.id, "VERIFIED", "Seen");
@@ -80,7 +82,7 @@ describe("evidence and verification", () => {
     const sg = await req("safeguarding-adults");
     await expect(recordTraining(await coordinator(), id, { requirementId: sg.id, completedAt: addDays(londonDate(), 3) })).rejects.toBeInstanceOf(ValidationError);
     const policy = await db.readinessRequirement.findFirst({ where: { organisationId: orgId, category: "POLICY", status: "ACTIVE" } });
-    if (policy) await expect(recordTraining(await coordinator(), id, { requirementId: policy.id, completedAt: londonDate() })).rejects.toThrow(/acknowledging the policy/);
+    if (policy) await expect(recordTraining(await hrCoordinator(), id, { requirementId: policy.id, completedAt: londonDate() })).rejects.toThrow(/acknowledging the policy/);
   });
 });
 

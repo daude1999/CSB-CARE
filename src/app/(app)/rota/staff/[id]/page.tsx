@@ -2,14 +2,17 @@ import { notFound } from "next/navigation";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
-import { addDays, dbDate, fmtLondonDate, isIsoDate, londonDate, londonToUtc, londonTime, parseHhmm } from "@/lib/london";
+import { addDays, dbDate, fmtLondonDate, hhmm, isIsoDate, londonDate, londonToUtc, londonTime, parseHhmm, WEEKDAYS } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, staffDirectoryWhere } from "@/server/rota/scope";
 import { rotaSettings } from "@/server/rota/settings";
 import { suName } from "@/server/rota/queries";
 import { checkStaffEligibility, complianceOn, type EligibilityResult } from "@/server/workforce/eligibility";
-import { rotaProfileAction } from "@/app/rota-actions";
+import { addRotaAvailabilityAction, endRotaAvailabilityAction, rotaProfileAction } from "@/app/rota-actions";
+import { staffWorkingPattern } from "@/server/rota/staff-availability";
+import { canRecordHrEvidence, hrRecordHref } from "@/server/workforce/hr-record";
+import { ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
@@ -25,14 +28,19 @@ export default async function StaffMemberPage({ params, searchParams }: { params
   const ctx = await requirePortal("rota");
   if (!hasOrgPermission(ctx, "staff.directory")) notFound();
   const scope = await rotaScope(ctx, "staff.directory");
-  const s = await db.staffMember.findFirst({ where: { ...staffDirectoryWhere(scope, { status: "all" }), id }, include: { profile: true, compliance: { orderBy: [{ category: "asc" }, { name: "asc" }] }, areas: true, branch: true, absences: { where: { endsAt: { gte: new Date() } }, orderBy: { startsAt: "asc" }, take: 10 } } });
+  const s = await db.staffMember.findFirst({ where: { ...staffDirectoryWhere(scope, { status: "all" }), id }, include: { profile: true, compliance: { orderBy: [{ category: "asc" }, { name: "asc" }] }, areas: true, branch: true } });
   if (!s) notFound();
   const today = londonDate();
   const c = complianceOn(s.compliance, today);
-  const [areas, upcoming, settings] = await Promise.all([
+  const [areas, upcoming, settings, hours, hrHref, hrEvidence] = await Promise.all([
     db.area.findMany({ where: { organisationId: scope.organisationId, active: true }, orderBy: { name: "asc" } }),
     db.visitAssignment.findMany({ where: { staffId: s.id, removedAt: null, startsAt: { gte: dbDate(today), lt: dbDate(addDays(today, 8)) } }, orderBy: { startsAt: "asc" }, include: { visit: { select: { id: true, status: true, reference: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } } } } } }),
     rotaSettings(db, scope.organisationId),
+    staffWorkingPattern(ctx, s.id),
+    // Only for people HR itself would let in; scheduling someone never opens their HR record.
+    hrRecordHref(ctx, s, `/rota/staff/${s.id}`),
+    // Training and competency evidence is HR's: only an HR account that may edit this person records or verifies it.
+    canRecordHrEvidence(ctx, s),
   ]);
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   // Readiness: evaluated from evidence on every view; the forms are shown only to people the server will let act.
@@ -65,7 +73,20 @@ export default async function StaffMemberPage({ params, searchParams }: { params
 
   return (
     <>
-      <PageHeader title={s.displayName} back="/rota/staff" subtitle={`${s.jobTitle} · ${s.branch?.name ?? "no branch"} · staff number ${s.staffNumber}. Employment and checks come from HR & Workforce.`} actions={hasOrgPermission(ctx, "workforce.link") ? <Link href="/admin/workforce" className="btn-secondary">Sign-in links</Link> : null} />
+      <PageHeader
+        title={s.displayName}
+        back="/rota/staff"
+        subtitle={`${s.jobTitle} · ${s.branch?.name ?? "no branch"} · staff number ${s.staffNumber}. Employment and checks come from HR & Workforce.`}
+        actions={
+          hrHref || hasOrgPermission(ctx, "workforce.link") ? (
+            <>
+              {/* The HR Hub is its own app inside the shell, so this is a full page load (HR_IN_PLATFORM_SHELL.md). */}
+              {hrHref ? <a href={hrHref} className="btn-secondary" data-testid="open-hr-record">Open HR record<ArrowSquareOut size={15} aria-hidden /></a> : null}
+              {hasOrgPermission(ctx, "workforce.link") ? <Link href="/admin/workforce" className="btn-secondary">Sign-in links</Link> : null}
+            </>
+          ) : null
+        }
+      />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">
@@ -76,13 +97,13 @@ export default async function StaffMemberPage({ params, searchParams }: { params
               requirements={requirements}
               careTasks={careTasks}
               serviceUsers={serviceUsers.map((u) => ({ id: u.id, name: suName(u) }))}
-              can={{ record: hasOrgPermission(ctx, "readiness.record"), verify: hasOrgPermission(ctx, "readiness.verify"), exception: hasOrgPermission(ctx, "readiness.exception"), evidence: hasOrgPermission(ctx, "readiness.evidence") }}
+              can={{ record: hasOrgPermission(ctx, "readiness.record"), verify: hasOrgPermission(ctx, "readiness.verify"), exception: hasOrgPermission(ctx, "readiness.exception"), evidence: hasOrgPermission(ctx, "readiness.evidence"), hrEvidence }}
               me={ctx.userId}
             />
           ) : null}
           <Card title="From HR & Workforce">
             <dl className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Field label="Employment">{s.employmentStatus.toLowerCase()}</Field>
+              <Field label="Employment">{s.employmentStatus === "SUSPENDED" ? <Badge tone="rose">Suspended</Badge> : s.employmentStatus.toLowerCase()}</Field>
               <Field label="Started">{s.startDate ? fmtDate(s.startDate) : "—"}</Field>
               <Field label="Leaving">{s.leavingDate ? fmtDate(s.leavingDate) : "—"}</Field>
               <Field label="Last update from HR">{fmtDate(s.projectedAt, true)}</Field>
@@ -107,6 +128,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
               </table>
             ) : <Empty>No checks recorded in HR.</Empty>}
             {c.problems.length ? <p className="mt-2 text-[13px] text-[#a3242c]">For the rota: {c.problems.join("; ")}.</p> : <p className="mt-2 text-[13px] text-[#1c7a43]">All required checks are in order today.</p>}
+            <p className="mt-1 text-[12.5px] text-slate-500">Personal details, employment, documents, checks, training records, holidays and sickness are changed in HR & Workforce, not here.</p>
           </Card>
 
           <Card title="Next 7 days">
@@ -172,8 +194,44 @@ export default async function StaffMemberPage({ params, searchParams }: { params
             </form>
           </Card>
 
-          <Card title="Upcoming absences">
-            {s.absences.length ? <ul className="space-y-1 text-[14px]">{s.absences.map((a) => <li key={a.id}>{a.kind.toLowerCase()} · {fmtDate(a.startsAt)} to {fmtDate(a.endsAt)} · <span className={a.status === "APPROVED" ? "" : "text-[#8a5a00]"}>{a.status.toLowerCase()}</span></li>)}</ul> : <Empty>None recorded.</Empty>}
+          <Card title="Availability">
+            <h3 className="label">Working pattern</h3>
+            {hours.pattern.length ? (
+              <ul className="rows mb-2" data-testid="working-pattern">
+                {hours.pattern.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center gap-2 py-1.5 text-[14px]">
+                    <span className="w-12">{WEEKDAYS[r.weekday - 1]!.slice(0, 3)}</span>
+                    <span className="tabular-nums">{hhmm(r.startMinute)}–{r.endMinute === 1440 ? "24:00" : hhmm(r.endMinute)}</span>
+                    <Badge tone={r.kind === "AVAILABLE" ? "green" : "rose"}>{r.kind === "AVAILABLE" ? "Available" : "Unavailable"}</Badge>
+                    {r.note ? <span className="text-[12.5px] text-slate-500">{r.note}</span> : null}
+                    {canEdit ? <form action={endRotaAvailabilityAction} className="ml-auto"><input type="hidden" name="back" value={back} /><input type="hidden" name="staffId" value={s.id} /><input type="hidden" name="id" value={r.id} /><button className="btn-secondary px-2 py-0.5 text-[13px]" aria-label={`End ${WEEKDAYS[r.weekday - 1]} ${hhmm(r.startMinute)} line`}>End</button></form> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="mb-2 text-[13px] text-slate-500">No working pattern recorded, so they can be booked at any time.</p>}
+            {canEdit ? (
+              <details className="mb-3">
+                <summary className="cursor-pointer text-[14px] font-medium">Add to working pattern</summary>
+                <form action={addRotaAvailabilityAction} className="mt-2 space-y-2">
+                  <input type="hidden" name="back" value={back} />
+                  <input type="hidden" name="staffId" value={s.id} />
+                  <fieldset><legend className="label">Days</legend><div className="flex flex-wrap gap-2">{WEEKDAYS.map((d, n) => <label key={d} className="flex items-center gap-1 text-[13.5px]"><input type="checkbox" name="weekdays" value={n + 1} defaultChecked={n < 5} className="h-4 w-4" /> {d.slice(0, 3)}</label>)}</div></fieldset>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label><span className="label">From</span><input type="time" name="start" required defaultValue="07:00" className="input" /></label>
+                    <label><span className="label">Until</span><input type="time" name="end" required defaultValue="15:00" className="input" /></label>
+                  </div>
+                  <label className="block"><span className="label">This time is</span><select name="kind" className="input"><option value="AVAILABLE">Available to work</option><option value="UNAVAILABLE">Not available</option></select></label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label><span className="label">Starting</span><input type="date" name="from" required defaultValue={today} className="input" /></label>
+                    <label><span className="label">Ending (optional)</span><input type="date" name="to" className="input" /></label>
+                  </div>
+                  <label className="block"><span className="label">Note</span><input name="note" className="input" placeholder="e.g. school run" /></label>
+                  <button className="btn-primary">Save pattern</button>
+                </form>
+              </details>
+            ) : null}
+            <h3 className="label">Holidays and sickness (from HR, next 4 weeks)</h3>
+            {hours.timeOff.length ? <ul className="space-y-1 text-[14px]" data-testid="hr-time-off">{hours.timeOff.map((a) => <li key={a.id}>{a.kind.toLowerCase()} · {fmtDate(a.startsAt)} to {fmtDate(a.endsAt)} · <span className={a.status === "APPROVED" ? "" : "text-[#8a5a00]"}>{a.status === "APPROVED" ? "approved" : "requested"}</span></li>)}</ul> : <Empty>None recorded.</Empty>}
           </Card>
         </div>
       </div>

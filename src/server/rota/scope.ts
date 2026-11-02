@@ -121,7 +121,7 @@ export function staffDirectoryWhere(scope: Scope, f: { area?: string; status?: s
   return {
     organisationId: scope.organisationId,
     hrMissing: false,
-    ...(f.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING"] } }),
+    ...(f.status === "all" ? {} : { employmentStatus: { in: ["ACTIVE", "ONBOARDING", "SUSPENDED"] } }),
     ...(and.length ? { AND: and } : {}),
   };
 }

@@ -34,6 +34,7 @@ import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
 import { addAvailability, cancelStaffAbsence, decideAbsence, endAvailability, recordAbsence } from "@/server/workforce/absences";
 import { reconcileWorkforce } from "@/server/workforce/projection";
+import { addRotaAvailability, endRotaAvailability } from "@/server/rota/staff-availability";
 import { requireOrgPermission } from "@/server/auth/rbac";
 import { confirmCover, recordServiceUserInformed } from "@/server/rota/missed-cover";
 import { bookCover, bookedText } from "@/server/rota/replacement-cover";
@@ -560,6 +561,20 @@ export async function addAvailabilityAction(fd: FormData) {
     const r = await addAvailability(ctx, { staffId: str(fd, "staffId"), weekdays: fd.getAll("weekdays").map(Number), start: str(fd, "start"), end: str(fd, "end"), kind: str(fd, "kind"), from: str(fd, "from"), to: str(fd, "to") || undefined, note: str(fd, "note") });
     return { ok: `Working pattern saved.${impactNote(r)}` };
   }, "Saved");
+}
+
+export async function addRotaAvailabilityAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await addRotaAvailability(ctx, { staffId: str(fd, "staffId"), weekdays: fd.getAll("weekdays").map(Number), start: str(fd, "start"), end: str(fd, "end"), kind: str(fd, "kind"), from: str(fd, "from"), to: str(fd, "to") || undefined, note: str(fd, "note") });
+    return { ok: `Working pattern saved.${impactNote(r)}` };
+  }, "Saved");
+}
+
+export async function endRotaAvailabilityAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await endRotaAvailability(ctx, str(fd, "staffId"), str(fd, "id"));
+    return { ok: `Pattern line ended.${impactNote(r)}` };
+  }, "Pattern line ended");
 }
 
 export async function endAvailabilityAction(fd: FormData) {

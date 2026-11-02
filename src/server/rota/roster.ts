@@ -156,7 +156,8 @@ export async function rosterWeek(ctx: Ctx, f: RosterFilters, chipHref: (visitId:
   } else {
     const absent = new Set(absences.map((a) => a.staffId));
     // Carers shown: everyone booked this week, carers away this week (so the gap is visible), and with "all", everyone.
-    const staffRows = lk.staff.filter((s) => byRow.has(s.id) || absent.has(s.id) || (f.area ? f.all && s.areas.some((a) => a.areaId === f.area) : !!f.all));
+    const pool = new Set(lk.carers.map((s) => s.id));
+    const staffRows = lk.staff.filter((s) => byRow.has(s.id) || absent.has(s.id) || (pool.has(s.id) && (f.area ? f.all && s.areas.some((a) => a.areaId === f.area) : !!f.all)));
     const listed = new Set(staffRows.map((s) => s.id));
     const visiting = new Map(visits.flatMap((v) => v.assignments.filter((a) => !listed.has(a.staffId)).map((a) => [a.staffId, a.staff.displayName] as const)));
     const shadesFor = (id: string) => dates.map((d) => dayShade(d, absences.filter((a) => a.staffId === id), pattern.filter((p) => p.staffId === id)));

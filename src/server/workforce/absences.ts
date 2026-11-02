@@ -135,9 +135,10 @@ export async function listAvailability(ctx: Ctx, staffId?: string) {
   return { actor: a, rows };
 }
 
-/** Adds a weekly pattern line (available or unavailable) for one or more weekdays. */
-export async function addAvailability(ctx: Ctx, input: { staffId: string; weekdays: number[]; start: string; end: string; kind: string; from: string; to?: string; note?: string }) {
-  const a = editor(await hrActor(ctx));
+export interface AvailabilityInput { staffId: string; weekdays: number[]; start: string; end: string; kind: string; from: string; to?: string; note?: string }
+
+/** Validates a working-pattern line. Shared by HR's Availability page and the rota's Staff & Eligibility page. */
+export function parseAvailability(input: AvailabilityInput) {
   const kind = (["AVAILABLE", "UNAVAILABLE"] as AvailabilityKind[]).find((k) => k === input.kind);
   if (!kind) throw new ValidationError("Choose available or unavailable");
   const days = [...new Set(input.weekdays)].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
@@ -146,11 +147,32 @@ export async function addAvailability(ctx: Ctx, input: { staffId: string; weekda
   const e = input.end === "24:00" ? 1440 : parseHhmm(input.end);
   if (s === null || e === null || e <= s) throw new ValidationError("The end time must be after the start time");
   if (!isIsoDate(input.from) || (input.to && (!isIsoDate(input.to) || input.to < input.from))) throw new ValidationError("Check the dates");
+  return { kind, days, startMinute: s, endMinute: e, from: input.from, to: input.to || null, note: input.note?.trim() || null };
+}
+
+/** Writes a validated pattern line for a staff member the caller has already been authorised for, then re-checks their visits. */
+export async function insertAvailability(tx: Prisma.TransactionClient, organisationId: string, staffId: string, p: ReturnType<typeof parseAvailability>, actor: { userId: string; action: string }) {
+  await tx.staffAvailability.createMany({ data: p.days.map((weekday) => ({ organisationId, staffId, weekday, startMinute: p.startMinute, endMinute: p.endMinute, kind: p.kind, effectiveFrom: dbDate(p.from), effectiveTo: p.to ? dbDate(p.to) : null, note: p.note, createdById: actor.userId })) });
+  await audit({ organisationId, actorId: actor.userId, action: actor.action, entityType: "StaffMember", entityId: staffId, data: { kind: p.kind, days: p.days } }, tx);
+  return reviewStaffImpact(tx, organisationId, [staffId], { source: "availability" });
+}
+
+/** Ends a pattern line from today (kept for history), or removes it if it had not started yet, then re-checks visits. */
+export async function closeAvailability(tx: Prisma.TransactionClient, organisationId: string, row: { id: string; staffId: string; effectiveFrom: Date }, actor: { userId: string; action: string }) {
+  const today = londonDate();
+  if (row.effectiveFrom >= dbDate(today)) await tx.staffAvailability.delete({ where: { id: row.id } });
+  else await tx.staffAvailability.update({ where: { id: row.id }, data: { effectiveTo: dbDate(addDays(today, -1)) } });
+  await audit({ organisationId, actorId: actor.userId, action: actor.action, entityType: "StaffMember", entityId: row.staffId }, tx);
+  return reviewStaffImpact(tx, organisationId, [row.staffId], { source: "availability" });
+}
+
+/** Adds a weekly pattern line (available or unavailable) for one or more weekdays. */
+export async function addAvailability(ctx: Ctx, input: AvailabilityInput) {
+  const a = editor(await hrActor(ctx));
+  const p = parseAvailability(input);
   return db.$transaction(async (tx) => {
     const st = await staffFor(tx, a, input.staffId);
-    await tx.staffAvailability.createMany({ data: days.map((weekday) => ({ organisationId: a.organisationId, staffId: st.id, weekday, startMinute: s, endMinute: e, kind, effectiveFrom: dbDate(input.from), effectiveTo: input.to ? dbDate(input.to) : null, note: input.note?.trim() || null, createdById: ctx.userId })) });
-    await audit({ organisationId: a.organisationId, actorId: ctx.userId, action: "workforce.availability.added", entityType: "StaffMember", entityId: st.id, data: { kind, days } }, tx);
-    return reviewStaffImpact(tx, a.organisationId, [st.id], { source: "availability" });
+    return insertAvailability(tx, a.organisationId, st.id, p, { userId: ctx.userId, action: "workforce.availability.added" });
   });
 }
 
@@ -160,10 +182,6 @@ export async function endAvailability(ctx: Ctx, id: string) {
   return db.$transaction(async (tx) => {
     const row = await tx.staffAvailability.findFirst({ where: { id, organisationId: a.organisationId, staff: staffInBranches(a) } });
     if (!row) throw new NotFoundError("Availability");
-    const today = londonDate();
-    if (row.effectiveFrom >= dbDate(today)) await tx.staffAvailability.delete({ where: { id } });
-    else await tx.staffAvailability.update({ where: { id }, data: { effectiveTo: dbDate(addDays(today, -1)) } });
-    await audit({ organisationId: a.organisationId, actorId: ctx.userId, action: "workforce.availability.ended", entityType: "StaffMember", entityId: row.staffId }, tx);
-    return reviewStaffImpact(tx, a.organisationId, [row.staffId], { source: "availability" });
+    return closeAvailability(tx, a.organisationId, row, { userId: ctx.userId, action: "workforce.availability.ended" });
   });
 }
