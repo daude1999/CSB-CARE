@@ -37,3 +37,33 @@ Build Rota creates a week from the regular-call templates. Offices also change a
 - Pay estimates are basic pay from rate cards only, not payroll (no mileage, enhancements outside bands, or holiday accrual).
 - The preview table shows the first 500 rows; the counts cover everything.
 - Run routes are copied by name into the new week (an existing route of the same name that week is reused). The route keeps its original carer even if that carer was dropped from the visits, so check routes after a roll forward with many uncovered slots.
+
+## Preview fix and simpler workflow (3 Nov 2026)
+
+**What was wrong with Preview.** The Preview button submitted a plain GET form, so every press reloaded the whole Build
+Rota page and worked the plan out again with no sign inside the dialog that anything was happening (the page's progress
+bar sits under the dialog's backdrop). The comparison table also listed only the visits to be created. With the owner's
+week (1,206 visits copied, 1,204 already in the destination, 2 new) the table showed the same 2 rows whatever was
+chosen, so a finished preview looked exactly like the one before it.
+
+**What changed.**
+- Preview Rota now asks the server for a fresh plan in place (`router.replace`, or `router.refresh` for the same
+  choices) inside a React transition. The dialog stays open, the choices stay as chosen, the old results are dimmed with
+  "Updating the preview…", and "Preview updated at hh:mm:ss" confirms the new plan. The form still works as a plain GET
+  without JavaScript.
+- The preview shows the whole destination rota: every visit already there (never changed), every new visit and every
+  skipped one, labelled Already exists, New visit, Different from source, Carer retained, Needs review, Uncovered and
+  Skipped, with a Weekly view (grouped by day) and a Daily view, a week picker for 2 to 4 weeks, and a search.
+- Each plan carries a fingerprint (a digest of the choices, every proposed visit and carer, skips and matches). Save as
+  Draft sends the fingerprint of the preview on screen and the server refuses with a clear message if the plan worked out
+  at save time differs, so only the reviewed plan is ever saved. Save is paused while the choices on screen differ from
+  the previewed ones.
+- Simpler steps: Copy Rota From, Copy Rota To (the week after is suggested), Preview Rota, Save as Draft, then Roll
+  Forward Next Week (after saving, the week just saved becomes the source and the following week the target). How many
+  weeks and Areas are under More options. Every earlier capability (1 to 4 weeks, any dates, areas, eligibility checks,
+  multi-carer places, medication leads, routes, tasks, duplicate prevention, estimates, drafts, publishing, audit) is
+  unchanged.
+
+**Tests.** `tests/integration/roll-forward.test.ts` (preview writes nothing; same answer for the same rota; stale preview
+refused; whole destination listed) and `tests/e2e/roll-forward-preview.spec.ts`, which builds the owner's scenario from
+synthetic data with `tests/e2e/fixtures/roll-forward-scenario.ts` and changes each field in turn.
