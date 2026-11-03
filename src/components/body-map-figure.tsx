@@ -172,7 +172,7 @@ export function BodyMapWorkspace(props: WorkspaceProps) {
           </button>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-[50px_minmax(0,1fr)_146px] gap-2.5 max-sm:grid-cols-[44px_minmax(0,1fr)]">
+      <div className="mt-3 grid grid-cols-[48px_minmax(0,1fr)_158px] gap-2.5 max-sm:grid-cols-[44px_minmax(0,1fr)]">
         <div role="toolbar" aria-label="Body map tools" className="bm-tools">
           <button type="button" className="bm-tool" aria-pressed="true"><Cursor size={18} aria-hidden /> <span>Select</span></button>
           <button type="button" className="bm-tool" onClick={() => setZoom((z) => Math.min(2.5, z + 0.25))} disabled={zoom >= 2.5}><MagnifyingGlassPlus size={18} aria-hidden /> <span>Zoom In</span></button>

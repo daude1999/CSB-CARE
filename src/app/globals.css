@@ -405,7 +405,7 @@
   .bm-add-photo { @apply inline-flex h-[72px] w-[92px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#9e77ed] bg-[#faf8ff] text-[12px] font-medium text-[#5b2bb5]; }
   .bm-add-photo:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
   .bm-tabs { @apply -mx-4 flex gap-1 overflow-x-auto border-b border-[#eaecf0] px-4; }
-  .bm-tab { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-2 pb-2 pt-1 text-[13px] font-medium text-[#475467] no-underline; }
+  .bm-tab { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-1.5 pb-2 pt-1 text-[12.5px] font-medium text-[#475467] no-underline; }
   .bm-tab:hover { @apply text-[#101828]; }
   .bm-tab[aria-current="page"] { @apply border-[#5b2bb5] text-[#5b2bb5]; }
   .bm-dl { @apply grid grid-cols-[minmax(110px,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]; }
