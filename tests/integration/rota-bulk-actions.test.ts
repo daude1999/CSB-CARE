@@ -342,6 +342,8 @@ describe("18 Complete Calls", () => {
   it("needs a reason, who confirmed it, and the coordinator's confirmation; and a visit changed since the review is refused", async () => {
     const v = await mkVisit({ days: -2, staff: 1 });
     await expect(one(v.id, confirm({ reason: "ok" }))).rejects.toThrow(/reason/);
+    // A short reason of 3+ letters is enough, as for the other bulk actions.
+    expect((await previewBulkVisits(await manager(), [v.id], confirm({ reason: "TEST" })))[0]!.outcome).toBe("updated");
     await expect(one(v.id, confirm({ verifiedBy: "" }))).rejects.toThrow(/who confirmed/);
     await expect(one(v.id, confirm({ confirmed: false }))).rejects.toThrow(/confirm/);
     // The review may be made before ticking the confirmation.

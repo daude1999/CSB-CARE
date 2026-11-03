@@ -31,7 +31,7 @@ export interface CompleteInput {
 }
 
 export function checkCompleteInput(i: Pick<CompleteInput, "reason" | "verifiedBy" | "confirmed">, opts: { preview?: boolean } = {}) {
-  if (i.reason.trim().length < 5) throw new ValidationError("Give the reason for completing these visits (at least 5 letters)");
+  if (i.reason.trim().length < 3) throw new ValidationError("Give the reason for completing these visits (at least 3 letters)");
   if (i.reason.trim().length > 500) throw new ValidationError("Keep the reason under 500 characters");
   if (i.verifiedBy.trim().length < 3) throw new ValidationError("Say who confirmed the care was delivered");
   if (i.verifiedBy.trim().length > 200) throw new ValidationError("Keep who confirmed it under 200 characters");

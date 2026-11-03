@@ -74,7 +74,7 @@ test.describe("Daily Rota bulk actions", () => {
     for (const r of refs) await page.getByLabel(`Select ${r}`, { exact: true }).check();
     await expect(bulk.getByTestId("bulk-selected")).toHaveText("6 selected");
     await bulk.locator("select[name=kind]").selectOption("complete");
-    await expect(bulk.getByTestId("bulk-hint")).toHaveText("Give the reason for completing (at least 5 letters).");
+    await expect(bulk.getByTestId("bulk-hint")).toHaveText("Give the reason for completing (at least 3 letters).");
     await bulk.getByLabel("Reason for completing").fill("Carer's phone failed; visits confirmed with the family");
     await expect(bulk.getByTestId("bulk-hint")).toHaveText("Say who confirmed the care was delivered.");
     await bulk.getByLabel("Who confirmed the care was delivered").fill("Jo Smith, senior carer");

@@ -128,7 +128,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
     : needs.has("carers") && carers === "custom" && !(Number(carersCustom) >= 1 && Number(carersCustom) <= MAX_CARERS && Number.isInteger(Number(carersCustom))) ? `Enter a whole number of carers from 1 to ${MAX_CARERS}.`
     : needs.has("charge") && !charge ? "Choose Charge or Don't charge."
     : needs.has("reason") && reason.trim().length < 3 ? "Give a reason (at least 3 letters)."
-    : needs.has("completeReason") && reason.trim().length < 5 ? "Give the reason for completing (at least 5 letters)."
+    : needs.has("completeReason") && reason.trim().length < 3 ? "Give the reason for completing (at least 3 letters)."
     : needs.has("verifiedBy") && verifiedBy.trim().length < 3 ? "Say who confirmed the care was delivered."
     : null;
 
