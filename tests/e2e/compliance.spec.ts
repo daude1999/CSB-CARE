@@ -77,7 +77,7 @@ test.describe("Policy & Compliance workspaces", () => {
     const residual = page.locator("fieldset", { hasText: "Residual" });
     await residual.getByLabel("Likelihood").selectOption("3");
     await residual.getByLabel("Impact").selectOption("3");
-    await page.getByLabel("Owner").selectOption({ label: "Alex Morgan" });
+    await page.getByLabel("Owner").selectOption({ label: "Mohamed Mire" });
     await page.getByRole("button", { name: "Add to the register" }).click();
     await expect(page).toHaveURL(/\/compliance\/risks\/[^/n]/);
     await expect(page.getByRole("status")).toContainText(/Risk R-\d{3} added/);

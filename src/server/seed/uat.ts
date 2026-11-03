@@ -137,12 +137,12 @@ export async function seedUatOperations(organisationId: string, people: UatPeopl
       let evidence = c.evidence;
       if (!evidence) {
         evidence = `uat-doc-${randomUUID()}`;
-        state.documents.push({ id: evidence, org: "csb", employee: e.id, category: c.category ?? (/dbs/i.test(c.name) ? "DBS" : /right to work/i.test(c.name) ? "Right to work" : "Training"), filename: "uat-synthetic-evidence.pdf", mime: "application/pdf", version: 1, previous: null, uploaded: `${docDate}T10:00:00Z`, uploader: "Alex Morgan", state: "Sample", key: null, issueDate: docDate, reviewDate: null, expiryDate: null, retentionDate: null, source: "Synthetic UAT data" });
+        state.documents.push({ id: evidence, org: "csb", employee: e.id, category: c.category ?? (/dbs/i.test(c.name) ? "DBS" : /right to work/i.test(c.name) ? "Right to work" : "Training"), filename: "uat-synthetic-evidence.pdf", mime: "application/pdf", version: 1, previous: null, uploaded: `${docDate}T10:00:00Z`, uploader: "Mohamed Mire", state: "Sample", key: null, issueDate: docDate, reviewDate: null, expiryDate: null, retentionDate: null, source: "Synthetic UAT data" });
       }
       const due = c.recurring ? (dueSoon.has(e.id) && /dbs/i.test(c.name) ? addDays(today, 10) : addDays(today, 200 + ((e.id.length * 31 + c.name.length * 7) % 160))) : c.due;
-      Object.assign(c, { evidence, verified: true, due, reviewer: "Alex Morgan", checkedAt: new Date().toISOString(), version: c.version + 1 });
+      Object.assign(c, { evidence, verified: true, due, reviewer: "Mohamed Mire", checkedAt: new Date().toISOString(), version: c.version + 1 });
     }
-    state.events.push({ id: `uat-load-${today}`, org: "csb", employee: null, actor: "Alex Morgan", action: "Synthetic UAT data: care staff added and checks verified", at: new Date().toISOString() });
+    state.events.push({ id: `uat-load-${today}`, org: "csb", employee: null, actor: "Mohamed Mire", action: "Synthetic UAT data: care staff added and checks verified", at: new Date().toISOString() });
   });
   log("HR carers and checks");
 

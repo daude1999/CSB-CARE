@@ -85,9 +85,9 @@ export async function seedCareDemo(organisationId: string, people: { manager: st
     const careIds = new Set(state.employees.filter((e, i) => DEFAULT_CARE_ROLES.includes(e.job) && i % 5 !== 4).map((e) => e.id));
     for (const c of state.checks) {
       if (!careIds.has(c.employee) || !c.evidence) continue;
-      Object.assign(c, { verified: true, due: c.recurring ? due : c.due, reviewer: "Alex Morgan", checkedAt: new Date().toISOString(), version: c.version + 1 });
+      Object.assign(c, { verified: true, due: c.recurring ? due : c.due, reviewer: "Mohamed Mire", checkedAt: new Date().toISOString(), version: c.version + 1 });
     }
-    state.events.push({ id: `demo-verify-${today}`, org: state.users[0]?.org ?? "csb", employee: null, actor: "Alex Morgan", action: "Demo: care staff checks verified for the sample rota", at: new Date().toISOString() });
+    state.events.push({ id: `demo-verify-${today}`, org: state.users[0]?.org ?? "csb", employee: null, actor: "Mohamed Mire", action: "Demo: care staff checks verified for the sample rota", at: new Date().toISOString() });
   });
 
   // Staff to areas: care staff in each branch split across that branch's areas.

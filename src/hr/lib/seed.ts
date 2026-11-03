@@ -10,7 +10,7 @@ export function seed(): State {
     {
       id: "admin",
       org: "csb",
-      name: "Alex Morgan",
+      name: "Mohamed Mire",
       role: "Organisation Admin",
       branches: branches.slice(0, 3).map((b) => b.id),
       sensitive: true,
@@ -157,7 +157,7 @@ export function seed(): State {
             version: 1,
             previous: null,
             uploaded: "2026-09-20T10:00:00Z",
-            uploader: "Alex Morgan",
+            uploader: "Mohamed Mire",
             state: "Sample",
             key: null,
             issueDate: "2026-02-15",
@@ -190,7 +190,7 @@ export function seed(): State {
                   ][i % 8],
           verified: n % 9 !== 4,
           evidence: missing ? null : id,
-          reviewer: n % 9 !== 4 ? "Alex Morgan" : null,
+          reviewer: n % 9 !== 4 ? "Mohamed Mire" : null,
           checkedAt: n % 9 !== 4 ? "2026-09-20T11:00:00Z" : null,
           version: 1,
           ...(j === 0

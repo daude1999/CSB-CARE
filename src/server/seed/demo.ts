@@ -41,7 +41,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
 
   // The last column is the person's HR Hub account (see src/hr/lib/seed.ts); people without one cannot open HR & Workforce.
   const members: [string, string, OrgRole[], string | null, string, string | null][] = [
-    ["manager@care-solution.demo", "Alex Morgan", ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"], null, "Registered manager", "admin"],
+    ["manager@care-solution.demo", "Mohamed Mire", ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"], null, "CEO", "admin"],
     ["coordinator@care-solution.demo", "Casey Coordinator", ["CARE_COORDINATOR"], null, "Care coordinator", null],
     ["finance@care-solution.demo", "Frankie Finance", ["FINANCE_OFFICER"], null, "Finance officer", null],
     ["carer@care-solution.demo", "Amelia Hart", ["STAFF"], liverpool.id, "Care support worker", null],
@@ -76,7 +76,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
 
   // Care Solution Bureau adopts the starter templates that fit its services, with completed local sections.
   const localText: Record<string, string> = {
-    "CSB-SAF-001": "Safeguarding lead: Alex Morgan, 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional). Local authority safeguarding team: 01632 960003 (fictional).",
+    "CSB-SAF-001": "Safeguarding lead: Mohamed Mire (CEO), 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional). Local authority safeguarding team: 01632 960003 (fictional).",
     "CSB-MED-001": "Supplying pharmacy: Riverside Pharmacy (fictional), 01632 960010. Out of hours: NHS 111.",
     "CSB-COM-001": "Complaints are sent to the registered manager at complaints@care-solution.demo (fictional).",
     "CSB-IPC-001": "IPC lead: Riley Reviewer. Local health protection team: 01632 960020 (fictional).",
@@ -90,7 +90,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
     "CSB-MCA-002": "DoLS team (supervisory body): 01632 960040 (fictional).",
     "CSB-CLN-003": "GP practice: Riverside Medical Centre (fictional), 01632 960050. Out of hours: NHS 111. Emergencies: 999.",
   };
-  const defaultLocal = "Policy lead for Care Solution Bureau: Alex Morgan (registered manager), 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional).";
+  const defaultLocal = "Policy lead for Care Solution Bureau: Mohamed Mire (CEO), 01632 960001 (fictional). Out of hours: on-call manager 01632 960002 (fictional).";
   const demoServices = ["DOMICILIARY"];
   const templates = await db.policy.findMany({
     where: { kind: "MASTER", organisationId: null, serviceTypes: { hasSome: demoServices } },
@@ -101,7 +101,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   const ackRefs = ["CSB-HS-002", "CSB-MED-004", "CSB-DP-002"];
   for (const [i, tpl] of templates.entries()) {
     const isPolicy = ["POLICY", "PROCEDURE", "GUIDANCE"].includes(tpl.docType);
-    const local = localText[tpl.ref] ?? (isPolicy ? defaultLocal : "Care Solution Bureau logo added. Completed copies are returned to the registered manager, Alex Morgan (fictional).");
+    const local = localText[tpl.ref] ?? (isPolicy ? defaultLocal : "Care Solution Bureau logo added. Completed copies are returned to the CEO, Mohamed Mire.");
     const p = await db.policy.create({
       data: { kind: "CUSTOMER", organisationId: org.id, templateId: tpl.id, ref: tpl.ref, docType: tpl.docType, title: tpl.title, description: tpl.description, categoryCode: tpl.categoryCode, serviceTypes: tpl.serviceTypes.filter((t) => demoServices.includes(t)), ownerId: ids["manager@care-solution.demo"], approverId: ids["approver@care-solution.demo"], isDemo: true },
     });
