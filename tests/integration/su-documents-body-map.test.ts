@@ -39,6 +39,9 @@ beforeAll(async () => {
 }, 180_000);
 
 const today = londonDate();
+// Body map and incident records are dated yesterday so the fixed times below are never "in the future",
+// whatever time of day the suite runs (a run before 08:30 London used to fail).
+const yesterday = addDays(today, -1);
 
 describe("council and other documents", () => {
   it("uploads, keeps sections apart, previews and downloads from private storage, and audits each step", async () => {
@@ -148,7 +151,7 @@ describe("council and other documents", () => {
 });
 
 describe("digital body map", () => {
-  const input = (over: Record<string, unknown> = {}) => ({ view: "FRONT", x: 20, y: 38, category: "Bruising", date: today, time: "08:30", description: "Purple bruise on the forearm, skin not broken.", size: "4 cm x 2 cm", appearance: "Purple", pain: "MILD", actionTaken: "Told the office", personNotified: "Daughter by phone", followUpOn: addDays(today, 2), ...over });
+  const input = (over: Record<string, unknown> = {}) => ({ view: "FRONT", x: 20, y: 38, category: "Bruising", date: yesterday, time: "08:30", description: "Purple bruise on the forearm, skin not broken.", size: "4 cm x 2 cm", appearance: "Purple", pain: "MILD", actionTaken: "Told the office", personNotified: "Daughter by phone", followUpOn: addDays(today, 2), ...over });
 
   it("records an observation with the nearest body area, a private photo, a manager alert and an audit entry", async () => {
     const c = await coordinator();
@@ -201,7 +204,7 @@ describe("digital body map", () => {
     expect(o.region).toBe("Base of spine (sacrum)");
     await expect(decideIncident(c, o.id, o.version, { kind: "NOT_REQUIRED", note: "Known" })).rejects.toBeInstanceOf(ForbiddenError);
     // An incident about someone else cannot be linked.
-    const elsewhere = await reportIncident(m, { serviceUserId: su2Id, date: today, time: "07:00", category: "Fall", severity: "LOW", description: "Slipped in the kitchen, no injury seen at the time." });
+    const elsewhere = await reportIncident(m, { serviceUserId: su2Id, date: yesterday, time: "07:00", category: "Fall", severity: "LOW", description: "Slipped in the kitchen, no injury seen at the time." });
     await expect(decideIncident(m, o.id, o.version, { kind: "LINK", incidentId: elsewhere.id })).rejects.toBeInstanceOf(NotFoundError);
     const newId = await decideIncident(m, o.id, o.version, { kind: "NEW", category: "Injury", severity: "MODERATE", description: "Body map: pressure sore observed at base of spine, skin intact.", safeguarding: false });
     const inc = await db.incident.findUniqueOrThrow({ where: { id: newId! } });
