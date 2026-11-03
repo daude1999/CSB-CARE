@@ -15,13 +15,13 @@ const p = (s = "") => new URLSearchParams(s);
 
 describe("Policy & Compliance sidebar: six workspaces", () => {
   it("gives a manager exactly the six entries, in the agreed order", () => {
-    expect(complianceItems(manager, i).map((x) => x.label)).toEqual(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Policy Sign-off", "Audits & Improvements", "Compliance Reports"]);
+    expect(complianceItems(manager, i).map((x) => x.label)).toEqual(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"]);
   });
 
   it("shows a carer only what they may open: no reports, no audits workspace, sign-off goes to their reading list", () => {
     const items = complianceItems(carer, i);
     expect(items.map((x) => x.label)).not.toContain("Compliance Reports");
-    expect(items.find((x) => x.label === "Policy Sign-off")?.href).toBe("/acknowledgements");
+    expect(items.find((x) => x.label === "Staff Sign-off")?.href).toBe("/acknowledgements");
     expect(workspaceTabs(carer, "signoff").map((t) => t.label)).toEqual(["My Reading List"]);
     expect(workspaceTabs(carer, "improvements").map((t) => t.label)).toEqual(["Corrective Actions"]);
   });
@@ -30,7 +30,7 @@ describe("Policy & Compliance sidebar: six workspaces", () => {
     expect(workspaceTabs(manager, "library").map((t) => t.label)).toEqual(["My Policies", "Templates", "Archived", "Review Calendar", "Review & Approval Queue"]);
     expect(workspaceTabs(manager, "regulatory").map((t) => t.href)).toEqual(["/changes", "/requirements", "/compliance/regulatory/sources"]);
     expect(workspaceTabs(manager, "signoff").map((t) => t.label)).toEqual(["Overview", "By Employee", "By Policy", "Overdue", "Assignment Rules", "My Reading List"]);
-    expect(workspaceTabs(manager, "improvements").map((t) => t.label)).toEqual(["Audits & Inspections", "Corrective Actions", "Organisational Risk Register", "Evidence Library"]);
+    expect(workspaceTabs(manager, "improvements").map((t) => t.label)).toEqual(["Audits & Inspections", "Corrective Actions", "Risk Register", "Evidence Library"]);
     expect(workspaceHome(manager, "improvements")).toBe("/audits");
   });
 

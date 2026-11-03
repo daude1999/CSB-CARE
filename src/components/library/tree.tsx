@@ -12,7 +12,7 @@ export function TreeArea({ id, label, count, href, current, defaultOpen, childre
         <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={`tree-${id}`} aria-label={`${open ? "Collapse" : "Expand"} ${label}`} className="flex h-[26px] w-[22px] shrink-0 items-center justify-center rounded-[4px] text-[#3a4b5e] hover:bg-black/5">
           {open ? <CaretDown size={12} weight="bold" aria-hidden="true" /> : <CaretRight size={12} weight="bold" aria-hidden="true" />}
         </button>
-        <Link href={href} scroll={false} className="min-w-0 flex-1 truncate text-inherit hover:text-[#0646b1]">{label}</Link>
+        <Link href={href} scroll={false} className="pc-plain min-w-0 flex-1 truncate text-inherit hover:text-[#5b2bb5]">{label}</Link>
         <span className="pl-count">{count}</span>
       </div>
       <ul id={`tree-${id}`} hidden={!open} className="mb-1 ml-[22px] mt-0.5 space-y-px">{children}</ul>

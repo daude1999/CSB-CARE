@@ -1,7 +1,7 @@
 "use server";
 
 import { handle, str } from "./action-kit";
-import { correctAcknowledgement, createRule, exemptRow, recordAckAssessment, withdrawRule, type RuleInput } from "@/server/policies/assignment";
+import { bulkSignoff, correctAcknowledgement, createRule, exemptRow, recordAckAssessment, withdrawRule, type RuleInput } from "@/server/policies/assignment";
 
 /** Server actions for Policy Sign-off. Each reads FormData, calls one function in src/server/policies/assignment and redirects back. */
 
@@ -30,6 +30,22 @@ export async function withdrawRuleAction(fd: FormData) {
     const r = await withdrawRule(ctx, str(fd, "ruleId"), str(fd, "reason"));
     return { ok: `Assignment withdrawn; ${r.withdrawn} outstanding ${r.withdrawn === 1 ? "item" : "items"} withdrawn. Acknowledgements already given are kept.` };
   }, "Assignment withdrawn");
+}
+
+/** Send reminder, extend the due date or exempt, for the rows ticked in the Staff Sign-off register. */
+export async function bulkSignoffAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const op = str(fd, "op");
+    const rowIds = ids(fd, "ids");
+    const r = op === "remind"
+      ? await bulkSignoff(ctx, { op, ids: rowIds })
+      : op === "extend"
+        ? await bulkSignoff(ctx, { op, ids: rowIds, dueAt: new Date(str(fd, "dueAt")), reason: str(fd, "reason") })
+        : await bulkSignoff(ctx, { op: "exempt", ids: rowIds, reason: str(fd, "reason") });
+    const what = op === "remind" ? "Reminder sent to" : op === "extend" ? "New due date set for" : "Exemption recorded for";
+    const skipped = r.skipped ? ` ${r.skipped} skipped: ${op === "remind" ? "already done, no sign-in to remind, or already reminded today" : "not outstanding or not yours to manage"}.` : "";
+    return { ok: `${what} ${r.done} ${r.done === 1 ? "assignment" : "assignments"}.${skipped}` };
+  }, "Done");
 }
 
 export async function exemptAckAction(fd: FormData) {

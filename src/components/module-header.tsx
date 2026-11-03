@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "@/components/link";
-import { CaretLeft, ShieldCheck, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { PcHeader, type Crumb } from "@/components/compliance-ui";
 
 /**
  * The page header for HR & Workforce (orange) and Policy & Compliance (blue), from the owner's approved designs of
@@ -46,9 +47,32 @@ export function ModulePageHeader({ title, subtitle, actions, back = "/", tabs, i
   );
 }
 
-/** Policy & Compliance page header (blue, from the module colour). */
-export function CompliancePageHeader(props: ModuleHeaderProps) {
-  return <ModulePageHeader icon={<ShieldCheck size={26} aria-hidden="true" />} {...props} />;
+/**
+ * Where a Policy & Compliance page's "back" address sits in the module, so a detail page's breadcrumb leads back to
+ * the list it came from.
+ */
+const COMPLIANCE_PARENTS: [string, string][] = [
+  ["/policies", "Policy Library"],
+  ["/queue", "Review & Approval Queue"],
+  ["/changes", "Regulatory Monitoring"],
+  ["/requirements", "Requirements Register"],
+  ["/staff", "Staff Sign-off"],
+  ["/acknowledgements", "My Reading List"],
+  ["/audits", "Audits & Improvements"],
+  ["/actions", "Corrective Actions"],
+  ["/compliance/risks", "Risk Register"],
+  ["/evidence", "Evidence Library"],
+];
+
+/**
+ * Policy & Compliance page header (owner's brief of 3 Nov 2026): breadcrumb, title, subtitle and actions on the light
+ * page, then the workspace tabs. A detail page's `back` address becomes the middle breadcrumb.
+ */
+export function CompliancePageHeader({ title, subtitle, actions, back, tabs, crumbs }: ModuleHeaderProps & { crumbs?: Crumb[] }) {
+  const parentPath = back ? back.split("?")[0]! : null;
+  const parent = parentPath && parentPath !== "/" ? COMPLIANCE_PARENTS.find(([p]) => parentPath === p || parentPath.startsWith(`${p}/`)) : undefined;
+  const trail = crumbs ?? [{ label: "Policy & Compliance", href: "/" }, ...(parent && parent[1] !== title ? [{ label: parent[1], href: back! }] : [])];
+  return <PcHeader title={title} subtitle={subtitle} actions={actions} tabs={tabs} crumbs={trail} />;
 }
 
 /** HR & Workforce page header (orange, from the module colour). */

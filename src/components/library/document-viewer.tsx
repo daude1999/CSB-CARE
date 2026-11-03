@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
-import { ArrowsOut, CaretDown, CaretLeft, CaretRight, DownloadSimple, FileMagnifyingGlass, ListBullets, Minus, Plus, Printer, X } from "@phosphor-icons/react";
+import { ArrowsOut, FileDoc, CaretDown, CaretLeft, CaretRight, DownloadSimple, FileMagnifyingGlass, ListBullets, Minus, Plus, Printer, X } from "@phosphor-icons/react";
 
 const ZOOMS = [50, 75, 100, 125, 150, 200] as const;
 const GAP = 16;
@@ -37,7 +37,7 @@ function usePdf(src: string) {
  * Pages scroll continuously in a panel sized to the screen, and the reader opens the same document across the whole
  * window. Page text is also given to screen readers, and the full record links to the accessible HTML text.
  */
-export function DocumentViewer({ src, downloadHref, title, headings }: { src: string; downloadHref: string; title: string; headings: string[] }) {
+export function DocumentViewer({ src, downloadHref, wordHref, title, headings }: { src: string; downloadHref: string; wordHref?: string; title: string; headings: string[] }) {
   const { pdf, error } = usePdf(src);
   const [reader, setReader] = useState(false);
   const [printing, setPrinting] = useState<string[] | null>(null);
@@ -69,7 +69,7 @@ export function DocumentViewer({ src, downloadHref, title, headings }: { src: st
     };
   }, [printing]);
 
-  const shared = { pdf, error, downloadHref, title, headings, onPrint: () => void print() };
+  const shared = { pdf, error, downloadHref, wordHref, title, headings, onPrint: () => void print() };
   return (
     <>
       <PdfPane {...shared} variant="panel" onReader={() => setReader(true)} />
@@ -101,6 +101,7 @@ type PaneProps = {
   pdf: PDFDocumentProxy | null;
   error: string;
   downloadHref: string;
+  wordHref?: string;
   title: string;
   headings: string[];
   variant: "panel" | "reader";
@@ -108,7 +109,7 @@ type PaneProps = {
   onPrint: () => void;
 };
 
-function PdfPane({ pdf, error, downloadHref, title, headings, variant, onReader, onPrint }: PaneProps) {
+function PdfPane({ pdf, error, downloadHref, wordHref, title, headings, variant, onReader, onPrint }: PaneProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const pageEls = useRef<(HTMLDivElement | null)[]>([]);
   const [zoom, setZoom] = useState<number | "fit">("fit");
@@ -208,7 +209,7 @@ function PdfPane({ pdf, error, downloadHref, title, headings, variant, onReader,
         <button type="button" className="pl-tool" onClick={() => setOutline((o) => !o)} aria-pressed={outline} aria-label="Sections" title="Sections"><ListBullets size={17} /></button>
         <span className="pl-tool-sep" aria-hidden="true" />
         <button type="button" className="pl-tool" onClick={() => goTo(Math.max(1, current - 1))} disabled={current <= 1} aria-label="Previous page" title="Previous page"><CaretLeft size={15} /></button>
-        <span className="pl-tool-count" aria-live="polite" data-testid="page-count">{total ? `${current} / ${total}` : "– / –"}</span>
+        <span className="pl-tool-count" aria-live="polite" data-testid="page-count">{total ? `Page ${current} of ${total}` : "Page – of –"}</span>
         <button type="button" className="pl-tool" onClick={() => goTo(Math.min(total, current + 1))} disabled={!total || current >= total} aria-label="Next page" title="Next page"><CaretRight size={15} /></button>
         <span className="pl-tool-sep max-[420px]:hidden" aria-hidden="true" />
         <button type="button" className="pl-tool max-[420px]:hidden" onClick={() => zoomBy(-1)} aria-label="Zoom out" title="Zoom out"><Minus size={15} /></button>
@@ -224,6 +225,7 @@ function PdfPane({ pdf, error, downloadHref, title, headings, variant, onReader,
         <button type="button" className="pl-tool max-[420px]:hidden" onClick={() => setZoom("fit")} aria-label="Fit to width" title="Fit to width"><FileMagnifyingGlass size={17} /></button>
         <span className="ml-auto" />
         <a className="pl-tool" href={downloadHref} download aria-label="Download PDF" title="Download PDF"><DownloadSimple size={17} /></a>
+        {wordHref ? <a className="pl-tool" href={wordHref} download aria-label="Download Word" title="Download Word"><FileDoc size={17} /></a> : null}
         <button type="button" className="pl-tool" onClick={onPrint} disabled={!pdf} aria-label="Print" title="Print"><Printer size={17} /></button>
         {variant === "panel" ? (
           <button type="button" className="pl-tool" onClick={onReader} aria-label="Open full-screen reader" title="Open full-screen reader"><ArrowsOut size={17} /></button>

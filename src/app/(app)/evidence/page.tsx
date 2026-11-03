@@ -9,7 +9,11 @@ import { memberNames } from "@/server/rota/queries";
 import { uploadLinkedEvidenceAction } from "@/app/compliance-actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { ScanBadge } from "@/components/evidence-ui";
-import { Card, Empty, Flash, fmtDate, SegmentNav } from "@/components/ui";
+import { Flash, fmtDate } from "@/components/ui";
+import { ActionDialog } from "@/components/dialog";
+import { PcFoot, PcSearch, PcTableWrap } from "@/components/compliance-ui";
+import { PcSelect } from "@/components/pc-select";
+import { UploadSimple } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -47,46 +51,15 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
       : null,
   ]);
   const filters: [string, string][] = [["all", "All"], ...Object.entries(LINK_TYPES), ["none", "Not linked"]];
-  const base = (linked: string) => `/evidence${linked !== "all" ? `?linked=${linked}` : ""}`;
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="evidence" />} eyebrow="Care operations · supporting records" title="Audits & Improvements" subtitle="The Evidence Library: documents that support policies, audits, findings, corrective actions and risks. Files are checked by type and size; a file is marked clean only after a malware scan." />
-      <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0">
-          <SegmentNav label="Linked to" items={filters.map(([k, label]) => ({ href: base(k), label, active: filter === k }))} />
-          <Card className="rounded-tl-none">
-            <form method="get" action="/evidence" role="search" className="mb-3 flex flex-wrap gap-2">
-              {filter !== "all" ? <input type="hidden" name="linked" value={filter} /> : null}
-              <input name="q" defaultValue={q ?? ""} placeholder="Search file names and descriptions" aria-label="Search evidence" className="input max-w-[320px]" />
-              <button className="btn-secondary">Search</button>
-            </form>
-            {docs.length ? (
-              <table className="table">
-                <thead><tr><th>File</th><th>Type</th><th>Linked to</th><th>Uploaded</th><th>Scan</th></tr></thead>
-                <tbody>
-                  {docs.map((d) => {
-                    const link = linkFor(links, d);
-                    return (
-                      <tr key={d.id}>
-                        <td className="min-w-[200px]"><a href={`/api/evidence/${d.id}`} data-no-progress="" className="break-all">{d.filename}</a><div className="text-[12.5px] text-slate-600">{d.description ?? ""}</div></td>
-                        <td className="whitespace-nowrap text-[13px]">{KIND[d.contentType] ?? d.contentType} · {Math.max(1, Math.ceil(d.sizeBytes / 1024))} KB</td>
-                        <td className="min-w-[160px] text-[13px]">{link ? <><span className="text-slate-600">{link.typeLabel}: </span>{link.href && canOpen(link.type) ? <Link href={link.href}>{link.label}</Link> : link.label}</> : d.linkedType ? <span className="text-slate-500">Record not available</span> : <span className="text-slate-500">Not linked</span>}</td>
-                        <td className="whitespace-nowrap text-[13px]">{names.get(d.uploadedById) ?? "A member"}<div className="text-slate-600">{fmtDate(d.createdAt, true)}</div></td>
-                        <td><ScanBadge status={d.scanStatus} /></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              <Empty>{filter === "all" && !q ? "No evidence uploaded yet." : "No evidence matches."}</Empty>
-            )}
-          </Card>
-        </div>
-        {targets ? (
-          <Card title="Upload evidence">
-            <form action={uploadLinkedEvidenceAction} className="space-y-2">
+      <CompliancePageHeader
+        tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="evidence" />}
+        title="Audits & Improvements"
+        subtitle="The Evidence Library: documents that support policies, audits, findings, corrective actions and risks. Files are checked by type and size; a file is marked clean only after a malware scan. Every download is permission-checked and logged."
+        actions={targets ? (
+          <ActionDialog triggerClassName="pc-btn" trigger={<><UploadSimple size={16} aria-hidden="true" />Upload evidence</>} title="Upload evidence" description="PDF, Word, images, text or CSV up to 10 MB. To attach evidence to an audit question or finding, use the button beside it on the audit.">
+            <form action={uploadLinkedEvidenceAction} className="space-y-3">
               <input type="hidden" name="back" value="/evidence" />
               <label className="block"><span className="label">File</span><input type="file" name="file" required className="block w-full text-sm" accept=".pdf,.docx,.png,.jpg,.jpeg,.txt,.csv" /></label>
               <label className="block"><span className="label">What it shows</span><input name="description" maxLength={300} className="input" /></label>
@@ -99,12 +72,44 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
                   {targets[3].length ? <optgroup label="Risks">{targets[3].map((x) => <option key={x.id} value={`RISK:${x.id}`}>{x.ref} {x.title}</option>)}</optgroup> : null}
                 </select>
               </label>
-              <button className="btn-primary" type="submit">Upload</button>
-              <p className="text-xs text-slate-500">PDF, Word, images, text or CSV up to 10 MB. To attach evidence to an audit question or finding, use the button beside it on the audit.</p>
+              <button className="btn-primary w-full" type="submit">Upload</button>
             </form>
-          </Card>
+          </ActionDialog>
         ) : null}
-      </div>
+      />
+      <Flash searchParams={sp} />
+      <section aria-label="Evidence library" className="pc-panel">
+        <form method="get" action="/evidence" role="search" aria-label="Filter evidence" className="pc-toolbar">
+          <PcSearch defaultValue={q} placeholder="Search file names and descriptions" />
+          <PcSelect name="linked" label="Linked to" defaultValue={filter === "all" ? "" : filter} options={filters.map(([value, label]) => ({ value: value === "all" ? "" : value, label }))} />
+          <button className="pc-btn-secondary sr-only focus:not-sr-only" type="submit">Search</button>
+        </form>
+        {docs.length ? (
+          <PcTableWrap>
+            <table className="pc-table">
+              <thead><tr><th>File</th><th>Type</th><th>Linked to</th><th>Uploaded by</th><th>Date</th><th>Access</th></tr></thead>
+              <tbody>
+                {docs.map((d) => {
+                  const link = linkFor(links, d);
+                  return (
+                    <tr key={d.id}>
+                      <td className="min-w-[220px] max-w-[360px]"><a href={`/api/evidence/${d.id}`} data-no-progress="" className="pc-strong break-all">{d.filename}</a>{d.description ? <span className="pc-sub">{d.description}</span> : null}</td>
+                      <td className="whitespace-nowrap">{KIND[d.contentType] ?? d.contentType}<span className="pc-sub">{Math.max(1, Math.ceil(d.sizeBytes / 1024))} KB</span></td>
+                      <td className="min-w-[160px] max-w-[300px]">{link ? <><span className="pc-sub">{link.typeLabel}</span>{link.href && canOpen(link.type) ? <Link href={link.href}>{link.label}</Link> : link.label}</> : d.linkedType ? <span className="text-[#667085]">Record not available</span> : <span className="text-[#667085]">Not linked</span>}</td>
+                      <td className="whitespace-nowrap">{names.get(d.uploadedById) ?? "A member"}</td>
+                      <td className="whitespace-nowrap">{fmtDate(d.createdAt)}</td>
+                      <td><ScanBadge status={d.scanStatus} /><span className="pc-sub">Permission-checked</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </PcTableWrap>
+        ) : (
+          <p className="pc-empty">{filter === "all" && !q ? "No evidence uploaded yet." : "No evidence matches."}</p>
+        )}
+        <PcFoot shown={docs.length} total={docs.length}>{docs.length >= 500 ? <span className="pc-note">Showing the newest 500. Search to narrow the list.</span> : null}</PcFoot>
+      </section>
     </>
   );
 }

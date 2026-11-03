@@ -38,7 +38,7 @@ export function settingsDirectory(ctx: Ctx): Group[] {
       name: "Policy & compliance",
       entries: [
         ...(can("org.manage") ? [{ href: "#approval-rules", label: "Policy approval rules", detail: "How many approvers a policy needs before publishing (below)" }] : []),
-        ...(can("staff.view") ? [{ href: "/staff/rules", label: "Policy Sign-off rules", detail: "Who is asked to read which policies" }] : []),
+        ...(can("staff.view") ? [{ href: "/staff/rules", label: "Staff Sign-off rules", detail: "Who is asked to read which policies" }] : []),
         ...(can("readiness.manage") ? [{ href: "/admin/readiness", label: "Staff Readiness Rules", detail: "What each role, task or person needs before someone may work" }] : []),
       ],
     },

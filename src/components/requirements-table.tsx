@@ -11,11 +11,11 @@ export type RequirementRow = {
   exactReference: string;
   source: string;
   legalStatus: string;
+  applicability: string;
   verification: string;
-  lastVerified: string | null;
   policies: number;
-  auditQuestions: number;
-  training: number;
+  evidence: number;
+  openActions: number;
   simulated: boolean;
 };
 
@@ -28,10 +28,10 @@ const LEGAL: Record<string, string> = {
   INTERNAL_POLICY: "Internal policy",
 };
 
-const VERIFY: Record<string, { label: string; dot: string; text: string }> = {
-  VERIFIED: { label: "Checked against source", dot: "bg-emerald-600", text: "text-emerald-800" },
-  UNVERIFIED: { label: "Not yet verified", dot: "border-2 border-amber-600", text: "text-amber-800" },
-  NEEDS_REVIEW: { label: "Needs review", dot: "bg-rose-600", text: "text-rose-700" },
+const VERIFY: Record<string, { label: string; tone: string }> = {
+  VERIFIED: { label: "Checked against source", tone: "green" },
+  UNVERIFIED: { label: "Not yet verified", tone: "amber" },
+  NEEDS_REVIEW: { label: "Needs review", tone: "red" },
 };
 
 const anyText: FilterFn<RequirementRow> = (row, _id, value: string) => {
@@ -43,12 +43,14 @@ const anyText: FilterFn<RequirementRow> = (row, _id, value: string) => {
 
 const col = createColumnHelper<RequirementRow>();
 
-/** The requirements register: instant search, legal-status filter and sortable columns. */
+/**
+ * The Requirements Register: requirement, source, applicability, the organisation's linked policies, evidence and
+ * open actions. Instant search, a legal-status filter and sortable columns.
+ */
 export function RequirementsTable({ rows, initialQuery = "" }: { rows: RequirementRow[]; initialQuery?: string }) {
   const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState<string>("");
   const [sorting, setSorting] = useState<SortingState>([{ id: "ref", desc: false }]);
-  const maxPolicies = Math.max(1, ...rows.map((r) => r.policies));
 
   const data = useMemo(() => (status ? rows.filter((r) => r.legalStatus === status) : rows), [rows, status]);
   const counts = useMemo(() => rows.reduce<Record<string, number>>((acc, r) => ({ ...acc, [r.legalStatus]: (acc[r.legalStatus] ?? 0) + 1 }), {}), [rows]);
@@ -56,46 +58,36 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
   const columns = useMemo(
     () => [
       col.accessor("ref", {
-        header: "Ref",
-        cell: (c) => <Link href={`/requirements/${c.row.original.id}`} className="whitespace-nowrap text-[13px]">{c.getValue()}</Link>,
-      }),
-      col.accessor("title", {
         header: "Requirement",
-        cell: (c) => (
-          <div className="min-w-[16rem]">
-            <Link href={`/requirements/${c.row.original.id}`} className="font-medium">{c.getValue()}</Link>
-            {c.row.original.simulated ? <span className="ml-2 rounded-full bg-violet-50 px-2.5 py-0.5 text-[12px] text-violet-700">Simulated</span> : null}
-            <div className="mt-0.5 text-[12.5px] text-slate-600">{c.row.original.exactReference}</div>
-            <div className="text-[12px] text-slate-500">{c.row.original.source}</div>
-          </div>
-        ),
-      }),
-      col.accessor("legalStatus", { header: "Legal status", cell: (c) => <span className="whitespace-nowrap text-xs text-slate-700">{LEGAL[c.getValue()] ?? c.getValue()}</span> }),
-      col.accessor("verification", {
-        header: "Verification",
         cell: (c) => {
-          const v = VERIFY[c.getValue()] ?? VERIFY.UNVERIFIED!;
+          const r = c.row.original;
+          const v = VERIFY[r.verification] ?? VERIFY.UNVERIFIED!;
           return (
-            <span className={`flex items-center gap-1.5 whitespace-nowrap text-xs ${v.text}`}>
-              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${v.dot}`} />
-              {v.label}
-              {c.row.original.lastVerified ? <span className="text-slate-400">· {c.row.original.lastVerified}</span> : null}
-            </span>
+            <div className="min-w-[18rem] max-w-[440px]">
+              <span className="flex flex-wrap items-center gap-2">
+                <Link href={`/requirements/${r.id}`} className="pc-strong">{r.title}</Link>
+                {r.simulated ? <span className="pc-badge" data-tone="purple">Simulated</span> : null}
+              </span>
+              <span className="pc-sub">{r.ref} · {r.exactReference} · <span className={v.tone === "green" ? "text-[#067647]" : v.tone === "red" ? "text-[#b42318]" : "text-[#b54708]"}>{v.label}</span></span>
+            </div>
           );
         },
       }),
-      col.accessor("policies", {
-        header: "Coverage",
-        sortDescFirst: true,
+      col.accessor("source", { header: "Source", cell: (c) => <span className="block max-w-[200px] truncate" title={c.getValue()}>{c.getValue()}</span> }),
+      col.accessor("applicability", {
+        header: "Applicability",
         cell: (c) => (
-          <div className="w-44">
-            <div className="flex items-baseline justify-between text-xs"><span className="text-slate-700">{c.getValue()} {c.getValue() === 1 ? "policy" : "policies"}</span><span className="text-slate-500">{c.row.original.auditQuestions} audit Qs · {c.row.original.training} training</span></div>
-            <div className="mt-1 h-[6px] rounded-full bg-slate-200"><div className={`h-full rounded-full ${c.getValue() ? "bg-[#3289f8]" : ""}`} style={{ width: `${(c.getValue() / maxPolicies) * 100}%` }} /></div>
-          </div>
+          <span className="block max-w-[220px]">
+            <span className="block truncate" title={c.getValue()}>{c.getValue()}</span>
+            <span className="pc-sub">{LEGAL[c.row.original.legalStatus] ?? c.row.original.legalStatus}</span>
+          </span>
         ),
       }),
+      col.accessor("policies", { header: "Linked policies", sortDescFirst: true, cell: (c) => <span className={c.getValue() ? "font-semibold text-[#101828]" : "text-[#b54708]"}>{c.getValue() || "None"}</span> }),
+      col.accessor("evidence", { header: "Evidence", sortDescFirst: true, cell: (c) => <span className="tabular-nums">{c.getValue()}</span> }),
+      col.accessor("openActions", { header: "Open actions", sortDescFirst: true, cell: (c) => <span className={`tabular-nums ${c.getValue() ? "font-semibold text-[#b54708]" : ""}`}>{c.getValue()}</span> }),
     ],
-    [maxPolicies],
+    [],
   );
 
   const table = useReactTable({
@@ -112,24 +104,23 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
   const shown = table.getRowModel().rows;
 
   return (
-    <div>
-      <div className="flex gap-[6px] overflow-x-auto px-2 pt-1" role="group" aria-label="Legal status">
-        {[["", "All", rows.length] as const, ...Object.entries(LEGAL).filter(([k]) => counts[k]).map(([k, label]) => [k, label, counts[k]!] as const)].map(([k, label, n]) => (
-          <button key={k || "all"} type="button" onClick={() => setStatus(k)} aria-pressed={status === k} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 ${status === k ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
-            {label}<span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-slate-200 px-1.5 text-[12px] font-medium text-slate-700">{n}</span>
-          </button>
-        ))}
-      </div>
-      <div className="panel">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[14px] text-slate-700">{shown.length} of {rows.length} requirements</p>
-        <label className="flex h-[36px] items-center gap-2 rounded-[4px] border border-slate-300 bg-white px-2.5">
-          <MagnifyingGlass size={18} className="shrink-0 text-slate-600" aria-hidden="true" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} className="h-full w-60 bg-transparent text-[14px] placeholder:text-slate-500 focus:outline-none" placeholder="Filter by ref, title or source" aria-label="Search requirements" />
+    <section aria-label="Requirements register" className="pc-panel">
+      <div className="pc-toolbar">
+        <label className="pc-search">
+          <MagnifyingGlass size={17} className="shrink-0" aria-hidden="true" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search requirements" aria-label="Search requirements" />
+        </label>
+        <label className="pc-select">
+          <span>Legal status</span>
+          <b aria-hidden="true">{status ? LEGAL[status] : "All"}</b>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Legal status">
+            <option value="">All ({rows.length})</option>
+            {Object.entries(LEGAL).filter(([k]) => counts[k]).map(([k, label]) => <option key={k} value={k}>{label} ({counts[k]})</option>)}
+          </select>
         </label>
       </div>
-      <div className="relative overflow-x-auto">
-        <table className="table">
+      <div className="min-w-0 overflow-x-auto">
+        <table className="pc-table">
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
@@ -137,9 +128,9 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
                   const dir = h.column.getIsSorted();
                   return (
                     <th key={h.id} aria-sort={dir === "asc" ? "ascending" : dir === "desc" ? "descending" : "none"}>
-                      <button type="button" onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 whitespace-nowrap hover:text-navy-900">
+                      <button type="button" onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1 whitespace-nowrap hover:text-[#101828]">
                         {flexRender(h.column.columnDef.header, h.getContext())}
-                        {dir === "asc" ? <CaretUp size={11} weight="bold" /> : dir === "desc" ? <CaretDown size={11} weight="bold" /> : <CaretUpDown size={11} className="text-slate-300" />}
+                        {dir === "asc" ? <CaretUp size={11} weight="bold" /> : dir === "desc" ? <CaretDown size={11} weight="bold" /> : <CaretUpDown size={11} className="text-[#98a2b3]" />}
                       </button>
                     </th>
                   );
@@ -154,8 +145,8 @@ export function RequirementsTable({ rows, initialQuery = "" }: { rows: Requireme
           </tbody>
         </table>
       </div>
-      {!shown.length ? <p className="py-6 text-center text-[15px] text-slate-600">No requirements match.</p> : null}
-      </div>
-    </div>
+      {!shown.length ? <p className="pc-empty">No requirements match.</p> : null}
+      <div className="pc-foot"><span>Showing {shown.length} of {rows.length}</span><span className="pc-note">Linked policies, evidence and open actions are your organisation&apos;s own.</span></div>
+    </section>
   );
 }

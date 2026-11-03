@@ -35,7 +35,7 @@ test.describe("Version 1", () => {
   test("staff sign-off: the manager targets a policy, drills down and exports reconciled evidence", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/staff");
-    await expect(page.getByRole("heading", { level: 1, name: "Policy Sign-off" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Staff Sign-off" })).toBeVisible();
     await expect(page.getByText(/not training and does not show competence/).first()).toBeVisible();
     await page.getByRole("link", { name: "By Policy", exact: true }).click();
     await page.locator("table a.row-title").first().click();

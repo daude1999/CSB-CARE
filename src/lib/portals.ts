@@ -35,10 +35,10 @@ const PREFIXES: [string, PortalId][] = [
   ["/overview", "overview"],
   // Service users and call monitoring are part of Rostering & Care Management; /service-users redirects there.
   ["/service-users", "rota"],
-  // Reports have one home, Reporting & Analytics, whichever module's records they count.
+  // Rota reports have their home in Reporting & Analytics. Compliance Reports is one of Policy & Compliance's six
+  // workspaces (owner's brief of 3 Nov 2026) and is also listed in the Reporting menu.
   ["/rota/reports", "reporting"],
   ["/rota/insights", "reporting"],
-  ["/compliance/reports", "reporting"],
   ["/rota", "rota"],
   ["/carer", "rota"],
   ["/workforce", "hr"],

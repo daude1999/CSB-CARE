@@ -16,7 +16,7 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
 
 const sidebar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 const current = (page: Page) => sidebar(page).locator('a.shell-page[aria-current="page"]');
-const SIX = ["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Policy Sign-off", "Audits & Improvements", "Compliance Reports"];
+const SIX = ["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"];
 
 test.describe("Policy & Compliance workspaces", () => {
   test("the sidebar has exactly the six entries, and each opens its workspace", async ({ page }) => {
@@ -25,12 +25,12 @@ test.describe("Policy & Compliance workspaces", () => {
     const pages = page.getByTestId("portal-pages").locator("a.shell-page");
     await expect(pages).toHaveText(SIX);
     await expect(page.getByTestId("needs-attention")).toBeVisible();
-    await expect(page.getByTestId("recent-activity")).toBeVisible();
+    await expect(page.getByTestId("dashboard-figures")).toBeVisible();
 
     const opens: [string, RegExp, string | null][] = [
       ["Policy Library", /\/policies/, null],
       ["Regulatory Monitoring", /\/changes/, "ws-tabs-regulatory"],
-      ["Policy Sign-off", /\/staff/, "ws-tabs-signoff"],
+      ["Staff Sign-off", /\/staff/, "ws-tabs-signoff"],
       ["Audits & Improvements", /\/audits/, "ws-tabs-improvements"],
       ["Compliance Reports", /\/compliance\/reports/, null],
     ];
@@ -48,8 +48,8 @@ test.describe("Policy & Compliance workspaces", () => {
       ["/queue", "Policy Library"],
       ["/requirements", "Regulatory Monitoring"],
       ["/compliance/regulatory/sources", "Regulatory Monitoring"],
-      ["/acknowledgements", "Policy Sign-off"],
-      ["/staff/rules", "Policy Sign-off"],
+      ["/acknowledgements", "Staff Sign-off"],
+      ["/staff/rules", "Staff Sign-off"],
       ["/actions", "Audits & Improvements"],
       ["/evidence", "Audits & Improvements"],
       ["/compliance/risks", "Audits & Improvements"],

@@ -323,6 +323,84 @@ export async function exemptRow(ctx: Ctx, acknowledgementId: string, reason: str
   });
 }
 
+/**
+ * Bulk work from the Staff Sign-off register: remind, extend the due date, or exempt. Only outstanding rows the caller
+ * manages are touched; anything else (already acknowledged, exempted, withdrawn, or outside the caller's branches) is
+ * skipped and counted, never changed. A reminder is an in-app notification to the person's own sign-in and is never
+ * treated as reading; someone with no sign-in cannot be reminded. Every change is an event on the row and an audit entry.
+ */
+const bulkSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("remind"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500) }),
+  z.object({ op: z.literal("extend"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500), dueAt: z.coerce.date({ message: "Choose the new due date" }), reason: z.string().trim().min(5, "Give the reason for the new date").max(500) }),
+  z.object({ op: z.literal("exempt"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500), reason: z.string().trim().min(5, "Give the reason for the exemption").max(500) }),
+]);
+export type BulkSignoffInput = z.input<typeof bulkSchema>;
+
+export async function bulkSignoff(ctx: Ctx, input: BulkSignoffInput, now = new Date()): Promise<{ done: number; skipped: number }> {
+  const parsed = bulkSchema.safeParse(input);
+  if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Check the selection");
+  const d = parsed.data;
+  if (d.op === "extend") {
+    const today = new Date(now.toISOString().slice(0, 10));
+    if (d.dueAt < today) throw new ValidationError("The new due date cannot be in the past");
+  }
+  const organisationId = requireOrgPermission(ctx, "signoff.manage");
+  const ids = [...new Set(d.ids)];
+  const outstanding = (a: { acknowledgedAt: Date | null; supersededAt: Date | null; state: string }) => !a.acknowledgedAt && !a.supersededAt && ["ASSIGNED", "OPENED", "IN_PROGRESS", "ASSESSMENT_REQUIRED", "ASSESSMENT_FAILED"].includes(a.state);
+
+  if (d.op === "remind") {
+    const rows = await Promise.all(ids.map((id) => managedRow(db, ctx, id).catch((e) => (e instanceof NotFoundError ? null : Promise.reject(e)))));
+    const today = now.toISOString().slice(0, 10);
+    let done = 0;
+    for (const a of rows) {
+      if (!a || !a.userId || !outstanding(a)) continue;
+      const pub = await db.policyPublication.findUnique({ where: { id: a.publicationId }, select: { policy: { select: { ref: true, title: true } } } });
+      if (!pub) continue;
+      const overdue = Boolean(a.dueAt && a.dueAt < now);
+      const sent = await notify({
+        organisationId,
+        userIds: [a.userId],
+        type: overdue ? "acknowledgement.overdue" : "acknowledgement.due",
+        title: `Reminder: please read ${pub.policy.ref} ${pub.policy.title}`,
+        body: a.dueAt ? `${overdue ? "Your acknowledgement was due" : "Please read and acknowledge it by"} ${a.dueAt.toDateString()}.` : "Please read and acknowledge it.",
+        reason: `${ctx.userName} sent you a reminder from Staff Sign-off.`,
+        links: [{ label: "Read and acknowledge", url: "/acknowledgements" }],
+        actionUrl: "/acknowledgements",
+        dueAt: a.dueAt,
+        dedupeKey: `ack-manual-reminder:${a.id}:${today}`,
+        email: false,
+      });
+      if (!sent) continue;
+      await db.$transaction(async (tx) => {
+        await tx.acknowledgement.update({ where: { id: a.id }, data: { remindedAt: now } });
+        await event(tx, a, "REMINDED", ctx.userId, "In-app reminder sent by a manager. Delivery is not acknowledgement.", { channel: "in-app", manual: true });
+        await audit({ organisationId, actorId: ctx.userId, action: "policy.acknowledgement.reminded", entityType: "Acknowledgement", entityId: a.id }, tx);
+      });
+      done++;
+    }
+    return { done, skipped: ids.length - done };
+  }
+
+  return db.$transaction(async (tx) => {
+    let done = 0;
+    for (const id of ids) {
+      const a = await managedRow(tx, ctx, id).catch((e) => (e instanceof NotFoundError ? null : Promise.reject(e)));
+      if (!a || !outstanding(a)) continue;
+      if (d.op === "extend") {
+        await tx.acknowledgement.update({ where: { id: a.id }, data: { dueAt: d.dueAt, escalatedAt: null } });
+        await event(tx, a, "DUE_DATE_CHANGED", ctx.userId, d.reason, { from: a.dueAt?.toISOString() ?? null, to: d.dueAt.toISOString() });
+        await audit({ organisationId, actorId: ctx.userId, action: "policy.acknowledgement.due_changed", entityType: "Acknowledgement", entityId: a.id, data: { from: a.dueAt?.toISOString() ?? null, to: d.dueAt.toISOString(), reason: d.reason } }, tx);
+      } else {
+        await tx.acknowledgement.update({ where: { id: a.id }, data: { state: "EXEMPTED", exemptedAt: now, exemptedById: ctx.userId, exemptionReason: d.reason } });
+        await event(tx, a, "EXEMPTED", ctx.userId, d.reason);
+        await audit({ organisationId, actorId: ctx.userId, action: "policy.acknowledgement.exempted", entityType: "Acknowledgement", entityId: a.id }, tx);
+      }
+      done++;
+    }
+    return { done, skipped: ids.length - done };
+  });
+}
+
 /** An attributable correction: the original row and its events stay; a new outstanding row replaces it. */
 export async function correctAcknowledgement(ctx: Ctx, acknowledgementId: string, reason: string) {
   if (reason.trim().length < 10) throw new ValidationError("Explain the correction (at least a sentence)");
@@ -392,7 +470,7 @@ export async function sendAcknowledgementReminders(now = new Date()) {
         title: `${who} has not acknowledged ${a.publication.policy.ref} ${a.publication.policy.title}`,
         body: `It was due on ${due.toDateString()}.${a.userId ? "" : " They have no sign-in, so they cannot acknowledge it until one is linked."} Follow up, record an exemption or agree a completion plan.`,
         reason: "You manage this person's branch or own this policy assignment.",
-        links: [{ label: "Open Policy Sign-off", url: `/staff/policy/${a.publication.policy.id}` }],
+        links: [{ label: "Open Staff Sign-off", url: `/staff/policy/${a.publication.policy.id}` }],
         actionUrl: `/staff/policy/${a.publication.policy.id}`,
         dedupeKey: `ack-escalated:${a.id}`,
         email: false,
