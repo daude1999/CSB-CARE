@@ -57,7 +57,7 @@ says what is missing. Enter in a field opens the review rather than applying any
 Permission: `rota.clockCorrect` (organisation admin, care manager, care coordinator), the same people who may correct
 attendance. Works on any date, past or today.
 
-- Needs a reason (5+ letters), who confirmed the care was delivered (name and role) and, on the review, the tick "I
+- Needs a reason (3+ letters), who confirmed the care was delivered (name and role) and, on the review, the tick "I
   confirm the care on these visits was delivered". Actual start and end times can be entered per visit, only if known
   (checked: end after start, not in the future, within 12 hours of the plan).
 - Can complete: Scheduled (started), In progress and Missed visits with at least one carer booked.
