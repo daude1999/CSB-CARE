@@ -141,6 +141,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const { rows: all, settings, truncated } = await listVisits(ctx, filters);
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
+  const canComplete = hasOrgPermission(ctx, "rota.clockCorrect");
   const layout = sp.layout === "timeline" ? "timeline" : "list";
   const cols = new Set((sp.cols ?? "").split(",").filter((c): c is Optional => OPTIONAL.some(([k]) => k === c)));
   const sort: SortKey = sp.sort && sp.sort in SORTS ? (sp.sort as SortKey) : "time";
@@ -255,7 +256,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               {canEdit ? (
                 <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">
                   <input type="hidden" name="back" value={back} />
-                  <BulkVisitBar form="bulk" canPublish={canPublish} staff={lk.carers.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
+                  <BulkVisitBar form="bulk" canPublish={canPublish} canComplete={canComplete} staff={lk.carers.map((s) => ({ id: s.id, name: s.displayName }))} callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))} />
                 </form>
               ) : null}
               <details className="relative ml-auto">
@@ -318,7 +319,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
                           <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
-                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}</span></td>
+                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
                           <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}

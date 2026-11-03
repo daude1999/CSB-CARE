@@ -1,16 +1,18 @@
 import { reconcileMedicationLead } from "@/server/care/medication-lead";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { Prisma, VisitStatus } from "@prisma/client";
 import { MAX_CARERS, parsePlace, placeData, placeKey, placeLabel, placeNumber, type PlaceKey } from "@/lib/carer-places";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { dbDate, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonMinute, londonToUtc } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { eligibilityFor } from "@/server/workforce/eligibility";
 import { assignInTx, EligibilityError, isOverlapViolation, lockVisit, unassignInTx } from "./assign";
-import { assertInScope, rotaScope, serviceUserWhere, type Scope } from "./scope";
+import { checkCompleteInput, completeVisitInTx } from "./complete-calls";
+import { assertInScope, rotaScope, serviceUserWhere, visitWhere, type Scope } from "./scope";
 
 type Tx = Prisma.TransactionClient;
 
@@ -191,11 +193,7 @@ export async function cancelVisit(ctx: Ctx, visitId: string, reason: string, loc
 export async function reinstateVisit(ctx: Ctx, visitId: string, reason: string, lockVersion?: number) {
   const scope = await rotaScope(ctx, "rota.edit");
   if (reason.trim().length < 3) throw new ValidationError("Give a reason for reinstating");
-  return db.$transaction(async (tx) => {
-    const v = await lockVisit(tx, scope, visitId);
-    if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be reinstated");
-    return transition(tx, scope, ctx.userId, visitId, "SCHEDULED", reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, cancellationCharge: null, notDeliveredReason: null, manuallyChanged: true }, lockVersion);
-  });
+  return db.$transaction((tx) => reinstateInTx(tx, scope, ctx.userId, visitId, reason, lockVersion));
 }
 
 /** Changes how many carers a visit needs. Carers already booked stay; lowering is refused while a higher place is filled. */
@@ -266,99 +264,237 @@ export type BulkAction =
   | { kind: "editDuration"; minutes: number }
   | { kind: "editService"; callTypeId: string }
   | { kind: "alert"; on: boolean }
-  | { kind: "doubleUp"; carers: number };
+  /** Change Carers Needed: sets the number of carers (1 to MAX_CARERS). */
+  | { kind: "doubleUp"; carers: number }
+  /** Convert To Double Up (one carer to two) or Revert Double Up To Single (two to one). */
+  | { kind: "convert"; to: "double" | "single" }
+  /** Complete Calls: the office confirms the care was delivered. Actual times and reviewed versions are per visit. */
+  | { kind: "complete"; reason: string; verifiedBy: string; confirmed: boolean; perVisit?: Record<string, { actualStart?: string; actualEnd?: string; lockVersion?: number }> };
+
+/** updated: the visit changed. unchanged: it was already as asked. refused: a rule stopped it (the reason says which). error: something unexpected; nothing changed. */
+export type BulkOutcome = "updated" | "unchanged" | "refused" | "error";
 
 export interface BulkResult {
   visitId: string;
   reference: string;
+  /** True when nothing went wrong (updated or unchanged). */
   ok: boolean;
+  outcome: BulkOutcome;
   message?: string;
+  warnings?: string[];
 }
 
+/** The permission each bulk action needs. Publishing is part of building the rota; Complete Calls is a record correction. */
+export function bulkPermission(kind: BulkAction["kind"]) {
+  return kind === "publish" ? ("rota.build" as const) : kind === "complete" ? ("rota.clockCorrect" as const) : ("rota.edit" as const);
+}
+
+type Step = { changed: boolean; message?: string; warnings?: string[] };
+const same = (message: string): Step => ({ changed: false, message });
+
+class DryRun extends Error {
+  constructor(readonly step: Step) {
+    super("dry run");
+  }
+}
+
+/** Brings a cancelled or not-delivered visit back to scheduled. Shared by the visit page's Reinstate and bulk Activate. */
+async function reinstateInTx(tx: Tx, scope: Scope, actorId: string, visitId: string, reason: string, lockVersion?: number) {
+  if (reason.trim().length < 3) throw new ValidationError("Give a reason for reinstating");
+  const v = await lockVisit(tx, scope, visitId);
+  if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be reinstated");
+  return transition(tx, scope, actorId, visitId, "SCHEDULED", reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, cancellationCharge: null, notDeliveredReason: null, manuallyChanged: true }, lockVersion);
+}
+
+const STATUS_WORD: Record<VisitStatus, string> = { SCHEDULED: "scheduled", IN_PROGRESS: "in progress", COMPLETED: "completed", MISSED: "missed", CANCELLED: "cancelled", NOT_DELIVERED: "not delivered" };
+
+/** One visit, one action, inside the caller's transaction. Checks for "already done" before writing anything. */
+async function bulkStep(tx: Tx, scope: Scope, actorId: string, visitId: string, action: BulkAction, preview: boolean): Promise<Step> {
+  const v = await lockVisit(tx, scope, visitId);
+  const edit = (patch: VisitPatch, overrideLock = false) => updateVisitInTx(tx, scope, actorId, visitId, patch, { source: "bulk", overrideLock });
+  switch (action.kind) {
+    case "assign": {
+      const current = await tx.visitAssignment.findFirst({ where: { visitId, ...placeData(action.slot), removedAt: null }, select: { staffId: true } });
+      if (current?.staffId === action.staffId) return same(`Already booked as ${placeLabel(action.slot)}`);
+      await assignInTx(tx, scope, actorId, { visitId, slot: action.slot, staffId: action.staffId, acceptWarnings: action.acceptWarnings }, { source: "bulk" });
+      return { changed: true };
+    }
+    case "unassign": {
+      const current = await tx.visitAssignment.findFirst({ where: { visitId, ...placeData(action.slot), removedAt: null }, select: { id: true } });
+      if (!current) return same(`Nobody is booked as ${placeLabel(action.slot)}`);
+      await unassignInTx(tx, scope, actorId, { visitId, slot: action.slot, reason: action.reason });
+      return { changed: true };
+    }
+    case "cancel":
+      if (v.status === "CANCELLED") return same("Already cancelled");
+      if (v.status !== "SCHEDULED" && v.status !== "MISSED") throw new ValidationError(`A ${STATUS_WORD[v.status]} visit cannot be cancelled`);
+      await cancelVisitInTx(tx, scope, actorId, visitId, action.reason, undefined, action.charge);
+      return { changed: true };
+    case "activate":
+      if (v.status === "SCHEDULED") return same("Already active (scheduled)");
+      if (v.status === "MISSED") throw new ValidationError("A missed visit cannot be activated. If the care was delivered, use Complete Calls.");
+      if (v.status === "COMPLETED" || v.status === "IN_PROGRESS") throw new ValidationError(`A ${STATUS_WORD[v.status]} visit cannot be activated`);
+      if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be activated. Activate is for future visits; use Complete Calls only if the care was delivered.");
+      await reinstateInTx(tx, scope, actorId, visitId, action.reason);
+      return { changed: true };
+    case "lock":
+      if (v.timeLocked === action.locked) return same(action.locked ? "Time already locked" : "Time already unlocked");
+      await edit({ timeLocked: action.locked }, true);
+      return { changed: true };
+    case "alert":
+      if (v.alertOnLate === action.on) return same(action.on ? "Late alert already on" : "Late alert already off");
+      await edit({ alertOnLate: action.on });
+      return { changed: true };
+    case "editTime": {
+      const start = londonToUtc(londonDate(v.scheduledStart), action.startMinute);
+      if (start.getTime() === v.scheduledStart.getTime()) return same(`Already starts at ${fmtTime(start)}`);
+      await edit({ scheduledStart: start, scheduledEnd: new Date(start.getTime() + (v.scheduledEnd.getTime() - v.scheduledStart.getTime())) });
+      return { changed: true };
+    }
+    case "editDuration": {
+      if (v.scheduledEnd.getTime() - v.scheduledStart.getTime() === action.minutes * 60000) return same(`Already ${action.minutes} minutes`);
+      await edit({ scheduledEnd: new Date(v.scheduledStart.getTime() + action.minutes * 60000) });
+      return { changed: true };
+    }
+    case "editService":
+      if (v.callTypeId === action.callTypeId) return same("Already this service call");
+      await edit({ callTypeId: action.callTypeId });
+      return { changed: true };
+    case "nudge":
+      await edit({ scheduledStart: new Date(v.scheduledStart.getTime() + action.minutes * 60000), scheduledEnd: new Date(v.scheduledEnd.getTime() + action.minutes * 60000) });
+      return { changed: true };
+    case "doubleUp":
+      if (v.carersRequired === action.carers) return same(`Already needs ${action.carers} carer${action.carers === 1 ? "" : "s"}`);
+      await edit({ carersRequired: action.carers });
+      return { changed: true };
+    case "convert": {
+      const want = action.to === "double" ? 2 : 1;
+      if (v.carersRequired === want) return same(want === 2 ? "Already a double-up" : "Already a single-carer visit");
+      if (v.carersRequired > 2) throw new ValidationError(`This visit needs ${v.carersRequired} carers. Use Change Carers Needed instead.`);
+      await edit({ carersRequired: want });
+      return { changed: true };
+    }
+    case "publish": {
+      if (v.status === "CANCELLED" || v.status === "NOT_DELIVERED") throw new ValidationError(`A ${STATUS_WORD[v.status]} visit is not sent to carers`);
+      if (v.publishedAt) return same("Already published to carers");
+      if (preview) return { changed: true };
+      await tx.visit.update({ where: { id: visitId }, data: { publishedAt: new Date(), lockVersion: { increment: 1 } } });
+      await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "PUBLISHED", actorId, data: { source: "bulk" } } });
+      await audit({ organisationId: scope.organisationId, actorId, action: "visit.published", entityType: "Visit", entityId: visitId, data: { source: "bulk" } }, tx);
+      return { changed: true };
+    }
+    case "complete": {
+      const per = action.perVisit?.[visitId] ?? {};
+      return completeVisitInTx(tx, scope, actorId, visitId, { reason: action.reason, verifiedBy: action.verifiedBy, confirmed: action.confirmed, ...per }, { preview });
+    }
+  }
+}
+
+const fmtTime = (d: Date) => `${String(Math.floor(londonMinute(d) / 60)).padStart(2, "0")}:${String(londonMinute(d) % 60).padStart(2, "0")}`;
+
 /**
- * Applies one action to many visits. Each visit is validated and saved in its own transaction, so one refusal never
- * undoes the others, and the result lists exactly what succeeded and what was refused and why.
+ * Applies one action to many visits. Each visit is checked and saved in its own transaction, so a refusal never undoes
+ * or half-changes another visit, and the result says exactly which visits changed, which were already as asked, which
+ * were refused and why. With `preview` every visit is run through the same rules and rolled back, for the review step.
  */
-export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkAction): Promise<BulkResult[]> {
-  const scope = await rotaScope(ctx, action.kind === "publish" ? "rota.build" : "rota.edit");
-  if (!visitIds.length) throw new ValidationError("Select at least one visit");
-  if (visitIds.length > 500) throw new ValidationError("Select at most 500 visits at a time");
+export async function bulkVisits(ctx: Ctx, visitIds: string[], action: BulkAction, opts: { preview?: boolean } = {}): Promise<BulkResult[]> {
+  const scope = await rotaScope(ctx, bulkPermission(action.kind));
+  const ids = [...new Set(visitIds.filter(Boolean))];
+  if (!ids.length) throw new ValidationError("Select at least one visit");
+  if (ids.length > 500) throw new ValidationError("Select at most 500 visits at a time");
   if (action.kind === "nudge" && (!Number.isInteger(action.minutes) || action.minutes === 0 || Math.abs(action.minutes) > 240)) throw new ValidationError("Move times by 1 to 240 minutes");
   if (action.kind === "editTime" && (!Number.isInteger(action.startMinute) || action.startMinute < 0 || action.startMinute > 1439)) throw new ValidationError("Enter a start time");
   if (action.kind === "editDuration" && (!Number.isInteger(action.minutes) || action.minutes < 5 || action.minutes > 1440)) throw new ValidationError("A visit lasts 5 minutes to 24 hours");
   if (action.kind === "doubleUp" && (!Number.isInteger(action.carers) || action.carers < 1 || action.carers > MAX_CARERS)) throw new ValidationError(`Choose 1 to ${MAX_CARERS} carers`);
   if (action.kind === "activate" && action.reason.trim().length < 3) throw new ValidationError("Give a reason for activating");
+  if (action.kind === "cancel" && action.reason.trim().length < 3) throw new ValidationError("Give a reason for cancelling");
+  if (action.kind === "unassign" && action.reason.trim().length < 3) throw new ValidationError("Give a reason for removing the carer");
+  if (action.kind === "complete") checkCompleteInput(action, { preview: opts.preview });
   if (action.kind === "editService" && !(await db.callType.findFirst({ where: { id: action.callTypeId, organisationId: scope.organisationId, active: true } }))) throw new NotFoundError("Service call");
-  const refs = new Map((await db.visit.findMany({ where: { id: { in: visitIds }, organisationId: scope.organisationId }, select: { id: true, reference: true } })).map((v) => [v.id, v.reference]));
+  if (action.kind === "assign" && !(await db.staffMember.findFirst({ where: { id: action.staffId, organisationId: scope.organisationId }, select: { id: true } }))) throw new NotFoundError("Carer");
+  // Only visits the caller may see are named; anything else is reported without its reference.
+  const refs = new Map((await db.visit.findMany({ where: { AND: [visitWhere(scope), { id: { in: ids } }] }, select: { id: true, reference: true } })).map((v) => [v.id, v.reference]));
   const results: BulkResult[] = [];
-  for (const visitId of visitIds) {
+  for (const visitId of ids) {
     const reference = refs.get(visitId);
     if (!reference) {
-      results.push({ visitId, reference: "—", ok: false, message: "Visit not found" });
+      results.push({ visitId, reference: "—", ok: false, outcome: "refused", message: "Visit not found, or outside your branches" });
       continue;
     }
     try {
-      await db.$transaction(async (tx) => {
-        switch (action.kind) {
-          case "assign":
-            await assignInTx(tx, scope, ctx.userId, { visitId, slot: action.slot, staffId: action.staffId, acceptWarnings: action.acceptWarnings }, { source: "bulk" });
-            break;
-          case "unassign":
-            await unassignInTx(tx, scope, ctx.userId, { visitId, slot: action.slot, reason: action.reason });
-            break;
-          case "cancel":
-            await cancelVisitInTx(tx, scope, ctx.userId, visitId, action.reason, undefined, action.charge);
-            break;
-          case "nudge": {
-            const v = await lockVisit(tx, scope, visitId);
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledStart: new Date(v.scheduledStart.getTime() + action.minutes * 60000), scheduledEnd: new Date(v.scheduledEnd.getTime() + action.minutes * 60000) }, { source: "bulk" });
-            break;
-          }
-          case "lock":
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { timeLocked: action.locked }, { source: "bulk", overrideLock: true });
-            break;
-          case "publish": {
-            const v = await lockVisit(tx, scope, visitId);
-            if (v.publishedAt) return;
-            await tx.visit.update({ where: { id: visitId }, data: { publishedAt: new Date(), lockVersion: { increment: 1 } } });
-            await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "PUBLISHED", actorId: ctx.userId } });
-            break;
-          }
-          case "activate": {
-            const v = await lockVisit(tx, scope, visitId);
-            if (v.scheduledEnd < new Date()) throw new ValidationError("A visit in the past cannot be activated");
-            await transition(tx, scope, ctx.userId, visitId, "SCHEDULED", action.reason.trim(), { cancelReason: null, cancelledById: null, cancelledAt: null, notDeliveredReason: null, manuallyChanged: true });
-            break;
-          }
-          case "editTime": {
-            const v = await lockVisit(tx, scope, visitId);
-            const start = londonToUtc(londonDate(v.scheduledStart), action.startMinute);
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledStart: start, scheduledEnd: new Date(start.getTime() + (v.scheduledEnd.getTime() - v.scheduledStart.getTime())) }, { source: "bulk" });
-            break;
-          }
-          case "editDuration": {
-            const v = await lockVisit(tx, scope, visitId);
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { scheduledEnd: new Date(v.scheduledStart.getTime() + action.minutes * 60000) }, { source: "bulk" });
-            break;
-          }
-          case "editService":
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { callTypeId: action.callTypeId }, { source: "bulk" });
-            break;
-          case "alert":
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { alertOnLate: action.on }, { source: "bulk" });
-            break;
-          case "doubleUp":
-            await updateVisitInTx(tx, scope, ctx.userId, visitId, { carersRequired: action.carers }, { source: "bulk" });
-            break;
-        }
-      });
-      results.push({ visitId, reference, ok: true });
+      let step: Step;
+      try {
+        step = await db.$transaction(
+          async (tx) => {
+            const s = await bulkStep(tx, scope, ctx.userId, visitId, action, !!opts.preview);
+            if (opts.preview) throw new DryRun(s);
+            return s;
+          },
+          { isolationLevel: "ReadCommitted", timeout: 15_000 },
+        );
+      } catch (e) {
+        if (e instanceof DryRun) step = e.step;
+        else throw e;
+      }
+      results.push({ visitId, reference, ok: true, outcome: step.changed ? "updated" : "unchanged", message: step.message, warnings: step.warnings?.length ? step.warnings : undefined });
     } catch (e) {
-      results.push({ visitId, reference, ok: false, message: isOverlapViolation(e) ? "A carer is already booked at that time" : (e as Error).message });
+      if (e instanceof AppError) results.push({ visitId, reference, ok: false, outcome: "refused", message: e.message });
+      else if (isOverlapViolation(e)) results.push({ visitId, reference, ok: false, outcome: "refused", message: "A carer on this visit is already booked at that time" });
+      else {
+        logger.error({ err: (e as Error).message, visitId, action: action.kind }, "bulk visit action failed");
+        results.push({ visitId, reference, ok: false, outcome: "error", message: "Unexpected error. Nothing was changed on this visit. The error has been logged." });
+      }
     }
   }
-  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: `visit.bulk.${action.kind}`, entityType: "Visit", entityId: "bulk", data: { requested: visitIds.length, succeeded: results.filter((r) => r.ok).length } });
+  if (opts.preview) return results;
+
+  const count = (o: BulkOutcome) => results.filter((r) => r.outcome === o).length;
+  const updated = results.filter((r) => r.outcome === "updated");
+  // Publishing tells the booked carers in the app (the bell), as publishing a rota build does. No email or text is sent.
+  if (action.kind === "publish" && updated.length) {
+    const carers = await db.visitAssignment.findMany({ where: { visitId: { in: updated.map((r) => r.visitId) }, removedAt: null }, select: { staff: { select: { userId: true } } } });
+    const users = [...new Set(carers.map((c) => c.staff.userId).filter((x): x is string => !!x))];
+    const today = londonDate();
+    const batch = createHash("sha1").update(updated.map((r) => r.visitId).sort().join(",")).digest("hex").slice(0, 16);
+    if (users.length) await db.notification.createMany({ data: users.map((userId) => ({ organisationId: scope.organisationId, userId, type: "rota.published", title: "New visits have been published to you", body: "Open My visits to see and acknowledge them.", reason: "You are booked on visits the office has just published.", actionUrl: "/carer", dedupeKey: `rota-published-bulk:${today}:${userId}:${batch}` })), skipDuplicates: true });
+  }
+  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: `visit.bulk.${action.kind}`, entityType: "Visit", entityId: "bulk", data: { requested: ids.length, updated: count("updated"), unchanged: count("unchanged"), refused: count("refused"), errors: count("error"), visitIds: updated.map((r) => r.visitId) } });
   return results;
+}
+
+/** What the review step shows for each selected visit, next to what the action would do to it. */
+export interface BulkReviewRow extends BulkResult {
+  serviceUser: string;
+  date: string;
+  time: string;
+  status: VisitStatus;
+  carers: string;
+  lockVersion: number;
+  published: boolean;
+}
+
+/** Runs the action on every selected visit through the real rules and rolls it all back, so the review is exact. */
+export async function previewBulkVisits(ctx: Ctx, visitIds: string[], action: BulkAction): Promise<BulkReviewRow[]> {
+  const scope = await rotaScope(ctx, bulkPermission(action.kind));
+  const results = await bulkVisits(ctx, visitIds, action, { preview: true });
+  const rows = await db.visit.findMany({
+    where: { AND: [visitWhere(scope), { id: { in: results.map((r) => r.visitId) } }] },
+    select: { id: true, scheduledStart: true, scheduledEnd: true, status: true, carersRequired: true, lockVersion: true, publishedAt: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } }, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { id: true } } },
+  });
+  const byId = new Map(rows.map((v) => [v.id, v]));
+  return results.map((r) => {
+    const v = byId.get(r.visitId);
+    return {
+      ...r,
+      serviceUser: v ? `${v.serviceUser.preferredName ?? v.serviceUser.firstName} ${v.serviceUser.lastName}` : "—",
+      date: v ? londonDate(v.scheduledStart) : "",
+      time: v ? `${fmtTime(v.scheduledStart)}–${fmtTime(v.scheduledEnd)}` : "",
+      status: v?.status ?? "SCHEDULED",
+      carers: v ? `${v.assignments.length}/${v.carersRequired}` : "",
+      lockVersion: v?.lockVersion ?? 0,
+      published: !!v?.publishedAt,
+    };
+  });
 }
 
 /** One visit with everything the visit page shows, scoped to the caller. */

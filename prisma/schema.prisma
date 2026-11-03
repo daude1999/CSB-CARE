@@ -1796,22 +1796,22 @@ enum RecordStatus {
 }
 
 model RiskAssessment {
-  id             String       @id @default(cuid())
-  organisationId String
-  serviceUserId  String
-  serviceUser    ServiceUser  @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
-  type           RiskType
-  title          String
-  hazards        String
-  controls       String
-  level          RiskLevel
-  reviewDue      DateTime     @db.Date
-  status         RecordStatus @default(ACTIVE)
-  assessedById   String
-  assessedAt     DateTime     @default(now())
-  archivedById   String?
-  archivedAt     DateTime?
-  version        Int          @default(1)
+  id                String                  @id @default(cuid())
+  organisationId    String
+  serviceUserId     String
+  serviceUser       ServiceUser             @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  type              RiskType
+  title             String
+  hazards           String
+  controls          String
+  level             RiskLevel
+  reviewDue         DateTime                @db.Date
+  status            RecordStatus            @default(ACTIVE)
+  assessedById      String
+  assessedAt        DateTime                @default(now())
+  archivedById      String?
+  archivedAt        DateTime?
+  version           Int                     @default(1)
   /// What still has to be done to reduce the risk (not the standing controls), and who is responsible for it.
   requiredActions   String?
   responsiblePerson String?
@@ -2062,56 +2062,71 @@ enum VisitStatus {
   NOT_DELIVERED
 }
 
+enum VisitCompletionSource {
+  OFFICE_CONFIRMED
+}
+
 model Visit {
-  id                 String         @id @default(cuid())
-  organisationId     String
-  organisation       Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  reference          String
-  serviceUserId      String
-  serviceUser        ServiceUser    @relation(fields: [serviceUserId], references: [id])
-  callTypeId         String
-  callType           CallType       @relation(fields: [callTypeId], references: [id])
-  areaId             String?
-  area               Area?          @relation(fields: [areaId], references: [id])
-  templateId         String?
-  template           VisitTemplate? @relation(fields: [templateId], references: [id])
-  rotaBuildId        String?
-  rotaBuild          RotaBuild?     @relation(fields: [rotaBuildId], references: [id])
-  runRouteId         String?
-  runRoute           RunRoute?      @relation(fields: [runRouteId], references: [id])
+  id                   String                 @id @default(cuid())
+  organisationId       String
+  organisation         Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  reference            String
+  serviceUserId        String
+  serviceUser          ServiceUser            @relation(fields: [serviceUserId], references: [id])
+  callTypeId           String
+  callType             CallType               @relation(fields: [callTypeId], references: [id])
+  areaId               String?
+  area                 Area?                  @relation(fields: [areaId], references: [id])
+  templateId           String?
+  template             VisitTemplate?         @relation(fields: [templateId], references: [id])
+  rotaBuildId          String?
+  rotaBuild            RotaBuild?             @relation(fields: [rotaBuildId], references: [id])
+  runRouteId           String?
+  runRoute             RunRoute?              @relation(fields: [runRouteId], references: [id])
   /// Position on its run route that day, set by hand by the coordinator.
-  routeOrder         Int?
-  runOrder           Int?
+  routeOrder           Int?
+  runOrder             Int?
   /// The local (Europe/London) date the visit starts on.
-  date               DateTime       @db.Date
-  scheduledStart     DateTime
-  scheduledEnd       DateTime
-  carersRequired     Int            @default(1)
-  status             VisitStatus    @default(SCHEDULED)
-  statusChangedAt    DateTime       @default(now())
-  actualStart        DateTime?
-  actualEnd          DateTime?
-  cancelReason       String?
-  cancelledById      String?
-  cancelledAt        DateTime?
+  date                 DateTime               @db.Date
+  scheduledStart       DateTime
+  scheduledEnd         DateTime
+  carersRequired       Int                    @default(1)
+  status               VisitStatus            @default(SCHEDULED)
+  statusChangedAt      DateTime               @default(now())
+  actualStart          DateTime?
+  actualEnd            DateTime?
+  cancelReason         String?
+  cancelledById        String?
+  cancelledAt          DateTime?
   /// The office's decision when cancelling: true charge the cancellation, false do not, null follow the funder's short-notice rule.
-  cancellationCharge Boolean?
-  notDeliveredReason String?
-  rotaType           RotaType       @default(NORMAL)
-  timeLocked         Boolean        @default(false)
-  medicationRequired Boolean        @default(false)
-  alertOnLate        Boolean        @default(true)
-  chargeable         Boolean        @default(true)
-  payable            Boolean        @default(true)
+  cancellationCharge   Boolean?
+  notDeliveredReason   String?
+  /// How a COMPLETED visit was completed. Null means from recorded attendance (every carer clocked in and out).
+  /// OFFICE_CONFIRMED is the office's after-the-event confirmation that the care was delivered (Complete Calls): no clock,
+  /// MAR or other evidence rows are created for it, and the times below are only what the office entered.
+  completionSource     VisitCompletionSource?
+  completionReason     String?
+  /// Who confirmed the care was delivered (name and role, as the coordinator recorded it).
+  completionVerifiedBy String?
+  completedById        String?
+  completedAt          DateTime?
+  /// The status the visit had before the office completed it (for example MISSED). The full history is in VisitEvent.
+  completedFromStatus  VisitStatus?
+  rotaType             RotaType               @default(NORMAL)
+  timeLocked           Boolean                @default(false)
+  medicationRequired   Boolean                @default(false)
+  alertOnLate          Boolean                @default(true)
+  chargeable           Boolean                @default(true)
+  payable              Boolean                @default(true)
   /// Changed by hand after it was built, so template changes never overwrite it.
-  manuallyChanged    Boolean        @default(false)
+  manuallyChanged      Boolean                @default(false)
   /// Carers can see the visit once it is published (builds publish automatically; drafts never reach the phone).
-  publishedAt        DateTime?
-  notes              String?
-  lockVersion        Int            @default(1)
-  createdById        String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  publishedAt          DateTime?
+  notes                String?
+  lockVersion          Int                    @default(1)
+  createdById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
   assignments        VisitAssignment[]
   tasks              VisitTask[]
