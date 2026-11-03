@@ -59,8 +59,8 @@ test.describe("Policy & Compliance workspaces", () => {
       expect(res?.status(), path).toBe(200);
       await expect(current(page), path).toHaveText(entry);
     }
-    // /reports stays in the Reporting portal.
-    await page.goto("/reports");
+    // Reporting & Analytics keeps its own pages; Compliance Reports now sits in Policy & Compliance.
+    await page.goto("/analytics");
     await expect(page.getByTestId("portal-pages")).not.toContainText("Compliance Dashboard");
   });
 

@@ -41,7 +41,6 @@ test.describe("Overview", () => {
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     const banners: [string, string, string][] = [
-      ["reporting", "/reports", "[data-testid=title-bar]"],
       ["reporting", "/analytics", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],

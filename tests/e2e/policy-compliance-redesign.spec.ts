@@ -60,7 +60,7 @@ test.describe("Policy & Compliance redesign", () => {
     await expect(inspector).toHaveCount(0);
     await page.reload();
     await expect(inspector).toHaveCount(0);
-    await expect(page.getByRole("searchbox", { name: "Search policies" })).toHaveValue("safeguard");
+    await expect(page.getByRole("search", { name: "Filter policies" }).getByRole("searchbox")).toHaveValue("safeguard");
     // Choosing a policy opens it again.
     const row = page.getByTestId("policy-row").first();
     await row.getByRole("link").first().click();
