@@ -214,9 +214,9 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                           <td className="whitespace-nowrap px-3 py-2">
                             {r.outcome === "updated" ? (
                               <span className="flex items-center gap-1">
-                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 w-[104px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
+                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                                 <span aria-hidden>–</span>
-                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 w-[104px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
+                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                               </span>
                             ) : null}
                           </td>
