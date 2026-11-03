@@ -21,15 +21,28 @@ import { Flash } from "@/components/ui";
 import { AutoSubmitSelect } from "@/components/library/auto-submit";
 import { Menu } from "@/components/library/menu";
 import { Collapsible, TreeArea } from "@/components/library/tree";
-import { DocTile, fmtShort, Initials, StatusPill } from "@/components/library/parts";
+import { DocTile, fmtShort, StatusPill } from "@/components/library/parts";
 import { PolicyInspector } from "./inspector";
+import { db } from "@/lib/db";
+import { CompliancePageHeader } from "@/components/module-header";
+import { PcTabs } from "@/components/compliance-ui";
+import { ActionDialog } from "@/components/dialog";
+import { InspectorShell } from "@/components/library/inspector-shell";
+import { UploadPolicyForm } from "@/components/library/upload-policy";
+import { workspaceCounts } from "@/server/compliance/workspace-counts";
 import { canUseQueue } from "@/components/compliance-nav";
-import { CaretLeft, CaretRight, Check, Clock, DotsThree, DotsThreeVertical, DownloadSimple, FileDoc, FilePdf, Files, FunnelSimple, ListBullets, MagnifyingGlass, PlusCircle, SquaresFour, ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, DotsThree, DotsThreeVertical, DownloadSimple, FileDoc, FilePdf, Files, FunnelSimple, ListBullets, MagnifyingGlass, Plus, SquaresFour, ArrowSquareOut, UploadSimple, User } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
+const QUICK_DOT: Record<(typeof QUICK_KEYS)[number], string> = { due: "#f79009", overdue: "#d92d20", recent: "#12b76a", awaiting: "#7a5af8" };
 const TAB_LABELS: Record<LibraryTab, string> = { policies: "My Policies", templates: "Templates", archived: "Archived", calendar: "Review Calendar" };
 
+/**
+ * Policy Library (owner's brief of 3 Nov 2026, screenshot 02): categories and quick filters on the left, the register in
+ * the middle and the selected policy in an inspector on the right. Closing the inspector gives the register the full
+ * width and is remembered, so the first policy is not reopened. Every filter lives in the address bar.
+ */
 export default async function PolicyLibraryPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
@@ -37,71 +50,70 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
   const { query } = view;
   const tabs: LibraryTab[] = ctx.organisationId ? ["policies", "templates", "archived", "calendar"] : ["templates"];
   const canCreate = hasOrgPermission(ctx, "policy.author") || hasPlatformPermission(ctx, "master.author");
-  const selectedId = query.selected ?? (query.tab !== "calendar" ? view.rows[0]?.id : undefined);
+  const canUpload = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "policy.author");
+  const selectedId = view.selectedId;
+  const counts = await workspaceCounts(ctx, "library");
+  const [categories, members] = canUpload
+    ? await Promise.all([
+        db.policyCategory.findMany({ orderBy: { name: "asc" }, select: { code: true, name: true } }),
+        db.membership.findMany({ where: { organisationId: ctx.organisationId! }, select: { user: { select: { id: true, name: true } } }, orderBy: { user: { name: "asc" } } }),
+      ])
+    : [[], []];
+  const showInspector = query.tab !== "calendar" && Boolean(selectedId);
+  const nav = {
+    index: view.position?.index,
+    total: view.position?.total,
+    prevHref: view.position?.prev ? libraryHref(query, { selected: view.position.prev.id, page: view.position.prev.page, insp: undefined }) : undefined,
+    nextHref: view.position?.next ? libraryHref(query, { selected: view.position.next.id, page: view.position.next.page, insp: undefined }) : undefined,
+    closeHref: libraryHref(query, { selected: undefined, pane: undefined, insp: "closed" }),
+  };
+  const tabItems = [
+    ...tabs.map((t) => ({ key: t, label: TAB_LABELS[t], href: libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined, insp: undefined }), count: counts[t] })),
+    ...(canUseQueue(ctx) ? [{ key: "queue", label: "Review & Approval Queue", href: "/queue", count: counts.queue }] : []),
+  ];
 
   return (
-    <div className="pl-root">
-      <header className="pl-hero">
-        <LineArt />
-        <nav aria-label="Breadcrumb" className="relative text-[13px] text-[#4f5b6c]">
-          <ol className="flex items-center gap-2">
-            <li><Link href="/" className="text-inherit hover:text-[#0646b1]">Policy &amp; Compliance</Link></li>
-            <li aria-hidden="true"><CaretRight size={10} /></li>
-            <li aria-current="page" className="text-[#1f2d42]">{ctx.organisationId ? "Policy Library" : "Template Library"}</li>
-          </ol>
-        </nav>
-        <h1 className="pl-h1 relative mt-[6px]">{ctx.organisationId ? "Policy Library" : "Template Library"}</h1>
-        <p className="relative mt-[6px] max-w-[920px] text-[15px] text-[#3a4658]">
-          {ctx.organisationId
-            ? "Manage your organisational policies and procedures. Keep them up to date, approved and accessible to your team."
-            : "Original CSB starter documents that provider organisations adopt and approve through their own governance."}
-        </p>
-      </header>
+    <div className="pl-root min-w-0">
+      <CompliancePageHeader
+        title={ctx.organisationId ? "Policy Library" : "Template Library"}
+        subtitle={ctx.organisationId ? "Manage your organisation's policies and procedures: keep them up to date, approved and read by your team." : "Original CSB starter documents that provider organisations adopt and approve through their own governance."}
+        actions={
+          <>
+            {canUpload ? (
+              <ActionDialog size="lg" triggerClassName="pc-btn-secondary" trigger={<><UploadSimple size={16} aria-hidden="true" />Upload policy</>} title="Upload policy" description="Bring in your existing policies as drafts. Each file is checked, stored securely and goes through your normal review and approval.">
+                <UploadPolicyForm categories={categories} owners={members.map((m) => m.user)} defaultOwner={ctx.userId} back={libraryHref(query, { selected: undefined })} />
+              </ActionDialog>
+            ) : null}
+            {canCreate ? <Link href="/policies/new" className="pc-btn"><Plus size={16} weight="bold" aria-hidden="true" />Create policy</Link> : null}
+          </>
+        }
+        tabs={<PcTabs label="Policy Library sections" testId="ws-tabs-library" active={query.tab} items={tabItems} />}
+      />
+      <Flash searchParams={sp} />
+      <div className="mb-4" data-keep-inspector="">
+        <FilterBar ctx={ctx} view={view} />
+      </div>
 
-      <div className="pl-card">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-[#ebe8e2] px-[14px]">
-          <nav aria-label="Library views" className="-mb-px flex overflow-x-auto">
-            {tabs.map((t) => (
-              <Link key={t} href={libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined })} aria-current={query.tab === t ? "page" : undefined} className="pl-tab whitespace-nowrap">
-                {TAB_LABELS[t]}
-                {t !== "calendar" && view.tabCounts[t] !== undefined ? <span className="sr-only"> ({view.tabCounts[t]})</span> : null}
-              </Link>
-            ))}
-            {canUseQueue(ctx) ? <Link href="/queue" className="pl-tab whitespace-nowrap">Review &amp; Approval Queue</Link> : null}
-          </nav>
-          {canCreate ? (
-            <div className="flex items-center gap-2 py-2">
-              <Link href="/policies/new" className="pl-btn-primary"><PlusCircle size={16} aria-hidden="true" />Create Policy</Link>
-            </div>
-          ) : null}
+      <div className={`grid items-start gap-4 lg:grid-cols-[220px_minmax(0,1fr)] ${showInspector ? "xl:grid-cols-[220px_minmax(0,1fr)_460px] 2xl:grid-cols-[220px_minmax(0,1fr)_540px]" : ""}`}>
+        <div className="lg:sticky lg:top-3" data-keep-inspector="">
+          <Collapsible label="Categories and quick filters">
+            <Explorer ctx={ctx} view={view} />
+          </Collapsible>
         </div>
-
-        <div className="px-[14px] pb-[14px] pt-[14px]">
-          <Flash searchParams={sp} />
-          <FilterBar ctx={ctx} view={view} />
-
-          <div className={`mt-[14px] grid items-start gap-3 ${query.tab === "calendar" ? "lg:grid-cols-[229px_minmax(0,1fr)]" : "lg:grid-cols-[229px_minmax(0,1fr)] xl:grid-cols-[229px_minmax(0,512fr)_minmax(0,494fr)]"}`}>
-            <div className="lg:sticky lg:top-3">
-              <Collapsible label="Categories and quick filters">
-                <Explorer view={view} />
-              </Collapsible>
-            </div>
-            {query.tab === "calendar" ? (
-              <ReviewCalendar view={view} />
-            ) : (
-              <>
-                <Register ctx={ctx} view={view} selectedId={selectedId} />
-                <div className="hidden xl:sticky xl:top-3 xl:block" id="policy-inspector">
-                  {selectedId ? (
-                    <PolicyInspector ctx={ctx} query={query} policyId={selectedId} />
-                  ) : (
-                    <div className="pl-panel bg-white px-6 py-10 text-center text-[13.5px] text-[#646e7f]">Select a policy to read it here.</div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        {query.tab === "calendar" ? (
+          <ReviewCalendar view={view} />
+        ) : (
+          <>
+            <Register ctx={ctx} view={view} selectedId={selectedId} />
+            {showInspector && selectedId ? (
+              <div className="hidden xl:sticky xl:top-3 xl:block" id="policy-inspector">
+                <InspectorShell key={selectedId} closeHref={nav.closeHref}>
+                  <PolicyInspector ctx={ctx} query={query} policyId={selectedId} nav={nav} />
+                </InspectorShell>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
@@ -127,7 +139,7 @@ function FilterBar({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <form role="search" aria-label="Filter policies" action="/policies" className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <KeepState query={query} keys={["tab", "area", "quick", "sort", "layout"]} />
+        <KeepState query={query} keys={["tab", "area", "quick", "sort", "layout", "insp"]} />
         <label className="pl-input w-full sm:w-[238px]">
           <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0 text-[#4f5b6c]" />
           <span className="sr-only">Search policies</span>
@@ -181,13 +193,14 @@ function FilterBar({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
   );
 }
 
-function Explorer({ view }: { view: LibraryView }) {
+function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
   const { query } = view;
   const reset = { area: undefined, category: undefined, page: 1 };
   const isAll = !query.area && !query.category;
   return (
     <>
       <nav aria-label="Categories" className="pl-panel p-[6px]">
+        <h2 className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#667085]">Categories</h2>
         <ul className="space-y-px">
           <li>
             <Link href={libraryHref({ ...query, ...reset }, { selected: undefined })} scroll={false} aria-current={isAll ? "true" : undefined} className="pl-tree-row pl-[10px]">
@@ -221,22 +234,30 @@ function Explorer({ view }: { view: LibraryView }) {
       </nav>
 
       {query.tab !== "templates" ? (
-        <nav aria-label="Quick filters" className="pl-panel px-[16px] py-[14px]">
-          <h2 className="mb-2 text-[14.5px] font-semibold text-[#0b1530]">Quick Filters</h2>
-          <ul className="space-y-1">
+        <nav aria-label="Quick filters" className="pl-panel px-[14px] py-[12px]">
+          <h2 className="mb-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#667085]">Quick filters</h2>
+          <ul className="space-y-px">
             {QUICK_KEYS.map((k) => {
               const on = query.quick === k;
               return (
                 <li key={k}>
-                  <Link href={libraryHref({ ...query, quick: on ? undefined : k, page: 1 }, { selected: undefined })} scroll={false} aria-current={on ? "true" : undefined} className={`flex items-center gap-2.5 rounded-[5px] px-1 py-1 text-[13px] hover:bg-[#f1efea] ${on ? "font-medium text-[#0646b1]" : "text-[#1f2d42]"}`}>
-                    <span aria-hidden="true" className={`flex h-[14px] w-[14px] shrink-0 items-center justify-center rounded-full border ${on ? "border-[#0369d5] bg-[#0369d5] text-white" : "border-[#7f8a98] text-[#7f8a98]"}`}>
-                      {on ? <Check size={9} weight="bold" /> : <Clock size={9} />}
-                    </span>
-                    {QUICK_LABELS[k]} ({view.quickCounts[k]})
+                  <Link href={libraryHref({ ...query, quick: on ? undefined : k, page: 1 }, { selected: undefined })} scroll={false} aria-current={on ? "true" : undefined} className="pl-quick">
+                    <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: QUICK_DOT[k] }} />
+                    <span className="min-w-0 flex-1 truncate">{QUICK_LABELS[k]}</span>
+                    <span className="pl-count">{view.quickCounts[k]}</span>
                   </Link>
                 </li>
               );
             })}
+            {ctx.organisationId ? (
+              <li>
+                <Link href={libraryHref({ ...query, owner: query.owner === ctx.userId ? undefined : ctx.userId, page: 1 }, { selected: undefined })} scroll={false} aria-current={query.owner === ctx.userId ? "true" : undefined} className="pl-quick" data-testid="quick-mine">
+                  <User size={13} aria-hidden="true" className="shrink-0 text-[#5b2bb5]" />
+                  <span className="min-w-0 flex-1 truncate">Owned by me</span>
+                  <span className="pl-count">{view.mineCount}</span>
+                </Link>
+              </li>
+            ) : null}
           </ul>
         </nav>
       ) : null}
@@ -249,14 +270,14 @@ function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; sele
   const noun = query.tab === "templates" ? "Templates" : query.tab === "archived" ? "Archived policies" : "Policies";
   const grid = query.layout === "grid";
   return (
-    <section aria-labelledby="register-title" className="pl-panel min-w-0 bg-white" data-testid="policy-register">
+    <section aria-labelledby="register-title" className="pc-panel min-w-0" data-testid="policy-register" data-keep-inspector="">
       <div className="flex flex-wrap items-center justify-between gap-2 px-[18px] pb-[10px] pt-[14px]">
-        <h2 id="register-title" className="pl-serif text-[20px] font-semibold text-[#0b1530]">
-          {noun} ({view.total})
+        <h2 id="register-title" className="text-[16px] font-semibold text-[#101828]">
+          {noun} <span className="font-normal text-[#667085]">({view.total})</span>
         </h2>
         <div className="flex items-center gap-2">
           <form action="/policies" className="flex items-center gap-2">
-            <KeepState query={query} keys={["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "layout", "selected"]} />
+            <KeepState query={query} keys={["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "layout", "selected", "insp"]} />
             <AutoSubmitSelect name="sort" label="Sort by" defaultValue={query.sort} className="w-[172px]">
               {SORT_KEYS.map((s) => <option key={s} value={s}>Sort: {SORT_LABELS[s]}</option>)}
             </AutoSubmitSelect>
@@ -294,7 +315,7 @@ function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; sele
 function RowTitle({ row, query, className }: { row: LibraryRow; query: LibraryQuery; className?: string }) {
   return (
     <>
-      <Link href={libraryHref(query, { selected: row.id, pane: undefined })} scroll={false} className={`pl-row-title hidden xl:inline ${className ?? ""}`}>{row.title}</Link>
+      <Link href={libraryHref(query, { selected: row.id, pane: undefined, insp: undefined })} scroll={false} className={`pl-row-title hidden xl:inline ${className ?? ""}`}>{row.title}</Link>
       <Link href={`/policies/${row.id}`} className={`pl-row-title xl:hidden ${className ?? ""}`}>{row.title}</Link>
     </>
   );
@@ -302,10 +323,8 @@ function RowTitle({ row, query, className }: { row: LibraryRow; query: LibraryQu
 
 function Meta({ row }: { row: LibraryRow }) {
   return (
-    <p className="mt-[3px] flex min-w-0 gap-x-[14px] whitespace-nowrap text-[12.5px] text-[#646e7f]">
-      <span>{row.ref}</span>
-      {row.version ? <span>{row.version}</span> : null}
-      <span className="min-w-0 truncate">{row.areaLabel ? <>{row.areaLabel} <span aria-hidden="true">&gt;</span><span className="sr-only">,</span> {row.categoryName}</> : row.categoryName}</span>
+    <p className="mt-[2px] min-w-0 truncate text-[12.5px] text-[#667085]" title={row.areaLabel ? `${row.areaLabel} › ${row.categoryName}` : row.categoryName}>
+      {[row.ref, row.version, row.categoryName].filter(Boolean).join(" · ")}
     </p>
   );
 }
@@ -319,15 +338,15 @@ function Row({ ctx, row, query, selected }: { ctx: Ctx; row: LibraryRow; query: 
         <Meta row={row} />
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#3a4658] sm:hidden">
           <StatusPill status={row.status} />
-          {row.nextReviewDate ? <span>Review: {fmtShort(row.nextReviewDate)}</span> : null}
+          {row.nextReviewDate ? <span className="whitespace-nowrap">Review {fmtShort(row.nextReviewDate)}</span> : null}
           <RowSide ctx={ctx} row={row} query={query} />
         </div>
         {row.description ? <p className="mt-[7px] line-clamp-2 text-[12px] leading-[17px] text-[#4f5b6c]">{row.description}</p> : null}
       </div>
-      <div className="flex w-[124px] shrink-0 flex-col items-start gap-[8px] text-[12.5px] text-[#3a4658] max-sm:hidden">
+      <div className="flex w-[150px] shrink-0 flex-col items-start gap-[4px] text-[12.5px] text-[#475467] max-sm:hidden">
         <StatusPill status={row.status} />
-        {row.ownerName ? <span className="flex items-center gap-1.5"><Initials name={row.ownerName} size={20} /><span className="truncate">{row.ownerName}</span></span> : null}
-        {row.nextReviewDate ? <span>Review: {fmtShort(row.nextReviewDate)}</span> : null}
+        {row.ownerName ? <span className="max-w-full truncate">{row.ownerName}</span> : null}
+        {row.nextReviewDate ? <span className="whitespace-nowrap">Review {fmtShort(row.nextReviewDate)}</span> : null}
         <RowSide ctx={ctx} row={row} query={query} />
       </div>
       <RowMenu row={row} />
@@ -403,9 +422,9 @@ function ReviewCalendar({ view }: { view: LibraryView }) {
   const now = new Date();
   const { query } = view;
   return (
-    <section aria-labelledby="calendar-title" className="pl-panel min-w-0 bg-white" data-testid="review-calendar">
+    <section aria-labelledby="calendar-title" className="pc-panel min-w-0" data-testid="review-calendar">
       <div className="px-[18px] pb-[6px] pt-[14px]">
-        <h2 id="calendar-title" className="pl-serif text-[20px] font-semibold text-[#0b1530]">Review Calendar</h2>
+        <h2 id="calendar-title" className="text-[16px] font-semibold text-[#101828]">Review Calendar</h2>
         <p className="mt-0.5 text-[12.5px] text-[#646e7f]">Next review dates for {view.total} {view.total === 1 ? "policy" : "policies"}, earliest first. Reviews within 60 days are due; past dates are overdue.</p>
       </div>
       {view.calendar.length ? (
@@ -432,19 +451,5 @@ function ReviewCalendar({ view }: { view: LibraryView }) {
         <p className="px-6 pb-12 pt-8 text-center text-[13px] text-[#4f5b6c]">No review dates match these filters.</p>
       )}
     </section>
-  );
-}
-
-/** An in-house line drawing for the hero: stacked papers and a sprig, drawn in the page's own colours. */
-function LineArt() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 420 152" className="pointer-events-none absolute bottom-0 right-0 hidden h-[152px] w-[420px] md:block" fill="none" stroke="#c8d3dc" strokeWidth="1.2">
-      <rect x="236" y="38" width="86" height="112" rx="5" transform="rotate(-8 279 94)" />
-      <rect x="262" y="30" width="86" height="118" rx="5" fill="#f5f4f1" />
-      <path d="M276 54h56M276 66h56M276 78h40M276 96h56M276 108h48M276 120h30" />
-      <path d="M370 152c0-34 6-62 22-88M392 64c-14 2-24 10-26 24 14-2 24-10 26-24ZM384 90c12-6 24-4 30 4-12 6-24 4-30-4ZM380 116c-10-8-22-8-30-2 10 8 22 8 30 2Z" />
-      <circle cx="198" cy="118" r="20" />
-      <path d="m189 118 6 6 12-13" />
-    </svg>
   );
 }

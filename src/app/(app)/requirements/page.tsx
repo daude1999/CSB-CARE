@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
-import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
+import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { requireCtx } from "@/server/auth/current";
-import { Empty, fmtDate } from "@/components/ui";
+import { requirementRegister } from "@/server/compliance/requirements";
 import { RequirementsTable } from "@/components/requirements-table";
 
 export const dynamic = "force-dynamic";
@@ -10,21 +10,15 @@ export const dynamic = "force-dynamic";
 export default async function RequirementsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
-  const reqs = await db.regulatoryRequirement.findMany({
-    orderBy: { ref: "asc" },
-    include: { source: { select: { name: true } }, _count: { select: { policyLinks: true, auditQuestions: true, trainingLinks: true } } },
-  });
-  const verified = reqs.filter((r) => r.verificationStatus === "VERIFIED").length;
-  const unmapped = reqs.filter((r) => !r._count.policyLinks).length;
+  const [reqs, services] = await Promise.all([requirementRegister(ctx), db.serviceType.findMany({ select: { code: true, name: true } })]);
+  const serviceName = new Map(services.map((s) => [s.code, s.name]));
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="requirements" />} eyebrow="Compliance · what the law and guidance ask" title="Regulatory Monitoring" subtitle="Regulatory requirements mapped to policies, audit questions and training. Entries marked unverified have not yet been checked word-for-word against the official source by a qualified reviewer." />
-      <ModuleStatRow>
-        <ModuleStat label="Requirements" value={reqs.length} hint="In the register" tone="violet" />
-        <ModuleStat label="Verified" value={verified} hint="Checked against the source" tone="green" />
-        <ModuleStat label="Unverified" value={reqs.length - verified} hint="Awaiting a qualified check" tone="amber" />
-        <ModuleStat label="No Policy Linked" value={unmapped} hint="Not yet covered by a policy" tone="rose" />
-      </ModuleStatRow>
+      <CompliancePageHeader
+        tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="requirements" />}
+        title="Regulatory Monitoring"
+        subtitle="What the law and guidance ask, mapped to your policies, evidence and actions. Entries marked not yet verified have not been checked word-for-word against the official source by a qualified reviewer."
+      />
       {reqs.length ? (
         <RequirementsTable
           initialQuery={sp.q ?? ""}
@@ -33,18 +27,18 @@ export default async function RequirementsPage({ searchParams }: { searchParams:
             ref: r.ref,
             title: r.title,
             exactReference: r.exactReference,
-            source: r.source.name,
+            source: r.source,
             legalStatus: r.legalStatus,
-            verification: r.verificationStatus,
-            lastVerified: r.lastVerifiedAt ? fmtDate(r.lastVerifiedAt) : null,
-            policies: r._count.policyLinks,
-            auditQuestions: r._count.auditQuestions,
-            training: r._count.trainingLinks,
-            simulated: r.isSimulated,
+            applicability: r.serviceTypes.length ? r.serviceTypes.map((c) => serviceName.get(c) ?? c).join(", ") : "All services",
+            verification: r.verification,
+            policies: r.policies,
+            evidence: r.evidence,
+            openActions: r.openActions,
+            simulated: r.simulated,
           }))}
         />
       ) : (
-        <Empty>No requirements.</Empty>
+        <section className="pc-panel"><p className="pc-empty">No requirements are in the register yet.</p></section>
       )}
     </>
   );

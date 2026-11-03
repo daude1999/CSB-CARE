@@ -7,7 +7,11 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { createActionAction } from "../../actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
-import { Badge, Card, Empty, Flash, fmtDate, SegmentNav, StatusBadge } from "@/components/ui";
+import { Flash, fmtDate } from "@/components/ui";
+import { ActionDialog } from "@/components/dialog";
+import { PcBadge, PcFoot, PcTableWrap, type PcTone } from "@/components/compliance-ui";
+import { PcSelect } from "@/components/pc-select";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -51,54 +55,70 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
   const names = new Map(members.map((m) => [m.userId, m.user.name]));
   const evidenceOf = new Map(evidenceCounts.map((e) => [e.linkedId, e._count._all]));
   const count = Object.fromEntries((Object.keys(VIEWS) as View[]).map((v, n) => [v, counts[n]!])) as Record<View, number>;
-  const mine = sp.mine === "1" ? "&mine=1" : "";
+  const mine = sp.mine === "1" ? "1" : undefined;
+  const STATUS: Record<string, { label: string; tone: PcTone }> = { OPEN: { label: "Open", tone: "amber" }, IN_PROGRESS: { label: "In progress", tone: "blue" }, COMPLETED: { label: "Awaiting verification", tone: "purple" }, VERIFIED: { label: "Verified", tone: "green" }, CLOSED: { label: "Closed", tone: "grey" } };
+  const PRIORITY: Record<string, PcTone> = { LOW: "grey", MEDIUM: "amber", HIGH: "red", CRITICAL: "red" };
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="actions" />} eyebrow="Care operations · corrective actions" title="Audits & Improvements" subtitle="Corrective actions from audits, risks and reviews. Completing an action needs a note of what was done; it is then verified by someone other than its owner before it is closed." actions={isManager ? <a href={sp.mine === "1" ? `/actions?view=${view}` : `/actions?view=${view}&mine=1`} className="btn-secondary">{sp.mine === "1" ? "Show everyone's" : "Show only mine"}</a> : null} />
-      <Flash searchParams={sp} />
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0">
-          <SegmentNav alert label="Which actions" items={(Object.keys(VIEWS) as View[]).map((v) => ({ href: `/actions?view=${v}${mine}`, label: VIEWS[v].label, active: v === view, count: v === "all" ? undefined : count[v] }))} />
-          <Card className="rounded-tl-none">
-            {actions.length ? (
-              <div className="overflow-x-auto"><table className="table">
-                <thead><tr><th>Action</th><th>Came from</th><th>Owner</th><th>Due</th><th>Priority</th><th>Status</th><th className="text-right">Evidence</th></tr></thead>
-                <tbody>
-                  {actions.map((x) => {
-                    const overdue = ["OPEN", "IN_PROGRESS"].includes(x.status) && x.dueDate < now;
-                    return (
-                      <tr key={x.id} data-testid={`action-${x.id}`}>
-                        <td className="min-w-[220px]"><Link href={`/actions/${x.id}`} className="row-title">{x.title}</Link>{x.isDemo ? <span className="ml-2"><Badge tone="violet">Demo</Badge></span> : null}{x.completionNote ? <div className="mt-0.5 text-[12.5px] text-[#1c7a43]">Done: {x.completionNote.slice(0, 90)}</div> : null}</td>
-                        <td className="min-w-[160px] text-[13px]">{x.finding ? (canAudit ? <Link href={`/audits/${x.finding.audit.id}#findings`}>Audit: {x.finding.audit.title}</Link> : <span>Audit: {x.finding.audit.title}</span>) : x.risk ? (canRisk ? <Link href={`/compliance/risks/${x.risk.id}`}>Risk {x.risk.ref}: {x.risk.title}</Link> : <span>Risk {x.risk.ref}: {x.risk.title}</span>) : <span className="text-slate-600">Raised directly</span>}</td>
-                        <td className="text-[13.5px]">{names.get(x.ownerId) ?? "—"}</td>
-                        <td className={`whitespace-nowrap text-[13.5px] tabular-nums ${overdue ? "font-medium text-[#a3242c]" : ""}`}>{fmtDate(x.dueDate)}{overdue ? " · overdue" : ""}</td>
-                        <td>{x.finding ? <StatusBadge status={x.finding.riskRating} /> : <span className="text-[13px] text-slate-500">—</span>}</td>
-                        <td><StatusBadge status={x.status} />{x.verifiedById ? <div className="mt-0.5 text-[12px] text-slate-600">by {names.get(x.verifiedById) ?? "a member"}</div> : null}</td>
-                        <td className="text-right tabular-nums">{(evidenceOf.get(x.id) ?? 0) + (x.completionEvidenceId ? 1 : 0)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table></div>
-            ) : (
-              <Empty>{view === "open" ? "No open actions." : "Nothing here."}</Empty>
-            )}
-          </Card>
-        </div>
-        {isManager ? (
-          <Card title="New corrective action">
-            <p className="mb-2 text-[13px] text-slate-600">Actions from an audit are best raised from the audit&apos;s finding, and actions for a risk from the risk, so the link is kept.</p>
-            <form action={createActionAction} className="space-y-2">
-              <input type="hidden" name="back" value="/actions" />
-              <label className="block"><span className="label">Action</span><input name="title" className="input" required minLength={3} /></label>
-              <label className="block"><span className="label">Details</span><textarea name="description" className="input" rows={2} /></label>
-              <label className="block"><span className="label">Owner</span><select name="ownerId" className="input">{members.map((m) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select></label>
-              <label className="block"><span className="label">Due</span><input name="dueDate" type="date" className="input" required /></label>
-              <button className="btn-primary" type="submit">Create</button>
-            </form>
-          </Card>
+      <CompliancePageHeader
+        tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="actions" />}
+        title="Audits & Improvements"
+        subtitle="Corrective actions from audits, risks and reviews. An action is completed with a note of what was done, then verified by someone other than its owner before it is closed."
+        actions={isManager ? (
+          <>
+            <a href={sp.mine === "1" ? `/actions?view=${view}` : `/actions?view=${view}&mine=1`} className="pc-btn-secondary">{sp.mine === "1" ? "Show everyone's" : "Show only mine"}</a>
+            <ActionDialog triggerClassName="pc-btn" trigger={<><Plus size={16} weight="bold" aria-hidden="true" />New action</>} title="New corrective action" description="Actions from an audit are best raised from the audit's finding, and actions for a risk from the risk, so the link is kept.">
+              <form action={createActionAction} className="space-y-3">
+                <input type="hidden" name="back" value="/actions" />
+                <label className="block"><span className="label">Action</span><input name="title" className="input" required minLength={3} /></label>
+                <label className="block"><span className="label">Details</span><textarea name="description" className="input" rows={2} /></label>
+                <label className="block"><span className="label">Responsible person</span><select name="ownerId" className="input">{members.map((m) => <option key={m.userId} value={m.userId}>{m.user.name}</option>)}</select></label>
+                <label className="block"><span className="label">Due</span><input name="dueDate" type="date" className="input" required /></label>
+                <button className="btn-primary w-full" type="submit">Create action</button>
+              </form>
+            </ActionDialog>
+          </>
         ) : null}
-      </div>
+      />
+      <Flash searchParams={sp} />
+      <section aria-label="Corrective actions" className="pc-panel">
+        <form className="pc-toolbar" aria-label="Filter actions">
+          {mine ? <input type="hidden" name="mine" value="1" /> : null}
+          <PcSelect name="view" label="Show" defaultValue={view} options={(Object.keys(VIEWS) as View[]).map((v) => ({ value: v, label: v === "all" ? VIEWS[v].label : `${VIEWS[v].label} (${count[v]})` }))} />
+          <button className="pc-btn-secondary sr-only focus:not-sr-only" type="submit">Apply</button>
+          {!showAll ? <span className="pc-note">Showing actions you own.</span> : null}
+        </form>
+        {actions.length ? (
+          <PcTableWrap>
+            <table className="pc-table">
+              <thead><tr><th>Action</th><th>Responsible</th><th>Priority</th><th>Due</th><th>Status</th><th className="text-right">Evidence</th><th>Verification</th></tr></thead>
+              <tbody>
+                {actions.map((x) => {
+                  const overdue = ["OPEN", "IN_PROGRESS"].includes(x.status) && x.dueDate < now;
+                  const st = STATUS[x.status] ?? { label: x.status.toLowerCase(), tone: "grey" as const };
+                  return (
+                    <tr key={x.id} data-testid={`action-${x.id}`}>
+                      <td className="min-w-[260px] max-w-[420px]">
+                        <span className="flex flex-wrap items-center gap-2"><Link href={`/actions/${x.id}`} className="pc-strong">{x.title}</Link>{x.isDemo ? <PcBadge tone="purple">Demo</PcBadge> : null}</span>
+                        <span className="pc-sub truncate">{x.finding ? (canAudit ? <Link href={`/audits/${x.finding.audit.id}#findings`}>From audit: {x.finding.audit.title}</Link> : <>From audit: {x.finding.audit.title}</>) : x.risk ? (canRisk ? <Link href={`/compliance/risks/${x.risk.id}`}>From risk {x.risk.ref}: {x.risk.title}</Link> : <>From risk {x.risk.ref}: {x.risk.title}</>) : "Raised directly"}</span>
+                      </td>
+                      <td className="whitespace-nowrap">{names.get(x.ownerId) ?? "—"}</td>
+                      <td>{x.finding ? <PcBadge tone={PRIORITY[x.finding.riskRating] ?? "grey"}>{x.finding.riskRating.charAt(0) + x.finding.riskRating.slice(1).toLowerCase()}</PcBadge> : <span className="text-[#667085]">—</span>}</td>
+                      <td className={`whitespace-nowrap ${overdue ? "font-semibold text-[#b42318]" : ""}`}>{fmtDate(x.dueDate)}{overdue ? <span className="pc-sub text-[#b42318]">Overdue</span> : null}</td>
+                      <td><PcBadge tone={overdue ? "red" : st.tone}>{overdue ? "Overdue" : st.label}</PcBadge></td>
+                      <td className="text-right">{(evidenceOf.get(x.id) ?? 0) + (x.completionEvidenceId ? 1 : 0)}</td>
+                      <td className="whitespace-nowrap">{x.verifiedById ? <>Verified by {names.get(x.verifiedById) ?? "a member"}{x.verifiedAt ? <span className="pc-sub">{fmtDate(x.verifiedAt)}</span> : null}</> : x.status === "COMPLETED" ? <span className="text-[#5925dc]">Needs an independent check</span> : <span className="text-[#667085]">Not yet</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </PcTableWrap>
+        ) : (
+          <p className="pc-empty">{view === "open" ? "No open actions." : "Nothing here."}</p>
+        )}
+        <PcFoot shown={actions.length} total={actions.length} />
+      </section>
     </>
   );
 }

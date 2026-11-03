@@ -10,7 +10,7 @@ import { DocumentViewer } from "@/components/library/document-viewer";
 import { InspectorTabs } from "@/components/library/inspector-tabs";
 import { Menu } from "@/components/library/menu";
 import { DocTile, fmtShort, relative, StatusPill } from "@/components/library/parts";
-import { ArrowSquareOut, Archive, ArrowCounterClockwise, CheckCircle, ClockCounterClockwise, DotsThree, FileDoc, FilePdf, NotePencil, Signature, UserFocus, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowSquareOut, Archive, ArrowCounterClockwise, CaretLeft, CaretRight, CheckCircle, ClockCounterClockwise, DotsThree, FileDoc, FilePdf, NotePencil, Signature, Stamp, UserFocus, X } from "@phosphor-icons/react/dist/ssr";
 
 const ORIGIN: Record<string, string> = {
   SEED: "CSB starter text",
@@ -21,18 +21,19 @@ const ORIGIN: Record<string, string> = {
 };
 
 /** The right-hand inspector: one policy, read without leaving the register. */
-export async function PolicyInspector({ ctx, query, policyId }: { ctx: Ctx; query: LibraryQuery; policyId: string }) {
+export type InspectorNav = { index?: number; total?: number; prevHref?: string; nextHref?: string; closeHref: string };
+
+export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx; query: LibraryQuery; policyId: string; nav: InspectorNav }) {
   let data: PolicyInspection;
   try {
     data = await inspectPolicy(ctx, policyId);
   } catch (e) {
-    if (e instanceof NotFoundError || e instanceof ForbiddenError) return <InspectorMessage query={query} title="Policy not found" body="This policy doesn't exist, or you don't have access to it." />;
+    if (e instanceof NotFoundError || e instanceof ForbiddenError) return <InspectorMessage closeHref={nav.closeHref} title="Policy not found" body="This policy doesn't exist, or you don't have access to it." />;
     if (!(e instanceof AppError)) logger.error({ err: (e as Error).message }, "policy inspector failed");
-    return <InspectorMessage query={query} title="This policy couldn't be loaded" body="Something went wrong while loading it. Try again in a moment." />;
+    return <InspectorMessage closeHref={nav.closeHref} title="This policy couldn't be loaded" body="Something went wrong while loading it. Try again in a moment." />;
   }
   const p = data.policy;
   const v = data.version;
-  const close = libraryHref(query, { selected: undefined, pane: undefined });
   const back = libraryHref(query, { selected: p.id });
   const active = p.status === "ACTIVE";
   const isTemplate = p.kind === "MASTER";
@@ -51,7 +52,7 @@ export async function PolicyInspector({ ctx, query, policyId }: { ctx: Ctx; quer
       label: "Document",
       content: v ? (
         <div className="px-[14px] pt-[16px]">
-          <DocumentViewer src={`${pdfHref}&disposition=inline`} downloadHref={pdfHref} title={p.title} headings={v.sections.filter((s) => s.key !== "framework" && s.key !== "related").map((s) => s.heading)} />
+          <DocumentViewer src={`${pdfHref}&disposition=inline`} downloadHref={pdfHref} wordHref={`/api/policies/${p.id}/download?format=docx`} title={p.title} headings={v.sections.filter((s) => s.key !== "framework" && s.key !== "related").map((s) => s.heading)} />
           <p className="mt-2 text-[12px] text-[#646e7f]">
             {v.origin === "SEED" ? "CSB starter text, not yet approved by your organisation. " : ""}
             <Link href={`/policies/${p.id}?view=text`}>Read as accessible text</Link>
@@ -114,99 +115,131 @@ export async function PolicyInspector({ ctx, query, policyId }: { ctx: Ctx; quer
     },
   ];
 
+  const revisionDialog = (label: string, cls: string, reason?: string) => (
+    <ActionDialog triggerClassName={cls} trigger={<><NotePencil size={16} aria-hidden="true" />{label}</>} title={`${label}: ${p.ref}`} description="A revision creates a draft copy of the current text. Nothing changes for staff until the draft is reviewed, approved and published.">
+      <form action={newRevisionAction} className="space-y-4">
+        <input type="hidden" name="policyId" value={p.id} />
+        <input type="hidden" name="back" value={back} />
+        <div>
+          <label className="label" htmlFor="inspector-revision-reason">Reason for revision</label>
+          <textarea className="input min-h-[88px]" id="inspector-revision-reason" name="reason" required defaultValue={reason} placeholder="For example: annual review, or a change in local procedures" />
+        </div>
+        <button className="btn-primary w-full" type="submit">Create revision</button>
+      </form>
+    </ActionDialog>
+  );
+  const assignDialog = (cls: string) => (
+    <ActionDialog triggerClassName={cls} trigger={<><UserFocus size={16} aria-hidden="true" />Assign for review</>} title={`Assign ${p.ref} for review`} description="The reviewer is named on the policy and notified. It doesn't start a revision.">
+      <form action={assignReviewerAction} className="space-y-4">
+        <input type="hidden" name="policyId" value={p.id} />
+        <input type="hidden" name="back" value={back} />
+        <div>
+          <label className="label" htmlFor="reviewerId">Reviewer</label>
+          <select className="input" id="reviewerId" name="reviewerId" required defaultValue={p.reviewerId ?? ""}>
+            <option value="" disabled>Choose a reviewer</option>
+            {data.reviewers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+        <button className="btn-primary w-full" type="submit">Assign and notify</button>
+      </form>
+    </ActionDialog>
+  );
+  const open = data.openRevision;
+  // One primary action, chosen by the policy's status (owner's brief of 3 Nov 2026).
+  let primary: React.ReactNode = null;
+  let primaryKey: "revise" | "assign" | "adopt" | "restore" | "open" | null = null;
+  if (!active) {
+    if (canArchive) {
+      primaryKey = "restore";
+      primary = (
+        <ActionDialog triggerClassName="pc-btn" trigger={<><ArrowCounterClockwise size={16} aria-hidden="true" />Restore</>} title={`Restore ${p.ref}`} description="The policy returns to your library with its versions unchanged.">
+          <ReasonForm action={restorePolicyAction} policyId={p.id} back={back} button="Restore policy" />
+        </ActionDialog>
+      );
+    }
+  } else if (data.status === "template") {
+    if (canAdopt) {
+      primaryKey = "adopt";
+      primary = (
+        <form action={adoptTemplateAction}>
+          <input type="hidden" name="templateId" value={p.id} />
+          <input type="hidden" name="back" value={back} />
+          <button className="pc-btn" type="submit">Adopt template</button>
+        </form>
+      );
+    }
+  } else if ((data.status === "under_review" || data.status === "approved") && open) {
+    primaryKey = "open";
+    primary = <Link href={`/revisions/${open.id}`} className="pc-btn"><Stamp size={16} aria-hidden="true" />{data.status === "approved" ? "Publish approved revision" : "Review and approve"}</Link>;
+  } else if (data.status === "draft") {
+    if (canAssign) {
+      primaryKey = "assign";
+      primary = assignDialog("pc-btn");
+    } else if (open && canRevise) {
+      primaryKey = "open";
+      primary = <Link href={`/revisions/${open.id}`} className="pc-btn"><NotePencil size={16} aria-hidden="true" />Open draft</Link>;
+    }
+  } else if (canRevise) {
+    const due = data.status === "review_due" || data.status === "overdue";
+    primaryKey = open ? "open" : "revise";
+    primary = open
+      ? <Link href={`/revisions/${open.id}`} className="pc-btn"><NotePencil size={16} aria-hidden="true" />{due ? "Continue review" : "Open revision"}</Link>
+      : revisionDialog(due ? "Start review" : "Create revision", "pc-btn", due ? "Scheduled policy review" : undefined);
+  }
+
   return (
-    <section aria-label={`Policy: ${p.title}`} className="pl-panel flex flex-col bg-white" data-testid="policy-inspector">
-      <header className="flex items-start gap-4 px-[18px] pb-[14px] pt-[16px]">
-        <DocTile status={data.status} size={56} />
-        <div className="min-w-0 flex-1 pt-0.5">
-          <h2 className="pl-serif truncate text-[20px] font-semibold leading-7 text-[#0b1530]">{p.title}</h2>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#4a5564]">
+    <section aria-label={`Policy: ${p.title}`} className="pc-panel flex flex-col bg-white" data-testid="policy-inspector">
+      <div className="flex h-[48px] items-center gap-2 border-b border-[#eaecf0] px-4 text-[13px] text-[#475467]">
+        <span data-testid="inspector-position">{nav.index && nav.total ? <>Policy <b className="font-semibold text-[#101828]">{nav.index}</b> of {nav.total}</> : "Policy"}</span>
+        <span className="ml-auto flex items-center gap-1">
+          {nav.prevHref ? <Link href={nav.prevHref} scroll={false} data-inspector-close="" className="pc-btn-secondary pc-btn-sm" aria-label="Previous policy"><CaretLeft size={14} aria-hidden="true" />Previous</Link> : <span className="pc-btn-secondary pc-btn-sm opacity-50" aria-disabled="true"><CaretLeft size={14} aria-hidden="true" />Previous</span>}
+          {nav.nextHref ? <Link href={nav.nextHref} scroll={false} data-inspector-close="" className="pc-btn-secondary pc-btn-sm" aria-label="Next policy">Next<CaretRight size={14} aria-hidden="true" /></Link> : <span className="pc-btn-secondary pc-btn-sm opacity-50" aria-disabled="true">Next<CaretRight size={14} aria-hidden="true" /></span>}
+          <Link href={nav.closeHref} scroll={false} data-inspector-close="" aria-label="Close policy" title="Close (Esc)" className="pl-icon-btn ml-1"><X size={17} /></Link>
+        </span>
+      </div>
+      <header className="flex items-start gap-3.5 px-[18px] pb-[12px] pt-[16px]">
+        <DocTile status={data.status} size={44} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[18px] font-semibold leading-6 text-[#101828]">{p.title}</h2>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#475467]">
             <span>{p.ref}</span>
             <StatusPill status={data.status} />
             {v ? <span>Version {v.label.replace(/^v/i, "")}</span> : null}
-            {!active ? <span className="font-medium text-[#b42318]">Archived</span> : null}
           </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <Link href={close} scroll={false} aria-label="Close policy" title="Close" className="pl-icon-btn"><X size={17} /></Link>
-          <Menu label="More actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[6px] border border-[#e3e0d9]">
-            <Link href={`/policies/${p.id}`} className="pl-menu-item"><ArrowSquareOut size={15} />Open full record</Link>
-            {v ? <a href={`/api/policies/${p.id}/download?format=docx`} download className="pl-menu-item"><FileDoc size={15} />Download Word</a> : null}
-            {v ? <a href={pdfHref} download className="pl-menu-item"><FilePdf size={15} />Download PDF</a> : null}
-          </Menu>
         </div>
       </header>
 
-      <InspectorTabs key={`${p.id}:${query.pane}`} value={query.pane} panes={panes} />
-
-      <div className="mx-[14px] mt-[14px] rounded-[8px] border border-[#ebe8e2] px-[16px] py-[14px]">
-        <h3 className="mb-3 text-[14.5px] font-semibold text-[#0b1530]">Key Information</h3>
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-[9px] text-[12px] sm:grid-cols-2" data-testid="key-information">
-          <KeyRow label="Owner" value={data.owner ?? "Not recorded"} />
-          <KeyRow label="Next Review" value={p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"} />
-          <KeyRow label="Category" value={<span title={category}>{p.category.name}</span>} />
-          <KeyRow label="Approval" value={<span className={`whitespace-nowrap rounded-[4px] px-1.5 py-px ${approval === "Approved" ? "bg-[#d6fcee] text-[#157a3e]" : approval === "Awaiting approval" ? "bg-[#e4f0fe] text-[#0454d8]" : "bg-[#eef0f3] text-[#4a5564]"}`}>{approval}</span>} />
-          <KeyRow label="Last Updated" value={fmtShort(v?.publishedAt ?? p.updatedAt)} />
-          <KeyRow label="Applicable To" value={data.services.length ? data.services.map((s) => s.name).join(", ") : "All services"} />
-        </dl>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 px-[14px] pb-[14px] pt-[14px]">
-        {canAssign ? (
-          <ActionDialog triggerClassName="pl-btn-primary" trigger={<><UserFocus size={16} aria-hidden="true" />Assign for Review</>} title={`Assign ${p.ref} for review`} description="The reviewer is named on the policy and notified. It doesn't start a revision.">
-            <form action={assignReviewerAction} className="space-y-4">
-              <input type="hidden" name="policyId" value={p.id} />
-              <input type="hidden" name="back" value={back} />
-              <div>
-                <label className="label" htmlFor="reviewerId">Reviewer</label>
-                <select className="input" id="reviewerId" name="reviewerId" required defaultValue={p.reviewerId ?? ""}>
-                  <option value="" disabled>Choose a reviewer</option>
-                  {data.reviewers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </div>
-              <button className="btn-primary w-full" type="submit">Assign and notify</button>
-            </form>
-          </ActionDialog>
-        ) : null}
-        {canAdopt ? (
-          <form action={adoptTemplateAction}>
-            <input type="hidden" name="templateId" value={p.id} />
-            <input type="hidden" name="back" value={back} />
-            <button className="pl-btn-primary" type="submit">Adopt template</button>
-          </form>
-        ) : null}
-        {canRevise ? (
-          data.openRevision ? (
-            <Link href={`/revisions/${data.openRevision.id}`} className="pl-btn-secondary"><NotePencil size={16} aria-hidden="true" />Open revision</Link>
-          ) : (
-            <ActionDialog triggerClassName="pl-btn-secondary" trigger={<><NotePencil size={16} aria-hidden="true" />Create Revision</>} title={`Revise ${p.ref}`} description="A revision creates a draft copy of the current text. Nothing changes for staff until the draft is reviewed, approved and published.">
-              <form action={newRevisionAction} className="space-y-4">
-                <input type="hidden" name="policyId" value={p.id} />
-                <input type="hidden" name="back" value={back} />
-                <div>
-                  <label className="label" htmlFor="inspector-revision-reason">Reason for revision</label>
-                  <textarea className="input min-h-[88px]" id="inspector-revision-reason" name="reason" required placeholder="For example: annual review, or a change in local procedures" />
-                </div>
-                <button className="btn-primary w-full" type="submit">Create revision</button>
-              </form>
-            </ActionDialog>
-          )
-        ) : null}
-        {!isTemplate && active ? <Link href={libraryHref(query, { selected: p.id, pane: "signoff" })} scroll={false} className="pl-btn-secondary"><Signature size={16} aria-hidden="true" />Manage Sign-off</Link> : null}
-        {!active && canArchive ? (
-          <ActionDialog triggerClassName="pl-btn-primary" trigger={<><ArrowCounterClockwise size={16} aria-hidden="true" />Restore</>} title={`Restore ${p.ref}`} description="The policy returns to your library with its versions unchanged.">
-            <ReasonForm action={restorePolicyAction} policyId={p.id} back={back} button="Restore policy" />
-          </ActionDialog>
-        ) : null}
-        <Menu label="More policy actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[6px] border border-[#dcd9d2] bg-white" align="right" opens="up">
+      <div className="flex flex-wrap items-center gap-2 px-[18px] pb-[14px]" data-testid="inspector-actions">
+        {primary}
+        {!isTemplate && active ? <Link href={libraryHref(query, { selected: p.id, pane: "signoff" })} scroll={false} className="pc-btn-secondary"><Signature size={16} aria-hidden="true" />Manage sign-off</Link> : null}
+        {!isTemplate ? <Link href={`/policies/${p.id}?view=history`} className="pc-btn-secondary"><ClockCounterClockwise size={16} aria-hidden="true" />Versions</Link> : null}
+        <Menu label="More policy actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[9px] border border-[#d0d5dd] bg-white" align="right">
           <Link href={`/policies/${p.id}`} className="pl-menu-item"><ArrowSquareOut size={15} />Open full record</Link>
-          <Link href={`/policies/${p.id}?view=history`} className="pl-menu-item"><ClockCounterClockwise size={15} />Versions and rollback</Link>
+          {v ? <a href={`/api/policies/${p.id}/download?format=docx`} download className="pl-menu-item"><FileDoc size={15} />Download Word</a> : null}
+          {v ? <a href={pdfHref} download className="pl-menu-item"><FilePdf size={15} />Download PDF</a> : null}
+          {canAssign && primaryKey !== "assign" ? assignDialog("pl-menu-item") : null}
+          {canRevise && !open && primaryKey !== "revise" ? revisionDialog("Create revision", "pl-menu-item") : null}
+          {open && primaryKey !== "open" ? <Link href={`/revisions/${open.id}`} className="pl-menu-item"><NotePencil size={15} />Open {open.submitted ? "revision" : "draft"}</Link> : null}
           {active && canArchive ? (
             <ActionDialog triggerClassName="pl-menu-item" trigger={<><Archive size={15} aria-hidden="true" />Archive policy</>} title={`Archive ${p.ref}`} description="Archived policies leave your library but keep every version and record. You can restore it later.">
               <ReasonForm action={archivePolicyAction} policyId={p.id} back={back} button="Archive policy" />
             </ActionDialog>
           ) : null}
         </Menu>
+      </div>
+
+      <InspectorTabs key={`${p.id}:${query.pane}`} value={query.pane} panes={panes} />
+
+      <div className="mx-[14px] my-[14px] rounded-[10px] border border-[#eaecf0] px-[16px] py-[14px]">
+        <h3 className="mb-3 text-[14px] font-semibold text-[#101828]">Key information</h3>
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-[9px] text-[12.5px] sm:grid-cols-2" data-testid="key-information">
+          <KeyRow label="Owner" value={data.owner ?? "Not recorded"} />
+          <KeyRow label="Next review" value={p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"} />
+          <KeyRow label="Category" value={<span title={category}>{p.category.name}</span>} />
+          <KeyRow label="Approval" value={<span className="pc-badge" data-tone={approval === "Approved" ? "green" : approval === "Awaiting approval" ? "purple" : "grey"}>{approval}</span>} />
+          <KeyRow label="Last updated" value={fmtShort(v?.publishedAt ?? p.updatedAt)} />
+          <KeyRow label="Applies to" value={data.services.length ? data.services.map((s) => s.name).join(", ") : "All services"} />
+        </dl>
       </div>
     </section>
   );
@@ -266,7 +299,7 @@ function SignOffPane({ data, back }: { data: PolicyInspection; back: string }) {
               </li>
             ))}
           </ul>
-          <Link href="/staff" className="mt-2 inline-block text-[12.5px]">Open Policy Sign-off</Link>
+          <Link href="/staff" className="mt-2 inline-block text-[12.5px]">Open Staff Sign-off</Link>
         </div>
       ) : null}
     </div>
@@ -318,12 +351,12 @@ function LinkGroup({ title, note, children }: { title: string; note?: string; ch
   );
 }
 
-function InspectorMessage({ query, title, body }: { query: LibraryQuery; title: string; body: string }) {
+function InspectorMessage({ closeHref, title, body }: { closeHref: string; title: string; body: string }) {
   return (
-    <section aria-label="Policy" className="pl-panel bg-white px-6 py-10 text-center" data-testid="policy-inspector">
-      <h2 className="pl-serif text-[19px] font-semibold text-[#0b1530]">{title}</h2>
-      <p className="mt-2 text-[13px] text-[#4a5564]">{body}</p>
-      <Link href={libraryHref(query, { selected: undefined, pane: undefined })} scroll={false} className="pl-btn-secondary mt-4">Back to the list</Link>
+    <section aria-label="Policy" className="pc-panel bg-white px-6 py-10 text-center" data-testid="policy-inspector">
+      <h2 className="text-[18px] font-semibold text-[#101828]">{title}</h2>
+      <p className="mt-2 text-[13px] text-[#475467]">{body}</p>
+      <Link href={closeHref} scroll={false} data-inspector-close="" className="pc-btn-secondary mt-4">Back to the list</Link>
     </section>
   );
 }

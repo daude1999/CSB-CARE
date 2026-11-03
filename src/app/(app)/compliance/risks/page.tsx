@@ -7,8 +7,11 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { BAND_LABEL, listRisks, parseRiskFilters, RISK_CATEGORIES, RISK_STATUS, riskBand } from "@/server/compliance/risks";
 import { memberNames } from "@/server/rota/queries";
 import { ComplianceTabs } from "@/components/compliance-nav";
-import { RatingChip, RiskMatrix, RiskRef } from "@/components/risk-register-ui";
-import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
+import { RiskMatrix } from "@/components/risk-register-ui";
+import { Flash, fmtDate } from "@/components/ui";
+import { PcBadge, PcFoot, PcSearch, PcTableWrap, type PcTone } from "@/components/compliance-ui";
+import { PcSelect } from "@/components/pc-select";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -36,63 +39,79 @@ export default async function RiskRegisterPage({ searchParams }: { searchParams:
   const overdue = open.filter((r) => r.overdue).length;
   const filtered = Boolean(f.q || f.status || f.band || f.category || f.branch || f.overdue);
 
+  const EFFECT: Record<string, { label: string; tone: PcTone }> = { EFFECTIVE: { label: "Effective", tone: "green" }, PARTIALLY_EFFECTIVE: { label: "Partly effective", tone: "amber" }, INEFFECTIVE: { label: "Ineffective", tone: "red" }, NOT_ASSESSED: { label: "Not assessed", tone: "grey" } };
+  const BRANCH_OPTS = [{ value: "", label: "All" }, ...branches.map((b) => ({ value: b.id, label: b.name }))];
+
   return (
     <>
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="risks" />}
         title="Audits & Improvements"
-        subtitle="The organisational risk register: risks to the company and its service (not to one person; those are in each service user's risk assessments). Risks to safe, well-led care and to the service, scored before and after controls, each with an owner, a review date and mitigation actions."
-        actions={canManage ? <Link href="/compliance/risks/new" className="btn-primary">Add a risk</Link> : null}
+        subtitle="The organisational risk register: risks to safe, well-led care and to the service (risks to one person are in that service user's risk assessments), scored before and after controls, each with an owner, a review date and mitigation actions."
+        actions={canManage ? <Link href="/compliance/risks/new" className="pc-btn"><Plus size={16} weight="bold" aria-hidden="true" />Add a risk</Link> : null}
       />
       <Flash searchParams={sp} />
-      <section aria-label="Risk summary" className="panel mb-3 flex flex-wrap gap-x-6 gap-y-1 text-[14px]">
-        <span><strong className="tabular-nums">{open.length}</strong> open risk{open.length === 1 ? "" : "s"}</span>
-        <Link href="/compliance/risks?band=HIGH_PLUS" className={`no-underline ${high ? "text-[#a3242c]" : ""}`}><strong className="tabular-nums">{high}</strong> rated High or Extreme after controls</Link>
-        <Link href="/compliance/risks?overdue=1" className={`no-underline ${overdue ? "text-[#a3242c]" : ""}`}><strong className="tabular-nums">{overdue}</strong> past their review date</Link>
-        <Link href="/compliance/risks?status=CLOSED" className="no-underline text-slate-700">Closed risks</Link>
-      </section>
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0 space-y-3">
-          <section aria-label="Filters" className="panel">
-            <form method="get" action="/compliance/risks" className="flex flex-wrap items-end gap-2">
-              <label><span className="label">Search</span><input name="q" defaultValue={f.q ?? ""} placeholder="Reference or words" className="input w-48" /></label>
-              <label><span className="label">Status</span><select name="status" defaultValue={f.status ?? ""} className="input"><option value="">Open and monitoring</option>{Object.entries(RISK_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}<option value="ALL">All, including closed</option></select></label>
-              <label><span className="label">Residual rating</span><select name="band" defaultValue={f.band ?? ""} className="input"><option value="">Any</option>{Object.entries(BAND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}<option value="HIGH_PLUS">High or Extreme</option></select></label>
-              <label><span className="label">Category</span><select name="category" defaultValue={f.category ?? ""} className="input max-w-[220px]"><option value="">Any</option>{Object.entries(RISK_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-              {branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={f.branch ?? ""} className="input"><option value="">All</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
-              <label className="flex items-center gap-2 pb-2 text-[14px]"><input type="checkbox" name="overdue" value="1" defaultChecked={f.overdue} className="h-4 w-4" /> Review overdue</label>
-              <button className="btn-primary">Apply</button>
-              {filtered ? <Link href="/compliance/risks" className="btn-secondary">Clear</Link> : null}
-            </form>
-          </section>
-          <Card>
-            {risks.length ? (
-              <table className="table">
-                <thead><tr><th>Risk</th><th>Scope</th><th>Inherent</th><th>Residual</th><th>Owner</th><th>Review</th><th className="text-right">Open actions</th></tr></thead>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section aria-label="Risk register" className="pc-panel">
+          <form method="get" action="/compliance/risks" className="pc-toolbar" role="search" aria-label="Filter risks">
+            <PcSearch defaultValue={f.q} placeholder="Search risks" />
+            <PcSelect name="status" label="Status" defaultValue={f.status ?? ""} options={[{ value: "", label: "Open and monitoring" }, ...Object.entries(RISK_STATUS).map(([value, label]) => ({ value, label })), { value: "ALL", label: "All, including closed" }]} />
+            <PcSelect name="band" label="Rating" defaultValue={f.band ?? ""} options={[{ value: "", label: "Any" }, ...Object.entries(BAND_LABEL).map(([value, label]) => ({ value, label })), { value: "HIGH_PLUS", label: "High or Extreme" }]} />
+            <PcSelect name="category" label="Category" defaultValue={f.category ?? ""} options={[{ value: "", label: "Any" }, ...Object.entries(RISK_CATEGORIES).map(([value, label]) => ({ value, label }))]} />
+            {branches.length > 1 ? <PcSelect name="branch" label="Branch" defaultValue={f.branch ?? ""} options={BRANCH_OPTS} /> : null}
+            <label className="pc-select pr-3"><input type="checkbox" name="overdue" value="1" defaultChecked={f.overdue} className="pc-check" /> Review overdue</label>
+            <button className="pc-btn-secondary pc-btn-sm" type="submit">Apply</button>
+            {filtered ? <Link href="/compliance/risks" className="pc-link">Clear filters</Link> : null}
+          </form>
+          {risks.length ? (
+            <PcTableWrap>
+              <table className="pc-table">
+                <thead><tr><th>Risk</th><th>Score</th><th>Controls</th><th>Owner</th><th>Next review</th><th className="text-right">Actions</th></tr></thead>
                 <tbody>
-                  {risks.map((r) => (
-                    <tr key={r.id} data-testid={`risk-${r.ref}`}>
-                      <td className="min-w-[240px]"><RiskRef id={r.id} refText={r.ref} title={r.title} /><div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] text-slate-600">{RISK_CATEGORIES[r.category as keyof typeof RISK_CATEGORIES] ?? r.category}{r.status !== "OPEN" ? <Badge tone={r.status === "CLOSED" ? "slate" : "teal"}>{RISK_STATUS[r.status as keyof typeof RISK_STATUS]}</Badge> : null}</div></td>
-                      <td className="text-[13.5px]">{r.branchId ? (branchName.get(r.branchId) ?? "Branch") : "Whole organisation"}</td>
-                      <td><RatingChip score={r.inherent} /></td>
-                      <td><RatingChip score={r.residual} /></td>
-                      <td className="text-[13.5px]">{names.get(r.ownerId) ?? "—"}</td>
-                      <td className={`whitespace-nowrap text-[13.5px] tabular-nums ${r.overdue ? "font-medium text-[#a3242c]" : ""}`}>{fmtDate(r.reviewDate)}{r.overdue ? " · overdue" : ""}</td>
-                      <td className="text-right tabular-nums">{r.openActions}</td>
-                    </tr>
-                  ))}
+                  {risks.map((r) => {
+                    const eff = EFFECT[r.controlEffectiveness] ?? EFFECT.NOT_ASSESSED!;
+                    return (
+                      <tr key={r.id} data-testid={`risk-${r.ref}`}>
+                        <td className="min-w-[240px] max-w-[380px]">
+                          <Link href={`/compliance/risks/${r.id}`} className="pc-strong"><span className="mr-1.5 font-normal text-[#667085]">{r.ref}</span>{r.title}</Link>
+                          <span className="pc-sub">{RISK_CATEGORIES[r.category as keyof typeof RISK_CATEGORIES] ?? r.category} · {r.branchId ? (branchName.get(r.branchId) ?? "Branch") : "Whole organisation"}{r.status !== "OPEN" ? ` · ${RISK_STATUS[r.status as keyof typeof RISK_STATUS]}` : ""}</span>
+                        </td>
+                        <td className="whitespace-nowrap">
+                          <PcBadge tone={scoreTone(r.residual)} title={`Residual ${r.residual} (with controls); inherent ${r.inherent}`}>{r.residual} · {BAND_LABEL[r.band]}</PcBadge>
+                          <span className="pc-sub">Before controls {r.inherent}</span>
+                        </td>
+                        <td className="max-w-[300px]"><span className="block truncate" title={r.existingControls}>{r.existingControls || "None recorded"}</span><span className="pc-sub">{eff.label}</span></td>
+                        <td className="whitespace-nowrap">{names.get(r.ownerId) ?? "—"}</td>
+                        <td className={`whitespace-nowrap ${r.overdue ? "font-semibold text-[#b42318]" : ""}`}>{fmtDate(r.reviewDate)}{r.overdue ? <span className="pc-sub text-[#b42318]">Overdue</span> : null}</td>
+                        <td className="text-right">{r.openActions ? <span className="font-semibold text-[#101828]">{r.openActions} open</span> : <span className="text-[#667085]">None</span>}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            ) : (
-              <Empty>{filtered ? "No risks match these filters." : canManage ? "The risk register is empty. Add the first risk to start tracking it." : "The risk register is empty."}</Empty>
-            )}
-          </Card>
-        </div>
-        <Card title="Open risks after controls">
+            </PcTableWrap>
+          ) : (
+            <p className="pc-empty">{filtered ? "No risks match these filters." : canManage ? "The risk register is empty. Add the first risk to start tracking it." : "The risk register is empty."}</p>
+          )}
+          <PcFoot shown={risks.length} total={open.length}>
+            <span className="flex flex-wrap gap-x-4 gap-y-1">
+              <Link href="/compliance/risks?band=HIGH_PLUS" className="pc-link">{high} High or Extreme</Link>
+              <Link href="/compliance/risks?overdue=1" className="pc-link">{overdue} past review date</Link>
+              <Link href="/compliance/risks?status=CLOSED" className="pc-link">Closed risks</Link>
+            </span>
+          </PcFoot>
+        </section>
+        <section aria-labelledby="matrix-heading" className="pc-panel self-start p-5">
+          <h2 id="matrix-heading" className="pc-panel-title mb-3">Open risks after controls</h2>
           <RiskMatrix cells={cells} />
-          {open.length ? <p className="mt-2 text-[12.5px] text-slate-600">Highest residual: <strong>{BAND_LABEL[riskBand(Math.max(...open.map((r) => r.residual)))]}</strong>.</p> : null}
-        </Card>
+          {open.length ? <p className="mt-2 text-[12.5px] text-[#475467]">Highest residual: <strong>{BAND_LABEL[riskBand(Math.max(...open.map((r) => r.residual)))]}</strong>. Scores are an internal management tool, not a regulatory rating.</p> : null}
+        </section>
       </div>
     </>
   );
+}
+
+/** Score colour from the brief: 15 or more red, 8 to 14 amber, below 8 green. */
+function scoreTone(score: number): PcTone {
+  return score >= 15 ? "red" : score >= 8 ? "amber" : "green";
 }

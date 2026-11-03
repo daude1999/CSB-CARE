@@ -29,7 +29,7 @@ test.describe("one place for each job", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
     const dir = page.getByTestId("settings-directory");
-    for (const name of ["Users & Logins", "Branches & Areas", "Rostering Settings", "Policy Sign-off rules", "Activity Log"]) await expect(dir.getByRole("link", { name: new RegExp(`^${name}`) })).toBeVisible();
+    for (const name of ["Users & Logins", "Branches & Areas", "Rostering Settings", "Staff Sign-off rules", "Activity Log"]) await expect(dir.getByRole("link", { name: new RegExp(`^${name}`) })).toBeVisible();
     await page.goto("/admin/workforce");
     await expect(page.getByTestId("admin-tabs-logins").getByRole("link", { name: "Carer app logins & HR sync" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByTestId("portal-pages").locator('[aria-current="page"]')).toHaveText("Users & Logins");

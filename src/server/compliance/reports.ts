@@ -19,16 +19,19 @@ import { BAND_LABEL, CONTROL_EFFECTIVENESS, RISK_CATEGORIES, RISK_STATUS, riskBa
  */
 
 export const REPORT_GROUPS = [
-  { name: "Policy Management", kinds: ["policies", "publications"] },
-  { name: "Policy Sign-off", kinds: ["signoff", "signoff-groups"] },
+  { name: "Policy Management", kinds: ["policies", "overdue", "publications"] },
+  { name: "Staff Sign-off", kinds: ["signoff", "signoff-groups"] },
   { name: "Audits", kinds: ["audits", "findings"] },
   { name: "Corrective Actions", kinds: ["actions"] },
   { name: "Risk Management", kinds: ["risks"] },
   { name: "Evidence", kinds: ["evidence"] },
+  { name: "Summary", kinds: ["summary"] },
 ] as const;
 export type ComplianceReportKind = (typeof REPORT_GROUPS)[number]["kinds"][number];
 export const REPORT_TITLES: Record<ComplianceReportKind, string> = {
-  policies: "Policy register",
+  policies: "Policy status",
+  overdue: "Overdue reviews",
+  summary: "Compliance summary",
   publications: "Publications and version history",
   signoff: "Sign-off by policy",
   "signoff-groups": "Sign-off by branch and role",
@@ -41,7 +44,37 @@ export const REPORT_TITLES: Record<ComplianceReportKind, string> = {
 const KINDS = Object.keys(REPORT_TITLES) as ComplianceReportKind[];
 export const isReportKind = (k: string): k is ComplianceReportKind => (KINDS as string[]).includes(k);
 
-export interface ReportFilters { from: string; to: string; branch?: string }
+/**
+ * The six headline reports offered as cards on Compliance Reports (owner's brief of 3 Nov 2026). The other reports stay
+ * available beneath them.
+ */
+export const HEADLINE_REPORTS: { kind: ComplianceReportKind; title: string; blurb: string }[] = [
+  { kind: "policies", title: "Policy Status Report", blurb: "Every active policy with status, version, owner and next review." },
+  { kind: "signoff", title: "Staff Sign-off Report", blurb: "Assignments, acknowledgements and overdue sign-offs by policy." },
+  { kind: "overdue", title: "Overdue Reviews Report", blurb: "Policies past their review date or due within 60 days." },
+  { kind: "audits", title: "Audit & Findings Report", blurb: "Audits in the period, internal scores and findings raised." },
+  { kind: "risks", title: "Risk Register Report", blurb: "Risks with score, controls, owner and next review." },
+  { kind: "summary", title: "Compliance Summary", blurb: "The headline figures from every report on one page." },
+];
+
+/** The file formats each report can be exported as. Only formats that are built are listed. */
+export function reportFormats(kind: ComplianceReportKind): ("csv" | "xlsx" | "pdf")[] {
+  return kind === "summary" ? ["pdf"] : ["csv", "xlsx", "pdf"];
+}
+
+/** The Status filter's choices for each report, or none where status does not apply. */
+export const REPORT_STATUS_OPTIONS: Partial<Record<ComplianceReportKind, [string, string][]>> = {
+  policies: [["published", "Published"], ["not_approved", "Not yet approved"], ["draft", "Draft"], ["under_review", "Under review"], ["approved", "Approved, not yet published"], ["review_due", "Review due"], ["overdue", "Overdue"], ["archived", "Archived"]],
+  overdue: [["overdue", "Overdue"], ["due", "Due within 60 days"]],
+  signoff: [["acknowledged", "Acknowledged"], ["outstanding", "Outstanding"], ["overdue", "Overdue"], ["exempted", "Exempted"]],
+  audits: [["IN_PROGRESS", "In progress"], ["COMPLETED", "Completed"]],
+  actions: [["OPEN", "Open"], ["IN_PROGRESS", "In progress"], ["COMPLETED", "Awaiting verification"], ["VERIFIED", "Verified"], ["CLOSED", "Closed"]],
+  risks: [["OPEN", "Open"], ["MONITORING", "Monitoring"], ["CLOSED", "Closed"]],
+};
+/** Which reports the Category filter applies to: policy categories, or risk categories. */
+export const REPORT_CATEGORY: Partial<Record<ComplianceReportKind, "policy" | "risk">> = { policies: "policy", overdue: "policy", risks: "risk" };
+
+export interface ReportFilters { from: string; to: string; branch?: string; status?: string; category?: string }
 export interface ComplianceReport extends ExportTable {
   kind: ComplianceReportKind;
   /** What each summary figure counts. */
@@ -61,8 +94,17 @@ export function parseReportFilters(sp: Record<string, string | undefined>, now =
   const to = ok(sp.to) ?? iso(now);
   const from = ok(sp.from) ?? iso(new Date(Date.parse(to) - 365 * DAY));
   if (from > to) throw new ValidationError("The start of the period must be before its end");
-  return { from, to, branch: sp.branch && /^[a-z0-9]{8,40}$/i.test(sp.branch) ? sp.branch : undefined };
+  return {
+    from,
+    to,
+    branch: sp.branch && /^[a-z0-9]{8,40}$/i.test(sp.branch) ? sp.branch : undefined,
+    status: sp.status && /^[A-Za-z_]{2,40}$/.test(sp.status) ? sp.status : undefined,
+    category: sp.category && /^[A-Z_]{2,40}$/.test(sp.category) ? sp.category : undefined,
+  };
 }
+
+/** The status filter, kept only when it is one of the report's own choices. */
+const statusFor = (kind: ComplianceReportKind, f: ReportFilters) => (f.status && REPORT_STATUS_OPTIONS[kind]?.some(([k]) => k === f.status) ? f.status : undefined);
 
 async function scopeFor(ctx: Ctx, f: ReportFilters) {
   if (!hasOrgPermission(ctx, "report.view")) throw new ForbiddenError("You cannot view compliance reports");
@@ -90,11 +132,12 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
         include: { category: true, currentPublishedVersion: { select: { label: true, publishedAt: true, approvals: { where: { decision: "APPROVE" }, select: { id: true }, take: 1 } } }, revisions: { where: { closedAt: null }, take: 1, orderBy: { createdAt: "desc" }, select: { submittedAt: true, draftVersion: { select: { status: true } } } } },
       });
       const owners = new Map((await db.user.findMany({ where: { id: { in: ps.map((p) => p.ownerId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+      const wantStatus = statusFor(kind, f);
       const rows = ps.map((p) => {
         const open = p.revisions[0];
         const status = policyStatus({ currentPublishedVersion: p.currentPublishedVersion ? { approved: p.currentPublishedVersion.approvals.length > 0 } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion.status } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now);
         return { p, status, open };
-      });
+      }).filter((r) => (!wantStatus || r.status === wantStatus) && (!f.category || r.p.categoryCode === f.category));
       const active = rows.filter((r) => r.p.status === "ACTIVE");
       return make({
         periodBasis: null,
@@ -106,10 +149,47 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
           ["Reviews overdue", active.filter((r) => r.p.nextReviewDate && r.p.nextReviewDate < now).length],
           ["Archived", rows.length - active.length],
         ],
-        notes: ["Active policies: your organisation's policies that are not archived (CSB starter templates are not counted).", "Published and approved: the live version carries at least one recorded approval.", "Reviews overdue: active policies whose next review date has passed."],
+        notes: [...(wantStatus || f.category ? ["Only policies matching the chosen status and category are counted."] : []), "Active policies: your organisation's policies that are not archived (CSB starter templates are not counted).", "Published and approved: the live version carries at least one recorded approval.", "Reviews overdue: active policies whose next review date has passed."],
         columns: ["Reference", "Title", "Category", "Status", "Live version", "Published", "Next review", "Owner"],
         rows: rows.map(({ p, status }) => [p.ref, p.title, p.category.name, STATUS_LABELS[status], p.currentPublishedVersion?.label ?? "", d(p.currentPublishedVersion?.publishedAt), d(p.nextReviewDate), p.ownerId ? (owners.get(p.ownerId) ?? "") : ""]),
         widths: [1, 3, 2, 1.4, 1, 1, 1, 1.4],
+      });
+    }
+    case "overdue": {
+      const want = statusFor(kind, f);
+      const soon = new Date(now.getTime() + 60 * DAY);
+      const ps = await db.policy.findMany({
+        where: { organisationId: s.orgId, kind: "CUSTOMER", status: "ACTIVE", nextReviewDate: want === "due" ? { gte: now, lt: soon } : want === "overdue" ? { lt: now } : { lt: soon }, ...(f.category ? { categoryCode: f.category } : {}) },
+        orderBy: { nextReviewDate: "asc" },
+        include: { category: true, currentPublishedVersion: { select: { label: true } } },
+      });
+      const owners = new Map((await db.user.findMany({ where: { id: { in: ps.map((p) => p.ownerId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+      const days = (dt: Date) => Math.round((dt.getTime() - now.getTime()) / DAY);
+      return make({
+        periodBasis: null,
+        summary: [["Needing review", ps.length], ["Overdue", ps.filter((p) => p.nextReviewDate! < now).length], ["Due within 60 days", ps.filter((p) => p.nextReviewDate! >= now).length]],
+        notes: ["Active policies whose next review date has passed or falls within the next 60 days, the Policy Library's review window.", "CSB starter templates are not counted."],
+        columns: ["Reference", "Title", "Category", "Live version", "Next review", "Overdue or due in", "Owner"],
+        rows: ps.map((p) => {
+          const n = days(p.nextReviewDate!);
+          return [p.ref, p.title, p.category.name, p.currentPublishedVersion?.label ?? "", d(p.nextReviewDate), n < 0 ? `${-n} days overdue` : n === 0 ? "Due today" : `Due in ${n} days`, p.ownerId ? (owners.get(p.ownerId) ?? "") : ""];
+        }),
+        widths: [1, 3, 2, 0.9, 1, 1.3, 1.4],
+      });
+    }
+    case "summary": {
+      // The headline figures of each report this person may open, for the same period and branch. Each line keeps the
+      // wording of the report it came from, so the summary and the detailed reports reconcile.
+      const parts: ComplianceReportKind[] = ["policies", "overdue", ...(hasOrgPermission(ctx, "staff.view") ? (["signoff"] as const) : []), ...(hasOrgPermission(ctx, "audit.conduct") ? (["audits"] as const) : []), "actions", ...(hasOrgPermission(ctx, "risk.view") ? (["risks"] as const) : [])];
+      const base: ReportFilters = { from: f.from, to: f.to, branch: f.branch };
+      const reports = await Promise.all(parts.map((k) => complianceReport(ctx, k, base, now)));
+      return make({
+        periodBasis: null,
+        summary: [["Reports included", reports.length]],
+        notes: ["Each figure is counted exactly as in the report named beside it, for the same period and branch.", "Reports you do not have access to are left out."],
+        columns: ["Report", "Measure", "Figure"],
+        rows: reports.flatMap((r) => (r.summary ?? []).map(([label, value]) => [r.title, label, value] as (string | number)[])),
+        widths: [1.6, 2.4, 1],
       });
     }
     case "publications": {
@@ -125,9 +205,10 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
     }
     case "signoff":
     case "signoff-groups": {
-      if (!hasOrgPermission(ctx, "staff.view")) throw new ForbiddenError("Sign-off reports need access to Policy Sign-off");
+      if (!hasOrgPermission(ctx, "staff.view")) throw new ForbiddenError("Sign-off reports need access to Staff Sign-off");
       const all = (await signoffRows(ctx, f.branch ? { branch: f.branch } : {})).filter((r) => r.createdAt >= s.range.gte && r.createdAt <= s.range.lte);
-      const live = all.filter((r) => r.b.bucket !== "withdrawn" && r.b.bucket !== "superseded");
+      const want = statusFor(kind, f);
+      const live = all.filter((r) => r.b.bucket !== "withdrawn" && r.b.bucket !== "superseded").filter((r) => !want || (want === "overdue" ? r.b.overdue : want === "outstanding" ? r.b.outstanding : r.b.bucket === want));
       const required = live.filter((r) => r.b.bucket !== "exempted");
       const done = live.filter((r) => r.b.bucket === "acknowledged").length;
       const summary: [string, string | number][] = [["Assigned", live.length], ["Acknowledged", done], ["Outstanding", live.filter((r) => r.b.outstanding).length], ["Overdue", live.filter((r) => r.b.overdue).length], ["Completion", pct(done, required.length)], ["Cannot sign (no login)", live.filter((r) => r.b.cannotSign && r.b.outstanding).length]];
@@ -152,7 +233,8 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
     case "audits":
     case "findings": {
       if (!hasOrgPermission(ctx, "audit.conduct")) throw new ForbiddenError("Audit reports need access to audits");
-      const audits = await db.audit.findMany({ where: { organisationId: s.orgId, ...auditBranch, startedAt: s.range }, orderBy: { startedAt: "desc" }, include: { answers: { select: { questionId: true, response: true } }, template: { select: { title: true, questions: { select: { id: true } } } }, findings: { include: { actions: { select: { status: true } } } } } });
+      const auditStatus = kind === "audits" ? statusFor(kind, f) : undefined;
+      const audits = await db.audit.findMany({ where: { organisationId: s.orgId, ...auditBranch, startedAt: s.range, ...(auditStatus ? { status: auditStatus } : {}) }, orderBy: { startedAt: "desc" }, include: { answers: { select: { questionId: true, response: true } }, template: { select: { title: true, questions: { select: { id: true } } } }, findings: { include: { actions: { select: { status: true } } } } } });
       const branchName = new Map(s.branches.map((b) => [b.id, b.name]));
       const where = (a: (typeof audits)[number]) => (a.branchId ? (branchName.get(a.branchId) ?? "Branch") : "Whole organisation");
       if (kind === "findings") {
@@ -183,7 +265,8 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
       });
     }
     case "actions": {
-      const actions = await db.complianceAction.findMany({ where: { organisationId: s.orgId, createdAt: s.range, ...(s.branchIds ? { OR: [{ finding: { audit: auditBranch } }, { risk: { OR: [{ branchId: { in: s.branchIds } }, ...(f.branch ? [] : [{ branchId: null }])] } }, ...(f.branch ? [] : [{ findingId: null, riskId: null }])] } : {}) }, orderBy: { dueDate: "asc" }, include: { finding: { select: { audit: { select: { title: true } } } }, risk: { select: { ref: true } } } });
+      const actionStatus = statusFor(kind, f);
+      const actions = await db.complianceAction.findMany({ where: { organisationId: s.orgId, createdAt: s.range, ...(actionStatus ? { status: actionStatus } : {}), ...(s.branchIds ? { OR: [{ finding: { audit: auditBranch } }, { risk: { OR: [{ branchId: { in: s.branchIds } }, ...(f.branch ? [] : [{ branchId: null }])] } }, ...(f.branch ? [] : [{ findingId: null, riskId: null }])] } : {}) }, orderBy: { dueDate: "asc" }, include: { finding: { select: { audit: { select: { title: true } } } }, risk: { select: { ref: true } } } });
       const names = new Map((await db.user.findMany({ where: { id: { in: [...actions.map((a) => a.ownerId), ...actions.map((a) => a.verifiedById).filter((x): x is string => Boolean(x))] } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
       const evidence = new Set((await db.evidenceDocument.findMany({ where: { organisationId: s.orgId, linkedType: "ACTION", linkedId: { in: actions.map((a) => a.id) } }, select: { linkedId: true } })).map((e) => e.linkedId));
       const hasEvidence = (a: (typeof actions)[number]) => evidence.has(a.id) || Boolean(a.completionEvidenceId);
@@ -199,7 +282,8 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
     }
     case "risks": {
       if (!hasOrgPermission(ctx, "risk.view")) throw new ForbiddenError("Risk reports need access to the risk register");
-      const risks = await db.complianceRisk.findMany({ where: { organisationId: s.orgId, ...(s.branchIds ? { OR: [{ branchId: { in: s.branchIds } }, ...(f.branch ? [] : [{ branchId: null }])] } : {}) }, orderBy: { ref: "asc" }, include: { actions: { select: { status: true } } } });
+      const riskStatus = statusFor(kind, f);
+      const risks = await db.complianceRisk.findMany({ where: { organisationId: s.orgId, ...(riskStatus ? { status: riskStatus } : {}), ...(f.category ? { category: f.category } : {}), ...(s.branchIds ? { OR: [{ branchId: { in: s.branchIds } }, ...(f.branch ? [] : [{ branchId: null }])] } : {}) }, orderBy: { ref: "asc" }, include: { actions: { select: { status: true } } } });
       const names = new Map((await db.user.findMany({ where: { id: { in: risks.map((r) => r.ownerId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
       const branchName = new Map(s.branches.map((b) => [b.id, b.name]));
       const live = risks.filter((r) => r.status !== "CLOSED");
@@ -243,12 +327,13 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
 /** The report as a file. Needs report.export; every export is audited with its filters. */
 export async function complianceReportFile(ctx: Ctx, kind: string, f: ReportFilters, format: "csv" | "xlsx" | "pdf") {
   if (!hasOrgPermission(ctx, "report.export")) throw new ForbiddenError("You cannot export reports");
+  if (isReportKind(kind) && !reportFormats(kind).includes(format)) throw new ValidationError(`This report is available as ${reportFormats(kind).map((x) => x.toUpperCase()).join(" or ")} only`);
   const r = await complianceReport(ctx, kind, f);
-  await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "report.compliance.exported", entityType: "Report", entityId: kind, data: { format, from: f.from, to: f.to, branch: f.branch ?? null, rows: r.rows.length } });
+  await audit({ organisationId: ctx.organisationId, actorId: ctx.userId, action: "report.compliance.exported", entityType: "Report", entityId: kind, data: { format, from: f.from, to: f.to, branch: f.branch ?? null, status: f.status ?? null, category: f.category ?? null, rows: r.rows.length } });
   const name = `csb-${kind}-${f.from}-to-${f.to}.${format}`;
   if (format === "csv") return { name, type: "text/csv; charset=utf-8", body: Buffer.from(toCsv(r.columns, r.rows)) };
   const { toPdf, toXlsx } = await import("../reports/export-files");
-  const table: ExportTable = { title: r.title, subtitle: r.subtitle, columns: r.columns, rows: r.rows, summary: r.summary, widths: r.widths, accent: "#1f5fd1" };
+  const table: ExportTable = { title: r.title, subtitle: r.subtitle, columns: r.columns, rows: r.rows, summary: r.summary, widths: r.widths, accent: "#5b2bb5" };
   if (format === "xlsx") return { name, type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", body: await toXlsx(table) };
   return { name, type: "application/pdf", body: await toPdf(table) };
 }

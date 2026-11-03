@@ -47,8 +47,10 @@ describe("portal access", () => {
 });
 
 describe("one home for reports", () => {
-  it("puts Rota Reports, Rota Insights and Compliance Reports in Reporting & Analytics", () => {
-    for (const p of ["/rota/reports", "/rota/insights", "/compliance/reports", "/analytics", "/reports"]) expect(portalForPath(p)).toBe("reporting");
+  it("puts Rota Reports and Rota Insights in Reporting & Analytics, and Compliance Reports in Policy & Compliance", () => {
+    for (const p of ["/rota/reports", "/rota/insights", "/analytics", "/reports"]) expect(portalForPath(p)).toBe("reporting");
+    // Compliance Reports is one of Policy & Compliance's six workspaces (owner's brief of 3 Nov 2026).
+    expect(portalForPath("/compliance/reports")).toBe("policy");
     // The rest of the rota and of compliance stay where they were.
     expect(portalForPath("/rota/visits")).toBe("rota");
     expect(portalForPath("/compliance/risks")).toBe("policy");

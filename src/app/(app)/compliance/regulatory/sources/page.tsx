@@ -5,11 +5,21 @@ import { requireCtx } from "@/server/auth/current";
 import { hasPlatformPermission } from "@/server/auth/rbac";
 import { freshness } from "@/server/sources/engine";
 import { ComplianceTabs } from "@/components/compliance-nav";
-import { Badge, Card, Empty, fmtDate, SimulatedBadge, StatusBadge, type Tone } from "@/components/ui";
+import { fmtDate } from "@/components/ui";
+import { PcBadge, PcFoot, PcTableWrap, type PcTone } from "@/components/compliance-ui";
 
 export const dynamic = "force-dynamic";
 
-const FRESH_TONE: Record<string, Tone> = { fresh: "green", stale: "amber", never: "rose", manual: "slate", inactive: "slate" };
+/**
+ * One word for a source's health. Healthy only after a confirmed successful check within its window; Error when its
+ * checks are failing; Needs review when it has never been checked, has gone stale or is reviewed by hand.
+ */
+function sourceHealth(s: { active: boolean; retrievalStatus: string; fresh: { state: string } }): { label: string; tone: PcTone } {
+  if (!s.active) return { label: "Inactive", tone: "grey" };
+  if (s.retrievalStatus === "FAILING" || s.retrievalStatus === "DEGRADED") return { label: "Error", tone: "red" };
+  if (s.fresh.state === "fresh") return { label: "Healthy", tone: "green" };
+  return { label: "Needs review", tone: "amber" };
+}
 
 /**
  * Which regulatory sources CSB monitors and how recently each was successfully checked. A source is only described as
@@ -31,39 +41,45 @@ export default async function SourceStatusPage() {
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="sources" />}
         title="Regulatory Monitoring"
-        subtitle="The legislation and guidance sources CSB checks for changes. A source is shown as up to date only after a confirmed successful check within its window. Simulated sources are demonstration data, not real monitoring."
-        actions={isAdmin ? <Link href="/admin/sources" className="btn-secondary">Manage sources</Link> : null}
+        subtitle="The legislation and guidance sources CSB checks for changes. A source is healthy only after a confirmed successful check within its window. Simulated sources are demonstration data, not real monitoring."
+        actions={isAdmin ? <Link href="/admin/sources" className="pc-btn-secondary">Manage sources</Link> : null}
       />
-      <section aria-label="Monitoring summary" className="panel mb-3 text-[14px] text-slate-800">
-        {live.length ? (
-          <p><strong className="tabular-nums">{ok}</strong> of {live.length} monitored sources checked successfully within their window · <span className={failing ? "text-[#a3242c]" : ""}><strong className="tabular-nums">{failing}</strong> with failing checks</span> · <strong className="tabular-nums">{manual}</strong> reviewed by hand only (not automatically monitored).</p>
-        ) : <p>No real sources are being monitored yet.</p>}
-      </section>
-      <Card>
+      <section aria-label="Regulatory sources" className="pc-panel">
+        <div className="pc-panel-head">
+          <p className="text-[14px] text-[#344054]" data-testid="monitoring-summary">
+            {live.length ? <><strong className="tabular-nums">{ok}</strong> of {live.length} monitored sources checked successfully within their window · <span className={failing ? "text-[#b42318]" : ""}><strong className="tabular-nums">{failing}</strong> with failing checks</span> · <strong className="tabular-nums">{manual}</strong> reviewed by hand only</> : "No real sources are being monitored yet."}
+          </p>
+        </div>
         {rows.length ? (
-          <table className="table">
-            <thead><tr><th>Source</th><th>How it is checked</th><th>Last successful check</th><th>Last attempt</th><th>Status</th><th className="text-right">Changes found</th></tr></thead>
-            <tbody>
-              {rows.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener" className="row-title">{s.name}</a> <SimulatedBadge show={s.isSimulated} />
-                    <div className="text-[12.5px] text-slate-600">{s.category.replace(/_/g, " ").toLowerCase()}{s.jurisdiction ? ` · ${s.jurisdiction}` : ""}</div>
-                  </td>
-                  <td className="text-[13.5px]">{s.coverage === "MANUAL_REVIEW_ONLY" ? "Reviewed by hand" : `Automatic, every ${s.frequencyMinutes >= 1440 ? `${Math.round(s.frequencyMinutes / 1440)} day(s)` : `${Math.round(s.frequencyMinutes / 60)} hour(s)`}`}</td>
-                  <td className="whitespace-nowrap text-[13.5px] tabular-nums">{s.lastSuccessAt ? fmtDate(s.lastSuccessAt, true) : "Never"}</td>
-                  <td className="whitespace-nowrap text-[13.5px] tabular-nums">{s.lastAttemptedAt ? fmtDate(s.lastAttemptedAt, true) : "Never"}</td>
-                  <td>
-                    <span className="inline-flex flex-wrap gap-1"><Badge tone={FRESH_TONE[s.fresh.state] ?? "slate"}>{s.fresh.label}</Badge>{s.retrievalStatus === "FAILING" || s.retrievalStatus === "DEGRADED" ? <StatusBadge status={s.retrievalStatus} /> : null}</span>
-                    {s.consecutiveFailures ? <div className="mt-1 text-[12.5px] text-[#a3242c]">{s.consecutiveFailures} failed check{s.consecutiveFailures === 1 ? "" : "s"} in a row{isAdmin && s.lastError ? `: ${s.lastError.slice(0, 160)}` : ""}</div> : null}
-                  </td>
-                  <td className="text-right tabular-nums"><Link href={`/changes?group=all&source=${s.id}`}>{s._count.changes}</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <Empty>No regulatory sources are configured.</Empty>}
-      </Card>
+          <PcTableWrap>
+            <table className="pc-table">
+              <thead><tr><th>Source</th><th>Verified or simulated</th><th>Last checked</th><th>Last successful check</th><th>Status</th><th>Notes</th></tr></thead>
+              <tbody>
+                {rows.map((s) => {
+                  const health = sourceHealth(s);
+                  return (
+                    <tr key={s.id}>
+                      <td className="max-w-[320px]">
+                        <a href={s.canonicalUrl} target="_blank" rel="noreferrer noopener" className="pc-strong">{s.name}</a>
+                        <span className="pc-sub">{s.category.replace(/_/g, " ").toLowerCase()}{s.jurisdiction ? ` · ${s.jurisdiction}` : ""} · <Link href={`/changes?group=all&source=${s.id}`}>{s._count.changes} change{s._count.changes === 1 ? "" : "s"} found</Link></span>
+                      </td>
+                      <td>{s.isSimulated ? <PcBadge tone="purple" title="Demonstration data, not real monitoring">Simulated</PcBadge> : <PcBadge tone="green">Verified source</PcBadge>}</td>
+                      <td className="whitespace-nowrap">{s.lastAttemptedAt ? fmtDate(s.lastAttemptedAt, true) : "Never"}</td>
+                      <td className="whitespace-nowrap">{s.lastSuccessAt ? fmtDate(s.lastSuccessAt, true) : "Never"}</td>
+                      <td><PcBadge tone={health.tone}>{health.label}</PcBadge></td>
+                      <td className="max-w-[340px] text-[13px] text-[#475467]">
+                        {s.coverage === "MANUAL_REVIEW_ONLY" ? "Reviewed by hand; not automatically monitored." : `Checked automatically every ${s.frequencyMinutes >= 1440 ? `${Math.round(s.frequencyMinutes / 1440)} day(s)` : `${Math.round(s.frequencyMinutes / 60)} hour(s)`}. ${s.fresh.label}.`}
+                        {s.consecutiveFailures ? <span className="block text-[#b42318]">{s.consecutiveFailures} failed check{s.consecutiveFailures === 1 ? "" : "s"} in a row{isAdmin && s.lastError ? `: ${s.lastError.slice(0, 160)}` : ""}</span> : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </PcTableWrap>
+        ) : <p className="pc-empty">No regulatory sources are configured.</p>}
+        <PcFoot shown={rows.length} total={rows.length} />
+      </section>
     </>
   );
 }

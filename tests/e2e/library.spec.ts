@@ -19,8 +19,8 @@ test.describe("Policy Library", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Policy Library" })).toBeVisible();
     const register = page.getByTestId("policy-register");
     await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^Policies \(\d+\)$/);
-    await expect(page.getByRole("link", { name: "Create Policy" })).toBeVisible();
-    await expect(page.getByText("Upload Policy")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Upload policy" })).toBeVisible();
 
     // The first policy opens in the inspector, with the real PDF rendered.
     const inspector = page.getByTestId("policy-inspector");
@@ -58,9 +58,9 @@ test.describe("Policy Library", () => {
     await expect(page).not.toHaveURL(/q=/);
 
     // Templates and the review calendar.
-    await page.getByRole("navigation", { name: "Library views" }).getByRole("link", { name: "Templates" }).click();
+    await page.getByRole("navigation", { name: "Policy Library sections" }).getByRole("link", { name: "Templates" }).click();
     await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^Templates \(\d+\)$/);
-    await page.getByRole("navigation", { name: "Library views" }).getByRole("link", { name: "Review Calendar" }).click();
+    await page.getByRole("navigation", { name: "Policy Library sections" }).getByRole("link", { name: "Review Calendar" }).click();
     await expect(page.getByTestId("review-calendar")).toBeVisible();
   });
 
@@ -79,10 +79,10 @@ test.describe("Policy Library", () => {
     // The panel is a practical reading height, not a 306px strip.
     expect((await viewer.boundingBox())!.height).toBeGreaterThanOrEqual(440);
 
-    const total = Number((await viewer.getByTestId("page-count").innerText()).split("/")[1]);
+    const total = Number((await viewer.getByTestId("page-count").innerText()).split(" of ")[1]);
     expect(total).toBeGreaterThanOrEqual(3);
     await viewer.getByLabel("Next page").click();
-    await expect(viewer.getByTestId("page-count")).toHaveText(`2 / ${total}`);
+    await expect(viewer.getByTestId("page-count")).toHaveText(`Page 2 of ${total}`);
 
     // The reader opens across the window; at 100% its page is the downloaded PDF drawn by PDF.js, pixel for pixel
     // within anti-aliasing, so what people read in the app is exactly the controlled document.
@@ -92,7 +92,7 @@ test.describe("Policy Library", () => {
     expect((await reader.boundingBox())!.height).toBeGreaterThan(900);
     await reader.getByRole("combobox").selectOption("100");
     await reader.getByLabel("Next page").click();
-    await expect(reader.getByTestId("page-count")).toHaveText(`2 / ${total}`);
+    await expect(reader.getByTestId("page-count")).toHaveText(`Page 2 of ${total}`);
     const second = reader.locator("[data-page='2'][data-rendered=true] canvas");
     await expect(second).toBeInViewport({ ratio: 1 });
     await page.waitForTimeout(800);
@@ -143,11 +143,12 @@ test.describe("Policy Library", () => {
     await signIn(page, "carer1@care-solution.demo");
     await page.goto("/policies");
     await expect(page.getByRole("heading", { level: 1, name: "Policy Library" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Create Policy" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Create policy" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Upload policy" })).toHaveCount(0);
     const inspector = page.getByTestId("policy-inspector");
     await expect(inspector).toBeVisible();
-    await expect(inspector.getByRole("button", { name: "Assign for Review" })).toHaveCount(0);
-    await expect(inspector.getByRole("button", { name: "Create Revision" })).toHaveCount(0);
+    await expect(inspector.getByRole("button", { name: "Assign for review" })).toHaveCount(0);
+    await expect(inspector.getByRole("button", { name: "Create revision" })).toHaveCount(0);
     // A forged selection of another organisation's policy is "not found", never shown.
     await page.goto("/policies?selected=cmzzzzzzzzzzzzzzzzzzzzzzz");
     await expect(inspector).toContainText("Policy not found");

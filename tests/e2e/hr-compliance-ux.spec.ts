@@ -171,23 +171,23 @@ test.describe("HR & Workforce, approved design", () => {
 test.describe("Policy & Compliance, approved design", () => {
   test.use({ viewport: { width: 1672, height: 941 } });
 
-  test("Compliance Dashboard: figures, review status, needs attention and upcoming reviews", async ({ page }) => {
+  test("Compliance Dashboard: four figures, needs attention and key dates", async ({ page }) => {
     await signIn(page);
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Policy & Compliance" })).toBeVisible();
-    await expect(page.getByTestId("review-status")).toContainText("Current");
+    await expect(page.getByRole("heading", { level: 1, name: "Compliance Dashboard" })).toBeVisible();
+    for (const id of ["figure-total", "figure-up-to-date", "figure-needs-review", "figure-awaiting"]) await expect(page.getByTestId(id)).toBeVisible();
     await expect(page.getByTestId("needs-attention")).toBeVisible();
-    await expect(page.getByTestId("upcoming-reviews").getByRole("link").first()).toHaveAttribute("href", /\/policies\/c/);
-    await expect(page.getByRole("link", { name: "Add policy" })).toBeVisible();
+    await expect(page.getByTestId("key-dates").getByRole("link").first()).toHaveAttribute("href", /\/policies\?selected=/);
+    await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
     // The six workspaces are unchanged.
-    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Policy Sign-off", "Audits & Improvements", "Compliance Reports"]);
+    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"]);
   });
 
   test("a care worker gets their reading, not management actions", async ({ page }) => {
     await signIn(page, "carer1@care-solution.demo");
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Policy & Compliance" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Add policy" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "Compliance Dashboard" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create policy" })).toHaveCount(0);
     expect((await page.goto("/compliance/reports"))?.status()).toBe(404);
   });
 
