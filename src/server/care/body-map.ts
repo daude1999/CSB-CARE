@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { dbDate, isIsoDate, londonDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { audit } from "@/server/audit-log";
-import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
+import { ORG_PERMISSIONS, hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { reportIncident } from "@/server/care/incidents";
 import { serviceUserForRecords, storePrivateFile, type UploadedFile } from "@/server/care/su-documents";
 import { storage } from "@/server/storage";
@@ -107,6 +107,9 @@ const observationSchema = z.object({
   actionTaken: opt(2000),
   personNotified: opt(300),
   followUpOn: z.string().trim().optional().transform((v) => v || undefined).refine((v) => v === undefined || isIsoDate(v), "Choose a real follow-up date"),
+  /** "yes" | "no"; left out by older forms, when a follow-up date alone means one is required. */
+  followUpRequired: z.enum(["yes", "no", ""]).optional(),
+  reviewerId: opt(60),
 });
 export type ObservationInput = z.input<typeof observationSchema>;
 
@@ -115,27 +118,43 @@ async function managerIds(organisationId: string, except: string) {
   return [...new Set(ms.map((m) => m.userId))].filter((u) => u !== except);
 }
 
-export async function recordObservation(ctx: Ctx, serviceUserId: string, input: ObservationInput | Record<string, unknown>, photo?: UploadedFile & { caption?: string }) {
+/** Members who may be assigned to review an observation (managers: bodyMap.review). */
+export async function reviewerChoices(organisationId: string) {
+  const ms = await db.membership.findMany({ where: { organisationId, roles: { hasSome: [...ORG_PERMISSIONS["bodyMap.review"]] } }, select: { userId: true, user: { select: { name: true } } }, orderBy: { user: { name: "asc" } } });
+  const seen = new Set<string>();
+  return ms.filter((m) => (seen.has(m.userId) ? false : (seen.add(m.userId), true))).map((m) => ({ id: m.userId, name: m.user.name }));
+}
+
+export const MAX_PHOTOS_PER_SAVE = 5;
+
+export async function recordObservation(ctx: Ctx, serviceUserId: string, input: ObservationInput | Record<string, unknown>, photo?: (UploadedFile & { caption?: string }) | (UploadedFile & { caption?: string })[]) {
   const su = await serviceUserForRecords(ctx, serviceUserId, "bodyMap.record");
   const p = observationSchema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the observation");
   const d = p.data;
+  if (d.followUpRequired === "yes" && !d.followUpOn) throw new ValidationError("Choose the follow-up date, or set Follow-up required to No");
+  if (d.followUpRequired === "no") d.followUpOn = undefined;
+  if (d.reviewerId && !(await reviewerChoices(su.organisationId)).some((r) => r.id === d.reviewerId)) throw new ValidationError("Choose a manager to review the observation");
+  const photos = photo ? (Array.isArray(photo) ? photo : [photo]) : [];
+  if (photos.length > MAX_PHOTOS_PER_SAVE) throw new ValidationError(`Add up to ${MAX_PHOTOS_PER_SAVE} photographs at a time`);
   const observedAt = londonToUtc(d.date, parseHhmm(d.time) ?? 0);
   if (observedAt.getTime() > Date.now() + 5 * 60000) throw new ValidationError("An observation cannot be in the future");
   if (d.followUpOn && d.followUpOn < d.date) throw new ValidationError("The follow-up date cannot be before the observation");
   const region = d.region && BODY_REGIONS[d.view].some((r) => r.label === d.region) ? d.region : nearestRegion(d.view, d.x, d.y);
-  if (photo && !hasOrgPermission(ctx, "bodyMap.photos")) throw new ForbiddenError("You cannot add body map photographs");
-  const stored = photo ? await storePrivateFile(su.organisationId, "body-map", photo, { imagesOnly: true }) : null;
+  if (photos.length && !hasOrgPermission(ctx, "bodyMap.photos")) throw new ForbiddenError("You cannot add body map photographs");
+  const stored: (Awaited<ReturnType<typeof storePrivateFile>> & { caption: string | null })[] = [];
+  for (const ph of photos) stored.push({ ...(await storePrivateFile(su.organisationId, "body-map", ph, { imagesOnly: true })), caption: ph.caption?.trim().slice(0, 200) || null });
   const obs = await db.$transaction(async (tx) => {
     const o = await tx.bodyMapObservation.create({
       data: {
         organisationId: su.organisationId, serviceUserId: su.id, view: d.view, x: d.x, y: d.y, region, locationDetail: d.locationDetail ?? null,
         category: d.category, observedAt, description: d.description, size: d.size ?? null, appearance: d.appearance ?? null, pain: d.pain,
         actionTaken: d.actionTaken ?? null, personNotified: d.personNotified ?? null, followUpOn: d.followUpOn ? dbDate(d.followUpOn) : null, recordedById: ctx.userId,
+        reviewerId: d.reviewerId ?? null,
       },
     });
-    if (stored) await tx.bodyMapPhoto.create({ data: { organisationId: su.organisationId, observationId: o.id, ...stored, caption: photo?.caption?.trim().slice(0, 200) || null, uploadedById: ctx.userId } });
-    await audit({ organisationId: su.organisationId, actorId: ctx.userId, action: "bodyMap.recorded", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: su.id, view: d.view, region, category: d.category, followUpOn: d.followUpOn ?? null, photo: Boolean(stored) } }, tx);
+    for (const ph of stored) await tx.bodyMapPhoto.create({ data: { organisationId: su.organisationId, observationId: o.id, ...ph, uploadedById: ctx.userId } });
+    await audit({ organisationId: su.organisationId, actorId: ctx.userId, action: "bodyMap.recorded", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: su.id, view: d.view, region, category: d.category, followUpOn: d.followUpOn ?? null, photo: stored.length > 0, photos: stored.length, reviewerId: d.reviewerId ?? null } }, tx);
     // Managers decide whether an incident is needed; the observation itself is not one.
     const users = await managerIds(su.organisationId, ctx.userId);
     if (users.length) {
@@ -183,6 +202,45 @@ export async function reviewObservation(ctx: Ctx, observationId: string, version
     if (r.count !== 1) throw new ConflictError("Someone else updated this observation. Reload the page and try again.");
     await tx.bodyMapReview.create({ data: { organisationId: o.organisationId, observationId: o.id, reviewedById: ctx.userId, outcome: d.outcome, nextFollowUpOn: d.resolved ? null : dbDate(d.nextFollowUpOn!), resolved: d.resolved } });
     await audit({ organisationId: o.organisationId, actorId: ctx.userId, action: d.resolved ? "bodyMap.resolved" : "bodyMap.followedUp", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: o.serviceUserId, nextFollowUpOn: d.nextFollowUpOn ?? null, reopened: o.status === "RESOLVED" && !d.resolved } }, tx);
+  });
+}
+
+const noteSchema = z.object({ text: z.string().trim().min(3, "Write the note or update").max(4000, "Keep the note under 4,000 characters") });
+
+/**
+ * A manual note or update ("Reviewed today, bruising smaller…"). Added on top: the observation and earlier notes stay
+ * exactly as they were. The date, time and author are recorded automatically. An optional photo is kept with the note.
+ */
+export async function addObservationNote(ctx: Ctx, observationId: string, text: string, photo?: UploadedFile & { caption?: string }) {
+  const o = await observationFor(ctx, observationId, "bodyMap.record");
+  const p = noteSchema.safeParse({ text });
+  if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the note");
+  if (photo && !hasOrgPermission(ctx, "bodyMap.photos")) throw new ForbiddenError("You cannot add body map photographs");
+  const stored = photo ? await storePrivateFile(o.organisationId, "body-map", photo, { imagesOnly: true }) : null;
+  return db.$transaction(async (tx) => {
+    const n = await tx.bodyMapNote.create({ data: { organisationId: o.organisationId, observationId: o.id, authorId: ctx.userId, text: p.data.text } });
+    const ph = stored ? await tx.bodyMapPhoto.create({ data: { organisationId: o.organisationId, observationId: o.id, ...stored, caption: photo?.caption?.trim().slice(0, 200) || "Added with a note", noteId: n.id, uploadedById: ctx.userId } }) : null;
+    await audit({ organisationId: o.organisationId, actorId: ctx.userId, action: "bodyMap.noteAdded", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: o.serviceUserId, noteId: n.id, photoId: ph?.id ?? null } }, tx);
+    return n;
+  });
+}
+
+/** A manager assigns (or changes) who reviews the observation. The reviewer is told in the app. */
+export async function assignObservationReviewer(ctx: Ctx, observationId: string, version: number, reviewerId: string) {
+  requireOrgPermission(ctx, "bodyMap.review");
+  const o = await observationFor(ctx, observationId, "bodyMap.record");
+  const choices = await reviewerChoices(o.organisationId);
+  if (!choices.some((c) => c.id === reviewerId)) throw new ValidationError("Choose a manager to review the observation");
+  const su = await serviceUserForRecords(ctx, o.serviceUserId);
+  await db.$transaction(async (tx) => {
+    const r = await tx.bodyMapObservation.updateMany({ where: { id: o.id, version }, data: { reviewerId, version: { increment: 1 } } });
+    if (r.count !== 1) throw new ConflictError("Someone else updated this observation. Reload the page and try again.");
+    if (reviewerId !== ctx.userId) {
+      await tx.notification.create({
+        data: { organisationId: o.organisationId, userId: reviewerId, type: "bodyMap.reviewer", title: `Body map review assigned: ${su.firstName} ${su.lastName}`, body: `${o.category}, ${o.region}.`, reason: "A manager assigned you to review this observation.", actionUrl: `/rota/service-users/${su.id}?tab=bodymap&obs=${o.id}`, dedupeKey: `body-map-reviewer:${o.id}:${reviewerId}:${o.version}` },
+      });
+    }
+    await audit({ organisationId: o.organisationId, actorId: ctx.userId, action: "bodyMap.reviewerAssigned", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: o.serviceUserId, reviewerId, previous: o.reviewerId } }, tx);
   });
 }
 
@@ -252,8 +310,11 @@ export async function listObservations(ctx: Ctx, serviceUserId: string) {
     where: { organisationId: su.organisationId, serviceUserId: su.id },
     include: {
       reviews: { orderBy: { reviewedAt: "asc" } },
-      photos: { orderBy: { uploadedAt: "asc" }, select: { id: true, caption: true, uploadedAt: true, uploadedById: true, filename: true } },
+      notes: { orderBy: { createdAt: "asc" } },
+      photos: { orderBy: { uploadedAt: "asc" }, select: { id: true, caption: true, uploadedAt: true, uploadedById: true, filename: true, noteId: true } },
       incident: { select: { id: true, reference: true, status: true, category: true } },
+      tasks: { orderBy: { createdAt: "asc" } },
+      recommendations: { where: { run: { supersededAt: null } }, select: { id: true, status: true } },
     },
     orderBy: { observedAt: "desc" },
   });
@@ -266,6 +327,13 @@ export async function linkableIncidents(ctx: Ctx, serviceUserId: string) {
   return db.incident.findMany({ where: { organisationId: su.organisationId, serviceUserId: su.id }, select: { id: true, reference: true, category: true, occurredAt: true, status: true }, orderBy: { occurredAt: "desc" }, take: 50 });
 }
 
+/** Everything the audit log holds about one observation, newest first (creation, notes, photos and who viewed them,
+ *  reviews, incident decisions, AI runs and decisions, tasks). */
+export async function observationAudit(ctx: Ctx, observationId: string) {
+  const o = await observationFor(ctx, observationId, "bodyMap.record");
+  return db.auditLog.findMany({ where: { organisationId: o.organisationId, entityType: "BodyMapObservation", entityId: o.id }, orderBy: { createdAt: "desc" }, take: 200 });
+}
+
 export interface BodyMapCounts {
   /** Open observations with a follow-up date set. */
   outstanding: number;
@@ -276,6 +344,11 @@ export interface BodyMapCounts {
   /** Observations reviewed to a final outcome. */
   reviewed: number;
   total: number;
+  /** Current AI-assisted recommendations no manager has decided on yet. */
+  recommendationsAwaiting: number;
+  /** Open review tasks by kind, and how many are past their due date. */
+  openTasks: Record<string, number>;
+  overdueTasks: number;
 }
 
 /** Figures for the profile's compliance overview. Null when the viewer may not see the person's records. */
@@ -288,8 +361,14 @@ export async function bodyMapCounts(ctx: Ctx, serviceUserId: string): Promise<Bo
     if (e instanceof NotFoundError) return null;
     throw e;
   }
-  const rows = await db.bodyMapObservation.findMany({ where: { organisationId: su.organisationId, serviceUserId: su.id }, select: { status: true, followUpOn: true, incidentDecision: true } });
+  const [rows, recs, tasks] = await Promise.all([
+    db.bodyMapObservation.findMany({ where: { organisationId: su.organisationId, serviceUserId: su.id }, select: { status: true, followUpOn: true, incidentDecision: true } }),
+    db.bodyMapRecommendation.count({ where: { organisationId: su.organisationId, observation: { serviceUserId: su.id }, run: { supersededAt: null }, status: { in: ["NEW", "UNDER_REVIEW"] } } }),
+    db.bodyMapTask.findMany({ where: { organisationId: su.organisationId, serviceUserId: su.id, status: "OPEN" }, select: { kind: true, dueOn: true } }),
+  ]);
   const today = dbDate(londonDate());
+  const openTasks: Record<string, number> = {};
+  for (const t of tasks) openTasks[t.kind] = (openTasks[t.kind] ?? 0) + 1;
   const open = rows.filter((r) => r.status === "OPEN" && r.followUpOn);
   return {
     outstanding: open.length,
@@ -297,6 +376,9 @@ export async function bodyMapCounts(ctx: Ctx, serviceUserId: string): Promise<Bo
     awaitingDecision: rows.filter((r) => !r.incidentDecision).length,
     reviewed: rows.filter((r) => r.status === "RESOLVED").length,
     total: rows.length,
+    recommendationsAwaiting: recs,
+    openTasks,
+    overdueTasks: tasks.filter((t) => t.dueOn < today).length,
   };
 }
 
