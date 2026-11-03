@@ -39,7 +39,7 @@ const firstEmpty = async (panel: Locator) => {
 };
 
 /**
- * Opens the carer editor on a scheduled visit in the next few days that has an empty place with at least two carers
+ * Opens the carer editor on a scheduled visit in the next few days that has an empty place with at least one carer
  * free to fill it. Earlier tests book carers, so when no such place is left, one more place is added and saved first.
  */
 async function openEditorWithEmptyPlace(page: Page) {
@@ -60,14 +60,14 @@ async function openEditorWithEmptyPlace(page: Page) {
         if (!place && pass === "add") {
           await panel.getByRole("button", { name: "Add carer place" }).click();
           place = await firstEmpty(panel);
-          if (place && (await usable(panel, place)) >= 2) {
+          if (place && (await usable(panel, place)) >= 1) {
             await panel.getByRole("button", { name: "Save Changes" }).click();
             await expect(panel.getByRole("status").filter({ hasText: "Saved" })).toBeVisible();
             await panel.getByRole("button", { name: "Reassign Carers" }).click();
             await expect(panel.locator(`li[data-place] label`, { hasText: place })).toBeVisible();
             return { panel, day, place };
           }
-        } else if (place && (await usable(panel, place)) >= 2) return { panel, day, place };
+        } else if (place && (await usable(panel, place)) >= 1) return { panel, day, place };
         await panel.getByRole("button", { name: /^(Discard|Close editor)$/ }).click();
       }
     }
@@ -229,7 +229,7 @@ test.describe("Visit Details panel", () => {
   test("a colleague's newer save is never overwritten, and the draft stays on screen", async ({ page, browser }) => {
     const { panel, place } = await openEditorWithEmptyPlace(page);
     const url = page.url();
-    const mine = await chooseCarer(panel, place, 1);
+    const mine = await chooseCarer(panel, place);
     await tickWarningsIfAsked(panel);
 
     // A colleague saves the same visit first.
