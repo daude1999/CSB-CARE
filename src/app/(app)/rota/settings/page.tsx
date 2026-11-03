@@ -156,7 +156,7 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after confirming data protection approval.</p>}
           </Card>
           <Card title="Areas">
-            <p className="text-[14px]">Areas and which coordinators work in them are managed in <Link href="/admin/areas">Administration → Areas</Link>.</p>
+            <p className="text-[14px]">Areas and which coordinators work in them are managed in <Link href="/admin/areas">Administration → Branches &amp; Areas</Link>.</p>
           </Card>
         </div>
       </div>

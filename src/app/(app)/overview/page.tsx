@@ -242,7 +242,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   if (rotaPortal && can("rota.edit")) actions.push({ label: "Assign Visits", href: "/rota/unassigned", icon: <UsersThree size={17} />, ...purple });
   if (rotaPortal && can("rota.edit")) actions.push({ label: "Add Visit", href: "/rota/visits/new", icon: <CalendarPlus size={17} />, ...red });
   if (hrPortal) actions.push({ label: "Add Staff", href: "/hr/people", icon: <UserPlus size={17} />, ...amber, external: true });
-  if (can("report.view")) actions.push({ label: "Generate Report", href: "/reports", icon: <ChartBar size={17} />, ...blue });
+  if (can("report.view")) actions.push({ label: "Generate Report", href: "/compliance/reports", icon: <ChartBar size={17} />, ...blue });
   actions.push({ label: "View Alerts", href: "/notifications", icon: <Bell size={17} />, ...slate });
 
   const cards: CardSpec[] = [];
@@ -300,7 +300,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           { href: "/settings", label: "Organisation Settings", icon: <GearSix size={16} /> },
           { href: "/admin/users", label: "Users & Roles", icon: <UsersThree size={16} /> },
           { href: "/admin/branches", label: "Branches & Locations", icon: <Buildings size={16} /> },
-          { href: "/admin/audit", label: "Audit Log", icon: <ClockCounterClockwise size={16} /> },
+          { href: "/admin/audit", label: "Activity Log", icon: <ClockCounterClockwise size={16} /> },
         ]
       : [];
     cards.push({

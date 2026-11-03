@@ -25,16 +25,18 @@ import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
 import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
+import { ServiceUserDocuments } from "@/components/su-documents";
+import { BodyMapSection } from "@/components/body-map";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
  * than one shows them as a second row. A group is hidden when none of its sections may be opened. Other sections
- * (documents, body map) join their group by key once they exist.
+ * (documents, body map) join their group by key.
  */
 const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Overview", tabs: ["overview"] },
@@ -550,6 +552,20 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       ) : null}
 
       {tab === "missed" ? <MissedHistory ctx={ctx} serviceUserId={su.id} /> : null}
+
+      {tab === "documents" ? (
+        <>
+          <nav aria-label="Document sections" className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
+            {([["council", "Council Documents"], ["other", "Other Documents"]] as const).map(([k, label]) => {
+              const on = (sp.section === "other" ? "other" : "council") === k;
+              return <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={on ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${on ? "bg-[#1d4f91] font-medium text-white hover:text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{label}</Link>;
+            })}
+          </nav>
+          <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />
+        </>
+      ) : null}
+
+      {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} base={base} selectedId={sp.obs} recording={sp.record === "1"} /> : null}
 
       {tab === "history" ? (
         <Card title="Record history">

@@ -59,6 +59,13 @@ export const ORG_PERMISSIONS = {
   "serviceUser.sensitive": ["ORG_ADMIN", "CARE_MANAGER"],
   /** Revealing a key safe code. Every reveal is audited. */
   "serviceUser.keysafe": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Uploading, replacing and archiving Council Documents and Other Documents. Viewing needs serviceUser.view;
+   *  sensitive documents (ID, medical, financial) also need serviceUser.sensitive. */
+  "serviceUser.documents": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Recording body map observations, follow-ups and photos (office staff and managers in this phase). */
+  "bodyMap.record": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Seeing body map photographs. */
+  "bodyMap.photos": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
   "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],

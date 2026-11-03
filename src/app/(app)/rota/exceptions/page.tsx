@@ -37,7 +37,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="monitor" active="exceptions" />} title="Exceptions" back="/rota" subtitle="Late, missed and unfinished calls, visits not delivered, allocations needing review and readiness refusals. Give each one an owner and resolve it with what was done; anything past its deadline is escalated to the care managers inside the platform." actions={<Link href="/rota/monitor" className="btn-secondary">The Monitor</Link>} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="attention" active="exceptions" />} title="Exceptions" back="/rota" subtitle="Late, missed and unfinished calls, visits not delivered, allocations needing review and readiness refusals. Give each one an owner and resolve it with what was done; anything past its deadline is escalated to the care managers inside the platform." actions={<Link href="/rota/monitor" className="btn-secondary">The Monitor</Link>} />
       <Flash searchParams={sp} />
       <SegmentNav label="Exception state" alert items={[
         { href: q({ state: "open" }), label: "Open", active: f.state === "open", count: open },
@@ -62,7 +62,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
             {rows.map((r) => {
               const sev = SEVERITY[r.severity];
               return (
-                <li key={r.id} className="py-3">
+                <li key={r.id} id={`exception-${r.id}`} className="scroll-mt-24 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

@@ -20,7 +20,7 @@ import { BAND_LABEL, CONTROL_EFFECTIVENESS, RISK_CATEGORIES, RISK_STATUS, riskBa
 
 export const REPORT_GROUPS = [
   { name: "Policy Management", kinds: ["policies", "publications"] },
-  { name: "Staff Sign-off", kinds: ["signoff", "signoff-groups"] },
+  { name: "Policy Sign-off", kinds: ["signoff", "signoff-groups"] },
   { name: "Audits", kinds: ["audits", "findings"] },
   { name: "Corrective Actions", kinds: ["actions"] },
   { name: "Risk Management", kinds: ["risks"] },
@@ -125,7 +125,7 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
     }
     case "signoff":
     case "signoff-groups": {
-      if (!hasOrgPermission(ctx, "staff.view")) throw new ForbiddenError("Sign-off reports need access to Staff Sign-off");
+      if (!hasOrgPermission(ctx, "staff.view")) throw new ForbiddenError("Sign-off reports need access to Policy Sign-off");
       const all = (await signoffRows(ctx, f.branch ? { branch: f.branch } : {})).filter((r) => r.createdAt >= s.range.gte && r.createdAt <= s.range.lte);
       const live = all.filter((r) => r.b.bucket !== "withdrawn" && r.b.bucket !== "superseded");
       const required = live.filter((r) => r.b.bucket !== "exempted");

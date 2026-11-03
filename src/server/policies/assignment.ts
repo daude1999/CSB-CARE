@@ -392,7 +392,7 @@ export async function sendAcknowledgementReminders(now = new Date()) {
         title: `${who} has not acknowledged ${a.publication.policy.ref} ${a.publication.policy.title}`,
         body: `It was due on ${due.toDateString()}.${a.userId ? "" : " They have no sign-in, so they cannot acknowledge it until one is linked."} Follow up, record an exemption or agree a completion plan.`,
         reason: "You manage this person's branch or own this policy assignment.",
-        links: [{ label: "Open Staff Sign-off", url: `/staff/policy/${a.publication.policy.id}` }],
+        links: [{ label: "Open Policy Sign-off", url: `/staff/policy/${a.publication.policy.id}` }],
         actionUrl: `/staff/policy/${a.publication.policy.id}`,
         dedupeKey: `ack-escalated:${a.id}`,
         email: false,

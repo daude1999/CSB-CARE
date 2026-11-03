@@ -101,7 +101,7 @@ test.describe("usability improvements", () => {
     const advanced = page.locator('button[data-nav-group="Advanced"]');
     await expect(advanced).toHaveAttribute("aria-expanded", "false");
     await advanced.click();
-    await page.getByTestId("portal-pages").getByRole("link", { name: "Audit Log", exact: true }).click();
+    await page.getByTestId("portal-pages").getByRole("link", { name: "Activity Log", exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/audit/);
     await expect(page.locator('button[data-nav-group="Advanced"]')).toHaveAttribute("aria-expanded", "true");
   });

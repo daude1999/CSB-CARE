@@ -6,7 +6,7 @@ import { toCsv } from "@/server/reports/tables";
 
 export const dynamic = "force-dynamic";
 
-/** The Staff Sign-off evidence export, with the same filters, permission and branch checks as the page. Audited. */
+/** The Policy Sign-off evidence export, with the same filters, permission and branch checks as the page. Audited. */
 export async function GET(req: Request) {
   const ctx = await getCtx();
   if (!ctx) return NextResponse.json({ error: "Not signed in" }, { status: 401 });

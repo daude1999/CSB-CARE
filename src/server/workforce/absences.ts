@@ -56,7 +56,22 @@ export async function listAbsences(ctx: Ctx, f: { status?: string; from?: string
     orderBy: [{ startsAt: "asc" }],
     take: 500,
   });
-  return { actor: a, rows };
+  return { actor: a, rows: await withClashes(a.organisationId, rows) };
+}
+
+/**
+ * How many booked, still-to-happen visits each live absence clashes with, so the person deciding it can go straight
+ * to finding cover instead of hunting for the visits on the rota. Counting only: nothing is moved.
+ */
+async function withClashes<T extends { id: string; staffId: string; status: string; startsAt: Date; endsAt: Date }>(organisationId: string, rows: T[], now = new Date()) {
+  const live = rows.filter((r) => (r.status === "APPROVED" || r.status === "REQUESTED") && r.endsAt > now);
+  const held = live.length
+    ? await db.visitAssignment.findMany({
+        where: { organisationId, removedAt: null, slot: { not: "SHADOW" }, staffId: { in: [...new Set(live.map((r) => r.staffId))] }, endsAt: { gt: now }, startsAt: { lt: new Date(Math.max(...live.map((r) => r.endsAt.getTime()))) }, visit: { status: "SCHEDULED" } },
+        select: { staffId: true, startsAt: true, endsAt: true },
+      })
+    : [];
+  return rows.map((r) => ({ ...r, clashes: live.includes(r) ? held.filter((h) => h.staffId === r.staffId && h.startsAt < r.endsAt && h.endsAt > r.startsAt && h.endsAt > now).length : 0 }));
 }
 
 export async function absenceStaff(ctx: Ctx) {

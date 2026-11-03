@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { REPORTS, reportRows, type ReportKind } from "@/server/reports/tables";
@@ -8,10 +8,16 @@ import { Card, Empty, PageHeader, SegmentNav, Stat, StatRow } from "@/components
 
 export const dynamic = "force-dynamic";
 
+/** Where each report on this older page now lives in Compliance Reports. */
+const LEGACY_KIND: Record<string, string> = { policies: "policies", acknowledgements: "signoff", actions: "actions" };
+
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requirePortal("reporting");
   if (!hasOrgPermission(ctx, "report.view") && !hasPlatformPermission(ctx, "sources.manage")) notFound();
+  // Reports live in one place: an organisation's policy reports are Compliance Reports, and its regulatory change log
+  // is Regulatory Updates. This older page stays only for CSB staff outside an organisation.
+  if (ctx.organisationId && hasOrgPermission(ctx, "report.view")) redirect(sp.kind === "changes" ? "/changes" : `/compliance/reports?kind=${LEGACY_KIND[sp.kind ?? ""] ?? "policies"}`);
   const kind = (sp.kind && sp.kind in REPORTS ? sp.kind : "policies") as ReportKind;
   const [{ columns, rows }, trends] = await Promise.all([reportRows(ctx, kind), reportTrends(ctx)]);
   const overdue = trends.reviewCalendar[0]!.value;

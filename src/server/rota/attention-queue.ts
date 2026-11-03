@@ -8,17 +8,25 @@ import { parseUnassigned, unassignedBoard, type Priority } from "./unassigned";
 import { missedCallRegister, visitStatusNow } from "./missed-calls";
 import { coverStates, type CoverState } from "./missed-cover";
 import { outstandingCommunication } from "./cover-communication";
+import { coverBoard } from "./cover";
+import { EXCEPTION_KINDS, listExceptions } from "./exceptions";
 
 /**
- * Visits Needing Attention as one queue. Nothing here has rules of its own: the rows come from the same three services
- * as before (Unassigned Visits, the Missed Calls register and outstanding cover communication), with the same
- * permissions, and are only normalised, grouped by how soon they need a decision and sorted. The grouping and sorting
- * are pure (`groupAttention`) so they are tested directly.
+ * Visits Needing Attention as the office's one to-do list. Nothing here has rules of its own: the rows come from the
+ * same services as the full registers (Unassigned Visits, Sickness & Holiday Cover, the Missed Calls register, the
+ * Exceptions register and outstanding cover communication), with the same permissions, and are only normalised,
+ * grouped by how soon they need a decision and sorted. A visit problem the register already shows under another kind
+ * (a missed call, a visit left unassigned after a build) is not listed twice. The grouping and sorting are pure
+ * (`groupAttention`) so they are tested directly.
  */
 
-export type AttentionType = "unassigned" | "missed" | "comms";
+export type AttentionType = "unassigned" | "absent" | "missed" | "problem" | "comms";
 export type AttentionGroup = "now" | "today" | "week";
-export const ATTENTION_TYPES: AttentionType[] = ["unassigned", "missed", "comms"];
+export const ATTENTION_TYPES: AttentionType[] = ["unassigned", "absent", "missed", "problem", "comms"];
+/** Exception kinds already in the queue under their own heading, so they are not listed again as visit problems. */
+export const PROBLEM_KINDS_ELSEWHERE = new Set(["MISSED", "UNASSIGNED"]);
+/** Carer-off bookings are looked for over the same week as unassigned visits. */
+export const ABSENT_DAYS = 7;
 
 /** Anything starting within this many hours, or already overdue, goes into "Act now". */
 export const ACT_NOW_HOURS = 4;
@@ -26,7 +34,7 @@ export const ACT_NOW_HOURS = 4;
 export const MISSED_DAYS = 30;
 
 export const GROUP_LABEL: Record<AttentionGroup, string> = { now: `Act now · overdue or within ${ACT_NOW_HOURS} hours`, today: "Later today", week: "This week" };
-export const TYPE_LABEL: Record<AttentionType, string> = { unassigned: "Unassigned", missed: "Missed call", comms: "Communication" };
+export const TYPE_LABEL: Record<AttentionType, string> = { unassigned: "Unassigned", absent: "Carer off", missed: "Missed call", problem: "Visit problem", comms: "Communication" };
 
 interface Common {
   key: string;
@@ -80,26 +88,48 @@ export interface CommsEntry extends Common {
   followUp: boolean;
 }
 
-export type AttentionItem = UnassignedEntry | MissedEntry | CommsEntry;
+/** A booking held by a carer who is off (or flagged after an HR change): it needs a replacement chosen by a person. */
+export interface AbsentEntry extends Common {
+  type: "absent";
+  slot: string;
+  staffId: string;
+  carerName: string;
+  doubleUp: boolean;
+}
+
+/** An open exception on a visit (late, not clocked out, short, medication, concern, readiness and so on). */
+export interface ProblemEntry extends Common {
+  type: "problem";
+  kind: string;
+  kindLabel: string;
+  message: string;
+  severity: string;
+  deadline: Date | null;
+  overdue: boolean;
+  owner: string | null;
+}
+
+export type AttentionItem = UnassignedEntry | AbsentEntry | MissedEntry | ProblemEntry | CommsEntry;
 
 /** What the grouping needs from an item. */
 export interface Groupable {
   type: AttentionType;
   start: Date;
-  /** Missed calls: past the investigation deadline or a high-risk service user. Communication: past its due time. */
+  /** Missed calls: past the investigation deadline or a high-risk service user. Visit problems: past their deadline or
+   * critical. Communication: past its due time. */
   pressing: boolean;
   /** Communication is grouped by when it is due. */
   dueAt?: Date;
 }
 
 /**
- * Which heading an item sits under. Act now: an unassigned visit starting within four hours (or already started), a
- * missed call that is past its deadline or for a high-risk service user, or communication that is overdue. Later
- * today: everything else dated today. This week: the rest.
+ * Which heading an item sits under. Act now: an unassigned visit or a carer-off booking starting within four hours (or
+ * already started), a missed call that is past its deadline or for a high-risk service user, a visit problem past its
+ * deadline or critical, or communication that is overdue. Later today: everything else dated today. This week: the rest.
  */
 export function attentionGroup(it: Groupable, now: Date): AttentionGroup {
   const today = londonDate(now);
-  if (it.type === "unassigned") {
+  if (it.type === "unassigned" || it.type === "absent") {
     if (it.start.getTime() - now.getTime() <= ACT_NOW_HOURS * 3600_000) return "now";
     return londonDate(it.start) === today ? "today" : "week";
   }
@@ -127,20 +157,28 @@ export function missedFilters(today = londonDate(), branch?: string) {
 }
 
 /**
- * The whole queue for the caller. Each kind of item appears only with its own permission: unassigned visits with
- * rota.view, missed calls with rota.monitor and outstanding communication with rota.edit (as on the old page).
+ * The whole queue for the caller. Each kind of item appears only with its own permission: unassigned visits and
+ * carer-off bookings with rota.view, missed calls and visit problems with rota.monitor, and outstanding communication
+ * with rota.edit (as on the registers themselves).
  * `branch` narrows to one of the caller's own branches and can never widen their scope.
  */
 export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, now = new Date()) {
-  const can = { unassigned: hasOrgPermission(ctx, "rota.view"), missed: hasOrgPermission(ctx, "rota.monitor"), comms: hasOrgPermission(ctx, "rota.edit"), edit: hasOrgPermission(ctx, "rota.edit") };
+  const view = hasOrgPermission(ctx, "rota.view");
+  const monitor = hasOrgPermission(ctx, "rota.monitor");
+  const can = { unassigned: view, absent: view, missed: monitor, problem: monitor, comms: hasOrgPermission(ctx, "rota.edit"), edit: hasOrgPermission(ctx, "rota.edit") };
   const today = londonDate(now);
   const scope = await rotaScope(ctx, can.unassigned ? "rota.view" : "rota.monitor");
   const branches = await authorisedBranches(scope);
   const branch = opts.branch && branches.some((b) => b.id === opts.branch) ? opts.branch : undefined;
   const items: AttentionItem[] = [];
   let unassignedTotal = 0;
+  let absentTotal = 0;
   let missedTotal = 0;
+  let problemTotal = 0;
   let commsTotal = 0;
+  // Branch narrowing for the kinds whose service filters by area, not branch.
+  const branchVisits = async (ids: string[]) =>
+    new Set((await db.visit.findMany({ where: { organisationId: scope.organisationId, id: { in: ids }, ...(branch ? { serviceUser: { branchId: branch } } : {}) }, select: { id: true } })).map((v) => v.id));
 
   if (can.unassigned) {
     // The same board as Unassigned Visits on "This Week": today and the next six days.
@@ -155,6 +193,24 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
         serviceUser: suName(v.serviceUser), serviceUserId: v.serviceUser.id, callType: v.callType.name, area: v.area?.name ?? null,
         reason: it.reason, warnings: [], rank: PRIORITY_RANK[it.priority], group: attentionGroup(base, now),
         priority: it.priority, why: it.why, required, filled: required - it.openSlots.length,
+      });
+    }
+  }
+
+  if (can.absent) {
+    // The same bookings as Sickness & Holiday Cover, for the same week as the unassigned visits.
+    const board = await coverBoard(ctx, { from: today, days: ABSENT_DAYS }, now);
+    const inBranch = await branchVisits(board.items.map((i) => i.visit.id));
+    const shown = board.items.filter((i) => inBranch.has(i.visit.id));
+    absentTotal = shown.length;
+    for (const it of shown) {
+      const v = it.visit;
+      const base = { type: "absent" as const, start: v.scheduledStart, pressing: false };
+      items.push({
+        ...base, key: `absent:${v.id}:${it.slot}`, id: v.id, visitId: v.id, reference: v.reference, date: fromDbDate(v.date),
+        serviceUser: suName(v.serviceUser), serviceUserId: v.serviceUser.id, callType: v.callType.name, area: v.area?.name ?? null,
+        reason: it.reason, warnings: [], rank: v.serviceUser.riskLevel === "HIGH" ? 0 : 1, group: attentionGroup(base, now),
+        slot: it.slot, staffId: it.staffId, carerName: it.staffName, doubleUp: v.carersRequired > 1,
       });
     }
   }
@@ -174,6 +230,31 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
         reason, warnings, rank: r.overdue || r.escalatedAt ? 0 : 1, group: attentionGroup(base, now),
         carerName: r.carerName, overdue: r.overdue, highRisk: r.highRisk, escalated: !!r.escalatedAt, stage: r.stage, cover: covers.get(r.id) ?? null,
         checks: { detectedAt: r.detectedAt, informed: r.suInformedStatus ?? (r.clientInformed ? "RECORDED" : null), reasonRecorded: !!r.reasonCode, signedOff: !!r.signedOffAt, submitted: !!r.submittedAt },
+      });
+    }
+  }
+
+  if (can.problem) {
+    // Open exceptions on visits, from the Exceptions register with its own area rules.
+    const ex = await listExceptions(ctx, { state: "open" }, { take: 300 });
+    // A booking already listed as "Carer off" is not listed again as an allocation to review: it is the same job.
+    const absentBookings = new Set(items.filter((i): i is AbsentEntry => i.type === "absent").map((i) => `${i.visitId}:${i.staffId}`));
+    const open = ex.rows.filter((r) => r.visitId && !PROBLEM_KINDS_ELSEWHERE.has(r.kind) && !(r.staffId && absentBookings.has(`${r.visitId}:${r.staffId}`)));
+    const visits = new Map((await db.visit.findMany({ where: { organisationId: scope.organisationId, id: { in: open.map((r) => r.visitId as string) }, ...(branch ? { serviceUser: { branchId: branch } } : {}) }, select: { id: true, reference: true, date: true, scheduledStart: true, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } }, callType: { select: { name: true } }, area: { select: { name: true } } } })).map((v) => [v.id, v]));
+    for (const r of open) {
+      const v = visits.get(r.visitId as string);
+      if (!v) continue;
+      problemTotal += 1;
+      const pressing = r.overdue || r.severity === "CRITICAL";
+      const base = { type: "problem" as const, start: v.scheduledStart, pressing };
+      const kindLabel = EXCEPTION_KINDS[r.kind] ?? r.kind;
+      const owner = r.ownerId ? ex.names.get(r.ownerId) ?? null : null;
+      items.push({
+        ...base, key: `problem:${r.id}`, id: r.id, visitId: v.id, reference: v.reference, date: fromDbDate(v.date),
+        serviceUser: suName(v.serviceUser), serviceUserId: v.serviceUser.id, callType: v.callType.name, area: v.area?.name ?? null,
+        reason: [kindLabel, owner ? `owner ${owner}` : "no owner yet", r.overdue ? "past its deadline" : null].filter(Boolean).join(" · "),
+        warnings: [], rank: pressing ? 0 : 1, group: attentionGroup(base, now),
+        kind: r.kind, kindLabel, message: r.message, severity: r.severity, deadline: r.deadline, overdue: r.overdue, owner,
       });
     }
   }
@@ -201,7 +282,9 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
     all: items.length,
     now: items.filter((i) => i.group === "now").length,
     unassigned: unassignedTotal,
+    absent: absentTotal,
     missed: missedTotal,
+    problem: problemTotal,
     comms: commsTotal,
   };
   return { can, items, counts, branches, branch: branch ?? null, today, now };

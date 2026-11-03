@@ -1,11 +1,11 @@
-import Link from "@/components/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { getAiProvider } from "@/server/ai";
 import { updateBusinessDetailsAction, updateOrgSettingsAction } from "../../actions";
-import { Card, Field, Flash, fmtDate } from "@/components/ui";
+import { Card, Field, Flash } from "@/components/ui";
+import { SettingsDirectory } from "@/components/settings-directory";
 import { TitleBar } from "@/components/title-bar";
 import { BusinessForm } from "@/components/business-form";
 import { businessDetails } from "@/server/business";
@@ -19,17 +19,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const ctx = await requirePortal("admin");
   if (!hasOrgPermission(ctx, "org.manage")) notFound();
   const org = await db.organisation.findUniqueOrThrow({ where: { id: ctx.organisationId! }, include: { branches: { include: { services: { include: { serviceType: true } } } } } });
-  const logs = await db.auditLog.findMany({ where: { organisationId: org.id }, orderBy: { createdAt: "desc" }, take: 40 });
-  const actors = new Map((await db.user.findMany({ where: { id: { in: logs.map((l) => l.actorId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   const settings = (org.settings ?? {}) as { requiredApprovals?: number };
   const ai = getAiProvider();
   const details = (await businessDetails(org.id))!;
   const missing = missingDetails(details);
   return (
     <>
-      <TitleBar title="System Settings" back="/" />
+      <TitleBar title="Settings" back="/" />
       <div className="bg-[#f1f2f5] px-0 pb-6 pt-3">
       <Flash searchParams={sp} />
+      <SettingsDirectory ctx={ctx} />
       <section id="business" aria-labelledby="business-heading" className="mb-4 scroll-mt-24 rounded-[3px] bg-white px-5 pb-5 pt-4">
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 pb-3">
           <Buildings size={26} weight="fill" aria-hidden="true" className="text-navy-900" />
@@ -46,43 +45,28 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <BusinessForm initial={details} action={updateBusinessDetailsAction} />
       </section>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-3">
-          <Card title="Approval rules">
-            <form action={updateOrgSettingsAction} className="space-y-2">
-              <input type="hidden" name="back" value="/settings" />
-              <label className="label" htmlFor="ra">Approvals required before publishing</label>
-              <select id="ra" name="requiredApprovals" className="input" defaultValue={String(settings.requiredApprovals ?? 1)}>
-                {[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-              <p className="text-xs text-slate-500">Authors can never approve their own drafts, whatever this setting.</p>
-              <button className="btn-primary" type="submit">Save</button>
-            </form>
-          </Card>
-          <Card title="Services">
-            <ul className="space-y-2 text-sm">
-              {org.branches.map((b) => <li key={b.id}><strong>{b.name}</strong><div className="text-xs text-slate-500">{b.services.map((s) => s.serviceType.name).join(", ") || "No services recorded"}{b.cqcLocationId ? ` · CQC location ${b.cqcLocationId}` : ""}</div></li>)}
-            </ul>
-          </Card>
-          <Card title="Platform configuration">
-            <div className="grid grid-cols-1 gap-2">
-              <Field label="AI provider">{ai ? `${ai.name}${ai.isSimulated ? " (simulated)" : ""}` : "Not configured"}</Field>
-            </div>
-          </Card>
+        <div id="approval-rules" className="scroll-mt-24">
+        <Card title="Approval rules">
+          <form action={updateOrgSettingsAction} className="space-y-2">
+            <input type="hidden" name="back" value="/settings" />
+            <label className="label" htmlFor="ra">Approvals required before publishing a policy</label>
+            <select id="ra" name="requiredApprovals" className="input" defaultValue={String(settings.requiredApprovals ?? 1)}>
+              {[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <p className="text-xs text-slate-500">Authors can never approve their own drafts, whatever this setting.</p>
+            <button className="btn-primary" type="submit">Save</button>
+          </form>
+        </Card>
         </div>
-        <Card className="lg:col-span-2" title="Audit trail (latest 40)" actions={<Link href="/admin/audit" className="btn-secondary py-1">Full audit log</Link>}>
-          <table className="table">
-            <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th></tr></thead>
-            <tbody>
-              {logs.map((l) => (
-                <tr key={l.id}>
-                  <td className="whitespace-nowrap text-xs">{fmtDate(l.createdAt, true)}</td>
-                  <td className="text-xs">{l.actorId ? actors.get(l.actorId) ?? "user" : "system"}</td>
-                  <td className="font-mono text-xs">{l.action}</td>
-                  <td className="text-xs">{l.entityType}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <Card title="Services">
+          <ul className="space-y-2 text-sm">
+            {org.branches.map((b) => <li key={b.id}><strong>{b.name}</strong><div className="text-xs text-slate-500">{b.services.map((s) => s.serviceType.name).join(", ") || "No services recorded"}{b.cqcLocationId ? ` · CQC location ${b.cqcLocationId}` : ""}</div></li>)}
+          </ul>
+        </Card>
+        <Card title="Platform configuration">
+          <div className="grid grid-cols-1 gap-2">
+            <Field label="AI provider">{ai ? `${ai.name}${ai.isSimulated ? " (simulated)" : ""}` : "Not configured"}</Field>
+          </div>
         </Card>
       </div>
       </div>

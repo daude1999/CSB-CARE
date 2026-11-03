@@ -41,7 +41,7 @@ export default async function RiskRegisterPage({ searchParams }: { searchParams:
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="improvements" active="risks" />}
         title="Audits & Improvements"
-        subtitle="The risk register: risks to safe, well-led care and to the service, scored before and after controls, each with an owner, a review date and mitigation actions."
+        subtitle="The organisational risk register: risks to the company and its service (not to one person; those are in each service user's risk assessments). Risks to safe, well-led care and to the service, scored before and after controls, each with an owner, a review date and mitigation actions."
         actions={canManage ? <Link href="/compliance/risks/new" className="btn-primary">Add a risk</Link> : null}
       />
       <Flash searchParams={sp} />

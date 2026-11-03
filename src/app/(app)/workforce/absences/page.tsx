@@ -1,3 +1,4 @@
+import { hasOrgPermission } from "@/server/auth/rbac";
 import Link from "@/components/link";
 import { HrPageHeader } from "@/components/module-header";
 import { HrTabs, hrTabs } from "@/components/hr-tabs";
@@ -27,6 +28,7 @@ export default async function AbsencesPage({ searchParams }: { searchParams: Pro
   const { actor, rows } = data;
   const [staff, names] = await Promise.all([absenceStaff(ctx), memberNames(ctx, rows.flatMap((r) => [r.requestedById, r.decidedById]))]);
   const status = sp.status ?? "REQUESTED";
+  const canCover = hasOrgPermission(ctx, "rota.edit");
   const back = `/workforce/absences?status=${status}`;
   const today = londonDate();
   const day = (d: Date) => fmtLondonDate(londonDate(d), { weekday: "short", day: "numeric", month: "short" });
@@ -50,6 +52,12 @@ export default async function AbsencesPage({ searchParams }: { searchParams: Pro
                       <Badge>{KIND[r.kind]}</Badge>
                     </div>
                     <p className="mt-1 text-[14px]">{day(r.startsAt)} to {day(new Date(r.endsAt.getTime() - 1))}{r.reason ? ` · ${r.reason}` : ""}</p>
+                    {r.clashes ? (
+                      <p className="mt-1 text-[13.5px] text-[#8a5a00]" data-testid="absence-clashes">
+                        {r.clashes} booked visit{r.clashes === 1 ? "" : "s"} clash{r.clashes === 1 ? "es" : ""} with this absence.{" "}
+                        {canCover ? <Link href="/rota/attention?type=absent" className="font-semibold">Find cover now</Link> : "They are flagged on the rota for a coordinator to cover."}
+                      </p>
+                    ) : null}
                     <p className="text-[12.5px] text-slate-500">Entered by {names.get(r.requestedById) ?? "a former member"} on {fmtDate(r.requestedAt, true)}{r.decidedById ? ` · ${r.status.toLowerCase()} by ${names.get(r.decidedById) ?? "a former member"}${r.decisionNote ? `: ${r.decisionNote}` : ""}` : ""}</p>
                     {actor.canEdit && r.status === "REQUESTED" ? (
                       r.requestedById === ctx.userId ? (

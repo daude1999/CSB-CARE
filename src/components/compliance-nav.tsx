@@ -50,7 +50,7 @@ export function workspaceTabs(ctx: Ctx, ws: WorkspaceId): WorkspaceTab[] {
         return [
           { key: "audits", label: "Audits & Inspections", href: "/audits", show: hasOrgPermission(ctx, "audit.conduct") },
           { key: "actions", label: "Corrective Actions", href: "/actions", show: org },
-          { key: "risks", label: "Risk Register", href: "/compliance/risks", show: hasOrgPermission(ctx, "risk.view") },
+          { key: "risks", label: "Organisational Risk Register", href: "/compliance/risks", show: hasOrgPermission(ctx, "risk.view") },
           { key: "evidence", label: "Evidence Library", href: "/evidence", show: hasOrgPermission(ctx, "evidence.read") },
         ];
     }
@@ -70,7 +70,7 @@ export function complianceItems(ctx: Ctx, i: { size: number }): ShellItem[] {
     { href: "/", label: "Compliance Dashboard", icon: <Sparkle {...i} />, show: true },
     { href: "/policies", label: org ? "Policy Library" : "Template Library", icon: <BookOpenText {...i} />, match: ["/queue", "/revisions"], show: true },
     { href: "/compliance/regulatory", label: "Regulatory Monitoring", icon: <Newspaper {...i} />, match: ["/changes", "/requirements", "/sources"], show: true },
-    { href: workspaceHome(ctx, "signoff") ?? "/acknowledgements", label: "Staff Sign-off", icon: <Signature {...i} />, match: ["/staff", "/acknowledgements"], show: org },
+    { href: workspaceHome(ctx, "signoff") ?? "/acknowledgements", label: "Policy Sign-off", icon: <Signature {...i} />, match: ["/staff", "/acknowledgements"], show: org },
     { href: "/compliance/improvements", label: "Audits & Improvements", icon: <ClipboardText {...i} />, match: ["/audits", "/actions", "/evidence", "/compliance/risks"], show: org && workspaceHome(ctx, "improvements") !== null },
     { href: "/compliance/reports", label: "Compliance Reports", icon: <ChartLine {...i} />, show: hasOrgPermission(ctx, "report.view") },
   ];
@@ -81,7 +81,7 @@ export function complianceItems(ctx: Ctx, i: { size: number }): ShellItem[] {
 export function ComplianceTabs({ ctx, ws, active }: { ctx: Ctx; ws: WorkspaceId; active: string }) {
   const tabs = workspaceTabs(ctx, ws);
   if (tabs.length < 2) return null;
-  const label = { library: "Policy Library", regulatory: "Regulatory Monitoring", signoff: "Staff Sign-off", improvements: "Audits & Improvements" }[ws];
+  const label = { library: "Policy Library", regulatory: "Regulatory Monitoring", signoff: "Policy Sign-off", improvements: "Audits & Improvements" }[ws];
   return (
     <nav aria-label={`${label} sections`} className="ws-tabs" data-testid={`ws-tabs-${ws}`}>
       {tabs.map((t) => (
