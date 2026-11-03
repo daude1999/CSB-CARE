@@ -266,7 +266,7 @@ describe("customer-specific maintenance", () => {
     expect(report.safeApplied.map((s) => s.masterKey)).toEqual(["procedure.reporting"]);
     expect(report.preservedLocal.length).toBe(1);
     expect(sync.draftVersion.sections.find((s) => s.key === "procedure.reporting")?.body).toContain("24 hours");
-    expect(sync.draftVersion.sections.find((s) => s.isLocal)?.body).toContain("Alex Morgan");
+    expect(sync.draftVersion.sections.find((s) => s.isLocal)?.body).toContain("Mohamed Mire");
     expect(sync.draftVersion.status).toBe("DRAFT");
     expect((await db.policy.findUniqueOrThrow({ where: { id: customer.id } })).currentPublishedVersionId).toBe(customer.currentPublishedVersionId);
     expect(await db.notification.count({ where: { type: "revision.master_update", organisationId: manager.organisationId } })).toBeGreaterThan(0);

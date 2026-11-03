@@ -52,7 +52,7 @@ function upgradeVersionTwo(s: State): State {
           x.branch === e.branch &&
           x.job === "Registered Manager" &&
           x.id !== e.id,
-      )?.name || "Alex Morgan";
+      )?.name || "Mohamed Mire";
     for (const rule of rules) {
       const id = `${rule.id}-${e.id}`;
       if (s.checks.some((c) => c.id === id)) continue;
@@ -80,7 +80,7 @@ function upgradeVersionTwo(s: State): State {
           version: 1,
           previous: null,
           uploaded: "2026-09-24T10:00:00Z",
-          uploader: "Alex Morgan",
+          uploader: "Mohamed Mire",
           state: "Sample",
           key: null,
           issueDate: "2026-03-01",
@@ -110,7 +110,7 @@ function upgradeVersionTwo(s: State): State {
         due,
         verified,
         evidence: hasEvidence ? docId : null,
-        reviewer: verified ? "Alex Morgan" : null,
+        reviewer: verified ? "Mohamed Mire" : null,
         checkedAt: verified ? "2026-09-24T11:00:00Z" : null,
         version: 1,
       });
@@ -258,7 +258,7 @@ export function upgradeFixtures(s: State): State {
         due: null,
         evidence: hasEvidence ? docId : null,
         verified: hasEvidence && index % 9 !== 0,
-        reviewer: hasEvidence && index % 9 !== 0 ? "Alex Morgan" : null,
+        reviewer: hasEvidence && index % 9 !== 0 ? "Mohamed Mire" : null,
         checkedAt:
           hasEvidence && index % 9 !== 0 ? "2026-09-25T11:00:00Z" : null,
         version: 1,
