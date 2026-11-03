@@ -192,7 +192,7 @@ const bounds = (from: string, to: string) => ({ gte: londonDayBounds(from).start
 const caseInclude = {
   visit: {
     select: {
-      id: true, reference: true, status: true, scheduledStart: true, scheduledEnd: true, carersRequired: true,
+      id: true, reference: true, status: true, completionSource: true, scheduledStart: true, scheduledEnd: true, carersRequired: true,
       callType: { select: { id: true, name: true } },
       area: { select: { id: true, name: true, colour: true, branchId: true, branch: { select: { id: true, name: true } } } },
       serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, riskLevel: true, risks: { where: { level: "HIGH", status: "ACTIVE", archivedAt: null }, select: { id: true }, take: 1 } } },
@@ -342,7 +342,7 @@ export async function getMissedCase(ctx: Ctx, caseId: string, now = new Date()) 
   const full = await db.missedCallCase.findUniqueOrThrow({
     where: { id: c.id },
     include: {
-      visit: { select: { id: true, reference: true, status: true, scheduledStart: true, scheduledEnd: true, actualStart: true, carersRequired: true, notDeliveredReason: true, callType: { select: { name: true } }, area: { select: { name: true, colour: true } }, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, riskLevel: true, riskSummary: true, phone: true, risks: { where: { level: "HIGH", status: "ACTIVE", archivedAt: null }, select: { id: true }, take: 1 } } } } },
+      visit: { select: { id: true, reference: true, status: true, completionSource: true, scheduledStart: true, scheduledEnd: true, actualStart: true, carersRequired: true, notDeliveredReason: true, callType: { select: { name: true } }, area: { select: { name: true, colour: true } }, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true, riskLevel: true, riskSummary: true, phone: true, risks: { where: { level: "HIGH", status: "ACTIVE", archivedAt: null }, select: { id: true }, take: 1 } } } } },
       actions: { orderBy: [{ doneAt: { sort: "asc", nulls: "first" } }, { dueAt: "asc" }] },
       comments: { orderBy: { createdAt: "asc" } },
     },
@@ -678,6 +678,11 @@ export const reasonLabel = (code: string | null) => (code ? MISSED_REASONS[code]
 export const outcomeLabel = (code: string | null) => (code ? OUTCOMES[code]?.label ?? code : null);
 export const VISIT_STATUS_NOW: Record<VisitStatus, string> = { SCHEDULED: "Scheduled", IN_PROGRESS: "Carer arrived late (in progress)", COMPLETED: "Delivered late", MISSED: "Missed", CANCELLED: "Cancelled", NOT_DELIVERED: "Not delivered" };
 
+/** Where a missed visit stands now. A visit the office later confirmed as delivered (Complete Calls) says so, not "delivered late". */
+export function visitStatusNow(v: { status: VisitStatus; completionSource?: string | null }) {
+  return v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? "Completed by the office (confirmed delivered)" : VISIT_STATUS_NOW[v.status];
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────
 
 /** The register as Excel or PDF, with the same filters, scope and figures as the page. Selected rows only when ids are given. */
@@ -701,7 +706,7 @@ export async function exportMissedCalls(ctx: Ctx, input: Record<string, string |
     widths: [5, 4, 3, 6, 3, 6, 3, 5, 4, 4, 6, 9, 6, 4, 5, 3, 6, 3, 5, 4],
     rows: rows.map((r) => [
       r.visit.reference, fmtLondonDate(londonDate(r.scheduledStart)), londonTime(r.scheduledStart), r.carerName ?? "Unassigned", r.repeatCount || "", r.serviceUserName, r.highRisk ? "Yes" : "No",
-      r.visit.area ? `${r.visit.area.branch?.name ? `${r.visit.area.branch.name} · ` : ""}${r.visit.area.name}` : "", r.visit.callType.name, VISIT_STATUS_NOW[r.visit.status], reasonLabel(r.reasonCode) ?? "Not recorded", r.findings ?? "",
+      r.visit.area ? `${r.visit.area.branch?.name ? `${r.visit.area.branch.name} · ` : ""}${r.visit.area.name}` : "", r.visit.callType.name, visitStatusNow(r.visit), reasonLabel(r.reasonCode) ?? "Not recorded", r.findings ?? "",
       r.replacementType ? REPLACEMENT_TYPES[r.replacementType] ?? r.replacementType : "Not recorded", STAGE_LABEL[r.stage], r.coordinatorName ?? "", r.escalatedAt ? "Yes" : "No", outcomeLabel(r.outcome) ?? "",
       r.preventable === null ? "" : r.preventable ? "Yes" : "No", r.signedOffById ? users.get(r.signedOffById) ?? "" : "", r.signedOffAt ? fmtLondonDate(londonDate(r.signedOffAt)) : "",
     ]),

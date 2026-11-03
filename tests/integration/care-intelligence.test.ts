@@ -130,7 +130,7 @@ describe("Care Summary", () => {
     await expect(generateCareSummary(c, plan.serviceUserId, range)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(setCareSummaryEnabled(c, true, "Not allowed to do this")).rejects.toBeInstanceOf(ForbiddenError);
     await expect(setCareSummaryEnabled(m, true, "short")).rejects.toBeInstanceOf(ValidationError);
-    await setCareSummaryEnabled(m, true, "A. Morgan after the data protection review");
+    await setCareSummaryEnabled(m, true, "M. Mire after the data protection review");
     if (!records.length) return;
 
     const row = await generateCareSummary(c, plan.serviceUserId, range);

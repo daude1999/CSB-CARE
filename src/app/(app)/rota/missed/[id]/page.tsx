@@ -2,7 +2,7 @@ import Link from "@/components/link";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { orNotFound } from "@/server/auth/page-guard";
-import { getMissedCase, MISSED_REASONS, OUTCOMES, REPLACEMENT_TYPES, replacementCandidates, STAGE_LABEL, VISIT_STATUS_NOW, outcomeLabel, reasonLabel } from "@/server/rota/missed-calls";
+import { getMissedCase, MISSED_REASONS, OUTCOMES, REPLACEMENT_TYPES, replacementCandidates, STAGE_LABEL, visitStatusNow, outcomeLabel, reasonLabel } from "@/server/rota/missed-calls";
 import { suName } from "@/server/rota/queries";
 import { missedAddActionAction, missedAssignAction, missedCommentAction, missedCompleteActionAction, missedEscalateAction, missedEvidenceAction, missedReasonAction, missedReopenAction, missedReplacementAction, missedSignOffAction, missedSubmitAction } from "@/app/rota-actions";
 import { Badge, Flash, fmtDate, type Tone } from "@/components/ui";
@@ -244,7 +244,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
               <dt className="text-slate-600">Service user</dt><dd><Link href={`/rota/service-users/${c.visit.serviceUser.id}`}>{suName(c.visit.serviceUser)}</Link> {d.highRisk ? <Badge tone="rose">High risk</Badge> : null}</dd>
               <dt className="text-slate-600">Care worker</dt><dd>{d.carer ? <Link href={`/rota/staff/${d.carer.id}`}>{d.carer.displayName}</Link> : "Nobody was assigned"} {d.carerRepeat >= d.settings.repeatOffenderCount ? <Badge tone="rose">Repeat · {d.carerRepeat} in {d.settings.repeatWindowDays} days</Badge> : null}</dd>
               <dt className="text-slate-600">Visit</dt><dd><Link href={`/rota/visits/${c.visit.id}`}>{c.visit.reference}</Link> · {c.visit.carersRequired} {c.visit.carersRequired === 1 ? "carer" : "carers"}</dd>
-              <dt className="text-slate-600">Status now</dt><dd>{VISIT_STATUS_NOW[c.visit.status]}{c.visit.actualStart ? ` (arrived ${londonTime(c.visit.actualStart)})` : ""}</dd>
+              <dt className="text-slate-600">Status now</dt><dd>{visitStatusNow(c.visit)}{c.visit.actualStart && c.visit.completionSource !== "OFFICE_CONFIRMED" ? ` (arrived ${londonTime(c.visit.actualStart)})` : ""}</dd>
               <dt className="text-slate-600">Missed after</dt><dd>{d.settings.missedAfterMin} min with no clock-in ({londonTime(c.detectedAt)})</dd>
               <dt className="text-slate-600">Deadline</dt><dd>{c.deadline ? `${londonTime(c.deadline)} ${fmtLondonDate(londonDate(c.deadline), { day: "numeric", month: "short" })}` : "—"} {d.overdue ? <Badge tone="rose">Overdue</Badge> : null}</dd>
               {c.escalationNote ? <><dt className="text-slate-600">Escalation</dt><dd>{c.escalationNote}</dd></> : null}

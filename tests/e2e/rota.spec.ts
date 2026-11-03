@@ -95,16 +95,29 @@ test.describe("Rostering & Care Management", () => {
     await bulk.getByLabel("Accept warnings").check();
     await expect(go).toBeEnabled();
     await go.click();
-    // Each visit is checked by the eligibility service: the result is either an update or a reason it was refused.
-    await expect(page.getByRole("status").or(page.getByRole("alert")).first()).toBeVisible();
-    await expect(page).toHaveURL(/[?&](ok|error)=/);
+    // Go opens a review that runs each visit through the eligibility service without saving anything.
+    let review = page.getByRole("dialog", { name: "Review: Reassign Visits" });
+    await expect(review.getByTestId("bulk-review-summary")).toContainText("1 visit selected");
+    const confirm = review.getByRole("button", { name: /^Confirm: Reassign Visits \(1\)$|^Nothing to change$/ });
+    if (await review.getByRole("button", { name: "Confirm: Reassign Visits (1)" }).count()) {
+      await confirm.click();
+      await expect(page.getByRole("dialog", { name: "Reassign Visits: results" }).getByTestId("bulk-results-summary")).toContainText("1 visit updated");
+      await page.getByRole("button", { name: "Close" }).click();
+    } else {
+      await expect(review.getByTestId("bulk-review-row")).toContainText(/Cannot change|No change/);
+      await review.getByRole("button", { name: "Back" }).click();
+    }
 
-    // Lock needs nothing else and reports the visits it changed.
+    // Lock needs nothing else and reports exactly what changed.
+    for (const box of await page.locator("input[name=visitIds]").all()) await box.uncheck();
     await page.locator("input[name=visitIds]").nth(1).check();
+    await expect(bulk.getByTestId("bulk-selected")).toHaveText("1 selected");
     await bulk.locator("select[name=kind]").selectOption("lock");
     await expect(bulk.getByLabel("Carer", { exact: true })).toHaveCount(0);
     await go.click();
-    await expect(page.getByRole("status")).toContainText("1 updated");
+    review = page.getByRole("dialog", { name: "Review: Add Rota Lock(s)" });
+    await review.getByRole("button", { name: "Confirm: Add Rota Lock(s) (1)" }).click();
+    await expect(page.getByRole("dialog", { name: "Add Rota Lock(s): results" }).getByTestId("bulk-results-summary")).toContainText("1 visit updated");
   });
 
   test("Build Rota previews a future week with its checklist", async ({ page }) => {

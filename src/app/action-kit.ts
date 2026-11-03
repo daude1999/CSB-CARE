@@ -48,3 +48,20 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
   redirect(target);
 }
 
+
+/**
+ * For server actions a client component calls and reads the answer of (no redirect): runs `fn` with the session's ctx
+ * and returns `{ ok: true, data }`, or `{ ok: false, error }` with a message safe to show. Refreshes server-rendered pages.
+ */
+export async function handleData<T>(fn: (ctx: Ctx) => Promise<T>, opts: { revalidate?: boolean } = {}): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const ctx = await requireCtx();
+    const data = await fn(ctx);
+    if (opts.revalidate) revalidatePath("/", "layout");
+    return { ok: true, data };
+  } catch (e) {
+    if (isRedirectError(e)) throw e;
+    if (!(e instanceof AppError)) logger.error({ err: (e as Error).message, stack: (e as Error).stack }, "action failed");
+    return { ok: false, error: e instanceof AppError ? e.message : "Something went wrong. The error has been logged." };
+  }
+}
