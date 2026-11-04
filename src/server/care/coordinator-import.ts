@@ -33,7 +33,7 @@ const contact = z.object({
 const visit = z.object({
   label: z.string().min(2).max(80),
   callTypeId: z.string().min(1),
-  weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7),
+  weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7).refine(days=>new Set(days).size===days.length,"Duplicate weekday"),
   startMinute: z.number().int().min(0).max(1439),
   durationMin: z.number().int().min(5).max(1440),
   carersRequired: z.number().int().min(1).max(20),
@@ -140,6 +140,8 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   if (weeklyMinutes !== undefined && weeklyMinutes !== templateMinutes)
     throw new ValidationError("Commissioned minutes and proposed weekly rota do not match. Resolve council/family-care differences before saving.");
   if (d.carePlan.reviewDue <= londonDate()) throw new ValidationError("The care plan review date must be in the future");
+  for(const r of d.riskDrafts) if(r.reviewDue<=londonDate() || r.reviewDue>addDays(londonDate(),366))
+    throw new ValidationError("Each risk draft needs a future review date within one year");
   if (d.draftWeekStart && (monday(d.draftWeekStart)!==d.draftWeekStart || d.draftWeekStart<londonDate()))
     throw new ValidationError("Draft week must begin on a future or current Monday; past weeks cannot be imported");
   if (d.draftWeekStart && d.draftWeekStart>d.package.endDate) throw new ValidationError("Draft week starts after package end");
