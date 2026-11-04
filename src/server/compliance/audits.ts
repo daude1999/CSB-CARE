@@ -106,8 +106,32 @@ export const ACTION_FLOW: Record<string, string[]> = {
   CLOSED: [],
 };
 
-export async function createAction(ctx: Ctx, input: { title: string; description?: string; ownerId: string; dueDate: Date; findingId?: string; riskId?: string }) {
-  const orgId = requireOrgPermission(ctx, "action.manage");
+export const ACTION_TYPES = { CORRECTIVE: "Corrective", PREVENTATIVE: "Preventative" } as const;
+export const ACTION_PRIORITIES = { LOW: "Low", MEDIUM: "Medium", HIGH: "High", URGENT: "Urgent" } as const;
+
+export interface ActionInput {
+  title: string;
+  description?: string;
+  ownerId: string;
+  dueDate: Date;
+  findingId?: string;
+  riskId?: string;
+  /** CQC Inspection & Evidence links, set only by src/server/cqc after its own permission and ownership checks. */
+  rca?: { id: string; reference: string; findingId?: string };
+  cqc?: { assessmentId: string; criterionId: string; reference: string };
+  actionType?: string;
+  priority?: string;
+  evidenceRequired?: string;
+}
+
+/**
+ * Creates a corrective action. Needs action.manage, except an action raised from a root cause analysis or a CQC
+ * assessment, whose own service has already checked the caller's rca/cqc permission (`preAuthorised`).
+ */
+export async function createAction(ctx: Ctx, input: ActionInput, opts: { preAuthorised?: boolean } = {}) {
+  const orgId = opts.preAuthorised && ctx.organisationId && (input.rca || input.cqc) ? ctx.organisationId : requireOrgPermission(ctx, "action.manage");
+  if (input.actionType && !(input.actionType in ACTION_TYPES)) throw new ValidationError("Choose corrective or preventative");
+  if (input.priority && !(input.priority in ACTION_PRIORITIES)) throw new ValidationError("Choose a priority");
   if (input.title.trim().length < 3) throw new ValidationError("Give the action a title");
   if (!(input.dueDate instanceof Date) || Number.isNaN(input.dueDate.getTime())) throw new ValidationError("Give the action a due date");
   const owner = await db.membership.findUnique({ where: { userId_organisationId: { userId: input.ownerId, organisationId: orgId } } });
@@ -122,12 +146,15 @@ export async function createAction(ctx: Ctx, input: { title: string; description
     if (r.status === "CLOSED") throw new ConflictError("This risk is closed. Reopen it before adding actions.");
   }
   const action = await db.$transaction(async (tx) => {
-    const a = await tx.complianceAction.create({ data: { organisationId: orgId, title: input.title.trim(), description: input.description, ownerId: input.ownerId, dueDate: input.dueDate, findingId: input.findingId, riskId: input.riskId, history: { create: { actorId: ctx.userId, to: "OPEN", note: "Created" } } } });
+    const a = await tx.complianceAction.create({ data: { organisationId: orgId, title: input.title.trim(), description: input.description, ownerId: input.ownerId, dueDate: input.dueDate, findingId: input.findingId, riskId: input.riskId, rcaId: input.rca?.id, rcaFindingId: input.rca?.findingId, cqcAssessmentId: input.cqc?.assessmentId, cqcCriterionId: input.cqc?.criterionId, actionType: input.actionType, priority: input.priority, evidenceRequired: input.evidenceRequired?.trim() || null, history: { create: { actorId: ctx.userId, to: "OPEN", note: input.rca ? `Created from ${input.rca.reference}` : input.cqc ? `Created from ${input.cqc.reference}` : "Created" } } } });
     if (input.riskId) await tx.riskEvent.create({ data: { riskId: input.riskId, actorId: ctx.userId, kind: "UPDATED", note: `Mitigation action added: ${a.title}`, changes: { actionId: a.id } } });
-    await audit({ organisationId: orgId, actorId: ctx.userId, action: "action.created", entityType: "ComplianceAction", entityId: a.id, data: { findingId: input.findingId ?? null, riskId: input.riskId ?? null } }, tx);
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: "action.created", entityType: "ComplianceAction", entityId: a.id, data: { findingId: input.findingId ?? null, riskId: input.riskId ?? null, rcaId: input.rca?.id ?? null, cqcAssessmentId: input.cqc?.assessmentId ?? null, actionType: input.actionType ?? null } }, tx);
     return a;
   });
-  await notify({ organisationId: orgId, userIds: [input.ownerId], type: "action.assigned", title: `Action assigned: ${input.title}`, body: input.description ?? "", reason: "You are the owner of this compliance action.", links: [{ label: "Open the action", url: `/actions/${action.id}` }], actionUrl: `/actions/${action.id}`, dueAt: input.dueDate, dedupeKey: `action-assigned:${action.id}` });
+  // Actions from an investigation or assessment carry only the reference in the message, never case details.
+  const source = input.rca?.reference ?? input.cqc?.reference;
+  const body = source ? `${input.actionType ? `${ACTION_TYPES[input.actionType as keyof typeof ACTION_TYPES]} action` : "Action"} from ${source}. Open the action to see what is needed and the evidence required.` : (input.description ?? "");
+  await notify({ organisationId: orgId, userIds: [input.ownerId], type: "action.assigned", title: `Action assigned: ${input.title}`, body, reason: "You are the owner of this compliance action.", links: [{ label: "Open the action", url: `/actions/${action.id}` }], actionUrl: `/actions/${action.id}`, dueAt: input.dueDate, dedupeKey: `action-assigned:${action.id}` });
   return action;
 }
 
