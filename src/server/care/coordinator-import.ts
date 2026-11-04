@@ -169,6 +169,9 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
 }
 
 export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan?:UploadedFile;discharge?:UploadedFile}) {
+  // A coordinator may preview and correct the import; the creation step needs
+  // manager privileges. This is not yet a persisted two-person approval queue.
+  requireOrgPermission(ctx,"care.plan.approve");
   const preview = await previewIntake(ctx,raw);
   const d=preview.data;
   if(d.approvalPhrase!=="I APPROVE DRAFT RECORD CREATION") throw new ValidationError("Explicit approval is required before creating records");
