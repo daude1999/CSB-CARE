@@ -19,7 +19,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
   const [rows, lk] = await Promise.all([listServiceUsers(ctx, { q: sp.q?.trim() || undefined, status, areaId: sp.area || undefined }), rotaLookups(ctx)]);
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle="The people you support, with their care package, carer preferences and repeating visits. All names in the demo are fictional." actions={hasOrgPermission(ctx, "serviceUser.edit") ? <Link href="/rota/service-users/new" className="btn-primary">Add service user</Link> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle="The people you support, with their care package, carer preferences and repeating visits. All names in the demo are fictional." actions={hasOrgPermission(ctx, "serviceUser.edit") ? <div className="flex gap-2"><Link href="/rota/service-users/import" className="btn-secondary">Care Coordinator Import</Link><Link href="/rota/service-users/new" className="btn-primary">Add service user</Link></div> : null} />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
