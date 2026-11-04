@@ -72,6 +72,12 @@ export const PERSON_FIELDS = {
 } as const;
 export type PersonField = keyof typeof PERSON_FIELDS;
 
+export const EXTERNAL_REFERENCE_TYPES = ["NHS", "COUNCIL_CLIENT", "COUNCIL_FRAMEWORK", "COUNCIL_PACKAGE", "OTHER_EXTERNAL"] as const;
+export const externalReferenceValue = z.object({
+  type:z.enum(EXTERNAL_REFERENCE_TYPES),
+  issuer:s(180),
+  value:s(120),
+}).strict();
 export const CONTACT_KINDS = ["NEXT_OF_KIN", "FAMILY", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"] as const;
 export const CONTACT_KIND_LABEL: Record<(typeof CONTACT_KINDS)[number], string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other professional" };
 export const contactValue = z.object({
@@ -158,6 +164,7 @@ export const skinValue = z.object({ date: optDate, area: opt(120), finding: s(12
 export function destinationSchema(destination: string): { section: IntakeSection; label: string; schema: z.ZodTypeAny } | null {
   const [head, key] = destination.split(".", 2) as [string, string | undefined];
   if (head === "person" && key && key in PERSON_FIELDS) return { section: "PERSONAL", label: PERSON_FIELDS[key as PersonField].label, schema: PERSON_FIELDS[key as PersonField].schema };
+  if (destination === "externalReference") return { section: "PERSONAL", label: "External client reference", schema: externalReferenceValue };
   if (destination === "contact") return { section: "CONTACTS", label: "Contact", schema: contactValue };
   if (destination === "preference.gender") return { section: "CARER_PREFERENCES", label: "Care-worker gender preference", schema: z.enum(["ANY", "FEMALE", "MALE"]) };
   if (destination === "preference.note") return { section: "CARER_PREFERENCES", label: "Carer preference", schema: s(1000) };
@@ -178,6 +185,7 @@ export function destinationSchema(destination: string): { section: IntakeSection
 export function destinationField(destination: string): string {
   const [head, key] = destination.split(".", 2);
   if (head === "person") return `ServiceUser.${key}`;
+  if (destination === "externalReference") return "ServiceUserExternalReference (source-linked, unverified)";
   if (destination === "contact") return "ServiceUserContact (new contact)";
   if (destination === "preference.gender") return "ServiceUser.carerGenderPreference";
   if (destination === "preference.note") return "ServiceUser.carePreferences";
@@ -328,6 +336,7 @@ export interface FactSeed {
 export interface Reading {
   document: { kind: DocKind; issuer: string | null; issuerKind: IssuerKind; documentDate: string | null; pageCount: number };
   person: { field: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
+  references: { type: (typeof EXTERNAL_REFERENCE_TYPES)[number]; issuer: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   contacts: { kind: (typeof CONTACT_KINDS)[number]; name: string; relationship: string | null; phone: string | null; email: string | null; address: string | null; isEmergency: boolean; isKeyHolder: boolean; authority: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   carerPreferences: { kind: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   carePlan: { section: string; canDo: string | null; support: string | null; how: string | null; outcome: string | null; clarify: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
@@ -360,6 +369,9 @@ export function readingToFacts(r: Reading): FactSeed[] {
     if (!value) continue;
     add({ section: "PERSONAL", destination: `person.${p.field}`, label: PERSON_FIELDS[p.field as PersonField].label, value, page: p.page, quote: p.quote, temporal: p.temporal });
   }
+  for(const ref of r.references ?? []) add({section:"PERSONAL",destination:"externalReference",
+    label:ref.type+" ("+ref.issuer+")",value:{type:ref.type,issuer:ref.issuer,value:ref.value},
+    page:ref.page,quote:ref.quote,temporal:ref.temporal});
   for (const c of r.contacts) add({ section: "CONTACTS", destination: "contact", label: `${CONTACT_KIND_LABEL[c.kind]}: ${c.name}`, value: { kind: c.kind, name: c.name, relationship: c.relationship, phone: c.phone, email: c.email, address: c.address, isEmergency: c.isEmergency, isKeyHolder: c.isKeyHolder, authority: c.authority }, page: c.page, quote: c.quote, temporal: c.temporal });
   for (const p of r.carerPreferences) {
     const g = /\b(female|woman|women|lady)\b/i.test(p.value) ? "FEMALE" : /\b(male|man|men)\b/i.test(p.value) ? "MALE" : null;
@@ -395,7 +407,7 @@ export function readingToFacts(r: Reading): FactSeed[] {
  * is left for the coordinator; it never guesses.
  */
 export function basicRead(pages: string[]): Reading {
-  const r: Reading = { document: { ...classifyText(pages.join("\n")), pageCount: pages.length }, person: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [], medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [] };
+  const r: Reading = { document: { ...classifyText(pages.join("\n")), pageCount: pages.length }, person: [], references: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [], medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [] };
   const historicalDoc = r.document.kind === "DISCHARGE_LETTER";
   pages.forEach((text, i) => {
     const page = i + 1;
