@@ -46,7 +46,7 @@ export const intakeSchema = z.object({
     firstName: z.string().trim().min(1).max(100),
     lastName: z.string().trim().min(1).max(100),
     dateOfBirth: date.optional(),
-    nhsNumber: z.string().regex(/^\\d{3} ?\\d{3} ?\\d{4}$/).optional(),
+    nhsNumber: z.string().regex(/^\d{3} ?\d{3} ?\d{4}$/).optional(),
     altPhone: z.string().max(500).optional(),
     preferredContactMethod: z.enum(["PHONE","SMS","EMAIL","OTHER"]).optional(),
     accessNotes: z.string().max(2000).optional(),
