@@ -162,7 +162,7 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
       if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Check the personal details");
       const area = await checkArea(tx, scope, intake.areaId);
       const reference = await nextServiceUserReference(tx, scope.organisationId);
-      const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, parsed.data) } });
+      const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, csbReference: reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, parsed.data) } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.created", entityType: "ServiceUser", entityId: su.id, data: { via: "care-coordinator", intakeId, reference: intake.reference } }, tx);
       await tx.careIntake.update({ where: { id: intakeId }, data: { serviceUserId: su.id } });
       for (const f of fs) await markApplied(tx, f, `ServiceUser:${su.id}`);
