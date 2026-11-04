@@ -167,3 +167,75 @@ export const SupportPlanExtractionSchema = z.object({
   unreadable: z.array(z.string()).describe("Pages or fields that could not be read"),
 });
 export type SupportPlanExtraction = z.infer<typeof SupportPlanExtractionSchema>;
+
+/**
+ * AI Care Coordinator: what the AI reads from ONE care document (support plan, discharge letter, GP letter, medication
+ * list, therapy report...). Individual facts, each with its page and a short verbatim quote that is checked against the
+ * page's text before anyone sees it. Nothing is inferred; missing things go under `missing`.
+ */
+const Quote = z.string().max(300).describe("A short passage copied EXACTLY from the page (10-200 characters) that shows the value. Never paraphrased.");
+const Temporal = z.enum(["CURRENT", "HISTORICAL", "UNKNOWN"]).describe("HISTORICAL when the page describes the past (an earlier admission, a previous fall, medicines at discharge that may since have changed)");
+const Sourced = { page: Page, quote: Quote, temporal: Temporal };
+
+export const CARE_DOC_PERSON_FIELDS = ["firstName", "lastName", "preferredName", "dateOfBirth", "gender", "nhsNumber", "addressLine1", "addressLine2", "town", "postcode", "phone", "altPhone", "email", "firstLanguage", "communicationNeeds", "accessNotes", "carePreferences"] as const;
+export const CARE_DOC_PLAN_KEYS = ["about_me", "communication", "personal_care", "mobility", "nutrition", "medication", "health", "home", "outcomes"] as const;
+
+export const CareDocumentExtractionSchema = z.object({
+  document: z.object({
+    kind: z.enum(["SUPPORT_PLAN", "CARE_PLAN", "RISK_ASSESSMENT", "NEEDS_ASSESSMENT", "REFERRAL", "DISCHARGE_LETTER", "GP_LETTER", "CONSULTANT_LETTER", "MEDICATION_LIST", "THERAPY_REPORT", "APPOINTMENT_LETTER", "SAFEGUARDING", "FAMILY_LETTER", "PURCHASE_ORDER", "OTHER"]),
+    issuer: z.string().nullable().describe("The organisation that issued the document, as written"),
+    issuerKind: z.enum(["COUNCIL", "NHS", "GP", "FAMILY", "OTHER"]),
+    documentDate: z.string().nullable().describe("YYYY-MM-DD, the date the document was written, if shown"),
+    pageCount: z.number().int().min(1),
+  }),
+  person: z.array(z.object({ field: z.enum(CARE_DOC_PERSON_FIELDS), value: z.string(), ...Sourced })).describe("One entry per personal detail written on the page"),
+  contacts: z.array(z.object({
+    kind: z.enum(["NEXT_OF_KIN", "FAMILY", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"]),
+    name: z.string(), relationship: z.string().nullable(), phone: z.string().nullable(), email: z.string().nullable(), address: z.string().nullable(),
+    isEmergency: z.boolean(), isKeyHolder: z.boolean(),
+    authority: z.string().nullable().describe("Only a documented legal authority such as a registered LPA; never assumed from next of kin"),
+    ...Sourced,
+  })),
+  carerPreferences: z.array(z.object({ kind: z.enum(["GENDER", "LANGUAGE", "CULTURE", "CONTINUITY", "PREFERRED_CARER", "NOT_WANTED", "OTHER"]), value: z.string(), ...Sourced })),
+  carePlan: z.array(z.object({
+    section: z.enum(CARE_DOC_PLAN_KEYS),
+    canDo: z.string().nullable().describe("What the person does for themselves, as written"),
+    support: z.string().nullable().describe("What help they need, as written"),
+    how: z.string().nullable().describe("How the help should be given, only where the document gives instructions"),
+    outcome: z.string().nullable(),
+    clarify: z.string().nullable().describe("What a professional must clarify, if the document is unclear"),
+    ...Sourced,
+  })),
+  risks: z.array(z.object({
+    type: z.enum(["ENVIRONMENT", "MOVING_HANDLING", "FALLS", "PRESSURE_SKIN", "MEDICATION_SUPPORT", "NUTRITION", "LONE_WORKING", "OTHER"]),
+    title: z.string(), hazard: z.string(), whoAffected: z.string().nullable(),
+    existingControls: z.string().nullable().describe("Controls the document says are in place"),
+    level: z.enum(["LOW", "MEDIUM", "HIGH"]).nullable().describe("Only if the document itself states a level; otherwise null"),
+    ...Sourced,
+  })),
+  package: z.array(z.object({ field: z.enum(["funder", "reference", "startDate", "endDate", "hoursPerWeek", "requirements"]), value: z.string(), ...Sourced })),
+  visits: z.array(z.object({
+    label: z.string().describe("e.g. Morning, Lunch, Tea, Evening, Shopping"),
+    weekdays: z.array(z.number().int().min(1).max(7)), startTime: z.string().describe("HH:MM"), durationMinutes: z.number().int().min(5), carers: z.number().int().min(1),
+    tasks: z.array(z.string()).describe("Each care task on its own, as written, including continuation pages"),
+    fundedBy: z.enum(["COUNCIL", "CARERS_SERVICE", "OTHER"]).describe("CARERS_SERVICE for informal or family support rows"),
+    medicationPrompt: z.boolean(), endDate: z.string().nullable(),
+    ...Sourced,
+  })).describe("One entry per timetable row, across every timetable page"),
+  medication: z.object({
+    arrangement: z.object({ support: z.enum(["SELF", "PROMPT", "ASSIST", "ADMINISTER", "UNKNOWN"]), detail: z.string(), ...Sourced }).nullable(),
+    items: z.array(z.object({
+      name: z.string(), strength: z.string().nullable(), dose: z.string().nullable(), route: z.string().nullable(), frequency: z.string().nullable(),
+      times: z.array(z.string()), asRequired: z.boolean(), prnInstructions: z.string().nullable(),
+      status: z.enum(["CURRENT", "STOPPED", "WITHHELD", "TEMPORARY", "CHANGED"]), note: z.string().nullable(),
+      ...Sourced,
+    })),
+    allergies: z.array(z.object({ value: z.string(), ...Sourced })),
+  }),
+  incidents: z.array(z.object({ date: z.string().nullable(), type: z.string(), description: z.string(), consequences: z.string().nullable(), actions: z.string().nullable(), ...Sourced })),
+  skin: z.array(z.object({ date: z.string().nullable(), area: z.string().nullable(), finding: z.string(), description: z.string(), ...Sourced })).describe("Wounds, bruising, pressure areas, swelling: as written, never located or measured by you"),
+  flags: z.array(z.object({ text: z.string(), page: Page })).describe("Contradictions, out-of-date information and things a manager must decide"),
+  missing: z.array(z.string()).describe("Information a care provider needs that this document does not give"),
+  unreadable: z.array(z.object({ page: Page, reason: z.string() })),
+});
+export type CareDocumentExtraction = z.infer<typeof CareDocumentExtractionSchema>;

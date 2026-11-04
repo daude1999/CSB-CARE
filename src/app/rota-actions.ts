@@ -24,7 +24,7 @@ import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute
 import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
 import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
-import { archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
+import { approveRiskDraft, archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
 import { addBand, addBankHoliday, createRateCard, removeBand, removeBankHoliday, saveFunder, setPackageFunder, setStaffPayCard, updateFinanceSettings } from "@/server/finance/rates";
 import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet, verifyLines } from "@/server/finance/timesheets";
 import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
@@ -763,6 +763,11 @@ export async function createRiskAction(fd: FormData) {
 
 export async function reviewRiskAction(fd: FormData) {
   return handle(fd, (ctx) => reviewRisk(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)), "Review saved");
+}
+
+/** A different manager checks a draft from the Care Coordinator and makes it the live assessment. */
+export async function approveRiskDraftAction(fd: FormData) {
+  return handle(fd, (ctx) => approveRiskDraft(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)).then(() => undefined), "Risk assessment approved and now live");
 }
 
 export async function archiveRiskAction(fd: FormData) {

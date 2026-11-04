@@ -181,6 +181,7 @@ export async function approveRiskDraft(ctx: Ctx, id: string, version: number, in
   return db.$transaction(async tx=>{
     const r=await riskInScope(tx,scope,id);
     if(r.status!=="DRAFT") throw new ValidationError("Only a draft risk assessment can be approved");
+    if(r.version!==version) throw new ConflictError("This risk draft has changed. Reload before approval.");
     if(r.assessedById===ctx.userId) throw new ValidationError("A different manager must approve the proposed risk assessment");
     const snap={type:d.type,title:d.title,hazards:d.hazards,controls:d.controls,level:d.level,
       reviewDue:dbDate(d.reviewDue),requiredActions:d.requiredActions,responsiblePerson:d.responsiblePerson};

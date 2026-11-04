@@ -1,4 +1,4 @@
-import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction } from "./schemas";
+import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction, CareDocumentExtraction } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -93,6 +93,16 @@ export interface LlmProvider {
   /** Reads a council support plan PDF into a field-by-field proposal with page references. Optional; the simulated
    *  provider cannot read documents, so the import screen then opens with an empty form. */
   extractSupportPlan?(input: SupportPlanExtractionInput): Promise<SupportPlanExtraction>;
+  /** AI Care Coordinator: reads one care document into individual, page-referenced facts with verbatim quotes. Optional;
+   *  without it (simulated, none) documents are read on our own server from their text layer only. */
+  extractCareDocument?(input: CareDocumentExtractionInput): Promise<CareDocumentExtraction>;
+}
+
+export interface CareDocumentExtractionInput {
+  pdfBase64: string;
+  filename: string;
+  /** What the office says the document is, to help the reading. */
+  categoryLabel: string;
 }
 
 export interface SupportPlanExtractionInput {
