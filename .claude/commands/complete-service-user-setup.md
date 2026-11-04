@@ -27,6 +27,15 @@ Read `src/server/care/coordinator-import.ts` for the **actual** intakeSchema. Bu
 
 Do not automatically set a commissioned total that contradicts the sourced visit pattern. Flag the inconsistency for review.
 
+## Step 2.5: Field-by-field review (required by CSB Care)
+Read `src/server/care/coordinator-field-review.ts`. Generate `fieldReviews` for **every populated leaf field** in the structured manifest (including each contact, care-plan section, risk draft and rota row). Each item requires a unique id, actual existing CRM destination key, exact fieldPath, label, original source document and page, confidence, reviewed value, and reviewer decision. Arrays such as `weekdays` or `taskIds` must be JSON-stringified in proposedValue. Scalars use their string representation.
+
+Show coordinator the proposed destination *before* execution. Coordinator can approve, edit, reject, mark duplicate or request clarification. Any rejected or unclear value still present in the write manifest must block creation. Never copy review-only hospital, medication, body-map, historical incident or resuscitation text into unrelated fields.
+
+Validate with `reviewMatchesManifest`: every value written must correspond to a human-reviewed field with the same value and destination. Any edit to a review row must also be applied to the structured manifest, revalidated and re-reviewed. Record real reviewer identity using authenticated context; a free-text reviewer label is not proof of identity. Preserve the attached original document and source page.
+
+The currently supported destinations for automatic writing are: Personal details, Contacts, nine Care-plan sections, Risk **drafts**, Care package and recurring Visit templates. Other areas receive review-only findings / follow-up tasks and require separate implementation and approval. Do not state otherwise.
+
 ## Step 3: Independent QA + review
 Have care-compliance-reviewer compare every proposed field against the source documents, paying special attention to approved vs informal care, resuscitation documents, medicines, transfers and risk controls. Show the human operator the exact proposed records and unresolved items; **request approval before writing**.
 
