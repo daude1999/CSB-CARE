@@ -1555,6 +1555,7 @@ model ServiceUser {
   areaId                 String?
   area                   Area?             @relation(fields: [areaId], references: [id])
   reference              String
+  csbReference           String?        // Permanent CSB identifier, distinct from legacy SU reference
   firstName              String
   lastName               String
   preferredName          String?
@@ -1592,11 +1593,13 @@ model ServiceUser {
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
+  externalReferences   ServiceUserExternalReference[]
   contacts             ServiceUserContact[]
   coverContactAttempts CoverContactAttempt[]
   absences             ServiceUserAbsence[]
   packages             CarePackage[]
   carePlans            CarePlan[]
+  intakeReviewItems    CareIntakeReviewItem[]
   risks                RiskAssessment[]
   incidents            Incident[]
   templates            VisitTemplate[]
@@ -1607,6 +1610,7 @@ model ServiceUser {
   bodyMapObservations  BodyMapObservation[]
 
   @@unique([organisationId, reference])
+  @@unique([organisationId, csbReference])
   @@unique([id, organisationId])
   @@index([organisationId, status])
   @@index([organisationId, lastName])
@@ -1794,6 +1798,7 @@ enum RiskType {
 enum RecordStatus {
   ACTIVE
   ARCHIVED
+  DRAFT
 }
 
 model RiskAssessment {
@@ -1945,6 +1950,11 @@ model RotaSettings {
   bodyMapAiEnabledAt           DateTime?
   bodyMapAiEnabledById         String?
   bodyMapAiReviewNote          String?
+  /// AI Care Coordinator document reading: off until an admin records the data-protection and clinical-safety review.
+  /// While off, documents are read on our own server from their text layer only (nothing is sent to an AI service).
+  careCoordinatorAiEnabledAt   DateTime?
+  careCoordinatorAiEnabledById String?
+  careCoordinatorAiReviewNote  String?
   /// Missed call automation (each stage has its own switch, off by default; switching off is the rollback).
   /// Evidence: collect the system's records into a dated snapshot and timeline for each missed call.
   missedAutoEvidenceAt         DateTime?
@@ -3930,6 +3940,180 @@ model MedicationApplicationSite {
   @@index([medicationId])
 }
 
+/// Restricted follow-up queue for things a person must check after a Care Coordinator intake: medication
+/// reconciliation, historical incidents and skin findings, risk questions, missing information. Never a medication
+/// order, an incident or a body map observation in itself.
+/// category: MEDICATION | INCIDENT_HISTORY | BODY_MAP | RISK | CLINICAL | MISSING_INFO | FIELD_MAPPING
+/// status: OPEN | RESOLVED | REVIEWED
+model CareIntakeReviewItem {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  /// The intake and fact it came from (null for items made by hand or before intakes existed).
+  intakeId       String?
+  factId         String?
+  category       String
+  description    String
+  sourceRef      String?
+  /// True when the source is a restricted document or the item is clinical: shown only with serviceUser.sensitive.
+  restricted     Boolean     @default(true)
+  status         String      @default("OPEN")
+  assignedToId   String?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolution     String?
+
+  @@unique([factId])
+  @@index([organisationId, serviceUserId, status])
+}
+
+/// AI Care Coordinator intake: the documents for one person, every fact read from them with its page, the
+/// coordinator's decision on each fact, the manager's decision on each profile section and what was applied.
+/// status: DRAFT | SUBMITTED | APPROVED | APPLYING | COMPLETED | CANCELLED
+model CareIntake {
+  id               String               @id @default(cuid())
+  organisationId   String
+  reference        String
+  /// What the office calls this intake until a person exists, e.g. "New referral, Stepney".
+  title            String
+  status           String               @default("DRAFT")
+  /// The existing person this intake updates, or the person it created.
+  serviceUserId    String?
+  /// NEW: set up a new person. EXISTING: compare with and update serviceUserId.
+  mode             String               @default("NEW")
+  areaId           String?
+  /// Who or what read the documents: the AI provider's name, "basic-reader" (no AI) or "manual".
+  reader           String?
+  createdById      String
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  submittedById    String?
+  submittedAt      DateTime?
+  cancelledById    String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  /// Who confirmed that a possible match already on record is a different person (null = not confirmed).
+  notDuplicateById String?
+  lockVersion      Int                  @default(1)
+  documents        CareIntakeDocument[]
+  facts            CareIntakeFact[]
+  sections         CareIntakeSection[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+}
+
+/// One uploaded document. The original file is stored privately and never changed; the page text is kept so every
+/// fact can be checked against the page it came from.
+/// readStatus: PENDING | READ | PARTLY_READ | UNREADABLE | FAILED
+model CareIntakeDocument {
+  id              String                     @id @default(cuid())
+  organisationId  String
+  intakeId        String
+  intake          CareIntake                 @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  position        Int
+  filename        String
+  contentType     String
+  sizeBytes       Int
+  sha256          String
+  storageKey      String
+  scanStatus      String
+  /// Where it will be filed: COUNCIL or OTHER, and a category key from su-documents.ts.
+  section         ServiceUserDocumentSection
+  category        String
+  name            String
+  issuer          String?
+  /// COUNCIL | NHS | GP | FAMILY | OTHER
+  issuerKind      String?
+  documentDate    DateTime?                  @db.Date
+  sensitive       Boolean                    @default(false)
+  pageCount       Int?
+  /// One string per page from the PDF's text layer (empty for scanned pages).
+  pageText        Json                       @default("[]")
+  readStatus      String                     @default("PENDING")
+  readNote        String?
+  /// What the reading found that is not a fact: [{ kind: "FLAG" | "MISSING" | "UNREADABLE", text, page }].
+  findings        Json                       @default("[]")
+  /// The Council/Other Documents record this was filed as, once applied.
+  filedDocumentId String?
+  createdById     String
+  createdAt       DateTime                   @default(now())
+
+  @@index([intakeId])
+}
+
+/// One fact read from a document (or added by hand), where it goes in the profile, and the coordinator's decision.
+/// section: PERSONAL | CONTACTS | CARER_PREFERENCES | CARE_PLAN | RISKS | PACKAGE | MEDICATION | INCIDENTS | BODY_MAP | VISITS
+/// decision: PENDING | APPROVED | EDITED | REJECTED | CLARIFY | DUPLICATE
+/// verification: VERIFIED (quote found on the page) | UNVERIFIED | MANUAL
+/// temporal: CURRENT | HISTORICAL | UNKNOWN
+model CareIntakeFact {
+  id               String     @id @default(cuid())
+  organisationId   String
+  intakeId         String
+  intake           CareIntake @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  section          String
+  /// The exact destination, e.g. "person.postcode", "careplan.mobility", "visit", "risk", "contact".
+  destination      String
+  label            String
+  position         Int        @default(0)
+  /// What was read, never changed. value is what will be saved (equal to proposed unless edited).
+  proposed         Json
+  value            Json
+  sourceDocumentId String?
+  sourcePage       Int?
+  quote            String?
+  verification     String     @default("UNVERIFIED")
+  temporal         String     @default("CURRENT")
+  /// AI | BASIC | MANUAL
+  origin           String     @default("AI")
+  existingValue    Json?
+  conflict         String?
+  decision         String     @default("PENDING")
+  decisionNote     String?
+  question         String?
+  assignedToId     String?
+  decidedById      String?
+  decidedAt        DateTime?
+  editedById       String?
+  editedAt         DateTime?
+  appliedAt        DateTime?
+  /// What the fact became: "ServiceUserContact:<id>", "VisitTemplate:<id>" and so on.
+  appliedRef       String?
+  lockVersion      Int        @default(1)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([intakeId, section])
+}
+
+/// The manager's decision on one profile section of an intake, and whether it has been applied.
+/// status: OPEN | APPROVED | RETURNED | REJECTED | INFO_REQUESTED
+/// applyStatus: NOT_STARTED | DONE | FAILED | BLOCKED
+model CareIntakeSection {
+  id             String     @id @default(cuid())
+  organisationId String
+  intakeId       String
+  intake         CareIntake @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  section        String
+  status         String     @default("OPEN")
+  reason         String?
+  decidedById    String?
+  decidedAt      DateTime?
+  applyStatus    String     @default("NOT_STARTED")
+  applyResult    Json?
+  applyError     String?
+  appliedById    String?
+  appliedAt      DateTime?
+  attempts       Int        @default(0)
+  lockVersion    Int        @default(1)
+
+  @@unique([intakeId, section])
+}
+
 /// One row per carer booked on a missed visit, written when the case opens (the booked-carer snapshot), so a later rota
 /// change cannot rewrite who was booked. It also carries the in-app request asking that carer what happened.
 /// status: NOT_REQUESTED | NO_LOGIN | REQUESTED | RESPONDED | NO_RESPONSE | WITHDRAWN
@@ -4042,4 +4226,38 @@ model MissedCallInvestigationDraft {
   createdAt       DateTime                   @default(now())
 
   @@index([caseId, createdAt])
+}
+
+/** Atomic per-organisation counter. Never decrement, including after deletion. */
+model ServiceUserReferenceCounter {
+  organisationId String @id
+  nextNumber     Int    @default(1)
+}
+
+/** External identifiers belong to an issuer and a specific client or package;
+ *  shared FRAMEWORK references are intentionally NOT globally unique.
+ *  Store only encrypted values and keyed fingerprints for exact lookup. */
+model ServiceUserExternalReference {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  type           String
+  issuer         String
+  issuerKey      String
+  valueCipher    String
+  valueHash      String
+  verified       Boolean     @default(false)
+  verificationNote String?
+  sourceDocumentId String?
+  sourcePage     Int?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  verifiedById   String?
+  verifiedAt     DateTime?
+
+  @@unique([organisationId, serviceUserId, type, issuerKey, valueHash])
+  @@index([organisationId, type, valueHash])
+  @@index([organisationId, serviceUserId])
 }

@@ -62,6 +62,7 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
     case "people":
       return [
         { key: "directory", label: "Service Users", href: "/rota/service-users", perm: "serviceUser.view" },
+        { key: "coordinator", label: "Care Coordinator", href: "/rota/coordinator", perm: "serviceUser.documents" },
         // Care plans and risk assessments live in each service user's profile. The incident register stays here for
         // the organisation-wide view; each profile also lists that person's incidents.
         { key: "incidents", label: "Incidents", href: "/rota/incidents", perm: ["incident.manage", "incident.report"] },
