@@ -139,9 +139,9 @@ test.describe("Rostering & Care Management", () => {
     const dialog = page.getByRole("dialog", { name: "Roll Forward Rota" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel("Roll forward summary")).toContainText("Visits to create");
-    await expect(dialog.getByRole("heading", { name: "Previous rota and proposed rota" })).toBeVisible();
-    await dialog.getByRole("button", { name: /^Save \d+ visits as drafts$/ }).click();
-    await expect(page.getByRole("status")).toContainText("Rolled forward into 1 week");
+    await expect(dialog.getByRole("heading", { name: "Proposed rota" })).toBeVisible();
+    await dialog.getByRole("button", { name: "Save as Draft" }).click();
+    await expect(dialog.getByText(/Rolled forward into 1 week/)).toBeVisible();
     // Doing it again finds everything already in place.
     await page.goto(`/rota/build?roll=1&from=${mondayWeeksAhead(1)}&to=${mondayWeeksAhead(6)}&weeks=1`);
     await expect(page.getByRole("dialog", { name: "Roll Forward Rota" }).getByLabel("Roll forward summary")).toContainText(/Visits to create\s*0/);
