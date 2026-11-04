@@ -67,7 +67,7 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
           <label className="flex items-center gap-1.5 pb-2 text-[14px]"><input type="checkbox" name="all" value="1" defaultChecked={sp.all === "1"} className="h-4 w-4" /> Show carers with no visits</label>
           <button className="btn-primary">Show</button>
         </form>
-        <PlannerBoard days={WEEKDAYS.map((d) => ({ date: d, label: d, today: false }))} rows={rows} action={templateCarerAction} back={q(week)} canEdit={hasOrgPermission(ctx, "rota.edit")} idName="templateId" versionName="version" />
+        <PlannerBoard days={WEEKDAYS.map((d) => ({ date: d, label: d, today: false }))} rows={rows} action={templateCarerAction} back={q(week)} canEdit={hasOrgPermission(ctx, "rota.edit")} idName="templateId" versionName="version" confirmTemplate />
       </section>
     </>
   );

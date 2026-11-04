@@ -2067,6 +2067,8 @@ model RotaBuild {
   summary         Json            @default("{}")
   deletedById     String?
   deletedAt       DateTime?
+  /// Set when the build was made for one service user (Create Future Rota on their profile); null for a whole-week build.
+  serviceUserId   String?
   visits          Visit[]
 
   @@index([organisationId, weekStart])

@@ -43,6 +43,10 @@ export const templateSchema = z
 
 export type TemplateInput = z.input<typeof templateSchema>;
 
+export function parseTemplateInput(input: TemplateInput) {
+  return parse(input);
+}
+
 function parse(input: TemplateInput) {
   const r = templateSchema.safeParse(input);
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the template");
@@ -50,7 +54,7 @@ function parse(input: TemplateInput) {
 }
 
 /** Every id in a template must belong to the caller's organisation (and areas). */
-async function checkRefs(tx: Prisma.TransactionClient, scope: Scope, t: ReturnType<typeof parse>) {
+export async function checkRefs(tx: Prisma.TransactionClient, scope: Scope, t: ReturnType<typeof parse>) {
   const org = scope.organisationId;
   const su = await tx.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: t.serviceUserId }, select: { id: true, status: true, areaId: true, organisationId: true } });
   if (!su) throw new NotFoundError("Service user");
@@ -69,6 +73,10 @@ async function checkRefs(tx: Prisma.TransactionClient, scope: Scope, t: ReturnTy
   if (t.taskIds.length && (await tx.careTask.count({ where: { organisationId: org, id: { in: t.taskIds } } })) !== new Set(t.taskIds).size) throw new NotFoundError("Care task");
   if (t.runRouteTemplateId && !(await tx.runRouteTemplate.findFirst({ where: { id: t.runRouteTemplateId, organisationId: org } }))) throw new NotFoundError("Run route");
   return { areaId: t.areaId ?? su.areaId ?? null };
+}
+
+export function templateData(t: ReturnType<typeof parse>, areaId: string | null) {
+  return data(t, areaId);
 }
 
 function data(t: ReturnType<typeof parse>, areaId: string | null) {
@@ -114,7 +122,7 @@ export async function createTemplate(ctx: Ctx, input: TemplateInput) {
   });
 }
 
-async function loadTemplate(tx: Prisma.TransactionClient, scope: Scope, id: string) {
+export async function loadTemplate(tx: Prisma.TransactionClient, scope: Scope, id: string) {
   const t = await tx.visitTemplate.findUnique({ where: { id }, include: { serviceUser: { select: { areaId: true, branchId: true } } } });
   assertInScope(scope, t, "Template");
   return t;

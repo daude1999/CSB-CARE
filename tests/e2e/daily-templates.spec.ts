@@ -77,6 +77,7 @@ test.describe("Daily Templates", () => {
     await page.getByLabel("Bulk action", { exact: true }).selectOption("addAlert");
     await expect(page.getByTestId("bulk-hint")).toContainText("for 1 template");
     await page.getByRole("button", { name: "Go" }).click();
+    await page.getByTestId("template-bulk-confirm").getByRole("button", { name: "Continue" }).click();
     await expect(page.getByRole("status")).toContainText("1 updated");
   });
 });
