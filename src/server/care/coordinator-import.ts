@@ -127,10 +127,17 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose an authorised active area");
   const callTypes = await db.callType.findMany({where:{organisationId:scope.organisationId,id:{in:d.visits.map(v=>v.callTypeId)},active:true},select:{id:true}});
   if (new Set(callTypes.map(c=>c.id)).size!==new Set(d.visits.map(v=>v.callTypeId)).size) throw new ValidationError("One or more call types do not belong to your organisation");
+  // Check multiple identifiers: a recent hospital admission may mean that the
+  // person's address has changed since the old support plan was written.
   const existing = await db.serviceUser.findMany({where:{
-    ...serviceUserWhere(scope),firstName:{equals:d.serviceUser.firstName,mode:"insensitive"},
-    lastName:{equals:d.serviceUser.lastName,mode:"insensitive"},
-    postcode:{equals:d.serviceUser.postcode || "",mode:"insensitive"}
+    ...serviceUserWhere(scope),
+    OR:[
+      ...(d.serviceUser.nhsNumber ? [{nhsNumber:d.serviceUser.nhsNumber.replace(/\\s/g,"")}] : []),
+      {firstName:{equals:d.serviceUser.firstName,mode:"insensitive"},
+        lastName:{equals:d.serviceUser.lastName,mode:"insensitive"},
+        ...(d.serviceUser.dateOfBirth ? {dateOfBirth:dbDate(d.serviceUser.dateOfBirth)} : {}),
+      },
+    ]
   },select:{id:true},take:2});
   if (existing.length) throw new ValidationError("A possible matching service user already exists. Review the existing record before importing to avoid duplication.");
   const taskIds=[...new Set(d.visits.flatMap(v=>v.taskIds))];
