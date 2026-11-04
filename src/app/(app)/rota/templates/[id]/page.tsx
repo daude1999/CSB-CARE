@@ -38,8 +38,8 @@ export default async function TemplatePage({ params, searchParams }: { params: P
     <>
       <PageHeader
         title={`${suName(t.serviceUser)} · ${t.callType.name}`}
-        back="/rota/templates"
-        subtitle="Saving changes the pattern for weeks not yet built. Visits already built change only when you apply the change below, and visits changed by hand or already started are always left as they are."
+        back={sp.from === "su" ? `/rota/service-users/${t.serviceUser.id}?tab=template` : "/rota/templates"}
+        subtitle="Save asks you to confirm the changes, and whether to update visits already built too. Visits changed by hand or already started are always left as they are."
         actions={canEdit ? (
           <>
             <form action={duplicateTemplateAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="templateId" value={t.id} /><button className="btn-secondary">Duplicate</button></form>
@@ -84,13 +84,13 @@ export default async function TemplatePage({ params, searchParams }: { params: P
               ) : null}
             </Card>
           ) : null}
-          <Card title="History">
+          <div id="history" className="scroll-mt-20"><Card title="History">
             {history.length ? (
               <ol className="space-y-2 text-[13.5px]">
                 {history.map((h) => <li key={h.id} className="border-l-2 border-slate-200 pl-3"><div className="font-medium">{h.action.replace("template.", "").replace(/_/g, " ")}</div><div className="text-slate-500">{names.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</div></li>)}
               </ol>
             ) : <Empty>No changes recorded yet.</Empty>}
-          </Card>
+          </Card></div>
         </div>
       </div>
     </>

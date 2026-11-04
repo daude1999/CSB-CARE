@@ -41,7 +41,10 @@ const PLANNER_TONE: Partial<Record<Tone, string>> = {
  * allocation, and a refusal is shown with its reason. Without a mouse, open the visit (Enter on the chip) and change the
  * carer or day there.
  */
-export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer", stateColours = false }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; moveAction?: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string; stateColours?: boolean }) {
+export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, idName = "visitId", versionName = "lockVersion", rowLabel = "Carer", stateColours = false, confirmTemplate = false }: { days: { date: string; label: string; today: boolean }[]; rows: PlannerRow[]; action: (fd: FormData) => Promise<void>; moveAction?: (fd: FormData) => Promise<void>; back: string; canEdit: boolean; idName?: string; versionName?: string; rowLabel?: string; stateColours?: boolean; /** Template Planner: a carer move opens Confirm Template Changes first. */ confirmTemplate?: boolean }) {
+  const confirmDialog = useRef<HTMLDialogElement>(null);
+  const [asking, setAsking] = useState<{ chip: PlannerChip; from: string; to: string; day: string } | null>(null);
+  const confirmedMove = useRef(false);
   const form = useRef<HTMLFormElement>(null);
   const moveForm = useRef<HTMLFormElement>(null);
   const [drag, setDrag] = useState<{ chip: PlannerChip; day: number; staffId: string } | null>(null);
@@ -57,6 +60,7 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
         <input type="hidden" name="slot" value={pending?.chip.slot ?? ""} />
         <input type="hidden" name="staffId" value={pending?.staffId ?? ""} />
         <input type="hidden" name={versionName} value={pending?.chip.lockVersion ?? ""} />
+        {confirmTemplate ? <input type="hidden" name="confirmed" value="1" /> : null}
       </form>
       {moveAction ? (
         <form ref={moveForm} action={moveAction} className="hidden">
@@ -105,6 +109,11 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
                       const otherDay = drag.day !== di;
                       setPending({ chip: drag.chip, staffId: r.id, toDate: otherDay ? days[di]!.date : undefined });
                       setDrag(null);
+                      if (confirmTemplate && !otherDay) {
+                        setAsking({ chip: drag.chip, from: rows.find((x) => x.id === drag.staffId)?.name ?? "No carer", to: r.name, day: days[di]!.label });
+                        setTimeout(() => confirmDialog.current?.showModal(), 0);
+                        return;
+                      }
                       // Submit after React has written the hidden fields.
                       setTimeout(() => (otherDay ? moveForm.current : form.current)?.requestSubmit(), 0);
                     }}
@@ -135,7 +144,26 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
           ))}
         </tbody>
       </table>
-      {pending ? <p role="status" className="mt-2 text-[13px] text-slate-600">Checking and saving the move…</p> : null}
+      {pending && !asking ? <p role="status" className="mt-2 text-[13px] text-slate-600">Checking and saving the move…</p> : null}
+      {confirmTemplate ? (
+        <dialog ref={confirmDialog} onClose={() => { setAsking(null); if (confirmedMove.current) { confirmedMove.current = false; setTimeout(() => form.current?.requestSubmit(), 0); } else setPending(null); }} aria-labelledby="planner-confirm-title" data-testid="template-carer-confirm" className="m-auto w-[min(520px,calc(100vw-24px))] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40">
+          {asking ? (
+            <>
+              <div className="px-5 py-4 text-[14.5px]">
+                <h2 id="planner-confirm-title" className="text-[19px] font-bold">Confirm Template Changes</h2>
+                <p className="mt-2 text-[15px]">Are you sure you want to save this change to the template?</p>
+                <p className="mt-2 font-semibold">{asking.chip.label} · {asking.day} {asking.chip.time}</p>
+                <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1"><dt className="font-medium">Carer (previous)</dt><dd className="text-[#667085]">{asking.from}</dd><dt className="font-medium">Carer (new)</dt><dd className="font-semibold">{asking.to}</dd></dl>
+                <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-[14px] text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed.</p>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
+                <button type="button" onClick={() => confirmDialog.current?.close()} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold">Cancel</button>
+                <button type="button" onClick={() => { confirmedMove.current = true; confirmDialog.current?.close(); }} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white">Continue</button>
+              </div>
+            </>
+          ) : null}
+        </dialog>
+      ) : null}
     </div>
   );
 }

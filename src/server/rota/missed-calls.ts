@@ -68,15 +68,24 @@ export const OPEN_STAGES: MissedCallStage[] = ["NEW", "INVESTIGATING", "AWAITING
 /** Opens the case for a visit that has just been marked missed. Idempotent: one case per visit. */
 export async function openMissedCase(tx: Db, v: { id: string; organisationId: string; serviceUserId: string; areaId: string | null; callTypeId: string; scheduledStart: Date }, now = new Date()) {
   const existing = await tx.missedCallCase.findUnique({ where: { visitId: v.id }, select: { id: true } });
-  if (existing) return existing;
-  const booked = await tx.visitAssignment.findMany({ where: { visitId: v.id, removedAt: null, slot: { not: "SHADOW" } }, select: { staffId: true, slot: true }, orderBy: { position: "asc" } });
+  if (existing) return { ...existing, created: false };
+  const booked = await tx.visitAssignment.findMany({ where: { visitId: v.id, removedAt: null, slot: { not: "SHADOW" } }, select: { id: true, staffId: true, slot: true, position: true }, orderBy: { position: "asc" } });
   const staffId = booked.find((a) => a.slot === "PRIMARY")?.staffId ?? booked[0]?.staffId ?? null;
   const c = await tx.missedCallCase.create({
     data: { organisationId: v.organisationId, visitId: v.id, staffId, serviceUserId: v.serviceUserId, areaId: v.areaId, callTypeId: v.callTypeId, scheduledStart: v.scheduledStart, detectedAt: now, deadline: exceptionDeadline("MISSED", now) },
     select: { id: true },
   });
+  // Who was booked, in which place and with which sign-in, as it stood when the call was missed. A later rota change
+  // cannot rewrite it (database trigger). It is the list of carers the automated investigation may ask.
+  if (booked.length) {
+    const logins = new Map((await tx.staffMember.findMany({ where: { id: { in: booked.map((b) => b.staffId) }, organisationId: v.organisationId }, select: { id: true, userId: true } })).map((s) => [s.id, s.userId]));
+    await tx.missedCallCarerConfirmation.createMany({
+      data: booked.map((b) => ({ organisationId: v.organisationId, caseId: c.id, staffId: b.staffId, assignmentId: b.id, slot: b.slot, position: b.position, userIdAtDetection: logins.get(b.staffId) ?? null })),
+      skipDuplicates: true,
+    });
+  }
   await tx.missedCallComment.create({ data: { organisationId: v.organisationId, caseId: c.id, authorId: "system", kind: "SYSTEM", body: staffId ? "Missed call detected: nobody clocked in." : "Missed call detected: nobody clocked in and no carer was assigned." } });
-  return c;
+  return { ...c, created: true };
 }
 
 /** Opens cases for missed visits that have none (visits marked missed before this module, or by imported data). */
@@ -415,6 +424,13 @@ export async function recordReason(ctx: Ctx, caseId: string, input: z.input<type
   await db.$transaction(async (tx) => {
     await guardedUpdate(tx, c.id, p.data.lockVersion, { reasonCode: p.data.reasonCode, reasonDetail: p.data.reasonDetail || null, findings: p.data.findings, reasonRecordedById: ctx.userId, reasonRecordedAt: new Date(), stage: nextStage(c.stage), ...(c.coordinatorId ? {} : { coordinatorId: ctx.userId, coordinatorAssignedAt: new Date() }) });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.missed.reason", entityType: "MissedCallCase", entityId: c.id, data: { reasonCode: p.data.reasonCode, changed: !!c.reasonCode } }, tx);
+    // A pending automated suggestion is settled by the reason the coordinator records: accepted if it is the same reason.
+    const draft = await tx.missedCallInvestigationDraft.findFirst({ where: { caseId: c.id, reviewStatus: "PENDING" }, select: { id: true, suggestedReason: true } });
+    if (draft) {
+      const accepted = draft.suggestedReason === p.data.reasonCode;
+      await tx.missedCallInvestigationDraft.update({ where: { id: draft.id }, data: { reviewStatus: accepted ? "ACCEPTED" : "DIFFERENT_REASON", reviewedById: ctx.userId, reviewedAt: new Date() } });
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: accepted ? "rota.missed.auto.suggestion_accepted" : "rota.missed.auto.suggestion_rejected", entityType: "MissedCallCase", entityId: c.id, data: { draftId: draft.id, suggestedReason: draft.suggestedReason, recordedReason: p.data.reasonCode } }, tx);
+    }
   });
 }
 

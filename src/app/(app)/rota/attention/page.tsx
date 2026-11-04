@@ -16,6 +16,8 @@ import { AutoSubmitForm } from "@/components/auto-submit";
 import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
 import { AttentionQueueList, NarrowOnly, type QueueGroup, type QueueRow } from "@/components/attention-queue";
 import { TYPE_STYLE } from "@/components/attention-style";
+import { AutoStatusBadge } from "@/components/missed-auto-ui";
+import { CLASSIFICATION_LABEL } from "@/server/rota/missed-auto/suggest";
 
 export const dynamic = "force-dynamic";
 
@@ -330,6 +332,7 @@ function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; 
           </li>
         ))}
       </ol>
+      {item.auto ? <AutoBlock item={item} /> : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href={`/rota/missed/${item.id}`} className={PRIMARY} aria-label={`${c.reasonRecorded ? "Open the case" : "Record reason"} for ${item.reference}`}>{c.reasonRecorded ? "Open the case" : "Record reason"}</Link>
         {item.cover?.canFind && canEdit ? <Link href={coverHref(BASE, keep, { id: item.id, mode: "recovery" })} scroll={false} className={OUTLINE} aria-label={`Find recovery cover for ${item.reference}`}><UserPlus size={16} aria-hidden />Find recovery cover</Link> : null}
@@ -337,6 +340,26 @@ function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; 
       </div>
       {item.cover && !item.cover.canFind && item.cover.kind !== "booked" ? <p className="mt-2 text-[13px] text-[#475467]">{item.cover.text}</p> : null}
     </div>
+  );
+}
+
+/** The automated investigation's progress for the selected missed call. Its own status, never the case's stage. */
+function AutoBlock({ item }: { item: MissedEntry }) {
+  const a = item.auto!;
+  return (
+    <section className="mt-4 rounded-[10px] border border-[#e4e7ec] bg-[#fcfcfd] px-3.5 py-3" aria-labelledby={`auto-${item.id}`} data-testid="attention-auto">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h4 id={`auto-${item.id}`} className="mr-auto text-[14.5px] font-bold text-[#1b1340]">Automated investigation</h4>
+        <AutoStatusBadge status={a.status} label={a.label} />
+      </div>
+      <dl className="grid grid-cols-[minmax(0,9.5rem)_1fr] gap-x-3 gap-y-1 text-[13.5px]">
+        <dt className="text-[#475467]">Carer confirmation</dt><dd className="text-[#101828]">{a.carer}</dd>
+        <dt className="text-[#475467]">Suggested reason</dt><dd className="text-[#101828]">{a.suggestion ? CLASSIFICATION_LABEL[a.suggestion] : "None yet"}</dd>
+        <dt className="text-[#475467]">Missing information</dt><dd className="text-[#101828]">{a.missing ? `${a.missing} item${a.missing === 1 ? "" : "s"} to check` : "None listed"}</dd>
+        <dt className="text-[#475467]">Last updated</dt><dd className="text-[#101828]">{a.updatedAt ? `${londonTime(a.updatedAt)}, ${fmtLondonDate(londonDate(a.updatedAt), { day: "numeric", month: "short" })}` : "Not yet"}</dd>
+      </dl>
+      <Link href={`/rota/missed/${item.id}#auto-heading`} className={`${TEXT_LINK} mt-2 inline-block`} aria-label={`View the automated investigation for ${item.reference}`}>View investigation</Link>
+    </section>
   );
 }
 

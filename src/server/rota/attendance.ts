@@ -9,6 +9,7 @@ import type { Ctx } from "@/server/auth/rbac";
 import { raiseAlert } from "@/server/workforce/impact";
 import { myStaff } from "@/server/workforce/link";
 import { lockVisit } from "./assign";
+import { queueRefreshForVisit } from "./missed-auto/queue";
 import { rotaScope, type Scope } from "./scope";
 import { rotaSettings } from "./settings";
 
@@ -148,6 +149,7 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
     await db.$transaction((tx) => raiseAlert(tx, outcome.alert));
     throw new ValidationError(outcome.refused);
   }
+  await queueRefreshForVisit(visitId, "CLOCK");
   return outcome.result;
 }
 
@@ -189,7 +191,7 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the form");
   const at = londonToUtc(p.data.date, parseHhmm(p.data.time) ?? 0);
   if (at.getTime() > Date.now() + 60000) throw new ValidationError("A clock time cannot be in the future");
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const v = await lockVisit(tx, scope, visitId);
     if (Math.abs(at.getTime() - v.scheduledStart.getTime()) > 24 * 3600000) throw new ValidationError("That time is more than a day away from the visit");
     const settings = await rotaSettings(tx, scope.organisationId);
@@ -198,6 +200,8 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
     await tx.clockCorrectionRequest.create({ data: { organisationId: scope.organisationId, visitId: v.id, staffId: p.data.staffId, kind: p.data.kind, requestedTime: at, reason: p.data.reason, origin: "OFFICE", status: "APPROVED", requestedById: ctx.userId, decidedById: ctx.userId, decidedAt: new Date(), clockId: r.clock.id } });
     return r;
   });
+  await queueRefreshForVisit(visitId, "CLOCK");
+  return result;
 }
 
 /** Records an approved correction request as an office entry. The caller has checked scope and separation of duties. */
