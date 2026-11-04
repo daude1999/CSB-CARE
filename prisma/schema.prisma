@@ -1336,35 +1336,36 @@ enum CarerGender {
 }
 
 model StaffMember {
-  id               String           @id @default(cuid())
-  organisationId   String
-  organisation     Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id                  String                        @id @default(cuid())
+  organisationId      String
+  organisation        Organisation                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   /// The HR Hub employee id. One-to-one with the HR employee; never changes.
-  hrEmployeeId     String
-  hrVersion        Int
+  hrEmployeeId        String
+  hrVersion           Int
   /// Hash of the projected content, so unchanged employees are not rewritten.
-  hrHash           String
+  hrHash              String
   /// The HR employee no longer exists in the HR document. Kept so delivered visits keep their carer.
-  hrMissing        Boolean          @default(false)
-  staffNumber      String
-  displayName      String
-  preferredName    String?
-  jobTitle         String
-  employmentStatus EmploymentStatus
-  hrBranchKey      String
-  branchId         String?
-  branch           Branch?          @relation(fields: [branchId], references: [id])
-  startDate        DateTime?        @db.Date
-  leavingDate      DateTime?        @db.Date
-  workEmail        String?
-  workPhone        String?
+  hrMissing           Boolean                       @default(false)
+  staffNumber         String
+  displayName         String
+  preferredName       String?
+  jobTitle            String
+  employmentStatus    EmploymentStatus
+  hrBranchKey         String
+  branchId            String?
+  branch              Branch?                       @relation(fields: [branchId], references: [id])
+  startDate           DateTime?                     @db.Date
+  leavingDate         DateTime?                     @db.Date
+  workEmail           String?
+  workPhone           String?
   /// The login linked through the explicit, audited administrator workflow. Never set by matching e-mail.
-  userId           String?
-  linkedById       String?
-  linkedAt         DateTime?
-  projectedAt      DateTime
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  userId              String?
+  linkedById          String?
+  linkedAt            DateTime?
+  projectedAt         DateTime
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  missedConfirmations MissedCallCarerConfirmation[]
 
   profile            RotaStaffProfile?
   compliance         StaffCompliance[]
@@ -1902,50 +1903,64 @@ enum ComplianceRule {
 
 /// One row per organisation: how the rota and call monitoring behave.
 model RotaSettings {
-  organisationId          String         @id
-  cycleLength             Int            @default(4)
+  organisationId               String         @id
+  cycleLength                  Int            @default(4)
   /// The Monday of a "Week 1" of the cycle.
-  anchorMonday            DateTime       @db.Date
-  buildAheadWeeks         Int            @default(2)
-  lateAfterMin            Int            @default(10)
-  missedAfterMin          Int            @default(30)
-  earlyBeforeMin          Int            @default(10)
-  blockEarlyClockIn       Boolean        @default(false)
-  shortVisitPercent       Int            @default(75)
-  requireNoteOnShortVisit Boolean        @default(true)
-  dbsRule                 ComplianceRule @default(BLOCK)
-  rightToWorkRule         ComplianceRule @default(BLOCK)
-  trainingRule            ComplianceRule @default(REVIEW)
+  anchorMonday                 DateTime       @db.Date
+  buildAheadWeeks              Int            @default(2)
+  lateAfterMin                 Int            @default(10)
+  missedAfterMin               Int            @default(30)
+  earlyBeforeMin               Int            @default(10)
+  blockEarlyClockIn            Boolean        @default(false)
+  shortVisitPercent            Int            @default(75)
+  requireNoteOnShortVisit      Boolean        @default(true)
+  dbsRule                      ComplianceRule @default(BLOCK)
+  rightToWorkRule              ComplianceRule @default(BLOCK)
+  trainingRule                 ComplianceRule @default(REVIEW)
   /// Job titles (from HR) that count as care roles.
-  careRoleTitles          String[]       @default([])
-  minPreferenceRating     Int?
-  geofenceMetres          Int            @default(150)
-  carerDaysForward        Int            @default(7)
-  carerDaysBack           Int            @default(1)
-  mandatoryClockOutNote   Boolean        @default(false)
-  doorstepCancel          Boolean        @default(true)
+  careRoleTitles               String[]       @default([])
+  minPreferenceRating          Int?
+  geofenceMetres               Int            @default(150)
+  carerDaysForward             Int            @default(7)
+  carerDaysBack                Int            @default(1)
+  mandatoryClockOutNote        Boolean        @default(false)
+  doorstepCancel               Boolean        @default(true)
   /// The target time from "visit became late or missed" to "coordinator alerted", in seconds.
-  alertLatencyTargetSec   Int            @default(300)
+  alertLatencyTargetSec        Int            @default(300)
   /// Missed Calls: a care worker with this many carer-attributable missed calls inside the window is a repeat offender.
-  repeatOffenderCount     Int            @default(3)
+  repeatOffenderCount          Int            @default(3)
   /// Missed Calls: a service user missed this many times inside the window is a repeat service-user incident.
-  repeatClientCount       Int            @default(2)
+  repeatClientCount            Int            @default(2)
   /// Missed Calls: the rolling window, in days, for both repeat rules.
-  repeatWindowDays        Int            @default(30)
+  repeatWindowDays             Int            @default(30)
   /// Medication records are off until an admin switches them on after a clinical review (recorded here).
-  medicationEnabledAt     DateTime?
-  medicationEnabledById   String?
-  medicationReviewNote    String?
+  medicationEnabledAt          DateTime?
+  medicationEnabledById        String?
+  medicationReviewNote         String?
   /// Care Summary may use the AI service only after an admin records the data-protection and clinical-safety review.
-  careSummaryEnabledAt    DateTime?
-  careSummaryEnabledById  String?
-  careSummaryReviewNote   String?
+  careSummaryEnabledAt         DateTime?
+  careSummaryEnabledById       String?
+  careSummaryReviewNote        String?
   /// Body map AI-Assisted Recommendations: off until an admin records the data-protection and clinical-safety review.
-  bodyMapAiEnabledAt      DateTime?
-  bodyMapAiEnabledById    String?
-  bodyMapAiReviewNote     String?
-  updatedById             String?
-  updatedAt               DateTime       @updatedAt
+  bodyMapAiEnabledAt           DateTime?
+  bodyMapAiEnabledById         String?
+  bodyMapAiReviewNote          String?
+  /// Missed call automation (each stage has its own switch, off by default; switching off is the rollback).
+  /// Evidence: collect the system's records into a dated snapshot and timeline for each missed call.
+  missedAutoEvidenceAt         DateTime?
+  missedAutoEvidenceById       String?
+  /// Carer confirmation: ask each booked carer with a linked sign-in what happened, in the app.
+  missedAutoConfirmAt          DateTime?
+  missedAutoConfirmById        String?
+  /// Summary: a rules-based suggested reason for the coordinator to accept or reject. Never recorded by itself.
+  missedAutoSummaryAt          DateTime?
+  missedAutoSummaryById        String?
+  /// Minutes a carer has to answer before the coordinator is told; reminders sent before that (0-2) and when.
+  missedConfirmMinutes         Int            @default(60)
+  missedConfirmReminders       Int            @default(1)
+  missedConfirmReminderMinutes Int            @default(30)
+  updatedById                  String?
+  updatedAt                    DateTime       @updatedAt
 }
 
 model CallType {
@@ -3129,18 +3144,18 @@ enum MissedCallStage {
 
 /// The investigation of one missed call. Opened automatically when a visit is marked missed, one per visit, never deleted.
 model MissedCallCase {
-  id                    String                @id @default(cuid())
+  id                    String                         @id @default(cuid())
   organisationId        String
-  visitId               String                @unique
-  visit                 Visit                 @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visitId               String                         @unique
+  visit                 Visit                          @relation(fields: [visitId], references: [id], onDelete: Cascade)
   /// Snapshot at detection: who was booked (null = nobody), for whom, where and when. Kept even if the rota changes later.
   staffId               String?
   serviceUserId         String
   areaId                String?
   callTypeId            String
   scheduledStart        DateTime
-  detectedAt            DateTime              @default(now())
-  stage                 MissedCallStage       @default(NEW)
+  detectedAt            DateTime                       @default(now())
+  stage                 MissedCallStage                @default(NEW)
   deadline              DateTime?
   coordinatorId         String?
   coordinatorAssignedAt DateTime?
@@ -3155,7 +3170,7 @@ model MissedCallCase {
   replacementArrivedAt  DateTime?
   clientInformed        String?
   replacementNote       String?
-  replacementWarnings   String[]              @default([])
+  replacementWarnings   String[]                       @default([])
   replacementById       String?
   replacementAt         DateTime?
   escalatedAt           DateTime?
@@ -3176,13 +3191,16 @@ model MissedCallCase {
   suInformedNote        String?
   suInformedById        String?
   suInformedAt          DateTime?
-  lockVersion           Int                   @default(1)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  lockVersion           Int                            @default(1)
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
   actions               MissedCallAction[]
   comments              MissedCallComment[]
   covers                MissedCallCover[]
   contactAttempts       CoverContactAttempt[]
+  carerConfirmations    MissedCallCarerConfirmation[]
+  investigationRuns     MissedCallInvestigationRun[]
+  investigationDrafts   MissedCallInvestigationDraft[]
 
   @@index([organisationId, scheduledStart])
   @@index([organisationId, stage])
@@ -3910,4 +3928,118 @@ model MedicationApplicationSite {
 
   @@index([organisationId, serviceUserId])
   @@index([medicationId])
+}
+
+/// One row per carer booked on a missed visit, written when the case opens (the booked-carer snapshot), so a later rota
+/// change cannot rewrite who was booked. It also carries the in-app request asking that carer what happened.
+/// status: NOT_REQUESTED | NO_LOGIN | REQUESTED | RESPONDED | NO_RESPONSE | WITHDRAWN
+model MissedCallCarerConfirmation {
+  id                   String                    @id @default(cuid())
+  organisationId       String
+  caseId               String
+  case                 MissedCallCase            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  staffId              String
+  staff                StaffMember               @relation(fields: [staffId], references: [id])
+  assignmentId         String
+  slot                 AssignmentSlot
+  position             Int                       @default(0)
+  /// The sign-in linked to the staff record when the call was missed (null = none).
+  userIdAtDetection    String?
+  status               String                    @default("NOT_REQUESTED")
+  requestedAt          DateTime?
+  notificationId       String?
+  /// Copied from the notification when it is first opened. Not proof the request was read.
+  notificationOpenedAt DateTime?
+  responseDueAt        DateTime?
+  remindersSent        Int                       @default(0)
+  lastReminderAt       DateTime?
+  overdueNotifiedAt    DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  responses            MissedCallCarerResponse[]
+
+  @@unique([caseId, staffId])
+  @@index([organisationId, staffId, status])
+  @@index([status, responseDueAt])
+}
+
+/// A carer's own statement about a missed visit. Append-only (database trigger): a correction or addition is a new row
+/// pointing at the one it supplements. These are what the carer reported, not investigation findings.
+model MissedCallCarerResponse {
+  id                String                      @id @default(cuid())
+  organisationId    String
+  confirmationId    String
+  confirmation      MissedCallCarerConfirmation @relation(fields: [confirmationId], references: [id], onDelete: Cascade)
+  staffId           String
+  authorUserId      String
+  /// ATTENDED_NO_CLOCK | ARRIVED_LATE | UNABLE_TO_ATTEND | ACCESS_PROBLEM | SU_CANCELLED | PHONE_SYSTEM | ROTA_WRONG | OTHER
+  answer            String
+  reportedArrival   DateTime?
+  reportedDeparture DateTime?
+  /// YES | PARTLY | NO, as reported by the carer.
+  careDelivered     String?
+  /// Unable to attend: SICKNESS | TRAVEL | OTHER
+  unableReason      String?
+  notifiedSomeone   Boolean?
+  notifiedWho       String?
+  notifiedAt        DateTime?
+  attemptedAt       DateTime?
+  contacted         String?
+  explanation       String
+  supplementsId     String?
+  submissionKey     String                      @unique
+  submittedAt       DateTime                    @default(now())
+
+  @@index([confirmationId, submittedAt])
+}
+
+/// One evidence collection for a missed call: what the system held at that moment, as a frozen snapshot of ids, times
+/// and statuses (no note text, addresses or medication names). An unchanged fingerprint is recorded as UNCHANGED.
+/// status: RUNNING | COMPLETED | UNCHANGED | FAILED
+model MissedCallInvestigationRun {
+  id                String                         @id @default(cuid())
+  organisationId    String
+  caseId            String
+  case              MissedCallCase                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  /// DETECTED | CLOCK | CORRECTION | CARER_RESPONSE | ROTA_CHANGE | COVER | MANUAL | CATCH_UP
+  reason            String
+  status            String                         @default("RUNNING")
+  requestedById     String?
+  jobId             String?
+  startedAt         DateTime                       @default(now())
+  finishedAt        DateTime?
+  evidence          Json                           @default("[]")
+  timeline          Json                           @default("[]")
+  sourceRefs        Json                           @default("[]")
+  fingerprint       String?
+  error             String?
+  processingVersion Int                            @default(1)
+  drafts            MissedCallInvestigationDraft[]
+
+  @@index([caseId, startedAt])
+}
+
+/// The rules-based suggestion made from one run, and the coordinator's decision on it. A suggestion never becomes the
+/// case's reason by itself: accepting it records the reason through the normal investigation step.
+/// reviewStatus: PENDING | ACCEPTED | DIFFERENT_REASON | DISMISSED | SUPERSEDED
+model MissedCallInvestigationDraft {
+  id              String                     @id @default(cuid())
+  organisationId  String
+  caseId          String
+  case            MissedCallCase             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  runId           String
+  run             MissedCallInvestigationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  suggestedReason String?
+  classification  String
+  /// SUPPORTED | WEAK | INSUFFICIENT
+  support         String
+  summary         Json
+  generator       String                     @default("rules-v1")
+  reviewStatus    String                     @default("PENDING")
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  createdAt       DateTime                   @default(now())
+
+  @@index([caseId, createdAt])
 }
