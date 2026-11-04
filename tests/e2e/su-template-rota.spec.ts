@@ -41,6 +41,8 @@ test.describe("Service user Template and Rota tabs", () => {
     await page.getByRole("group", { name: "Select weeks" }).getByRole("link", { name: "Week 3" }).click();
     await expect(page).toHaveURL(/weeks=1%2C3|weeks=1,3/);
     await page.getByRole("group", { name: "Days" }).getByRole("link", { name: "Monday" }).click();
+    // Each chip's link is worked out from the current filters, so wait for Monday before adding Wednesday.
+    await expect(page).toHaveURL(/days=1(?!\d)/);
     await page.getByRole("group", { name: "Days" }).getByRole("link", { name: "Wednesday" }).click();
     await expect(page.getByTestId("template-summary")).toContainText("Week 1 and Week 3, Monday and Wednesday");
     await expect(page.getByRole("group", { name: "Days" }).getByRole("link", { name: "Monday, selected" })).toHaveAttribute("aria-pressed", "true");

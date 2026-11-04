@@ -63,7 +63,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
     }
   }
   // Roll Forward: copy a built week into the next 1, 2, 3 or 4 weeks as drafts.
-  const builtWeeks = [...new Set(builds.filter((b) => b.status === "BUILT").map((b) => b.weekStart))].sort().reverse();
+  const builtWeeks = [...new Set(builds.filter((b) => b.status === "BUILT" && !b.serviceUserId).map((b) => b.weekStart))].sort().reverse();
   const rollFrom = (() => {
     const f = one("from");
     return f && isIsoDate(f) ? mondayOf(f) : (builtWeeks.find((w) => w <= thisMonday) ?? builtWeeks[builtWeeks.length - 1] ?? thisMonday);
@@ -111,7 +111,8 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
   const days = plan ? [...new Set(plan.visits.map((v) => v.date))].sort() : [];
 
   const rows = builds.map((b) => {
-    const areas = (b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "Other area").join(", ") : b.otherAreas ? "" : "All areas") + (b.otherAreas ? `${b.areaIds.length ? " " : ""}(+${b.otherAreas} other branch area${b.otherAreas === 1 ? "" : "s"})` : "");
+    const areaText = (b.areaIds.length ? b.areaIds.map((a) => areaName.get(a) ?? "Other area").join(", ") : b.otherAreas ? "" : "All areas") + (b.otherAreas ? `${b.areaIds.length ? " " : ""}(+${b.otherAreas} other branch area${b.otherAreas === 1 ? "" : "s"})` : "");
+    const areas = b.serviceUserName ? `${b.serviceUserName} only (from their profile)` : areaText;
     const built = `${londonTime(b.builtAt)} ${fmtDate(b.builtAt).replace(/\s/g, " ")}`;
     return {
       key: b.id,

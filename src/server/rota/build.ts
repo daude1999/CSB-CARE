@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { carerPlaces, placeData, preferredOf, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
-import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, cycleWeekOf, dbDate, fmtLondonDate, fromDbDate, isIsoDate, isoWeekday, londonDate, londonToUtc, mondayOf } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
@@ -10,7 +10,7 @@ import { evaluate, loadFacts, type Facts, type PreferenceFacts } from "@/server/
 import { raiseAlert, reviewStaffImpact } from "@/server/workforce/impact";
 import { reconcileMedicationLeads } from "@/server/care/medication-lead";
 import { rotaSettings } from "./settings";
-import { buildWhere, rotaScope, staffDirectoryWhere, templateScopeWhere, visitWhere, type Scope } from "./scope";
+import { buildWhere, rotaScope, serviceUserWhere, staffDirectoryWhere, templateScopeWhere, visitWhere, type Scope } from "./scope";
 import { visitReference } from "./visits";
 
 /**
@@ -87,7 +87,7 @@ export function parseCycleWeek(v: number | undefined) {
   return v;
 }
 
-async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number, opts: { allowPast?: boolean } = {}): Promise<BuildPlan> {
+async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number, opts: { allowPast?: boolean; serviceUserId?: string } = {}): Promise<BuildPlan> {
   const org = scope.organisationId;
   const settings = await rotaSettings(tx, org);
   const cycleWeek = cycleWeekOverride ?? cycleWeekOf(weekStart, fromDbDate(settings.anchorMonday), settings.cycleLength);
@@ -105,6 +105,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
     where: {
       organisationId: org,
       enabled: true,
+      ...(opts.serviceUserId ? { serviceUserId: opts.serviceUserId } : {}),
       cycleWeeks: { has: cycleWeek },
       effectiveFrom: { lte: dbDate(weekEnd) },
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: dbDate(weekStart) } }],
@@ -182,7 +183,7 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
   const unassignedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.slot !== "SHADOW" && s.state === "UNASSIGNED").length, 0);
   const flaggedSlots = visits.reduce((n, v) => n + v.slots.filter((s) => s.state === "FLAGGED").length, 0);
   const noCarer = templates.filter((t) => preferredOf(t).some((x) => !x)).length;
-  const blockers = visits.length ? [] : await whyNothing(tx, scope, { weekStart, cycleWeek, cycleLength: settings.cycleLength, areaIds, includeNoArea, templates: templates.length, alreadyBuilt, skipped });
+  const blockers = visits.length || opts.serviceUserId ? [] : await whyNothing(tx, scope, { weekStart, cycleWeek, cycleLength: settings.cycleLength, areaIds, includeNoArea, templates: templates.length, alreadyBuilt, skipped });
   return {
     weekStart,
     cycleWeek,
@@ -267,7 +268,7 @@ export async function suggestBuildWeek(ctx: Ctx, horizonWeeks = 26) {
   const scope = await rotaScope(ctx, "rota.build");
   const thisMonday = mondayOf(londonDate());
   const areas = (await db.area.findMany({ where: { organisationId: scope.organisationId, active: true, ...(scope.areaIds ? { id: { in: scope.areaIds } } : {}) }, select: { id: true } })).map((a) => a.id);
-  const builds = await db.rotaBuild.findMany({ where: { ...buildWhere(scope), status: "BUILT", weekStart: { gte: dbDate(thisMonday) } }, select: { weekStart: true, areaIds: true } });
+  const builds = await db.rotaBuild.findMany({ where: { ...buildWhere(scope), status: "BUILT", serviceUserId: null, weekStart: { gte: dbDate(thisMonday) } }, select: { weekStart: true, areaIds: true } });
   const covered = new Map<string, Set<string>>();
   for (const b of builds) {
     const w = fromDbDate(b.weekStart);
@@ -300,92 +301,98 @@ export async function confirmBuild(ctx: Ctx, input: { weekStart: string; areaIds
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${weekStart}`}))`;
       const p = await plan(tx, scope, weekStart, input.areaIds ?? [], cycleWeek, { allowPast: opts.demoHistory });
       if (!p.visits.length) throw new ValidationError(p.blockers[0]?.message ?? "There is nothing to build for this week.");
-      const staffIds = [...new Set(p.visits.flatMap((v) => v.slots.map((s) => s.staffId)).filter((x): x is string => !!x))].sort();
-      if (staffIds.length) await tx.$queryRaw`SELECT id FROM "StaffMember" WHERE id = ANY(${staffIds}) ORDER BY id FOR UPDATE`;
-      const build = await tx.rotaBuild.create({
-        data: { organisationId: scope.organisationId, weekStart: dbDate(weekStart), cycleWeek: p.cycleWeek, areaIds: p.areaIds, builtById: ctx.userId, visitCount: p.visits.length, skippedCount: p.skipped.length, unassignedSlots: p.unassignedSlots, forecastMinutes: p.forecastMinutes, summary: { skipped: p.skipped, flaggedSlots: p.flaggedSlots, alreadyBuilt: p.alreadyBuilt } as unknown as Prisma.InputJsonValue },
-      });
-      const templates = await tx.visitTemplate.findMany({ where: { id: { in: [...new Set(p.visits.map((v) => v.templateId))] } }, include: { tasks: { include: { careTask: true } } } });
-      const routes = new Map<string, string>();
-      for (const t of templates.filter((t) => t.runRouteTemplateId)) {
-        const rt = await tx.runRouteTemplate.findUnique({ where: { id: t.runRouteTemplateId! } });
-        if (!rt || routes.has(rt.id)) continue;
-        const route = await tx.runRoute.upsert({
-          where: { organisationId_weekStart_name: { organisationId: scope.organisationId, weekStart: dbDate(weekStart), name: rt.name } },
-          create: { organisationId: scope.organisationId, name: rt.name, kind: rt.kind, staffId: rt.staffId, areaId: rt.areaId, colour: rt.colour, textColour: rt.textColour, weekStart: dbDate(weekStart), templateId: rt.id, createdById: ctx.userId },
-          update: {},
-        });
-        routes.set(rt.id, route.id);
-      }
-      const tById = new Map(templates.map((t) => [t.id, t]));
-      const visitRows: Prisma.VisitCreateManyInput[] = [];
-      const assignmentRows: Prisma.VisitAssignmentCreateManyInput[] = [];
-      const taskRows: Prisma.VisitTaskCreateManyInput[] = [];
-      const eventRows: Prisma.VisitEventCreateManyInput[] = [];
-      // References are random per day; a week of over a thousand visits occasionally draws the same one twice, which
-      // the unique index would reject for the whole week. Existing references on these days are avoided as well.
-      const taken = new Set((await tx.visit.findMany({ where: { organisationId: scope.organisationId, date: { gte: dbDate(weekStart), lte: dbDate(addDays(weekStart, 6)) } }, select: { reference: true } })).map((r) => r.reference));
-      const freshReference = (date: string) => {
-        let r = visitReference(date);
-        while (taken.has(r)) r = visitReference(date);
-        taken.add(r);
-        return r;
-      };
-      for (const v of p.visits) {
-        const t = tById.get(v.templateId)!;
-        const id = randomUUID();
-        visitRows.push({
-          id,
-          organisationId: scope.organisationId,
-          reference: freshReference(v.date),
-          serviceUserId: v.serviceUserId,
-          callTypeId: v.callTypeId,
-          areaId: v.areaId,
-          templateId: v.templateId,
-          rotaBuildId: build.id,
-          runRouteId: t.runRouteTemplateId ? (routes.get(t.runRouteTemplateId) ?? null) : null,
-          routeOrder: t.runRouteTemplateId ? t.routeOrder : null,
-          date: dbDate(v.date),
-          scheduledStart: v.start,
-          scheduledEnd: v.end,
-          carersRequired: v.carersRequired,
-          rotaType: t.rotaType,
-          timeLocked: t.timeLocked,
-          medicationRequired: t.medicationRequired,
-          alertOnLate: t.alertOnLate,
-          notes: t.notes,
-          createdById: ctx.userId,
-        });
-        for (const s of v.slots.filter((s) => s.staffId)) {
-          assignmentRows.push({
-            organisationId: scope.organisationId,
-            visitId: id,
-            ...placeData(s.slot),
-            staffId: s.staffId!,
-            startsAt: v.start,
-            endsAt: v.end,
-            eligibility: s.state === "ASSIGNED" ? "ELIGIBLE" : "REQUIRES_REVIEW",
-            assignedById: ctx.userId,
-            reviewReason: s.state === "FLAGGED" ? s.reason : null,
-            reviewFlaggedAt: s.state === "FLAGGED" ? new Date() : null,
-          });
-        }
-        t.tasks.forEach((x, i) => taskRows.push({ visitId: id, careTaskId: x.careTaskId, name: x.careTask.name, position: i }));
-        eventRows.push({ organisationId: scope.organisationId, visitId: id, type: "CREATED", toStatus: "SCHEDULED", actorId: ctx.userId, data: { source: "build", buildId: build.id, slots: v.slots.map((s) => ({ slot: s.slot, state: s.state, reason: s.reason ?? null })) } as unknown as Prisma.InputJsonValue });
-      }
-      await tx.visit.createMany({ data: visitRows });
-      if (assignmentRows.length) await tx.visitAssignment.createMany({ data: assignmentRows });
-      if (taskRows.length) await tx.visitTask.createMany({ data: taskRows });
-      await tx.visitEvent.createMany({ data: eventRows });
-      await reconcileMedicationLeads(tx, scope.organisationId, visitRows.flatMap((r) => (r.id ? [r.id] : [])), ctx.userId, `Rota build for the week of ${weekStart}`, build.id);
-      if (p.unassignedSlots) {
-        await raiseAlert(tx, { organisationId: scope.organisationId, kind: "UNASSIGNED", message: `Week of ${weekStart}: ${p.unassignedSlots} visit slot${p.unassignedSlots === 1 ? " is" : "s are"} unassigned after the build`, dedupeKey: `build-unassigned:${build.id}`, actionUrl: `/rota/visits?date=${weekStart}&unassigned=1` });
-      }
-      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.built", entityType: "RotaBuild", entityId: build.id, data: { weekStart, cycleWeek: p.cycleWeek, visits: p.visits.length, unassignedSlots: p.unassignedSlots, skipped: p.skipped.length } }, tx);
+      const build = await writeBuild(tx, ctx, scope, weekStart, p, null);
       return { build, plan: p };
     },
     { timeout: 120_000 },
   );
+}
+
+/** Saves a plan's visits as one unpublished build. Runs inside the caller's transaction, after its week lock. */
+async function writeBuild(tx: Tx, ctx: Ctx, scope: Scope, weekStart: string, p: BuildPlan, serviceUserId: string | null) {
+  const staffIds = [...new Set(p.visits.flatMap((v) => v.slots.map((s) => s.staffId)).filter((x): x is string => !!x))].sort();
+  if (staffIds.length) await tx.$queryRaw`SELECT id FROM "StaffMember" WHERE id = ANY(${staffIds}) ORDER BY id FOR UPDATE`;
+  const build = await tx.rotaBuild.create({
+    data: { organisationId: scope.organisationId, weekStart: dbDate(weekStart), cycleWeek: p.cycleWeek, areaIds: p.areaIds, builtById: ctx.userId, serviceUserId, visitCount: p.visits.length, skippedCount: p.skipped.length, unassignedSlots: p.unassignedSlots, forecastMinutes: p.forecastMinutes, summary: { skipped: p.skipped, flaggedSlots: p.flaggedSlots, alreadyBuilt: p.alreadyBuilt } as unknown as Prisma.InputJsonValue },
+  });
+  const templates = await tx.visitTemplate.findMany({ where: { id: { in: [...new Set(p.visits.map((v) => v.templateId))] } }, include: { tasks: { include: { careTask: true } } } });
+  const routes = new Map<string, string>();
+  for (const t of templates.filter((t) => t.runRouteTemplateId)) {
+    const rt = await tx.runRouteTemplate.findUnique({ where: { id: t.runRouteTemplateId! } });
+    if (!rt || routes.has(rt.id)) continue;
+    const route = await tx.runRoute.upsert({
+      where: { organisationId_weekStart_name: { organisationId: scope.organisationId, weekStart: dbDate(weekStart), name: rt.name } },
+      create: { organisationId: scope.organisationId, name: rt.name, kind: rt.kind, staffId: rt.staffId, areaId: rt.areaId, colour: rt.colour, textColour: rt.textColour, weekStart: dbDate(weekStart), templateId: rt.id, createdById: ctx.userId },
+      update: {},
+    });
+    routes.set(rt.id, route.id);
+  }
+  const tById = new Map(templates.map((t) => [t.id, t]));
+  const visitRows: Prisma.VisitCreateManyInput[] = [];
+  const assignmentRows: Prisma.VisitAssignmentCreateManyInput[] = [];
+  const taskRows: Prisma.VisitTaskCreateManyInput[] = [];
+  const eventRows: Prisma.VisitEventCreateManyInput[] = [];
+  // References are random per day; a week of over a thousand visits occasionally draws the same one twice, which
+  // the unique index would reject for the whole week. Existing references on these days are avoided as well.
+  const taken = new Set((await tx.visit.findMany({ where: { organisationId: scope.organisationId, date: { gte: dbDate(weekStart), lte: dbDate(addDays(weekStart, 6)) } }, select: { reference: true } })).map((r) => r.reference));
+  const freshReference = (date: string) => {
+    let r = visitReference(date);
+    while (taken.has(r)) r = visitReference(date);
+    taken.add(r);
+    return r;
+  };
+  for (const v of p.visits) {
+    const t = tById.get(v.templateId)!;
+    const id = randomUUID();
+    visitRows.push({
+      id,
+      organisationId: scope.organisationId,
+      reference: freshReference(v.date),
+      serviceUserId: v.serviceUserId,
+      callTypeId: v.callTypeId,
+      areaId: v.areaId,
+      templateId: v.templateId,
+      rotaBuildId: build.id,
+      runRouteId: t.runRouteTemplateId ? (routes.get(t.runRouteTemplateId) ?? null) : null,
+      routeOrder: t.runRouteTemplateId ? t.routeOrder : null,
+      date: dbDate(v.date),
+      scheduledStart: v.start,
+      scheduledEnd: v.end,
+      carersRequired: v.carersRequired,
+      rotaType: t.rotaType,
+      timeLocked: t.timeLocked,
+      medicationRequired: t.medicationRequired,
+      alertOnLate: t.alertOnLate,
+      notes: t.notes,
+      createdById: ctx.userId,
+    });
+    for (const s of v.slots.filter((s) => s.staffId)) {
+      assignmentRows.push({
+        organisationId: scope.organisationId,
+        visitId: id,
+        ...placeData(s.slot),
+        staffId: s.staffId!,
+        startsAt: v.start,
+        endsAt: v.end,
+        eligibility: s.state === "ASSIGNED" ? "ELIGIBLE" : "REQUIRES_REVIEW",
+        assignedById: ctx.userId,
+        reviewReason: s.state === "FLAGGED" ? s.reason : null,
+        reviewFlaggedAt: s.state === "FLAGGED" ? new Date() : null,
+      });
+    }
+    t.tasks.forEach((x, i) => taskRows.push({ visitId: id, careTaskId: x.careTaskId, name: x.careTask.name, position: i }));
+    eventRows.push({ organisationId: scope.organisationId, visitId: id, type: "CREATED", toStatus: "SCHEDULED", actorId: ctx.userId, data: { source: "build", buildId: build.id, slots: v.slots.map((s) => ({ slot: s.slot, state: s.state, reason: s.reason ?? null })) } as unknown as Prisma.InputJsonValue });
+  }
+  await tx.visit.createMany({ data: visitRows });
+  if (assignmentRows.length) await tx.visitAssignment.createMany({ data: assignmentRows });
+  if (taskRows.length) await tx.visitTask.createMany({ data: taskRows });
+  await tx.visitEvent.createMany({ data: eventRows });
+  await reconcileMedicationLeads(tx, scope.organisationId, visitRows.flatMap((r) => (r.id ? [r.id] : [])), ctx.userId, `Rota build for the week of ${weekStart}`, build.id);
+  if (p.unassignedSlots) {
+    await raiseAlert(tx, { organisationId: scope.organisationId, kind: "UNASSIGNED", message: `Week of ${weekStart}: ${p.unassignedSlots} visit slot${p.unassignedSlots === 1 ? " is" : "s are"} unassigned after the build`, dedupeKey: `build-unassigned:${build.id}`, actionUrl: `/rota/visits?date=${weekStart}&unassigned=1` });
+  }
+  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.built", entityType: "RotaBuild", entityId: build.id, data: { weekStart, cycleWeek: p.cycleWeek, serviceUserId, visits: p.visits.length, unassignedSlots: p.unassignedSlots, skipped: p.skipped.length } }, tx);
+  return build;
 }
 
 /** Makes a built week visible to its carers, and tells each carer in-app. */
@@ -452,6 +459,8 @@ export async function listBuilds(ctx: Ctx) {
         scope.areaIds ? db.visit.groupBy({ by: ["rotaBuildId"], where: { ...visitWhere(scope), rotaBuildId: { in: ids } }, _count: { _all: true } }) : Promise.resolve(null),
       ])
     : [[], null];
+  const suIds = [...new Set(builds.map((b) => b.serviceUserId).filter((x): x is string => !!x))];
+  const suNames = new Map(suIds.length ? (await db.serviceUser.findMany({ where: { organisationId: scope.organisationId, id: { in: suIds } }, select: { id: true, firstName: true, lastName: true, preferredName: true } })).map((u) => [u.id, nameOf(u)]) : []);
   const thisMonday = mondayOf(londonDate());
   return builds.map((b) => {
     const weekStart = fromDbDate(b.weekStart);
@@ -462,6 +471,9 @@ export async function listBuilds(ctx: Ctx) {
       current: weekStart === thisMonday,
       future: weekStart > thisMonday,
       cycleWeek: b.cycleWeek,
+      /** A build made from one service user's profile (Create Future Rota) names them; null for a whole-week build. */
+      serviceUserId: b.serviceUserId,
+      serviceUserName: b.serviceUserId ? (suNames.get(b.serviceUserId) ?? "A service user") : null,
       /** Only the member's own areas are named; others are counted, never shown. */
       areaIds: scope.areaIds ? b.areaIds.filter((a) => scope.areaIds!.includes(a)) : b.areaIds,
       otherAreas: scope.areaIds ? b.areaIds.filter((a) => !scope.areaIds!.includes(a)).length : 0,
@@ -480,5 +492,96 @@ export async function listBuilds(ctx: Ctx) {
 /** True when a rota has been built for the week containing `date`, so an empty screen can say why it is empty. */
 export async function weekIsBuilt(ctx: Ctx, date: string) {
   const scope = await rotaScope(ctx, "rota.view");
-  return (await db.rotaBuild.count({ where: { ...buildWhere(scope), weekStart: dbDate(mondayOf(date)), status: "BUILT" } })) > 0;
+  return (await db.rotaBuild.count({ where: { ...buildWhere(scope), weekStart: dbDate(mondayOf(date)), status: "BUILT", serviceUserId: null } })) > 0;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------
+ * Create Future Rota for one service user (Service User Profile -> Visits -> Rota / Template).
+ * The same rules as Build Rota, limited to this person's active templates: one visit per template and date (an
+ * existing visit is never duplicated), absences skipped, every carer checked, refused places left open. The visits
+ * are created unpublished, one build per week, and go out to carers only when published.
+ * ------------------------------------------------------------------------------------------------------------- */
+
+export const FUTURE_ROTA_MAX_WEEKS = 8;
+
+function parseFutureInput(input: { weekStart: string; weeks: number }) {
+  const weekStart = parseWeek(input.weekStart);
+  if (weekStart < mondayOf(londonDate())) throw new ValidationError("Choose this week or a later week. Past weeks cannot be built.");
+  if (!Number.isInteger(input.weeks) || input.weeks < 1 || input.weeks > FUTURE_ROTA_MAX_WEEKS) throw new ValidationError(`Choose between 1 and ${FUTURE_ROTA_MAX_WEEKS} weeks`);
+  return { weekStart, weeks: input.weeks };
+}
+
+async function planForServiceUser(tx: Tx, scope: Scope, serviceUserId: string, weekStart: string, weeks: number) {
+  const out: BuildPlan[] = [];
+  for (let i = 0; i < weeks; i++) out.push(await plan(tx, scope, addDays(weekStart, i * 7), [], undefined, { serviceUserId }));
+  return out;
+}
+
+/** Changes whenever what would be created changes (a new visit elsewhere, an absence, a carer's availability). */
+function futureFingerprint(plans: BuildPlan[]) {
+  const parts = plans.flatMap((p) => p.visits.map((v) => `${v.templateId}|${v.date}|${v.start.toISOString()}|${v.slots.map((s) => `${s.slot}:${s.staffId ?? "-"}:${s.state}`).join(",")}`));
+  return createHash("sha256").update(parts.sort().join("\n")).digest("hex").slice(0, 24);
+}
+
+async function loadServiceUser(tx: Tx, scope: Scope, serviceUserId: string) {
+  const su = await tx.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: serviceUserId }, select: { id: true, firstName: true, lastName: true, preferredName: true, status: true } });
+  if (!su) throw new NotFoundError("Service user");
+  return su;
+}
+
+export async function previewServiceUserRota(ctx: Ctx, serviceUserId: string, input: { weekStart: string; weeks: number }) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const { weekStart, weeks } = parseFutureInput(input);
+  const su = await loadServiceUser(db, scope, serviceUserId);
+  const plans = await planForServiceUser(db, scope, su.id, weekStart, weeks);
+  const templates = await db.visitTemplate.count({ where: { ...templateScopeWhere(scope), organisationId: scope.organisationId, serviceUserId: su.id, enabled: true } });
+  return {
+    serviceUser: { id: su.id, name: nameOf(su), status: su.status },
+    weekStart,
+    weeks,
+    activeTemplates: templates,
+    plans: plans.map((p) => ({ weekStart: p.weekStart, weekEnd: addDays(p.weekStart, 6), cycleWeek: p.cycleWeek, visits: p.visits, skipped: p.skipped, alreadyBuilt: p.alreadyBuilt, unassignedSlots: p.unassignedSlots, flaggedSlots: p.flaggedSlots })),
+    totals: {
+      create: plans.reduce((n, p) => n + p.visits.length, 0),
+      alreadyBuilt: plans.reduce((n, p) => n + p.alreadyBuilt, 0),
+      skipped: plans.reduce((n, p) => n + p.skipped.length, 0),
+      unassignedSlots: plans.reduce((n, p) => n + p.unassignedSlots, 0),
+      flaggedSlots: plans.reduce((n, p) => n + p.flaggedSlots, 0),
+    },
+    fingerprint: futureFingerprint(plans),
+  };
+}
+
+/**
+ * Creates the previewed visits in one transaction. Each week is locked exactly as Build Rota locks it, so this and a
+ * whole-week build can never both create the same visit. If anything changed since the preview, nothing is created.
+ */
+export async function confirmServiceUserRota(ctx: Ctx, serviceUserId: string, input: { weekStart: string; weeks: number; fingerprint: string; publish?: boolean }) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const { weekStart, weeks } = parseFutureInput(input);
+  const result = await db.$transaction(
+    async (tx) => {
+      const su = await loadServiceUser(tx, scope, serviceUserId);
+      for (let i = 0; i < weeks; i++) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${addDays(weekStart, i * 7)}`}))`;
+      const plans = await planForServiceUser(tx, scope, su.id, weekStart, weeks);
+      if (futureFingerprint(plans) !== input.fingerprint) throw new ConflictError("The rota changed since you previewed it (another visit, absence or carer change). Nothing was created. Preview again to see the latest.");
+      const toBuild = plans.filter((p) => p.visits.length);
+      if (!toBuild.length) throw new ValidationError("There is nothing new to create: every visit in these weeks is already on the rota, skipped or in the past.");
+      const builds: string[] = [];
+      for (const p of toBuild) builds.push((await writeBuild(tx, ctx, scope, p.weekStart, p, su.id)).id);
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.future.created", entityType: "ServiceUser", entityId: su.id, data: { weekStart, weeks, builds, visits: toBuild.reduce((n, p) => n + p.visits.length, 0), alreadyBuilt: plans.reduce((n, p) => n + p.alreadyBuilt, 0), skipped: plans.reduce((n, p) => n + p.skipped.length, 0) } }, tx);
+      return { builds, visits: toBuild.reduce((n, p) => n + p.visits.length, 0), unassignedSlots: toBuild.reduce((n, p) => n + p.unassignedSlots, 0), alreadyBuilt: plans.reduce((n, p) => n + p.alreadyBuilt, 0) };
+    },
+    { timeout: 120_000 },
+  );
+  let published = 0;
+  let carersNotified = 0;
+  if (input.publish) {
+    for (const id of result.builds) {
+      const r = await publishBuild(ctx, id);
+      published += r.published;
+      carersNotified += r.carersNotified;
+    }
+  }
+  return { ...result, published, carersNotified };
 }
