@@ -369,3 +369,58 @@
   .pdf-print-root { display: block; }
   .pdf-print-root img { display: block; width: 100%; height: auto; break-after: page; }
 }
+
+/* Digital Body Map workspace (approved reference docs/design/body-map-reference.png): white 12px cards with a hairline
+   border, purple primary actions, segmented view switch, a tool rail and soft status pills. Colour and spacing only. */
+@layer components {
+  .bm-card { @apply min-w-0 rounded-[12px] border border-[#eaecf0] bg-white p-4; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); }
+  .bm-raised { box-shadow: 0 4px 16px rgb(16 24 40 / 0.08); }
+  .bm-h2 { @apply text-[22px] font-semibold tracking-[-0.01em] text-[#101828]; }
+  .bm-h3 { @apply text-[17px] font-semibold text-[#101828]; }
+  .bm-h4 { @apply text-[14px] font-semibold text-[#101828]; }
+  .bm-label { @apply mb-1 block text-[12.5px] font-semibold text-[#344054]; }
+  .bm-icon { @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[#f4f3ff] text-[#5b2bb5]; }
+  .bm-primary { @apply inline-flex min-h-[38px] items-center gap-2 whitespace-nowrap rounded-[9px] border border-[#5b2bb5] bg-[#5b2bb5] px-4 text-[13.5px] font-semibold text-white no-underline; }
+  .bm-primary:hover { @apply border-[#4a2196] bg-[#4a2196] text-white; }
+  .bm-secondary { @apply inline-flex min-h-[38px] items-center gap-2 whitespace-nowrap rounded-[9px] border border-[#d0d5dd] bg-white px-4 text-[13.5px] font-semibold text-[#344054] no-underline; }
+  .bm-secondary:hover { @apply bg-[#f9fafb] text-[#101828]; }
+  .bm-small { @apply min-h-[32px] px-3 text-[12.5px]; }
+  .bm-seg { @apply grid grid-cols-4 gap-1 rounded-[10px] bg-[#f2f4f7] p-1; }
+  .bm-seg-btn { @apply rounded-[8px] px-2 py-1.5 text-[13.5px] font-medium text-[#344054]; }
+  .bm-seg-btn[aria-pressed="true"] { @apply bg-[#5b2bb5] text-white shadow-sm; }
+  .bm-tools { @apply flex flex-col self-start rounded-[10px] border border-[#eaecf0] bg-white p-1 shadow-sm; }
+  .bm-tool { @apply flex flex-col items-center gap-0.5 rounded-[8px] border border-transparent px-0.5 py-2 text-[10.5px] leading-tight text-[#475467] disabled:opacity-40; }
+  .bm-tool + .bm-tool { @apply relative mt-[5px]; }
+  .bm-tool + .bm-tool::before { content: ""; @apply absolute -top-[3.5px] left-1.5 right-1.5 h-px bg-[#eaecf0]; }
+  .bm-tool:hover:not(:disabled) { @apply bg-[#f9fafb] text-[#101828]; }
+  .bm-tool[aria-pressed="true"] { @apply border-[#d9d6fe] bg-[#f4f3ff] text-[#5b2bb5]; }
+  .bm-chip { @apply flex items-center gap-2 rounded-full border border-[#d9d6fe] bg-[#f4f3ff] py-1 pl-2.5 pr-2 text-[12.5px] font-medium text-[#3e1c96]; }
+  .bm-types { @apply rounded-[10px] border border-[#eaecf0] p-2; }
+  .bm-types-title { @apply mb-1.5 whitespace-nowrap px-1 text-[13px] font-semibold text-[#101828]; }
+  .bm-type { @apply flex w-full min-w-0 items-center gap-2 rounded-[7px] px-1.5 py-[5px] text-[12.5px] text-[#344054]; }
+  .bm-type:hover { @apply bg-[#f9fafb]; }
+  .bm-type[aria-pressed="true"] { @apply bg-[#ebe9fe] font-medium text-[#3e1c96]; }
+  .bm-selected { @apply rounded-[10px] border border-[#eaecf0] p-2; }
+  .bm-switch { @apply relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-[#d0d5dd] align-middle transition-colors; }
+  .bm-switch[aria-checked="true"] { @apply bg-[#5b2bb5]; }
+  .bm-switch > span { @apply absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform; }
+  .bm-switch[aria-checked="true"] > span { transform: translateX(20px); }
+  .bm-add-photo { @apply inline-flex h-[72px] w-[92px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[8px] border border-dashed border-[#9e77ed] bg-[#faf8ff] text-[12px] font-medium text-[#5b2bb5]; }
+  .bm-add-photo:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .bm-tabs { @apply -mx-4 flex gap-1 overflow-x-auto border-b border-[#eaecf0] px-4; }
+  .bm-tab { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-1.5 pb-2 pt-1 text-[12.5px] font-medium text-[#475467] no-underline; }
+  .bm-tab:hover { @apply text-[#101828]; }
+  .bm-tab[aria-current="page"] { @apply border-[#5b2bb5] text-[#5b2bb5]; }
+  .bm-dl { @apply grid grid-cols-[minmax(110px,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]; }
+  .bm-dl dt { @apply font-semibold text-[#344054]; }
+  .bm-dl dd { @apply text-[#475467]; }
+  .bm-link-card { @apply min-w-0 rounded-[10px] border border-[#eaecf0] p-2.5 text-[12.5px]; }
+  .bm-block { @apply rounded-[10px] border border-[#eaecf0] p-3; }
+  .bm-note { @apply rounded-[12px] border-[1.5px] border-[#9e77ed] p-3; }
+  .bm-callout { @apply rounded-[10px] border border-[#fedf89] bg-[#fffaeb] p-3 text-[13px] text-[#7a2e0e]; }
+  .bm-ai { @apply rounded-[10px] border border-[#d9d6fe] bg-[#faf8ff] p-3; }
+  .bm-pill { @apply inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-medium; }
+}
+@layer components {
+  .bm-card .input, .bm-note .input, .bm-block .input { @apply py-[7px] text-[13.5px]; min-height: 36px; }
+}

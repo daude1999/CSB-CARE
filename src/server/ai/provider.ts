@@ -1,4 +1,4 @@
-import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput } from "./schemas";
+import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -56,6 +56,25 @@ export interface CareSummaryInput {
   facts: string[];
 }
 
+/** One record given to body map recommendations, by short id only (O1 = this observation, H = earlier observations of
+ *  the same area, N = notes and follow-ups, P = care plan sections, R = risk assessments, I = incidents, M = medicines
+ *  with a documented application site, G = the organisation's own approved policies). No names, no photographs. */
+export interface BodyMapRecordInput {
+  sid: string;
+  kind: string;
+  date: string;
+  text: string;
+}
+
+export interface BodyMapRecommendationInput {
+  /** The observation itself, as structured facts. */
+  observation: { sid: "O1"; category: string; area: string; view: string; observedOn: string; pain: string; size: string | null; appearance: string | null; description: string; followUpOn: string | null; status: string; incidentDecision: string | null; photoCount: number };
+  records: BodyMapRecordInput[];
+  /** Plain sentences about what could not be considered (e.g. medication records switched off). */
+  limits: string[];
+  today: string;
+}
+
 /**
  * Provider abstraction. Implementations must return outputs matching the zod
  * schemas; callers validate again and verify every citation against stored text.
@@ -69,6 +88,8 @@ export interface LlmProvider {
   answer(input: AssistantInput): Promise<AssistantAnswer>;
   /** Care Summary for a person's recorded care. Optional, so providers that do not offer it simply leave it out. */
   summariseCare?(input: CareSummaryInput): Promise<CareSummaryOutput>;
+  /** Body map AI-Assisted Recommendations. Optional, like summariseCare. */
+  recommendBodyMap?(input: BodyMapRecommendationInput): Promise<BodyMapRecommendationOutput>;
 }
 
 export class AiUnavailableError extends Error {

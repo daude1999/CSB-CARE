@@ -565,7 +565,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </>
       ) : null}
 
-      {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} base={base} selectedId={sp.obs} recording={sp.record === "1"} /> : null}
+      {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} personName={`${su.firstName} ${su.lastName}`} base={base} sp={sp} /> : null}
 
       {tab === "history" ? (
         <Card title="Record history">

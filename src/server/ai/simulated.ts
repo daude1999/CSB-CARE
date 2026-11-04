@@ -1,8 +1,8 @@
 import { canonicalForMatch, splitSentences, truncate } from "@/lib/text";
 import { phraseSubstitutions } from "../changes/diff";
 import { suggestCategories, suggestServiceTypes } from "../changes/classify";
-import type { AssistantInput, CareSummaryInput, ChangeAnalysisInput, ImpactInput, LlmProvider, RevisionInput } from "./provider";
-import type { AssistantAnswer, CareSummaryOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput } from "./schemas";
+import type { AssistantInput, BodyMapRecommendationInput, CareSummaryInput, ChangeAnalysisInput, ImpactInput, LlmProvider, RevisionInput } from "./provider";
+import type { AssistantAnswer, BodyMapRecommendationOutput, CareSummaryOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput } from "./schemas";
 
 /**
  * Deterministic stand-in for an LLM, used in demos, tests and when no AI
@@ -196,5 +196,52 @@ export class SimulatedProvider implements LlmProvider {
       ...(of("Visit note").length ? [] : ["No visit notes were written in this period."]),
     ];
     return { summary, changes, concerns, nextActions, gaps };
+  }
+
+  /**
+   * Rule-based stand-in for body map recommendations: it looks only at which kinds of record exist and the structured
+   * fields of the observation. It never reads meaning into free text. Every suggestion is labelled SIMULATED.
+   */
+  async recommendBodyMap(input: BodyMapRecommendationInput): Promise<BodyMapRecommendationOutput> {
+    const L = "[SIMULATED] ";
+    const o = input.observation;
+    const of = (kind: string) => input.records.filter((r) => r.kind === kind);
+    const ids = (xs: { sid: string }[]) => xs.slice(0, 6).map((x) => x.sid);
+    const policies = of("Approved policy");
+    const recs: BodyMapRecommendationOutput["recommendations"] = [];
+    const facts = [`${o.category} recorded on ${o.area} on ${o.observedOn}.`, `Pain or discomfort: ${o.pain.toLowerCase()}.`];
+    if (o.status === "OPEN" && !o.followUpOn) {
+      recs.push({ category: "OBSERVATION_FOLLOW_UP", title: `${L}Consider setting a follow-up review`, explanation: "No follow-up date is recorded for this open observation.", suggestedAction: "Consider creating a follow-up task so the area is looked at again.", actionKind: "FOLLOW_UP", facts: [...facts, "Follow-up date: none set."], sources: ["O1"] });
+    } else if (o.status === "OPEN" && o.followUpOn && o.followUpOn < input.today) {
+      recs.push({ category: "OBSERVATION_FOLLOW_UP", title: `${L}Make sure the responsible manager knows the review is overdue`, explanation: `The follow-up date (${o.followUpOn}) has passed and the observation is still open.`, suggestedAction: "Consider assigning a manager review.", actionKind: "MANAGER_REVIEW", facts: [`Follow-up date: ${o.followUpOn}.`, "Status: open."], sources: ["O1"] });
+    }
+    const earlier = of("Earlier observation");
+    if (earlier.length) {
+      recs.push({ category: "HISTORICAL_COMPARISON", title: `${L}Review earlier observations of the same area`, explanation: `${earlier.length} earlier ${earlier.length === 1 ? "observation was" : "observations were"} recorded on ${o.area}. Compare the recorded sizes and descriptions; photographs must be compared by a person.`, suggestedAction: "Open the History tab and compare the recorded measurements side by side.", actionKind: null, facts: earlier.slice(0, 4).map((e) => `${e.date}: ${e.text}`), sources: ids(earlier) });
+    }
+    const plan = of("Care plan section");
+    if (plan.length) {
+      recs.push({ category: "CARE_PLAN_REVIEW", title: `${L}Consider whether the care plan needs review`, explanation: `${plan.length} section${plan.length === 1 ? "" : "s"} of the current care plan ${plan.length === 1 ? "covers" : "cover"} skin, pressure or personal care. A manager may want to check ${plan.length === 1 ? "it" : "them"} against this observation.`, suggestedAction: "Consider requesting a care plan review.", actionKind: "CARE_PLAN_REVIEW", facts: plan.slice(0, 3).map((p) => p.text.slice(0, 140)), sources: ids(plan) });
+    }
+    const risks = of("Risk assessment");
+    if (risks.length) {
+      recs.push({ category: "RISK_REVIEW", title: `${L}Consider risk assessment review`, explanation: "The observation may warrant a review of the existing skin-integrity or related risk assessment.", suggestedAction: "Consider requesting a risk assessment review.", actionKind: "RISK_REVIEW", facts: risks.slice(0, 3).map((r) => r.text.slice(0, 140)), sources: [...ids(risks), "O1"] });
+    } else {
+      recs.push({ category: "RISK_REVIEW", title: `${L}Check whether a risk assessment covers this concern`, explanation: "No active skin-integrity or related risk assessment was found for this person.", suggestedAction: "Consider asking a manager whether a risk assessment is needed.", actionKind: "RISK_REVIEW", facts: ["No active risk assessment about skin, pressure or falls was found."], sources: ["O1"] });
+    }
+    if (!o.incidentDecision) {
+      const incidents = of("Incident");
+      recs.push({ category: "INCIDENT_SAFEGUARDING", title: `${L}Ask an authorised manager to assess whether an incident report is needed`, explanation: `A manager has not yet recorded whether an incident report is needed.${incidents.length ? ` ${incidents.length} incident${incidents.length === 1 ? " is" : "s are"} already recorded for this person; check whether one covers this.` : ""} Whether the safeguarding procedure applies is for the manager to decide.`, suggestedAction: "Consider requesting an incident assessment.", actionKind: "INCIDENT_ASSESSMENT", facts: ["Incident decision: not yet recorded."], sources: ["O1", ...ids(incidents), ...ids(policies.filter((p) => /safeguard|incident/i.test(p.text)))] });
+    }
+    const meds = of("Medication site");
+    const noSite = of("Topical medicine without a site");
+    if (meds.length) {
+      recs.push({ category: "MEDICATION_REVIEW", title: `${L}Check the recorded application-site instructions`, explanation: "A topical medicine or patch is documented for this area. Check the recorded instructions; any change is for a qualified professional.", suggestedAction: "Consider assigning a manager review of the application-site instructions.", actionKind: "MANAGER_REVIEW", facts: meds.map((m) => m.text.slice(0, 140)), sources: ids(meds) });
+    }
+    if (noSite.length) {
+      recs.push({ category: "MEDICATION_REVIEW", title: `${L}Application site not recorded`, explanation: `${noSite.length} topical medicine${noSite.length === 1 ? " has" : "s have"} no documented application site.`, suggestedAction: "Consider asking an authorised manager to record where it is applied.", actionKind: "MANAGER_REVIEW", facts: noSite.map((m) => m.text.slice(0, 140)), sources: ids(noSite) });
+    }
+    const gaps = ["Simulated suggestions follow fixed rules about which records exist; they do not read or interpret what was written.", ...input.limits];
+    return { recommendations: recs, gaps };
   }
 }

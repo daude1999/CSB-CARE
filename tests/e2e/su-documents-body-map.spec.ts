@@ -69,25 +69,51 @@ test.describe("Service user documents and body map", () => {
     await openFirstServiceUser(page);
     await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Health and safety" }).click();
     await page.getByRole("navigation", { name: "Health and safety sections" }).getByRole("link", { name: "Body map" }).click();
-    await page.getByRole("link", { name: "Record observation" }).click();
-    await page.getByRole("group", { name: "Body map view" }).getByRole("button", { name: "Back", exact: true }).click();
+    // Add Area: clicking the outline opens Record Observation at that spot.
+    await page.getByRole("group", { name: "Body view" }).getByRole("button", { name: "Back", exact: true }).click();
+    await page.getByRole("toolbar", { name: "Body map tools" }).getByRole("button", { name: "Add Area" }).click();
     const svg = page.getByTestId("body-map-svg");
     const box = (await svg.boundingBox())!;
-    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.42);
+    // The drawing is 404 high on a 400-high grid; the sacrum is at the centre, 42% down the grid.
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * (0.42 * 400) / 404);
+    await expect(page.getByTestId("body-map-record-form")).toBeVisible();
     await expect(page.getByTestId("body-map-pin")).toBeVisible();
-    await expect(page.getByLabel(/Where on the body/)).toHaveValue("Base of spine (sacrum)");
-    await page.getByLabel("What was observed").selectOption("Redness");
-    await page.getByLabel("Description").fill("Red patch at the base of the spine, skin intact, blanches when pressed.");
-    await page.getByLabel("Pain or discomfort reported").selectOption("NONE");
-    await page.getByRole("button", { name: "Save observation" }).click();
-    await expect(page.getByRole("status")).toContainText("Observation recorded");
+    await expect(page.getByLabel("Body Location")).toHaveValue("Base of spine (sacrum)");
+    await expect(page.getByTestId("body-map-selected-area")).toContainText("Base of spine (sacrum)");
+    // Choosing the type on the left fills the form.
+    await page.getByRole("group", { name: "Observation Types" }).getByRole("button", { name: "Redness" }).click();
+    await expect(page.getByLabel("Observation Type")).toHaveValue("Redness");
+    await page.getByLabel("Description (manual entry)").fill("Red patch at the base of the spine, skin intact, blanches when pressed.");
+    await page.getByLabel("Pain / Discomfort").selectOption("NONE");
+    // Follow-up is required by default, so the date is needed; switching it off removes the need.
+    await page.getByRole("switch", { name: "Follow-up Required" }).click();
+    await page.getByTestId("body-map-save").click();
+    await expect(page.getByRole("status")).toContainText("Observation saved");
     const detail = page.getByTestId("body-map-detail");
     await expect(detail).toContainText("Redness");
     await expect(detail).toContainText("Base of spine (sacrum)");
     await expect(page.getByTestId("body-map-counts")).toContainText("1 awaiting manager review");
+
+    // A manual note is added on top of the observation.
+    await detail.getByLabel("Add Note / Update").fill("Reviewed today. Redness has faded and the service user reports no discomfort.");
+    await detail.getByRole("button", { name: "Save Note" }).click();
+    await expect(page.getByRole("status")).toContainText("Note saved");
+    await detail.getByRole("link", { name: /History/ }).click();
+    await expect(page.getByTestId("body-map-timeline")).toContainText("Redness has faded");
+    await expect(page.getByTestId("body-map-timeline")).toContainText("Observation recorded");
+
+    // The incident decision is in Linked Records.
+    await detail.getByRole("link", { name: "Linked Records" }).click();
     await detail.getByLabel("No incident report needed, because").fill("Known pressure area, already in the care plan");
     await detail.getByRole("button", { name: "Record decision" }).click();
     await expect(page.getByRole("status")).toContainText("no incident report needed");
     await expect(page.getByTestId("body-map-list")).toContainText("No incident needed");
+
+    // AI suggestions are off until an admin switches them on; the page says so plainly.
+    await detail.getByRole("link", { name: /AI Suggestions/ }).click();
+    await expect(page.getByTestId("body-map-ai")).toContainText("Switched off for your organisation");
+    await expect(page.getByTestId("body-map-ai")).toContainText("do not replace clinical judgement");
+    await detail.getByRole("link", { name: "Audit Trail" }).click();
+    await expect(page.getByTestId("body-map-audit")).toContainText("Note added");
   });
 });
