@@ -13,7 +13,7 @@ import { rotaSettings } from "@/server/rota/settings";
  * run picks the package in force on each visit date, so ended packages keep their meaning for past weeks.
  */
 
-const packageSchema = z.object({
+export const packageSchema = z.object({
   reference: z.string().trim().max(80).optional(),
   commissionedMinutesPerWeek: z.coerce.number().int().min(0, "Minutes cannot be negative").max(20160, "That is more than a week").optional().nullable(),
   startDate: z.string().refine(isIsoDate, "Give the start date"),

@@ -111,15 +111,19 @@ function trimTrailing(list: string[]) {
   return out;
 }
 
+/** Creates one template inside a caller's transaction (used by createTemplate and by the support-plan import). */
+export async function createTemplateInTx(tx: Prisma.TransactionClient, scope: Scope, userId: string, input: TemplateInput) {
+  const t = parse(input);
+  const { areaId } = await checkRefs(tx, scope, t);
+  const created = await tx.visitTemplate.create({ data: { organisationId: scope.organisationId, createdById: userId, ...data(t, areaId), tasks: { create: t.taskIds.map((careTaskId) => ({ careTaskId })) } } });
+  await audit({ organisationId: scope.organisationId, actorId: userId, action: "template.created", entityType: "VisitTemplate", entityId: created.id }, tx);
+  return created;
+}
+
 export async function createTemplate(ctx: Ctx, input: TemplateInput) {
   const scope = await rotaScope(ctx, "rota.edit");
-  const t = parse(input);
-  return db.$transaction(async (tx) => {
-    const { areaId } = await checkRefs(tx, scope, t);
-    const created = await tx.visitTemplate.create({ data: { organisationId: scope.organisationId, createdById: ctx.userId, ...data(t, areaId), tasks: { create: t.taskIds.map((careTaskId) => ({ careTaskId })) } } });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "template.created", entityType: "VisitTemplate", entityId: created.id }, tx);
-    return created;
-  });
+  parse(input);
+  return db.$transaction((tx) => createTemplateInTx(tx, scope, ctx.userId, input));
 }
 
 export async function loadTemplate(tx: Prisma.TransactionClient, scope: Scope, id: string) {
