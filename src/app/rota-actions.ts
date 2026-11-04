@@ -7,6 +7,7 @@ import { addDays, isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, handleData, safeBack, str, withParam } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
+import { adjustSummary, adjustVisitTime, previewAdjustVisitTime, type AdjustInput } from "@/server/rota/adjust-time";
 import { confirmBuild, confirmServiceUserRota, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
 import { rollHref } from "@/lib/roll-forward-href";
@@ -388,7 +389,7 @@ export async function rollForwardAction(fd: FormData) {
     // Saving is tied to the preview on screen: its digest is checked against the plan worked out again at save time.
     const fingerprint = str(fd, "fingerprint");
     if (!/^[0-9a-f]{32}$/.test(fingerprint)) throw new ValidationError("Press Preview first, then save the rota you have checked.");
-    const r = await confirmRollForward(ctx, { sourceWeek: str(fd, "sourceWeek"), targetWeek: str(fd, "targetWeek"), weeks: int(fd, "weeks", "Weeks"), areaIds: ids(fd, "areaIds"), fingerprint });
+    const r = await confirmRollForward(ctx, { sourceWeek: str(fd, "sourceWeek"), targetWeek: str(fd, "targetWeek"), weeks: int(fd, "weeks", "Weeks"), areaIds: ids(fd, "areaIds"), fingerprint, keepOneOff: fd.get("keepOneOff") === "1" });
     const uncovered = r.builds.reduce((n, b) => n + b.uncovered, 0);
     // Straight on to the next week: the week just saved becomes the one to copy from, and the week after it the target.
     const last = r.plan.targetWeeks[r.plan.targetWeeks.length - 1]!;
@@ -1185,4 +1186,23 @@ export async function publishPlanAction(fd: FormData) {
     const r = await publishPlanVisits(ctx, str(fd, "planId"));
     return { ok: r.published ? `${r.published} visit${r.published === 1 ? "" : "s"} published to carers.${r.failed ? ` ${r.failed} could not be published.` : ""}` : "Every changed visit was already published." };
   }, "Published.");
+}
+
+/** Adjust Visit Time: reads the dialog's fields. The server parses and checks every value. */
+function adjustInput(fd: FormData): AdjustInput {
+  const shorten = str(fd, "shortenReason");
+  return { visitId: str(fd, "visitId"), lockVersion: Number(str(fd, "lockVersion")), start: str(fd, "start"), durationMin: Number(str(fd, "durationMin")), reason: str(fd, "reason"), shortenReason: shorten === "SU_REQUEST" || shorten === "APPOINTMENT" || shorten === "CARE_PLAN" ? shorten : undefined };
+}
+
+/** Adjust Visit Time, step 1: every check for the new time. Writes nothing. */
+export async function previewAdjustVisitTimeAction(fd: FormData) {
+  return handleData((ctx) => previewAdjustVisitTime(ctx, adjustInput(fd)));
+}
+
+/** Adjust Visit Time, step 2: applies the confirmed time, re-checking everything first. */
+export async function adjustVisitTimeAction(fd: FormData) {
+  return handleData(async (ctx) => {
+    const r = await adjustVisitTime(ctx, adjustInput(fd));
+    return { ...r, message: adjustSummary(r) };
+  }, { revalidate: true });
 }

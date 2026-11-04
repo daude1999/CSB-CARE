@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { carerPlaces, carersNeededLabel, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
 import { ConflictError, ValidationError } from "@/lib/errors";
-import { addDays, cycleWeekOf, dbDate, fromDbDate, isoWeekday, londonDate, londonMinute, londonTime, londonToUtc, mondayOf } from "@/lib/london";
+import { addDays, cycleWeekOf, dbDate, fromDbDate, hhmm, isoWeekday, londonDate, londonMinute, londonTime, londonToUtc, mondayOf } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { priceVisit, type Band } from "@/server/finance/pricing";
@@ -54,6 +54,11 @@ export interface RolledVisit {
   durationMin: number;
   carersRequired: number;
   slots: RolledSlot[];
+  /**
+   * Set when the source visit's time differed from its template's (a one-off change, such as Adjust Visit Time). Unless
+   * the office ticks "Keep one-off times", the new visit goes back to the template's time.
+   */
+  oneOff?: { sourceTime: string; templateTime: string; kept: boolean };
   /** Estimated basic pay for the carers kept on it, in pence; null when a kept carer has no pay rate. */
   payPence: number | null;
 }
@@ -95,7 +100,7 @@ export interface RollPlan {
   existing: number;
   /** Every visit already in the destination weeks in the chosen areas (cancelled ones left out), untouched by the roll forward. */
   destination: DestinationVisit[];
-  counts: { create: number; kept: number; review: number; uncovered: number; doubleUpsShort: number };
+  counts: { create: number; kept: number; review: number; uncovered: number; doubleUpsShort: number; oneOff: number };
   forecastMinutes: number;
   estimatedPayPence: number;
   slotsWithoutRate: number;
@@ -126,7 +131,7 @@ async function allowedStaff(tx: Tx, scope: Scope): Promise<Set<string> | null> {
   return new Set((await tx.staffMember.findMany({ where: { ...staffDirectoryWhere(scope, { status: "all" }), employmentStatus: { not: "ARCHIVED" } }, select: { id: true } })).map((s) => s.id));
 }
 
-async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWeek: string; weeks: RollWeeks; areaIds: string[] }, now = new Date()): Promise<RollPlan> {
+async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWeek: string; weeks: RollWeeks; areaIds: string[]; keepOneOff?: boolean }, now = new Date()): Promise<RollPlan> {
   const org = scope.organisationId;
   const settings = await rotaSettings(tx, org);
   const allAreas = await tx.area.findMany({ where: { organisationId: org, active: true }, select: { id: true } });
@@ -188,6 +193,9 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     const r = payRates.find((p) => p.staffId === staffId && fromDbDate(p.effectiveFrom) <= date && (!p.effectiveTo || fromDbDate(p.effectiveTo) >= date));
     return r ? r.rateCard.bands : null;
   };
+  // The template each source visit came from, to tell a one-off time change from the normal time.
+  const tplIds = [...new Set(source.map((v) => v.templateId).filter((x): x is string => !!x))];
+  const templates = new Map(tplIds.length ? (await tx.visitTemplate.findMany({ where: { organisationId: org, id: { in: tplIds } }, select: { id: true, startMinute: true, durationMin: true } })).map((t) => [t.id, t]) : []);
   const staffIds = [...new Set(source.flatMap((v) => v.assignments.map((a) => a.staffId)))];
   const facts: Facts = await loadFacts(tx, org, staffIds, from, to);
 
@@ -200,9 +208,14 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     for (const v of source) {
       const sourceDate = fromDbDate(v.date);
       const date = addDays(sourceDate, offsetDays + k * 7);
-      const durationMin = Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000);
-      const start = londonToUtc(date, londonMinute(v.scheduledStart));
+      const sourceMin = Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000);
+      const tpl = v.templateId ? templates.get(v.templateId) : undefined;
+      const differs = !!tpl && (tpl.startMinute !== londonMinute(v.scheduledStart) || tpl.durationMin !== sourceMin);
+      const useTemplate = differs && !input.keepOneOff;
+      const durationMin = useTemplate ? tpl!.durationMin : sourceMin;
+      const start = londonToUtc(date, useTemplate ? tpl!.startMinute : londonMinute(v.scheduledStart));
       const end = new Date(start.getTime() + durationMin * 60000);
+      const oneOff = differs ? { sourceTime: `${londonTime(v.scheduledStart)}–${londonTime(v.scheduledEnd)}`, templateTime: `${hhmm(tpl!.startMinute)}–${hhmm(tpl!.startMinute + tpl!.durationMin)}`, kept: !useTemplate } : undefined;
       const suName = nameOf(v.serviceUser);
       const fromNames = v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staff.displayName);
       const skip = (reason: string) => skipped.push({ sourceReference: v.reference, serviceUserName: suName, callType: v.callType.name, date, start, end, fromNames, reason });
@@ -262,7 +275,7 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
         if (!priced) payPence = null;
         else if (payPence !== null) payPence += priced.amountPence;
       }
-      visits.push({ sourceVisitId: v.id, sourceReference: v.reference, sourceDate, serviceUserId: v.serviceUserId, serviceUserName: suName, callType: v.callType.name, areaId: v.areaId, templateId: v.templateId, date, weekStart: week, start, end, durationMin, carersRequired: v.carersRequired, slots, payPence });
+      visits.push({ sourceVisitId: v.id, sourceReference: v.reference, sourceDate, serviceUserId: v.serviceUserId, serviceUserName: suName, callType: v.callType.name, areaId: v.areaId, templateId: v.templateId, date, weekStart: week, start, end, durationMin, carersRequired: v.carersRequired, slots, oneOff, payPence });
     }
   }
 
@@ -295,6 +308,7 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
         targetWeeks,
         [...areaIds].sort(),
         existingCount,
+        !!input.keepOneOff,
         visits.map((v) => [v.sourceVisitId, v.date, v.start.getTime(), v.durationMin, v.carersRequired, v.slots.map((s) => [s.slot, s.staffId, s.state])]),
         skipped.map((s) => [s.sourceReference, s.date, s.reason]),
       ]),
@@ -316,7 +330,7 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     visits,
     skipped,
     existing: existingCount,
-    counts: { create: visits.length, kept, review, uncovered, doubleUpsShort },
+    counts: { create: visits.length, kept, review, uncovered, doubleUpsShort, oneOff: visits.filter((v) => v.oneOff).length },
     forecastMinutes: visits.reduce((m, v) => m + v.durationMin * v.carersRequired, 0),
     estimatedPayPence: visits.reduce((p, v) => p + (v.payPence ?? 0), 0),
     slotsWithoutRate: visits.reduce((n, v) => n + (v.payPence === null ? v.slots.filter((s) => s.staffId && s.slot !== "SHADOW").length : 0), 0),
@@ -374,7 +388,7 @@ export function rollForwardRows(p: RollPlan): RollRow[] {
       detail: detailOf(v.callType, v.carersRequired),
       previous: v.slots.filter((x) => x.slot !== "SHADOW").map((x) => x.fromName ?? "empty slot").join(", "),
       carers: v.slots.map((x) => ({ key: x.slot, name: x.staffName ?? "Unassigned", state: x.state, reason: x.reason, shadow: x.slot === "SHADOW" })),
-      note: `Copied from ${v.sourceReference}`,
+      note: v.oneOff ? (v.oneOff.kept ? `Copied from ${v.sourceReference} · one-off time kept (template ${v.oneOff.templateTime})` : `Copied from ${v.sourceReference} · one-off time ${v.oneOff.sourceTime} not copied: back to the template time`) : `Copied from ${v.sourceReference}`,
     });
   }
   for (const x of p.skipped) {
@@ -383,17 +397,17 @@ export function rollForwardRows(p: RollPlan): RollRow[] {
   return rows.sort((a, b) => a.startMs - b.startMs || a.serviceUserName.localeCompare(b.serviceUserName) || a.kind.localeCompare(b.kind));
 }
 
-export async function previewRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[] }) {
+export async function previewRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[]; keepOneOff?: boolean }) {
   const scope = await rotaScope(ctx, "rota.build");
   const p = parseRollInput(input);
-  return plan(db, scope, { ...p, areaIds: input.areaIds ?? [] });
+  return plan(db, scope, { ...p, areaIds: input.areaIds ?? [], keepOneOff: !!input.keepOneOff });
 }
 
 /**
  * Saves a roll forward as one unpublished build per destination week, in a single transaction. The plan is worked out
  * again inside the transaction under per-week locks, so what is saved is what the rules allow at that moment.
  */
-export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[]; fingerprint?: string }) {
+export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[]; fingerprint?: string; keepOneOff?: boolean }) {
   const scope = await rotaScope(ctx, "rota.build");
   const p = parseRollInput(input);
   return db.$transaction(
@@ -401,7 +415,7 @@ export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; 
       const weeks = Array.from({ length: p.weeks }, (_, i) => addDays(p.targetWeek, i * 7));
       // The same lock as Build Rota, so a build and a roll forward of the same week never run at once.
       for (const w of weeks) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${w}`}))`;
-      const pl = await plan(tx, scope, { ...p, areaIds: input.areaIds ?? [] });
+      const pl = await plan(tx, scope, { ...p, areaIds: input.areaIds ?? [], keepOneOff: !!input.keepOneOff });
       if (!pl.visits.length) throw new ValidationError(pl.blockers[0] ?? "There is nothing to roll forward.");
       // Only the preview the office reviewed is saved: if anything has changed since (a visit added, a carer booked
       // elsewhere, a week built), the plan's digest differs and nothing is written.

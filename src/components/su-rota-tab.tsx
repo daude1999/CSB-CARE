@@ -4,6 +4,7 @@ import { addDays, fmtLondonDate, londonTime } from "@/lib/london";
 import { durationLabel } from "@/lib/rota-pattern";
 import { SU_ROTA_FILTERS, SU_ROTA_FILTER_LABEL, type SuRotaFilter, type serviceUserRota } from "@/server/rota/su-rota";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
+import { AdjustVisitTime } from "@/components/adjust-visit-time";
 
 type Rota = Awaited<ReturnType<typeof serviceUserRota>>;
 
@@ -20,6 +21,7 @@ const WARN_TONE: Record<string, string> = { "Manual change": "bg-[#f4f1fd] text-
  */
 export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, canBuild, serviceUserId }: { base: string; rota: Rota; filter: SuRotaFilter; thisMonday: string; canEdit: boolean; canBuild: boolean; serviceUserId: string }) {
   const href = (week: string, f: SuRotaFilter = filter) => `${base}?tab=rota&week=${week}${f !== "all" ? `&status=${f}` : ""}`;
+  const now = new Date();
   const range = `${fmtLondonDate(rota.weekStart, { weekday: "long", day: "numeric", month: "long" })} – ${fmtLondonDate(rota.weekEnd, { weekday: "long", day: "numeric", month: "long" })} ${rota.weekEnd.slice(0, 4)}`;
   return (
     <section aria-labelledby="su-rota-h" className="rounded-[12px] border border-[#eaecf0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
@@ -91,6 +93,7 @@ export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, ca
                   <td className={`${TD} whitespace-nowrap`}>
                     <span className="flex items-center gap-0.5">
                       <Link href={`/rota/visits/${v.id}`} className={ACTION} title={canEdit && v.status === "SCHEDULED" ? "Open, edit, reassign or cancel this visit" : "Open this visit"}><Eye size={15} aria-hidden />{canEdit && v.status === "SCHEDULED" ? "Open / Edit" : "Open"}</Link>
+                      {canEdit && v.status === "SCHEDULED" && !v.timeLocked && v.scheduledStart > now ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={londonTime(v.scheduledStart)} durationMin={v.durationMin} label="Adjust time" className={ACTION} /> : null}
                       <Link href={`${base}?tab=notes`} className={ACTION}><NotePencil size={15} aria-hidden />Notes</Link>
                       {v.missedCallCase ? <Link href={`/rota/missed/${v.missedCallCase.id}`} className={`${ACTION} text-[#b42318]`}><WarningCircle size={15} aria-hidden />Missed call</Link> : null}
                     </span>

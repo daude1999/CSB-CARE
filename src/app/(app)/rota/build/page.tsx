@@ -74,13 +74,14 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
     return suggested.weekStart > rollFrom ? suggested.weekStart : addDays(rollFrom, 7);
   })();
   const rollWeeks = Number(one("weeks") ?? "1");
+  const keepOneOff = one("keep") === "1";
   let roll: RollPlan | null = null;
   let rollError: string | null = null;
   // Just saved: the dialog opens on the next week, ready for "Roll Forward Next Week", without working anything out yet.
   const savedWeek = rolling && isIsoDate(one("saved") ?? "") ? one("saved")! : null;
   if (rolling && !savedWeek) {
     try {
-      roll = await previewRollForward(ctx, { sourceWeek: rollFrom, targetWeek: rollTo, weeks: rollWeeks, areaIds });
+      roll = await previewRollForward(ctx, { sourceWeek: rollFrom, targetWeek: rollTo, weeks: rollWeeks, areaIds, keepOneOff });
     } catch (e) {
       if (!(e instanceof AppError)) throw e;
       rollError = e.message;
@@ -318,7 +319,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
               <RollForwardPreview
                 weekOptions={[...new Set([...builtWeeks, rollFrom])].sort().reverse().map((w) => ({ value: w, label: `${dmy(w)} – ${dmy(addDays(w, 6))}${w === thisMonday ? " (this week)" : ""}` }))}
                 areas={lk.areas.map((a) => ({ id: a.id, name: a.name }))}
-                reviewed={{ from: rollFrom, to: rollTo, weeks: rollWeeks, areaIds }}
+                reviewed={{ from: rollFrom, to: rollTo, weeks: rollWeeks, areaIds, keepOneOff }}
                 error={rollError}
                 summary={rollSummary}
                 rows={rollRows}

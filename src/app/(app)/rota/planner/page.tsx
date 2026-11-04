@@ -2,6 +2,7 @@ import { carerPlaces, placeKey, placeLabel, type PlaceKey } from "@/lib/carer-pl
 import { redirect } from "next/navigation";
 import { ArrowsClockwise, CalendarPlus, Plus, UserSwitch, Faders } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { AdjustVisitTime } from "@/components/adjust-visit-time";
 import { addDays, fmtLondonDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -136,7 +137,10 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
                 <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
               </>
             ) : null}
-            <Link href={`/rota/visits/${panel.id}`} className="btn-secondary mt-3 inline-block">Open visit</Link>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Link href={`/rota/visits/${panel.id}`} className="btn-secondary inline-block">Open visit</Link>
+              {canEdit && panel.status === "SCHEDULED" && !panel.timeLocked && panel.scheduledStart > new Date() ? <AdjustVisitTime visitId={panel.id} lockVersion={panel.lockVersion} start={londonTime(panel.scheduledStart)} durationMin={Math.round((panel.scheduledEnd.getTime() - panel.scheduledStart.getTime()) / 60000)} /> : null}
+            </div>
           </aside>
         ) : sp.visit ? (
           <p role="alert" className="mt-2 text-[14px] text-[#a3242c]">That visit could not be found, or is outside your areas.</p>
