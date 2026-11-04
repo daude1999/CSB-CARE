@@ -46,6 +46,10 @@ export const intakeSchema = z.object({
     firstName: z.string().trim().min(1).max(100),
     lastName: z.string().trim().min(1).max(100),
     dateOfBirth: date.optional(),
+    nhsNumber: z.string().regex(/^\\d{3} ?\\d{3} ?\\d{4}$/).optional(),
+    altPhone: z.string().max(500).optional(),
+    preferredContactMethod: z.enum(["PHONE","SMS","EMAIL","OTHER"]).optional(),
+    accessNotes: z.string().max(2000).optional(),
     gender: z.string().max(500).optional(),
     areaId: z.string().min(1),
     addressLine1: z.string().max(500).optional(),
@@ -154,7 +158,9 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
   if(files?.discharge && !hasOrgPermission(ctx,"serviceUser.sensitive"))
     throw new ValidationError("Sensitive document upload requires manager permission");
   // Fail closed on unsupported file sizes before creating the user.
-  for(const f of [files?.supportPlan,files?.discharge].filter((v):v is UploadedFile=>!!v)) {
+  const selectedFiles=[files?.supportPlan,files?.discharge].filter((v):v is UploadedFile=>!!v);
+  if(selectedFiles.reduce((sum,f)=>sum+f.bytes.length,0)>3.8*1024*1024) throw new ValidationError("Combined attachments exceed the safe request limit");
+  for(const f of selectedFiles) {
     if(f.bytes.length>4*1024*1024) throw new ValidationError("Document exceeds the 4 MB CRM limit");
   }
   const steps:string[]=[];
