@@ -25,6 +25,15 @@ export function formSpec(destination: string): FormField[] {
     return [{ name: "value", label: PACKAGE_FIELDS[key as PackageField].label, kind: key.endsWith("Date") ? "date" : key === "minutesPerWeek" ? "number" : key === "requirements" ? "textarea" : "text", required: true, help: key === "minutesPerWeek" ? "Minutes, not hours: 22.75 hours is 1365 minutes." : undefined }];
   }
   switch (destination) {
+    case "externalReference":
+      return [
+        {name:"type",label:"Reference type",kind:"select",required:true,options:[
+          ["NHS","NHS number"],["COUNCIL_CLIENT","Council client number"],["COUNCIL_FRAMEWORK","Council framework / contract ID"],
+          ["COUNCIL_PACKAGE","Council package / placement reference"],["OTHER_EXTERNAL","Other issuer reference"],
+        ]},
+        {name:"issuer",label:"Issuing organisation",kind:"text",required:true},
+        {name:"value",label:"Reference as printed",kind:"text",required:true,help:"Preserve leading zeroes. Framework IDs are shared contracts, never proof of identity."},
+      ];
     case "contact":
       return [
         { name: "kind", label: "Contact type", kind: "select", options: CONTACT_KINDS.map((k) => [k, CONTACT_KIND_LABEL[k]]), required: true },

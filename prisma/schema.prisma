@@ -1555,6 +1555,7 @@ model ServiceUser {
   areaId                 String?
   area                   Area?             @relation(fields: [areaId], references: [id])
   reference              String
+  csbReference           String?        // Permanent CSB identifier, distinct from legacy SU reference
   firstName              String
   lastName               String
   preferredName          String?
@@ -1592,6 +1593,7 @@ model ServiceUser {
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
+  externalReferences   ServiceUserExternalReference[]
   contacts             ServiceUserContact[]
   coverContactAttempts CoverContactAttempt[]
   absences             ServiceUserAbsence[]
@@ -1608,6 +1610,7 @@ model ServiceUser {
   bodyMapObservations  BodyMapObservation[]
 
   @@unique([organisationId, reference])
+  @@unique([organisationId, csbReference])
   @@unique([id, organisationId])
   @@index([organisationId, status])
   @@index([organisationId, lastName])
@@ -4223,4 +4226,38 @@ model MissedCallInvestigationDraft {
   createdAt       DateTime                   @default(now())
 
   @@index([caseId, createdAt])
+}
+
+/** Atomic per-organisation counter. Never decrement, including after deletion. */
+model ServiceUserReferenceCounter {
+  organisationId String @id
+  nextNumber     Int    @default(1)
+}
+
+/** External identifiers belong to an issuer and a specific client or package;
+ *  shared FRAMEWORK references are intentionally NOT globally unique.
+ *  Store only encrypted values and keyed fingerprints for exact lookup. */
+model ServiceUserExternalReference {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  type           String
+  issuer         String
+  issuerKey      String
+  valueCipher    String
+  valueHash      String
+  verified       Boolean     @default(false)
+  verificationNote String?
+  sourceDocumentId String?
+  sourcePage     Int?
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  verifiedById   String?
+  verifiedAt     DateTime?
+
+  @@unique([organisationId, serviceUserId, type, issuerKey, valueHash])
+  @@index([organisationId, type, valueHash])
+  @@index([organisationId, serviceUserId])
 }

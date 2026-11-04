@@ -189,6 +189,13 @@ export const CareDocumentExtractionSchema = z.object({
     pageCount: z.number().int().min(1),
   }),
   person: z.array(z.object({ field: z.enum(CARE_DOC_PERSON_FIELDS), value: z.string(), ...Sourced })).describe("One entry per personal detail written on the page"),
+  references: z.array(z.object({
+    type:z.enum(["NHS","COUNCIL_CLIENT","COUNCIL_FRAMEWORK","COUNCIL_PACKAGE","OTHER_EXTERNAL"])
+      .describe("Do not classify framework-wide IDs as individual client numbers"),
+    issuer:z.string().describe("Issuing organisation, exactly as stated"),
+    value:z.string().describe("Exact reference, including leading zeroes and punctuation"),
+    ...Sourced,
+  })).describe("All individual and shared references, each explicitly classified and source-linked"),
   contacts: z.array(z.object({
     kind: z.enum(["NEXT_OF_KIN", "FAMILY", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"]),
     name: z.string(), relationship: z.string().nullable(), phone: z.string().nullable(), email: z.string().nullable(), address: z.string().nullable(),
