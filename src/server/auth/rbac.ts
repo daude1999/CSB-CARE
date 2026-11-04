@@ -37,6 +37,14 @@ export const ORG_PERMISSIONS = {
   /** Assign policies to staff, exempt, record assessments and correct acknowledgements. */
   "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
+  /** Branch & Local Authority Configuration, adding local authorities and proposing local sources. */
+  "policy.localConfig": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
+  /** Recording that a regulatory or safeguarding source has been checked against the official page. */
+  "policy.sources.verify": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** The branch policy coverage view. */
+  "policy.coverage": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "CARE_MANAGER"],
+  /** Recording which authority leads safeguarding when a person or incident crosses local authority boundaries. */
+  "safeguarding.authority": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
   /** Reporting & Analytics measures; each measure also needs its own module's permission. */
   "analytics.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER", "CARE_MANAGER", "FINANCE_OFFICER"],

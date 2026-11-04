@@ -14,6 +14,7 @@ import { addFinding, answerQuestion, createAction, startAudit } from "../complia
 import { seedHrWorkspace } from "./hr";
 import { linkHrBranchesAndProject, seedCareDemo } from "./care";
 import { seedReadinessDemo } from "./readiness";
+import { ensureGeoReference } from "../policy-geo/reference";
 
 export const DEMO_PASSWORD = "DemoPassword!2026";
 /** The demo agency: Care Solution Bureau with its three branches. Every person and record in it is fictional. */
@@ -25,6 +26,8 @@ async function user(email: string, name: string, platformRoles: PlatformRole[] =
 
 export async function seedDemo(masters: Record<string, string>, opts: { simulatedChange?: boolean; care?: boolean } = {}) {
   if (await db.organisation.findUnique({ where: { slug: DEMO_ORG_SLUG } })) return;
+  // Local authorities and the regional and local safeguarding sources (all "not yet verified"; no contacts).
+  await ensureGeoReference();
   const pw = await hashPassword(DEMO_PASSWORD);
 
   const admin = await user("admin@csb.demo", "Priya Admin (Platform)", ["PLATFORM_ADMIN"], pw);

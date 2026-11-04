@@ -15,6 +15,7 @@ import { triageChange, reviewAssessment } from "@/server/changes/workflow";
 import { createManualAssessment } from "@/server/impact/assess";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { acknowledge, addComment, logReadAndSign, confirmImplementation, createManualRevision, createRollbackRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
+import { GOVERNANCE_CHECKS } from "@/server/policy-geo/generator";
 import { adoptTemplate, assignPolicyReviewer, createPolicy, setPolicyArchived } from "@/server/policies/library";
 import { z } from "zod";
 import { requestManualCheck } from "@/server/sources/engine";
@@ -148,6 +149,8 @@ export async function publishAction(fd: FormData) {
         requireAcknowledgement: fd.get("requireAcknowledgement") === "on",
         materialRevision: fd.get("materialRevision") === "on",
         acknowledgementDueDays: Number(str(fd, "ackDays") || 14),
+        governance: Object.fromEntries(GOVERNANCE_CHECKS.map(([k]) => [k, fd.get(`gov_${k}`) === "on"])),
+        assignBranchStaff: fd.get("assignBranchStaff") !== "off",
       });
     },
     "Publication recorded",
