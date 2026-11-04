@@ -1,0 +1,30 @@
+name: Care Coordinator branch checks
+on:
+  push:
+    branches:
+      - feature/ai-care-coordinator
+  pull_request:
+    paths:
+      - 'src/server/care/coordinator-import.ts'
+      - 'src/server/care/risks.ts'
+      - 'src/app/care-coordinator-*.ts'
+      - 'src/components/care-coordinator-*.tsx'
+      - 'src/app/**/service-users/import/**'
+      - 'prisma/schema.prisma'
+      - 'prisma/migrations/**'
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      - run: npm run typecheck
