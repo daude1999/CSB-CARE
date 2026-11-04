@@ -48,8 +48,8 @@ export const INTAKE_STATUS = { DRAFT: "Coordinator review", SUBMITTED: "Waiting 
 
 const s = (max: number) => z.string().trim().min(1, "Enter a value").max(max);
 const opt = (max: number) => z.string().trim().max(max).nullish().transform((v) => v || null);
-const isoDate = z.string().trim().refine(isIsoDate, "Use a real date (YYYY-MM-DD)");
-const optDate = z.string().trim().nullish().transform((v) => v || null).refine((v) => v === null || isIsoDate(v), "Use a real date (YYYY-MM-DD)");
+const isoDate = z.string().trim().refine((v) => realDate(v), "Use a real date (YYYY-MM-DD)");
+const optDate = z.string().trim().nullish().transform((v) => v || null).refine((v) => v === null || realDate(v), "Use a real date (YYYY-MM-DD)");
 
 export const PERSON_FIELDS = {
   firstName: { label: "First name", schema: s(100) },
@@ -297,11 +297,18 @@ export function classifyText(text: string): { kind: DocKind; issuerKind: IssuerK
 /** dd/mm/yyyy, dd.mm.yyyy, dd-mm-yyyy or ISO to ISO; null when it is not a real date. */
 export function toIso(raw: string): string | null {
   const t = raw.trim();
-  if (isIsoDate(t)) return t;
+  if (isIsoDate(t)) return realDate(t) ? t : null;
   const m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(t);
   if (!m) return null;
   const iso = `${m[3]}-${m[2]!.padStart(2, "0")}-${m[1]!.padStart(2, "0")}`;
-  return isIsoDate(iso) ? iso : null;
+  return realDate(iso) ? iso : null;
+}
+
+/** A calendar date that exists: 31/02 is refused (the shared isIsoDate only checks the shape). */
+export function realDate(iso: string) {
+  if (!isIsoDate(iso)) return false;
+  const d = new Date(`${iso}T00:00:00Z`);
+  return d.toISOString().slice(0, 10) === iso;
 }
 
 // ── From a reading to facts ────────────────────────────────────────────────

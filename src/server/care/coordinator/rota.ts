@@ -44,7 +44,8 @@ export async function rotaReadiness(ctx: Ctx, intakeId: string) {
     { key: "careplan", label: "Care plan approved by a different person", ok: !!activePlan, detail: activePlan ? `Version ${activePlan.version} is approved` : planInReview ? `Version ${planInReview.version} is ${planInReview.status === "DRAFT" ? "a draft: submit it on the Care tab" : "waiting for approval"}` : "No approved care plan" },
     { key: "risks", label: "Risk drafts reviewed by an assessor", ok: draftRisks === 0 && activeRisks > 0, detail: draftRisks ? `${draftRisks} draft${draftRisks === 1 ? "" : "s"} still waiting for review` : activeRisks ? `${activeRisks} active assessment${activeRisks === 1 ? "" : "s"}` : "No active risk assessment" },
   ];
-  return { intake, serviceUser: su, gates, ready: gates.every((g) => g.ok), active: su?.status === "ACTIVE", canBuild: hasOrgPermission(ctx, "care.plan.approve") && hasOrgPermission(ctx, "rota.build") };
+  const riskDraftList = su ? await db.riskAssessment.findMany({ where: { serviceUserId: su.id, status: "DRAFT" }, select: { id: true, title: true, level: true, assessedById: true }, orderBy: { title: "asc" } }) : [];
+  return { intake, serviceUser: su, gates, riskDrafts: riskDraftList.map((r) => ({ ...r, mine: r.assessedById === ctx.userId })), carePlanId: (planInReview ?? activePlan)?.id ?? null, ready: gates.every((g) => g.ok), active: su?.status === "ACTIVE", canBuild: hasOrgPermission(ctx, "care.plan.approve") && hasOrgPermission(ctx, "rota.build") };
 }
 
 async function requireReady(ctx: Ctx, intakeId: string) {

@@ -5,11 +5,12 @@ on:
       - feature/ai-care-coordinator
   pull_request:
     paths:
-      - 'src/server/care/coordinator-import.ts'
+      - 'src/server/care/coordinator/**'
       - 'src/server/care/risks.ts'
-      - 'src/app/care-coordinator-*.ts'
-      - 'src/components/care-coordinator-*.tsx'
-      - 'src/app/**/service-users/import/**'
+      - 'src/lib/care-coordinator-*.ts'
+      - 'src/app/coordinator-actions.ts'
+      - 'src/components/coordinator/**'
+      - 'src/app/**/rota/coordinator/**'
       - 'prisma/schema.prisma'
       - 'prisma/migrations/**'
 jobs:
@@ -17,6 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,4 +37,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       - run: npm run typecheck
-      - run: npm test -- tests/unit/coordinator-field-review.test.ts
+      - run: npx vitest run tests/unit/care-coordinator-rules.test.ts tests/integration/care-coordinator.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public

@@ -11,6 +11,7 @@ import { medicationSwitchAction } from "@/app/medication-actions";
 import { careSummarySwitchAction } from "@/app/care-summary-actions";
 import { bodyMapAiSwitchAction } from "@/app/su-record-actions";
 import { missedAutomationSettingsAction } from "@/app/missed-auto-actions";
+import { coordinatorAiSwitchAction } from "@/app/coordinator-actions";
 import { getAiProvider } from "@/server/ai";
 
 export const dynamic = "force-dynamic";
@@ -175,6 +176,26 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
                 <button className="btn-primary">Switch on body map recommendations</button>
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after the data protection and clinical safety review.</p>}
+          </Card>
+          <Card title="Care Coordinator document reading (AI)">
+            <div id="coordinator-ai" className="scroll-mt-20" />
+            {s.careCoordinatorAiEnabledAt ? (
+              <>
+                <p className="text-[14px]">Switched on {fmtDate(s.careCoordinatorAiEnabledAt, true)}. Authorised by: {s.careCoordinatorAiReviewNote}</p>
+                <p className="mt-1 text-[13px] text-slate-600">AI provider: {aiName ?? "not configured, so CSB's own reader is used"}.</p>
+                {hasOrgPermission(ctx, "org.manage") ? (
+                  <form action={coordinatorAiSwitchAction} className="mt-2"><input type="hidden" name="back" value={`${back}#coordinator-ai`} /><input type="hidden" name="on" value="0" /><button className="btn-secondary">Switch off</button></form>
+                ) : null}
+              </>
+            ) : hasOrgPermission(ctx, "org.manage") ? (
+              <form action={coordinatorAiSwitchAction} className="space-y-2">
+                <input type="hidden" name="back" value={`${back}#coordinator-ai`} /><input type="hidden" name="on" value="1" />
+                <p className="text-[14px]">Off. Documents uploaded to the Care Coordinator are read on CSB&apos;s own server, which recognises labelled lines and timetable rows only. Switching on sends each uploaded PDF, including names, health details and addresses, to the AI provider to read every page. Every quote it returns is checked against the page, nothing is saved until a coordinator and a manager approve it, and the AI never approves anything.</p>
+                <p className="text-[13px] text-slate-600">AI provider: {aiName ?? "not configured"}.</p>
+                <label className="block"><span className="label">Who authorised sending care documents to the AI provider (data protection review), and when</span><input name="authorisedBy" required minLength={10} className="input" placeholder="e.g. M. Mire, CEO, after DPIA, 4 Nov 2026" /></label>
+                <button className="btn-primary">Switch on AI document reading</button>
+              </form>
+            ) : <p className="text-[14px]">Off. Documents are read on CSB&apos;s own server. An organisation admin can switch AI reading on after the data protection review.</p>}
           </Card>
           <Card title="Missed call automation">
             <div id="missed-automation" className="scroll-mt-20" />

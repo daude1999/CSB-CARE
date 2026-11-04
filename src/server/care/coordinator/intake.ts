@@ -16,6 +16,7 @@ import { storage } from "@/server/storage";
 import { categoriesFor, categoryLabel, storePrivateFile, type UploadedFile } from "../su-documents";
 import { findPossibleDuplicates } from "../su-import";
 import { pdfPages, readDocument } from "./reader";
+import { getAiProvider } from "@/server/ai";
 
 type Tx = Prisma.TransactionClient;
 
@@ -381,7 +382,7 @@ export async function decideFact(ctx: Ctx, factId: string, lockVersion: number |
     if (changedValue || d.decision === "REJECTED" || d.decision === "DUPLICATE") await compareFacts(tx, scope, intake.id);
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.fact.decided", entityType: "CareIntake", entityId: intake.id, data: { factId: f.id, section: f.section, destination: f.destination, decision: d.decision, edited: changedValue, assignedToId: d.assignedToId } }, tx);
     if (d.decision === "CLARIFY" && d.assignedToId && d.assignedToId !== ctx.userId) {
-      await tx.notification.create({ data: { organisationId: scope.organisationId, userId: d.assignedToId, type: "coordinator.question", title: `Question on intake ${intake.reference}`, body: `A question about ${sectionLabel(f.section).toLowerCase()} needs your answer before the intake can go to a manager.`, reason: "You were asked a question on a Care Coordinator intake.", actionUrl: `/rota/coordinator/${intake.id}?section=${f.section}#fact-${f.id}`, dedupeKey: `coordinator-q:${f.id}:${d.assignedToId}` } }).catch(() => undefined);
+      await tx.notification.createMany({ data: [{ organisationId: scope.organisationId, userId: d.assignedToId, type: "coordinator.question", title: `Question on intake ${intake.reference}`, body: `A question about ${sectionLabel(f.section).toLowerCase()} needs your answer before the intake can go to a manager.`, reason: "You were asked a question on a Care Coordinator intake.", actionUrl: `/rota/coordinator/${intake.id}?section=${f.section}#fact-${f.id}`, dedupeKey: `coordinator-q:${f.id}:${d.assignedToId}` }], skipDuplicates: true });
     }
   });
 }
@@ -525,7 +526,7 @@ export async function decideSection(ctx: Ctx, intakeId: string, section: string,
     const waiting = all.filter((x) => withFacts.has(x.section) && x.status === "OPEN");
     if (!waiting.length && intake.status === "SUBMITTED" && all.some((x) => x.status === "APPROVED")) await tx.careIntake.update({ where: { id: intake.id }, data: { status: "APPROVED", lockVersion: { increment: 1 } } });
     if ((d.decision === "RETURNED" || d.decision === "INFO_REQUESTED") && intake.submittedById && intake.submittedById !== ctx.userId) {
-      await tx.notification.create({ data: { organisationId: scope.organisationId, userId: intake.submittedById, type: "coordinator.returned", title: `${sectionLabel(section)} returned on ${intake.reference}`, body: d.reason ?? "", reason: "You sent this intake for approval.", actionUrl: `/rota/coordinator/${intake.id}?section=${section}`, dedupeKey: `coordinator-returned:${s.id}:${s.lockVersion}` } }).catch(() => undefined);
+      await tx.notification.createMany({ data: [{ organisationId: scope.organisationId, userId: intake.submittedById, type: "coordinator.returned", title: `${sectionLabel(section)} returned on ${intake.reference}`, body: d.reason ?? "", reason: "You sent this intake for approval.", actionUrl: `/rota/coordinator/${intake.id}?section=${section}`, dedupeKey: `coordinator-returned:${s.id}:${s.lockVersion}` }], skipDuplicates: true });
     }
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.decided", entityType: "CareIntake", entityId: intake.id, data: { section, decision: d.decision, reason: d.reason, facts: accepted.length } }, tx);
   });
@@ -584,6 +585,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
     db.callType.findMany({ where: { organisationId: scope.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const su = intake.serviceUserId ? await db.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: intake.serviceUserId }, select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true, status: true } }) : null;
+  const followUps = await db.careIntakeReviewItem.findMany({ where: { organisationId: scope.organisationId, intakeId, ...(access.sensitive ? {} : { restricted: false }) }, orderBy: { createdAt: "asc" } });
   const userIds = new Set<string>([intake.createdById, ...(intake.submittedById ? [intake.submittedById] : []), ...history.map((h) => h.actorId).filter((x): x is string => !!x), ...facts.flatMap((f) => [f.decidedById, f.editedById, f.assignedToId].filter((x): x is string => !!x)), ...sections.flatMap((s) => [s.decidedById, s.appliedById].filter((x): x is string => !!x))]);
   const names = await namesFor([...userIds]);
   const docSensitive = new Map(docs.map((d) => [d.id, d.sensitive]));
@@ -618,7 +620,57 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
     documents: shownDocs, facts: shownFacts, sections: sectionRows, reconciliation,
     history: history.map((h) => ({ id: h.id, at: h.createdAt, action: h.action, actor: h.actorId ? (names.get(h.actorId) ?? "Unknown") : "System", data: h.data as Record<string, unknown> })),
     members: members.map((m) => ({ id: m.userId, name: m.user.name, manager: m.roles.some((r) => r === "ORG_ADMIN" || r === "CARE_MANAGER") })),
+    followUps: followUps.map((f) => ({ id: f.id, category: f.category, description: f.description, sourceRef: f.sourceRef, restricted: f.restricted, status: f.status, resolution: f.resolution, resolvedAt: f.resolvedAt })),
+    hiddenFollowUps: access.sensitive ? 0 : await db.careIntakeReviewItem.count({ where: { organisationId: scope.organisationId, intakeId, restricted: true } }),
     areas, callTypes, createdBy: names.get(intake.createdById) ?? "Unknown", submittedBy: intake.submittedById ? (names.get(intake.submittedById) ?? "Unknown") : null,
   };
 }
 export type IntakeView = Awaited<ReturnType<typeof getIntake>>;
+
+// ── Start screen and the organisation's AI switch ─────────────────────────
+
+/** What the start form needs: areas, people an intake can update, and how documents will be read here. */
+export async function intakeStartOptions(ctx: Ctx) {
+  const { scope, access } = await scopeFor(ctx);
+  const [areas, people, settings] = await Promise.all([
+    db.area.findMany({ where: { organisationId: scope.organisationId, active: true, ...(scope.areaIds ? { id: { in: scope.areaIds } } : {}) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.serviceUser.findMany({ where: { ...serviceUserWhere(scope), status: { not: "ENDED" } }, select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: 1000 }),
+    db.rotaSettings.findUnique({ where: { organisationId: scope.organisationId }, select: { careCoordinatorAiEnabledAt: true, careCoordinatorAiReviewNote: true } }),
+  ]);
+  return { access, areas, people: people.map((p) => ({ id: p.id, label: `${p.preferredName ?? p.firstName} ${p.lastName} (${p.reference})` })), reading: readingMode(!!settings?.careCoordinatorAiEnabledAt) };
+}
+
+/** How documents are read in this organisation right now, said plainly. */
+export function readingMode(enabled: boolean) {
+  const provider = getAiProvider();
+  const capable = !!provider?.extractCareDocument && !provider.isSimulated;
+  if (enabled && capable) return { ai: true, label: `AI reading is on (${provider!.name}). Every quote it returns is checked against the page before you see it.` };
+  if (enabled) return { ai: false, label: "AI reading is switched on but no AI provider is set up on the server, so CSB's own reader is used: it recognises labelled lines and timetable rows only, and you add anything else by hand." };
+  return { ai: false, label: "AI reading is off, so documents are read on CSB's own server and are not sent anywhere. It recognises labelled lines and timetable rows only; you add anything else by hand." };
+}
+
+/** An organisation admin switches AI reading on after recording who authorised sending documents to the provider. */
+export async function setCoordinatorAi(ctx: Ctx, on: boolean, reviewNote: string) {
+  const organisationId = requireOrgPermission(ctx, "org.manage");
+  if (on && reviewNote.trim().length < 10) throw new ValidationError("Record who authorised sending care documents to the AI provider (data protection review), and when");
+  await db.$transaction(async (tx) => {
+    await tx.rotaSettings.update({ where: { organisationId }, data: on ? { careCoordinatorAiEnabledAt: new Date(), careCoordinatorAiEnabledById: ctx.userId, careCoordinatorAiReviewNote: reviewNote.trim() } : { careCoordinatorAiEnabledAt: null, careCoordinatorAiEnabledById: null } });
+    await audit({ organisationId, actorId: ctx.userId, action: on ? "coordinator.ai.enabled" : "coordinator.ai.disabled", entityType: "Organisation", entityId: organisationId, data: { reviewNote: reviewNote.trim() || null } }, tx);
+  });
+}
+
+/** Closes a follow-up the intake left (medication to reconcile, informal support not scheduled, history to check). */
+export async function resolveFollowUp(ctx: Ctx, itemId: string, resolution: string) {
+  const { scope, access } = await scopeFor(ctx);
+  const text = resolution.trim();
+  if (text.length < 5) throw new ValidationError("Say what was done, so the next person can see it");
+  return db.$transaction(async (tx) => {
+    const item = await tx.careIntakeReviewItem.findFirst({ where: { id: itemId, organisationId: scope.organisationId, serviceUser: serviceUserWhere(scope) } });
+    if (!item) throw new NotFoundError("Follow-up");
+    if (item.restricted && !access.sensitive) throw new NotFoundError("Follow-up");
+    if (item.category === "MEDICATION" && !access.medication) throw new ForbiddenError("A manager who can manage medication closes medication follow-ups");
+    const done = await tx.careIntakeReviewItem.updateMany({ where: { id: item.id, status: "OPEN" }, data: { status: "RESOLVED", resolvedById: ctx.userId, resolvedAt: new Date(), resolution: text.slice(0, 2000) } });
+    if (!done.count) throw new ConflictError("This follow-up is already closed");
+    if (item.intakeId) await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.followup.resolved", entityType: "CareIntake", entityId: item.intakeId, data: { itemId: item.id, category: item.category } }, tx);
+  });
+}

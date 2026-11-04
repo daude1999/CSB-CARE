@@ -378,7 +378,7 @@ async function applyMedication(ctx: Ctx, scope: Scope, intakeId: string): Promis
       await markApplied(tx, f, draftId ? `Medication:${draftId}` : `CareIntakeReviewItem:${item.id}`);
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.medication.reconciliation", entityType: "ServiceUser", entityId: su.id, data: { intakeId, reference: intake.reference, factId: f.id, reviewItemId: item.id, draftMedicationId: draftId } }, tx);
     });
-    out.created.push(draftId ? "Draft medicine for second-person approval" : "Medication reconciliation item");
+    out.created.push(`${f.label}: ${draftId ? "draft medicine for second-person approval" : "on the reconciliation list"}`);
   }
   out.notes.push("Nothing here is active on the MAR. Draft medicines need a second person's approval; everything else is in the person's medication reconciliation queue.");
   return out;
@@ -399,7 +399,7 @@ async function applyHistory(ctx: Ctx, scope: Scope, intakeId: string, section: "
       const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: section === "INCIDENTS" ? "INCIDENT_HISTORY" : "BODY_MAP", description: text.slice(0, 2000), sourceRef: src.slice(0, 300), restricted: true, createdById: ctx.userId } });
       await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
     });
-    out.created.push(section === "INCIDENTS" ? "Historical incident review item" : "Skin finding review item");
+    out.created.push(`${f.label}: ${section === "INCIDENTS" ? "kept as incident history to check" : "kept as a skin finding to check at the first visit"}`);
   }
   out.notes.push(section === "INCIDENTS" ? "No incident records were created. Historical incidents stay as history." : "No body map observations were created. Historical findings are never shown as current.");
   return out;
