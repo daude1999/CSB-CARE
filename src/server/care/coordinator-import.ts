@@ -136,8 +136,8 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
     ...serviceUserWhere(scope),
     OR:[
       ...(d.serviceUser.nhsNumber ? [{nhsNumber:d.serviceUser.nhsNumber.replace(/\s/g,"")}] : []),
-      {firstName:{equals:d.serviceUser.firstName,mode:"insensitive"},
-        lastName:{equals:d.serviceUser.lastName,mode:"insensitive"},
+      {firstName:{equals:d.serviceUser.firstName,mode:"insensitive" as const},
+        lastName:{equals:d.serviceUser.lastName,mode:"insensitive" as const},
         ...(d.serviceUser.dateOfBirth ? {dateOfBirth:dbDate(d.serviceUser.dateOfBirth)} : {}),
       },
     ]
