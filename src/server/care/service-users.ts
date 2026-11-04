@@ -75,7 +75,7 @@ const opt = z
   .transform((s) => s || null)
   .nullable()
   .optional();
-const detailsSchema = z.object({
+export const detailsSchema = z.object({
   firstName: z.string().trim().min(1, "Enter a first name").max(100),
   lastName: z.string().trim().min(1, "Enter a last name").max(100),
   preferredName: opt,
@@ -100,7 +100,7 @@ const detailsSchema = z.object({
 });
 export type ServiceUserInput = z.input<typeof detailsSchema>;
 
-async function checkArea(tx: Tx, scope: Scope, areaId: string | null | undefined) {
+export async function checkArea(tx: Tx, scope: Scope, areaId: string | null | undefined) {
   if (!areaId) {
     if (scope.areaIds) throw new ValidationError("Choose one of your areas");
     return null;
@@ -110,7 +110,7 @@ async function checkArea(tx: Tx, scope: Scope, areaId: string | null | undefined
   return a;
 }
 
-function detailData(ctx: Ctx, d: z.output<typeof detailsSchema>) {
+export function detailData(ctx: Ctx, d: z.output<typeof detailsSchema>) {
   const sensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
   return {
     firstName: d.firstName,
@@ -137,15 +137,21 @@ function detailData(ctx: Ctx, d: z.output<typeof detailsSchema>) {
   };
 }
 
+/** The next free SU-nnn reference for an organisation. */
+export async function nextServiceUserReference(tx: Tx, organisationId: string) {
+  const count = await tx.serviceUser.count({ where: { organisationId } });
+  let reference = `SU-${String(101 + count)}`;
+  for (let n = 1; await tx.serviceUser.findFirst({ where: { organisationId, reference } }); n++) reference = `SU-${String(101 + count + n)}`;
+  return reference;
+}
+
 export async function createServiceUser(ctx: Ctx, input: ServiceUserInput | Record<string, unknown>) {
   const scope = await rotaScope(ctx, "serviceUser.edit");
   const r = detailsSchema.safeParse(input);
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the details");
   return db.$transaction(async (tx) => {
     const area = await checkArea(tx, scope, r.data.areaId);
-    const count = await tx.serviceUser.count({ where: { organisationId: scope.organisationId } });
-    let reference = `SU-${String(101 + count)}`;
-    for (let n = 1; await tx.serviceUser.findFirst({ where: { organisationId: scope.organisationId, reference } }); n++) reference = `SU-${String(101 + count + n)}`;
+    const reference = await nextServiceUserReference(tx, scope.organisationId);
     const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, r.data) } });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.created", entityType: "ServiceUser", entityId: su.id }, tx);
     return su;
@@ -203,7 +209,7 @@ export async function setServiceUserStatus(ctx: Ctx, id: string, to: ServiceUser
   });
 }
 
-const contactSchema = z.object({
+export const contactSchema = z.object({
   kind: z.enum(["NEXT_OF_KIN", "FAMILY", "LPA_HEALTH", "LPA_FINANCE", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"]),
   name: z.string().trim().min(2, "Enter the contact's name").max(200),
   relationship: opt,
@@ -219,7 +225,7 @@ const contactSchema = z.object({
   authorityScope: opt,
 });
 
-function contactData(d: z.output<typeof contactSchema>) {
+export function contactData(d: z.output<typeof contactSchema>) {
   if (d.authorityScope && !d.authorityType) throw new ValidationError("Choose the type of authority before describing what it covers");
   return {
     kind: d.kind, name: d.name, relationship: d.relationship ?? null, phone: d.phone ?? null, email: d.email || null, isEmergency: d.isEmergency, canReceiveUpdates: d.canReceiveUpdates,

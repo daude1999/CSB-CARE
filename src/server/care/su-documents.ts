@@ -139,7 +139,7 @@ const detailsSchema = z
   .refine((d) => !d.receivedOn || d.receivedOn <= londonDate(), { message: "The date received cannot be in the future" });
 export type DocumentDetails = z.input<typeof detailsSchema>;
 
-function parseDetails(section: ServiceUserDocumentSection, input: DocumentDetails) {
+export function parseDetails(section: ServiceUserDocumentSection, input: DocumentDetails) {
   const p = detailsSchema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the document details");
   if (!categoriesFor(section).some((c) => c.key === p.data.category)) throw new ValidationError(`Choose a ${DOCUMENT_SECTIONS[section].toLowerCase().replace(/s$/, "")} category`);
@@ -156,10 +156,10 @@ function parseDetails(section: ServiceUserDocumentSection, input: DocumentDetail
   };
 }
 
-const canSeeSensitive = (ctx: Ctx) => hasOrgPermission(ctx, "serviceUser.sensitive");
+export const canSeeSensitive = (ctx: Ctx) => hasOrgPermission(ctx, "serviceUser.sensitive");
 
 /** A care-plan review prompt when a new Council Support Plan arrives (Part 9). Bell only; nothing is sent outside. */
-async function promptCarePlanReview(tx: Prisma.TransactionClient, organisationId: string, actorId: string, su: { id: string; firstName: string; lastName: string }, documentId: string, version: number) {
+export async function promptCarePlanReview(tx: Prisma.TransactionClient, organisationId: string, actorId: string, su: { id: string; firstName: string; lastName: string }, documentId: string, version: number) {
   const ms = await tx.membership.findMany({ where: { organisationId, roles: { hasSome: ["ORG_ADMIN", "CARE_MANAGER"] } }, select: { userId: true } });
   const users = [...new Set(ms.map((m) => m.userId))].filter((u) => u !== actorId);
   if (!users.length) return;
