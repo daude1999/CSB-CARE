@@ -28,3 +28,4 @@ jobs:
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       - run: npm run typecheck
+      - run: npm test -- tests/unit/coordinator-field-review.test.ts
