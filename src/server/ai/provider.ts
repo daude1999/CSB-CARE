@@ -1,4 +1,4 @@
-import type { BranchPolicyDraftOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction, CareDocumentExtraction } from "./schemas";
+import type { BranchPolicyDraftOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction, CareDocumentExtraction, CallNoteOrganisation } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -99,6 +99,17 @@ export interface LlmProvider {
   /** Branch-specific Policy Generator: proposes wording for the generated sections from the sources given. Optional;
    *  without it (simulated, none) the generator writes a source-guided draft with no AI. */
   draftBranchPolicy?(input: BranchPolicyDraftInput): Promise<BranchPolicyDraftOutput>;
+  /** Service user Call Notes: organises a coordinator's free-text note into classified, quoted bullet points.
+   *  Optional; without it (simulated, none) notes are organised on our own server by keyword rules. */
+  organiseCallNote?(input: CallNoteOrganiseInput): Promise<CallNoteOrganisation>;
+}
+
+export interface CallNoteOrganiseInput {
+  /** The coordinator's text, exactly as typed. The person is not named. */
+  text: string;
+  method: string;
+  /** The relationship or role of the person spoken to ("daughter", "district nurse"), never their name. */
+  contactRole: string | null;
 }
 
 export interface BranchPolicyDraftInput {

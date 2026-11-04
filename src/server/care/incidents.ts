@@ -91,7 +91,7 @@ export async function reportIncident(ctx: Ctx, input: ReportInput | Record<strin
   });
 }
 
-function visibleWhere(ctx: Ctx, organisationId: string): Prisma.IncidentWhereInput {
+export function visibleWhere(ctx: Ctx, organisationId: string): Prisma.IncidentWhereInput {
   return hasOrgPermission(ctx, "incident.manage") ? { organisationId } : { organisationId, reportedById: ctx.userId };
 }
 

@@ -77,6 +77,13 @@ export const ORG_PERMISSIONS = {
   "bodyMap.review": ["ORG_ADMIN", "CARE_MANAGER"],
   /** Seeing body map photographs. */
   "bodyMap.photos": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Service user Call Notes: reading a person's communication history (restricted notes also need
+   *  serviceUser.sensitive, unless you wrote them). */
+  "callNote.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
+  /** Recording Call Notes, organising them, creating follow-up tasks and correcting your own notes. */
+  "callNote.record": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Approving, returning for clarification, rejecting and superseding Call Notes (never one you wrote). */
+  "callNote.review": ["ORG_ADMIN", "CARE_MANAGER"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
   "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],

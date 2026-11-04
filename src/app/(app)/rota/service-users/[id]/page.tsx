@@ -34,11 +34,12 @@ import { ServiceUserForm } from "@/components/service-user-form";
 import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
 import { ServiceUserDocuments } from "@/components/su-documents";
 import { BodyMapSection } from "@/components/body-map";
+import { CallNotesSection } from "@/components/call-notes";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["call-notes", "Call Notes"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
@@ -53,6 +54,7 @@ const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Visits", tabs: ["visits", "template", "rota", "notes", "missed"] },
   { label: "Documents", tabs: ["documents"] },
   { label: "Contacts & carers", tabs: ["people"] },
+  { label: "Call Notes", tabs: ["call-notes"] },
   { label: "History", tabs: ["history"] },
 ];
 const REVIEW_TONE = { OVERDUE: "rose", DUE_SOON: "amber", IN_DATE: "green" } as const;
@@ -63,7 +65,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const su = await orNotFound(getServiceUser(ctx, id));
   const canReportIncident = hasOrgPermission(ctx, "incident.report");
   const canNotes = hasOrgPermission(ctx, "rota.view");
-  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes) && ((key !== "template" && key !== "rota") || canNotes));
+  const canCallNotes = hasOrgPermission(ctx, "callNote.view");
+  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes) && ((key !== "template" && key !== "rota") || canNotes) && (key !== "call-notes" || canCallNotes));
   const tab: TabKey = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
   const tabLabel = new Map<string, string>(availableTabs);
   const groups = GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => tabLabel.has(t)) })).filter((g) => g.tabs.length);
@@ -595,6 +598,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />
         </>
       ) : null}
+
+      {tab === "call-notes" ? <CallNotesSection ctx={ctx} serviceUserId={su.id} personName={suName(su)} base={base} sp={sp} /> : null}
 
       {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} personName={`${su.firstName} ${su.lastName}`} base={base} sp={sp} /> : null}
 

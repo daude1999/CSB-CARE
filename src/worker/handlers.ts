@@ -1,3 +1,4 @@
+import { sendCallNoteReminders } from "@/server/care/call-notes";
 import { sendCqcReminders } from "@/server/cqc/reminders";
 import { raiseRecruitmentReminders } from "@/server/recruitment/onboarding";
 import type { JobHandler } from "@/server/jobs/queue";
@@ -59,6 +60,8 @@ export const handlers: Record<string, JobHandler> = {
     const recruitmentReminders = await raiseRecruitmentReminders();
     // CQC Inspection & Evidence: overdue investigations and actions, effectiveness reviews due, evidence gaps.
     const cqcReminders = await sendCqcReminders();
-    return { scheduledChecks: scheduled.length, publications, reminders, recruitmentReminders, cqcReminders };
+    // Overdue Call Note follow-ups: an in-app reminder to the person each one is assigned to.
+    const callNoteReminders = await sendCallNoteReminders();
+    return { scheduledChecks: scheduled.length, publications, reminders, recruitmentReminders, cqcReminders, callNoteReminders };
   },
 };

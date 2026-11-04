@@ -107,6 +107,13 @@ export function formSpec(destination: string): FormField[] {
         { name: "consequences", label: "Consequences", kind: "textarea" },
         { name: "actions", label: "Actions recorded", kind: "textarea" },
       ];
+    case "callnote":
+      return [
+        { name: "summary", label: "What was communicated", kind: "textarea", required: true, help: "General communication only. Anything for the care plan, risks, medication or rota belongs in its own section." },
+        { name: "contactName", label: "Who it was with", kind: "text" },
+        { name: "method", label: "How", kind: "select", options: [["TELEPHONE", "Telephone"], ["FACE_TO_FACE", "Face-to-face conversation"], ["EMAIL", "Email"], ["MEETING", "Meeting"], ["VIDEO", "Video call"], ["OTHER", "Other"]] },
+        { name: "date", label: "Date", kind: "date" },
+      ];
     case "bodymap.history":
       return [
         { name: "date", label: "Date noted", kind: "date" },
@@ -144,6 +151,7 @@ export const MANUAL_DESTINATIONS: [string, string][] = [
   ["medication.allergy", "Medication: allergy"],
   ["incident.history", "Incident history"],
   ["bodymap.history", "Skin and body map history"],
+  ["callnote", "Call Notes: meeting or conversation note"],
 ];
 
 /** The current value as strings for the inputs' default values. */

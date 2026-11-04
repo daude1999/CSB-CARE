@@ -1,4 +1,5 @@
 import "server-only";
+import { callNoteReminders } from "@/server/care/call-notes";
 import { missedMedsCount } from "@/server/care/medication";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, isIsoDate, londonDate, londonDayBounds, mondayOf } from "@/lib/london";
@@ -49,7 +50,7 @@ export async function activeReminders(ctx: Ctx, opts: { branchId?: string; limit
   const staffScope = { ...staffDirectoryWhere(scope, { status: "all" }), ...(branchId ? { branchId } : {}) };
   const canPeople = hasOrgPermission(ctx, "serviceUser.view");
   const canStaff = hasOrgPermission(ctx, "staff.directory");
-  const [plans, risks, absenceRequests] = await Promise.all([
+  const [plans, risks, absenceRequests, callNoteTasks] = await Promise.all([
     canPeople
       ? db.carePlan.findMany({ where: { organisationId: org, status: "ACTIVE", reviewDue: { lte: horizon }, serviceUser: suScope }, select: { reviewDue: true, serviceUser: { select: { id: true, firstName: true, lastName: true, preferredName: true } } } })
       : Promise.resolve([]),
@@ -57,11 +58,14 @@ export async function activeReminders(ctx: Ctx, opts: { branchId?: string; limit
       ? db.riskAssessment.findMany({ where: { organisationId: org, status: "ACTIVE", reviewDue: { lte: horizon }, serviceUser: suScope }, select: { id: true, title: true, reviewDue: true, serviceUser: { select: { firstName: true, lastName: true, preferredName: true } } } })
       : Promise.resolve([]),
     canStaff ? db.staffAbsence.findMany({ where: { organisationId: org, staff: staffScope, status: "REQUESTED", endsAt: { gte: now } }, select: { kind: true, startsAt: true, staff: { select: { displayName: true } } } }) : Promise.resolve([]),
+    // Follow-ups from service user Call Notes, with the same person scope.
+    canPeople ? callNoteReminders(ctx, horizon, suScope) : Promise.resolve([]),
   ]);
   const overdue = (due: string) => Math.max(0, Math.round((Date.parse(today) - Date.parse(due)) / 86_400_000));
   const all: Reminder[] = [
     ...plans.map((p) => ({ text: "Care plan review", due: fromDbDate(p.reviewDue!), account: suName(p.serviceUser), href: `/rota/care-plans/${p.serviceUser.id}`, type: "Service user" as const })),
     ...risks.map((r) => ({ text: `Risk review: ${r.title}`, due: fromDbDate(r.reviewDue), account: suName(r.serviceUser), href: `/rota/risks/${r.id}`, type: "Service user" as const })),
+    ...callNoteTasks.map((t) => ({ text: t.text, due: t.due, account: suName(t.person), href: t.href, type: "Service user" as const })),
     ...absenceRequests.map((a) => ({ text: `${a.kind.charAt(0)}${a.kind.slice(1).toLowerCase()} request to decide`, due: londonDate(a.startsAt), account: a.staff.displayName, href: "/workforce/absences", type: "Team member" as const })),
   ]
     .map((r) => ({ ...r, overdueDays: overdue(r.due) }))

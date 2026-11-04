@@ -244,6 +244,13 @@ export const CareDocumentExtractionSchema = z.object({
   flags: z.array(z.object({ text: z.string(), page: Page })).describe("Contradictions, out-of-date information and things a manager must decide"),
   missing: z.array(z.string()).describe("Information a care provider needs that this document does not give"),
   unreadable: z.array(z.object({ page: Page, reason: z.string() })),
+  communications: z.array(z.object({
+    summary: z.string().describe("What was communicated, in one or two plain sentences, as written"),
+    contactName: z.string().nullable().describe("Who the communication was with, only if written"),
+    method: z.enum(["TELEPHONE", "FACE_TO_FACE", "EMAIL", "MEETING", "VIDEO", "OTHER"]).nullable(),
+    date: z.string().nullable().describe("YYYY-MM-DD, only if written"),
+    ...Sourced,
+  })).optional().describe("General communication (calls, emails, meetings, conversations with family or professionals) that does not belong in any structured field above"),
 });
 export type CareDocumentExtraction = z.infer<typeof CareDocumentExtractionSchema>;
 
@@ -263,3 +270,20 @@ export const BranchPolicyDraftSchema = z.object({
   uncertainties: z.array(z.string()).describe("What a manager must check before approval, including anything the sources do not cover"),
 });
 export type BranchPolicyDraftOutput = z.infer<typeof BranchPolicyDraftSchema>;
+
+// ── Service user Call Notes ────────────────────────────────────────────────
+
+export const CallNoteOrganisationSchema = z.object({
+  summary: z.string().describe("One sentence: who the communication was with and what it was about. No facts that are not in the text."),
+  items: z.array(z.object({
+    text: z.string().describe("One piece of information as a short bullet point, keeping the meaning exactly"),
+    kind: z.enum(["CONFIRMED_FACT", "THIRD_PARTY_REPORT", "UNVERIFIED", "PREFERENCE_REQUEST", "PROFESSIONAL_ADVICE", "AUTHORISED_INSTRUCTION"]).describe("What kind of statement it is. A family member's account is THIRD_PARTY_REPORT; a request is PREFERENCE_REQUEST; AUTHORISED_INSTRUCTION only when the text says a prescriber or authorised professional formally instructed it"),
+    destination: z.enum(["CALL_NOTE", "CARE_PLAN", "RISK", "MEDICATION", "ROTA", "VISIT", "INCIDENT", "SAFEGUARDING", "CONTACTS", "PERSONAL", "DOCUMENTS"]).describe("Where this information belongs in the care record; CALL_NOTE for general communication that belongs nowhere else"),
+    quote: z.string().describe("The exact words from the text this item comes from, copied character for character"),
+    urgent: z.enum(["SAFEGUARDING", "MEDICATION", "SAFETY"]).nullable().describe("Only if the text raises an urgent safeguarding, medication or safety concern"),
+  })),
+  followUps: z.array(z.string()).describe("Actions the office should consider, phrased as things to check or confirm. Never close or decide anything."),
+  clarifications: z.array(z.string()).describe("What is unclear or must be confirmed with an authorised source"),
+  urgent: z.array(z.object({ kind: z.enum(["SAFEGUARDING", "MEDICATION", "SAFETY"]), text: z.string() })),
+});
+export type CallNoteOrganisation = z.infer<typeof CallNoteOrganisationSchema>;
