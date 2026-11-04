@@ -99,3 +99,57 @@ export function expectedDestination(path: string): Destination | null {
   if (path.startsWith("visits.")) return "visits.templates";
   return null;
 }
+
+/** Flatten the exact structured values that will be written to the CRM. */
+export function structuredValues(document: Record<string, unknown>) {
+  const values = new Map<string,string>();
+  const walk = (value: unknown,path: string):void => {
+    if (value === undefined || value === null || value === "") return;
+    if (Array.isArray(value)) {
+      // List values (weekday flags / task IDs) are reviewed as a unit.
+      if (path.endsWith(".weekdays") || path.endsWith(".taskIds")) {
+        values.set(path, JSON.stringify(value));
+      } else value.forEach((item,i)=>walk(item,path+"."+i));
+      return;
+    }
+    if (typeof value === "object") {
+      for(const [k,v] of Object.entries(value)) walk(v,path+"."+k);
+    } else values.set(path,String(value));
+  };
+  for(const root of ["serviceUser","contacts","carePlan","package","visits","riskDrafts"]) {
+    if (root in document) walk(document[root],root);
+  }
+  return values;
+}
+
+/** Requires explicit source evidence and human review of *every* field written. */
+export function reviewMatchesManifest(document: Record<string,unknown>, reviews: ReviewField[]) {
+  const violations = [...reviewFindings(reviews).blockers];
+  const values = structuredValues(document);
+  const byPath = new Map<string,ReviewField>();
+  for(const item of reviews){
+    if(!isWritableField(item.fieldPath)){
+      // Review-only historical or clinical information is allowed but cannot write.
+      if(item.decision === "APPROVE" || item.decision === "EDITED")
+        violations.push(item.id+": review-only information cannot be written");
+      continue;
+    }
+    if(byPath.has(item.fieldPath)) violations.push("Multiple reviews for "+item.fieldPath);
+    byPath.set(item.fieldPath,item);
+    const destination=expectedDestination(item.fieldPath);
+    if (destination !== item.destination) violations.push(item.id+": destination does not match existing CRM section");
+  }
+  for(const [path,value] of values){
+    const item=byPath.get(path);
+    if(!item) { violations.push("Missing field-level approval for "+path);continue; }
+    if(item.decision !== "APPROVE" && item.decision !== "EDITED"){
+      violations.push(path+": unapproved field cannot be saved");continue;
+    }
+    if(item.proposedValue!==value) violations.push(path+": reviewed value does not match the value to be saved");
+  }
+  for(const [path,item] of byPath){
+    if(!values.has(path) && (item.decision==="APPROVE" || item.decision==="EDITED"))
+      violations.push(item.id+": approved field is not present in manifest");
+  }
+  return violations;
+}
