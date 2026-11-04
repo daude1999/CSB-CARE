@@ -402,7 +402,7 @@ test.describe("Rostering & Care Management", () => {
   test("the top bar searches rostering on rota pages", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
-    const search = page.getByPlaceholder("Search rostering (e.g. service user, team member, reference)…");
+    const search = page.getByPlaceholder("Search service users, staff, references...");
     await search.fill("V-2");
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=V-2/);
