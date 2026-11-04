@@ -1,5 +1,5 @@
 import { describe,it,expect } from "vitest";
-import { reviewFieldSchema, reviewMatchesManifest, expectedDestination, structuredValues } from "../../src/server/care/coordinator-field-review";
+import { reviewFieldSchema, reviewMatchesManifest, expectedDestination, structuredValues, type ReviewField } from "../../src/server/care/coordinator-field-review";
 const manifest={
   serviceUser:{firstName:"Fictional",lastName:"Person",areaId:"area-demo",carerGenderPreference:"ANY"},
   contacts:[],
@@ -9,7 +9,7 @@ const manifest={
     durationMin:60,carersRequired:1,notes:"Fictional task",taskIds:[],medicationRequired:false}],
   riskDrafts:[],
 };
-function reviews(){
+function reviews():ReviewField[]{
   return [...structuredValues(manifest).entries()].map(([fieldPath,proposedValue],i)=>({
     id:"fact-"+i,destination:expectedDestination(fieldPath)!,fieldPath,label:fieldPath,
     sourceDocument:"fictional-plan.pdf",sourcePage:8,confidence:"HIGH" as const,
