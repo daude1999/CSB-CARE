@@ -39,9 +39,10 @@ test.describe("Reference Numbers", () => {
     await expect(row.getByText("Awaiting verification")).toBeVisible();
 
     await row.locator("summary").filter({ hasText: /^Verify$/ }).click();
-    await row.getByLabel("Matches the source").check();
-    await row.getByLabel("Reason").fill("Checked against the support plan");
-    await row.getByRole("button", { name: "Save decision" }).click();
+    const verify = row.locator("form").filter({ has: page.getByLabel("Matches the source") });
+    await verify.getByLabel("Matches the source").check();
+    await verify.getByLabel("Reason").fill("Checked against the support plan");
+    await verify.getByRole("button", { name: "Save decision" }).click();
     await expect(page.getByTestId("reference-row").filter({ hasText: "0098761" }).getByText("Verified", { exact: true })).toBeVisible();
     await expect(page.getByTestId("reference-history")).toContainText("Verification decision: verified");
 
