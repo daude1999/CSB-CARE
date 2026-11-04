@@ -48,3 +48,12 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - **Delete Visits, Delete Template.** We cancel or disable with a reason instead, so the history stays. A whole future build can still be deleted from All Rotas.
 - **Reset Visits, Edit Rota Type, Update Template CPLI, Make New, Add Shifts To Live Rota, Export To CSV.** Not built yet. Export is available from Rota Reports, and built visits are updated from a template's own page.
 - **Add To / Remove From Run Route, Live Run Routes, Template Run Routes, Printable Rota.** Built in V1 (29–30 Oct). Run Routes do not plan travel.
+
+## Missed call automation (4 Nov 2026)
+
+- Off by default. An organisation admin switches it on in Rostering settings.
+- On Vercel, collection runs when the queue is kicked or a coordinator presses Refresh evidence. Rota and cover changes are picked up within about 10 minutes, not instantly.
+- Carers are asked in the app only, and only within a day of detection. No text, email or WhatsApp.
+- Different answers from carers on a double-up give "Conflicting evidence" rather than a reason.
+- Contingency-plan and time-critical fields from the spec do not exist yet.
+

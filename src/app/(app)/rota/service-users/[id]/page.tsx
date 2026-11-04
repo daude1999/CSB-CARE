@@ -1,7 +1,7 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
-import { addDays, dbDate, fmtLondonDate, fromDbDate, hhmm, londonDate, londonTime, WEEKDAYS } from "@/lib/london";
+import { addDays, dbDate, fmtLondonDate, fromDbDate, hhmm, londonDate, londonTime, mondayOf, WEEKDAYS } from "@/lib/london";
 import { preferredOf } from "@/lib/carer-places";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -19,6 +19,13 @@ import { LEVEL } from "@/components/risk-fields";
 import { MedicationList, MedicationOff } from "@/components/medication-ui";
 import { serviceUserGlance } from "@/server/care/glance";
 import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
+import { listTemplates } from "@/server/rota/templates";
+import { rotaSettings } from "@/server/rota/settings";
+import { parseSuRotaFilter, serviceUserRota, suRotaWeek } from "@/server/rota/su-rota";
+import { parseList, ServiceUserTemplateTab } from "@/components/su-template-tab";
+import { ServiceUserRotaTab } from "@/components/su-rota-tab";
+import { futureRotaDefaults, ServiceUserFutureRota } from "@/components/su-future-rota";
+import { previewServiceUserRota } from "@/server/rota/build";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
@@ -31,7 +38,7 @@ import { BodyMapSection } from "@/components/body-map";
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
@@ -43,7 +50,7 @@ const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Personal details", tabs: ["details"] },
   { label: "Care", tabs: ["care-plans", "risks", "package", "medication"] },
   { label: "Health and safety", tabs: ["incidents", "bodymap"] },
-  { label: "Visits", tabs: ["visits", "notes", "missed"] },
+  { label: "Visits", tabs: ["visits", "template", "rota", "notes", "missed"] },
   { label: "Documents", tabs: ["documents"] },
   { label: "Contacts & carers", tabs: ["people"] },
   { label: "History", tabs: ["history"] },
@@ -56,7 +63,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const su = await orNotFound(getServiceUser(ctx, id));
   const canReportIncident = hasOrgPermission(ctx, "incident.report");
   const canNotes = hasOrgPermission(ctx, "rota.view");
-  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes));
+  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes) && ((key !== "template" && key !== "rota") || canNotes));
   const tab: TabKey = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
   const tabLabel = new Map<string, string>(availableTabs);
   const groups = GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => tabLabel.has(t)) })).filter((g) => g.tabs.length);
@@ -97,6 +104,27 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "incidents" ? recentIncidentsFor(ctx, su.id, 100) : Promise.resolve(null),
     tab === "notes" ? serviceUserVisitNotes(ctx, su.id, { category: sp.category, days: Number(sp.days) || undefined, q: sp.q?.trim().slice(0, 100) || undefined }) : Promise.resolve(null),
   ]);
+  // Visits -> Template and Rota read the same template and visit records as Daily Templates and the Daily Rota.
+  const cycleLength = tab === "template" ? (await rotaSettings(db, su.organisationId)).cycleLength : 4;
+  const tplWeeks = parseList(sp.weeks, cycleLength);
+  const tplDays = parseList(sp.days, 7);
+  const [suTemplates, suRota] = await Promise.all([
+    tab === "template" ? listTemplates(ctx, { serviceUserId: su.id, state: "all", weeks: tplWeeks, days: tplDays }) : Promise.resolve(null),
+    tab === "rota" ? serviceUserRota(ctx, su.id, suRotaWeek(sp.week), parseSuRotaFilter(sp.status)) : Promise.resolve(null),
+  ]);
+  // Create Future Rota (Rota tab, ?future=1): previewed on the server, created only from the Create button.
+  const canBuild = hasOrgPermission(ctx, "rota.build");
+  const future = tab === "rota" && sp.future && canBuild ? futureRotaDefaults(sp, suRotaWeek(sp.week), mondayOf(today)) : null;
+  let futurePreview: Awaited<ReturnType<typeof previewServiceUserRota>> | null = null;
+  let futureError: string | null = null;
+  if (future) {
+    try {
+      futurePreview = await previewServiceUserRota(ctx, su.id, { weekStart: future.from, weeks: future.weeks });
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+      futureError = e.message;
+    }
+  }
   const todayDb = dbDate(today);
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
@@ -169,7 +197,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 </ul>
               ) : <Empty>No visits in the next two days.</Empty>}
             </Card>
-            <Card title="Repeating visits" actions={canEdit ? <Link href="/rota/templates/new" className="btn-secondary py-1">New template</Link> : null}>
+            <Card title="Repeating visits" actions={canEdit ? <Link href={`/rota/templates/new?su=${su.id}`} className="btn-secondary py-1">New template</Link> : null}>
               {su.templates.length ? (
                 <table className="table">
                   <thead><tr><th>Call</th><th>Time</th><th>Days</th><th>Carers</th></tr></thead>
@@ -551,6 +579,9 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </Card>
       ) : null}
 
+      {tab === "template" && suTemplates ? <ServiceUserTemplateTab base={base} rows={suTemplates} weeks={tplWeeks} days={tplDays} cycleLength={cycleLength} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} confirmOff={sp.off} /> : null}
+      {future ? <ServiceUserFutureRota base={base} from={future.from} weeks={future.weeks} thisMonday={mondayOf(today)} preview={futurePreview} error={futureError} /> : null}
+      {tab === "rota" && suRota ? <ServiceUserRotaTab base={base} rota={suRota} filter={parseSuRotaFilter(sp.status)} thisMonday={mondayOf(today)} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} /> : null}
       {tab === "missed" ? <MissedHistory ctx={ctx} serviceUserId={su.id} /> : null}
 
       {tab === "documents" ? (

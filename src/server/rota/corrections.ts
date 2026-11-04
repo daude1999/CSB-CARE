@@ -9,6 +9,7 @@ import { raiseAlert } from "@/server/workforce/impact";
 import { myStaff } from "@/server/workforce/link";
 import { clockFromRequest, effectiveClocks } from "./attendance";
 import { rotaScope, visitWhere } from "./scope";
+import { queueRefreshForVisit } from "./missed-auto/queue";
 
 /**
  * Clock correction requests: a carer who forgot to clock, or pressed the button late, asks the office to put the time
@@ -30,7 +31,7 @@ export async function requestClockCorrection(ctx: Ctx, visitId: string, input: z
   const staff = await myStaff(ctx);
   const at = londonToUtc(p.data.date, parseHhmm(p.data.time) ?? 0);
   if (at.getTime() > Date.now() + 60_000) throw new ValidationError("A clock time cannot be in the future");
-  return db.$transaction(async (tx) => {
+  const created = await db.$transaction(async (tx) => {
     const v = await tx.visit.findFirst({ where: { id: visitId, organisationId: staff.organisationId, publishedAt: { not: null }, assignments: { some: { staffId: staff.id, removedAt: null } } } });
     if (!v) throw new NotFoundError("Visit");
     if (["CANCELLED", "NOT_DELIVERED"].includes(v.status)) throw new ValidationError("This visit was not delivered");
@@ -42,6 +43,8 @@ export async function requestClockCorrection(ctx: Ctx, visitId: string, input: z
     await audit({ organisationId: v.organisationId, actorId: ctx.userId, action: "visit.clock.correction.requested", entityType: "Visit", entityId: v.id, data: { requestId: r.id, kind: p.data.kind, at: at.toISOString() } }, tx);
     return r;
   });
+  await queueRefreshForVisit(visitId, "CORRECTION");
+  return created;
 }
 
 /** Approve (the time is recorded as an office entry) or reject (with a reason). The requester cannot decide. */
@@ -52,7 +55,7 @@ export async function decideClockCorrection(ctx: Ctx, requestId: string, decisio
   if (r.status !== "PENDING") throw new ConflictError("This request has already been decided");
   if (r.requestedById === ctx.userId) throw new ForbiddenError("You asked for this correction, so someone else must decide it");
   if (decision === "REJECTED" && note.trim().length < 3) throw new ValidationError("Say why the request is rejected");
-  return db.$transaction(async (tx) => {
+  const decided = await db.$transaction(async (tx) => {
     let clockId: string | null = null;
     if (decision === "APPROVED") {
       const live = effectiveClocks(await tx.visitClock.findMany({ where: { visitId: r.visitId } })).find((c) => c.staffId === r.staffId && c.kind === r.kind);
@@ -66,6 +69,8 @@ export async function decideClockCorrection(ctx: Ctx, requestId: string, decisio
     await audit({ organisationId: r.organisationId, actorId: ctx.userId, action: `visit.clock.correction.${decision.toLowerCase()}`, entityType: "Visit", entityId: r.visitId, data: { requestId: r.id, clockId, note: note.trim() || null } }, tx);
     return { clockId };
   });
+  await queueRefreshForVisit(r.visitId, "CORRECTION");
+  return decided;
 }
 
 /** Requests in the office's scope, pending first. With a visit, only that visit's. */

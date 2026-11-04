@@ -16,11 +16,13 @@ export default async function NewTemplatePage({ searchParams }: { searchParams: 
   if (!hasOrgPermission(ctx, "rota.edit")) notFound();
   const lk = await rotaLookups(ctx);
   const settings = await rotaSettings(db, lk.scope.organisationId);
+  // Opened from a service user's profile: choose them already, but only someone this member may see.
+  const su = sp.su && lk.serviceUsers.some((s) => s.id === sp.su) ? sp.su : undefined;
   return (
     <>
-      <PageHeader title="New rota template" back="/rota/templates" subtitle="A repeating visit for one person. The carers you choose are checked again every time the week is built." />
+      <PageHeader title="New rota template" back={su ? `/rota/service-users/${su}?tab=template` : "/rota/templates"} subtitle="A repeating visit for one person. The carers you choose are checked again every time the week is built." />
       <Flash searchParams={sp} />
-      <Card><TemplateForm action={createTemplateAction} lk={lk} back="/rota/templates/new" cycleLength={settings.cycleLength} submit="Create template" /></Card>
+      <Card><TemplateForm action={createTemplateAction} lk={lk} back={su ? `/rota/templates/new?su=${su}` : "/rota/templates/new"} cycleLength={settings.cycleLength} submit="Create template" serviceUserId={su} /></Card>
     </>
   );
 }

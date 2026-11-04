@@ -3,22 +3,23 @@ import { fromDbDate, hhmm, londonDate, WEEKDAYS } from "@/lib/london";
 import { preferredOf } from "@/lib/carer-places";
 import { suName, type rotaLookups } from "@/server/rota/queries";
 import { TemplateCarersFields } from "@/components/template-carers";
+import { TemplateEditForm } from "@/components/template-save-confirm";
 
 type Lookups = Awaited<ReturnType<typeof rotaLookups>>;
 
 /** The rota template form, used to create and to edit a template. Validation happens on the server (templateSchema). */
-export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string }) {
+export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit, serviceUserId }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string; serviceUserId?: string }) {
   // The HR-fed carer pool, plus whoever the template already names so an existing choice is never silently dropped.
   const preferred = t ? preferredOf(t) : [null];
   const keep = new Set([...preferred, t?.shadowStaffId].filter((x): x is string => !!x));
   const pool = new Set(lk.carers.map((s) => s.id));
   const staffOpts = lk.staff.filter((s) => pool.has(s.id) || keep.has(s.id)).map((s) => ({ id: s.id, label: `${s.displayName} · ${s.jobTitle}` }));
-  return (
-    <form action={action} className="space-y-4">
+  const fields = (
+    <>
       <input type="hidden" name="back" value={back} />
       {t ? <><input type="hidden" name="templateId" value={t.id} /><input type="hidden" name="version" value={t.version} /></> : null}
       <div className="grid gap-3 md:grid-cols-3">
-        <label><span className="label">Service user</span><select name="serviceUserId" required defaultValue={t?.serviceUserId ?? ""} className="input"><option value="">Choose…</option>{lk.serviceUsers.map((s) => <option key={s.id} value={s.id}>{suName(s)} ({s.reference})</option>)}</select></label>
+        <label><span className="label">Service user</span><select name="serviceUserId" required defaultValue={t?.serviceUserId ?? serviceUserId ?? ""} className="input"><option value="">Choose…</option>{lk.serviceUsers.map((s) => <option key={s.id} value={s.id}>{suName(s)} ({s.reference})</option>)}</select></label>
         <label><span className="label">Call type</span><select name="callTypeId" required defaultValue={t?.callTypeId ?? ""} className="input"><option value="">Choose…</option>{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label><span className="label">Area</span><select name="areaId" defaultValue={t?.areaId ?? ""} className="input"><option value="">The service user’s area</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
       </div>
@@ -65,6 +66,13 @@ export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, s
         <label><span className="label">Run route</span><select name="runRouteTemplateId" defaultValue={t?.runRouteTemplateId ?? ""} className="input"><option value="">None</option>{lk.routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
       </div>
       <label className="block"><span className="label">Notes for the office</span><textarea name="notes" rows={2} defaultValue={t?.notes ?? ""} className="input" /></label>
+    </>
+  );
+  // Editing an existing template always goes through Confirm Template Changes; a new template is simply created.
+  if (t) return <TemplateEditForm action={action} submit={submit}>{fields}</TemplateEditForm>;
+  return (
+    <form action={action} className="space-y-4">
+      {fields}
       <button className="btn-primary">{submit}</button>
     </form>
   );

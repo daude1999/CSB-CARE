@@ -33,7 +33,7 @@ export interface VisitPatch {
 }
 
 /** Changes a scheduled visit. Every carer still on it is re-checked at the new time; a carer who cannot do it stops the change. */
-export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, visitId: string, patch: VisitPatch, opts: { source: string; lockVersion?: number; overrideLock?: boolean; keepAutomatic?: boolean }) {
+export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, visitId: string, patch: VisitPatch, opts: { source: string; lockVersion?: number; overrideLock?: boolean; keepAutomatic?: boolean; reason?: string }) {
   const v = await lockVisit(tx, scope, visitId);
   if (opts.lockVersion !== undefined && opts.lockVersion !== v.lockVersion) throw new ConflictError("This visit changed since you opened it. Reload and try again.");
   if (v.status !== "SCHEDULED") throw new ValidationError(`A ${v.status.toLowerCase().replace("_", " ")} visit cannot be edited. Use an office correction instead.`);
@@ -87,7 +87,7 @@ export async function updateVisitInTx(tx: Tx, scope: Scope, actorId: string, vis
         ...(opts.keepAutomatic ? {} : { manuallyChanged: true }),
       },
     });
-    await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "EDITED", actorId, data: { source: opts.source, fields: Object.keys(patch).filter((k) => patch[k as keyof VisitPatch] !== undefined), from: { start: v.scheduledStart, end: v.scheduledEnd }, to: { start, end } } } });
+    await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "EDITED", actorId, data: { source: opts.source, fields: Object.keys(patch).filter((k) => patch[k as keyof VisitPatch] !== undefined), from: { start: v.scheduledStart, end: v.scheduledEnd }, to: { start, end }, ...(opts.reason ? { reason: opts.reason } : {}) } } });
     await audit({ organisationId: scope.organisationId, actorId, action: "visit.updated", entityType: "Visit", entityId: visitId, data: { source: opts.source } }, tx);
     // A visit newly marked for medication support, or moved to a time when a medicine is due, may now need a lead.
     if (patch.medicationRequired || timeChanged) await reconcileMedicationLead(tx, scope.organisationId, visitId, actorId);

@@ -9,6 +9,8 @@ import { draftRevisionFromAssessment } from "@/server/policies/revise";
 import { sweepCalls } from "@/server/rota/monitor";
 import { escalateOverdueExceptions } from "@/server/rota/exceptions";
 import { escalateOverdueCases } from "@/server/rota/missed-calls";
+import { catchUpInvestigations, investigateJob } from "@/server/rota/missed-auto/runs";
+import { checkConfirmationDeadlines } from "@/server/rota/missed-auto/confirmations";
 import { sweepMissedMedication } from "@/server/care/medication";
 import { reconcileStaffAssignments } from "@/server/policies/assignment";
 import type { RunTrigger } from "@prisma/client";
@@ -41,8 +43,13 @@ export const handlers: Record<string, JobHandler> = {
     // Missed calls escalate through their investigation case; the register's other exceptions escalate on their own.
     const missedEscalated = await escalateOverdueCases();
     const escalated = await escalateOverdueExceptions();
-    return { ...calls, missedMedication, escalated, missedEscalated };
+    // Missed-call automation housekeeping comes last, so it can never delay detection or the escalations above.
+    const confirmations = await checkConfirmationDeadlines();
+    const investigationsQueued = await catchUpInvestigations();
+    return { ...calls, missedMedication, escalated, missedEscalated, confirmations, investigationsQueued };
   },
+  // One evidence run for a missed call (and, the first time, the carer requests). Runs apart from detection.
+  "missed.investigate": async (p, job) => investigateJob(p, job.id),
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();
