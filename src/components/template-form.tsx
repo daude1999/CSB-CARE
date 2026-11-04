@@ -7,7 +7,7 @@ import { TemplateCarersFields } from "@/components/template-carers";
 type Lookups = Awaited<ReturnType<typeof rotaLookups>>;
 
 /** The rota template form, used to create and to edit a template. Validation happens on the server (templateSchema). */
-export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string }) {
+export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, submit, serviceUserId }: { action: (fd: FormData) => Promise<void>; lk: Lookups; t?: VisitTemplate; taskIds?: string[]; back: string; cycleLength: number; submit: string; serviceUserId?: string }) {
   // The HR-fed carer pool, plus whoever the template already names so an existing choice is never silently dropped.
   const preferred = t ? preferredOf(t) : [null];
   const keep = new Set([...preferred, t?.shadowStaffId].filter((x): x is string => !!x));
@@ -18,7 +18,7 @@ export function TemplateForm({ action, lk, t, taskIds = [], back, cycleLength, s
       <input type="hidden" name="back" value={back} />
       {t ? <><input type="hidden" name="templateId" value={t.id} /><input type="hidden" name="version" value={t.version} /></> : null}
       <div className="grid gap-3 md:grid-cols-3">
-        <label><span className="label">Service user</span><select name="serviceUserId" required defaultValue={t?.serviceUserId ?? ""} className="input"><option value="">Choose…</option>{lk.serviceUsers.map((s) => <option key={s.id} value={s.id}>{suName(s)} ({s.reference})</option>)}</select></label>
+        <label><span className="label">Service user</span><select name="serviceUserId" required defaultValue={t?.serviceUserId ?? serviceUserId ?? ""} className="input"><option value="">Choose…</option>{lk.serviceUsers.map((s) => <option key={s.id} value={s.id}>{suName(s)} ({s.reference})</option>)}</select></label>
         <label><span className="label">Call type</span><select name="callTypeId" required defaultValue={t?.callTypeId ?? ""} className="input"><option value="">Choose…</option>{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label><span className="label">Area</span><select name="areaId" defaultValue={t?.areaId ?? ""} className="input"><option value="">The service user’s area</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
       </div>
