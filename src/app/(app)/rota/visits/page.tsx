@@ -161,6 +161,18 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
     return `/rota/visits${s ? `?${s}` : ""}`;
   };
   const back = url({ date });
+  // Previous and Next in the Visit Details panel follow the list exactly as shown (same day, filters, sort and search),
+  // across pages: the table turns to the page of the visit that opens, so its row stays highlighted.
+  const at = inspector ? rows.findIndex((r) => r.id === inspector.visit.id) : -1;
+  const navTo = (i: number) => {
+    const r = rows[i];
+    if (!r) return { href: null, label: undefined };
+    const p = Math.floor(i / per) + 1;
+    return { href: url({ visit: r.id, tab: undefined, page: p === 1 ? undefined : String(p) }), label: `${r.reference} · ${londonTime(r.scheduledStart)} ${suName(r.serviceUser)}` };
+  };
+  const prevNav = at > 0 ? navTo(at - 1) : { href: null, label: undefined };
+  const nextNav = at >= 0 ? navTo(at + 1) : { href: null, label: undefined };
+  const panelNav = { prevHref: prevNav.href, nextHref: nextNav.href, prevLabel: prevNav.label, nextLabel: nextNav.label, position: at >= 0 ? at + 1 : null, total: rows.length };
   const branchName = branch ? lk.branches.find((b) => b.id === branch)?.name : lk.branches.length === 1 ? lk.branches[0]!.name : "All branches";
   const areas = lk.areas.filter((a) => !branch || a.branchId === branch);
   const staffOpts = lk.staff.filter((s) => !branch || !s.branchId || s.branchId === branch);
@@ -315,7 +327,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                       const risk = v.serviceUser.riskLevel ? RISK[v.serviceUser.riskLevel] : null;
                       const vd = fromDbDate(v.date);
                       return (
-                        <tr key={v.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
+                        <tr key={v.id} data-href={open} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
                           <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
@@ -394,7 +406,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
 
         {inspector ? (
           <div className="xl:sticky xl:top-2">
-            <VisitInspector data={inspector} tab={sp.tab ?? "details"} back={back} closeHref={url({ visit: undefined, tab: undefined })} findCoverHref={coverHref("/rota/visits", { ...params, tab: sp.tab }, { id: inspector.visit.id })} />
+            <VisitInspector data={inspector} tab={sp.tab ?? "details"} back={back} closeHref={url({ visit: undefined, tab: undefined })} nav={panelNav} findCoverHref={coverHref("/rota/visits", { ...params, tab: sp.tab }, { id: inspector.visit.id })} />
           </div>
         ) : sp.visit ? <p className="text-[13px] text-slate-600">That visit is not available to you, or no longer exists.</p> : null}
       </div>

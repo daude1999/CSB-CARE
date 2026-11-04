@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
-import { ArrowSquareOut, ArrowsLeftRight, CalendarBlank, Circle, Clock, FirstAidKit, Heartbeat, MapPin, NotePencil, PencilSimple, Plus, ShieldWarning, SignIn, Trash, User, UserPlus, Users, UsersThree, X } from "@phosphor-icons/react/dist/ssr";
+import { ArrowSquareOut, ArrowsLeftRight, CalendarBlank, Circle, Clock, FirstAidKit, Heartbeat, MapPin, NotePencil, PencilSimple, ShieldWarning, SignIn, Trash, User, UserPlus, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { fmtLondonDate, fromDbDate, hhmm, londonMinute, londonTime } from "@/lib/london";
-import { addVisitNoteAction, assignCarerAction, cancelVisitAction, doubleUpAction, swapCarersAction, unassignCarerAction, updateVisitAction, reinstateVisitAction } from "@/app/rota-actions";
+import { addVisitNoteAction, cancelVisitAction, doubleUpAction, swapCarersAction, updateVisitAction, reinstateVisitAction } from "@/app/rota-actions";
+import { PanelBody, PanelFooter, PanelLink, PanelNav, PanelSaved, VisitPanelShell } from "@/components/visit-panel-shell";
+import { CarerChips, ReassignButton, StaffingEditor, type EditorCandidate } from "@/components/visit-staffing-editor";
 import { CancelChargeChoice, cancellationChargeLabel } from "@/components/rota-ui";
 import { NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
 import { suName } from "@/server/rota/queries";
@@ -10,6 +12,17 @@ import type { VisitInspectorData } from "@/server/rota/inspector";
 import { READINESS_LABEL } from "@/server/readiness";
 import { fmtDate } from "@/components/ui";
 import { MAX_CARERS, isCarerPlace, placeKey, placeLabel, placeNumber } from "@/lib/carer-places";
+
+/** Where Previous and Next go, worked out by the Daily Rota from the list exactly as it is shown. */
+export interface PanelNavigation {
+  prevHref: string | null;
+  nextHref: string | null;
+  prevLabel?: string;
+  nextLabel?: string;
+  /** 1-based place of this visit in the shown list; null when the filters hide it. */
+  position: number | null;
+  total: number;
+}
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   SCHEDULED: { label: "Scheduled", cls: "bg-[#f3f0fc] text-[#5a3aa8] border-[#ddd6f6]" },
@@ -21,7 +34,6 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 const RISK: Record<string, { label: string; colour: string }> = { LOW: { label: "Low risk", colour: "#1f9d4c" }, MEDIUM: { label: "Medium risk", colour: "#e0a526" }, HIGH: { label: "High risk", colour: "#d9473f" } };
 const EVENT: Record<string, string> = { CREATED: "Visit created", ASSIGNED: "Carer assigned", REASSIGNED: "Carer replaced", EDITED: "Visit changed", UNASSIGNED: "Carer removed", SWAPPED: "Carers swapped", PUBLISHED: "Published to carers", STATUS: "Status changed", CLOCK: "Clock recorded", TASKS: "Tasks recorded" };
-const STATE_WORD = { ELIGIBLE: "eligible", REQUIRES_REVIEW: "check first", NOT_ELIGIBLE: "not eligible" } as const;
 const TABS = [
   ["details", "Details"],
   ["notes", "Notes"],
@@ -68,7 +80,7 @@ function ActionPop({ label, icon, tone = "secondary", children, align = "left", 
  * unchanged. Completed, missed-and-closed and cancelled visits cannot be moved or re-staffed here. After an action the
  * page comes back to the same day, filters and visit.
  */
-export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { data: VisitInspectorData; tab: string; back: string; closeHref: string; findCoverHref?: string }) {
+export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav }: { data: VisitInspectorData; tab: string; back: string; closeHref: string; findCoverHref?: string; nav: PanelNavigation }) {
   const { visit: v, live, flags, editable, assignable, canEdit, candidates, swaps, names } = data;
   const st = STATUS[v.status] ?? STATUS.SCHEDULED!;
   const date = fromDbDate(v.date);
@@ -87,39 +99,32 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
       <input type="hidden" name="lockVersion" value={v.lockVersion} />
     </>
   );
-  const openSlots = data.slots.filter((s) => !live.some((a) => placeKey(a) === s));
   // Lowering the number of carers is offered only while the last place is empty (nobody is ever taken off silently).
   const lastPlaceEmpty = !carers.some((a) => placeNumber(placeKey(a)) === v.carersRequired);
   const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
   const done = v.tasks.filter((t) => t.outcomes[0]?.outcome === "DONE").length;
 
-  const assignForm = (slot: (typeof data.slots)[number]) => {
-    const list = candidates.find((c) => c.slot === slot)?.list ?? [];
-    const current = live.find((a) => placeKey(a) === slot);
-    return (
-      <form key={slot} action={assignCarerAction} className="mb-3 space-y-1.5 last:mb-0">
-        {hidden}
-        <input type="hidden" name="slot" value={slot} />
-        <label className="block">
-          <span className="text-[12.5px] text-slate-600">{placeLabel(slot)}{current ? ` · now ${current.staff.displayName}` : " · open"}</span>
-          <select name="staffId" required className="input py-1.5 text-[13.5px]">
-            <option value="">{current ? "Replace with…" : "Choose a carer…"}</option>
-            {list.map((c) => <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>{c.score !== null ? `${c.score} · ` : ""}{c.name} — {STATE_WORD[c.state]}{c.readiness && c.readiness !== "READY" ? ` (${READINESS_LABEL[c.readiness].toLowerCase()})` : ""}{c.reasons.length ? `: ${c.reasons.slice(0, 2).join("; ")}` : ""}</option>)}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
-        <button className="btn-primary py-1 text-[13.5px]">{current ? "Replace" : "Assign"}</button>
-      </form>
-    );
-  };
+  const shared = candidates[0]?.list ?? [];
+  const editorCandidates: EditorCandidate[] = shared.map((c) => ({ id: c.id, name: c.name, state: c.state, score: c.score, readiness: c.readiness && c.readiness !== "READY" ? READINESS_LABEL[c.readiness] : null, reasons: c.reasons }));
+  const current = Object.fromEntries(carers.map((a) => [placeKey(a), a.staff.id]));
+  const staffNames = Object.fromEntries([...live.map((a) => [a.staff.id, a.staff.displayName] as const), ...shared.map((c) => [c.id, c.name] as const)]);
+  const lockedReason = v.status === "COMPLETED" ? "This visit has been completed" : v.status === "IN_PROGRESS" ? "This visit is in progress" : v.status === "CANCELLED" ? "This visit is cancelled" : v.status === "NOT_DELIVERED" ? "This visit was recorded as not delivered" : null;
+  const editor = (
+    <div className="px-0">
+      <StaffingEditor names={staffNames} candidates={editorCandidates} canChangePlaces={editable} maxCarers={MAX_CARERS} summary={`${fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short" })}, ${londonTime(v.scheduledStart)} – ${londonTime(v.scheduledEnd)}`} />
+    </div>
+  );
 
   return (
-    <aside aria-labelledby="vi-title" className="flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] xl:max-h-[calc(100vh-150px)]">
+    <VisitPanelShell visitId={v.id} lockVersion={v.lockVersion} carersRequired={v.carersRequired} current={current} closeHref={closeHref} prevHref={nav.prevHref} nextHref={nav.nextHref} reviewStaffIds={editorCandidates.filter((c) => c.state === "REQUIRES_REVIEW").map((c) => c.id)}>
+    <aside aria-labelledby="vi-title" className="flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] xl:max-h-[calc(100vh-210px)]">
       <div className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
         <CalendarBlank size={22} weight="duotone" className="text-[#5b2bb5]" aria-hidden />
         <h2 id="vi-title" className="text-[18px] font-bold text-[#101828]">Visit Details</h2>
-        <Link href={closeHref} aria-label="Close visit details" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><X size={19} weight="bold" aria-hidden /></Link>
+        <PanelLink href={closeHref} aria-label="Close visit details" title="Close (Esc)" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><X size={19} weight="bold" aria-hidden /></PanelLink>
       </div>
+      <PanelSaved />
+      <PanelNav prevHref={nav.prevHref} nextHref={nav.nextHref} prevLabel={nav.prevLabel} nextLabel={nav.nextLabel} position={nav.position} total={nav.total} />
 
       <div className="flex items-start gap-3 px-4 pb-2.5 pt-1.5">
         <User size={24} aria-hidden className="mt-0.5 shrink-0 text-[#5b2bb5]" />
@@ -132,13 +137,14 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
 
       <nav aria-label="Visit details sections" className="flex border-b border-[#e4e7ec] px-3">
         {TABS.map(([k, label]) => (
-          <Link key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-[13.5px] no-underline ${activeTab === k ? "border-[#5b2bb5] font-semibold text-[#5b2bb5]" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
+          <PanelLink key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-[13.5px] no-underline ${activeTab === k ? "border-[#5b2bb5] font-semibold text-[#5b2bb5]" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
             {label}{k === "notes" && v.visitNotes.length ? ` (${v.visitNotes.length})` : k === "tasks" && v.tasks.length ? ` (${v.tasks.length})` : ""}
-          </Link>
+          </PanelLink>
         ))}
       </nav>
 
-      <div className="flex-1 overflow-y-auto px-4 py-2">
+      <div data-panel-scroll className="flex-1 overflow-y-auto px-4 py-2">
+        <PanelBody editor={editor}>
         {activeTab === "details" ? (
           <>
             {flags.review.length || flags.late ? (
@@ -156,34 +162,21 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
               <Row icon={<SignIn size={19} />} label="Clock in and out">{v.completionSource === "OFFICE_CONFIRMED" ? <span data-testid="office-completed">Completed by the office{v.actualStart ? ` (times entered: ${londonTime(v.actualStart)}${v.actualEnd ? `–${londonTime(v.actualEnd)}` : ""})` : ", no clock record"} · confirmed by {v.completionVerifiedBy}</span> : v.actualStart ? <>In {londonTime(v.actualStart)} · {v.actualEnd ? <>Out {londonTime(v.actualEnd)} ({hm(mins(v.actualStart, v.actualEnd))})</> : "not clocked out"}</> : <span className="text-[#475467]">Not clocked in</span>}</Row>
               <Row icon={<Users size={19} weight="bold" />} label="Carers">
                 <span className="font-semibold">Carers ({carers.length} of {v.carersRequired})</span>
-                <span className="mt-1.5 flex flex-wrap gap-1.5">
-                  {carers.map((a) => (
-                    <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-[#eef0f4] py-0.5 pl-2.5 pr-1 text-[13px] text-[#101828]">
-                      <Link href={`/rota/staff/${a.staff.id}`} className="text-inherit no-underline hover:underline">{a.staff.displayName}</Link>{a.acknowledgedAt ? <span className="sr-only"> (acknowledged)</span> : null}
-                      {assignable ? (
-                        <form action={unassignCarerAction} className="inline-flex">
-                          {hidden}
-                          <input type="hidden" name="slot" value={placeKey(a)} />
-                          <button aria-label={`Remove ${a.staff.displayName} from this visit`} title="Remove from this visit" className="flex h-5 w-5 items-center justify-center rounded-full text-[#344054] hover:bg-white"><X size={12} weight="bold" aria-hidden /></button>
-                        </form>
-                      ) : <span className="w-1" />}
+                {assignable ? (
+                  <CarerChips carers={carers.map((a) => ({ place: placeKey(a), staffId: a.staff.id, name: a.staff.displayName, href: `/rota/staff/${a.staff.id}` }))} canChange canAddPlace={editable} maxCarers={MAX_CARERS} />
+                ) : (
+                  <>
+                    <span className="mt-1.5 flex flex-wrap gap-1.5">
+                      {carers.map((a) => <span key={a.id} className="inline-flex items-center rounded-full bg-[#eef0f4] px-2.5 py-0.5 text-[13px] text-[#101828]"><Link href={`/rota/staff/${a.staff.id}`} className="text-inherit no-underline hover:underline">{a.staff.displayName}</Link></span>)}
+                      {!carers.length ? <span className="text-[13px] font-medium text-[#b42318]">No carer assigned</span> : null}
                     </span>
-                  ))}
-                  {!carers.length ? <span className="text-[13px] font-medium text-[#b42318]">No carer assigned</span> : null}
-                </span>
-                {assignable && openSlots.length ? (
-                  <ActionPop label="Add Carer" icon={<Plus size={16} weight="bold" />} tone="outline" className="mt-2 inline-block [&>summary]:rounded-full [&>summary]:px-4">
-                    <p className="mb-2 font-semibold">Add a carer</p>
-                    {openSlots.map((s) => assignForm(s))}
-                    <p className="mt-2 text-[12px] text-slate-500">Carers who are not eligible cannot be chosen. The check runs again when you save.</p>
-                  </ActionPop>
-                ) : editable && v.carersRequired < MAX_CARERS ? (
-                  <form action={doubleUpAction} className="mt-2">
-                    {hidden}
-                    <input type="hidden" name="carersRequired" value={v.carersRequired + 1} />
-                    <button className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#5b2bb5] px-4 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title={v.carersRequired === 1 ? "Make this a double-up, then choose the second carer" : `Add a place for carer ${v.carersRequired + 1}, then choose the carer`}><Plus size={16} weight="bold" aria-hidden />Add Carer</button>
-                  </form>
-                ) : null}
+                    {canEdit && lockedReason ? (
+                      <span data-testid="staffing-locked" className="mt-1.5 block rounded-[8px] bg-[#f7f8fa] px-2.5 py-1.5 text-[12.5px] text-[#344054]">
+                        {lockedReason}, so its carers cannot be changed here. {v.status === "CANCELLED" || v.status === "NOT_DELIVERED" ? <>Reinstate the visit first if it is going ahead.</> : <>To correct who attended or the times, use <Link href={`/rota/visits/${v.id}#corrections`}>office corrections on the full visit page</Link>.</>}
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </Row>
               {shadow ? <Row icon={<UserPlus size={19} />} label="Shadowing">Shadowing: {shadow.staff.displayName}</Row> : null}
               <Row icon={<Circle size={19} />} label="Acknowledged">{carers.length ? (acked ? "Acknowledged by the carer" + (carers.length > 1 ? "s" : "") : carers.some((a) => a.acknowledgedAt) ? "Partly acknowledged" : "Not acknowledged yet") : <span className="text-[#475467]">Nobody to acknowledge</span>}</Row>
@@ -237,15 +230,13 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
             </ol>
           ) : <p className="py-4 text-[14px] text-slate-600">No history yet.</p>
         ) : null}
+        </PanelBody>
       </div>
 
       <div className="space-y-2 border-t border-[#eef0f3] px-4 py-3">
+        <PanelFooter>
         {assignable ? (
-          <ActionPop label="Reassign Carers" icon={<UsersThree size={20} weight="fill" />} tone="primary" size="lg">
-            <p className="mb-2 font-semibold">Choose a carer for each place</p>
-            {data.slots.map((s) => assignForm(s))}
-            <p className="mt-2 text-[12px] text-slate-500">Carers who are not eligible cannot be chosen. The check runs again when you save.</p>
-          </ActionPop>
+          <ReassignButton />
         ) : null}
         <div className="grid grid-cols-2 gap-2">
           {editable ? (
@@ -335,7 +326,9 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref }: { 
           ) : null}
         </div>
         {canEdit && !assignable && !editable && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) ? <p className="text-[12.5px] text-slate-600">{st.label} visits cannot be moved or re-staffed. Clock corrections are on the full visit page.</p> : null}
+        </PanelFooter>
       </div>
     </aside>
+    </VisitPanelShell>
   );
 }
