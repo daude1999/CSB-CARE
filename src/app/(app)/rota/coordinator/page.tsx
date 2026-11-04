@@ -26,7 +26,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
         title="Care Coordinator"
         back="/rota/service-users"
         subtitle="Upload a referral's documents. Each fact is read with its page, checked by a coordinator, approved section by section by a manager, then saved into the person's profile. Nothing is saved, published or sent to carers without a person deciding."
-        actions={hasOrgPermission(ctx, "rota.edit") ? <Link href="/rota/coordinator/shift" className="btn-secondary">Tomorrow&apos;s shift check</Link> : null}
+        actions={<div className="flex flex-wrap gap-2"><Link href="/rota/coordinator/assistant" className="btn-primary">✦ Open AI CSB Coordinator</Link>{hasOrgPermission(ctx,"rota.edit")?<Link href="/rota/coordinator/shift" className="btn-secondary">Tomorrow&apos;s shift check</Link>:null}</div>}
       />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
