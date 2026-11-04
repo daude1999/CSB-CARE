@@ -1596,6 +1596,7 @@ model ServiceUser {
   absences             ServiceUserAbsence[]
   packages             CarePackage[]
   carePlans            CarePlan[]
+  intakeReviewItems    CareIntakeReviewItem[]
   risks                RiskAssessment[]
   incidents            Incident[]
   templates            VisitTemplate[]
@@ -3910,3 +3911,26 @@ model MedicationApplicationSite {
   @@index([organisationId, serviceUserId])
   @@index([medicationId])
 }
+
+/**
+ * Restricted human review queue for facts extracted from support plans and
+ * clinical correspondence. Not medication orders or approved care instructions.
+ */
+model CareIntakeReviewItem {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  serviceUser    ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  category       String
+  description    String
+  sourceRef      String?
+  status         String      @default("OPEN")
+  createdById    String
+  createdAt      DateTime    @default(now())
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolution     String?
+
+  @@index([organisationId, serviceUserId, status])
+}
+
