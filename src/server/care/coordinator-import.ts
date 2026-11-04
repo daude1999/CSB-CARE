@@ -12,6 +12,8 @@ import { createTemplate } from "@/server/rota/templates";
 import { createVisit } from "@/server/rota/visits";
 import { uploadDocument, type UploadedFile } from "@/server/care/su-documents";
 import { createRiskDraft } from "@/server/care/risks";
+import { reviewFieldSchema, reviewMatchesManifest, type ReviewField } from "./coordinator-field-review";
+import { audit } from "@/server/audit-log";
 
 /**
  * Explicit human-approved, tenant-scoped intake.
@@ -94,6 +96,7 @@ export const intakeSchema = z.object({
   approvalPhrase: z.literal("I APPROVE DRAFT RECORD CREATION").optional(),
   clinicalReviewNotes: z.array(z.string().max(500)).max(50).default([]),
   riskReviewNotes: z.array(z.string().max(500)).max(50).default([]),
+  fieldReviews: z.array(reviewFieldSchema).min(1).max(1000),
 }).strict().superRefine((data, ctx) => {
   if (data.package.endDate < data.package.startDate) ctx.addIssue({code:"custom",path:["package","endDate"],message:"End date is before start date"});
   const used = new Set<number>();
@@ -126,6 +129,8 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   if((d.serviceUser.dateOfBirth || d.serviceUser.nhsNumber || d.clinicalReviewNotes.length || d.riskReviewNotes.length)
       && !hasOrgPermission(ctx,"serviceUser.sensitive"))
     throw new ValidationError("A care manager must import restricted identifiers and clinical review items");
+  const reviewFailures=reviewMatchesManifest(d as unknown as Record<string,unknown>,d.fieldReviews);
+  if(reviewFailures.length) throw new ValidationError("Field review incomplete: "+reviewFailures.slice(0,5).join("; "));
   const area = await db.area.findFirst({where:{organisationId:scope.organisationId,id:d.serviceUser.areaId,active:true}});
   if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose an authorised active area");
   const callTypes = await db.callType.findMany({where:{organisationId:scope.organisationId,id:{in:d.visits.map(v=>v.callTypeId)},active:true},select:{id:true}});
@@ -159,7 +164,8 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   if(invalidSections.length) throw new ValidationError("Unexpected care-plan section: "+invalidSections.join(", "));
   if(PLAN_SECTIONS.some(s=>!(d.carePlan.sections[s.key]?.body.trim())))
     throw new ValidationError("Provide all nine care plan sections, stating 'not documented — needs review' where applicable");
-  return {data:d,weeklyMinutes:templateMinutes,visitTemplates:d.visits.length,contacts:d.contacts.length,riskDrafts:d.riskDrafts.length,requiresClinicalReview:true};
+  return {data:d,weeklyMinutes:templateMinutes,visitTemplates:d.visits.length,contacts:d.contacts.length,riskDrafts:d.riskDrafts.length,
+    fieldReviews:d.fieldReviews,requiresClinicalReview:true};
 }
 
 export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan?:UploadedFile;discharge?:UploadedFile}) {
@@ -183,6 +189,20 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
     const su=await createServiceUser(ctx,d.serviceUser);
     serviceUserId=su.id;
     steps.push("Service user created in Assessment");
+    // Maintain the source and decision evidence in the restricted record history.
+    // Values are stored in care domains, never duplicated in audit entries.
+    await db.careIntakeReviewItem.createMany({data:d.fieldReviews.map(item=>({
+      organisationId:su.organisationId,serviceUserId:su.id,category:"FIELD_MAPPING",
+      description:JSON.stringify({id:item.id,fieldPath:item.fieldPath,destination:item.destination,
+        sourceDocument:item.sourceDocument,sourcePage:item.sourcePage,sourceDate:item.sourceDate,
+        confidence:item.confidence,decision:item.decision,reason:item.reason,reviewedBy:item.reviewedBy}),
+      sourceRef:item.sourceDocument+"#page="+item.sourcePage,
+      status:"REVIEWED",createdById:ctx.userId,
+    }))});
+    await audit({organisationId:su.organisationId,actorId:ctx.userId,action:"coordinator.field-review.applied",
+      entityType:"ServiceUser",entityId:su.id,
+      data:{reviewCount:d.fieldReviews.length,approved:d.fieldReviews.filter(i=>i.decision==="APPROVE"||i.decision==="EDITED").length}},db);
+    steps.push(d.fieldReviews.length+" source-to-field review decisions saved");
     for(const c of d.contacts) await addContact(ctx,su.id,{...c,email:"",preferredContactMethod:"",authorityType:""});
     steps.push(d.contacts.length+" contacts added");
     if(files?.supportPlan) {
