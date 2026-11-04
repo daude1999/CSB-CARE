@@ -37,7 +37,8 @@ const visit = z.object({
   startMinute: z.number().int().min(0).max(1439),
   durationMin: z.number().int().min(5).max(1440),
   carersRequired: z.number().int().min(1).max(20),
-  notes: z.string().max(2000),
+  notes: z.string().max(1900),
+  taskIds: z.array(z.string().min(1)).max(30).default([]),
   medicationRequired: z.boolean().default(false),
 });
 export const intakeSchema = z.object({
@@ -128,6 +129,8 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
     postcode:{equals:d.serviceUser.postcode || "",mode:"insensitive"}
   },select:{id:true},take:2});
   if (existing.length) throw new ValidationError("A possible matching service user already exists. Review the existing record before importing to avoid duplication.");
+  const taskIds=[...new Set(d.visits.flatMap(v=>v.taskIds))];
+  if(taskIds.length && await db.careTask.count({where:{organisationId:scope.organisationId,id:{in:taskIds},active:true}})!==taskIds.length) throw new ValidationError("One or more care tasks are missing or inactive");
   const templateMinutes = d.visits.reduce((n,v)=>n+v.durationMin*v.weekdays.length,0);
   const weeklyMinutes = d.package.commissionedMinutesPerWeek;
   if (weeklyMinutes !== undefined && weeklyMinutes !== templateMinutes)
@@ -188,7 +191,7 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
         preferredStaff1Id:null,preferredStaff2Id:null,extraPreferredStaffIds:[],shadowStaffId:null,
         timeLocked:false,medicationRequired:v.medicationRequired,alertOnLate:true,
         rotaType:"NORMAL",runRouteTemplateId:null,effectiveFrom:d.package.startDate,
-        effectiveTo:d.package.endDate,notes:v.label+": "+v.notes,taskIds:[],
+        effectiveTo:d.package.endDate,notes:v.label+": "+v.notes,taskIds:v.taskIds,
       });
     }
     steps.push(d.visits.length+" recurring visit templates created, no carers assigned");
@@ -216,7 +219,7 @@ export async function activateAndBuildApprovedWeek(ctx: Ctx, serviceUserId: stri
   const su=await db.serviceUser.findFirst({where:{...serviceUserWhere(scope),id:serviceUserId},include:{
     carePlans:{where:{status:"ACTIVE"},select:{id:true},take:1},
     packages:{where:{status:"ACTIVE"},take:1},
-    templates:{where:{enabled:true},orderBy:{startMinute:"asc"}},
+    templates:{where:{enabled:true},orderBy:{startMinute:"asc"},include:{tasks:{include:{careTask:true}}}},
   }});
   if(!su || su.organisationId!==org) throw new ValidationError("Service user not found in your scope");
   if(su.status!=="ASSESSMENT" && su.status!=="ACTIVE") throw new ValidationError("Person must be in Assessment or Active status");
@@ -257,6 +260,7 @@ export async function activateAndBuildApprovedWeek(ctx: Ctx, serviceUserId: stri
           startMinute:v.startMinute,durationMin:v.durationMin,carersRequired:v.carersRequired,
           medicationRequired:v.medicationRequired,timeLocked:v.timeLocked,
           notes:v.notes || undefined,publish:false});
+        if(v.tasks.length) await db.visitTask.createMany({data:v.tasks.map((t,index)=>({visitId:visit.id,careTaskId:t.careTaskId,name:t.careTask.name,position:index}))});
         created.push(visit.id);
       }catch(e){errors.push(day+" "+v.startMinute+": "+(e instanceof Error?e.message:"Unable to create visit"));}
     }
