@@ -113,4 +113,11 @@ describe("AI Care Coordinator: Call Notes section", () => {
     expect(facts).toHaveLength(1);
     expect(facts[0]).toMatchObject({ section: "CALL_NOTES", page: 1, value: { contactName: "Social worker", method: "TELEPHONE" } });
   });
+  it("does not mistake a communication-needs line for a Call Note", () => {
+    const r = basicRead(["Name: Ada Example\nCommunication needs: Speak slowly and check the hearing aid is in."]);
+    expect(readingToFacts(r).filter((f) => f.destination === "callnote")).toHaveLength(0);
+  });
+  it("does not call two statements the same because they share one word", () => {
+    expect(findDuplicate("Rang the daughter back.", "CALL_NOTE", [{ ref: "VisitNote:v1", label: "Visit note", text: "Back pain reported at lunch", destination: "ANY" }]).kind).toBe("NEW");
+  });
 });

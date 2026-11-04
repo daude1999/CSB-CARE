@@ -438,7 +438,7 @@ export function basicRead(pages: string[]): Reading {
       const value = lv[2]!.trim();
       const base = { page, quote: line, temporal: (historicalDoc ? "UNKNOWN" : "CURRENT") as FactSeed["temporal"] };
       if (/key ?safe|alarm code|door code|pin\b/.test(label)) { r.flags.push({ text: "A key safe or door code appears in the document. It was not copied; record it through Key Safe if needed.", page }); continue; }
-      const comm = /^(call note|phone call|telephone call|telephone conversation|conversation with|spoke (to|with)|email from|meeting note|communication)(?: with)?\s*(.*)$/.exec(label);
+      const comm = /^(call note|phone call|telephone call|telephone conversation|conversation with|spoke (to|with)|email from|meeting note|communication with)(?: with)?\s*(.*)$/.exec(label);
       if (comm) {
         const method = /mail/.test(label) ? "EMAIL" : /meeting/.test(label) ? "MEETING" : /phone|call/.test(label) ? "TELEPHONE" : "OTHER";
         r.communications!.push({ summary: value, contactName: comm[3]?.trim() ? comm[3].trim().replace(/^\w/, (ch) => ch.toUpperCase()) : null, method, date: null, ...base });

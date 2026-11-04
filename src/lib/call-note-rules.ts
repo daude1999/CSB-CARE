@@ -118,8 +118,8 @@ export function similarity(a: string, b: string) {
   if (!x.size || !y.size) return 0;
   let both = 0;
   for (const w of x) if (y.has(w)) both++;
-  // One shared word is never enough to call two statements the same subject.
-  if (both < 2 && Math.min(x.size, y.size) > 1) return 0;
+  // One shared word is never enough to call two statements the same subject (identical texts are caught before this).
+  if (both < 2) return 0;
   // Overlap against the shorter text: a short new statement fully inside a longer existing record still counts.
   return both / Math.min(x.size, y.size);
 }
