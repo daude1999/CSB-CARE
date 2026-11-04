@@ -40,3 +40,7 @@ Switch the three settings off. Pending carer requests are withdrawn and nothing 
 ## Tests
 
 `tests/unit/missed-auto.test.ts` (rules), `tests/integration/missed-auto.test.ts` (detection, idempotency, confirmation limits and permissions, deadlines, failures, review, triggers), `tests/e2e/missed-auto.spec.ts` (case page, carer phone flow, refresh and accept, attention panel, settings).
+
+## Build memory
+
+Type-checking the whole app during `next build` already used about 2,027 MB on main, just under Node's default limit of about 2,096 MB. This build adds about 40 MB and went over it. `npm run build` now starts Next with `--max-old-space-size=4096`, and `vercel-build` calls `npm run build`. Vercel build machines have 8 GB of memory.
