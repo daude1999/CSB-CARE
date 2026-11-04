@@ -78,6 +78,7 @@ export const externalReferenceValue = z.object({
   issuer:s(180),
   value:s(120),
 }).strict();
+export const EXTERNAL_REFERENCE_LABEL: Record<(typeof EXTERNAL_REFERENCE_TYPES)[number], string> = { NHS: "NHS number", COUNCIL_CLIENT: "Council client number", COUNCIL_FRAMEWORK: "Council framework / contract ID", COUNCIL_PACKAGE: "Council package reference", OTHER_EXTERNAL: "Other reference" };
 export const CONTACT_KINDS = ["NEXT_OF_KIN", "FAMILY", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"] as const;
 export const CONTACT_KIND_LABEL: Record<(typeof CONTACT_KINDS)[number], string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other professional" };
 export const contactValue = z.object({
@@ -214,6 +215,7 @@ export function displayValue(destination: string, v: unknown): string {
   const o = v as Record<string, unknown>;
   const join = (...parts: unknown[]) => parts.filter((p) => p !== null && p !== undefined && p !== "" && p !== false).join(" · ");
   switch (destination) {
+    case "externalReference": return join(EXTERNAL_REFERENCE_LABEL[o.type as keyof typeof EXTERNAL_REFERENCE_LABEL] ?? o.type, o.value, o.issuer ? `issued by ${o.issuer}` : null, o.type === "COUNCIL_FRAMEWORK" ? "Shared contract ID, not proof of identity" : null);
     case "contact": return join(CONTACT_KIND_LABEL[o.kind as keyof typeof CONTACT_KIND_LABEL] ?? o.kind, o.name, o.relationship, o.phone, o.email, o.isEmergency ? "Emergency contact" : null, o.isKeyHolder ? "Key holder" : null, o.authority ? `Authority as written: ${o.authority}` : null);
     case "risk": return join(o.title, o.level ? `${o.level}${o.levelIsProvisional ? " (provisional)" : ""}` : "Level not set", o.hazard);
     case "visit": {
@@ -370,7 +372,7 @@ export function readingToFacts(r: Reading): FactSeed[] {
     add({ section: "PERSONAL", destination: `person.${p.field}`, label: PERSON_FIELDS[p.field as PersonField].label, value, page: p.page, quote: p.quote, temporal: p.temporal });
   }
   for(const ref of r.references ?? []) add({section:"PERSONAL",destination:"externalReference",
-    label:ref.type+" ("+ref.issuer+")",value:{type:ref.type,issuer:ref.issuer,value:ref.value},
+    label:`${EXTERNAL_REFERENCE_LABEL[ref.type]} (${ref.issuer})`,value:{type:ref.type,issuer:ref.issuer,value:ref.value},
     page:ref.page,quote:ref.quote,temporal:ref.temporal});
   for (const c of r.contacts) add({ section: "CONTACTS", destination: "contact", label: `${CONTACT_KIND_LABEL[c.kind]}: ${c.name}`, value: { kind: c.kind, name: c.name, relationship: c.relationship, phone: c.phone, email: c.email, address: c.address, isEmergency: c.isEmergency, isKeyHolder: c.isKeyHolder, authority: c.authority }, page: c.page, quote: c.quote, temporal: c.temporal });
   for (const p of r.carerPreferences) {

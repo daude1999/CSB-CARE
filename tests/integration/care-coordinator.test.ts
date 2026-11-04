@@ -9,6 +9,7 @@ import type { LlmProvider } from "@/server/ai/provider";
 import type { CareDocumentExtraction } from "@/server/ai/schemas";
 import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, getIntake, listIntakes, openIntakeDocument, readIntakeDocument, submitIntake } from "@/server/care/coordinator/intake";
 import { applyApproved, applySection } from "@/server/care/coordinator/apply";
+import { referencesFor } from "@/server/care/external-references";
 import { activateCare, createIntakeRota, previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
 import { shiftCheck } from "@/server/care/coordinator/shift";
 import { approvePlan, submitPlan } from "@/server/care/care-plans";
@@ -94,6 +95,7 @@ describe("1. Upload, reading and classification", () => {
             { field: "firstName", value: "Ada", page: 1, quote: "Full name: Ada Fictional", temporal: "CURRENT" },
             { field: "town", value: "Elsewhere", page: 1, quote: "Lives in Elsewhere town", temporal: "CURRENT" },
           ],
+          references: [{ type: "NHS", issuer: "NHS", value: "999 000 0001", page: 1, quote: "NHS number: 999 000 0001", temporal: "CURRENT" }],
           contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [],
           medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [{ text: "Two different evening times", page: 4 }], missing: ["Purchase order"], unreadable: [],
         };
@@ -103,7 +105,8 @@ describe("1. Upload, reading and classification", () => {
     const tmp = await createIntake(await coordinator(), { title: "AI reading check" });
     await addDocuments(await coordinator(), tmp.id, [{ name: "Plan.pdf", type: "application/pdf", bytes: planBytes }]);
     const facts = await db.careIntakeFact.findMany({ where: { intakeId: tmp.id }, orderBy: { position: "asc" } });
-    expect(facts.map((f) => [f.destination, f.verification, f.origin])).toEqual([["person.firstName", "VERIFIED", "AI"], ["person.town", "UNVERIFIED", "AI"]]);
+    expect(facts.map((f) => [f.destination, f.verification, f.origin])).toEqual([["person.firstName", "VERIFIED", "AI"], ["person.town", "UNVERIFIED", "AI"], ["externalReference", "VERIFIED", "AI"]]);
+    expect(facts[2]!.label).toBe("NHS number (NHS)");
     expect(facts[1]!.conflict).toMatch(/not found on page 1/);
     setAiProviderForTests(new SimulatedProvider());
     await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
@@ -156,6 +159,7 @@ describe("2. Coordinator review", () => {
     for (const f of left) await decideFact(c, f.id, null, { decision: "DUPLICATE", note: "Same as the support plan" });
     // A fact added by hand for something the reader cannot see.
     await addManualFact(c, intakeId, { destination: "careplan.communication", value: { support: "Speak slowly, face her, check the hearing aid is in.", canDo: "Understands simple English." }, sourcePage: 1 });
+    await addManualFact(c, intakeId, { destination: "externalReference", value: { type: "COUNCIL_CLIENT", issuer: "Example Borough Council", value: "007001" }, sourcePage: 1 });
     // Reload: decisions persisted.
     const view = await getIntake(c, intakeId);
     expect(view.facts.find((f) => f.id === town.id)!.decision).toBe("EDITED");
@@ -213,6 +217,10 @@ describe("4. Saving into the existing profile", () => {
     const su = await db.serviceUser.findUniqueOrThrow({ where: { id: suId } });
     expect([su.firstName, su.lastName, su.town, su.status, su.carerGenderPreference, su.nhsNumber]).toEqual(["Ada", "Fictional", "London Borough of Example", "ASSESSMENT", "FEMALE", "9990000001"]);
     expect(results.every((r) => r.status === "DONE")).toBe(true);
+    // The council client number goes to the encrypted register: unverified, leading zeroes kept, never in plain text.
+    const refs = await db.serviceUserExternalReference.findMany({ where: { serviceUserId: suId } });
+    expect(refs.map((r) => [r.type, r.verified, r.valueCipher.includes("007001")])).toEqual([["COUNCIL_CLIENT", false, false]]);
+    expect((await referencesFor(await manager(), suId)).rows.map((r) => r.value)).toEqual(["007001"]);
     const contacts = await db.serviceUserContact.findMany({ where: { serviceUserId: suId } });
     expect(contacts.map((c) => c.kind).sort()).toEqual(["GP", "NEXT_OF_KIN", "SOCIAL_WORKER"]);
     expect(contacts.every((c) => !c.authorityType)).toBe(true);

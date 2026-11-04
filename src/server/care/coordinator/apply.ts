@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { AppError, ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, hhmm, londonDate, parseHhmm } from "@/lib/london";
 import {
-  ACCEPTED, APPLY_ORDER, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, reconcileHours, sectionLabel,
+  ACCEPTED, APPLY_ORDER, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
   type IntakeSection, type contactValue, type incidentValue, type medArrangementValue, type medItemValue, type planValue, type riskValue, type skinValue, type visitValue,
 } from "@/lib/care-coordinator-rules";
 import { guessCallType, type FundedBy } from "@/lib/su-import-rules";
@@ -15,6 +15,7 @@ import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates"
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
 import { createRiskDraft } from "../risks";
+import { linkExternalReferenceInTx } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
 import { coordinatorAccess, intakeInScope } from "./intake";
@@ -151,7 +152,9 @@ async function suFor(tx: Tx, scope: Scope, intakeId: string) {
 async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   return db.$transaction(async (tx) => {
     const intake = await tx.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
-    const fs = await facts(tx, intakeId, "PERSONAL");
+    const all = await facts(tx, intakeId, "PERSONAL");
+    const fs = all.filter((f) => f.destination.startsWith("person."));
+    const refs = all.filter((f) => f.destination === "externalReference");
     const values: Record<string, string> = {};
     for (const f of fs) values[f.destination.slice(7)] = String(f.value);
     const sensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
@@ -166,9 +169,10 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.created", entityType: "ServiceUser", entityId: su.id, data: { via: "care-coordinator", intakeId, reference: intake.reference } }, tx);
       await tx.careIntake.update({ where: { id: intakeId }, data: { serviceUserId: su.id } });
       for (const f of fs) await markApplied(tx, f, `ServiceUser:${su.id}`);
+      const linked = await applyReferences(tx, ctx, scope, su.id, refs, sensitive);
       const back = await tx.serviceUser.findUniqueOrThrow({ where: { id: su.id } });
       const verified = back.firstName === parsed.data.firstName && back.lastName === parsed.data.lastName;
-      return { created: [`Service user ${reference} (Assessment)`], skipped, notes: ["The person starts at Assessment. They become Active when the draft rota is created after the care plan is approved."], verified };
+      return { created: [`Service user ${reference} (Assessment)`, ...linked.created], skipped: [...skipped, ...linked.skipped], notes: ["The person starts at Assessment. They become Active when the draft rota is created after the care plan is approved."], verified };
     }
     const { su } = await suFor(tx, scope, intakeId);
     // Update an existing person: only the approved fields, with the record's version check.
@@ -181,8 +185,29 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.updated", entityType: "ServiceUser", entityId: su.id, data: { via: "care-coordinator", intakeId, fields: changed } }, tx);
     }
     for (const f of fs) if (values[f.destination.slice(7)] !== undefined) await markApplied(tx, f, `ServiceUser:${su.id}`);
-    return { created: changed.length ? [`Updated ${changed.length} personal detail${changed.length === 1 ? "" : "s"}`] : [], skipped: [...skipped, ...(changed.length ? [] : ["The record already matched"])], notes: [], verified: true };
+    const linked = await applyReferences(tx, ctx, scope, su.id, refs, sensitive);
+    return { created: [...(changed.length ? [`Updated ${changed.length} personal detail${changed.length === 1 ? "" : "s"}`] : []), ...linked.created], skipped: [...skipped, ...(changed.length || linked.created.length ? [] : ["The record already matched"]), ...linked.skipped], notes: [], verified: true };
   });
+}
+
+/** External references (council client, package, framework, NHS) go to the encrypted register, unverified. A manager
+ *  verifies them later on the profile; nothing here marks a reference as verified. */
+async function applyReferences(tx: Tx, ctx: Ctx, scope: Scope, serviceUserId: string, refs: CareIntakeFact[], sensitive: boolean) {
+  const out = { created: [] as string[], skipped: [] as string[] };
+  for (const f of refs) {
+    if (f.appliedAt) continue;
+    const parsed = externalReferenceValue.safeParse(f.value);
+    if (!parsed.success) { out.skipped.push(`${f.label}: the reference could not be read, check it and add it by hand`); continue; }
+    const r = parsed.data;
+    if (r.type === "NHS" && !sensitive) { out.skipped.push(`${f.label} needs a registered manager to save`); continue; }
+    if (r.type === "NHS" && !/^\d{3} ?\d{3} ?\d{4}$/.test(r.value)) { out.skipped.push(`${f.label}: an NHS number has 10 digits`); continue; }
+    const res = await linkExternalReferenceInTx(tx, ctx, scope.organisationId, serviceUserId, { type: r.type, issuer: r.issuer, value: r.value, sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, verificationNote: "Read from documents by the Care Coordinator; not verified" });
+    if (res.status === "conflict") { out.skipped.push(`${f.label}: this reference is already on another person's profile. Investigate before linking.`); continue; }
+    await markApplied(tx, f, `ServiceUserExternalReference:${res.id}`);
+    if (res.status === "created") out.created.push(`${f.label} added to the reference register (not yet verified)`);
+    else out.skipped.push(`${f.label} is already on the profile`);
+  }
+  return out;
 }
 
 // ── Contacts ───────────────────────────────────────────────────────────────

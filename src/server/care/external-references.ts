@@ -1,5 +1,6 @@
 import "server-only";
 import {createCipheriv,createDecipheriv,createHash,createHmac,randomBytes} from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -49,32 +50,44 @@ export async function addExternalReference(ctx:Ctx,serviceUserId:string,raw:Exte
     throw new ValidationError("NHS references require restricted permission");
   if(d.type==="NHS" && !/^\d{3} ?\d{3} ?\d{4}$/.test(d.value))
     throw new ValidationError("NHS number must have ten digits");
-  const hash=fingerprint(normalized(d.value));
   return db.$transaction(async tx=>{
     const su=await tx.serviceUser.findFirst({where:{...serviceUserWhere(scope),id:serviceUserId},select:{id:true}});
     if(!su) throw new NotFoundError("Service user");
-    const key=issuerKey(d.issuer);
-    if(isPersonSpecific(d.type)){
-      const conflicts=await tx.serviceUserExternalReference.findMany({where:{
-        organisationId:scope.organisationId,type:d.type,issuerKey:key,valueHash:hash,
-        serviceUserId:{not:su.id}},select:{serviceUserId:true},take:2});
-      if(conflicts.length) throw new ConflictError("This external reference belongs to another profile. Investigate before linking.");
-    }
-    const existing=await tx.serviceUserExternalReference.findFirst({where:{
-      organisationId:scope.organisationId,serviceUserId:su.id,type:d.type,issuerKey:key,valueHash:hash
-    },select:{id:true}});
-    if(existing) return {id:existing.id,created:false};
-    const row=await tx.serviceUserExternalReference.create({data:{
-      organisationId:scope.organisationId,serviceUserId:su.id,type:d.type,issuer:d.issuer,issuerKey:key,
-      valueCipher:encrypt(normalized(d.value)),valueHash:hash,
-      sourceDocumentId:d.sourceDocumentId || null,sourcePage:d.sourcePage || null,
-      verificationNote:d.verificationNote || null,createdById:ctx.userId,
-    }});
-    await audit({organisationId:scope.organisationId,actorId:ctx.userId,
-      action:"serviceUser.externalReference.added",entityType:"ServiceUser",entityId:su.id,
-      data:{externalReferenceId:row.id,type:d.type,issuer:d.issuer,sourceDocumentId:d.sourceDocumentId||null,sourcePage:d.sourcePage||null}},tx);
-    return {id:row.id,created:true};
+    const r=await linkExternalReferenceInTx(tx,ctx,scope.organisationId,su.id,d);
+    if(r.status==="conflict") throw new ConflictError("This external reference belongs to another profile. Investigate before linking.");
+    return {id:r.id,created:r.status==="created"};
   });
+}
+
+/**
+ * Links one already-validated reference inside the caller's transaction. The caller has checked the service user
+ * belongs to the organisation and that the actor may save NHS references. A person-specific reference that already
+ * belongs to another profile is reported as a conflict and never linked.
+ */
+export async function linkExternalReferenceInTx(tx:Prisma.TransactionClient,ctx:Ctx,organisationId:string,serviceUserId:string,
+  d:{type:typeof REFERENCE_TYPES[number];issuer:string;value:string;sourceDocumentId?:string|null;sourcePage?:number|null;verificationNote?:string|null},
+):Promise<{status:"created"|"existing";id:string}|{status:"conflict";id:null}>{
+  const hash=fingerprint(normalized(d.value));
+  const key=issuerKey(d.issuer);
+  if(isPersonSpecific(d.type)){
+    const conflicts=await tx.serviceUserExternalReference.findMany({where:{
+      organisationId,type:d.type,issuerKey:key,valueHash:hash,serviceUserId:{not:serviceUserId}},select:{serviceUserId:true},take:2});
+    if(conflicts.length) return {status:"conflict",id:null};
+  }
+  const existing=await tx.serviceUserExternalReference.findFirst({where:{
+    organisationId,serviceUserId,type:d.type,issuerKey:key,valueHash:hash
+  },select:{id:true}});
+  if(existing) return {status:"existing",id:existing.id};
+  const row=await tx.serviceUserExternalReference.create({data:{
+    organisationId,serviceUserId,type:d.type,issuer:d.issuer,issuerKey:key,
+    valueCipher:encrypt(normalized(d.value)),valueHash:hash,
+    sourceDocumentId:d.sourceDocumentId || null,sourcePage:d.sourcePage || null,
+    verificationNote:d.verificationNote || null,createdById:ctx.userId,
+  }});
+  await audit({organisationId,actorId:ctx.userId,
+    action:"serviceUser.externalReference.added",entityType:"ServiceUser",entityId:serviceUserId,
+    data:{externalReferenceId:row.id,type:d.type,issuer:d.issuer,sourceDocumentId:d.sourceDocumentId||null,sourcePage:d.sourcePage||null}},tx);
+  return {status:"created",id:row.id};
 }
 
 /** Verification belongs to an authorised care manager; no automatic verified status from AI confidence. */

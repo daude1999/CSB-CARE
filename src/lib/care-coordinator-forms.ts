@@ -130,6 +130,7 @@ export function formSpec(destination: string): FormField[] {
 /** Every destination the coordinator can add a fact to by hand, grouped by profile section. */
 export const MANUAL_DESTINATIONS: [string, string][] = [
   ...Object.entries(PERSON_FIELDS).map(([k, f]) => [`person.${k}`, `Personal details: ${f.label}`] as [string, string]),
+  ["externalReference", "Personal details: council, package or NHS reference"],
   ["contact", "Contacts: new contact"],
   ["preference.gender", "Carer preferences: gender"],
   ["preference.note", "Carer preferences: other"],
