@@ -17,6 +17,7 @@ import { approveRiskDraft } from "@/server/care/risks";
 import { storage } from "@/server/storage";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 import { dischargeLetterPdf, supportPlanPdf } from "../support/coordinator-fixture";
+import { packageSources } from "@/server/care/packages";
 
 /**
  * AI Care Coordinator, end to end against a real database, with synthetic documents only:
@@ -226,6 +227,16 @@ describe("4. Saving into the existing profile", () => {
     expect(contacts.every((c) => !c.authorityType)).toBe(true);
     const pkg = await db.carePackage.findFirstOrThrow({ where: { serviceUserId: suId } });
     expect([pkg.commissionedMinutesPerWeek, pkg.endDate?.toISOString().slice(0, 10)]).toEqual([1365, "2026-12-30"]);
+    // The package text holds only the approved staffing instruction. The named funder becomes a question for finance
+    // (never a linked funder), and where the package came from is recorded on the facts, not pasted into the text.
+    expect(pkg.requirements).toBe("All visits single handed");
+    expect(pkg.funderId).toBeNull();
+    const funding = await db.careIntakeReviewItem.findMany({ where: { serviceUserId: suId, category: "FUNDING" } });
+    expect(funding.map((f) => [f.status, f.restricted, /Example Borough Council/.test(f.description)])).toEqual([["OPEN", false, true]]);
+    expect(await db.careIntakeReviewItem.count({ where: { serviceUserId: suId, category: "PACKAGE_HOURS" } })).toBe(0); // 1,365 minutes match
+    const src = (await packageSources(await manager(), suId)).byPackage.get(pkg.id);
+    expect(src?.intakeReference).toBe(intake.reference);
+    expect(src?.documents.map((d) => d.name)).toContain("Support plan");
     const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
     expect(plan.status).toBe("DRAFT");
     expect(plan.sections).toHaveLength(9);

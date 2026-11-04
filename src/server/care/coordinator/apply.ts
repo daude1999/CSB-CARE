@@ -256,7 +256,7 @@ async function applyPreferences(ctx: Ctx, scope: Scope, intakeId: string): Promi
 
 async function applyPackage(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   return db.$transaction(async (tx) => {
-    const { su, intake } = await suFor(tx, scope, intakeId);
+    const { su } = await suFor(tx, scope, intakeId);
     const fs = await facts(tx, intakeId, "PACKAGE");
     if (fs.every((f) => f.appliedAt)) return { created: [], skipped: ["Already saved"], notes: [], verified: true };
     const v = (k: string) => fs.find((f) => f.destination === `package.${k}`)?.value;
@@ -269,12 +269,28 @@ async function applyPackage(ctx: Ctx, scope: Scope, intakeId: string): Promise<S
     const minutes = v("minutesPerWeek") as number | undefined;
     const visitFacts = (await facts(tx, intakeId, "VISITS")).map((f) => f.value as z.output<typeof visitValue>);
     const rec = reconcileHours(visitFacts.map((x) => ({ weekdays: x.weekdays, durationMin: x.durationMin, carers: x.carers, fundedBy: x.fundedBy as FundedBy })), minutes ?? null);
-    const requirements = [v("funder") ? `Commissioned by: ${v("funder")}` : null, v("requirements") ? String(v("requirements")) : null, `Set up from Care Coordinator intake ${intake.reference}.`, rec.matches || minutes === undefined ? null : `Check: ${rec.message}`].filter(Boolean).join("\n").slice(0, 2000);
+    // The package text holds only the approved staffing and support instructions. The funder named in the documents
+    // and an hours mismatch become package questions for a person to settle; where the facts came from is kept on
+    // each fact (appliedRef) and shown on the Care Package tab, so none of it is pasted into the text.
+    const requirements = v("requirements") ? String(v("requirements")) : null;
     const row = await tx.carePackage.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, reference: (v("reference") as string | undefined) ?? null, commissionedMinutesPerWeek: minutes ?? null, startDate: dbDate(startDate), endDate: endDate ? dbDate(endDate) : null, requirements } });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "care.package.created", entityType: "ServiceUser", entityId: su.id, data: { packageId: row.id, minutes: row.commissionedMinutesPerWeek, via: "care-coordinator", intakeId } }, tx);
-    for (const f of fs) await markApplied(tx, f, `CarePackage:${row.id}`);
+    const questions: string[] = [];
+    for (const f of fs) {
+      if (f.destination === "package.funder") {
+        const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "FUNDING", description: `The documents name "${String(f.value)}" as the commissioning authority. It is not linked to a finance funder yet: finance checks it and links the funder on the Care Package tab.`.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
+        questions.push("Funding to verify");
+        continue;
+      }
+      if (f.destination === "package.minutesPerWeek" && !rec.matches) {
+        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "PACKAGE_HOURS", description: rec.message.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        questions.push("Commissioned hours to check");
+      }
+      await markApplied(tx, f, `CarePackage:${row.id}`);
+    }
     const back = await tx.carePackage.findUniqueOrThrow({ where: { id: row.id } });
-    return { created: [`Care package from ${startDate}${endDate ? ` to ${endDate}` : ""}${minutes !== undefined ? `, ${minutes} minutes a week` : ""}`], skipped: [], notes: [rec.message, "The funder is recorded by name. Linking a finance funder stays a finance decision."], verified: fromDbDate(back.startDate) === startDate && back.commissionedMinutesPerWeek === (minutes ?? null) };
+    return { created: [`Care package from ${startDate}${endDate ? ` to ${endDate}` : ""}${minutes !== undefined ? `, ${minutes} minutes a week` : ""}`, ...questions.map((q) => `Package question: ${q}`)], skipped: [], notes: [rec.message, "The funder named in the documents is a package question for finance. Linking a finance funder stays a finance decision."], verified: fromDbDate(back.startDate) === startDate && back.commissionedMinutesPerWeek === (minutes ?? null) && back.requirements === requirements };
   });
 }
 

@@ -121,12 +121,25 @@ export const riskValue = z.object({
   openQuestions: opt(2000),
 });
 
+/** Follow-up (review item) categories and how they read on screen. FUNDING and PACKAGE_HOURS belong to the care
+ *  package; the rest stay on the intake and the person's restricted records. */
+export const FOLLOW_UP_LABEL: Record<string, string> = {
+  MEDICATION: "Medication to reconcile",
+  INCIDENT_HISTORY: "Incident history",
+  BODY_MAP: "Skin and body map history",
+  MISSING_INFO: "Missing or informal",
+  FUNDING: "Funding to verify",
+  PACKAGE_HOURS: "Commissioned hours to check",
+};
+
 export const PACKAGE_FIELDS = {
   funder: { label: "Commissioning authority / funder", schema: s(160) },
   reference: { label: "Package or purchase order reference", schema: s(80) },
   startDate: { label: "Package start date", schema: isoDate },
   endDate: { label: "Package end date", schema: isoDate },
   minutesPerWeek: { label: "Authorised minutes per week", schema: z.coerce.number().int().min(0).max(20160) },
+  /** Only how the commissioned care is staffed and delivered. Clinical, medication, family and funding notes go to
+   *  their own sections or the document's flags, never into the package text. */
   requirements: { label: "Staffing and support instructions", schema: s(2000) },
 } as const;
 export type PackageField = keyof typeof PACKAGE_FIELDS;
@@ -201,7 +214,7 @@ export function destinationField(destination: string): string {
   if (destination === "preference.note") return "ServiceUser.carePreferences";
   if (head === "careplan") return key === "summary" ? "CarePlan.summary (draft)" : `CarePlanSection "${PLAN_SECTION_LABEL[key as keyof typeof PLAN_SECTION_LABEL] ?? key}" (draft)`;
   if (destination === "risk") return "RiskAssessment (status DRAFT)";
-  if (head === "package") return { funder: "CarePackage.requirements (funder)", reference: "CarePackage.reference", startDate: "CarePackage.startDate", endDate: "CarePackage.endDate", minutesPerWeek: "CarePackage.commissionedMinutesPerWeek", requirements: "CarePackage.requirements" }[key ?? ""] ?? destination;
+  if (head === "package") return { funder: "Funding check for finance (not linked)", reference: "CarePackage.reference", startDate: "CarePackage.startDate", endDate: "CarePackage.endDate", minutesPerWeek: "CarePackage.commissionedMinutesPerWeek", requirements: "CarePackage.requirements" }[key ?? ""] ?? destination;
   if (destination === "visit") return "VisitTemplate + care tasks";
   if (head === "medication") return "Medication reconciliation queue (DRAFT medicine only after checks)";
   if (destination === "incident.history") return "Incident history review item (no new incident)";

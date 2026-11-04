@@ -87,7 +87,7 @@ test.describe("Version 1", () => {
     // Care package and Medication sit under the profile's Care group.
     await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Care", exact: true }).click();
     await page.getByRole("navigation", { name: "Care sections" }).getByRole("link", { name: "Care package", exact: true }).click();
-    await expect(page.getByText(/Repeating visits plan/).first()).toBeVisible();
+    await expect(page.getByTestId("package-coverage")).toContainText("Planned visit time");
     const form = page.locator("form:has(input[name=serviceUserId])");
     await form.locator("input[name=reference]").fill("PKG-E2E");
     await form.locator("input[name=hoursPerWeek]").fill("10.5");

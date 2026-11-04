@@ -143,19 +143,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </header>
             }
           >
-            <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:px-[32px]">
+            <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:h-[68px] md:gap-[16px] md:px-[24px] lg:gap-[24px] lg:px-[32px]">
               <NavigationProgress renderKey={String(Date.now())} />
               <MobileMenu {...shell} />
               <div className="hidden sm:block"><HistoryButtons /></div>
               <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
               <ShellSearch />
-              <div className="ml-auto flex items-center gap-4">
+              <div className="flex shrink-0 items-center gap-2 md:gap-3 lg:gap-4">
                 {me?.branch?.name ? (
                   <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
                     <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                   </span>
                 ) : null}
-                {org?.isDemo ? <span className="hidden rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600 xl:inline">Sample workspace</span> : null}
                 <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
                   <Bell size={21} aria-hidden="true" />
                   {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}

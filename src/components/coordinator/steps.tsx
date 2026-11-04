@@ -3,7 +3,7 @@ import { Badge, Empty, fmtDate } from "@/components/ui";
 import { categoriesFor } from "@/server/care/su-documents";
 import type { IntakeView } from "@/server/care/coordinator/intake";
 import type { previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
-import { APPLY_STATUS, INTAKE_SECTIONS, SECTION_STATUS, sectionInfo, sectionLabel } from "@/lib/care-coordinator-rules";
+import { APPLY_STATUS, FOLLOW_UP_LABEL, INTAKE_SECTIONS, SECTION_STATUS, sectionInfo, sectionLabel } from "@/lib/care-coordinator-rules";
 import { MANUAL_DESTINATIONS } from "@/lib/care-coordinator-forms";
 import { fmtLondonDate, londonTime } from "@/lib/london";
 import {
@@ -331,7 +331,6 @@ export function SaveStep({ view, back }: { view: View; back: string }) {
 
 function FollowUps({ view, back }: { view: View; back: string }) {
   if (!view.followUps.length && !view.hiddenFollowUps) return null;
-  const LABEL: Record<string, string> = { MEDICATION: "Medication to reconcile", INCIDENT_HISTORY: "Incident history", BODY_MAP: "Skin and body map history", MISSING_INFO: "Missing or informal" };
   return (
     <section aria-labelledby="fu-h" className="space-y-2">
       <h3 id="fu-h" className="mt-3 text-[15px] font-semibold">Follow-ups left by this intake</h3>
@@ -339,7 +338,7 @@ function FollowUps({ view, back }: { view: View; back: string }) {
       <ul className="space-y-2">
         {view.followUps.map((f) => (
           <li key={f.id} className="rounded-[3px] border border-slate-200 p-3 text-[14px]">
-            <div className="flex flex-wrap items-center gap-2"><Badge tone={f.status === "OPEN" ? "amber" : "green"}>{f.status === "OPEN" ? "Open" : "Closed"}</Badge><span className="font-medium">{LABEL[f.category] ?? f.category}</span>{f.restricted ? <Badge tone="violet">Restricted</Badge> : null}</div>
+            <div className="flex flex-wrap items-center gap-2"><Badge tone={f.status === "OPEN" ? "amber" : "green"}>{f.status === "OPEN" ? "Open" : "Closed"}</Badge><span className="font-medium">{FOLLOW_UP_LABEL[f.category] ?? f.category}</span>{f.restricted ? <Badge tone="violet">Restricted</Badge> : null}</div>
             <p className="mt-1 whitespace-pre-line">{f.description}</p>
             {f.sourceRef ? <p className="text-[12.5px] text-slate-600">Source: {f.sourceRef}</p> : null}
             {f.resolution ? <p className="text-[13px] text-slate-700">Closed: {f.resolution}</p> : null}
