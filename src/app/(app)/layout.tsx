@@ -18,6 +18,7 @@ import { HelpMenu } from "@/components/help-menu";
 import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-header";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
+import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
@@ -166,6 +167,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </header>
           </TopbarSwitch>
           <MainArea>{children}</MainArea>
+          {ctx.organisationId && hasOrgPermission(ctx, "serviceUser.documents") ? <AiCsbCoordinatorLauncher /> : null}
           <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
