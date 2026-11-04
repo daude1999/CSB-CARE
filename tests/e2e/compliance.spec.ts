@@ -16,7 +16,8 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
 
 const sidebar = (page: Page) => page.getByRole("navigation", { name: "Main" });
 const current = (page: Page) => sidebar(page).locator('a.shell-page[aria-current="page"]');
-const SIX = ["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"];
+// The six workspaces, then CQC Inspection & Evidence (owner's brief of 4 Nov 2026).
+const SIX = ["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports", "CQC Inspection & Evidence"];
 
 test.describe("Policy & Compliance workspaces", () => {
   test("the sidebar has exactly the six entries, and each opens its workspace", async ({ page }) => {

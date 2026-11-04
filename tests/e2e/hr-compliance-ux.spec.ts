@@ -179,8 +179,8 @@ test.describe("Policy & Compliance, approved design", () => {
     await expect(page.getByTestId("needs-attention")).toBeVisible();
     await expect(page.getByTestId("key-dates").getByRole("link").first()).toHaveAttribute("href", /\/policies\?selected=/);
     await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
-    // The six workspaces are unchanged.
-    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports"]);
+    // The six workspaces are unchanged; CQC Inspection & Evidence follows them.
+    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports", "CQC Inspection & Evidence"]);
   });
 
   test("a care worker gets their reading, not management actions", async ({ page }) => {
