@@ -21,7 +21,8 @@ Read `src/server/care/coordinator-import.ts` for the **actual** intakeSchema. Bu
 - `carePlan`: write all nine PLAN_SECTIONS. Use sourced facts and identify missing clinical details clearly. Set future reviewDue for staff confirmation.
 - `package`: official commissioning dates and hours; a user-directed example extension should be labelled as an override, not a historical council authorisation.
 - `visits`: agency-funded visits only. Parse all weekdays, 24h times (startMinute since midnight), decimal duration * 60, carersRequired, detailed continued task text, valid callTypeId, and medicationRequired only where clinically appropriate.
-- `clinicalReviewNotes` and `riskReviewNotes`: explicitly list missing checks. These remain review reminders, **not** active care instructions.
+- `riskDrafts`: provide separate, source-based proposed assessments with hazard, proposed controls, provisional LOW/MEDIUM/HIGH level and future reviewDue. Mark missing evidence clearly. These save as DRAFT and are not active.
+- `clinicalReviewNotes` and `riskReviewNotes`: explicitly list missing checks with document/page references in the text. They are saved to the restricted review queue, **not** active care instructions.
 - `draftWeekStart`: optional future Monday (staging only; the initial intake creates templates, not visits).
 
 Do not automatically set a commissioned total that contradicts the sourced visit pattern. Flag the inconsistency for review.
@@ -32,10 +33,10 @@ Have care-compliance-reviewer compare every proposed field against the source do
 ## Step 4: Execute through authenticated CRM
 When explicitly approved, open `/rota/service-users/import` in the correct CRM organisation, using browser automation only if available and with an authenticated authorised session. Supply the locally prepared JSON manifest and upload original PDFs using secure file inputs. First click **Validate without saving**. If validation fails, resolve conflicts; do not bypass it.
 
-After explicit creation approval, click **Create approved draft records**. Capture the returned serviceUserId and verify in the CRM: profile, contacts, council/other documents, care-plan DRAFT, package and recurring templates. Check every source destination; report failures and avoid blind resubmission (partial saves require inspection).
+After explicit creation approval, click **Create approved draft records**. Capture the returned serviceUserId and verify in the CRM: profile, contacts, council/other documents, care-plan DRAFT, risk drafts, restricted review queue, package and recurring templates. Check every source destination; report failures and avoid blind resubmission (partial saves require inspection).
 
 ## Step 5: Clinical approvals and rota
-A separate qualified human reviewer must complete medication reconciliation and risk assessment; a different authorised care-plan approver must approve the plan. The intake deliberately cannot create ACTIVE risk records or change MAR.
+A separate qualified human reviewer must complete medication reconciliation and risk assessment; a different authorised care-plan approver must approve the plan. The intake deliberately cannot create ACTIVE risk records or change MAR. Read proposed risks at `/rota/service-users/import/risks?id=<serviceUserId>` and review questions at `/rota/service-users/import/reviews?id=<serviceUserId>`. Risk approval through the AI import is not yet operational; authorised staff must use the established manual risk assessment workflow.
 
 After these steps are completed, a manager may use `/rota/service-users/import/finalize?id=<serviceUserId>` to create **unpublished** visits for one selected future week. Verify daily rota, staffing requirements, unassigned slots and conflicts. Actual carer assignment and publication are separate human-approved actions.
 
