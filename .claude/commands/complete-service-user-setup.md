@@ -1,35 +1,50 @@
 ---
-description: Review supplied care support plan, hospital letters and related records; map all content to CSB Care and prepare complete service-user and rota setup for human approval. Does not touch production data.
-argument-hint: "[paths to support plan and related documents] [optional example end date]"
+description: Extract support plans and hospital records, review every destination, then use the built-in Care Coordinator import screen to create approved draft records and recurring rotas.
+argument-hint: "[local support plan PDF] [local discharge PDF] [approved scenario end date]"
 ---
-# Complete Service User Setup — review-first workflow
+# Complete Service User Setup — inspect, verify, execute
 
-You are operating in CSB-CARE. Use the **care-coordinator** and **care-compliance-reviewer** project agents where available. Inputs: $ARGUMENTS.
+You are running inside CSB-CARE on `feature/ai-care-coordinator`. Use the `care-coordinator` and `care-compliance-reviewer` project agents. Read `docs/implementation/CARE_COORDINATOR_AGENT.md`. Inputs: $ARGUMENTS.
 
-**Default: REVIEW ONLY. Do not upload files, create service users, create active risk records, change medication, schedule visits, assign carers, publish rotas, or modify the database. Never commit real care documents or extracted personal data to Git.**
+**This command can prepare a real CRM import, but does not by itself have permission to bypass authentication, human approval, clinical sign-off or rota publication.**
 
-1. Verify inputs exist and can be read in full. For scanned PDFs, use a secure local extraction/visual review workflow; mark unreadable facts BLOCKED, never guess.
-2. Read current repository data models and screens, particularly `src/server/care/{service-users,care-plans,risks,su-documents,packages,medication}.ts`, `src/server/rota/{templates,visits,build}.ts`, and related user profile UI.
-3. Prepare a confidential, local-only **source→destination mapping** for:
-   - identity/communication/access details;
-   - family, next of kin, contacts, GP and informal carers;
-   - Council Support Plan under Council Documents;
-   - restricted hospital/GP/discharge correspondence under Other Documents;
-   - care plan's nine standard sections;
-   - distinct risk assessment drafts and required clinical reviews;
-   - medication reconciliation (no active MAR changes);
-   - funding/package and individual care tasks;
-   - recurrence templates and future visit creation.
-4. Parse all timetable rows and continuation pages. Convert decimal hours to minutes; record day flags, start/end, carers required, detailed visit tasks, agency/family classification. Cross-check total minutes with funded hours. Treat any user-specified end date as a **scenario override**, not as a statement in the original source.
-5. Produce a report with:
-   A. Existing target screen/model/function and exact field names;
-   B. Value/evidence/page/date and verification status;
-   C. Draft risk items including controls only where sourced, plus questions for clinical staff;
-   D. Proposed rota templates and weekly totals;
-   E. Duplicate/conflicting/obsolete facts and missing authorisations;
-   F. Required code enhancements and QA tests;
-   G. An explicit **approval queue**, with no false claims of completion.
-6. Ask the independent care-compliance-reviewer to check the proposed report for missed records, clinical assumptions and unsafe scheduling. Fix issues and disclose remaining limitations.
-7. With operator approval, implement *code changes only* on a dedicated feature branch, using synthetic fixtures and tests. Actual record entry requires separate authorised action and live integration.
+## Step 1: Read and map the source
+Read every page of the support plan and discharge letter in a secure local session, including continuation tables. Do not copy any personal medical data into a commit, tracked file, PR or log. Preserve exact source/page and dates; flag illegible data. Identify existing service user matches before attempting creation.
 
-Use `docs/implementation/CARE_COORDINATOR_AGENT.md` for the repository-specific integration contract.
+Locate the CRM service user, contacts, care plans, risk, package, document categories, medication and visit template code. Describe how each fact maps to the existing destination. Keep medication and resuscitation information out of routine plain-text notes where a restricted review record is needed.
+
+## Step 2: Prepare a typed import manifest locally
+Read `src/server/care/coordinator-import.ts` for the **actual** intakeSchema. Build a JSON manifest matching that schema only. Do not invent fields. Locate valid areaId and callTypeId via the authorised CRM UI; these are existing per-organisation record IDs, never made-up strings.
+
+- `serviceUser`: first/last name, verified contact/address/language and area ID.
+- `contacts`: true relationship/emergency details only, do not assume consent to updates.
+- `carePlan`: write all nine PLAN_SECTIONS. Use sourced facts and identify missing clinical details clearly. Set future reviewDue for staff confirmation.
+- `package`: official commissioning dates and hours; a user-directed example extension should be labelled as an override, not a historical council authorisation.
+- `visits`: agency-funded visits only. Parse all weekdays, 24h times (startMinute since midnight), decimal duration * 60, carersRequired, detailed continued task text, valid callTypeId, and medicationRequired only where clinically appropriate.
+- `clinicalReviewNotes` and `riskReviewNotes`: explicitly list missing checks. These remain review reminders, **not** active care instructions.
+- `draftWeekStart`: optional future Monday (staging only; the initial intake creates templates, not visits).
+
+Do not automatically set a commissioned total that contradicts the sourced visit pattern. Flag the inconsistency for review.
+
+## Step 3: Independent QA + review
+Have care-compliance-reviewer compare every proposed field against the source documents, paying special attention to approved vs informal care, resuscitation documents, medicines, transfers and risk controls. Show the human operator the exact proposed records and unresolved items; **request approval before writing**.
+
+## Step 4: Execute through authenticated CRM
+When explicitly approved, open `/rota/service-users/import` in the correct CRM organisation, using browser automation only if available and with an authenticated authorised session. Supply the locally prepared JSON manifest and upload original PDFs using secure file inputs. First click **Validate without saving**. If validation fails, resolve conflicts; do not bypass it.
+
+After explicit creation approval, click **Create approved draft records**. Capture the returned serviceUserId and verify in the CRM: profile, contacts, council/other documents, care-plan DRAFT, package and recurring templates. Check every source destination; report failures and avoid blind resubmission (partial saves require inspection).
+
+## Step 5: Clinical approvals and rota
+A separate qualified human reviewer must complete medication reconciliation and risk assessment; a different authorised care-plan approver must approve the plan. The intake deliberately cannot create ACTIVE risk records or change MAR.
+
+After these steps are completed, a manager may use `/rota/service-users/import/finalize?id=<serviceUserId>` to create **unpublished** visits for one selected future week. Verify daily rota, staffing requirements, unassigned slots and conflicts. Actual carer assignment and publication are separate human-approved actions.
+
+## Required output
+- Source-to-destination inventory (all documents/pages)
+- Proposed manifest validation and exceptions
+- Executed items with CRM record IDs / verified existence
+- Unexecuted items (risk/medication/approvals/roster)
+- Rota completeness and reconciliation report
+- Human sign-off record (do not pretend AI is a licensed clinician or the approving manager)
+
+Never deploy, publish rota, notify carers, fabricate data, or access another tenant's records without authorisation.
