@@ -12,7 +12,7 @@ import { toSectionInputs } from "../policies/versions";
 import { createManualRevision, editDraftSection } from "../policies/workflow";
 import { addFinding, answerQuestion, createAction, startAudit } from "../compliance/audits";
 import { seedHrWorkspace } from "./hr";
-import { linkHrBranchesAndProject, seedCareDemo } from "./care";
+import { assignCsbReferences, linkHrBranchesAndProject, seedCareDemo } from "./care";
 import { seedReadinessDemo } from "./readiness";
 import { ensureGeoReference } from "../policy-geo/reference";
 
@@ -66,6 +66,7 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
   await seedHrWorkspace(org.id);
   await linkHrBranchesAndProject(org.id);
   if (opts.care) await seedCareDemo(org.id, { manager: ids["manager@care-solution.demo"]!, coordinator: ids["coordinator@care-solution.demo"]!, carer: ids["carer@care-solution.demo"], finance: ids["finance@care-solution.demo"] });
+  if (opts.care) await assignCsbReferences(org.id);
   // Platform reviewer is also a member for viewing (no customer permissions beyond reading).
   void regulatory;
 

@@ -115,13 +115,17 @@ describe("confirming", () => {
     expect(su.reference).toBe(r.reference);
     expect(su.carerGenderPreference).toBe("FEMALE");
     expect(su.carePreferences).toContain("Council reference: 1000001");
+    // The council reference is linked in the reference register (unverified), not used as the care package reference.
+    const refs = await db.serviceUserExternalReference.findMany({ where: { serviceUserId: r.serviceUserId } });
+    expect(refs.map((x) => [x.type, x.verified, x.status])).toEqual([["COUNCIL_CLIENT", false, "ACTIVE"]]);
+    expect(su.csbReference).toBe(r.reference);
     // A coordinator may not record sensitive identifiers, so the date of birth stays empty.
     expect(su.dateOfBirth).toBeNull();
     expect(su.contacts.map((c) => c.kind).sort()).toEqual(["GP", "NEXT_OF_KIN", "OTHER"]);
     expect(su.contacts.find((c) => c.kind === "NEXT_OF_KIN")).toMatchObject({ isPrimary: true, notes: "Key holder. Support plan page 3" });
     expect(su.contacts.find((c) => c.kind === "OTHER")?.isEmergency).toBe(true);
     expect(su.packages).toHaveLength(1);
-    expect(su.packages[0]).toMatchObject({ status: "ACTIVE", commissionedMinutesPerWeek: 1365, reference: "1000001" });
+    expect(su.packages[0]).toMatchObject({ status: "ACTIVE", commissionedMinutesPerWeek: 1365, reference: null });
     expect(su.packages[0]!.requirements).toContain("Funder: Example Council");
     expect(su.templates).toHaveLength(6);
     const tea = su.templates.find((t) => t.startMinute === 16 * 60 + 30)!;

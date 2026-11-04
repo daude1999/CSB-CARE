@@ -199,12 +199,14 @@ async function applyReferences(tx: Tx, ctx: Ctx, scope: Scope, serviceUserId: st
     const parsed = externalReferenceValue.safeParse(f.value);
     if (!parsed.success) { out.skipped.push(`${f.label}: the reference could not be read, check it and add it by hand`); continue; }
     const r = parsed.data;
+    if (r.typeUnclear) { out.skipped.push(`${f.label}: choose what this reference identifies before saving it`); continue; }
     if (r.type === "NHS" && !sensitive) { out.skipped.push(`${f.label} needs a registered manager to save`); continue; }
     if (r.type === "NHS" && !/^\d{3} ?\d{3} ?\d{4}$/.test(r.value)) { out.skipped.push(`${f.label}: an NHS number has 10 digits`); continue; }
-    const res = await linkExternalReferenceInTx(tx, ctx, scope.organisationId, serviceUserId, { type: r.type, issuer: r.issuer, value: r.value, sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, verificationNote: "Read from documents by the Care Coordinator; not verified" });
+    const res = await linkExternalReferenceInTx(tx, ctx, scope.organisationId, serviceUserId, { type: r.type, issuer: r.issuer, value: r.value, systemLabel: r.system ?? null, sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, sourceQuote: f.quote, verificationNote: "Read from documents by the Care Coordinator; not verified" });
     if (res.status === "conflict") { out.skipped.push(`${f.label}: this reference is already on another person's profile. Investigate before linking.`); continue; }
     await markApplied(tx, f, `ServiceUserExternalReference:${res.id}`);
     if (res.status === "created") out.created.push(`${f.label} added to the reference register (not yet verified)`);
+    else if (res.status === "reinstated") out.created.push(`${f.label} was superseded earlier and is back in use (not yet verified)`);
     else out.skipped.push(`${f.label} is already on the profile`);
   }
   return out;
