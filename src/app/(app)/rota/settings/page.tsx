@@ -9,6 +9,7 @@ import { callTypeActiveAction, careTaskActiveAction, createCallTypeAction, creat
 import { Card, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { medicationSwitchAction } from "@/app/medication-actions";
 import { careSummarySwitchAction } from "@/app/care-summary-actions";
+import { bodyMapAiSwitchAction } from "@/app/su-record-actions";
 import { missedAutomationSettingsAction } from "@/app/missed-auto-actions";
 import { getAiProvider } from "@/server/ai";
 
@@ -155,6 +156,25 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
                 <button className="btn-primary">Switch on Care Summary</button>
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after confirming data protection approval.</p>}
+          </Card>
+          <Card title="Body map recommendations (AI)">
+            {s.bodyMapAiEnabledAt ? (
+              <>
+                <p className="text-[14px]">Switched on {fmtDate(s.bodyMapAiEnabledAt, true)}. Authorised by: {s.bodyMapAiReviewNote}</p>
+                <p className="mt-1 text-[13px] text-slate-600">AI provider: {aiName ?? "not configured, so no suggestions can be made"}.</p>
+                {hasOrgPermission(ctx, "org.manage") ? (
+                  <form action={bodyMapAiSwitchAction} className="mt-2"><input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="0" /><button className="btn-secondary">Switch off</button></form>
+                ) : null}
+              </>
+            ) : hasOrgPermission(ctx, "org.manage") ? (
+              <form action={bodyMapAiSwitchAction} className="space-y-2">
+                <input type="hidden" name="back" value={back} /><input type="hidden" name="on" value="1" />
+                <p className="text-[14px]">Off. Switching on lets office staff ask for AI-assisted suggestions on body map observations (follow-up, care plan, risk assessment, incident and medication reviews). Recorded text is sent to the provider; photographs, names and addresses are not. Suggestions never change records; a manager decides. Keep it off for real records until the DPIA and clinical safety review are done.</p>
+                <p className="text-[13px] text-slate-600">AI provider: {aiName ?? "not configured"}.</p>
+                <label className="block"><span className="label">Who authorised it (DPIA and clinical safety review), and when</span><input name="authorisedBy" required minLength={10} className="input" placeholder="e.g. M. Mire, CEO, after DPIA, 3 Nov 2026" /></label>
+                <button className="btn-primary">Switch on body map recommendations</button>
+              </form>
+            ) : <p className="text-[14px]">Off. An organisation admin can switch it on after the data protection and clinical safety review.</p>}
           </Card>
           <Card title="Missed call automation">
             <div id="missed-automation" className="scroll-mt-20" />

@@ -392,6 +392,10 @@ export async function bulkTemplates(ctx: Ctx, templateIds: string[], action: Tem
 export interface TemplateFilters {
   week?: number;
   day?: number;
+  /** Any of these cycle weeks (Service User Profile -> Template). */
+  weeks?: number[];
+  /** Any of these ISO weekdays. */
+  days?: number[];
   serviceUserId?: string;
   staffId?: string;
   areaId?: string;
@@ -432,6 +436,8 @@ async function templateWhere(scope: Scope, f: TemplateFilters): Promise<Prisma.V
       ...(f.staffId ? [{ OR: [{ preferredStaff1Id: f.staffId }, { preferredStaff2Id: f.staffId }, { shadowStaffId: f.staffId }, { extraPreferredStaffIds: { has: f.staffId } }] }] : []),
       ...(f.week ? [{ cycleWeeks: { has: f.week } }] : []),
       ...(f.day ? [{ weekdays: { has: f.day } }] : []),
+      ...(f.weeks?.length ? [{ cycleWeeks: { hasSome: f.weeks } }] : []),
+      ...(f.days?.length ? [{ weekdays: { hasSome: f.days } }] : []),
       ...(f.state === "off" ? [{ enabled: false }] : f.state === "all" ? [] : [{ enabled: true }]),
       ...(f.noCarer ? [{ OR: [{ preferredStaff1Id: null }, { carersRequired: { gte: 2 }, preferredStaff2Id: null }, { id: { in: await shortExtraTemplateIds(scope.organisationId) } }] }] : []),
       ...search,

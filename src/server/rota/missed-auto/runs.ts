@@ -239,6 +239,7 @@ export async function automationDetail(ctx: Ctx, caseId: string) {
     summary,
     reviewerName: draft?.reviewedById ? reviewers.get(draft.reviewedById) ?? "A member" : null,
     canRefresh: hasOrgPermission(ctx, "rota.edit") && c.stage !== "CLOSED" && sw.evidence,
+    canConfigure: hasOrgPermission(ctx, "org.manage"),
     canReview: hasOrgPermission(ctx, "rota.edit") && (c.stage === "NEW" || c.stage === "INVESTIGATING"),
   };
 }

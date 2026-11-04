@@ -1336,53 +1336,53 @@ enum CarerGender {
 }
 
 model StaffMember {
-  id               String           @id @default(cuid())
-  organisationId   String
-  organisation     Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id                  String                        @id @default(cuid())
+  organisationId      String
+  organisation        Organisation                  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   /// The HR Hub employee id. One-to-one with the HR employee; never changes.
-  hrEmployeeId     String
-  hrVersion        Int
+  hrEmployeeId        String
+  hrVersion           Int
   /// Hash of the projected content, so unchanged employees are not rewritten.
-  hrHash           String
+  hrHash              String
   /// The HR employee no longer exists in the HR document. Kept so delivered visits keep their carer.
-  hrMissing        Boolean          @default(false)
-  staffNumber      String
-  displayName      String
-  preferredName    String?
-  jobTitle         String
-  employmentStatus EmploymentStatus
-  hrBranchKey      String
-  branchId         String?
-  branch           Branch?          @relation(fields: [branchId], references: [id])
-  startDate        DateTime?        @db.Date
-  leavingDate      DateTime?        @db.Date
-  workEmail        String?
-  workPhone        String?
+  hrMissing           Boolean                       @default(false)
+  staffNumber         String
+  displayName         String
+  preferredName       String?
+  jobTitle            String
+  employmentStatus    EmploymentStatus
+  hrBranchKey         String
+  branchId            String?
+  branch              Branch?                       @relation(fields: [branchId], references: [id])
+  startDate           DateTime?                     @db.Date
+  leavingDate         DateTime?                     @db.Date
+  workEmail           String?
+  workPhone           String?
   /// The login linked through the explicit, audited administrator workflow. Never set by matching e-mail.
-  userId           String?
-  linkedById       String?
-  linkedAt         DateTime?
-  projectedAt      DateTime
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  profile             RotaStaffProfile?
-  compliance          StaffCompliance[]
-  areas               StaffArea[]
-  absences            StaffAbsence[]
-  availability        StaffAvailability[]
-  medicationLeads     VisitMedicationLead[]
-  assignments         VisitAssignment[]
-  preferences         CarerPreference[]
-  payRates            StaffPayRate[]
-  trainingRecords     StaffTrainingRecord[]
-  assessments         CompetencyAssessment[]
-  restrictions        StaffRestriction[]
-  exceptions          ReadinessException[]
-  acknowledgements    Acknowledgement[]
-  readinessFlags      StaffReadinessFlag[]
-  readinessSnapshots  StaffReadinessSnapshot[]
+  userId              String?
+  linkedById          String?
+  linkedAt            DateTime?
+  projectedAt         DateTime
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
   missedConfirmations MissedCallCarerConfirmation[]
+
+  profile            RotaStaffProfile?
+  compliance         StaffCompliance[]
+  areas              StaffArea[]
+  absences           StaffAbsence[]
+  availability       StaffAvailability[]
+  medicationLeads    VisitMedicationLead[]
+  assignments        VisitAssignment[]
+  preferences        CarerPreference[]
+  payRates           StaffPayRate[]
+  trainingRecords    StaffTrainingRecord[]
+  assessments        CompetencyAssessment[]
+  restrictions       StaffRestriction[]
+  exceptions         ReadinessException[]
+  acknowledgements   Acknowledgement[]
+  readinessFlags     StaffReadinessFlag[]
+  readinessSnapshots StaffReadinessSnapshot[]
 
   @@unique([organisationId, hrEmployeeId])
   @@unique([organisationId, userId])
@@ -1941,6 +1941,10 @@ model RotaSettings {
   careSummaryEnabledAt         DateTime?
   careSummaryEnabledById       String?
   careSummaryReviewNote        String?
+  /// Body map AI-Assisted Recommendations: off until an admin records the data-protection and clinical-safety review.
+  bodyMapAiEnabledAt           DateTime?
+  bodyMapAiEnabledById         String?
+  bodyMapAiReviewNote          String?
   /// Missed call automation (each stage has its own switch, off by default; switching off is the rollback).
   /// Evidence: collect the system's records into a dated snapshot and timeline for each missed call.
   missedAutoEvidenceAt         DateTime?
@@ -3049,10 +3053,10 @@ enum MarOutcome {
 /// A medicine on a person's list. Used on visits only once a second person approves it (database trigger); a change
 /// is a new medicine that replaces the old one, so the history stays.
 model Medication {
-  id             String           @id @default(cuid())
+  id             String                      @id @default(cuid())
   organisationId String
   serviceUserId  String
-  serviceUser    ServiceUser      @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  serviceUser    ServiceUser                 @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
   name           String
   strength       String?
   dose           String
@@ -3061,17 +3065,17 @@ model Medication {
   /// PROMPT | ASSIST | ADMINISTER
   support        String
   /// MORNING | LUNCH | TEA | BED; empty for "as required" medicines.
-  timeRanges     String[]         @default([])
-  asRequired     Boolean          @default(false)
+  timeRanges     String[]                    @default([])
+  asRequired     Boolean                     @default(false)
   maxDosesPerDay Int?
-  controlled     Boolean          @default(false)
+  controlled     Boolean                     @default(false)
   instructions   String?
   prescriber     String?
-  startDate      DateTime         @db.Date
-  endDate        DateTime?        @db.Date
-  status         MedicationStatus @default(DRAFT)
+  startDate      DateTime                    @db.Date
+  endDate        DateTime?                   @db.Date
+  status         MedicationStatus            @default(DRAFT)
   createdById    String
-  createdAt      DateTime         @default(now())
+  createdAt      DateTime                    @default(now())
   approvedById   String?
   approvedAt     DateTime?
   stoppedById    String?
@@ -3080,6 +3084,7 @@ model Medication {
   replacesId     String?
   changeReason   String?
   records        MarRecord[]
+  sites          MedicationApplicationSite[]
 
   @@index([organisationId, serviceUserId, status])
 }
@@ -3713,10 +3718,10 @@ enum BodyMapStatus {
 /// A physical observation marked on the body map. What was observed is kept exactly as first recorded (database
 /// trigger); follow-ups, reviews and the incident decision are added on top.
 model BodyMapObservation {
-  id                   String          @id @default(cuid())
+  id                   String                     @id @default(cuid())
   organisationId       String
   serviceUserId        String
-  serviceUser          ServiceUser     @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  serviceUser          ServiceUser                @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
   view                 BodyMapView
   /// Position of the mark on the outline, as a percentage of its width and height.
   x                    Float
@@ -3733,20 +3738,26 @@ model BodyMapObservation {
   pain                 String
   actionTaken          String?
   personNotified       String?
-  followUpOn           DateTime?       @db.Date
-  status               BodyMapStatus   @default(OPEN)
+  followUpOn           DateTime?                  @db.Date
+  status               BodyMapStatus              @default(OPEN)
   recordedById         String
-  recordedAt           DateTime        @default(now())
+  recordedAt           DateTime                   @default(now())
   /// The manager's decision on whether an incident report is needed: LINKED | NOT_REQUIRED (null = not decided).
   incidentDecision     String?
   incidentDecisionNote String?
   incidentDecidedById  String?
   incidentDecidedAt    DateTime?
   incidentId           String?
-  incident             Incident?       @relation(fields: [incidentId], references: [id], onDelete: SetNull)
-  version              Int             @default(1)
+  incident             Incident?                  @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  version              Int                        @default(1)
+  /// The manager assigned to review the observation (bodyMap.review). Can be changed; each change is audited.
+  reviewerId           String?
   reviews              BodyMapReview[]
   photos               BodyMapPhoto[]
+  notes                BodyMapNote[]
+  recommendationRuns   BodyMapRecommendationRun[]
+  recommendations      BodyMapRecommendation[]
+  tasks                BodyMapTask[]
 
   @@index([organisationId, serviceUserId, observedAt])
   @@index([organisationId, status, followUpOn])
@@ -3780,8 +3791,141 @@ model BodyMapPhoto {
   /// CLEAN | NOT_SCANNED
   scanStatus     String
   caption        String?
+  /// The note this photograph was added with, if any.
+  noteId         String?
   uploadedById   String
   uploadedAt     DateTime           @default(now())
+}
+
+/// A manual note or update on an observation ("Reviewed today, bruising smaller…"). Append-only: the original
+/// observation and earlier notes are never changed.
+model BodyMapNote {
+  id             String             @id @default(cuid())
+  organisationId String
+  observationId  String
+  observation    BodyMapObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  authorId       String
+  text           String
+  createdAt      DateTime           @default(now())
+
+  @@index([observationId, createdAt])
+}
+
+/// One request for AI-Assisted Recommendations on an observation: what was sent (record ids only, never photos or
+/// names), which provider answered, and the outcome. `basisHash` identifies the information used, so the same
+/// information is never sent twice; a later run on updated information supersedes earlier ones without changing them.
+model BodyMapRecommendationRun {
+  id                 String                  @id @default(cuid())
+  organisationId     String
+  observationId      String
+  observation        BodyMapObservation      @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  /// AUTO (after the observation was saved) | MANUAL (Generate recommendations)
+  trigger            String
+  basisHash          String
+  observationVersion Int
+  provider           String
+  model              String?
+  isSimulated        Boolean                 @default(false)
+  /// COMPLETED | NONE (no reliable recommendation) | FAILED
+  status             String
+  error              String?
+  /// What the records do not show, or what could not be considered.
+  gaps               Json                    @default("[]")
+  /// The records considered: [{ sid, kind, id, label, href }].
+  sources            Json                    @default("[]")
+  requestedById      String
+  createdAt          DateTime                @default(now())
+  supersededAt       DateTime?
+  recommendations    BodyMapRecommendation[]
+
+  @@index([observationId, createdAt])
+}
+
+/// One AI-assisted suggestion. Its text is kept exactly as shown to the reviewer (database trigger); only its review
+/// status moves on. Accepting a suggestion is not a clinical or safeguarding decision.
+model BodyMapRecommendation {
+  id                String                   @id @default(cuid())
+  organisationId    String
+  observationId     String
+  observation       BodyMapObservation       @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  runId             String
+  run               BodyMapRecommendationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  position          Int
+  /// OBSERVATION_FOLLOW_UP | CARE_PLAN_REVIEW | RISK_REVIEW | INCIDENT_SAFEGUARDING | MEDICATION_REVIEW | HISTORICAL_COMPARISON
+  category          String
+  title             String
+  explanation       String
+  suggestedAction   String
+  /// The follow-up task a manager may create from it: FOLLOW_UP | CARE_PLAN_REVIEW | RISK_REVIEW | INCIDENT_ASSESSMENT | MANAGER_REVIEW
+  actionKind        String?
+  /// Recorded facts the suggestion relies on, kept apart from the interpretation.
+  facts             Json                     @default("[]")
+  /// Supporting records and approved policies: [{ sid, kind, label, href }].
+  sources           Json                     @default("[]")
+  /// NEW | UNDER_REVIEW | ACCEPTED | DISMISSED | ACTION_CREATED
+  status            String                   @default("NEW")
+  reviewStartedById String?
+  reviewStartedAt   DateTime?
+  decidedById       String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  taskId            String?
+  createdAt         DateTime                 @default(now())
+
+  @@index([organisationId, status])
+  @@index([observationId])
+}
+
+/// A follow-up task from the body map (often from an accepted recommendation): a follow-up, a care plan or risk
+/// assessment review request, an incident assessment request or a manager review. Assigned to one person.
+model BodyMapTask {
+  id               String             @id @default(cuid())
+  organisationId   String
+  serviceUserId    String
+  observationId    String
+  observation      BodyMapObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  recommendationId String?
+  /// FOLLOW_UP | CARE_PLAN_REVIEW | RISK_REVIEW | INCIDENT_ASSESSMENT | MANAGER_REVIEW
+  kind             String
+  title            String
+  details          String?
+  assigneeId       String
+  dueOn            DateTime           @db.Date
+  /// OPEN | DONE | CANCELLED
+  status           String             @default("OPEN")
+  createdById      String
+  createdAt        DateTime           @default(now())
+  closedById       String?
+  closedAt         DateTime?
+  outcome          String?
+  version          Int                @default(1)
+
+  @@index([organisationId, status, dueOn])
+  @@index([observationId])
+}
+
+/// Where on the body a topical medicine or patch is applied, as documented by a manager. Not a skin observation and
+/// never a record that a dose was given (that is the MAR). A cream may have several sites; a new patch site ends the
+/// previous one. Sites are ended, never deleted, so the history stays.
+model MedicationApplicationSite {
+  id             String      @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  medicationId   String
+  medication     Medication  @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  view           BodyMapView
+  x              Float
+  y              Float
+  region         String
+  note           String?
+  recordedById   String
+  recordedAt     DateTime    @default(now())
+  endedAt        DateTime?
+  endedById      String?
+  endReason      String?
+
+  @@index([organisationId, serviceUserId])
+  @@index([medicationId])
 }
 
 /// One row per carer booked on a missed visit, written when the case opens (the booked-carer snapshot), so a later rota

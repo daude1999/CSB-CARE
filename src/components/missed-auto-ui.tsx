@@ -115,7 +115,7 @@ export function AutomatedInvestigation({ d, caseId, back, lockVersion, reasonRec
     return (
       <section className="panel mb-3" aria-labelledby="auto-heading">
         <h2 id="auto-heading" className="text-[16px] font-semibold text-[#1b1340]">Automated investigation</h2>
-        <p className="mt-1 text-[14px] text-slate-600">Switched off. An organisation admin can switch on evidence collection, carer confirmation and suggested reasons in <Link href="/rota/settings#missed-automation">Rostering settings</Link>. The investigation steps below work the same either way.</p>
+        <p className="mt-1 text-[14px] text-slate-600">Switched off. An organisation admin can switch on evidence collection, carer confirmation and suggested reasons in {d.canConfigure ? <Link href="/rota/settings#missed-automation">Rostering settings</Link> : "Rostering settings"}. The investigation steps below work the same either way.</p>
       </section>
     );
   }

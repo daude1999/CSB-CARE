@@ -308,8 +308,8 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("status").or(page.getByRole("alert")).first()).toBeVisible();
     await expect(page).toHaveURL(/visit=/);
     await expect(page.getByRole("complementary", { name: "Visit Details" }).getByText(/^Ref: /)).toHaveText(ref);
-    await page.getByRole("complementary", { name: "Visit Details" }).locator("summary", { hasText: "Reassign Carers" }).click();
-    await expect(page.getByRole("complementary", { name: "Visit Details" }).locator("select[name=staffId]").first()).toBeVisible();
+    await page.getByRole("complementary", { name: "Visit Details" }).getByRole("button", { name: "Reassign Carers" }).click();
+    await expect(page.getByRole("complementary", { name: "Visit Details" }).getByLabel("Carer 1", { exact: true })).toBeVisible();
   });
 
   test("a carer cannot open the office rota or the monitor, and sees their own visits", async ({ page }) => {
@@ -433,9 +433,12 @@ test.describe("Rostering & Care Management", () => {
     await page.keyboard.press("Enter");
     const panel = page.getByRole("complementary", { name: "Visit Details" });
     await expect(panel).toBeVisible();
-    await panel.locator("summary", { hasText: "Reassign Carers" }).focus();
+    await panel.getByRole("button", { name: "Reassign Carers" }).focus();
     await page.keyboard.press("Enter");
-    await expect(panel.locator("select[name=staffId]").first()).toBeVisible();
+    await expect(panel.getByLabel("Carer 1", { exact: true })).toBeVisible();
+    // Nothing changed yet, so the editor closes without a prompt and the usual actions come back.
+    await panel.getByRole("button", { name: "Close editor" }).focus();
+    await page.keyboard.press("Enter");
     await panel.getByRole("link", { name: "Full visit" }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByLabel(/Choose carer 1|Replace carer 1/)).toBeVisible();
