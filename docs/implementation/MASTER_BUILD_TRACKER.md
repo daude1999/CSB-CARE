@@ -138,6 +138,7 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | Medication Lead (2 Nov) | Merged (#61) | Automatic lead on single-carer medication visits when cleared; coordinator choice on multi-carer visits; ends with the carer; eMAR missed doses against the lead. See MEDICATION_LEAD.md |
 | Service user records (2 Nov) | Built, merging | Grouped profile sections (folds in #58); risk assessment versions with actions and who is responsible; who was told about an incident; risk review prompts; visit notes per person; records summary. Documents and body map are a separate build. See SERVICE_USER_RECORDS.md |
 | Documents and Body Map (2 Nov) | Built, PR open | Council Documents and Other Documents (separate sections, versions, restricted sensitive files, audited previews and downloads) and the Digital Body Map (front/back/left/right, follow-ups, photos, manager incident decision) in the service user profile. Files kept in private database storage on Vercel. See SERVICE_USER_DOCUMENTS_BODY_MAP.md |
+| Missed call automation (4 Nov) | Built, PR open | Evidence and timeline, in-app carer confirmation and a rules-based suggested reason inside the existing missed call case. Three switches, off by default. Never decides anything for the coordinator. See MISSED_CALL_AUTOMATION.md |
 | 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)

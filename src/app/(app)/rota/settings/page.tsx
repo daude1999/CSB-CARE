@@ -9,6 +9,7 @@ import { callTypeActiveAction, careTaskActiveAction, createCallTypeAction, creat
 import { Card, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { medicationSwitchAction } from "@/app/medication-actions";
 import { careSummarySwitchAction } from "@/app/care-summary-actions";
+import { missedAutomationSettingsAction } from "@/app/missed-auto-actions";
 import { getAiProvider } from "@/server/ai";
 
 export const dynamic = "force-dynamic";
@@ -154,6 +155,26 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
                 <button className="btn-primary">Switch on Care Summary</button>
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after confirming data protection approval.</p>}
+          </Card>
+          <Card title="Missed call automation">
+            <div id="missed-automation" className="scroll-mt-20" />
+            <p className="mb-2 text-[14px]">Helps investigate missed calls. It never marks a visit done, never changes clock times, never closes a case and never sends anything outside the platform: coordinators still record the reason and managers still sign off. Switching a stage off stops it at once; what it already recorded stays on the case.</p>
+            {hasOrgPermission(ctx, "org.manage") ? (
+              <form action={missedAutomationSettingsAction} className="space-y-2">
+                <input type="hidden" name="back" value={`${back}#missed-automation`} />
+                <Tick name="evidence" label="1. Collect evidence and build a timeline for each missed call" value={!!s.missedAutoEvidenceAt} />
+                <Tick name="confirm" label="2. Ask booked carers with a sign-in what happened (in the app only)" value={!!s.missedAutoConfirmAt} />
+                <Tick name="summary" label="3. Suggest a reason for the coordinator to accept or reject" value={!!s.missedAutoSummaryAt} />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Num name="confirmMinutes" label="Minutes a carer has to answer" value={s.missedConfirmMinutes} min={15} max={1440} hint="Then the coordinator is told." />
+                  <Num name="reminders" label="Reminders before then" value={s.missedConfirmReminders} min={0} max={2} />
+                  <Num name="reminderMinutes" label="Minutes between reminders" value={s.missedConfirmReminderMinutes} min={5} max={1440} />
+                </div>
+                <p className="text-[12.5px] text-slate-500">High-risk and urgent missed calls are not held back for a carer&apos;s answer: the usual alerts and the investigation deadline still apply straight away.</p>
+                <button className="btn-primary">Save automation settings</button>
+              </form>
+            ) : <p className="text-[14px]">{s.missedAutoEvidenceAt ? `Evidence collection is on${s.missedAutoConfirmAt ? ", with carer confirmation" : ""}${s.missedAutoSummaryAt ? " and suggested reasons" : ""}.` : "Off."} An organisation admin can change this.</p>}
+            {s.missedAutoEvidenceAt ? <p className="mt-2 text-[12.5px] text-slate-500">Evidence collection switched on {fmtDate(s.missedAutoEvidenceAt, true)}.</p> : null}
           </Card>
           <Card title="Areas">
             <p className="text-[14px]">Areas and which coordinators work in them are managed in <Link href="/admin/areas">Administration → Branches &amp; Areas</Link>.</p>

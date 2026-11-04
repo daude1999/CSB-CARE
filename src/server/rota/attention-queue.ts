@@ -7,6 +7,7 @@ import { suName } from "./queries";
 import { parseUnassigned, unassignedBoard, type Priority } from "./unassigned";
 import { missedCallRegister, visitStatusNow } from "./missed-calls";
 import { coverStates, type CoverState } from "./missed-cover";
+import { automationState, type AutoSummary } from "./missed-auto/runs";
 import { outstandingCommunication } from "./cover-communication";
 import { coverBoard } from "./cover";
 import { EXCEPTION_KINDS, listExceptions } from "./exceptions";
@@ -73,6 +74,8 @@ export interface MissedEntry extends Common {
   escalated: boolean;
   stage: MissedCallStage;
   cover: CoverState | null;
+  /** The automated investigation's own progress (null when it has never run). Never the case's stage. */
+  auto: AutoSummary | null;
   /** The case's own stages, for the investigation checklist. */
   checks: { detectedAt: Date; informed: string | null; reasonRecorded: boolean; signedOff: boolean; submitted: boolean };
 }
@@ -219,6 +222,7 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
     const reg = await missedCallRegister(ctx, missedFilters(today, branch), now);
     missedTotal = reg.rows.length;
     const covers = await coverStates(ctx, reg.rows.map((r) => r.id), now);
+    const autos = await automationState(scope.organisationId, reg.rows.map((r) => ({ id: r.id, stage: r.stage, reasonCode: r.reasonCode, highRisk: r.highRisk })));
     for (const r of reg.rows) {
       const warnings = missedWarnings(r);
       const pressing = r.overdue || r.highRisk;
@@ -229,6 +233,7 @@ export async function attentionQueue(ctx: Ctx, opts: { branch?: string } = {}, n
         serviceUser: r.serviceUserName, serviceUserId: r.visit.serviceUser.id, callType: r.visit.callType.name, area: r.visit.area?.name ?? null,
         reason, warnings, rank: r.overdue || r.escalatedAt ? 0 : 1, group: attentionGroup(base, now),
         carerName: r.carerName, overdue: r.overdue, highRisk: r.highRisk, escalated: !!r.escalatedAt, stage: r.stage, cover: covers.get(r.id) ?? null,
+        auto: (() => { const a = autos.get(r.id); return a && a.status !== "off" ? a : null; })(),
         checks: { detectedAt: r.detectedAt, informed: r.suInformedStatus ?? (r.clientInformed ? "RECORDED" : null), reasonRecorded: !!r.reasonCode, signedOff: !!r.signedOffAt, submitted: !!r.submittedAt },
       });
     }

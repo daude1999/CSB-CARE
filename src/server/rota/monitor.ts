@@ -8,6 +8,7 @@ import { effectiveClocks } from "./attendance";
 import { rotaScope, visitWhere } from "./scope";
 import { rotaSettings } from "./settings";
 import { openMissedCase } from "./missed-calls";
+import { queueInvestigation } from "./missed-auto/queue";
 
 /**
  * Call monitoring. The sweep runs from the background job queue (every minute with the worker; on hosts without a
@@ -45,19 +46,23 @@ export async function sweepCalls(opts: { now?: Date; organisationId?: string } =
       const notify = now.getTime() - v.scheduledStart.getTime() < NOTIFY_WITHIN_MS;
       processed++;
       if (v.status === "SCHEDULED" && lateMin >= s.missedAfterMin) {
-        const raised = await db.$transaction(async (tx) => {
+        const { raised, openedCaseId } = await db.$transaction(async (tx) => {
           // Re-read under lock: a clock-in may have arrived since the list was read.
           const rows = await tx.$queryRaw<{ status: string }[]>`SELECT status FROM "Visit" WHERE id = ${v.id} FOR UPDATE`;
-          if (rows[0]?.status !== "SCHEDULED") return false;
+          if (rows[0]?.status !== "SCHEDULED") return { raised: false, openedCaseId: null };
           await tx.visit.update({ where: { id: v.id }, data: { status: "MISSED", statusChangedAt: now, lockVersion: { increment: 1 } } });
           await tx.visitEvent.create({ data: { organisationId: v.organisationId, visitId: v.id, type: "STATUS", fromStatus: "SCHEDULED", toStatus: "MISSED", data: { source: "call.sweep", minutesAfterStart: Math.round(lateMin) } } });
           // Every missed call opens its investigation case, whether or not the visit raises alerts.
-          await openMissedCase(tx, v, now);
-          if (!v.alertOnLate) return false;
+          const opened = await openMissedCase(tx, v, now);
+          const openedCaseId = opened.created ? opened.id : null;
+          if (!v.alertOnLate) return { raised: false, openedCaseId };
           const r = await raiseAlert(tx, { organisationId: v.organisationId, kind: "MISSED", severity: "CRITICAL", visitId: v.id, message: `Missed call: ${who} at ${londonTime(v.scheduledStart)} (${v.reference}). No one has clocked in.`, dedupeKey: `missed:${v.id}`, conditionAt: new Date(v.scheduledStart.getTime() + s.missedAfterMin * 60000), actionUrl: "/rota/monitor", notify });
-          return r.created;
+          return { raised: r.created, openedCaseId };
         });
         if (raised) alertsRaised++;
+        // The automated investigation runs as its own job, after the case and alert are safely committed. Queueing it
+        // never fails the sweep, and a case it misses is picked up by the catch-up check.
+        if (openedCaseId && s.missedAutoEvidenceAt) await queueInvestigation(openedCaseId, "DETECTED", { now });
       } else if (v.status === "SCHEDULED" && lateMin >= s.lateAfterMin && v.alertOnLate) {
         const r = await raiseAlert(db, { organisationId: v.organisationId, kind: "LATE", visitId: v.id, message: `Late call: ${who} at ${londonTime(v.scheduledStart)} (${v.reference}) has not started.`, dedupeKey: `late:${v.id}`, conditionAt: new Date(v.scheduledStart.getTime() + s.lateAfterMin * 60000), actionUrl: "/rota/monitor", notify });
         if (r.created) alertsRaised++;

@@ -3,6 +3,7 @@ import { ForbiddenError } from "@/lib/errors";
 import { fmtLondonDate, fromDbDate, londonDate, londonTime } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { myVisits } from "@/server/rota/carer";
+import { carerFacingName, myMissedConfirmations } from "@/server/rota/missed-auto/confirmations";
 import { myMileage } from "@/server/finance/mileage";
 import { medsForMyVisit } from "@/server/care/medication";
 import { leadForCarer } from "@/server/care/medication-lead";
@@ -28,7 +29,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     throw e;
   }
   const { staff, settings, visits, lastHandover } = data;
-  const claims = await myMileage(ctx);
+  const [claims, missed] = await Promise.all([myMileage(ctx), myMissedConfirmations(ctx)]);
   const meds = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await medsForMyVisit(staff.organisationId, v)] as const)));
   const leads = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await leadForCarer(staff.organisationId, v.id)] as const)));
   const now = Date.now();
@@ -40,6 +41,14 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     <div className="mx-auto max-w-2xl">
       <PageHeader title="My Visits" back="/overview" subtitle={`${staff.displayName}. Your published visits. Clock in when you arrive and out when you leave; the time is taken from our server when you press the button. Location and NFC checks are not used, and the page needs a signal (there is no offline mode). Record each task after you clock in; task records and notes cannot be changed once saved.`} />
       <Flash searchParams={sp} />
+      {missed.filter((m) => m.status !== "RESPONDED").map((m) => (
+        <section key={m.id} className="mb-3 rounded-[10px] border border-[#f3c1bd] bg-[#fef3f2] p-3.5" aria-labelledby={`missed-${m.id}`} data-testid="carer-missed-card">
+          <h2 id={`missed-${m.id}`} className="text-[16px] font-bold text-[#912018]">Action required: missed visit</h2>
+          <p className="mt-1 text-[14.5px] text-[#101828]">No clock-in was recorded for your visit at <b>{londonTime(m.case.visit.scheduledStart)}</b> on {fmtLondonDate(londonDate(m.case.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ({m.case.visit.callType.name}, {carerFacingName(m.case.visit.serviceUser)}). Please confirm what happened.</p>
+          {m.responseDueAt && m.status === "REQUESTED" ? <p className="text-[13px] text-[#475467]">Please answer by {londonTime(m.responseDueAt)}.</p> : null}
+          <Link href={`/carer/missed/${m.id}`} className="btn-primary mt-2 inline-flex">Tell us what happened</Link>
+        </section>
+      ))}
       {unseen ? (
         <form action={acknowledgeMyVisitsAction} className="panel mb-3 flex flex-wrap items-center justify-between gap-2">
           <input type="hidden" name="back" value="/carer" />

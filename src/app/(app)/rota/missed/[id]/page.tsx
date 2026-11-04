@@ -8,6 +8,8 @@ import { missedAddActionAction, missedAssignAction, missedCommentAction, missedC
 import { Badge, Flash, fmtDate, type Tone } from "@/components/ui";
 import { ReplacementCoverPanel } from "@/components/replacement-cover";
 import { coverStates } from "@/server/rota/missed-cover";
+import { automationDetail } from "@/server/rota/missed-auto/runs";
+import { AutomatedInvestigation } from "@/components/missed-auto-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +39,8 @@ export default async function MissedCasePage({ params, searchParams }: { params:
   const { c, names } = d;
   const candidates = d.canWork ? await replacementCandidates(ctx, c.id) : [];
   const back = `/rota/missed/${c.id}`;
-  const cover = (await coverStates(ctx, [c.id])).get(c.id);
+  const [coverMap, auto] = await Promise.all([coverStates(ctx, [c.id]), automationDetail(ctx, c.id)]);
+  const cover = coverMap.get(c.id);
   const coverOpen = d.canWork && sp.cover === c.id;
   const coverLink = cover && d.canWork && (cover.canFind || cover.recovery) ? (
     <Link href={`${back}?cover=${c.id}${cover.canFind ? "" : "&fcStep=done"}`} scroll={false} className={cover.canFind ? "inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[14px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" : "btn-secondary"}>{cover.canFind ? (cover.kind === "partial" ? `Find Cover (${cover.booked}/${cover.required} booked)` : "Find Cover") : "View cover booked"}</Link>
@@ -83,6 +86,8 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           <li key={label} className={`border-b border-r border-slate-100 px-3 py-2 ${done ? "font-medium text-[#22682a]" : "text-slate-600"}`}>{done ? "✓ " : `${i} `}{label}</li>
         ))}
       </ol>
+
+      <AutomatedInvestigation d={auto} caseId={c.id} back={back} lockVersion={c.lockVersion} reasonRecorded={!!c.reasonCode} open={c.stage !== "CLOSED"} />
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.55fr_1fr]">
         <div>
@@ -305,4 +310,16 @@ const AUDIT_TEXT: Record<string, string> = {
   "rota.missed.reopened": "Reopened",
   "rota.missed.cover.confirmed": "Cover booked through Find Cover",
   "rota.missed.su-informed": "Service user communication recorded",
+  "rota.missed.auto.evidence_collected": "Automated evidence collected",
+  "rota.missed.auto.evidence_refreshed": "Automated evidence refreshed (records changed)",
+  "rota.missed.auto.confirmation_requested": "Carer asked to confirm what happened (in the app)",
+  "rota.missed.auto.confirmation_unavailable": "Carer has no sign-in: digital confirmation unavailable",
+  "rota.missed.auto.reminder": "Reminder sent to the carer",
+  "rota.missed.auto.no_response": "Carer did not answer by the deadline",
+  "rota.missed.auto.response_recorded": "Carer statement recorded",
+  "rota.missed.auto.response_supplemented": "Further carer statement recorded",
+  "rota.missed.auto.summary_generated": "Suggested reason prepared (rules-based)",
+  "rota.missed.auto.suggestion_accepted": "Suggested reason accepted",
+  "rota.missed.auto.suggestion_rejected": "A different reason was recorded",
+  "rota.missed.auto.suggestion_dismissed": "Suggested reason dismissed",
 };
