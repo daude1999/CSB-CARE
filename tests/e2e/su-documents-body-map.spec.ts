@@ -69,12 +69,14 @@ test.describe("Service user documents and body map", () => {
     await openFirstServiceUser(page);
     await page.getByRole("navigation", { name: "Service user sections" }).getByRole("link", { name: "Health and safety" }).click();
     await page.getByRole("navigation", { name: "Health and safety sections" }).getByRole("link", { name: "Body map" }).click();
-    await page.getByRole("link", { name: "Record Observation" }).first().click();
+    // Add Area: clicking the outline opens Record Observation at that spot.
     await page.getByRole("group", { name: "Body view" }).getByRole("button", { name: "Back", exact: true }).click();
+    await page.getByRole("toolbar", { name: "Body map tools" }).getByRole("button", { name: "Add Area" }).click();
     const svg = page.getByTestId("body-map-svg");
     const box = (await svg.boundingBox())!;
-    // The drawing shows x 25-175 of its 200-wide grid; the sacrum is at the centre, 42% down.
-    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.42);
+    // The drawing is 404 high on a 400-high grid; the sacrum is at the centre, 42% down the grid.
+    await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * (0.42 * 400) / 404);
+    await expect(page.getByTestId("body-map-record-form")).toBeVisible();
     await expect(page.getByTestId("body-map-pin")).toBeVisible();
     await expect(page.getByLabel("Body Location")).toHaveValue("Base of spine (sacrum)");
     await expect(page.getByTestId("body-map-selected-area")).toContainText("Base of spine (sacrum)");

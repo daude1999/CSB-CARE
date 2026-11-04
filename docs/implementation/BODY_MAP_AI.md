@@ -70,7 +70,7 @@ The schema change is one additive migration, `20261103230000_body_map_notes_reco
 
 ## Known limitations
 
-- There is no Export button and no "Add Area" tool from the reference image. Use Print instead.
+- There is no Export button from the reference image. Use Print instead. "Add Area" opens Record Observation at the spot you click.
 - The management view is the profile counts and bell notifications. There is no cross-person dashboard yet.
 - Demo screenshots were taken with medication and the AI switched on in a local database only.
 - Headless Chromium shows date inputs as mm/dd/yyyy in screenshots. Real UK browsers show dd/mm/yyyy.
