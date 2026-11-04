@@ -7,7 +7,7 @@ import { audit } from "../audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "../auth/rbac";
 import { ACTION_PRIORITIES, ACTION_TYPES, createAction } from "../compliance/audits";
 import { notify } from "../notifications/notify";
-import { branchScope, checkBranch, isUniqueViolation, membersWithRoles, nextReference, startOfToday, type Json } from "./common";
+import { checkBranch, isUniqueViolation, membersWithRoles, nextReference, startOfToday, type Json } from "./common";
 import { linkEvidence, linksFor } from "./evidence";
 import { rcaVisibleWhere } from "./visibility";
 export { rcaVisibleWhere };

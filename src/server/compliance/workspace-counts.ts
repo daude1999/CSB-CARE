@@ -10,7 +10,7 @@ import { riskBranchWhere } from "./risks";
  * own organisation (and branches, where the tab's page limits them), and only for tabs the caller can open, so a tab
  * never shows a figure its page would not. A tab with nothing to count has no entry and shows no pill.
  */
-export type WorkspaceId = "library" | "regulatory" | "signoff" | "improvements";
+export type WorkspaceId = "library" | "regulatory" | "signoff" | "improvements" | "cqc";
 
 const DAY = 86_400_000;
 const OPEN_CHANGE = ["NEWLY_DETECTED", "AWAITING_CLASSIFICATION", "POTENTIALLY_SUBSTANTIVE", "UNDER_REVIEW", "CONFIRMED_RELEVANT", "IMPACT_ASSESSMENT_COMPLETED", "POLICY_REVISION_REQUIRED"] as const;
@@ -71,6 +71,11 @@ export async function workspaceCounts(ctx: Ctx, ws: WorkspaceId, now = new Date(
       if (risks !== null) out.risks = risks;
       if (evidence !== null) out.evidence = evidence;
       return out;
+    }
+    case "cqc": {
+      if (!orgId) return {};
+      const { cqcTabCounts } = await import("../cqc/counts");
+      return cqcTabCounts(ctx, now);
     }
   }
 }

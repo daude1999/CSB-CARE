@@ -62,6 +62,9 @@ const COMPLIANCE_PARENTS: [string, string][] = [
   ["/actions", "Corrective Actions"],
   ["/compliance/risks", "Risk Register"],
   ["/evidence", "Evidence Library"],
+  ["/compliance/cqc/assessments", "CQC Assessment"],
+  ["/compliance/cqc/rca", "Root Cause Analysis"],
+  ["/compliance/cqc", "CQC Inspection & Evidence"],
 ];
 
 /**

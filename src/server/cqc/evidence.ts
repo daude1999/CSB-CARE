@@ -242,3 +242,36 @@ export async function linksFor(ctx: Ctx, organisationId: string, where: { criter
   });
   return where.status ? rows.filter((r) => (where.status === "AWAITING" ? r.effective === "SUGGESTED" || r.effective === "AWAITING_REVIEW" : r.effective === where.status)) : rows;
 }
+
+/**
+ * Recent records a person can choose from when linking evidence by hand, grouped by kind. Only records in the caller's
+ * organisation and branches; safeguarding incidents and restricted investigations are left out.
+ */
+export async function evidenceCandidates(ctx: Ctx, branchId?: string | null) {
+  const organisationId = requireOrgPermission(ctx, "cqc.assess");
+  const branch = branchId ? { OR: [{ branchId }, { branchId: null }] } : branchScope(ctx);
+  const suBranch = branchId ? { serviceUser: { branchId } } : ctx.branchIds ? { serviceUser: { OR: [{ branchId: { in: ctx.branchIds } }, { branchId: null }] } } : {};
+  const [docs, policies, audits, actions, incidents, rcas, missed, training, plans] = await Promise.all([
+    db.evidenceDocument.findMany({ where: { organisationId, scanStatus: { not: "INFECTED" }, OR: [{ linkedType: null }, { linkedType: { not: "RCA" } }] }, select: { id: true, filename: true, description: true }, orderBy: { createdAt: "desc" }, take: 40 }),
+    db.policy.findMany({ where: { organisationId, kind: "CUSTOMER", status: "ACTIVE", currentPublishedVersionId: { not: null }, ...branch }, select: { id: true, ref: true, title: true }, orderBy: { ref: "asc" }, take: 250 }),
+    db.audit.findMany({ where: { organisationId, status: "COMPLETED", ...branch }, select: { id: true, title: true, completedAt: true }, orderBy: { completedAt: "desc" }, take: 40 }),
+    db.complianceAction.findMany({ where: { organisationId, status: { in: ["VERIFIED", "CLOSED"] } }, select: { id: true, title: true }, orderBy: { dueDate: "desc" }, take: 40 }),
+    db.incident.findMany({ where: { organisationId, status: "CLOSED", safeguarding: false, ...suBranch }, select: { id: true, reference: true, category: true }, orderBy: { occurredAt: "desc" }, take: 40 }),
+    db.rcaInvestigation.findMany({ where: { organisationId, restricted: false, status: { in: ["ACTIONS_IN_PROGRESS", "EFFECTIVENESS_REVIEW", "CLOSED"] }, ...branch }, select: { id: true, reference: true, title: true }, orderBy: { openedAt: "desc" }, take: 40 }),
+    db.missedCallCase.findMany({ where: { organisationId, signedOffAt: { not: null }, visit: branchId ? { serviceUser: { branchId } } : {} }, select: { id: true, visit: { select: { reference: true } } }, orderBy: { signedOffAt: "desc" }, take: 30 }),
+    db.readinessRequirement.findMany({ where: { organisationId, status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" }, take: 60 }),
+    db.carePlan.findMany({ where: { organisationId, status: "ACTIVE", ...suBranch }, select: { id: true, version: true, serviceUser: { select: { reference: true } } }, orderBy: { approvedAt: "desc" }, take: 40 }),
+  ]);
+  const o = (id: string, label: string) => ({ value: id, label: label.slice(0, 120) });
+  return [
+    { type: "EVIDENCE_DOCUMENT" as const, options: docs.map((d) => o(d.id, d.description ? `${d.filename}: ${d.description}` : d.filename)) },
+    { type: "POLICY" as const, options: policies.map((p) => o(p.id, `${p.ref} ${p.title}`)) },
+    { type: "AUDIT" as const, options: audits.map((a) => o(a.id, a.title)) },
+    { type: "ACTION" as const, options: actions.map((a) => o(a.id, a.title)) },
+    { type: "TRAINING" as const, options: training.map((t) => o(t.id, t.name)) },
+    { type: "CARE_PLAN" as const, options: plans.map((p) => o(p.id, `Care plan v${p.version} for ${p.serviceUser.reference}`)) },
+    { type: "MISSED_CALL" as const, options: missed.map((m) => o(m.id, `Missed call investigation, visit ${m.visit.reference}`)) },
+    { type: "INCIDENT" as const, options: incidents.map((i) => o(i.id, `${i.reference} ${i.category}`)) },
+    { type: "RCA" as const, options: rcas.map((r) => o(r.id, `${r.reference} ${r.title}`)) },
+  ].filter((g) => g.options.length);
+}

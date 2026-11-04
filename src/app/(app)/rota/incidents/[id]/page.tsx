@@ -3,6 +3,7 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getIncident } from "@/server/care/incidents";
+import { openRcaFor } from "@/server/cqc/rca";
 import { memberNames, suName } from "@/server/rota/queries";
 import { closeIncidentAction, incidentNoteAction, reopenIncidentAction, triageIncidentAction } from "@/app/rota-actions";
 import { Badge, Card, Field, Flash, fmtDate, PageHeader } from "@/components/ui";
@@ -20,10 +21,13 @@ export default async function IncidentPage({ params, searchParams }: { params: P
   const names = await memberNames(ctx, [i.reportedById, i.investigatorId, i.closedById, ...history.map((h) => h.actorId)]);
   const who = (u: string | null) => (u ? names.get(u) ?? "Former member" : "—");
   const back = `/rota/incidents/${i.id}`;
+  // Root cause analysis lives in Policy & Compliance; the incident keeps its own reference and is linked, not copied.
+  const canRca = hasOrgPermission(ctx, "rca.create");
+  const rca = canRca ? await openRcaFor(i.organisationId, "INCIDENT", i.id) : null;
 
   return (
     <>
-      <PageHeader title={`${i.reference} · ${i.category}`} back="/rota/incidents" subtitle={`Reported by ${who(i.reportedById)} on ${fmtDate(i.reportedAt, true)}.`} />
+      <PageHeader title={`${i.reference} · ${i.category}`} back="/rota/incidents" subtitle={`Reported by ${who(i.reportedById)} on ${fmtDate(i.reportedAt, true)}.`} actions={canRca ? (rca ? <Link href={`/compliance/cqc/rca/${rca.rca.id}`} className="btn-secondary" data-testid="incident-rca">Open {rca.rca.reference}</Link> : <Link href={`/compliance/cqc/rca/new?incident=${i.id}`} className="btn-secondary" data-testid="incident-rca">Start root cause analysis</Link>) : null} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-3">
