@@ -6,7 +6,7 @@ import { audit } from "../audit-log";
 import { hasOrgPermission, hasPlatformPermission, requireOrgPermission, type Ctx } from "../auth/rbac";
 import { enqueue } from "../jobs/queue";
 import { sourceAppliesTo, sourceCoversTopic, sourceTrust, type SourceTrust } from "./applicability";
-import { LOCAL_AUTHORITIES, REGION_CODES, laCode } from "./regions";
+import { LOCAL_AUTHORITIES, REGION_CODES, laCode, regionName } from "./regions";
 import { GEO_SOURCES } from "./reference-sources";
 
 /**
@@ -83,7 +83,7 @@ export async function referenceLibrary(ctx: Ctx, f: LibraryFilters = {}) {
       review,
       trust,
       policies: linkCount.get(s.id) ?? 0,
-      areas: s.geoLevel === "NATIONAL" ? "England" : s.localAuthorityCodes.length ? s.localAuthorityCodes.map((c) => laName.get(c) ?? c).join(", ") : s.regionCodes.join(", "),
+      areas: s.geoLevel === "NATIONAL" ? "England" : s.localAuthorityCodes.length ? s.localAuthorityCodes.map((c) => laName.get(c) ?? c).join(", ") : s.regionCodes.map((c) => regionName(c)).join(", "),
     };
   });
   if (f.la) {

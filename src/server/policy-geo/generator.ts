@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { audit } from "../audit-log";
 import { getAiProvider } from "../ai";
 import { AiUnavailableError } from "../ai/provider";
-import { hasOrgPermission, requireOrgPermission, visiblePolicyWhere, type Ctx } from "../auth/rbac";
+import { requireOrgPermission, visiblePolicyWhere, type Ctx } from "../auth/rbac";
 import { createDraftVersion, toSectionInputs, type SectionInput } from "../policies/versions";
 import { branchGaps, needsLocalArrangements, TRUST_LABEL, type GapDraft, type SourceTrust } from "./applicability";
 import { allowedBranchIds, listBranchProfiles } from "./branches";
@@ -565,13 +565,24 @@ export async function ensureBranchAssignmentRules(tx: Tx, revisionId: string, ac
   return created;
 }
 
+const trustSchema = z.enum(["verified", "unverified", "needs_review", "review_overdue", "superseded", "check_failed"]);
+const snapSourceSchema = z.object({ label: z.string(), id: z.string(), name: z.string(), issuer: z.string().nullable(), level: z.string(), url: z.string(), trust: trustSchema, areas: z.string(), versionLabel: z.string().nullable(), summary: z.string().nullable(), lastChecked: z.string().nullable() });
+const snapshotSchema = z.object({
+  national: z.array(snapSourceSchema),
+  requirements: z.array(z.object({ ref: z.string(), title: z.string(), exactReference: z.string(), url: z.string(), legalStatus: z.string(), verification: z.string() })),
+  branches: z.array(z.object({ id: z.string(), name: z.string(), localAuthority: z.string().nullable(), region: z.string().nullable(), regional: z.array(snapSourceSchema), local: z.array(snapSourceSchema) })),
+  notes: z.array(z.string()),
+});
+
 /** The generator's record for a revision page: the run, its sources, gaps and branch scope. */
 export async function generationForRevision(ctx: Ctx, revisionId: string) {
   if (!ctx.organisationId) return null;
   const run = await db.policyGenerationRun.findFirst({ where: { revisionId, organisationId: ctx.organisationId }, include: { gaps: { orderBy: [{ resolvedAt: "asc" }, { severity: "asc" }, { createdAt: "asc" }] } } });
   if (!run) return null;
   const branches = await db.branch.findMany({ where: { id: { in: run.branchIds }, organisationId: ctx.organisationId }, select: { id: true, name: true } });
-  return { run, snapshot: run.sourceSnapshot as unknown as { national: AssembledSource[]; requirements: Assembly["requirements"]; branches: { id: string; name: string; localAuthority: string | null; region: string | null; regional: AssembledSource[]; local: AssembledSource[] }[]; notes: string[] }, branches };
+  const parsed = snapshotSchema.safeParse(run.sourceSnapshot);
+  const snapshot = parsed.success ? parsed.data : { national: [], requirements: [], branches: [], notes: ["The source list recorded with this draft could not be read."] };
+  return { run, snapshot, branches };
 }
 
 export async function recentRuns(ctx: Ctx, take = 15) {
