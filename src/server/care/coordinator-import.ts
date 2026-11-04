@@ -11,6 +11,7 @@ import { createPackage } from "@/server/care/packages";
 import { createTemplate } from "@/server/rota/templates";
 import { createVisit } from "@/server/rota/visits";
 import { uploadDocument, type UploadedFile } from "@/server/care/su-documents";
+import { createRiskDraft } from "@/server/care/risks";
 
 /**
  * Explicit human-approved, tenant-scoped intake.
@@ -72,6 +73,16 @@ export const intakeSchema = z.object({
     requirements: z.string().max(2000).optional(),
   }),
   visits: z.array(visit).min(1).max(30),
+  riskDrafts: z.array(z.object({
+    type: z.enum(["ENVIRONMENT","MOVING_HANDLING","FALLS","PRESSURE_SKIN","MEDICATION_SUPPORT","NUTRITION","LONE_WORKING","OTHER"]),
+    title: z.string().min(3).max(160),
+    hazards: z.string().min(10).max(4000),
+    controls: z.string().min(10).max(4000),
+    level: z.enum(["LOW","MEDIUM","HIGH"]),
+    reviewDue: date,
+    requiredActions: z.string().max(4000).optional(),
+    responsiblePerson: z.string().max(160).optional(),
+  })).max(25).default([]),
   // Optional future week to create actual unpublished visits, otherwise only recurring templates.
   draftWeekStart: date.optional(),
   // Operator approval is separate from document extraction and is required on execution.
@@ -129,7 +140,7 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   if(invalidSections.length) throw new ValidationError("Unexpected care-plan section: "+invalidSections.join(", "));
   if(PLAN_SECTIONS.some(s=>!(d.carePlan.sections[s.key]?.body.trim())))
     throw new ValidationError("Provide all nine care plan sections, stating 'not documented — needs review' where applicable");
-  return {data:d,weeklyMinutes:templateMinutes,visitTemplates:d.visits.length,contacts:d.contacts.length,requiresClinicalReview:true};
+  return {data:d,weeklyMinutes:templateMinutes,visitTemplates:d.visits.length,contacts:d.contacts.length,riskDrafts:d.riskDrafts.length,requiresClinicalReview:true};
 }
 
 export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan?:UploadedFile;discharge?:UploadedFile}) {
@@ -165,6 +176,8 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
     const saved=await db.carePlan.findFirstOrThrow({where:{id:draft.id},include:{sections:true}});
     await saveDraft(ctx,draft.id,{fingerprint:draftFingerprint(saved,saved.sections),...d.carePlan});
     steps.push("Nine-section care plan saved as DRAFT, not approved");
+    for(const r of d.riskDrafts) await createRiskDraft(ctx,su.id,r);
+    steps.push(d.riskDrafts.length+" DRAFT risk assessments recorded for independent review");
     await createPackage(ctx,su.id,{...d.package});
     steps.push("Care package entered");
     for(const v of d.visits) {
