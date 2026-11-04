@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
-import { AiUnavailableError, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput } from "./provider";
-import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema } from "./schemas";
+import { AiUnavailableError, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput } from "./provider";
+import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema } from "./schemas";
 
 const SYSTEM = `You support regulatory compliance reviewers at CSB, a policy management platform for adult social care providers in England.
 Your outputs are PROPOSALS for qualified human reviewers, never legal conclusions.
@@ -169,6 +169,20 @@ ${input.records.map((r) => `<record id="${r.sid}" kind="${xmlEscape(r.kind)}" da
         {
           type: "text",
           text: `Read this council support plan and fill in the schema from what is WRITTEN on its pages. Copy values as written; do not guess, infer or complete anything that is not on the page, and leave a field null when the document does not give it. Give the page number for every value. Read the whole timetable, including rows that continue on a later page, and give one entry per row with the full task text. Convert durations in hours to minutes. Mark a row as CARERS_SERVICE when the document says it is a carers service or part of an informal carer's own plan. List every conflict between pages (for example a visit time given differently in the narrative and the timetable), every temporary service and its end date, and anything missing, under flags. Never record medication, resuscitation or diagnosis details beyond what the flags need.`,
+        },
+      ],
+      IMPORT_SYSTEM,
+    );
+  }
+
+  extractCareDocument(input: CareDocumentExtractionInput) {
+    return this.structured(
+      CareDocumentExtractionSchema,
+      [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.pdfBase64 }, title: input.filename.slice(0, 120) },
+        {
+          type: "text",
+          text: `The office filed this as: ${xmlEscape(input.categoryLabel)}. Read EVERY page, including tables, timetables and continuation pages, and fill in the schema with individual facts, not a summary. For every fact give the page and a short quote copied exactly from that page; facts whose quote cannot be found on the page are thrown away. Copy values as written and never guess, infer or complete anything. Mark facts about the past as HISTORICAL (an earlier admission, a previous fall, medicines listed at discharge). Separate informal or family support from commissioned visits. Put contradictions, out-of-date information and missing authorisations under flags, and information a home care provider needs but the document does not give under missing. Never decide a risk level that the document does not state.`,
         },
       ],
       IMPORT_SYSTEM,

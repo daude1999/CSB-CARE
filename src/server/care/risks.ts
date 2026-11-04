@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, isIsoDate, londonDate } from "@/lib/london";
 import { audit } from "@/server/audit-log";
-import type { Ctx } from "@/server/auth/rbac";
+import { requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 
 type Tx = Prisma.TransactionClient;
@@ -147,5 +147,51 @@ export async function archiveRisk(ctx: Ctx, id: string, reason: string) {
     await saveVersion(tx, { ...r, version: r.version + 1 }, { type: r.type, title: r.title, hazards: r.hazards, controls: r.controls, level: r.level, reviewDue: r.reviewDue, requiredActions: r.requiredActions, responsiblePerson: r.responsiblePerson, status: "ARCHIVED" }, "ARCHIVED", ctx.userId, reason.trim());
     await syncRiskLevel(tx, r.serviceUserId);
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "risk.archived", entityType: "RiskAssessment", entityId: r.id, data: { reason: reason.trim() } }, tx);
+  });
+}
+
+/**
+ * AI-assisted proposed assessments: saved as DRAFT, excluded from live risk
+ * registers and service-user headline risk. A second manager must check and
+ * explicitly approve the actual controls and risk level. Source documents
+ * remain in the service user's restricted document library.
+ */
+export async function createRiskDraft(ctx: Ctx, serviceUserId: string, input: RiskInput | Record<string, unknown>) {
+  const scope = await rotaScope(ctx, "care.plan.edit");
+  const d = parse(input);
+  return db.$transaction(async tx => {
+    const su = await tx.serviceUser.findFirst({where:{...serviceUserWhere(scope),id:serviceUserId},select:{id:true}});
+    if(!su) throw new NotFoundError("Service user");
+    const snap={type:d.type,title:d.title,hazards:d.hazards,controls:d.controls,level:d.level,
+      reviewDue:dbDate(d.reviewDue),requiredActions:d.requiredActions,responsiblePerson:d.responsiblePerson};
+    const r=await tx.riskAssessment.create({data:{organisationId:scope.organisationId,serviceUserId:su.id,
+      ...snap,status:"DRAFT",assessedById:ctx.userId}});
+    await saveVersion(tx,r,{...snap,status:"DRAFT"},"CREATED",ctx.userId);
+    await audit({organisationId:scope.organisationId,actorId:ctx.userId,action:"risk.draft.created",
+      entityType:"RiskAssessment",entityId:r.id,data:{serviceUserId:su.id,type:d.type}},tx);
+    return r;
+  });
+}
+
+/** Independent authorised manager reviews source evidence and accepts responsibility. */
+export async function approveRiskDraft(ctx: Ctx, id: string, version: number, input: RiskInput | Record<string, unknown>) {
+  requireOrgPermission(ctx,"care.plan.approve");
+  const scope=await rotaScope(ctx,"serviceUser.view");
+  const d=parse(input);
+  return db.$transaction(async tx=>{
+    const r=await riskInScope(tx,scope,id);
+    if(r.status!=="DRAFT") throw new ValidationError("Only a draft risk assessment can be approved");
+    if(r.version!==version) throw new ConflictError("This risk draft has changed. Reload before approval.");
+    if(r.assessedById===ctx.userId) throw new ValidationError("A different manager must approve the proposed risk assessment");
+    const snap={type:d.type,title:d.title,hazards:d.hazards,controls:d.controls,level:d.level,
+      reviewDue:dbDate(d.reviewDue),requiredActions:d.requiredActions,responsiblePerson:d.responsiblePerson};
+    const result=await tx.riskAssessment.updateMany({where:{id:r.id,version:r.version,status:"DRAFT"},data:{
+      ...snap,status:"ACTIVE",assessedById:ctx.userId,assessedAt:new Date(),version:{increment:1}}});
+    if(!result.count) throw new ConflictError("This risk draft has changed. Reload before approval.");
+    await saveVersion(tx,{...r,version:r.version+1},{...snap,status:"ACTIVE"},"REVIEWED",ctx.userId,"Independent risk review and activation");
+    await syncRiskLevel(tx,r.serviceUserId);
+    await audit({organisationId:scope.organisationId,actorId:ctx.userId,action:"risk.draft.approved",
+      entityType:"RiskAssessment",entityId:r.id,data:{serviceUserId:r.serviceUserId,version:r.version+1}},tx);
+    return {id:r.id,serviceUserId:r.serviceUserId};
   });
 }

@@ -9,6 +9,7 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { cancelVisitInTx } from "@/server/rota/visits";
 import { reviewStaffImpact } from "@/server/workforce/impact";
 import { decryptKeySafe, encryptKeySafe } from "./keysafe";
+import { searchReferenceIds } from "./external-references";
 
 /**
  * Service users: the people the organisation supports. Every read and write is scoped to the caller's organisation
@@ -26,15 +27,17 @@ export interface ServiceUserFilters {
 
 export async function listServiceUsers(ctx: Ctx, f: ServiceUserFilters) {
   const scope = await rotaScope(ctx, "serviceUser.view");
+  const ids=f.q ? await searchReferenceIds(ctx,f.q) : [];
+  const canSensitive=hasOrgPermission(ctx,"serviceUser.sensitive");
   const where: Prisma.ServiceUserWhereInput = {
     ...serviceUserWhere(scope),
     ...(f.status === "CURRENT" || !f.status ? { status: { in: ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED"] } } : { status: f.status }),
     ...(f.areaId ? { areaId: f.areaId } : {}),
-    ...(f.q ? { OR: [{ firstName: { contains: f.q, mode: "insensitive" } }, { lastName: { contains: f.q, mode: "insensitive" } }, { preferredName: { contains: f.q, mode: "insensitive" } }, { reference: { contains: f.q, mode: "insensitive" } }, { postcode: { contains: f.q, mode: "insensitive" } }] } : {}),
+    ...(f.q ? { OR: [{ firstName: { contains: f.q, mode: "insensitive" } }, { lastName: { contains: f.q, mode: "insensitive" } }, { preferredName: { contains: f.q, mode: "insensitive" } }, { reference: { contains: f.q, mode: "insensitive" } }, { csbReference: { contains: f.q, mode: "insensitive" } }, ...(canSensitive ? [{ nhsNumber: { equals: f.q.replace(/\\s/g,"") } }] : []), { id: { in: ids } }, { postcode: { contains: f.q, mode: "insensitive" } }] } : {}),
   };
   return db.serviceUser.findMany({
     where,
-    select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
+    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 500,
   });
@@ -137,12 +140,14 @@ export function detailData(ctx: Ctx, d: z.output<typeof detailsSchema>) {
   };
 }
 
-/** The next free SU-nnn reference for an organisation. */
+/** Never reuse a CSB number. Existing SU references remain readable as legacy IDs. */
 export async function nextServiceUserReference(tx: Tx, organisationId: string) {
-  const count = await tx.serviceUser.count({ where: { organisationId } });
-  let reference = `SU-${String(101 + count)}`;
-  for (let n = 1; await tx.serviceUser.findFirst({ where: { organisationId, reference } }); n++) reference = `SU-${String(101 + count + n)}`;
-  return reference;
+  const counter=await tx.serviceUserReferenceCounter.upsert({
+    where:{organisationId},
+    create:{organisationId,nextNumber:2},
+    update:{nextNumber:{increment:1}},
+  });
+  return "CSB-"+String(counter.nextNumber-1).padStart(6,"0");
 }
 
 export async function createServiceUser(ctx: Ctx, input: ServiceUserInput | Record<string, unknown>) {
@@ -152,7 +157,7 @@ export async function createServiceUser(ctx: Ctx, input: ServiceUserInput | Reco
   return db.$transaction(async (tx) => {
     const area = await checkArea(tx, scope, r.data.areaId);
     const reference = await nextServiceUserReference(tx, scope.organisationId);
-    const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, r.data) } });
+    const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, csbReference:reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, r.data) } });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.created", entityType: "ServiceUser", entityId: su.id }, tx);
     return su;
   });

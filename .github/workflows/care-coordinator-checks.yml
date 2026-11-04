@@ -1,0 +1,42 @@
+name: Care Coordinator branch checks
+on:
+  push:
+    branches:
+      - feature/ai-care-coordinator
+  pull_request:
+    paths:
+      - 'src/server/care/coordinator/**'
+      - 'src/server/care/risks.ts'
+      - 'src/lib/care-coordinator-*.ts'
+      - 'src/app/coordinator-actions.ts'
+      - 'src/components/coordinator/**'
+      - 'src/app/**/rota/coordinator/**'
+      - 'prisma/schema.prisma'
+      - 'prisma/migrations/**'
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      - run: npm run typecheck
+      - run: npx vitest run tests/unit/care-coordinator-rules.test.ts tests/integration/care-coordinator.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public

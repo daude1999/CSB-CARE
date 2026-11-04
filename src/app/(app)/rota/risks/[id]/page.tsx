@@ -5,7 +5,7 @@ import { orNotFound } from "@/server/auth/page-guard";
 import { RISK_TYPE_LABEL, REVIEW_STATE_LABEL, getRisk, reviewState } from "@/server/care/risks";
 import { memberNames, suName } from "@/server/rota/queries";
 import { fmtLondonDate, fromDbDate } from "@/lib/london";
-import { archiveRiskAction, reviewRiskAction } from "@/app/rota-actions";
+import { approveRiskDraftAction, archiveRiskAction, reviewRiskAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { LEVEL, RiskFields } from "@/components/risk-fields";
 
@@ -28,6 +28,8 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const old = sp.v ? versions.find((v) => String(v.version) === sp.v && v.version !== r.version) ?? null : null;
   const shown = old ?? r;
   const state = r.status === "ACTIVE" ? reviewState(r.reviewDue) : null;
+  const draft = r.status === "DRAFT";
+  const canApproveDraft = draft && hasOrgPermission(ctx, "care.plan.approve");
 
   return (
     <>
@@ -35,12 +37,17 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-3">
+          {draft ? (
+            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
+              This is a draft written from the person&apos;s documents. Carers do not see it and it is not part of the live risk register. A manager other than the person who drafted it checks every field against the documents and approves it.
+            </p>
+          ) : null}
           {old ? (
             <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
               You are reading version {old.version}, saved {fmtDate(old.changedAt, true)}. It is kept for the record and cannot be changed. <Link href={back}>Back to the current version</Link>
             </p>
           ) : null}
-          <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
+          <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "DRAFT" ? <Badge tone="amber">Draft, not approved</Badge> : shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
             {old && old.title !== r.title ? <p className="mb-2 text-[14px]"><span className="font-medium">Title then:</span> {old.title}</p> : null}
             <h3 className="text-[13.5px] font-semibold">Hazards</h3>
             <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.hazards}</p>
@@ -54,6 +61,18 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
               {old ? <>{CHANGE[old.change] ?? old.change} by {who(old.changedById)}. Review was due {fmtLondonDate(fromDbDate(old.reviewDue))}.</> : <>Last assessed by {who(r.assessedById)} on {fmtDate(r.assessedAt)}. Review by <span className={state === "OVERDUE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(r.reviewDue))}</span>.</>}
             </p>
           </Card>
+          {canApproveDraft && !old ? (
+            <Card title="Check and approve this draft">
+              <p className="mb-2 text-[13px] text-slate-600">Correct anything that does not match the documents or your own assessment, then approve. You take responsibility for the controls and the risk level. The person who drafted it cannot approve it.</p>
+              <form action={approveRiskDraftAction} className="space-y-3">
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="riskId" value={r.id} />
+                <input type="hidden" name="version" value={r.version} />
+                <RiskFields risk={r} />
+                <button className="btn-primary">Approve and make live</button>
+              </form>
+            </Card>
+          ) : null}
           {canEdit && !old ? (
             <Card title="Review this assessment">
               <p className="mb-2 text-[13px] text-slate-600">Saving a review keeps this version as it is and starts version {r.version + 1}.</p>
