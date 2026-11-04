@@ -187,3 +187,67 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
     throw new ValidationError("Intake stopped after: "+steps.join("; ")+". "+(serviceUserId?"Created serviceUserId="+serviceUserId+". Do not resubmit; inspect that record and resume manually. ":"No service user created. ")+(e instanceof Error?e.message:"Unexpected error"));
   }
 }
+
+/**
+ * Phase two: a MANAGER-approved, explicitly triggered one-week build.
+ * Care plan must already be approved by an independent person and at least one
+ * care risk assessment must have been completed. No carer is allocated, and
+ * visits are never published by this function.
+ */
+export async function activateAndBuildApprovedWeek(ctx: Ctx, serviceUserId: string, weekStart: string) {
+  const org=requireOrgPermission(ctx,"care.plan.approve");
+  requireOrgPermission(ctx,"rota.edit");
+  const scope=await rotaScope(ctx,"serviceUser.edit");
+  if(!isIsoDate(weekStart) || weekStart!==monday(weekStart) || weekStart<londonDate())
+    throw new ValidationError("Choose a current or future Monday");
+  const su=await db.serviceUser.findFirst({where:{...serviceUserWhere(scope),id:serviceUserId},include:{
+    carePlans:{where:{status:"ACTIVE"},select:{id:true},take:1},
+    packages:{where:{status:"ACTIVE"},take:1},
+    templates:{where:{enabled:true},orderBy:{startMinute:"asc"}},
+  }});
+  if(!su || su.organisationId!==org) throw new ValidationError("Service user not found in your scope");
+  if(su.status!=="ASSESSMENT" && su.status!=="ACTIVE") throw new ValidationError("Person must be in Assessment or Active status");
+  if(!su.carePlans.length) throw new ValidationError("An independently approved care plan is required");
+  const riskCount=await db.riskAssessment.count({where:{organisationId:org,serviceUserId:su.id,status:"ACTIVE"}});
+  if(riskCount<1) throw new ValidationError("An authorised assessor must complete risk assessments before visits are generated");
+  const pkg=su.packages[0];
+  if(!pkg || pkg.startDate>dbDate(weekStart) || (pkg.endDate && pkg.endDate<dbDate(weekStart)))
+    throw new ValidationError("There is no authorised care package for the selected week");
+  if(!su.templates.length) throw new ValidationError("No enabled recurring templates found");
+  // Existing visit patterns are used; no new medical or care tasks are inferred.
+  if(su.status==="ASSESSMENT") await setServiceUserStatus(ctx,su.id,"ACTIVE","Human-approved care plan and package setup");
+  const created:string[]=[],existing:string[]=[],errors:string[]=[];
+  for(let offset=0;offset<7;offset++){
+    const day=addDays(weekStart,offset);
+    if(day<londonDate() || (pkg.endDate && pkg.endDate<dbDate(day))) continue;
+    for(const v of su.templates){
+      if(!v.weekdays.includes(weekday(day)) ||
+         (v.effectiveFrom && v.effectiveFrom>dbDate(day)) ||
+         (v.effectiveTo && v.effectiveTo<dbDate(day))) continue;
+      // Do not create a duplicate from an already built or manually created visit.
+      const existingVisit=await db.visit.findFirst({where:{
+        organisationId:org,serviceUserId:su.id,date:dbDate(day),callTypeId:v.callTypeId,
+        scheduledStart:{gte:new Date(day+"T00:00:00Z"),lt:new Date(addDays(day,1)+"T00:00:00Z")},
+      },select:{id:true,scheduledStart:true,scheduledEnd:true}});
+      // Multiple visits can share a call type. Inspect their actual London clock.
+      // A candidate requires exact UTC instant matching the template's London time.
+      const {londonToUtc}=await import("@/lib/london");
+      const expected=londonToUtc(day,v.startMinute);
+      const exact=existingVisit?.scheduledStart.getTime()===expected.getTime()
+        ? existingVisit
+        : await db.visit.findFirst({where:{
+          organisationId:org,serviceUserId:su.id,date:dbDate(day),scheduledStart:expected,
+        },select:{id:true}});
+      if(exact){existing.push(exact.id);continue;}
+      try{
+        const visit=await createVisit(ctx,{serviceUserId:su.id,callTypeId:v.callTypeId,date:day,
+          startMinute:v.startMinute,durationMin:v.durationMin,carersRequired:v.carersRequired,
+          medicationRequired:v.medicationRequired,timeLocked:v.timeLocked,
+          notes:v.notes || undefined,publish:false});
+        created.push(visit.id);
+      }catch(e){errors.push(day+" "+v.startMinute+": "+(e instanceof Error?e.message:"Unable to create visit"));}
+    }
+  }
+  return {serviceUserId:su.id,created:created.length,alreadyPresent:existing.length,errors,
+    pending:["Check rota allocations and compliance","Assign eligible carers","Manager publishes visits after review"]};
+}
