@@ -73,7 +73,7 @@ export async function materialPublication(tx: Db, policyId: string) {
 
 const ruleSchema = z.object({
   policyId: z.string().min(1, "Choose the policy"),
-  scope: z.enum(["ORG", "BRANCH", "ROLE", "JOB_TITLE", "STAFF"]),
+  scope: z.enum(["ORG", "BRANCH", "ROLE", "JOB_TITLE", "STAFF", "WORKS_IN_BRANCH"]),
   branchId: z.string().optional(),
   orgRole: z.enum(["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "CARER", "FINANCE_OFFICER"]).optional(),
   jobTitle: z.string().trim().max(120).optional(),
@@ -94,6 +94,7 @@ async function ruleTargets(tx: Db, organisationId: string, rule: { scope: string
   let out: Target[] = [];
   if (rule.scope === "ORG") out = (await staff({})).map((s) => ({ staffMemberId: s.id, userId: s.userId }));
   if (rule.scope === "BRANCH" && rule.branchId) out = (await staff({ branchId: rule.branchId })).map((s) => ({ staffMemberId: s.id, userId: s.userId }));
+  if (rule.scope === "WORKS_IN_BRANCH" && rule.branchId) out = (await staff(worksInBranchWhere(rule.branchId))).map((s) => ({ staffMemberId: s.id, userId: s.userId }));
   if (rule.scope === "JOB_TITLE" && rule.jobTitle) out = (await staff({ jobTitle: { equals: rule.jobTitle, mode: "insensitive" } })).map((s) => ({ staffMemberId: s.id, userId: s.userId }));
   if (rule.scope === "STAFF" && rule.staffMemberId) out = (await staff({ id: rule.staffMemberId })).map((s) => ({ staffMemberId: s.id, userId: s.userId }));
   if (rule.scope === "ORG" || rule.scope === "ROLE") {
@@ -103,6 +104,23 @@ async function ruleTargets(tx: Db, organisationId: string, rule: { scope: string
     for (const m of members) if (!out.some((t) => t.userId === m.userId)) out.push({ staffMemberId: linked.get(m.userId) ?? null, userId: m.userId });
   }
   return out;
+}
+
+/**
+ * Staff who work in a branch, not only those employed there: employed at the branch, assigned to one of its areas, or
+ * booked on a visit to one of its service users in the last 90 days or the next 28. A carer who works across two
+ * boroughs is therefore asked to read both boroughs' local arrangements.
+ */
+export function worksInBranchWhere(branchId: string, now = new Date()): Prisma.StaffMemberWhereInput {
+  const from = new Date(now.getTime() - 90 * 86400_000);
+  const to = new Date(now.getTime() + 28 * 86400_000);
+  return {
+    OR: [
+      { branchId },
+      { areas: { some: { area: { branchId } } } },
+      { assignments: { some: { visit: { serviceUser: { branchId }, scheduledStart: { gte: from, lte: to } } } } },
+    ],
+  };
 }
 
 const targetKey = (t: Target) => (t.staffMemberId ? `s:${t.staffMemberId}` : `u:${t.userId}`);
@@ -166,7 +184,7 @@ export async function createRule(ctx: Ctx, input: RuleInput) {
   const d = p.data;
   const policy = await db.policy.findFirst({ where: { id: d.policyId, organisationId, kind: "CUSTOMER" } });
   if (!policy) throw new NotFoundError("Policy");
-  if (d.scope === "BRANCH" && !(d.branchId && (await db.branch.findFirst({ where: { id: d.branchId, organisationId } })))) throw new ValidationError("Choose the branch");
+  if ((d.scope === "BRANCH" || d.scope === "WORKS_IN_BRANCH") && !(d.branchId && (await db.branch.findFirst({ where: { id: d.branchId, organisationId } })))) throw new ValidationError("Choose the branch");
   if (d.scope === "ROLE" && !d.orgRole) throw new ValidationError("Choose the role");
   if (d.scope === "JOB_TITLE" && !d.jobTitle) throw new ValidationError("Give the job title");
   const staffIds = d.scope === "STAFF" ? [...new Set(d.staffMemberIds ?? [])] : [null];
@@ -177,11 +195,11 @@ export async function createRule(ctx: Ctx, input: RuleInput) {
   }
   // A branch-limited manager may only target their own branches.
   const scope = await memberScope(ctx.userId, organisationId);
-  if (scope.branchIds && (d.scope === "ORG" || d.scope === "ROLE" || d.scope === "JOB_TITLE" || (d.scope === "BRANCH" && !scope.branchIds.includes(d.branchId!)))) throw new ForbiddenError("You can only assign policies to your own branches");
+  if (scope.branchIds && (d.scope === "ORG" || d.scope === "ROLE" || d.scope === "JOB_TITLE" || ((d.scope === "BRANCH" || d.scope === "WORKS_IN_BRANCH") && !scope.branchIds.includes(d.branchId!)))) throw new ForbiddenError("You can only assign policies to your own branches");
   return db.$transaction(async (tx) => {
     const ids: string[] = [];
     for (const staffMemberId of staffIds) {
-      const rule = await tx.policyAssignmentRule.create({ data: { organisationId, policyId: policy.id, scope: d.scope, branchId: d.scope === "BRANCH" ? d.branchId : null, orgRole: d.scope === "ROLE" ? d.orgRole : null, jobTitle: d.scope === "JOB_TITLE" ? d.jobTitle : null, staffMemberId, mandatory: d.mandatory, priority: d.priority, dueDays: d.dueDays, requiresAssessment: d.requiresAssessment, ownerId: ctx.userId, createdById: ctx.userId } });
+      const rule = await tx.policyAssignmentRule.create({ data: { organisationId, policyId: policy.id, scope: d.scope, branchId: d.scope === "BRANCH" || d.scope === "WORKS_IN_BRANCH" ? d.branchId : null, orgRole: d.scope === "ROLE" ? d.orgRole : null, jobTitle: d.scope === "JOB_TITLE" ? d.jobTitle : null, staffMemberId, mandatory: d.mandatory, priority: d.priority, dueDays: d.dueDays, requiresAssessment: d.requiresAssessment, ownerId: ctx.userId, createdById: ctx.userId } });
       ids.push(rule.id);
       await audit({ organisationId, actorId: ctx.userId, action: "policy.assignment.created", entityType: "PolicyAssignmentRule", entityId: rule.id, data: { policyId: policy.id, scope: d.scope } }, tx);
     }

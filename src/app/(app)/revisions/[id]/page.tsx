@@ -11,6 +11,8 @@ import type { RevisionValidation } from "@/server/policies/revise";
 import { commentAction, decideAction, editSectionAction, publishAction, submitAction } from "../../../actions";
 import { PolicyDiffView } from "@/components/diff";
 import { Badge, Card, Empty, Field, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
+import { GeneratedDraftCard } from "@/components/generated-draft-card";
+import { generationForRevision, GOVERNANCE_CHECKS } from "@/server/policy-geo/generator";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
   const editable = ["DRAFT", "CHANGES_REQUESTED"].includes(v.status) && !r.closedAt;
   const back = `/revisions/${r.id}`;
   const currentDecisions = r.decisions.filter((d) => d.versionId === v.id);
+  const generated = await generationForRevision(ctx, r.id);
 
   return (
     <>
@@ -45,6 +48,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
+          {generated ? <GeneratedDraftCard generated={generated} canResolve={canAuthor || canPublish} back={back} open={!r.closedAt} /> : null}
           <Card title="Proposed changes">
             {r.explanation ? (
               <div className="mb-4 rounded bg-slate-50 p-3 text-sm">
@@ -54,6 +58,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
             ) : null}
             <PolicyDiffView diff={diff} />
           </Card>
+
 
           {editable && canAuthor ? (
             <Card title="Edit draft sections">
@@ -149,6 +154,20 @@ export default async function RevisionPage({ params, searchParams }: { params: P
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requireAcknowledgement" defaultChecked={r.policy.kind === "CUSTOMER"} /> Staff must acknowledge</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="materialRevision" defaultChecked /> Material change: staff read and acknowledge this version again (untick for wording-only changes; earlier acknowledgements stay as evidence)</label>
                 <input type="number" name="ackDays" min={1} max={90} defaultValue={14} className="input" aria-label="Acknowledgement due in days" />
+                {generated ? (
+                  <fieldset className="space-y-2 rounded border border-amber-300 bg-amber-50 p-3" data-testid="governance-checks">
+                    <legend className="px-1 text-sm font-semibold text-navy-900">Before publishing this generated policy, confirm:</legend>
+                    {GOVERNANCE_CHECKS.map(([key, label]) => (
+                      <label key={key} className="flex items-start gap-2 text-sm"><input type="checkbox" name={`gov_${key}`} required className="mt-1" /> {label}</label>
+                    ))}
+                    {generated.run.mode !== "NATIONAL" ? (
+                      <>
+                        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="assignBranchStaff" value="on" defaultChecked className="mt-1" /> Ask everyone who works in {generated.branches.map((b) => b.name).join(", ")} to read it (staff working across branches are asked once)</label>
+                        <input type="hidden" name="assignBranchStaff" value="off" />
+                      </>
+                    ) : null}
+                  </fieldset>
+                ) : null}
                 <button className="btn-primary" type="submit">Publish</button>
               </form>
             ) : null}

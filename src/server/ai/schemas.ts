@@ -246,3 +246,20 @@ export const CareDocumentExtractionSchema = z.object({
   unreadable: z.array(z.object({ page: Page, reason: z.string() })),
 });
 export type CareDocumentExtraction = z.infer<typeof CareDocumentExtractionSchema>;
+
+// ── Branch-specific Policy Generator ──────────────────────────────────────
+
+export const BranchPolicyDraftSchema = z.object({
+  sections: z
+    .array(
+      z.object({
+        key: z.string().describe("The section key exactly as given in the input (only sections marked editable)"),
+        heading: z.string(),
+        body: z.string().describe("The full proposed section text. No telephone numbers, e-mail addresses or web addresses: those are added from verified records by the system."),
+        citations: z.array(z.object({ sourceRef: z.string().describe("A source id such as S3, exactly as given"), quote: z.string().nullable().describe("A short verbatim quote from that source's text, or null when the source text was not provided") })),
+      }),
+    )
+    .describe("Only sections marked editable=\"true\" in the input"),
+  uncertainties: z.array(z.string()).describe("What a manager must check before approval, including anything the sources do not cover"),
+});
+export type BranchPolicyDraftOutput = z.infer<typeof BranchPolicyDraftSchema>;
