@@ -181,6 +181,12 @@ export async function executeIntake(ctx: Ctx, raw: unknown, files?: {supportPlan
       await uploadDocument(ctx,su.id,"OTHER",{name:"Hospital Discharge Letter",category:"DISCHARGE_INFORMATION",markSensitive:true},files.discharge);
       steps.push("Restricted hospital discharge letter stored");
     }
+    const reviewItems=[
+      ...d.clinicalReviewNotes.map(description=>({organisationId:su.organisationId,serviceUserId:su.id,category:"CLINICAL",description,createdById:ctx.userId})),
+      ...d.riskReviewNotes.map(description=>({organisationId:su.organisationId,serviceUserId:su.id,category:"RISK",description,createdById:ctx.userId})),
+    ];
+    if(reviewItems.length) await db.careIntakeReviewItem.createMany({data:reviewItems});
+    steps.push(reviewItems.length+" restricted follow-up items saved");
     const draft=await startDraft(ctx,su.id);
     const saved=await db.carePlan.findFirstOrThrow({where:{id:draft.id},include:{sections:true}});
     await saveDraft(ctx,draft.id,{fingerprint:draftFingerprint(saved,saved.sections),...d.carePlan});
