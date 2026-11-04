@@ -29,7 +29,7 @@ export const DECISIONS = ["APPROVE","EDITED","REJECT","CLARIFY","DUPLICATE"] as 
 
 /** Only these paths can be automatically applied through the current import. */
 const writable = [
-  /^serviceUser\.(firstName|lastName|dateOfBirth|nhsNumber|gender|addressLine1|addressLine2|town|postcode|phone|altPhone|firstLanguage|communicationNeeds|carePreferences|carerGenderPreference|accessNotes|preferredContactMethod)$/,
+  /^serviceUser\.(firstName|lastName|areaId|dateOfBirth|nhsNumber|gender|addressLine1|addressLine2|town|postcode|phone|altPhone|firstLanguage|communicationNeeds|carePreferences|carerGenderPreference|accessNotes|preferredContactMethod)$/,
   /^contacts\.\d+\.(name|kind|relationship|phone|altPhone|isEmergency|isPrimary|canReceiveUpdates)$/,
   /^carePlan\.(summary|reviewDue)$/,
   /^carePlan\.sections\.(about_me|communication|personal_care|mobility|nutrition|medication|health|home|outcomes)\.(body|outcomes)$/,
