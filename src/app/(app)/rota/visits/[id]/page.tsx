@@ -24,6 +24,7 @@ import { AreaDot, CancelChargeChoice, cancellationChargeLabel, FlagBadges, TimeS
 import { CarerRecommendations, SCORE_NOTE } from "@/components/rota-match";
 import { recoveryLinks } from "@/server/rota/missed-cover";
 import { coverHref, ReplacementCoverPanel } from "@/components/replacement-cover";
+import { AdjustVisitTime } from "@/components/adjust-visit-time";
 import { communicationStates, COVER_SOURCES } from "@/server/rota/cover-communication";
 
 export const dynamic = "force-dynamic";
@@ -333,7 +334,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
 
         <div className="space-y-3">
           {editable && lk ? (
-            <Card title="Change visit">
+            <Card title="Change visit" actions={v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={hhmm(londonMinute(v.scheduledStart))} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} /> : null}>
               <form action={updateVisitAction} className="space-y-2.5">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="visitId" value={v.id} />

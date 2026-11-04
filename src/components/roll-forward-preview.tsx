@@ -20,7 +20,7 @@ export interface RollSummary {
   sourceVisits: number;
   existing: number;
   destinationInPlace: number;
-  counts: { create: number; kept: number; review: number; uncovered: number; doubleUpsShort: number };
+  counts: { create: number; kept: number; review: number; uncovered: number; doubleUpsShort: number; oneOff: number };
   skipped: number;
   careHours: string;
   estimatedPay: string;
@@ -42,7 +42,7 @@ const addDays = (iso: string, d: number) => {
 };
 const dayLabel = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const shortDay = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const sameChoices = (a: RollChoices, b: RollChoices) => a.from === b.from && a.to === b.to && a.weeks === b.weeks && [...a.areaIds].sort().join() === [...b.areaIds].sort().join();
+const sameChoices = (a: RollChoices, b: RollChoices) => a.from === b.from && a.to === b.to && a.weeks === b.weeks && !!a.keepOneOff === !!b.keepOneOff && [...a.areaIds].sort().join() === [...b.areaIds].sort().join();
 
 const CARER_TONE: Record<RollCarerState, string> = {
   KEPT: "bg-[#e3f3e7] text-[#1f6f3a]",
@@ -93,10 +93,10 @@ export function RollForwardPreview({
   const [pending, startPreview] = useTransition();
   const [choices, setChoices] = useState<RollChoices>(reviewed);
   // A link that changes the address (such as "Try the next week") brings new choices from the server.
-  const reviewedKey = `${reviewed.from}|${reviewed.to}|${reviewed.weeks}|${[...reviewed.areaIds].sort().join()}`;
+  const reviewedKey = `${reviewed.from}|${reviewed.to}|${reviewed.weeks}|${[...reviewed.areaIds].sort().join()}|${reviewed.keepOneOff ? 1 : 0}`;
   useEffect(() => setChoices(reviewed), [reviewedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const dirty = !sameChoices(choices, reviewed);
-  const [more, setMore] = useState(reviewed.weeks !== 1 || reviewed.areaIds.length > 0);
+  const [more, setMore] = useState(reviewed.weeks !== 1 || reviewed.areaIds.length > 0 || !!reviewed.keepOneOff);
   const pressed = useRef(false);
   const [announce, setAnnounce] = useState(false);
   useEffect(() => {
@@ -200,6 +200,10 @@ export function RollForwardPreview({
                 </label>
               ))}
             </fieldset>
+            <label className="flex items-start gap-2 text-[14px] lg:col-span-2">
+              <input type="checkbox" name="keep" value="1" checked={!!choices.keepOneOff} onChange={(e) => setChoices({ ...choices, keepOneOff: e.target.checked })} className="mt-0.5 h-4 w-4" data-testid="roll-keep-oneoff" />
+              <span>Keep one-off times <span className="block text-[13px] text-slate-600">A visit whose time was changed for that day only (it differs from its template) normally goes back to the template time. Tick to copy the one-off time instead.</span></span>
+            </label>
           </div>
         </details>
       </form>
@@ -250,6 +254,7 @@ export function RollForwardPreview({
             <p className="text-[13.5px] text-slate-700" data-testid="roll-sentence">
               Copying {n(summary.sourceVisits)} visits from {dmy(summary.sourceWeek)} into {summary.targetWeeks.map(dmy).join(", ")}. Care hours {summary.careHours}. Estimated basic pay for carers kept {summary.estimatedPay}
               {summary.slotsWithoutRate ? ` (${summary.slotsWithoutRate} carer slots have no pay rate and are not costed)` : ""}. Estimates use pay rate cards only and are not payroll figures.
+              {summary.counts.oneOff ? <span data-testid="roll-oneoff"> {summary.counts.oneOff} visit{summary.counts.oneOff === 1 ? " had a one-off time" : "s had one-off times"}: {reviewed.keepOneOff ? "the one-off times are kept, as you ticked." : "they go back to the template time (tick Keep one-off times under More options to keep them)."}</span> : null}
               {summary.counts.doubleUpsShort ? <span className="text-[#a3242c]"> {summary.counts.doubleUpsShort} multi-carer visit{summary.counts.doubleUpsShort === 1 ? "" : "s"} will be short of a carer.</span> : null}
             </p>
             {summary.blockers.length ? (
@@ -355,6 +360,7 @@ export function RollForwardPreview({
                 <input type="hidden" name="weeks" value={reviewed.weeks} />
                 <input type="hidden" name="fingerprint" value={summary.fingerprint} />
                 {reviewed.areaIds.map((a) => <input key={a} type="hidden" name="areaIds" value={a} />)}
+                {reviewed.keepOneOff ? <input type="hidden" name="keepOneOff" value="1" /> : null}
                 <button disabled={!canSave} className="btn-primary inline-flex items-center gap-1.5 bg-[#13703c] hover:bg-[#0f5c31] disabled:cursor-not-allowed disabled:opacity-50"><ArrowsClockwise size={16} aria-hidden />Save as Draft</button>
                 <p className="text-[13px] text-slate-600" data-testid="roll-save-note">Saves the {n(summary.counts.create)} new visit{summary.counts.create === 1 ? "" : "s"} in this preview, checked again first, as unpublished drafts. Visits already in place are not touched. Then you can roll forward the next week.</p>
               </form>

@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { AdjustVisitTime } from "@/components/adjust-visit-time";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -44,6 +45,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
           <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} />
         </div>
         <p className="mt-1 text-[13px] text-[#8a5a00]">{SLOT_LABEL(item.slot)}: {item.reason}</p>
+        {replaceable && !v.timeLocked && v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={londonTime(v.scheduledStart)} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} label="Adjust time" className="mt-1.5 mr-2 inline-flex items-center gap-1.5 rounded-[6px] border border-[#d0d5dd] bg-white px-3 py-1.5 text-[13.5px] font-semibold text-[#101828] hover:bg-slate-50" /> : null}
         {replaceable ? (
           <Link href={coverHref("/rota/cover", Object.fromEntries(params), { id: v.id, mode: "replace", slot: item.slot })} scroll={false} className="mt-1.5 inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[13.5px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" aria-label={`Find replacement cover for ${item.staffName} on ${suName(v.serviceUser)}'s visit at ${londonTime(v.scheduledStart)}`}>Find replacement</Link>
         ) : null}

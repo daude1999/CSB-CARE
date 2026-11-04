@@ -73,11 +73,52 @@ week being built (Build Rota still offers the week, and building it adds only wh
 
 Schema: `RotaBuild.serviceUserId` (nullable, additive; migration `20261104090000_rota_build_service_user`).
 
-## Still to come
+## PR C – Quick Adjust Visit Time and Roll Forward one-off times
 
-- PR C: Adjust Visit Time, and Roll Forward handling of one-off time changes.
+### Adjust Visit Time
+
+One scheduled visit's start time and length on its own day (`src/server/rota/adjust-time.ts`,
+`src/components/adjust-visit-time.tsx`). It changes the visit through `updateVisitInTx`, so every screen shows the
+same record, and it never touches the template.
+
+Where it is: Service User Profile → Visits → Rota (row action "Adjust time"), the Visit Details panel on the Daily Rota
+(and Unassigned Visits, which opens that panel), the Visit Details page ("Change visit" card), the Weekly Planner's
+visit panel, and Sickness & Holiday Cover next to Find replacement. The locked Daily Rota layout is unchanged: the
+action sits in the panel's existing action row.
+
+1. **Adjust Visit Time**: start time, duration (chips 30, 40, 45, 60 minutes or any 5–1,440), finish time worked out
+   as you type, and a required reason. "Check new time" asks the server; nothing is saved.
+2. **Confirm Visit Time Adjustment**: original and revised start, finish and duration side by side; each carer's
+   eligibility at the new time (absence, availability, overlapping visits, employment, competencies, restrictions,
+   preferences) and their previous and next visits that day with the gap. A gap under 10 minutes is a travel warning
+   (a fixed rule, not road times). Any blocking reason keeps Confirm off; there is no override.
+
+Refused: visits that are not Scheduled, already started or past, time-locked, a stale copy (lockVersion), or another
+organisation's. Saving re-runs every check with the visit locked. The visit is marked as a manual change; the visit
+event (source `quick-adjust`) and the audit entry `visit.time.adjusted` record the original and new time, the
+duration, who and the reason. The medication-lead rules run as for any time change. Clock, medication and care
+records are never edited.
+
+Shorter than planned (the template's length, or the visit's own if it has no template): one of Service user or family
+request, Hospital or appointment, or Approved care plan change is required. Carer availability is not accepted. The
+dialog says a permanent change goes through the care plan, and a "Visit shortened by the office" item is raised for
+the care manager (Visits Needing Attention, with an in-app notice to the rota coordinators).
+
+Published visits: linked carers get an in-app notice ("Your visit for … has changed. It is now 08:00–08:45").
+The success message says how many carers were told; it never says they have seen it (read / not yet read comes from
+the notice's `readAt`). Unpublished drafts are not announced.
+
+### Roll Forward and one-off times
+
+A copied visit whose time differs from its template's (a one-off change, such as Adjust Visit Time) goes back to the
+template's time in the new weeks. The preview says how many, and each row says "one-off time … not copied: back to the
+template time". Ticking **Keep one-off times** under More options copies the one-off times instead (`keep=1`). The
+choice is part of the preview's fingerprint, so Save as Draft saves exactly what was shown.
+
+Not built in this PR: an Adjust action inside the Build Rota review list (a preview row is not a saved visit; saved
+drafts can be adjusted from the Daily Rota panel).
 
 ## Rollback
 
 PR A: revert the PR. PR B: revert the PR; the nullable `RotaBuild.serviceUserId` column can stay (nothing else reads
-it), or drop it with `ALTER TABLE "RotaBuild" DROP COLUMN "serviceUserId";`.
+it), or drop it with `ALTER TABLE "RotaBuild" DROP COLUMN "serviceUserId";`. PR C: revert the PR; no schema change.

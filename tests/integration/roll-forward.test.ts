@@ -34,8 +34,9 @@ describe("roll forward", () => {
     await expect(previewRollForward(await ctxFor("finance@care-solution.demo", BROOKFIELD), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 })).rejects.toThrow();
   });
 
-  it("carries a change made by hand into the new week, and keeps eligible carers", async () => {
-    // Move one of next week's visits 20 minutes later by hand; the roll forward copies the visits as they are now.
+  it("puts a one-off time change back to the template time unless kept, and keeps eligible carers", async () => {
+    // Move one of next week's visits 20 minutes later by hand. A one-off time is not carried forward (owner's decision,
+    // 4 Nov 2026) unless the office ticks Keep one-off times.
     const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, date: dbDate(wk(1)), status: "SCHEDULED", timeLocked: false, assignments: { none: {} } }, orderBy: { scheduledStart: "asc" } });
     const start = new Date(v.scheduledStart.getTime() + 20 * 60000);
     await updateVisit(await manager(), v.id, v.lockVersion, { scheduledStart: start, scheduledEnd: new Date(v.scheduledEnd.getTime() + 20 * 60000) });
@@ -46,7 +47,10 @@ describe("roll forward", () => {
     expect(plan.counts.kept + plan.counts.review).toBeGreaterThan(0);
     const copied = plan.visits.find((x) => x.sourceVisitId === v.id)!;
     expect(copied.date).toBe(addDays(londonDate(start), 7));
-    expect(londonMinute(copied.start)).toBe(londonMinute(start));
+    expect(londonMinute(copied.start)).toBe(londonMinute(v.scheduledStart));
+    expect(copied.oneOff).toMatchObject({ kept: false });
+    const kept = (await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1, keepOneOff: true })).visits.find((x) => x.sourceVisitId === v.id)!;
+    expect(londonMinute(kept.start)).toBe(londonMinute(start));
   });
 
   it("previews without writing anything, and gives the same answer for the same rota", async () => {

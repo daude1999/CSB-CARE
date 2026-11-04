@@ -25,6 +25,7 @@ export const EXCEPTION_KINDS: Record<string, string> = {
   MISSED_MEDICATION: "Missed medication",
   MEDICATION_NOT_TAKEN: "Medication refused or not given",
   CLOCK_CORRECTION: "Clock correction request",
+  VISIT_SHORTENED: "Visit shortened by the office",
 };
 
 /**
