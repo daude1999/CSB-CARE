@@ -1,4 +1,4 @@
-import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction, CareDocumentExtraction } from "./schemas";
+import type { BranchPolicyDraftOutput, ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction, CareDocumentExtraction } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -98,6 +98,16 @@ export interface LlmProvider {
   /** AI Care Coordinator: reads one care document into individual, page-referenced facts with verbatim quotes. Optional;
    *  without it (simulated, none) documents are read on our own server from their text layer only. */
   extractCareDocument?(input: CareDocumentExtractionInput): Promise<CareDocumentExtraction>;
+  /** Branch-specific Policy Generator: proposes wording for the generated sections from the sources given. Optional;
+   *  without it (simulated, none) the generator writes a source-guided draft with no AI. */
+  draftBranchPolicy?(input: BranchPolicyDraftInput): Promise<BranchPolicyDraftOutput>;
+}
+
+export interface BranchPolicyDraftInput {
+  policy: { title: string; category: string; mode: string };
+  branches: { name: string; localAuthority: string | null; region: string | null; facts: string[] }[];
+  sources: { ref: string; title: string; issuer: string | null; level: string; status: string; text: string | null }[];
+  sections: { key: string; heading: string; body: string; editable: boolean }[];
 }
 
 export interface CareDocumentExtractionInput {

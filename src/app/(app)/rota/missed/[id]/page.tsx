@@ -4,6 +4,8 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getMissedCase, MISSED_REASONS, OUTCOMES, REPLACEMENT_TYPES, replacementCandidates, STAGE_LABEL, visitStatusNow, outcomeLabel, reasonLabel } from "@/server/rota/missed-calls";
 import { suName } from "@/server/rota/queries";
+import { hasOrgPermission } from "@/server/auth/rbac";
+import { openRcaFor } from "@/server/cqc/rca";
 import { missedAddActionAction, missedAssignAction, missedCommentAction, missedCompleteActionAction, missedEscalateAction, missedEvidenceAction, missedReasonAction, missedReopenAction, missedReplacementAction, missedSignOffAction, missedSubmitAction } from "@/app/rota-actions";
 import { Badge, Flash, fmtDate, type Tone } from "@/components/ui";
 import { ReplacementCoverPanel } from "@/components/replacement-cover";
@@ -38,6 +40,8 @@ export default async function MissedCasePage({ params, searchParams }: { params:
   const d = await orNotFound(getMissedCase(ctx, id));
   const { c, names } = d;
   const candidates = d.canWork ? await replacementCandidates(ctx, c.id) : [];
+  const canRca = hasOrgPermission(ctx, "rca.create");
+  const rca = canRca ? await openRcaFor(c.organisationId, "MISSED_CALL", c.id) : null;
   const back = `/rota/missed/${c.id}`;
   const [coverMap, auto] = await Promise.all([coverStates(ctx, [c.id]), automationDetail(ctx, c.id)]);
   const cover = coverMap.get(c.id);
@@ -77,6 +81,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           <h1 className="text-[22px] font-semibold text-[#6b46c9]">Missed call {c.visit.reference}</h1>
           <p className="text-[13.5px] text-slate-600">{fmtLondonDate(londonDate(c.scheduledStart), { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {c.visit.callType.name} {londonTime(c.visit.scheduledStart)}–{londonTime(c.visit.scheduledEnd)}{c.visit.area ? ` · ${c.visit.area.name}` : ""}</p>
         </div>
+        {canRca ? (rca ? <Link href={`/compliance/cqc/rca/${rca.rca.id}`} className="btn-secondary" data-testid="missed-rca">Open {rca.rca.reference}</Link> : <Link href={`/compliance/cqc/rca/new?missed=${c.id}`} className="btn-secondary" data-testid="missed-rca">Start root cause analysis</Link>) : null}
         <Badge tone={STAGE_TONE[c.stage]}>{STAGE_LABEL[c.stage]}{d.overdue ? " · past deadline" : ""}</Badge>
         {c.escalatedAt ? <Badge tone="violet">Escalated {fmtDate(c.escalatedAt, true)}</Badge> : null}
       </div>

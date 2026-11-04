@@ -121,13 +121,13 @@ model ServiceType {
 }
 
 model Branch {
-  id             String              @id @default(cuid())
+  id             String               @id @default(cuid())
   organisationId String
-  organisation   Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   name           String
   address        String?
   cqcLocationId  String?
-  createdAt      DateTime            @default(now())
+  createdAt      DateTime             @default(now())
   services       BranchServiceType[]
   memberships    Membership[]
   /// The HR Hub's own id for this branch inside HrWorkspace.state. Set explicitly (seed or Administration), never matched by name.
@@ -136,6 +136,8 @@ model Branch {
   areas          Area[]
   serviceUsers   ServiceUser[]
   grants         MembershipBranch[]
+  policyProfile  BranchPolicyProfile?
+  policyScopes   PolicyBranchScope[]
 
   @@unique([organisationId, hrBranchKey])
   @@index([organisationId])
@@ -252,41 +254,62 @@ enum RetrievalStatus {
 }
 
 model RegulatorySource {
-  id                   String             @id @default(cuid())
-  key                  String             @unique
-  name                 String
-  canonicalUrl         String
-  category             SourceCategory
-  jurisdiction         String             @default("ENG")
-  serviceTypes         String[]           @default([])
-  monitoringMethod     MonitoringMethod
-  coverage             MonitoringCoverage
-  config               Json               @default("{}")
-  frequencyMinutes     Int                @default(1440)
-  freshnessWindowHours Int                @default(48)
-  lastAttemptedAt      DateTime?
-  lastSuccessAt        DateTime?
-  lastContentCheckedAt DateTime?
-  lastChangeDetectedAt DateTime?
-  nextCheckAt          DateTime?
-  retrievalStatus      RetrievalStatus    @default(NEVER_CHECKED)
-  consecutiveFailures  Int                @default(0)
-  lastError            String?
-  currentContentHash   String?
-  latestPublishedAt    DateTime?
-  latestModifiedAt     DateTime?
-  licence              String?
-  reuseNotes           String?
-  monitoringNotes      String?
-  active               Boolean            @default(true)
-  isSimulated          Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                    String             @id @default(cuid())
+  key                   String             @unique
+  name                  String
+  canonicalUrl          String
+  category              SourceCategory
+  jurisdiction          String             @default("ENG")
+  serviceTypes          String[]           @default([])
+  monitoringMethod      MonitoringMethod
+  coverage              MonitoringCoverage
+  config                Json               @default("{}")
+  frequencyMinutes      Int                @default(1440)
+  freshnessWindowHours  Int                @default(48)
+  lastAttemptedAt       DateTime?
+  lastSuccessAt         DateTime?
+  lastContentCheckedAt  DateTime?
+  lastChangeDetectedAt  DateTime?
+  nextCheckAt           DateTime?
+  retrievalStatus       RetrievalStatus    @default(NEVER_CHECKED)
+  consecutiveFailures   Int                @default(0)
+  lastError             String?
+  currentContentHash    String?
+  latestPublishedAt     DateTime?
+  latestModifiedAt      DateTime?
+  licence               String?
+  reuseNotes            String?
+  monitoringNotes       String?
+  active                Boolean            @default(true)
+  isSimulated           Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  /// Where the source applies (branch-specific policy generation). National sources apply everywhere in England;
+  /// regional ones only to the listed regions; local ones only to the listed local authorities. Never inferred.
+  geoLevel              GeoLevel           @default(NATIONAL)
+  regionCodes           String[]           @default([])
+  localAuthorityCodes   String[]           @default([])
+  issuingOrganisation   String?
+  /// Policy category codes the source is relevant to. Empty = every category.
+  topics                String[]           @default([])
+  documentReference     String?
+  publishedOn           DateTime?          @db.Date
+  effectiveOn           DateTime?          @db.Date
+  versionLabel          String?
+  /// CURRENT | SUPERSEDED. A superseded source is kept (history is never deleted) and points at its replacement.
+  lifecycle             String             @default("CURRENT")
+  supersededById        String?
+  /// What the source says, in CSB's own words, as recorded by the person who checked it. Used when drafting.
+  referenceSummary      String?
+  /// The organisation that proposed this public source (not shown to other organisations).
+  addedByOrganisationId String?
 
   documents    SourceDocument[]
   runs         SourceRetrievalRun[]
   changes      RegulatoryChange[]
   requirements RegulatoryRequirement[]
+  orgReviews   OrgSourceReview[]
+  policyLinks  PolicySourceLink[]
 }
 
 model SourceDocument {
@@ -606,6 +629,7 @@ enum VersionOrigin {
   AI_REGULATORY_REVISION
   MASTER_SYNC
   ROLLBACK
+  GENERATED
 }
 
 model PolicyCategory {
@@ -642,6 +666,12 @@ model Policy {
   lockVersion                 Int                      @default(0) // optimistic concurrency for publishing
   supportingSourceDocumentIds String[]                 @default([])
   isDemo                      Boolean                  @default(false)
+  /// NATIONAL (one policy for everyone), SHARED_WITH_APPENDICES (one policy with a local appendix per branch) or
+  /// BRANCH_SPECIFIC (a separate policy for one branch, with parentPolicyId naming the company policy).
+  scopeMode                   PolicyScopeMode          @default(NATIONAL)
+  parentPolicyId              String?
+  parentPolicy                Policy?                  @relation("BranchVariants", fields: [parentPolicyId], references: [id])
+  branchVariants              Policy[]                 @relation("BranchVariants")
   searchVector                Unsupported("tsvector")? @map("search_vector") // generated column, see integrity migration
   createdAt                   DateTime                 @default(now())
   updatedAt                   DateTime                 @updatedAt
@@ -654,6 +684,9 @@ model Policy {
   publications     PolicyPublication[]
   auditQuestions   AuditQuestion[]
   assignmentRules  PolicyAssignmentRule[]
+  branchScopes     PolicyBranchScope[]
+  sourceLinks      PolicySourceLink[]
+  generationRuns   PolicyGenerationRun[]
 
   @@unique([organisationId, ref])
   @@index([searchVector], map: "policy_search_idx", type: Gin)
@@ -878,6 +911,9 @@ enum PublicationStatus {
 }
 
 model PolicyPublication {
+  /// For branch-specific policies: the manager's pre-publication confirmations (local procedures, contacts, sources,
+  /// branches, critical gaps), stored with who and when.
+  governanceChecks            Json?
   id                          String            @id @default(cuid())
   policyId                    String
   policy                      Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
@@ -1052,30 +1088,48 @@ model AuditFinding {
 }
 
 model ComplianceAction {
-  id                   String          @id @default(cuid())
+  id                   String            @id @default(cuid())
   organisationId       String
   findingId            String?
-  finding              AuditFinding?   @relation(fields: [findingId], references: [id])
+  finding              AuditFinding?     @relation(fields: [findingId], references: [id])
   /// A mitigation action for a risk on the organisational risk register.
   riskId               String?
-  risk                 ComplianceRisk? @relation(fields: [riskId], references: [id])
+  risk                 ComplianceRisk?   @relation(fields: [riskId], references: [id])
   title                String
   description          String?
   ownerId              String
   dueDate              DateTime
-  status               String          @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
+  status               String            @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
   completionNote       String?
   completionEvidenceId String?
   completedAt          DateTime?
   verifiedById         String?
   verifiedAt           DateTime?
   closedAt             DateTime?
-  isDemo               Boolean         @default(false)
-  createdAt            DateTime        @default(now())
+  isDemo               Boolean           @default(false)
+  createdAt            DateTime          @default(now())
   history              ActionEvent[]
+  /// CQC Inspection & Evidence: the root cause analysis (and its finding) this action came from.
+  rcaId                String?
+  rca                  RcaInvestigation? @relation(fields: [rcaId], references: [id])
+  rcaFindingId         String?
+  rcaFinding           RcaFinding?       @relation(fields: [rcaFindingId], references: [id])
+  /// CORRECTIVE (resolve the problem) | PREVENTATIVE (stop it happening again). Null for older actions.
+  actionType           String?
+  /// LOW | MEDIUM | HIGH | URGENT. Null for older actions.
+  priority             String?
+  /// What evidence the owner must supply before the action counts as complete.
+  evidenceRequired     String?
+  /// The CQC readiness assessment (and criterion) the improvement action was raised from.
+  cqcAssessmentId      String?
+  cqcAssessment        CqcAssessment?    @relation(fields: [cqcAssessmentId], references: [id])
+  cqcCriterionId       String?
+  cqcCriterion         CqcCriterion?     @relation(fields: [cqcCriterionId], references: [id])
 
   @@index([organisationId, status])
   @@index([riskId])
+  @@index([rcaId])
+  @@index([cqcAssessmentId])
 }
 
 /// The organisational risk register: governance and service risks, scored on a 5 x 5 likelihood x impact matrix
@@ -1547,67 +1601,75 @@ enum RiskLevel {
 }
 
 model ServiceUser {
-  id                     String            @id @default(cuid())
-  organisationId         String
-  organisation           Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  branchId               String?
-  branch                 Branch?           @relation(fields: [branchId], references: [id])
-  areaId                 String?
-  area                   Area?             @relation(fields: [areaId], references: [id])
-  reference              String
-  csbReference           String?        // Permanent CSB identifier, distinct from legacy SU reference
-  firstName              String
-  lastName               String
-  preferredName          String?
-  dateOfBirth            DateTime?         @db.Date
-  gender                 String?
-  pronouns               String?
-  nhsNumber              String?
-  status                 ServiceUserStatus @default(ENQUIRY)
-  startDate              DateTime?         @db.Date
-  endDate                DateTime?         @db.Date
-  endReason              String?
-  addressLine1           String?
-  addressLine2           String?
-  town                   String?
-  postcode               String?
-  phone                  String?
+  id                             String            @id @default(cuid())
+  organisationId                 String
+  organisation                   Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branchId                       String?
+  branch                         Branch?           @relation(fields: [branchId], references: [id])
+  areaId                         String?
+  area                           Area?             @relation(fields: [areaId], references: [id])
+  reference                      String
+  csbReference                   String? // Permanent CSB identifier, distinct from legacy SU reference
+  firstName                      String
+  lastName                       String
+  preferredName                  String?
+  dateOfBirth                    DateTime?         @db.Date
+  gender                         String?
+  pronouns                       String?
+  nhsNumber                      String?
+  status                         ServiceUserStatus @default(ENQUIRY)
+  startDate                      DateTime?         @db.Date
+  endDate                        DateTime?         @db.Date
+  endReason                      String?
+  addressLine1                   String?
+  addressLine2                   String?
+  town                           String?
+  postcode                       String?
+  phone                          String?
   /// A second number for the person, when they have one.
-  altPhone               String?
-  email                  String?
+  altPhone                       String?
+  email                          String?
   /// How the person prefers to be contacted: PHONE | SMS | EMAIL | OTHER (null = not recorded).
-  preferredContactMethod String?
+  preferredContactMethod         String?
   /// How to get in, parking, pets. Shown to carers on their own visits.
-  accessNotes            String?
+  accessNotes                    String?
   /// AES-256-GCM ciphertext. Revealed only with serviceUser.keysafe, and every reveal is audited.
-  keySafeCipher          String?
-  keySafeUpdatedAt       DateTime?
-  carerGenderPreference  GenderPreference  @default(ANY)
-  firstLanguage          String?
-  communicationNeeds     String?
-  carePreferences        String?
-  riskLevel              RiskLevel?
-  riskSummary            String?
-  version                Int               @default(1)
-  createdById            String?
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  keySafeCipher                  String?
+  keySafeUpdatedAt               DateTime?
+  carerGenderPreference          GenderPreference  @default(ANY)
+  firstLanguage                  String?
+  communicationNeeds             String?
+  carePreferences                String?
+  riskLevel                      RiskLevel?
+  riskSummary                    String?
+  /// Cross-boundary safeguarding (recorded by the office, never worked out automatically): the local authority the
+  /// person lives in, where care is actually delivered, who funds or commissions the care, and the safeguarding
+  /// authority a manager has recorded (see SafeguardingAuthorityDecision for the reasoning).
+  residenceLocalAuthorityCode    String?
+  careLocationLocalAuthorityCode String?
+  fundingAuthority               String?
+  safeguardingLocalAuthorityCode String?
+  version                        Int               @default(1)
+  createdById                    String?
+  createdAt                      DateTime          @default(now())
+  updatedAt                      DateTime          @updatedAt
 
-  externalReferences   ServiceUserExternalReference[]
-  contacts             ServiceUserContact[]
-  coverContactAttempts CoverContactAttempt[]
-  absences             ServiceUserAbsence[]
-  packages             CarePackage[]
-  carePlans            CarePlan[]
-  intakeReviewItems    CareIntakeReviewItem[]
-  risks                RiskAssessment[]
-  incidents            Incident[]
-  templates            VisitTemplate[]
-  visits               Visit[]
-  carerPreferences     CarerPreference[]
-  medications          Medication[]
-  documents            ServiceUserDocument[]
-  bodyMapObservations  BodyMapObservation[]
+  externalReferences    ServiceUserExternalReference[]
+  contacts              ServiceUserContact[]
+  coverContactAttempts  CoverContactAttempt[]
+  absences              ServiceUserAbsence[]
+  packages              CarePackage[]
+  carePlans             CarePlan[]
+  intakeReviewItems     CareIntakeReviewItem[]
+  risks                 RiskAssessment[]
+  incidents             Incident[]
+  templates             VisitTemplate[]
+  visits                Visit[]
+  carerPreferences      CarerPreference[]
+  medications           Medication[]
+  documents             ServiceUserDocument[]
+  bodyMapObservations   BodyMapObservation[]
+  safeguardingDecisions SafeguardingAuthorityDecision[]
 
   @@unique([organisationId, reference])
   @@unique([organisationId, csbReference])
@@ -1865,32 +1927,34 @@ enum IncidentStatus {
 }
 
 model Incident {
-  id                  String               @id @default(cuid())
-  organisationId      String
-  reference           String
-  serviceUserId       String?
-  serviceUser         ServiceUser?         @relation(fields: [serviceUserId], references: [id])
-  staffId             String?
-  visitId             String?
-  occurredAt          DateTime
-  category            String
-  severity            IncidentSeverity
-  description         String
-  immediateAction     String?
+  id                         String               @id @default(cuid())
+  organisationId             String
+  reference                  String
+  serviceUserId              String?
+  serviceUser                ServiceUser?         @relation(fields: [serviceUserId], references: [id])
+  staffId                    String?
+  visitId                    String?
+  occurredAt                 DateTime
+  category                   String
+  severity                   IncidentSeverity
+  description                String
+  immediateAction            String?
   /// Who was told at the time (family, GP, social worker...), as the reporter wrote it.
-  peopleNotified      String?
-  safeguarding        Boolean              @default(false)
+  peopleNotified             String?
+  safeguarding               Boolean              @default(false)
   /// Flags that a statutory notification may be needed. The platform never sends one itself.
-  notifiable          Boolean              @default(false)
-  status              IncidentStatus       @default(OPEN)
-  reportedById        String
-  reportedAt          DateTime             @default(now())
-  investigatorId      String?
-  outcome             String?
-  closedById          String?
-  closedAt            DateTime?
-  version             Int                  @default(1)
-  bodyMapObservations BodyMapObservation[]
+  notifiable                 Boolean              @default(false)
+  status                     IncidentStatus       @default(OPEN)
+  reportedById               String
+  reportedAt                 DateTime             @default(now())
+  investigatorId             String?
+  outcome                    String?
+  closedById                 String?
+  closedAt                   DateTime?
+  version                    Int                  @default(1)
+  bodyMapObservations        BodyMapObservation[]
+  /// The local authority area where the incident happened, as recorded by the office.
+  occurredLocalAuthorityCode String?
 
   @@unique([organisationId, reference])
   @@index([organisationId, status])
@@ -2965,6 +3029,8 @@ enum PolicyAssignmentScope {
   ROLE
   JOB_TITLE
   STAFF
+  /// Everyone who works in a branch: employed there, working in one of its areas, or recently visiting its service users.
+  WORKS_IN_BRANCH
 }
 
 enum AcknowledgementState {
@@ -4228,36 +4294,526 @@ model MissedCallInvestigationDraft {
   @@index([caseId, createdAt])
 }
 
-/** Atomic per-organisation counter. Never decrement, including after deletion. */
+// ───────────────────────── CQC Inspection & Evidence + Root Cause Analysis
+// An internal readiness tool. Nothing here is an official CQC rating, and nothing is sent to CQC.
+
+enum CqcKeyQuestion {
+  SAFE
+  EFFECTIVE
+  CARING
+  RESPONSIVE
+  WELL_LED
+}
+
+/// A versioned mapping of management assessment areas to CQC's published framework and the regulations. Shared by every
+/// organisation (read-only to them). A new CQC framework is a new version; assessments keep the version they used.
+model CqcFramework {
+  id              String          @id @default(cuid())
+  version         String          @unique
+  title           String
+  /// DRAFT | ACTIVE | RETIRED. New assessments use the ACTIVE version.
+  status          String          @default("ACTIVE")
+  /// What the mapping is based on, in words, and where to check it.
+  basis           String
+  sourceUrl       String?
+  /// When someone last checked the mapping against the published source. Null = not yet checked.
+  sourceCheckedAt DateTime?
+  notes           String?
+  effectiveFrom   DateTime        @db.Date
+  createdAt       DateTime        @default(now())
+  criteria        CqcCriterion[]
+  assessments     CqcAssessment[]
+}
+
+/// One assessment area under a key question, with the quality statement and regulations it maps to.
+model CqcCriterion {
+  id               String                @id @default(cuid())
+  frameworkId      String
+  framework        CqcFramework          @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  code             String
+  keyQuestion      CqcKeyQuestion
+  title            String
+  qualityStatement String
+  regulations      String[]
+  guidance         String
+  evidenceExamples String[]
+  /// Words used to suggest existing records as possible evidence (never to verify them).
+  keywords         String[]
+  /// Which kinds of record the automatic discovery looks at for this area.
+  discoveryKinds   String[]
+  /// Essential areas raise a "missing essential evidence" warning when they have no verified evidence.
+  essential        Boolean               @default(false)
+  position         Int
+  results          CqcAssessmentResult[]
+  evidenceLinks    CqcEvidenceLink[]
+  actions          ComplianceAction[]
+
+  @@unique([frameworkId, code])
+}
+
+model CqcAssessment {
+  id                String                 @id @default(cuid())
+  organisationId    String
+  /// CQC-2026-0001, unique in the organisation.
+  reference         String
+  title             String
+  /// Null = the whole organisation.
+  branchId          String?
+  /// A configured service type (ServiceType.code), or null for every service.
+  serviceTypeCode   String?
+  frameworkId       String
+  framework         CqcFramework           @relation(fields: [frameworkId], references: [id])
+  periodFrom        DateTime               @db.Date
+  periodTo          DateTime               @db.Date
+  /// IN_PROGRESS | AWAITING_APPROVAL | APPROVED | SUPERSEDED
+  status            String                 @default("IN_PROGRESS")
+  assessorId        String
+  managementComment String?
+  nextDueAt         DateTime?              @db.Date
+  submittedAt       DateTime?
+  approvedById      String?
+  approvedAt        DateTime?
+  returnedReason    String?
+  /// The assessment this one was started from (results copied as a starting point).
+  previousId        String?
+  lockVersion       Int                    @default(1)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  results           CqcAssessmentResult[]
+  snapshots         CqcReadinessSnapshot[]
+  actions           ComplianceAction[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([organisationId, branchId])
+}
+
+/// The current result for one criterion in one assessment. Every change is kept in the audit log with old and new values.
+model CqcAssessmentResult {
+  id             String        @id @default(cuid())
+  organisationId String
+  assessmentId   String
+  assessment     CqcAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  criterionId    String
+  criterion      CqcCriterion  @relation(fields: [criterionId], references: [id])
+  /// MET | PARTIALLY_MET | NOT_MET | NOT_APPLICABLE
+  result         String
+  rationale      String
+  findings       String?
+  /// Required when the result is NOT_APPLICABLE.
+  naReason       String?
+  recordedById   String
+  recordedAt     DateTime      @default(now())
+  version        Int           @default(1)
+
+  @@unique([assessmentId, criterionId])
+}
+
+/// A record offered as evidence for a criterion. The record itself stays where it is (evidence library, training,
+/// audits, RCA...); this row only says which criterion it may support and whether a reviewer has verified it.
+model CqcEvidenceLink {
+  id             String       @id @default(cuid())
+  organisationId String
+  criterionId    String
+  criterion      CqcCriterion @relation(fields: [criterionId], references: [id])
+  /// The branch the source record belongs to (null = organisation-wide).
+  branchId       String?
+  /// EVIDENCE_DOCUMENT | POLICY | AUDIT | ACTION | RISK | INCIDENT | RCA | MISSED_CALL | TRAINING | CARE_PLAN
+  sourceType     String
+  sourceId       String
+  /// A label kept from when the link was made, used only if the source can no longer be read.
+  sourceRef      String?
+  /// SUGGESTED | AWAITING_REVIEW | VERIFIED | REJECTED | OUTDATED | SUPERSEDED (separate from malware scanning).
+  status         String       @default("SUGGESTED")
+  /// DISCOVERED (suggested by the system) | MANUAL (linked by a person)
+  origin         String
+  note           String?
+  /// A verified link stops counting after this date (the source's own expiry, or a year after verification).
+  validUntil     DateTime?
+  linkedById     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, criterionId, sourceType, sourceId])
+  @@index([organisationId, status])
+  @@index([organisationId, sourceType, sourceId])
+}
+
+/// A dated copy of the readiness figures, for comparing over time. Never edited.
+model CqcReadinessSnapshot {
+  id              String         @id @default(cuid())
+  organisationId  String
+  assessmentId    String?
+  assessment      CqcAssessment? @relation(fields: [assessmentId], references: [id])
+  branchId        String?
+  serviceTypeCode String?
+  frameworkId     String
+  method          String
+  overall         Int?
+  /// HIGH | LOW | NOT_ASSESSED
+  confidence      String
+  byQuestion      Json
+  figures         Json
+  reason          String
+  takenById       String
+  takenAt         DateTime       @default(now())
+
+  @@index([organisationId, takenAt])
+}
+
+model RcaInvestigation {
+  id               String             @id @default(cuid())
+  organisationId   String
+  /// RCA-2026-0001, unique in the organisation.
+  reference        String
+  title            String
+  branchId         String?
+  serviceUserId    String?
+  category         String
+  /// LOW | MODERATE | HIGH | CRITICAL
+  severity         String
+  eventDate        DateTime
+  openedAt         DateTime           @default(now())
+  /// The investigator.
+  ownerId          String
+  /// The responsible manager.
+  managerId        String
+  dueDate          DateTime           @db.Date
+  /// NEW | INVESTIGATING | AWAITING_REVIEW | ACTIONS_IN_PROGRESS | EFFECTIVENESS_REVIEW | CLOSED
+  status           String             @default("NEW")
+  /// Safeguarding or otherwise confidential: details only for safeguarding-authorised people and the people on the case.
+  restricted       Boolean            @default(false)
+  summary          String?
+  /// [{ at, text, kind: FACT | WITNESS | ASSUMPTION }]
+  timeline         Json               @default("[]")
+  peopleInvolved   String?
+  immediateImpact  String?
+  /// NONE | LOW | MODERATE | SEVERE | DEATH | POTENTIAL
+  harm             String?
+  immediateActions String?
+  /// { [area]: { relevant: boolean, notes: string } }
+  factors          Json               @default("{}")
+  fiveWhys         Json               @default("[]")
+  causeEffectNotes String?
+  immediateCause   String?
+  underlyingCauses String?
+  uncertainties    String?
+  conclusions      String?
+  closureNote      String?
+  closedAt         DateTime?
+  closedById       String?
+  closureException Boolean            @default(false)
+  exceptionReason  String?
+  reopenCount      Int                @default(0)
+  lockVersion      Int                @default(1)
+  createdById      String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  sources          RcaSourceLink[]
+  findings         RcaFinding[]
+  reviews          RcaReview[]
+  escalations      RcaEscalation[]
+  actions          ComplianceAction[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([organisationId, branchId])
+  @@index([organisationId, dueDate])
+}
+
+/// The existing record an investigation looks into. The source keeps its own reference; nothing is copied or replaced.
+model RcaSourceLink {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// INCIDENT | MISSED_CALL | AUDIT_FINDING | RISK
+  sourceType     String
+  sourceId       String
+  /// The source's own reference when linked (e.g. INC-2611-003).
+  sourceRef      String
+  /// A council, NHS or other external reference, kept as given.
+  externalRef    String?
+  addedById      String
+  createdAt      DateTime         @default(now())
+
+  @@unique([rcaId, sourceType, sourceId])
+  @@index([organisationId, sourceType, sourceId])
+}
+
+model RcaFinding {
+  id             String             @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation   @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// IMMEDIATE | CONTRIBUTING | SYSTEMIC
+  kind           String
+  factorArea     String?
+  text           String
+  /// The evidence that supports the finding, in the investigator's words.
+  evidence       String
+  /// PROPOSED | CONFIRMED | NOT_SUPPORTED. Only a manager review confirms a finding.
+  status         String             @default("PROPOSED")
+  createdById    String
+  createdAt      DateTime           @default(now())
+  confirmedById  String?
+  confirmedAt    DateTime?
+  actions        ComplianceAction[]
+}
+
+/// A manager review, effectiveness review, closure or reopening, with a copy of the investigation at that moment. Never edited.
+model RcaReview {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// SUBMISSION | MANAGER_REVIEW | EFFECTIVENESS | CLOSURE | REOPEN
+  stage          String
+  decision       String
+  note           String
+  checks         Json             @default("{}")
+  snapshot       Json             @default("{}")
+  reviewerId     String
+  createdAt      DateTime         @default(now())
+
+  @@index([rcaId, createdAt])
+}
+
+/// A manager's recorded decision on one escalation question (safeguarding referral, CQC notification...). The platform
+/// never decides these or sends anything itself.
+model RcaEscalation {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// IMMEDIATE_SAFETY | SAFEGUARDING_REFERRAL | CQC_NOTIFICATION | DUTY_OF_CANDOUR | EXTERNAL_NOTIFICATION
+  kind           String
+  /// DONE | REQUIRED_PENDING | NOT_REQUIRED
+  decision       String
+  rationale      String
+  externalRef    String?
+  notifiedAt     DateTime?
+  decidedById    String
+  decidedAt      DateTime         @default(now())
+
+  @@unique([rcaId, kind])
+}
+
+/**
+ * Atomic per-organisation counter. Never decrement, including after deletion.
+ */
 model ServiceUserReferenceCounter {
   organisationId String @id
   nextNumber     Int    @default(1)
 }
 
-/** External identifiers belong to an issuer and a specific client or package;
- *  shared FRAMEWORK references are intentionally NOT globally unique.
- *  Store only encrypted values and keyed fingerprints for exact lookup. */
+/**
+ * External identifiers belong to an issuer and a specific client or package;
+ * shared FRAMEWORK references are intentionally NOT globally unique.
+ * Store only encrypted values and keyed fingerprints for exact lookup.
+ */
 model ServiceUserExternalReference {
-  id             String      @id @default(cuid())
-  organisationId String
-  serviceUserId  String
-  serviceUser    ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
-  type           String
-  issuer         String
-  issuerKey      String
-  valueCipher    String
-  valueHash      String
-  verified       Boolean     @default(false)
+  id               String      @id @default(cuid())
+  organisationId   String
+  serviceUserId    String
+  serviceUser      ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  type             String
+  issuer           String
+  issuerKey        String
+  valueCipher      String
+  valueHash        String
+  verified         Boolean     @default(false)
   verificationNote String?
   sourceDocumentId String?
-  sourcePage     Int?
-  createdById    String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  verifiedById   String?
-  verifiedAt     DateTime?
+  sourcePage       Int?
+  createdById      String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  verifiedById     String?
+  verifiedAt       DateTime?
 
   @@unique([organisationId, serviceUserId, type, issuerKey, valueHash])
   @@index([organisationId, type, valueHash])
+  @@index([organisationId, serviceUserId])
+}
+
+// ───────────────────────────── Branch-specific policy generation ─────────────────────────────
+
+enum GeoLevel {
+  NATIONAL
+  REGIONAL
+  LOCAL
+}
+
+enum PolicyScopeMode {
+  NATIONAL
+  SHARED_WITH_APPENDICES
+  BRANCH_SPECIFIC
+}
+
+/// A local authority in England. Public reference data shared by every organisation; administrators may add more.
+model LocalAuthority {
+  code                  String   @id
+  name                  String
+  /// LONDON | NORTH_WEST | SOUTH_EAST | ... (see src/server/policy-geo/regions.ts)
+  regionCode            String
+  /// A sub-regional grouping such as "Merseyside", where arrangements are shared across neighbouring councils.
+  subRegion             String?
+  addedByOrganisationId String?
+  createdAt             DateTime @default(now())
+
+  branchProfiles BranchPolicyProfile[]
+}
+
+/// A branch's policy compliance profile. Reuses the Branch for name, address and service types.
+model BranchPolicyProfile {
+  branchId                        String          @id
+  branch                          Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  organisationId                  String
+  branchReference                 String?
+  postcode                        String?
+  localAuthorityCode              String?
+  localAuthority                  LocalAuthority? @relation(fields: [localAuthorityCode], references: [code])
+  regionCode                      String?
+  safeguardingAdultsBoard         String?
+  safeguardingChildrenPartnership String?
+  regionalGuidance                String?
+  /// How staff raise a safeguarding concern locally, as confirmed by the responsible manager from the official source.
+  localProcedures                 String?
+  referralUrl                     String?
+  safeguardingContacts            String?
+  outOfHoursContacts              String?
+  integratedCareBoard             String?
+  commissioningArrangements       String?
+  /// Extra RegulatorySource ids that apply to this branch beyond its geography.
+  extraSourceIds                  String[]        @default([])
+  contactsVerifiedAt              DateTime?
+  contactsVerifiedById            String?
+  lastVerifiedAt                  DateTime?
+  lastVerifiedById                String?
+  nextReviewDate                  DateTime?       @db.Date
+  responsibleManagerId            String?
+  version                         Int             @default(1)
+  createdAt                       DateTime        @default(now())
+  updatedAt                       DateTime        @updatedAt
+
+  @@index([organisationId])
+}
+
+/// One organisation's check of a source: verified, unverified or needs review, with dates. History is in the audit log.
+model OrgSourceReview {
+  id                  String             @id @default(cuid())
+  organisationId      String
+  sourceId            String
+  source              RegulatorySource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  status              VerificationStatus @default(UNVERIFIED)
+  lastCheckedAt       DateTime?
+  nextReviewDate      DateTime?          @db.Date
+  reviewerId          String?
+  note                String?
+  /// The source's content hash when it was verified. A later detected change sets the review back to NEEDS_REVIEW.
+  verifiedContentHash String?
+  updatedAt           DateTime           @updatedAt
+  createdAt           DateTime           @default(now())
+
+  @@unique([organisationId, sourceId])
+  @@index([sourceId])
+}
+
+/// Which branches a policy applies to and, for a shared policy, the key of each branch's appendix section.
+model PolicyBranchScope {
+  id             String   @id @default(cuid())
+  organisationId String
+  policyId       String
+  policy         Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  appendixKey    String?
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  @@unique([policyId, branchId])
+  @@index([organisationId, branchId])
+}
+
+/// A source a policy relies on, for the whole policy (branchKey "") or for one branch's appendix.
+model PolicySourceLink {
+  id             String           @id @default(cuid())
+  organisationId String
+  policyId       String
+  policy         Policy           @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  sourceId       String
+  source         RegulatorySource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  branchKey      String           @default("")
+  createdById    String
+  createdAt      DateTime         @default(now())
+
+  @@unique([policyId, sourceId, branchKey])
+  @@index([organisationId, sourceId])
+}
+
+/// One run of the Policy Generator: what was asked for, the sources assembled (a snapshot) and how the draft was made.
+model PolicyGenerationRun {
+  id             String            @id @default(cuid())
+  organisationId String
+  policyId       String
+  policy         Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  revisionId     String?           @unique
+  mode           PolicyScopeMode
+  branchIds      String[]
+  /// TEMPLATE | POLICY | NEW
+  basis          String
+  basisPolicyId  String?
+  /// AI | SIMULATED_AI | SOURCE_GUIDED (no AI)
+  method         String
+  provider       String?
+  sourceSnapshot Json
+  createdById    String
+  createdAt      DateTime          @default(now())
+  gaps           PolicySourceGap[]
+
+  @@index([organisationId, policyId])
+}
+
+/// Something the generator could not fill from verified material. Critical gaps block publication until resolved.
+model PolicySourceGap {
+  id             String              @id @default(cuid())
+  organisationId String
+  runId          String
+  run            PolicyGenerationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  policyId       String
+  branchId       String?
+  sourceId       String?
+  /// MISSING_SOURCE | UNVERIFIED_SOURCE | OUTDATED_SOURCE | SOURCE_CHECK_FAILED | MISSING_PROCEDURE | MISSING_CONTACTS | PROFILE_UNVERIFIED
+  kind           String
+  /// CRITICAL | WARNING
+  severity       String
+  message        String
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolution     String?
+  createdAt      DateTime            @default(now())
+
+  @@index([organisationId, policyId])
+}
+
+/// A manager's record of which authority leads safeguarding for a person (or one incident), with the reasoning.
+/// Append-only: a new decision supersedes the previous one; none is ever edited.
+model SafeguardingAuthorityDecision {
+  id                             String      @id @default(cuid())
+  organisationId                 String
+  serviceUserId                  String
+  serviceUser                    ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  incidentId                     String?
+  safeguardingLocalAuthorityCode String
+  reasoning                      String
+  /// The geography at the time: branch, residence, care location, funding authority, incident location.
+  snapshot                       Json
+  decidedById                    String
+  decidedAt                      DateTime    @default(now())
+
   @@index([organisationId, serviceUserId])
 }

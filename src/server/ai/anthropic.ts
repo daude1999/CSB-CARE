@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
-import { AiUnavailableError, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput } from "./provider";
-import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema } from "./schemas";
+import { AiUnavailableError, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput } from "./provider";
+import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema, BranchPolicyDraftSchema } from "./schemas";
 
 const SYSTEM = `You support regulatory compliance reviewers at CSB, a policy management platform for adult social care providers in England.
 Your outputs are PROPOSALS for qualified human reviewers, never legal conclusions.
@@ -224,6 +224,21 @@ ${input.limits.map((l) => `- ${xmlEscape(l)}`).join("\n") || "- nothing noted"}
 <observation id="O1" category="${xmlEscape(o.category)}" area="${xmlEscape(o.area)}" view="${o.view}" observed="${o.observedOn}" pain="${xmlEscape(o.pain)}" size="${xmlEscape(o.size ?? "not recorded")}" appearance="${xmlEscape(o.appearance ?? "not recorded")}" follow_up="${o.followUpOn ?? "none set"}" status="${o.status}" incident_decision="${o.incidentDecision ?? "not yet decided by a manager"}">${xmlEscape(o.description)}</observation>
 ${input.records.map((r) => `<record id="${r.sid}" kind="${xmlEscape(r.kind)}" date="${r.date}">${xmlEscape(r.text)}</record>`).join("\n")}`,
       BODY_MAP_SYSTEM,
+    );
+  }
+
+  draftBranchPolicy(input: BranchPolicyDraftInput) {
+    return this.structured(
+      BranchPolicyDraftSchema,
+      `Draft the editable sections of the ${xmlEscape(input.policy.category)} policy "${xmlEscape(input.policy.title)}" for a home care provider in England (${input.policy.mode.replace(/_/g, " ").toLowerCase()}).
+Use ONLY the branch facts and sources below. Cite the source id (S1, S2...) for every jurisdiction-specific statement, and quote verbatim only from a source's provided text. Never invent legal requirements, local procedures, referral routes, timescales, contacts or telephone numbers; where the sources do not say something, write "[REVIEW REQUIRED: ...]" naming what a manager must add from the official source. Never treat a source marked "not yet verified", "needs review", "superseded" or "could not be checked" as confirmed: say it must be checked. Never apply one region's procedures to a branch in another region. Do not include telephone numbers, e-mail addresses or web addresses in the text; the system adds verified contacts itself. Keep non-editable sections unchanged (do not return them).
+${input.branches.map((b) => `<branch name="${xmlEscape(b.name)}" local_authority="${xmlEscape(b.localAuthority ?? "not recorded")}" region="${xmlEscape(b.region ?? "not recorded")}">\n${b.facts.map((f) => `- ${xmlEscape(f)}`).join("\n")}\n</branch>`).join("\n")}
+<sources>
+${input.sources.map((s) => `<source id="${s.ref}" level="${s.level}" status="${xmlEscape(s.status)}" issuer="${xmlEscape(s.issuer ?? "")}" title="${xmlEscape(s.title)}">${s.text ? xmlEscape(s.text) : "(text not available: cite by id only, no quotes)"}</source>`).join("\n")}
+</sources>
+<policy>
+${input.sections.map((s) => `<section key="${xmlEscape(s.key)}" heading="${xmlEscape(s.heading)}" editable="${s.editable}">${xmlEscape(s.body)}</section>`).join("\n")}
+</policy>`,
     );
   }
 }

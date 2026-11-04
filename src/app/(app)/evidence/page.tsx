@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { LINK_TYPES, linkFor, resolveLinks } from "@/server/compliance/evidence";
+import { hiddenRcaIds } from "@/server/cqc/visibility";
 import { memberNames } from "@/server/rota/queries";
 import { uploadLinkedEvidenceAction } from "@/app/compliance-actions";
 import { ComplianceTabs } from "@/components/compliance-nav";
@@ -30,8 +31,9 @@ export default async function EvidencePage({ searchParams }: { searchParams: Pro
   const orgId = ctx.organisationId!;
   const filter = sp.linked === "none" ? "none" : sp.linked && sp.linked in LINK_TYPES ? sp.linked : sp.linked === "MISSED_CALL" ? "MISSED_CALL" : "all";
   const q = sp.q?.trim().slice(0, 100);
+  const hidden = await hiddenRcaIds(ctx);
   const docs = await db.evidenceDocument.findMany({
-    where: { organisationId: orgId, ...(filter === "none" ? { linkedType: null } : filter !== "all" ? { linkedType: filter } : {}), ...(q ? { OR: [{ filename: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] } : {}) },
+    where: { organisationId: orgId, ...(hidden.length ? { NOT: { linkedType: "RCA", linkedId: { in: hidden } } } : {}), ...(filter === "none" ? { linkedType: null } : filter !== "all" ? { linkedType: filter } : {}), ...(q ? { OR: [{ filename: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] } : {}) },
     orderBy: { createdAt: "desc" },
     take: 500,
   });

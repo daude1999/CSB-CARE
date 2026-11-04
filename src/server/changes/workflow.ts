@@ -4,6 +4,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@
 import { audit } from "../audit-log";
 import { hasOrgPermission, hasPlatformPermission, requirePlatformPermission, type Ctx } from "../auth/rbac";
 import { identifyCandidates } from "../impact/candidates";
+import { flagPoliciesForSourceChange } from "../policy-geo/monitoring";
 import { analyseChangeWithAi, assessPolicyImpact } from "../impact/assess";
 import { enqueue } from "../jobs/queue";
 import { notify, notifyPlatformAdmins, usersWithOrgRoles } from "../notifications/notify";
@@ -11,6 +12,8 @@ import { notify, notifyPlatformAdmins, usersWithOrgRoles } from "../notification
 /** Job: identify candidate policies, run AI comparison, propose impact assessments, notify. */
 export async function analyseChange(changeId: string) {
   const change = await db.regulatoryChange.findUniqueOrThrow({ where: { id: changeId } });
+  // Branch-specific policies that rely on this source get a review task and become candidates for impact assessment.
+  await flagPoliciesForSourceChange(changeId);
   const candidates = await identifyCandidates(changeId);
   const refreshed = await db.regulatoryChange.findUniqueOrThrow({ where: { id: changeId } });
 

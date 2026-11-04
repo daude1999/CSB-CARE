@@ -52,9 +52,14 @@ export function ModulePageHeader({ title, subtitle, actions, back = "/", tabs, i
  * the list it came from.
  */
 const COMPLIANCE_PARENTS: [string, string][] = [
+  ["/policies/generator", "Policy Generator"],
+  ["/policies/coverage", "Branch Coverage"],
+  ["/policies/cross-boundary", "Branch Coverage"],
+  ["/policies/branches", "Branch Configuration"],
   ["/policies", "Policy Library"],
   ["/queue", "Review & Approval Queue"],
   ["/changes", "Regulatory Monitoring"],
+  ["/compliance/regulatory/references", "Local & Safeguarding References"],
   ["/requirements", "Requirements Register"],
   ["/staff", "Staff Sign-off"],
   ["/acknowledgements", "My Reading List"],
@@ -62,6 +67,9 @@ const COMPLIANCE_PARENTS: [string, string][] = [
   ["/actions", "Corrective Actions"],
   ["/compliance/risks", "Risk Register"],
   ["/evidence", "Evidence Library"],
+  ["/compliance/cqc/assessments", "CQC Assessment"],
+  ["/compliance/cqc/rca", "Root Cause Analysis"],
+  ["/compliance/cqc", "CQC Inspection & Evidence"],
 ];
 
 /**

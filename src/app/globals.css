@@ -106,7 +106,10 @@
   .shell-scroll { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.2) transparent; }
   .shell-main { background: #f8f7f4; }
   .shell-topbar { background: #f6f5f3; font-family: "Inter Variable", var(--font-sans); }
-  .shell-search { @apply flex h-[32px] items-center gap-[10px] rounded-[6px] border border-[#e3e0d9] bg-[#fcfcfa] px-[12px] hover:border-[#cfcac0] focus-within:border-[#0369d5] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0369d5]/20; transition: border-color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+  /* The top bar's search: a wide white pill with a hairline lavender border, a soft shadow and a purple focus ring. */
+  .shell-search { @apply flex h-[42px] cursor-text items-center gap-[12px] rounded-full border border-[#e4dcf6] bg-white pl-[16px] pr-[16px] md:h-[46px] lg:pl-[18px] lg:pr-[20px]; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 14px rgb(91 43 181 / 0.06); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+  .shell-search:hover { border-color: #d2c3f1; }
+  .shell-search:focus-within { border-color: #5b2bb5; box-shadow: 0 0 0 3px rgb(91 43 181 / 0.14), 0 4px 14px rgb(91 43 181 / 0.08); }
 
   /* Navigation progress: a thin bar in the colour of the module being opened, under the top bar. */
   .nav-progress { position: absolute; inset: auto 0 0 0; height: 2px; overflow: hidden; pointer-events: none; }

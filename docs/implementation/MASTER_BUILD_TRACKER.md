@@ -1,5 +1,12 @@
 # Master build tracker — five-module CSB CRM
 
+## Branch-specific Policy Generator (4 Nov 2026, draft PR)
+Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level
+verification of national, regional and local sources), a Policy Generator (company policy with branch appendices or
+separate branch policies, gaps shown before generating, AI optional and checked), publish confirmations, branch
+reading rules, Branch Coverage and cross-boundary safeguarding decisions. Starter sources are all "not yet verified"
+and no contact numbers are recorded. Details: `BRANCH_POLICY_GENERATOR.md`.
+
 ## Daily Rota bulk actions repair and Complete Calls (2 Nov 2026, draft PR)
 All 17 bulk actions were traced from the dropdown to the database and repaired; Complete Calls (office-confirmed
 completion of past visits, no clock or medicine records created) is the 18th. Go opens a review that runs the real
@@ -143,6 +150,7 @@ Brief: the owner's "Master autonomous CRM implementation" message of 29 October 
 | Missed call automation (4 Nov) | Built, PR open | Evidence and timeline, in-app carer confirmation and a rules-based suggested reason inside the existing missed call case. Three switches, off by default. Never decides anything for the coordinator. See MISSED_CALL_AUTOMATION.md |
 | Set up from support plan (4 Nov) | Built, draft PR | Upload a council support plan, check and correct what was read (page-referenced AI proposal or typed in), confirm: person, contacts, package, one visit template per timetable row and documents in one transaction, ready for Build Rota. Care plan, risks and medication stay manual. See SUPPORT_PLAN_IMPORT.md |
 | AI Care Coordinator (4 Nov) | Built, draft PR | Upload a referral's documents; every fact kept with its page and quote and mapped to an exact profile field; coordinator check with plain forms; manager approval per section with separation of duties; idempotent saving with read-back; drafts only for care plan, risks and medicines; unpublished draft rota through Build Rota with suggested carers; whole-shift check. AI reading off by default. See AI_CARE_COORDINATOR.md |
+| CQC Inspection & Evidence + RCA (4 Nov) | Built, draft PR | One Policy & Compliance workspace: Overview (warnings above scores), versioned CQC framework (56 areas under the five key questions), assessments with approval and snapshots, evidence review (suggest, never auto-verify), Root Cause Analysis in seven steps with escalation decisions, improvement actions through the existing action service, PDF/CSV reports. Internal readiness only, never an official rating. See CQC_INSPECTION_RCA.md |
 | 12 Final QA | In progress | vitest 166, HR 14, e2e 28 (27 + rota spec 12/12 after a test fix); screenshots in docs/implementation/screenshots. See TEST_RESULTS.md |
 
 ## Priority order (owner, 29 Oct 11:10)

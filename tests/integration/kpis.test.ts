@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, londonDate } from "@/lib/london";
 import { setMemberBranches } from "@/server/admin/branches";
-import { computeKpis, kpiCsv, KPIS } from "@/server/reports/kpis";
+import { computeKpis, kpiCategories, kpiCsv, KPI_GROUPS, KPIS, permittedKpiNames } from "@/server/reports/kpis";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 
 /** Reporting & Analytics against a real database: definitions, permissions, branch scope and the audited CSV. */
@@ -63,5 +63,43 @@ describe("KPI registry", () => {
     expect(rows.length).toBe(KPIS.length);
     expect(await db.auditLog.count({ where: { organisationId: orgId, action: "report.kpis.exported" } })).toBe(1);
     await expect(kpiCsv(await ctxFor("coordinator@care-solution.demo", BROOKFIELD), {})).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("Analytics categories", () => {
+  const ORDER = Object.keys(KPI_GROUPS);
+
+  it("lists every category with its count whichever category is chosen", async () => {
+    const ctx = await manager();
+    const all = await computeKpis(ctx, {});
+    expect(all.categories.groups.map((c) => c.group)).toEqual(ORDER);
+    expect(all.categories.total).toBe(all.rows.length);
+    for (const c of all.categories.groups) expect(c.count).toBe(all.rows.filter((r) => r.group === c.group).length);
+    for (const g of ORDER) {
+      const one = await computeKpis(ctx, { group: g });
+      expect(one.categories).toEqual(all.categories);
+      expect(one.rows.every((r) => r.group === g)).toBe(true);
+      expect(one.rows.length).toBe(all.categories.groups.find((c) => c.group === g)!.count);
+    }
+  });
+
+  it("counts only the measures a role may see, and keeps the other categories in the list", async () => {
+    const finance = await ctxFor("finance@care-solution.demo", BROOKFIELD);
+    const cats = kpiCategories(finance);
+    expect(cats.groups.map((c) => c.group)).toEqual(ORDER);
+    expect(cats.groups.find((c) => c.group === "finance")!.count).toBeGreaterThan(0);
+    expect(cats.groups.filter((c) => c.group !== "finance").every((c) => c.count === 0)).toBe(true);
+    expect(cats.total).toBe((await computeKpis(finance, {})).rows.length);
+    expect((await computeKpis(finance, { group: "quality" })).rows).toEqual([]);
+    expect(permittedKpiNames(finance).every((k) => k.area === KPI_GROUPS.finance)).toBe(true);
+  });
+
+  it("works out the same figures for a category as on All", async () => {
+    const ctx = await manager();
+    const all = await computeKpis(ctx, {});
+    const finance = await computeKpis(ctx, { group: "finance" });
+    expect(finance.rows).toEqual(all.rows.filter((r) => r.group === "finance"));
+    const { rows } = await kpiCsv(ctx, { group: "finance" });
+    expect(rows.map((r) => r[1])).toEqual(finance.rows.map((r) => r.name));
   });
 });

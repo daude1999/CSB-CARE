@@ -31,7 +31,7 @@ import { InspectorShell } from "@/components/library/inspector-shell";
 import { UploadPolicyForm } from "@/components/library/upload-policy";
 import { workspaceCounts } from "@/server/compliance/workspace-counts";
 import { canUseQueue } from "@/components/compliance-nav";
-import { CaretLeft, CaretRight, DotsThree, DotsThreeVertical, DownloadSimple, FileDoc, FilePdf, Files, FunnelSimple, ListBullets, MagnifyingGlass, Plus, SquaresFour, ArrowSquareOut, UploadSimple, User } from "@phosphor-icons/react/dist/ssr";
+import { CaretLeft, CaretRight, DotsThree, DotsThreeVertical, DownloadSimple, FileDoc, FilePdf, Files, FunnelSimple, ListBullets, MagnifyingGlass, Plus, SquaresFour, ArrowSquareOut, UploadSimple, User, Sparkle } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +70,9 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
   const tabItems = [
     ...tabs.map((t) => ({ key: t, label: TAB_LABELS[t], href: libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined, insp: undefined }), count: counts[t] })),
     ...(canUseQueue(ctx) ? [{ key: "queue", label: "Review & Approval Queue", href: "/queue", count: counts.queue }] : []),
+    ...(ctx.organisationId && hasOrgPermission(ctx, "policy.author") ? [{ key: "generator", label: "Policy Generator", href: "/policies/generator" }] : []),
+    ...(ctx.organisationId && hasOrgPermission(ctx, "policy.coverage") ? [{ key: "coverage", label: "Branch Coverage", href: "/policies/coverage" }] : []),
+    ...(ctx.organisationId && hasOrgPermission(ctx, "policy.localConfig") ? [{ key: "branches", label: "Branch Configuration", href: "/policies/branches" }] : []),
   ];
 
   return (
@@ -84,6 +87,7 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
                 <UploadPolicyForm categories={categories} owners={members.map((m) => m.user)} defaultOwner={ctx.userId} back={libraryHref(query, { selected: undefined })} />
               </ActionDialog>
             ) : null}
+            {canUpload ? <Link href="/policies/generator" className="pc-btn-secondary" data-testid="open-generator"><Sparkle size={16} aria-hidden="true" />Generate policy</Link> : null}
             {canCreate ? <Link href="/policies/new" className="pc-btn"><Plus size={16} weight="bold" aria-hidden="true" />Create policy</Link> : null}
           </>
         }

@@ -37,6 +37,14 @@ export const ORG_PERMISSIONS = {
   /** Assign policies to staff, exempt, record assessments and correct acknowledgements. */
   "signoff.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
   "org.manage": ["ORG_ADMIN"],
+  /** Branch & Local Authority Configuration, adding local authorities and proposing local sources. */
+  "policy.localConfig": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
+  /** Recording that a regulatory or safeguarding source has been checked against the official page. */
+  "policy.sources.verify": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** The branch policy coverage view. */
+  "policy.coverage": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "CARE_MANAGER"],
+  /** Recording which authority leads safeguarding when a person or incident crosses local authority boundaries. */
+  "safeguarding.authority": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
   "report.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
   /** Reporting & Analytics measures; each measure also needs its own module's permission. */
   "analytics.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER", "CARE_MANAGER", "FINANCE_OFFICER"],
@@ -97,6 +105,24 @@ export const ORG_PERMISSIONS = {
   "readiness.exception": ["ORG_ADMIN", "CARE_MANAGER"],
   /** Maintain the requirements matrix. */
   "readiness.manage": ["ORG_ADMIN", "COMPLIANCE_LEAD"],
+
+  // CQC Inspection & Evidence (src/server/cqc). An internal readiness tool, never an official CQC rating.
+  "cqc.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "POLICY_APPROVER", "POLICY_REVIEWER"],
+  /** Start assessments, record results and link evidence. */
+  "cqc.assess": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"],
+  /** Approve a submitted assessment (never one the approver assessed). */
+  "cqc.approve": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** Verify, reject or retire evidence offered for a CQC assessment area. */
+  "cqc.evidence.verify": ["ORG_ADMIN", "COMPLIANCE_LEAD", "POLICY_APPROVER"],
+  /** See every root cause analysis in the member's branches. Investigators without it see only their own. */
+  "rca.view": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "POLICY_APPROVER"],
+  "rca.create": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER"],
+  /** Be assigned as an investigator and work on the investigations assigned to you. */
+  "rca.investigate": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "CARE_COORDINATOR", "POLICY_REVIEWER"],
+  /** Review and approve findings, review effectiveness and close (never an investigation you investigated). */
+  "rca.approve": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "POLICY_APPROVER"],
+  /** See the details of restricted (safeguarding) investigations you are not working on. */
+  "rca.safeguarding": ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "POLICY_APPROVER"],
 } as const satisfies Record<string, readonly OrgRole[]>;
 
 export const PLATFORM_PERMISSIONS = {
