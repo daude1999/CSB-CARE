@@ -1,4 +1,3 @@
-import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getIntake } from "@/server/care/coordinator/intake";
@@ -61,7 +60,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
         title={`${intake.reference} · ${intake.title}`}
         back="/rota/coordinator"
         subtitle={<>{INTAKE_STATUS[intake.status as keyof typeof INTAKE_STATUS] ?? intake.status}. {view.person ? <>For {view.person.name} ({view.person.reference}). </> : intake.mode === "NEW" ? "A new person: they are created when Personal details are saved. " : null}Started by {view.createdBy}.{view.submittedBy ? ` Sent for approval by ${view.submittedBy}.` : ""} {intake.reader ? `Read by ${intake.reader === "basic-reader" ? "CSB's own reader (no AI)" : intake.reader}.` : ""}</>}
-        actions={<div className="flex flex-wrap items-center gap-2"><Link href={`/rota/coordinator/assistant?intakeId=${encodeURIComponent(intake.id)}`} className="btn-primary">✦ Ask AI CSB Coordinator</Link>{intake.status !== "COMPLETED" && intake.status !== "CANCELLED" ? (
+        actions={intake.status !== "COMPLETED" && intake.status !== "CANCELLED" ? (
           <details className="relative">
             <summary className="btn-secondary cursor-pointer list-none">Cancel intake</summary>
             <form action={cancelIntakeAction} className="absolute right-0 z-10 mt-1 w-[min(22rem,90vw)] space-y-2 rounded border border-slate-300 bg-white p-3 shadow">
@@ -72,7 +71,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
               <button className="btn-danger">Cancel intake</button>
             </form>
           </details>
-        ) : <Badge>{INTAKE_STATUS[intake.status as keyof typeof INTAKE_STATUS]}</Badge>}</div>}
+        ) : <Badge>{INTAKE_STATUS[intake.status as keyof typeof INTAKE_STATUS]}</Badge>}
       />
       <Flash searchParams={sp} />
       <SegmentNav
