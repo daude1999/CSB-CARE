@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { sha256 } from "@/lib/text";
 import { audit } from "../audit-log";
-import { requireOrgPermission, type Ctx } from "../auth/rbac";
+import { hasOrgPermission, requireOrgPermission, type Ctx } from "../auth/rbac";
+import { rcaEvidenceAccess } from "../cqc/visibility";
 import { sniffContentType } from "../sources/extract";
 import { storage } from "../storage";
 
@@ -103,7 +104,7 @@ export async function uploadEvidence(ctx: Ctx, file: { name: string; type: strin
 }
 
 /** The compliance records evidence can support. Missed-call evidence is attached from its own case page. */
-export const LINK_TYPES = { POLICY: "Policy", AUDIT: "Audit", AUDIT_ANSWER: "Audit question", FINDING: "Audit finding", ACTION: "Corrective action", RISK: "Risk" } as const;
+export const LINK_TYPES = { POLICY: "Policy", AUDIT: "Audit", AUDIT_ANSWER: "Audit question", FINDING: "Audit finding", ACTION: "Corrective action", RISK: "Risk", RCA: "Root cause analysis" } as const;
 export type LinkType = keyof typeof LINK_TYPES;
 export const isLinkType = (t: string): t is LinkType => t in LINK_TYPES;
 const linkKey = (type: string, id: string) => `${type}:${id}`;
@@ -116,7 +117,7 @@ export interface EvidenceLink { type: string; typeLabel: string; label: string; 
  */
 export async function resolveLinks(orgId: string, docs: { linkedType: string | null; linkedId: string | null }[]): Promise<Map<string, EvidenceLink>> {
   const ids = (t: string) => [...new Set(docs.filter((d) => d.linkedType === t && d.linkedId).map((d) => d.linkedId!))];
-  const [policies, audits, answers, findings, actions, risks, missed] = await Promise.all([
+  const [policies, audits, answers, findings, actions, risks, missed, rcas] = await Promise.all([
     ids("POLICY").length ? db.policy.findMany({ where: { id: { in: ids("POLICY") }, organisationId: orgId }, select: { id: true, ref: true, title: true } }) : [],
     ids("AUDIT").length ? db.audit.findMany({ where: { id: { in: ids("AUDIT") }, organisationId: orgId }, select: { id: true, title: true } }) : [],
     ids("AUDIT_ANSWER").length ? db.auditAnswer.findMany({ where: { id: { in: ids("AUDIT_ANSWER") }, audit: { organisationId: orgId } }, select: { id: true, auditId: true, question: { select: { text: true, position: true } }, audit: { select: { title: true } } } }) : [],
@@ -124,6 +125,8 @@ export async function resolveLinks(orgId: string, docs: { linkedType: string | n
     ids("ACTION").length ? db.complianceAction.findMany({ where: { id: { in: ids("ACTION") }, organisationId: orgId }, select: { id: true, title: true } }) : [],
     ids("RISK").length ? db.complianceRisk.findMany({ where: { id: { in: ids("RISK") }, organisationId: orgId }, select: { id: true, ref: true, title: true } }) : [],
     ids("MISSED_CALL").length ? db.missedCallCase.findMany({ where: { id: { in: ids("MISSED_CALL") }, organisationId: orgId }, select: { id: true } }) : [],
+    // Only the reference: an investigation's title can be confidential (safeguarding), and its own page checks access.
+    ids("RCA").length ? db.rcaInvestigation.findMany({ where: { id: { in: ids("RCA") }, organisationId: orgId }, select: { id: true, reference: true } }) : [],
   ]);
   const out = new Map<string, EvidenceLink>();
   const put = (type: string, id: string, label: string, href: string | null) => out.set(linkKey(type, id), { type, typeLabel: type === "MISSED_CALL" ? "Missed call" : LINK_TYPES[type as LinkType], label, href });
@@ -134,6 +137,7 @@ export async function resolveLinks(orgId: string, docs: { linkedType: string | n
   for (const a of actions) put("ACTION", a.id, a.title, `/actions/${a.id}`);
   for (const r of risks) put("RISK", r.id, `${r.ref} ${r.title}`, `/compliance/risks/${r.id}`);
   for (const m of missed) put("MISSED_CALL", m.id, "Missed call case", `/rota/missed/${m.id}`);
+  for (const r of rcas) put("RCA", r.id, r.reference, `/compliance/cqc/rca/${r.id}`);
   return out;
 }
 
@@ -181,9 +185,12 @@ export async function storeEvidenceFile(orgId: string, actorId: string, file: { 
 
 /** Streams evidence only after verifying the caller belongs to the owning organisation. */
 export async function readEvidence(ctx: Ctx, id: string) {
-  const orgId = requireOrgPermission(ctx, "evidence.read");
   const doc = await db.evidenceDocument.findUnique({ where: { id } });
-  if (!doc || doc.organisationId !== orgId) throw new NotFoundError("Evidence");
+  if (!doc || !ctx.organisationId || doc.organisationId !== ctx.organisationId) throw new NotFoundError("Evidence");
+  // A file on a root cause analysis follows the investigation's visibility (restricted safeguarding cases included).
+  const rcaFile = doc.linkedType === "RCA" && doc.linkedId;
+  if (rcaFile ? !(await rcaEvidenceAccess(ctx, doc.linkedId!)) : !hasOrgPermission(ctx, "evidence.read")) throw new NotFoundError("Evidence");
+  const orgId = doc.organisationId;
   const bytes = await assertDownloadable(doc, ctx.userId);
   await audit({ organisationId: orgId, actorId: ctx.userId, action: "evidence.downloaded", entityType: "EvidenceDocument", entityId: id });
   return { doc, bytes };

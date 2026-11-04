@@ -1052,30 +1052,48 @@ model AuditFinding {
 }
 
 model ComplianceAction {
-  id                   String          @id @default(cuid())
+  id                   String            @id @default(cuid())
   organisationId       String
   findingId            String?
-  finding              AuditFinding?   @relation(fields: [findingId], references: [id])
+  finding              AuditFinding?     @relation(fields: [findingId], references: [id])
   /// A mitigation action for a risk on the organisational risk register.
   riskId               String?
-  risk                 ComplianceRisk? @relation(fields: [riskId], references: [id])
+  risk                 ComplianceRisk?   @relation(fields: [riskId], references: [id])
   title                String
   description          String?
   ownerId              String
   dueDate              DateTime
-  status               String          @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
+  status               String            @default("OPEN") // OPEN | IN_PROGRESS | COMPLETED | VERIFIED | CLOSED
   completionNote       String?
   completionEvidenceId String?
   completedAt          DateTime?
   verifiedById         String?
   verifiedAt           DateTime?
   closedAt             DateTime?
-  isDemo               Boolean         @default(false)
-  createdAt            DateTime        @default(now())
+  isDemo               Boolean           @default(false)
+  createdAt            DateTime          @default(now())
   history              ActionEvent[]
+  /// CQC Inspection & Evidence: the root cause analysis (and its finding) this action came from.
+  rcaId                String?
+  rca                  RcaInvestigation? @relation(fields: [rcaId], references: [id])
+  rcaFindingId         String?
+  rcaFinding           RcaFinding?       @relation(fields: [rcaFindingId], references: [id])
+  /// CORRECTIVE (resolve the problem) | PREVENTATIVE (stop it happening again). Null for older actions.
+  actionType           String?
+  /// LOW | MEDIUM | HIGH | URGENT. Null for older actions.
+  priority             String?
+  /// What evidence the owner must supply before the action counts as complete.
+  evidenceRequired     String?
+  /// The CQC readiness assessment (and criterion) the improvement action was raised from.
+  cqcAssessmentId      String?
+  cqcAssessment        CqcAssessment?    @relation(fields: [cqcAssessmentId], references: [id])
+  cqcCriterionId       String?
+  cqcCriterion         CqcCriterion?     @relation(fields: [cqcCriterionId], references: [id])
 
   @@index([organisationId, status])
   @@index([riskId])
+  @@index([rcaId])
+  @@index([cqcAssessmentId])
 }
 
 /// The organisational risk register: governance and service risks, scored on a 5 x 5 likelihood x impact matrix
@@ -4042,4 +4060,312 @@ model MissedCallInvestigationDraft {
   createdAt       DateTime                   @default(now())
 
   @@index([caseId, createdAt])
+}
+
+// ───────────────────────── CQC Inspection & Evidence + Root Cause Analysis
+// An internal readiness tool. Nothing here is an official CQC rating, and nothing is sent to CQC.
+
+enum CqcKeyQuestion {
+  SAFE
+  EFFECTIVE
+  CARING
+  RESPONSIVE
+  WELL_LED
+}
+
+/// A versioned mapping of management assessment areas to CQC's published framework and the regulations. Shared by every
+/// organisation (read-only to them). A new CQC framework is a new version; assessments keep the version they used.
+model CqcFramework {
+  id              String          @id @default(cuid())
+  version         String          @unique
+  title           String
+  /// DRAFT | ACTIVE | RETIRED. New assessments use the ACTIVE version.
+  status          String          @default("ACTIVE")
+  /// What the mapping is based on, in words, and where to check it.
+  basis           String
+  sourceUrl       String?
+  /// When someone last checked the mapping against the published source. Null = not yet checked.
+  sourceCheckedAt DateTime?
+  notes           String?
+  effectiveFrom   DateTime        @db.Date
+  createdAt       DateTime        @default(now())
+  criteria        CqcCriterion[]
+  assessments     CqcAssessment[]
+}
+
+/// One assessment area under a key question, with the quality statement and regulations it maps to.
+model CqcCriterion {
+  id               String                @id @default(cuid())
+  frameworkId      String
+  framework        CqcFramework          @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+  code             String
+  keyQuestion      CqcKeyQuestion
+  title            String
+  qualityStatement String
+  regulations      String[]
+  guidance         String
+  evidenceExamples String[]
+  /// Words used to suggest existing records as possible evidence (never to verify them).
+  keywords         String[]
+  /// Which kinds of record the automatic discovery looks at for this area.
+  discoveryKinds   String[]
+  /// Essential areas raise a "missing essential evidence" warning when they have no verified evidence.
+  essential        Boolean               @default(false)
+  position         Int
+  results          CqcAssessmentResult[]
+  evidenceLinks    CqcEvidenceLink[]
+  actions          ComplianceAction[]
+
+  @@unique([frameworkId, code])
+}
+
+model CqcAssessment {
+  id                String                 @id @default(cuid())
+  organisationId    String
+  /// CQC-2026-0001, unique in the organisation.
+  reference         String
+  title             String
+  /// Null = the whole organisation.
+  branchId          String?
+  /// A configured service type (ServiceType.code), or null for every service.
+  serviceTypeCode   String?
+  frameworkId       String
+  framework         CqcFramework           @relation(fields: [frameworkId], references: [id])
+  periodFrom        DateTime               @db.Date
+  periodTo          DateTime               @db.Date
+  /// IN_PROGRESS | AWAITING_APPROVAL | APPROVED | SUPERSEDED
+  status            String                 @default("IN_PROGRESS")
+  assessorId        String
+  managementComment String?
+  nextDueAt         DateTime?              @db.Date
+  submittedAt       DateTime?
+  approvedById      String?
+  approvedAt        DateTime?
+  returnedReason    String?
+  /// The assessment this one was started from (results copied as a starting point).
+  previousId        String?
+  lockVersion       Int                    @default(1)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  results           CqcAssessmentResult[]
+  snapshots         CqcReadinessSnapshot[]
+  actions           ComplianceAction[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([organisationId, branchId])
+}
+
+/// The current result for one criterion in one assessment. Every change is kept in the audit log with old and new values.
+model CqcAssessmentResult {
+  id             String        @id @default(cuid())
+  organisationId String
+  assessmentId   String
+  assessment     CqcAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  criterionId    String
+  criterion      CqcCriterion  @relation(fields: [criterionId], references: [id])
+  /// MET | PARTIALLY_MET | NOT_MET | NOT_APPLICABLE
+  result         String
+  rationale      String
+  findings       String?
+  /// Required when the result is NOT_APPLICABLE.
+  naReason       String?
+  recordedById   String
+  recordedAt     DateTime      @default(now())
+  version        Int           @default(1)
+
+  @@unique([assessmentId, criterionId])
+}
+
+/// A record offered as evidence for a criterion. The record itself stays where it is (evidence library, training,
+/// audits, RCA...); this row only says which criterion it may support and whether a reviewer has verified it.
+model CqcEvidenceLink {
+  id             String       @id @default(cuid())
+  organisationId String
+  criterionId    String
+  criterion      CqcCriterion @relation(fields: [criterionId], references: [id])
+  /// The branch the source record belongs to (null = organisation-wide).
+  branchId       String?
+  /// EVIDENCE_DOCUMENT | POLICY | AUDIT | ACTION | RISK | INCIDENT | RCA | MISSED_CALL | TRAINING | CARE_PLAN
+  sourceType     String
+  sourceId       String
+  /// A label kept from when the link was made, used only if the source can no longer be read.
+  sourceRef      String?
+  /// SUGGESTED | AWAITING_REVIEW | VERIFIED | REJECTED | OUTDATED | SUPERSEDED (separate from malware scanning).
+  status         String       @default("SUGGESTED")
+  /// DISCOVERED (suggested by the system) | MANUAL (linked by a person)
+  origin         String
+  note           String?
+  /// A verified link stops counting after this date (the source's own expiry, or a year after verification).
+  validUntil     DateTime?
+  linkedById     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewNote     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, criterionId, sourceType, sourceId])
+  @@index([organisationId, status])
+  @@index([organisationId, sourceType, sourceId])
+}
+
+/// A dated copy of the readiness figures, for comparing over time. Never edited.
+model CqcReadinessSnapshot {
+  id              String         @id @default(cuid())
+  organisationId  String
+  assessmentId    String?
+  assessment      CqcAssessment? @relation(fields: [assessmentId], references: [id])
+  branchId        String?
+  serviceTypeCode String?
+  frameworkId     String
+  method          String
+  overall         Int?
+  /// HIGH | LOW | NOT_ASSESSED
+  confidence      String
+  byQuestion      Json
+  figures         Json
+  reason          String
+  takenById       String
+  takenAt         DateTime       @default(now())
+
+  @@index([organisationId, takenAt])
+}
+
+model RcaInvestigation {
+  id               String             @id @default(cuid())
+  organisationId   String
+  /// RCA-2026-0001, unique in the organisation.
+  reference        String
+  title            String
+  branchId         String?
+  serviceUserId    String?
+  category         String
+  /// LOW | MODERATE | HIGH | CRITICAL
+  severity         String
+  eventDate        DateTime
+  openedAt         DateTime           @default(now())
+  /// The investigator.
+  ownerId          String
+  /// The responsible manager.
+  managerId        String
+  dueDate          DateTime           @db.Date
+  /// NEW | INVESTIGATING | AWAITING_REVIEW | ACTIONS_IN_PROGRESS | EFFECTIVENESS_REVIEW | CLOSED
+  status           String             @default("NEW")
+  /// Safeguarding or otherwise confidential: details only for safeguarding-authorised people and the people on the case.
+  restricted       Boolean            @default(false)
+  summary          String?
+  /// [{ at, text, kind: FACT | WITNESS | ASSUMPTION }]
+  timeline         Json               @default("[]")
+  peopleInvolved   String?
+  immediateImpact  String?
+  /// NONE | LOW | MODERATE | SEVERE | DEATH | POTENTIAL
+  harm             String?
+  immediateActions String?
+  /// { [area]: { relevant: boolean, notes: string } }
+  factors          Json               @default("{}")
+  fiveWhys         Json               @default("[]")
+  causeEffectNotes String?
+  immediateCause   String?
+  underlyingCauses String?
+  uncertainties    String?
+  conclusions      String?
+  closureNote      String?
+  closedAt         DateTime?
+  closedById       String?
+  closureException Boolean            @default(false)
+  exceptionReason  String?
+  reopenCount      Int                @default(0)
+  lockVersion      Int                @default(1)
+  createdById      String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  sources          RcaSourceLink[]
+  findings         RcaFinding[]
+  reviews          RcaReview[]
+  escalations      RcaEscalation[]
+  actions          ComplianceAction[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([organisationId, branchId])
+  @@index([organisationId, dueDate])
+}
+
+/// The existing record an investigation looks into. The source keeps its own reference; nothing is copied or replaced.
+model RcaSourceLink {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// INCIDENT | MISSED_CALL | AUDIT_FINDING | RISK
+  sourceType     String
+  sourceId       String
+  /// The source's own reference when linked (e.g. INC-2611-003).
+  sourceRef      String
+  /// A council, NHS or other external reference, kept as given.
+  externalRef    String?
+  addedById      String
+  createdAt      DateTime         @default(now())
+
+  @@unique([rcaId, sourceType, sourceId])
+  @@index([organisationId, sourceType, sourceId])
+}
+
+model RcaFinding {
+  id             String             @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation   @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// IMMEDIATE | CONTRIBUTING | SYSTEMIC
+  kind           String
+  factorArea     String?
+  text           String
+  /// The evidence that supports the finding, in the investigator's words.
+  evidence       String
+  /// PROPOSED | CONFIRMED | NOT_SUPPORTED. Only a manager review confirms a finding.
+  status         String             @default("PROPOSED")
+  createdById    String
+  createdAt      DateTime           @default(now())
+  confirmedById  String?
+  confirmedAt    DateTime?
+  actions        ComplianceAction[]
+}
+
+/// A manager review, effectiveness review, closure or reopening, with a copy of the investigation at that moment. Never edited.
+model RcaReview {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// SUBMISSION | MANAGER_REVIEW | EFFECTIVENESS | CLOSURE | REOPEN
+  stage          String
+  decision       String
+  note           String
+  checks         Json             @default("{}")
+  snapshot       Json             @default("{}")
+  reviewerId     String
+  createdAt      DateTime         @default(now())
+
+  @@index([rcaId, createdAt])
+}
+
+/// A manager's recorded decision on one escalation question (safeguarding referral, CQC notification...). The platform
+/// never decides these or sends anything itself.
+model RcaEscalation {
+  id             String           @id @default(cuid())
+  organisationId String
+  rcaId          String
+  rca            RcaInvestigation @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+  /// IMMEDIATE_SAFETY | SAFEGUARDING_REFERRAL | CQC_NOTIFICATION | DUTY_OF_CANDOUR | EXTERNAL_NOTIFICATION
+  kind           String
+  /// DONE | REQUIRED_PENDING | NOT_REQUIRED
+  decision       String
+  rationale      String
+  externalRef    String?
+  notifiedAt     DateTime?
+  decidedById    String
+  decidedAt      DateTime         @default(now())
+
+  @@unique([rcaId, kind])
 }
