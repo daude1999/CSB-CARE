@@ -1,4 +1,4 @@
-import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput } from "./schemas";
+import type { ChangeAnalysis, ImpactAssessmentOutput, RevisionDraftOutput, AssistantAnswer, CareSummaryOutput, BodyMapRecommendationOutput, SupportPlanExtraction } from "./schemas";
 import type { SectionChange } from "../changes/diff";
 
 export interface SourceSectionInput {
@@ -90,6 +90,15 @@ export interface LlmProvider {
   summariseCare?(input: CareSummaryInput): Promise<CareSummaryOutput>;
   /** Body map AI-Assisted Recommendations. Optional, like summariseCare. */
   recommendBodyMap?(input: BodyMapRecommendationInput): Promise<BodyMapRecommendationOutput>;
+  /** Reads a council support plan PDF into a field-by-field proposal with page references. Optional; the simulated
+   *  provider cannot read documents, so the import screen then opens with an empty form. */
+  extractSupportPlan?(input: SupportPlanExtractionInput): Promise<SupportPlanExtraction>;
+}
+
+export interface SupportPlanExtractionInput {
+  /** The PDF, base64-encoded. Only the support plan is read; medical letters are never sent. */
+  pdfBase64: string;
+  filename: string;
 }
 
 export class AiUnavailableError extends Error {
