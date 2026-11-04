@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { CaretDown, CheckSquare, ClockCounterClockwise, Copy, Eye, PencilSimple, Plus, Prohibit, CheckCircle, Square } from "@phosphor-icons/react/dist/ssr";
+import { CalendarPlus, CaretDown, CheckSquare, ClockCounterClockwise, Copy, Eye, PencilSimple, Plus, Prohibit, CheckCircle, Square } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { hhmm, WEEKDAYS } from "@/lib/london";
 import { durationLabel, weekdaysLabel } from "@/lib/rota-pattern";
@@ -28,7 +28,7 @@ const listText = (items: string[]) => (items.length <= 1 ? items.join("") : `${i
  * Service User Profile -> Visits -> Template: this person's repeating visits, filtered by cycle weeks and days. The
  * rows are the same VisitTemplate records as Daily Templates; every action goes through the existing template actions.
  */
-export function ServiceUserTemplateTab({ base, rows, weeks, days, cycleLength, canEdit, serviceUserId, confirmOff }: { base: string; rows: TemplateListRow[]; weeks: number[]; days: number[]; cycleLength: number; canEdit: boolean; serviceUserId: string; confirmOff?: string }) {
+export function ServiceUserTemplateTab({ base, rows, weeks, days, cycleLength, canEdit, canBuild = false, serviceUserId, confirmOff }: { base: string; rows: TemplateListRow[]; weeks: number[]; days: number[]; cycleLength: number; canEdit: boolean; canBuild?: boolean; serviceUserId: string; confirmOff?: string }) {
   const href = (w: number[], d: number[]) => `${base}?tab=template${w.length ? `&weeks=${w.join(",")}` : ""}${d.length ? `&days=${d.join(",")}` : ""}`;
   const toggle = (list: number[], n: number) => (list.includes(n) ? list.filter((x) => x !== n) : [...list, n].sort((a, b) => a - b));
   const allWeeks = Array.from({ length: cycleLength }, (_, i) => i + 1);
@@ -61,8 +61,9 @@ export function ServiceUserTemplateTab({ base, rows, weeks, days, cycleLength, c
             })}
           </div>
         </details>
+        {canBuild ? <Link href={`${base}?tab=rota&future=1`} className={`ml-auto inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-semibold text-[#101828] no-underline hover:bg-slate-50 ${FOCUS}`}><CalendarPlus size={16} aria-hidden />Create Future Rota</Link> : null}
         {canEdit ? (
-          <Link href={`/rota/templates/new?su=${serviceUserId}`} className={`ml-auto inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-[#4b1f9e] px-4 text-[14px] font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><Plus size={17} weight="bold" aria-hidden />Add Template</Link>
+          <Link href={`/rota/templates/new?su=${serviceUserId}`} className={`${canBuild ? "" : "ml-auto "}inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-[#4b1f9e] px-4 text-[14px] font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><Plus size={17} weight="bold" aria-hidden />Add Template</Link>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 px-4 py-3" role="group" aria-label="Days">

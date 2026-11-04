@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { MAX_CARERS } from "@/lib/carer-places";
 import { rowBoxes } from "@/components/select-all";
@@ -52,6 +52,8 @@ const TEMPLATE_ACTIONS = [
 ] as const satisfies readonly BulkAction[];
 
 type Option = { id: string; name: string };
+/** Template bulk actions with their own confirmation (Deactivate) or that only add new, switched-off copies. */
+const NO_CONFIRM = new Set(["enable", "duplicate"]);
 
 const FIELD = "h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828]";
 
@@ -90,11 +92,13 @@ export function BulkVisitBar({ form, staff, callTypes, canPublish, canComplete =
 
 /** The Daily Templates bulk actions bar. Posts to templateBulkAction, which re-checks every template. */
 export function BulkTemplateBar({ form, staff, callTypes }: { form: string; staff: Option[]; callTypes: Option[] }) {
-  return <BulkActionBar form={form} itemName="templateIds" noun="template" actions={TEMPLATE_ACTIONS} staff={staff} callTypes={callTypes} compact />;
+  return <BulkActionBar form={form} itemName="templateIds" noun="template" actions={TEMPLATE_ACTIONS} staff={staff} callTypes={callTypes} compact confirmTemplates />;
 }
 
 /** The same bar for any list: which checkboxes count (itemName), what they are called, and which actions it offers. */
-function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compact = false, review = false }: { form: string; itemName: string; noun: string; actions: readonly BulkAction[]; staff: Option[]; callTypes: Option[]; compact?: boolean; review?: boolean }) {
+function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compact = false, review = false, confirmTemplates = false }: { form: string; itemName: string; noun: string; actions: readonly BulkAction[]; staff: Option[]; callTypes: Option[]; compact?: boolean; review?: boolean; confirmTemplates?: boolean }) {
+  const [confirming, setConfirming] = useState<[string, string][] | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const selected = useSelectedCount(form, itemName);
   const [kind, setKind] = useState("");
   const [staffId, setStaffId] = useState("");
@@ -148,6 +152,20 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
     const stop = (e: SubmitEvent) => {
       e.preventDefault();
       openReview();
+    };
+    el.addEventListener("submit", stop);
+    return () => el.removeEventListener("submit", stop);
+  });
+
+  // Enter in a field would post straight away; for template changes it opens Confirm Template Changes instead.
+  useEffect(() => {
+    if (!confirmTemplates) return;
+    const el = document.getElementById(form);
+    if (!(el instanceof HTMLFormElement)) return;
+    const stop = (e: SubmitEvent) => {
+      if (confirmed || NO_CONFIRM.has(kind)) return;
+      e.preventDefault();
+      if (!missing) setConfirming(describe());
     };
     el.addEventListener("submit", stop);
     return () => el.removeEventListener("submit", stop);
@@ -239,9 +257,52 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
       ) : null}
       {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]"><input type="checkbox" name="acceptWarnings" checked={acceptWarnings} onChange={(e) => setAcceptWarnings(e.target.checked)} className="h-4 w-4" /> Accept warnings</label> : null}
 
-      <button type={review ? "button" : "submit"} onClick={review ? openReview : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
+      {confirmTemplates ? <input type="hidden" name="confirmed" value={confirmed ? "1" : ""} form={form} /> : null}
+      <button type={review || (confirmTemplates && !NO_CONFIRM.has(kind)) ? "button" : "submit"} onClick={review ? openReview : confirmTemplates && !NO_CONFIRM.has(kind) ? () => !missing && setConfirming(describe()) : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
       <span id="bulk-hint" className={compact && !selected ? "sr-only" : "text-[13px] text-[#667085]"} data-testid="bulk-hint">{missing ?? (review ? `Ready: review ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.` : `Ready: ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.`)}</span>
+      {confirming && action ? (
+        <TemplateBulkConfirm
+          label={action.label}
+          count={selected}
+          details={confirming}
+          onCancel={() => setConfirming(null)}
+          onContinue={() => {
+            setConfirmed(true);
+            setConfirming(null);
+            // Submit after React has written confirmed=1 into the form.
+            setTimeout(() => (document.getElementById(form) as HTMLFormElement | null)?.requestSubmit(), 0);
+          }}
+        />
+      ) : null}
       {review && request ? <BulkReviewDialog form={form} itemName={itemName} request={request} onClose={() => setRequest(null)} /> : null}
     </div>
+  );
+}
+
+/**
+ * Confirm Template Changes for a bulk change to templates. Bulk changes are Template Only: built visits are not changed,
+ * because each template's future visits need their own review (open a single template and choose Template + Future Rota).
+ */
+function TemplateBulkConfirm({ label, count, details, onCancel, onContinue }: { label: string; count: number; details: [string, string][]; onCancel: () => void; onContinue: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    ref.current?.showModal();
+  }, []);
+  return (
+    <dialog ref={ref} onCancel={(e) => { e.preventDefault(); onCancel(); }} aria-labelledby="tpl-bulk-title" data-testid="template-bulk-confirm" className="m-auto w-[min(560px,calc(100vw-24px))] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40">
+      <div className="px-5 py-4">
+        <h2 id="tpl-bulk-title" className="text-[19px] font-bold">Confirm Template Changes</h2>
+        <p className="mt-2 text-[15px]">Are you sure you want to save these changes to {count === 1 ? "this template" : `these ${count} templates`}?</p>
+        <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14.5px]">
+          <dt className="font-medium">Change</dt><dd>{label}</dd>
+          {details.map(([k, v]) => <Fragment key={k}><dt className="font-medium">{k}</dt><dd className="font-semibold">{v}</dd></Fragment>)}
+        </dl>
+        <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-[14px] text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed. To update built visits too, open one template, edit it and choose Template + future rota.</p>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
+        <button type="button" onClick={onCancel} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold">Cancel</button>
+        <button type="button" onClick={onContinue} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white hover:bg-[#3d1880]">Continue</button>
+      </div>
+    </dialog>
   );
 }

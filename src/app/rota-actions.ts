@@ -7,7 +7,7 @@ import { addDays, isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, handleData, safeBack, str, withParam } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
-import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
+import { confirmBuild, confirmServiceUserRota, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
 import { rollHref } from "@/lib/roll-forward-href";
 import { applyPlan, decideChanges, discardPlan, generatePlan, publishPlanVisits } from "@/server/rota/optimise";
@@ -30,7 +30,8 @@ import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
 import { addAbsence, addContact, updateContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
-import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, updateTemplate, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
+import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
+import { previewTemplateEdit, previewTemplateImpact, saveTemplateEdit } from "@/server/rota/template-impact";
 import { bulkVisits, previewBulkVisits, cancelVisit, createVisit, moveVisit, reinstateVisit, setCarersRequired, updateVisit, type BulkAction, type BulkResult } from "@/server/rota/visits";
 import { linkLogin, unlinkLogin } from "@/server/workforce/link";
 import { updateRotaProfile } from "@/server/workforce/profile";
@@ -296,10 +297,37 @@ export async function createTemplateAction(fd: FormData) {
   return handle(fd, async (ctx) => `/rota/templates/${(await createTemplate(ctx, templateInput(fd))).id}`, "Template created");
 }
 
+/**
+ * Save on an existing template. Only reachable through Confirm Template Changes: the form carries the token of the
+ * reviewed proposal, and Template + Future Rota also carries the reviewed plan's fingerprint.
+ */
 export async function updateTemplateAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    await updateTemplate(ctx, str(fd, "templateId"), int(fd, "version", "Version"), templateInput(fd));
-  }, "Template saved. Built visits are unchanged until you apply the change below.");
+    const future = str(fd, "applyTo") === "future";
+    const r = await saveTemplateEdit(ctx, str(fd, "templateId"), int(fd, "version", "Version"), templateInput(fd), {
+      token: str(fd, "confirmToken"),
+      scope: future ? "future" : "template",
+      fingerprint: str(fd, "fingerprint") || undefined,
+      cancelVisitIds: ids(fd, "cancelVisitIds"),
+      cancelReason: str(fd, "cancelReason"),
+    });
+    if (!future) return { ok: "Template saved. Existing scheduled visits were not changed." };
+    const parts = [`${r.applied} future visit${r.applied === 1 ? "" : "s"} updated`];
+    if (r.cancelled) parts.push(`${r.cancelled} cancelled`);
+    if (r.review) parts.push(`${r.review} need${r.review === 1 ? "s" : ""} your review`);
+    if (r.protected) parts.push(`${r.protected} protected`);
+    return { ok: `Template saved: ${parts.join(", ")}.${r.carersTold ? ` ${r.carersTold} carer${r.carersTold === 1 ? " was" : "s were"} told in the app.` : ""}${r.newDates ? ` ${r.newDates} new visit${r.newDates === 1 ? " is" : "s are"} not built yet: use Create Future Rota.` : ""}` };
+  }, "Template saved.");
+}
+
+/** Confirm Template Changes: what Save would change, from the unsaved form. Writes nothing. */
+export async function previewTemplateEditAction(fd: FormData) {
+  return handleData((ctx) => previewTemplateEdit(ctx, str(fd, "templateId"), int(fd, "version", "Version"), templateInput(fd)));
+}
+
+/** Review Changes to Future Rota: the future visits the unsaved change would affect. Writes nothing. */
+export async function previewTemplateImpactAction(fd: FormData) {
+  return handleData((ctx) => previewTemplateImpact(ctx, str(fd, "templateId"), int(fd, "version", "Version"), templateInput(fd)));
 }
 
 export async function templateBulkAction(fd: FormData) {
@@ -307,6 +335,9 @@ export async function templateBulkAction(fd: FormData) {
     const list = ids(fd, "templateIds");
     if (!list.length) throw new ValidationError("Select at least one template");
     const kind = str(fd, "kind");
+    // Every change to a template's settings goes through Confirm Template Changes first. Switching on or off has its own
+    // confirmation (Deactivate…), and duplicates are new templates that start switched off.
+    if (!["duplicate", "enable", "disable"].includes(kind) && str(fd, "confirmed") !== "1") throw new ValidationError("Confirm the template changes before saving.");
     const tslot = (): PlaceKey => parsePlace(str(fd, "slot")) ?? "PRIMARY";
     let action: TemplateBulkAction | null = null;
     if (kind === "assign") {
@@ -364,6 +395,20 @@ export async function rollForwardAction(fd: FormData) {
     const next = `${rollHref({ from: last, to: addDays(last, 7), weeks: 1, areaIds: r.plan.areaIds.length && ids(fd, "areaIds").length ? r.plan.areaIds : [] })}&saved=${r.plan.targetWeeks[0]}`;
     return { to: next, ok: `Rolled forward into ${r.builds.length} week${r.builds.length === 1 ? "" : "s"}: ${r.plan.visits.length} visits saved as drafts${uncovered ? `, ${uncovered} carer slots need covering` : ""}. Check them, then publish each week.` };
   }, "Rota rolled forward as drafts. Check it, then publish.");
+}
+
+/** Create Future Rota from a service user's profile: saves exactly the visits previewed on screen. */
+export async function confirmServiceUserRotaAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const fingerprint = str(fd, "fingerprint");
+    if (!/^[0-9a-f]{24}$/.test(fingerprint)) throw new ValidationError("Press Preview first, then create the rota you have checked.");
+    const serviceUserId = str(fd, "serviceUserId");
+    const weekStart = str(fd, "weekStart");
+    const r = await confirmServiceUserRota(ctx, serviceUserId, { weekStart, weeks: int(fd, "weeks", "Weeks"), fingerprint, publish: fd.get("publish") === "1" });
+    const open = r.unassignedSlots ? ` ${r.unassignedSlots} carer place${r.unassignedSlots === 1 ? " needs" : "s need"} covering.` : "";
+    const sent = r.published ? ` Published: ${r.carersNotified} linked carer${r.carersNotified === 1 ? " has" : "s have"} been told in the app.` : " They are not published yet, so carers cannot see them. Publish them from All Rotas when you have checked them.";
+    return { to: `/rota/service-users/${encodeURIComponent(serviceUserId)}?tab=rota&week=${weekStart}`, ok: `Future rota created: ${r.visits} visit${r.visits === 1 ? "" : "s"} in ${r.builds.length} week${r.builds.length === 1 ? "" : "s"}.${open}${sent}` };
+  }, "Future rota created.");
 }
 
 export async function publishBuildAction(fd: FormData) {
@@ -571,6 +616,7 @@ export async function careTaskActiveAction(fd: FormData) {
 
 export async function templateCarerAction(fd: FormData) {
   return handle(fd, async (ctx) => {
+    if (str(fd, "confirmed") !== "1") throw new ValidationError("Confirm the template change before saving.");
     const s = slot(fd);
     await setTemplateCarer(ctx, str(fd, "templateId"), int(fd, "version", "Version"), s, str(fd, "staffId") || null);
   }, "Template carer changed. Weeks built from now on use the new carer.");

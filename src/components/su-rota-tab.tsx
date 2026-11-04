@@ -1,4 +1,4 @@
-import { CaretLeft, CaretRight, Eye, NotePencil, Plus, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { CalendarPlus, CaretLeft, CaretRight, Eye, NotePencil, Plus, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { addDays, fmtLondonDate, londonTime } from "@/lib/london";
 import { durationLabel } from "@/lib/rota-pattern";
@@ -18,7 +18,7 @@ const WARN_TONE: Record<string, string> = { "Manual change": "bg-[#f4f1fd] text-
  * Service User Profile -> Visits -> Rota: the person's actual visits for one week. Same Visit rows as the Daily Rota;
  * planned times and the times carers actually clocked are kept in separate columns so they are never confused.
  */
-export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, serviceUserId }: { base: string; rota: Rota; filter: SuRotaFilter; thisMonday: string; canEdit: boolean; serviceUserId: string }) {
+export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, canBuild, serviceUserId }: { base: string; rota: Rota; filter: SuRotaFilter; thisMonday: string; canEdit: boolean; canBuild: boolean; serviceUserId: string }) {
   const href = (week: string, f: SuRotaFilter = filter) => `${base}?tab=rota&week=${week}${f !== "all" ? `&status=${f}` : ""}`;
   const range = `${fmtLondonDate(rota.weekStart, { weekday: "long", day: "numeric", month: "long" })} – ${fmtLondonDate(rota.weekEnd, { weekday: "long", day: "numeric", month: "long" })} ${rota.weekEnd.slice(0, 4)}`;
   return (
@@ -38,6 +38,7 @@ export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, se
           </form>
         </nav>
         <span className="ml-auto flex flex-wrap gap-2">
+          {canBuild ? <Link href={`${base}?tab=rota&week=${rota.weekStart}&future=1&from=${rota.weekStart < thisMonday ? thisMonday : rota.weekStart}`} className={NAV}><CalendarPlus size={16} aria-hidden />Create Future Rota</Link> : null}
           {canEdit ? <Link href={`/rota/visits/new?serviceUserId=${serviceUserId}&date=${rota.weekStart < thisMonday ? thisMonday : rota.weekStart}`} className={NAV}><Plus size={16} weight="bold" aria-hidden />Add Visit</Link> : null}
         </span>
       </div>

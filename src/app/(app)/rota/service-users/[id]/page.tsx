@@ -24,6 +24,8 @@ import { rotaSettings } from "@/server/rota/settings";
 import { parseSuRotaFilter, serviceUserRota, suRotaWeek } from "@/server/rota/su-rota";
 import { parseList, ServiceUserTemplateTab } from "@/components/su-template-tab";
 import { ServiceUserRotaTab } from "@/components/su-rota-tab";
+import { futureRotaDefaults, ServiceUserFutureRota } from "@/components/su-future-rota";
+import { previewServiceUserRota } from "@/server/rota/build";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
@@ -110,6 +112,19 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "template" ? listTemplates(ctx, { serviceUserId: su.id, state: "all", weeks: tplWeeks, days: tplDays }) : Promise.resolve(null),
     tab === "rota" ? serviceUserRota(ctx, su.id, suRotaWeek(sp.week), parseSuRotaFilter(sp.status)) : Promise.resolve(null),
   ]);
+  // Create Future Rota (Rota tab, ?future=1): previewed on the server, created only from the Create button.
+  const canBuild = hasOrgPermission(ctx, "rota.build");
+  const future = tab === "rota" && sp.future && canBuild ? futureRotaDefaults(sp, suRotaWeek(sp.week), mondayOf(today)) : null;
+  let futurePreview: Awaited<ReturnType<typeof previewServiceUserRota>> | null = null;
+  let futureError: string | null = null;
+  if (future) {
+    try {
+      futurePreview = await previewServiceUserRota(ctx, su.id, { weekStart: future.from, weeks: future.weeks });
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+      futureError = e.message;
+    }
+  }
   const todayDb = dbDate(today);
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
@@ -564,8 +579,9 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </Card>
       ) : null}
 
-      {tab === "template" && suTemplates ? <ServiceUserTemplateTab base={base} rows={suTemplates} weeks={tplWeeks} days={tplDays} cycleLength={cycleLength} canEdit={hasOrgPermission(ctx, "rota.edit")} serviceUserId={su.id} confirmOff={sp.off} /> : null}
-      {tab === "rota" && suRota ? <ServiceUserRotaTab base={base} rota={suRota} filter={parseSuRotaFilter(sp.status)} thisMonday={mondayOf(today)} canEdit={hasOrgPermission(ctx, "rota.edit")} serviceUserId={su.id} /> : null}
+      {tab === "template" && suTemplates ? <ServiceUserTemplateTab base={base} rows={suTemplates} weeks={tplWeeks} days={tplDays} cycleLength={cycleLength} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} confirmOff={sp.off} /> : null}
+      {future ? <ServiceUserFutureRota base={base} from={future.from} weeks={future.weeks} thisMonday={mondayOf(today)} preview={futurePreview} error={futureError} /> : null}
+      {tab === "rota" && suRota ? <ServiceUserRotaTab base={base} rota={suRota} filter={parseSuRotaFilter(sp.status)} thisMonday={mondayOf(today)} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} /> : null}
       {tab === "missed" ? <MissedHistory ctx={ctx} serviceUserId={su.id} /> : null}
 
       {tab === "documents" ? (
