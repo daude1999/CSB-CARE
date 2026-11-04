@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, londonDate } from "@/lib/london";
 import { setMemberBranches } from "@/server/admin/branches";
-import { createPackage, endPackage, packageCoverage, updatePackage } from "@/server/care/packages";
-import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
+import { createPackage, endPackage, packageCoverage, packageHistory, packageReviewItems, packageSources, updatePackage } from "@/server/care/packages";
+import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
 /** Care packages against a real database: one active at a time, replacement, ending, funders, coverage and scope. */
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
@@ -79,3 +79,59 @@ describe("care packages", () => {
     }
   });
 });
+
+describe("care package presentation: original text kept, questions, sources and history", () => {
+  // Long imported narrative with line breaks, punctuation and non-ASCII characters, longer than the old 2,000 limit.
+  const LONG = Array.from({ length: 60 }, (_, i) => `Line ${i + 1}: Morning call 08:00–09:00 — "two carers" if the hoist is used; £18.40/hour; follow up with the council (ref 00${i}).`).join("\n") + "\n\nEnd of imported text.  ";
+
+  it("stores and returns long requirements exactly, and an unchanged edit keeps every character", async () => {
+    const su = await personWithPackage(3);
+    const start = addDays(londonDate(), 14);
+    const row = await createPackage(await coordinator(), su.id, { reference: "PKG-LONG", commissionedMinutesPerWeek: 1488, startDate: start, requirements: LONG });
+    expect(LONG.length).toBeGreaterThan(2000);
+    // Leading and trailing spaces are trimmed as before; everything inside, including line breaks, is kept.
+    expect(row.requirements).toBe(LONG.trim());
+    const again = await updatePackage(await coordinator(), row.id, { reference: "PKG-LONG", commissionedMinutesPerWeek: 1488, startDate: start, requirements: row.requirements! });
+    expect(again.requirements).toBe(LONG.trim());
+    expect(again.commissionedMinutesPerWeek).toBe(1488);
+    expect(fromDbDate(again.startDate)).toBe(start);
+    // History records the change without copying the text.
+    const h = await packageHistory(await coordinator(), su.id);
+    expect(h.map((x) => x.action)).toEqual(expect.arrayContaining(["care.package.created", "care.package.updated", "care.package.ended"]));
+    expect(JSON.stringify(h)).not.toContain("imported text");
+  });
+
+  it("lists package questions only, hides restricted ones without the sensitive permission, and reports sources honestly", async () => {
+    const su = await personWithPackage(4);
+    const author = await db.user.findUniqueOrThrow({ where: { email: "manager@care-solution.demo" } });
+    const base = { organisationId: orgId, serviceUserId: su.id, createdById: author.id };
+    await db.careIntakeReviewItem.createMany({ data: [
+      { ...base, category: "FUNDING", description: "The documents name Example Council; finance to link.", restricted: false },
+      { ...base, category: "PACKAGE_HOURS", description: "Visits add up to 1,500 minutes; the package authorises 1,488.", restricted: true },
+      { ...base, category: "MEDICATION", description: "Discharge letter medicines to reconcile.", restricted: true },
+    ] });
+    const mine = await packageReviewItems(await manager(), su.id);
+    expect(mine.items.map((i) => i.category).sort()).toEqual(["FUNDING", "PACKAGE_HOURS"]); // medication stays off the package
+    expect(mine.open).toBe(2);
+    // A coordinator (no serviceUser.sensitive) sees the funding question and only a count of the restricted one.
+    const coord = await packageReviewItems(await coordinator(), su.id);
+    expect(coord.items.map((i) => i.category)).toEqual(["FUNDING"]);
+    expect(coord.hidden).toBe(1);
+    // A package created on the form has no recorded source; nothing is guessed.
+    const src = await packageSources(await manager(), su.id);
+    const active = su.packages.find((p) => p.status === "ACTIVE")!;
+    expect(src.byPackage.get(active.id)).toBeUndefined();
+  });
+
+  it("never shows another organisation's package questions, sources or history", async () => {
+    const su = await personWithPackage(4);
+    const oak = await ctxFor("manager@oakridge.demo", OAKRIDGE);
+    await expect(packageReviewItems(oak, su.id)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(packageSources(oak, su.id)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(packageHistory(oak, su.id)).rejects.toBeInstanceOf(NotFoundError);
+    const p = su.packages.find((x) => x.status === "ACTIVE")!;
+    await expect(updatePackage(oak, p.id, { startDate: fromDbDate(p.startDate), requirements: "" })).rejects.toBeInstanceOf(NotFoundError);
+    expect((await db.carePackage.findUniqueOrThrow({ where: { id: p.id } })).requirements).toBe(p.requirements);
+  });
+});
+

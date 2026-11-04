@@ -220,7 +220,8 @@ export const CareDocumentExtractionSchema = z.object({
     level: z.enum(["LOW", "MEDIUM", "HIGH"]).nullable().describe("Only if the document itself states a level; otherwise null"),
     ...Sourced,
   })),
-  package: z.array(z.object({ field: z.enum(["funder", "reference", "startDate", "endDate", "hoursPerWeek", "requirements"]), value: z.string(), ...Sourced })),
+  package: z.array(z.object({ field: z.enum(["funder", "reference", "startDate", "endDate", "hoursPerWeek", "requirements"]), value: z.string(), ...Sourced }))
+    .describe("Commissioning facts only. requirements = how the commissioned care is staffed or delivered (e.g. two carers for hoist transfers). Never put medication, diagnoses, resuscitation decisions, clinical instructions, family requests, funding notes or open questions in requirements: use carePlan, medication, risks, contacts or flags instead"),
   visits: z.array(z.object({
     label: z.string().describe("e.g. Morning, Lunch, Tea, Evening, Shopping"),
     weekdays: z.array(z.number().int().min(1).max(7)), startTime: z.string().describe("HH:MM"), durationMinutes: z.number().int().min(5), carers: z.number().int().min(1),
