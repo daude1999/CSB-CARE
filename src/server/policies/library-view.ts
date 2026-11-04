@@ -69,6 +69,7 @@ const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(500).optional().catch(undefined),
   selected: id,
   pane: optional(PANE_KEYS),
+  insp: optional(["closed"] as const),
 });
 
 export type LibraryQuery = {
@@ -86,6 +87,8 @@ export type LibraryQuery = {
   page: number;
   selected?: string;
   pane: PaneKey;
+  /** "closed" once the person has closed the inspector, so no policy is opened for them until they choose one. */
+  insp?: "closed";
 };
 
 /**
@@ -94,7 +97,7 @@ export type LibraryQuery = {
  */
 export function parseLibraryQuery(sp: Record<string, string | string[] | undefined>, hasOrganisation = true): LibraryQuery {
   const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]![0] : (sp[k] as string | undefined));
-  const raw = Object.fromEntries(["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "sort", "layout", "page", "selected", "pane"].map((k) => [k, one(k) || undefined]));
+  const raw = Object.fromEntries(["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "sort", "layout", "page", "selected", "pane", "insp"].map((k) => [k, one(k) || undefined]));
   if (!raw.quick && one("overdue") === "1") raw.quick = "overdue";
   const p = QuerySchema.parse(raw);
   const category = p.category && /^[A-Z_]{2,40}$/.test(p.category) ? p.category : undefined;
@@ -116,6 +119,7 @@ export function parseLibraryQuery(sp: Record<string, string | string[] | undefin
     page: p.page ?? 1,
     selected: p.selected,
     pane: p.pane ?? "document",
+    insp: p.selected ? undefined : p.insp,
   };
 }
 
@@ -124,7 +128,7 @@ export function libraryHref(q: LibraryQuery, over: Partial<Record<keyof LibraryQ
   const merged: Record<string, string | number | undefined> = { ...q, ...over };
   const defaults: Record<string, string | number> = { tab: "policies", sort: "updated", layout: "list", page: 1, pane: "document" };
   const params = new URLSearchParams();
-  for (const k of ["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "sort", "layout", "page", "selected", "pane"]) {
+  for (const k of ["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "sort", "layout", "page", "selected", "pane", "insp"]) {
     const v = merged[k];
     if (v === undefined || v === "" || defaults[k] === v) continue;
     params.set(k, String(v));
@@ -314,6 +318,14 @@ export interface LibraryView {
   docTypes: { code: string; name: string }[];
   tabCounts: Partial<Record<LibraryTab, number>>;
   calendar: { month: string; rows: LibraryRow[] }[];
+  /** Policies on this tab owned by the signed-in person, for the "Owned by me" quick filter. */
+  mineCount: number;
+  /**
+   * The policy open in the inspector: the one chosen, or the first in the list unless the person closed the
+   * inspector. `position` places it in the filtered, sorted list for "Policy n of N" and Previous / Next.
+   */
+  selectedId?: string;
+  position?: { index: number; total: number; prev?: { id: string; page: number }; next?: { id: string; page: number } };
 }
 
 /** Everything the workspace shows for one address, scoped to the signed-in organisation. */
@@ -335,12 +347,16 @@ export async function libraryView(ctx: Ctx, query: LibraryQuery, now = new Date(
   const presentServices = new Set(all.flatMap((r) => r.serviceTypes));
   const presentTypes = new Set(all.map((r) => r.docType));
   const calendar = query.tab === "calendar" ? reviewCalendar(filtered) : [];
+  const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const selectedId = query.tab === "calendar" ? undefined : (query.selected ?? (query.insp === "closed" ? undefined : pageRows[0]?.id));
+  const at = selectedId ? sorted.findIndex((r) => r.id === selectedId) : -1;
+  const near = (i: number) => (i >= 0 && i < sorted.length ? { id: sorted[i]!.id, page: Math.floor(i / PAGE_SIZE) + 1 } : undefined);
   return {
     query: { ...query, page },
     total: sorted.length,
     tabTotal: all.length,
     pageCount,
-    rows: sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    rows: pageRows,
     tree: buildTree(forTree),
     treeTotal: forTree.length,
     quickCounts: Object.fromEntries(QUICK_KEYS.map((k) => [k, baseForQuick.filter((r) => matchesQuick(r, k, now)).length])) as Record<QuickKey, number>,
@@ -349,6 +365,9 @@ export async function libraryView(ctx: Ctx, query: LibraryQuery, now = new Date(
     docTypes: DOC_TYPES.filter(([code]) => presentTypes.has(code)).map(([code, name]) => ({ code, name })),
     tabCounts,
     calendar,
+    mineCount: all.filter((r) => r.ownerId === ctx.userId).length,
+    selectedId,
+    position: at >= 0 ? { index: at + 1, total: sorted.length, prev: near(at - 1), next: near(at + 1) } : undefined,
   };
 }
 

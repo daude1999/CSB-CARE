@@ -2,16 +2,18 @@ import type { ReactNode } from "react";
 import { FileText } from "@phosphor-icons/react/dist/ssr";
 import { STATUS_LABELS, type StatusKey } from "@/server/policies/library-view";
 
+// Pill colours follow the Policy & Compliance tones: green done, amber due, red overdue, blue in progress, purple
+// awaiting approval, grey draft or closed.
 const PILL: Record<StatusKey, string> = {
-  published: "bg-[#d6fcee] text-[#157a3e]",
-  not_approved: "bg-[#eef0f3] text-[#4a5564]",
-  draft: "bg-[#f1ecfb] text-[#5b3fa8]",
-  under_review: "bg-[#e4f0fe] text-[#0454d8]",
-  approved: "bg-[#e3f4f4] text-[#0e6b6b]",
-  review_due: "bg-[#fef1d7] text-[#b2510d]",
-  overdue: "bg-[#fde4e4] text-[#b42318]",
-  template: "bg-[#eef0f3] text-[#4a5564]",
-  archived: "bg-[#f1f1f1] text-[#5a5a5a]",
+  published: "bg-[#ecfdf3] text-[#067647]",
+  not_approved: "bg-[#f2f4f7] text-[#344054]",
+  draft: "bg-[#f2f4f7] text-[#344054]",
+  under_review: "bg-[#f4f3ff] text-[#5925dc]",
+  approved: "bg-[#eff8ff] text-[#175cd3]",
+  review_due: "bg-[#fffaeb] text-[#b54708]",
+  overdue: "bg-[#fef3f2] text-[#b42318]",
+  template: "bg-[#f2f4f7] text-[#344054]",
+  archived: "bg-[#f2f4f7] text-[#344054]",
 };
 
 const TIP: Record<StatusKey, string> = {
@@ -27,14 +29,14 @@ const TIP: Record<StatusKey, string> = {
 };
 
 export function StatusPill({ status, className = "" }: { status: StatusKey; className?: string }) {
-  return <span title={TIP[status]} className={`inline-flex h-[21px] items-center whitespace-nowrap rounded-[4px] px-[7px] text-[12px] font-medium ${PILL[status]} ${className}`}>{STATUS_LABELS[status]}</span>;
+  return <span title={TIP[status]} className={`inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-[9px] text-[12px] font-medium ${PILL[status]} ${className}`}>{STATUS_LABELS[status]}</span>;
 }
 
 /** The document tile: blue for documents in order, amber when a review is due or overdue. */
 export function DocTile({ status, size = 48 }: { status: StatusKey; size?: number }) {
   const warn = status === "review_due" || status === "overdue";
   return (
-    <span aria-hidden="true" style={{ width: size, height: size }} className={`flex shrink-0 items-center justify-center rounded-[8px] border ${warn ? "border-[#f6e3c6] bg-[#fdf3e4] text-[#933f16]" : "border-[#dfe8f0] bg-[#ebf2f7] text-[#154e96]"}`}>
+    <span aria-hidden="true" style={{ width: size, height: size }} className={`flex shrink-0 items-center justify-center rounded-[8px] border ${warn ? "border-[#fedf89] bg-[#fffaeb] text-[#b54708]" : "border-[#e4dcf8] bg-[#f8f5ff] text-[#5b2bb5]"}`}>
       <FileText size={Math.round(size * 0.5)} weight="regular" />
     </span>
   );

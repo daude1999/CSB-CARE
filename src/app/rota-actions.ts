@@ -3,12 +3,13 @@
 import { MAX_CARERS, parsePlace, type PlaceKey } from "@/lib/carer-places";
 import { setMedicationLead } from "@/server/care/medication-lead";
 import { ValidationError } from "@/lib/errors";
-import { isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
+import { addDays, isIsoDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { handle, handleData, safeBack, str, withParam } from "./action-kit";
 import { assignCarer, unassignCarer } from "@/server/rota/assign";
 import { swapCarers } from "@/server/rota/swap";
 import { confirmBuild, deleteBuild, publishBuild } from "@/server/rota/build";
 import { confirmRollForward } from "@/server/rota/roll-forward";
+import { rollHref } from "@/lib/roll-forward-href";
 import { applyPlan, decideChanges, discardPlan, generatePlan, publishPlanVisits } from "@/server/rota/optimise";
 import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
@@ -353,9 +354,15 @@ export async function confirmBuildAction(fd: FormData) {
 
 export async function rollForwardAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const r = await confirmRollForward(ctx, { sourceWeek: str(fd, "sourceWeek"), targetWeek: str(fd, "targetWeek"), weeks: int(fd, "weeks", "Weeks"), areaIds: ids(fd, "areaIds") });
+    // Saving is tied to the preview on screen: its digest is checked against the plan worked out again at save time.
+    const fingerprint = str(fd, "fingerprint");
+    if (!/^[0-9a-f]{32}$/.test(fingerprint)) throw new ValidationError("Press Preview first, then save the rota you have checked.");
+    const r = await confirmRollForward(ctx, { sourceWeek: str(fd, "sourceWeek"), targetWeek: str(fd, "targetWeek"), weeks: int(fd, "weeks", "Weeks"), areaIds: ids(fd, "areaIds"), fingerprint });
     const uncovered = r.builds.reduce((n, b) => n + b.uncovered, 0);
-    return { to: "/rota/build", ok: `Rolled forward into ${r.builds.length} week${r.builds.length === 1 ? "" : "s"}: ${r.plan.visits.length} visits saved as drafts${uncovered ? `, ${uncovered} carer slots need covering` : ""}. Check them, then publish each week.` };
+    // Straight on to the next week: the week just saved becomes the one to copy from, and the week after it the target.
+    const last = r.plan.targetWeeks[r.plan.targetWeeks.length - 1]!;
+    const next = `${rollHref({ from: last, to: addDays(last, 7), weeks: 1, areaIds: r.plan.areaIds.length && ids(fd, "areaIds").length ? r.plan.areaIds : [] })}&saved=${r.plan.targetWeeks[0]}`;
+    return { to: next, ok: `Rolled forward into ${r.builds.length} week${r.builds.length === 1 ? "" : "s"}: ${r.plan.visits.length} visits saved as drafts${uncovered ? `, ${uncovered} carer slots need covering` : ""}. Check them, then publish each week.` };
   }, "Rota rolled forward as drafts. Check it, then publish.");
 }
 

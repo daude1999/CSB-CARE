@@ -1,11 +1,14 @@
 import Link from "@/components/link";
-import { CompliancePageHeader, ModuleStat, ModuleStatRow } from "@/components/module-header";
+import { CompliancePageHeader } from "@/components/module-header";
+import { PcBadge, PcFoot, PcSearch, PcTableWrap, type PcTone } from "@/components/compliance-ui";
+import { PcSelect } from "@/components/pc-select";
+import { Menu } from "@/components/library/menu";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import type { ChangeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
-import { Empty, Flash, Pagination, SegmentNav, SimulatedBadge, StatusBadge } from "@/components/ui";
-import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
+import { Flash } from "@/components/ui";
+import { DotsThreeVertical } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -42,99 +45,99 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
     db.regulatoryChange.count({ where }),
     db.regulatorySource.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
-  const tabs = [
-    ["open", "Open"],
-    ["triage", "Awaiting triage"],
-    ["assessment", "Impact assessment"],
-    ["closed", "Closed or not applicable"],
-    ["all", "All"],
-  ] as const;
   const counts = Object.fromEntries(await Promise.all(Object.entries(GROUPS).map(async ([k, statuses]) => [k, await db.regulatoryChange.count({ where: { status: { in: statuses } } })] as const)));
+  const reviewers = await db.user.findMany({ where: { id: { in: [...new Set(items.map((c) => c.reviewerId).filter((x): x is string => Boolean(x)))] } }, select: { id: true, name: true } });
+  const reviewerName = new Map(reviewers.map((u) => [u.id, u.name]));
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const params = { group, q: sp.q, source: sp.source, urgency: sp.urgency };
+  const pageHref = (n: number) => `/changes?${new URLSearchParams(Object.entries({ ...params, page: String(n) }).filter(([, v]) => v) as [string, string][])}`;
   return (
     <>
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="regulatory" active="updates" />}
-        eyebrow="Monitoring · legislation and guidance"
         title="Regulatory Monitoring"
-        subtitle="Changes found on the sources CSB monitors. Each one moves through detection, triage, applicability and a decision, and every step is recorded."
+        subtitle="Changes found on the sources CSB monitors, the requirements they create and the health of each source. Every step is recorded."
       />
       <Flash searchParams={sp} />
-      <ModuleStatRow>
-        <ModuleStat label="Open Updates" value={counts.open} hint="Still being worked through" tone="amber" href="/changes?group=open" />
-        <ModuleStat label="Awaiting Triage" value={counts.triage} hint="Not yet classified" tone="rose" href="/changes?group=triage" />
-        <ModuleStat label="Impact Assessment" value={counts.assessment} hint="Checking our policies" tone="navy" href="/changes?group=assessment" />
-        <ModuleStat label="Closed" value={counts.closed} hint="Decided and recorded" tone="green" href="/changes?group=closed" />
-      </ModuleStatRow>
-      <SegmentNav alert label="Update stage" items={tabs.map(([k, label]) => ({ href: `/changes?group=${k}`, label, active: group === k, count: k === "all" ? undefined : counts[k] }))} />
-      <section aria-label="Regulatory updates" className="panel rounded-tl-none">
-        <form className="mb-3 flex flex-wrap items-center gap-2" role="search">
-          <input type="hidden" name="group" value={group} />
-          <label className="flex h-[36px] min-w-0 basis-full items-center gap-2 rounded-[4px] border border-slate-300 bg-white px-2.5 sm:max-w-[320px] sm:flex-1 sm:basis-auto">
-            <MagnifyingGlass size={18} className="shrink-0 text-slate-600" aria-hidden="true" />
-            <input className="h-full min-w-0 flex-1 bg-transparent text-[14px] placeholder:text-slate-500 focus:outline-none" name="q" defaultValue={sp.q} placeholder="Search updates" aria-label="Search updates" />
-          </label>
-          <select className="input h-[36px] w-auto max-w-[15rem] py-1 text-[14px]" name="source" defaultValue={sp.source ?? ""} aria-label="Source">
-            <option value="">All sources</option>
-            {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <select className="input h-[36px] w-auto py-1 text-[14px]" name="urgency" defaultValue={sp.urgency ?? ""} aria-label="Urgency">
-            <option value="">Any urgency</option>
-            {["LOW", "MEDIUM", "HIGH", "URGENT"].map((u) => <option key={u} value={u}>{u.charAt(0) + u.slice(1).toLowerCase()}</option>)}
-          </select>
-          <button className="btn-secondary h-[36px] py-0" type="submit">Apply</button>
+      <section aria-label="Regulatory updates" className="pc-panel">
+        <form className="pc-toolbar" role="search" aria-label="Filter updates">
+          <PcSearch defaultValue={sp.q} placeholder="Search updates" />
+          <PcSelect name="source" label="Source" defaultValue={sp.source ?? ""} options={[{ value: "", label: "All" }, ...sources.map((s) => ({ value: s.id, label: s.name }))]} />
+          <PcSelect name="urgency" label="Impact" defaultValue={sp.urgency ?? ""} options={[{ value: "", label: "Any" }, ...["LOW", "MEDIUM", "HIGH", "URGENT"].map((u) => ({ value: u, label: u.charAt(0) + u.slice(1).toLowerCase() }))]} />
+          <PcSelect name="group" label="Status" defaultValue={group} options={[["open", "Open"], ["triage", "Awaiting triage"], ["assessment", "Impact assessment"], ["closed", "Closed or not applicable"], ["all", "All"]].map(([value, label]) => ({ value: value!, label: `${label}${value !== "all" ? ` (${counts[value!]})` : ""}` }))} />
+          <button className="pc-btn-secondary sr-only focus:not-sr-only" type="submit">Apply</button>
         </form>
-      {items.length ? (
-        <>
-        <div className="hidden gap-x-6 px-4 pb-1 text-[13px] text-slate-700 md:grid md:grid-cols-[6.5rem_minmax(0,1fr)_15rem]"><span>Detected</span><span>Update</span><span>Progress</span></div>
-        <ol className="rows" data-testid="changes-table">
-          {items.map((c) => {
-            const flagged = new Set(c.candidates.map((x) => x.policyId)).size;
-            const stage = STAGE[c.status] ?? 0;
-            return (
-              <li key={c.id} className="grid gap-x-6 gap-y-3 py-3.5 md:grid-cols-[6.5rem_minmax(0,1fr)_15rem]">
-                <time dateTime={c.detectedAt.toISOString()} className="text-[14px] leading-5 text-slate-800">
-                  {c.detectedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" })}
-                  <span className="block text-[12px] text-slate-500">{c.detectedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span>
-                </time>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link href={`/changes/${c.id}`} className="row-title text-[15.5px] leading-snug">{c.isSimulated ? c.title.replace(/^SIMULATED:\s*/, "") : c.title}</Link>
-                    <SimulatedBadge show={c.isSimulated} />
-                  </div>
-                  <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-700">{c.summary.slice(0, 220)}{c.summary.length > 220 ? "…" : ""}</p>
-                  <p className="mt-1.5 text-[12.5px] text-slate-600">
-                    {c.source.name}{c.officialDate ? ` · source dated ${c.officialDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : ""} · <span className={c.classification === "POTENTIALLY_SUBSTANTIVE" ? "text-[#a3242c]" : ""}>{c.classification.replace(/_/g, " ").toLowerCase()}</span> (by {c.classificationBasis})
-                  </p>
-                </div>
-                <div className="space-y-2 text-[13px]">
-                  <div>
-                    <div className="mb-1.5 flex items-baseline justify-between"><span className="text-slate-600">Stage</span><span className="font-medium text-navy-900">{STAGES[stage]}</span></div>
-                    <div className="grid grid-cols-4 gap-1" aria-label={`Stage ${stage + 1} of 4: ${STAGES[stage]}`} role="img">
-                      {STAGES.map((st, i) => <span key={st} className={`h-[6px] rounded-full ${i < stage ? "bg-navy-900" : i === stage ? (CLOSED.has(c.status) ? "bg-slate-400" : "bg-[#3289f8]") : "bg-slate-200"}`} />)}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between"><span className="text-slate-600">Urgency</span><StatusBadge status={c.suggestedUrgency} /></div>
-                  <div className="flex items-baseline justify-between"><span className="text-slate-600">{ctx.organisationId ? "Our policies flagged" : "Policies flagged"}</span><span className="text-navy-900">{flagged || "None"}</span></div>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-        </>
-      ) : (
-        <Empty>No updates match. Detected changes appear here once a monitored source has been checked at least twice and its content has changed.</Empty>
-      )}
-      <Pagination page={page} pageSize={pageSize} total={total} base="/changes" params={{ group, q: sp.q, source: sp.source, urgency: sp.urgency }} />
+        {items.length ? (
+          <PcTableWrap>
+            <table className="pc-table" data-testid="changes-table">
+              <thead><tr><th>Change</th><th>Source</th><th>Date</th><th>Impact</th><th>Review status</th><th>Responsible</th><th className="w-[52px]"><span className="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                {items.map((c) => {
+                  const flagged = new Set(c.candidates.map((x) => x.policyId)).size;
+                  const title = c.isSimulated ? c.title.replace(/^SIMULATED:\s*/, "") : c.title;
+                  const review = reviewLabel(c.status);
+                  return (
+                    <tr key={c.id}>
+                      <td className="max-w-[420px]">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <Link href={`/changes/${c.id}`} className="pc-strong">{title}</Link>
+                          {c.isSimulated ? <PcBadge tone="purple" title="Simulated demonstration data. Not a real regulatory update.">Simulated</PcBadge> : null}
+                        </span>
+                        <span className="pc-sub">{flagged ? `${flagged} of ${ctx.organisationId ? "our" : "the"} policies flagged` : "No policies flagged"} · {c.classification.replace(/_/g, " ").toLowerCase()} (by {c.classificationBasis})</span>
+                      </td>
+                      <td className="max-w-[220px] truncate" title={c.source.name}>{c.source.name}</td>
+                      <td className="whitespace-nowrap">{c.officialDate ? <>Published {fmtShortDate(c.officialDate)}</> : <>Detected {fmtShortDate(c.detectedAt)}</>}</td>
+                      <td><PcBadge tone={IMPACT_TONE[c.suggestedUrgency] ?? "grey"}>{c.suggestedUrgency.charAt(0) + c.suggestedUrgency.slice(1).toLowerCase()}</PcBadge></td>
+                      <td><PcBadge tone={review.tone}>{review.label}</PcBadge></td>
+                      <td className="whitespace-nowrap">{c.reviewerId ? (reviewerName.get(c.reviewerId) ?? "Not recorded") : <span className="text-[#667085]">Not assigned</span>}</td>
+                      <td className="text-right">
+                        <Menu label={`Actions for ${title}`} trigger={<DotsThreeVertical size={18} weight="bold" />}>
+                          <Link href={`/changes/${c.id}`} className="pl-menu-item">Open and assess</Link>
+                          <a href={c.canonicalUrl} target="_blank" rel="noreferrer noopener" className="pl-menu-item">Open the source page</a>
+                        </Menu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </PcTableWrap>
+        ) : (
+          <p className="pc-empty">No updates match. Detected changes appear here once a monitored source has been checked at least twice and its content has changed.</p>
+        )}
+        <PcFoot shown={items.length} total={total} page={page} pages={pages} href={pageHref} />
       </section>
     </>
   );
 }
 
-const STAGES = ["Detected", "Triage", "Applicability", "Decision"];
-const STAGE: Partial<Record<ChangeStatus, number>> = {
-  NEWLY_DETECTED: 0, AWAITING_CLASSIFICATION: 0,
-  POTENTIALLY_SUBSTANTIVE: 1, UNDER_REVIEW: 1, EDITORIAL_OR_IMMATERIAL: 1,
-  CONFIRMED_RELEVANT: 2, CONFIRMED_NOT_APPLICABLE: 2,
-  IMPACT_ASSESSMENT_COMPLETED: 3, POLICY_REVISION_REQUIRED: 3, NO_POLICY_REVISION_REQUIRED: 3, CLOSED: 3,
-};
-const CLOSED = new Set<ChangeStatus>(GROUPS.closed);
+const IMPACT_TONE: Record<string, PcTone> = { LOW: "grey", MEDIUM: "amber", HIGH: "red", URGENT: "red" };
+
+/** Where an update is in its review, in plain words, with the badge colour for it. */
+function reviewLabel(status: ChangeStatus): { label: string; tone: PcTone } {
+  switch (status) {
+    case "NEWLY_DETECTED":
+    case "AWAITING_CLASSIFICATION":
+    case "POTENTIALLY_SUBSTANTIVE":
+      return { label: "Awaiting triage", tone: "red" };
+    case "UNDER_REVIEW":
+      return { label: "Under review", tone: "blue" };
+    case "CONFIRMED_RELEVANT":
+      return { label: "Impact assessment", tone: "amber" };
+    case "IMPACT_ASSESSMENT_COMPLETED":
+    case "POLICY_REVISION_REQUIRED":
+      return { label: "Decision needed", tone: "blue" };
+    case "NO_POLICY_REVISION_REQUIRED":
+      return { label: "Closed · no change needed", tone: "grey" };
+    case "CONFIRMED_NOT_APPLICABLE":
+      return { label: "Closed · not applicable", tone: "grey" };
+    case "EDITORIAL_OR_IMMATERIAL":
+      return { label: "Closed · editorial", tone: "grey" };
+    default:
+      return { label: "Closed", tone: "grey" };
+  }
+}
+
+function fmtShortDate(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" });
+}

@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
-import { carerPlaces, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
+import { carerPlaces, carersNeededLabel, placeData, placeKey, type PlaceKey } from "@/lib/carer-places";
 import { db } from "@/lib/db";
-import { ValidationError } from "@/lib/errors";
-import { addDays, cycleWeekOf, dbDate, fromDbDate, isoWeekday, londonDate, londonMinute, londonToUtc, mondayOf } from "@/lib/london";
+import { ConflictError, ValidationError } from "@/lib/errors";
+import { addDays, cycleWeekOf, dbDate, fromDbDate, isoWeekday, londonDate, londonMinute, londonTime, londonToUtc, mondayOf } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { priceVisit, type Band } from "@/server/finance/pricing";
@@ -60,8 +60,29 @@ export interface RolledVisit {
 export interface RollSkipped {
   sourceReference: string;
   serviceUserName: string;
+  callType: string;
   date: string;
+  start: Date;
+  end: Date;
+  /** The carers on the visit copied from, for the side-by-side view. */
+  fromNames: string[];
   reason: string;
+}
+/** A visit already in the destination weeks (in the chosen areas), shown alongside the new ones so the whole rota is visible. */
+export interface DestinationVisit {
+  visitId: string;
+  reference: string;
+  serviceUserName: string;
+  callType: string;
+  date: string;
+  start: Date;
+  end: Date;
+  carersRequired: number;
+  status: string;
+  published: boolean;
+  carers: { slot: PlaceKey; name: string }[];
+  /** Carers on the source-week visit it corresponds to, when there is one. */
+  fromNames: string[] | null;
 }
 export interface RollPlan {
   sourceWeek: string;
@@ -72,12 +93,21 @@ export interface RollPlan {
   skipped: RollSkipped[];
   /** Visits already in the destination for the same call; left as they are. */
   existing: number;
+  /** Every visit already in the destination weeks in the chosen areas (cancelled ones left out), untouched by the roll forward. */
+  destination: DestinationVisit[];
   counts: { create: number; kept: number; review: number; uncovered: number; doubleUpsShort: number };
   forecastMinutes: number;
   estimatedPayPence: number;
   slotsWithoutRate: number;
   /** Why nothing can be rolled forward, when visits is empty. */
   blockers: string[];
+  /** When this plan was worked out. */
+  computedAt: string;
+  /**
+   * A digest of what would be saved (choices, every proposed visit and carer, skips and matches). Saving is refused when
+   * the plan worked out at save time no longer has the digest of the preview the office reviewed.
+   */
+  fingerprint: string;
 }
 
 const nameOf = (su: { firstName: string; lastName: string; preferredName: string | null }) => `${su.preferredName || su.firstName} ${su.lastName}`;
@@ -124,8 +154,28 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     orderBy: [{ scheduledStart: "asc" }, { reference: "asc" }],
   });
 
-  const [existing, absences, allowed, payRates, bankHolidays] = await Promise.all([
+  const [existing, inPlace, absences, allowed, payRates, bankHolidays] = await Promise.all([
     tx.visit.findMany({ where: { organisationId: org, date: { gte: dbDate(rangeStart), lte: dbDate(rangeEnd) } }, select: { templateId: true, date: true, serviceUserId: true, scheduledStart: true } }),
+    // What the destination already holds, in the same areas the office can see, so the preview shows the whole rota.
+    tx.visit.findMany({
+      where: { AND: [visitWhere(scope), input.areaIds.length ? { areaId: { in: areaIds } } : {}], date: { gte: dbDate(rangeStart), lte: dbDate(rangeEnd) }, status: { not: "CANCELLED" } },
+      select: {
+        id: true,
+        reference: true,
+        templateId: true,
+        serviceUserId: true,
+        date: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+        carersRequired: true,
+        status: true,
+        publishedAt: true,
+        serviceUser: { select: { firstName: true, lastName: true, preferredName: true } },
+        callType: { select: { name: true } },
+        assignments: { where: { removedAt: null }, select: { slot: true, position: true, staff: { select: { displayName: true } } }, orderBy: [{ slot: "asc" }, { position: "asc" }] },
+      },
+      orderBy: [{ scheduledStart: "asc" }, { reference: "asc" }],
+    }),
     tx.serviceUserAbsence.findMany({ where: { organisationId: org, cancelledAt: null, serviceUserId: { in: [...new Set(source.map((v) => v.serviceUserId))] }, startsAt: { lt: to }, OR: [{ endsAt: null }, { endsAt: { gt: from } }] } }),
     allowedStaff(tx, scope),
     tx.staffPayRate.findMany({ where: { organisationId: org, effectiveFrom: { lte: dbDate(rangeEnd) }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: dbDate(rangeStart) } }] }, include: { rateCard: { include: { bands: true } } } }),
@@ -145,6 +195,7 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
   const visits: RolledVisit[] = [];
   const skipped: RollSkipped[] = [];
   let existingCount = 0;
+  const matchedFrom = new Map<string, string[]>();
   for (const [k, week] of targetWeeks.entries()) {
     for (const v of source) {
       const sourceDate = fromDbDate(v.date);
@@ -153,9 +204,14 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
       const start = londonToUtc(date, londonMinute(v.scheduledStart));
       const end = new Date(start.getTime() + durationMin * 60000);
       const suName = nameOf(v.serviceUser);
-      const skip = (reason: string) => skipped.push({ sourceReference: v.reference, serviceUserName: suName, date, reason });
-      if ((v.templateId && byTemplate.has(`${v.templateId}|${date}`)) || bySuTime.has(`${v.serviceUserId}|${start.getTime()}`)) {
+      const fromNames = v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staff.displayName);
+      const skip = (reason: string) => skipped.push({ sourceReference: v.reference, serviceUserName: suName, callType: v.callType.name, date, start, end, fromNames, reason });
+      const tplKey = v.templateId ? `${v.templateId}|${date}` : null;
+      const suKey = `${v.serviceUserId}|${start.getTime()}`;
+      if ((tplKey && byTemplate.has(tplKey)) || bySuTime.has(suKey)) {
         existingCount++;
+        if (tplKey) matchedFrom.set(tplKey, fromNames);
+        matchedFrom.set(suKey, fromNames);
         continue;
       }
       if (start <= now) {
@@ -215,6 +271,36 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
   const review = core.filter((s) => s.state === "REVIEW").length;
   const uncovered = core.filter((s) => s.state === "UNCOVERED").length;
   const doubleUpsShort = visits.filter((v) => v.carersRequired > 1 && v.slots.filter((s) => s.slot !== "SHADOW" && s.staffId).length < v.carersRequired).length;
+  const destination: DestinationVisit[] = inPlace.map((e) => {
+    const date = fromDbDate(e.date);
+    return {
+      visitId: e.id,
+      reference: e.reference,
+      serviceUserName: nameOf(e.serviceUser),
+      callType: e.callType.name,
+      date,
+      start: e.scheduledStart,
+      end: e.scheduledEnd,
+      carersRequired: e.carersRequired,
+      status: e.status,
+      published: !!e.publishedAt,
+      carers: e.assignments.map((a) => ({ slot: placeKey(a), name: a.staff.displayName })),
+      fromNames: (e.templateId ? matchedFrom.get(`${e.templateId}|${date}`) : undefined) ?? matchedFrom.get(`${e.serviceUserId}|${e.scheduledStart.getTime()}`) ?? null,
+    };
+  });
+  const fingerprint = createHash("sha256")
+    .update(
+      JSON.stringify([
+        input.sourceWeek,
+        targetWeeks,
+        [...areaIds].sort(),
+        existingCount,
+        visits.map((v) => [v.sourceVisitId, v.date, v.start.getTime(), v.durationMin, v.carersRequired, v.slots.map((s) => [s.slot, s.staffId, s.state])]),
+        skipped.map((s) => [s.sourceReference, s.date, s.reason]),
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 32);
   const blockers: string[] = [];
   if (!visits.length) {
     if (scope.areaIds && !scope.areaIds.length) blockers.push("Your account is not linked to any area, so there is nothing you can roll forward.");
@@ -235,7 +321,66 @@ async function plan(tx: Tx, scope: Scope, input: { sourceWeek: string; targetWee
     estimatedPayPence: visits.reduce((p, v) => p + (v.payPence ?? 0), 0),
     slotsWithoutRate: visits.reduce((n, v) => n + (v.payPence === null ? v.slots.filter((s) => s.staffId && s.slot !== "SHADOW").length : 0), 0),
     blockers,
+    destination,
+    computedAt: now.toISOString(),
+    fingerprint,
   };
+}
+
+/** One line of the destination rota as the preview shows it: a visit already there, a new one, or one that is skipped. */
+export type RollRowKind = "EXISTING" | "NEW" | "SKIPPED";
+export type RollCarerState = "KEPT" | "REVIEW" | "UNCOVERED" | "BOOKED";
+export interface RollRow {
+  key: string;
+  kind: RollRowKind;
+  weekStart: string;
+  date: string;
+  startMs: number;
+  time: string;
+  serviceUserName: string;
+  detail: string;
+  /** Carers on the source-week visit ("" when there is none to compare with). */
+  previous: string;
+  carers: { key: string; name: string; state: RollCarerState; reason?: string; shadow: boolean }[];
+  note?: string;
+  /** A visit already in place whose carers are not the ones on the source-week visit (changed by hand, or covered). */
+  differs?: boolean;
+}
+
+const detailOf = (callType: string, carersRequired: number) => `${callType}${carersRequired > 1 ? ` · ${carersNeededLabel(carersRequired).toLowerCase()}` : ""}`;
+
+/**
+ * The whole destination rota for the preview, in time order: what is already there (left exactly as it is), what the
+ * roll forward would add, and what it would skip and why. Pure: it only reshapes a plan for display.
+ */
+export function rollForwardRows(p: RollPlan): RollRow[] {
+  const rows: RollRow[] = [];
+  for (const e of p.destination) {
+    const carers: RollRow["carers"] = e.carers.map((c) => ({ key: c.slot, name: c.name, state: "BOOKED" as const, shadow: c.slot === "SHADOW" }));
+    const core = e.carers.filter((c) => c.slot !== "SHADOW").length;
+    for (let i = core; i < e.carersRequired; i++) carers.push({ key: `open-${i}`, name: "No carer booked", state: "UNCOVERED", shadow: false });
+    const note = [e.published ? "Published" : "Draft", e.status !== "SCHEDULED" ? e.status.toLowerCase().replace(/_/g, " ") : null].filter(Boolean).join(" · ");
+    rows.push({ key: `e-${e.visitId}`, kind: "EXISTING", weekStart: mondayOf(e.date), date: e.date, startMs: e.start.getTime(), time: `${londonTime(e.start)}–${londonTime(e.end)}`, serviceUserName: e.serviceUserName, detail: detailOf(e.callType, e.carersRequired), previous: e.fromNames ? e.fromNames.join(", ") || "No carer" : "", carers, note: `${e.reference} · ${note}`, differs: e.fromNames !== null && [...e.fromNames].sort().join("|") !== e.carers.filter((c) => c.slot !== "SHADOW").map((c) => c.name).sort().join("|") });
+  }
+  for (const v of p.visits) {
+    rows.push({
+      key: `n-${v.sourceVisitId}-${v.date}`,
+      kind: "NEW",
+      weekStart: v.weekStart,
+      date: v.date,
+      startMs: v.start.getTime(),
+      time: `${londonTime(v.start)}–${londonTime(v.end)}`,
+      serviceUserName: v.serviceUserName,
+      detail: detailOf(v.callType, v.carersRequired),
+      previous: v.slots.filter((x) => x.slot !== "SHADOW").map((x) => x.fromName ?? "empty slot").join(", "),
+      carers: v.slots.map((x) => ({ key: x.slot, name: x.staffName ?? "Unassigned", state: x.state, reason: x.reason, shadow: x.slot === "SHADOW" })),
+      note: `Copied from ${v.sourceReference}`,
+    });
+  }
+  for (const x of p.skipped) {
+    rows.push({ key: `s-${x.sourceReference}-${x.date}`, kind: "SKIPPED", weekStart: mondayOf(x.date), date: x.date, startMs: x.start.getTime(), time: `${londonTime(x.start)}–${londonTime(x.end)}`, serviceUserName: x.serviceUserName, detail: x.callType, previous: x.fromNames.join(", ") || "No carer", carers: [], note: x.reason });
+  }
+  return rows.sort((a, b) => a.startMs - b.startMs || a.serviceUserName.localeCompare(b.serviceUserName) || a.kind.localeCompare(b.kind));
 }
 
 export async function previewRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[] }) {
@@ -248,7 +393,7 @@ export async function previewRollForward(ctx: Ctx, input: { sourceWeek: string; 
  * Saves a roll forward as one unpublished build per destination week, in a single transaction. The plan is worked out
  * again inside the transaction under per-week locks, so what is saved is what the rules allow at that moment.
  */
-export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[] }) {
+export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; targetWeek: string; weeks: number; areaIds?: string[]; fingerprint?: string }) {
   const scope = await rotaScope(ctx, "rota.build");
   const p = parseRollInput(input);
   return db.$transaction(
@@ -258,6 +403,11 @@ export async function confirmRollForward(ctx: Ctx, input: { sourceWeek: string; 
       for (const w of weeks) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${w}`}))`;
       const pl = await plan(tx, scope, { ...p, areaIds: input.areaIds ?? [] });
       if (!pl.visits.length) throw new ValidationError(pl.blockers[0] ?? "There is nothing to roll forward.");
+      // Only the preview the office reviewed is saved: if anything has changed since (a visit added, a carer booked
+      // elsewhere, a week built), the plan's digest differs and nothing is written.
+      if (input.fingerprint !== undefined && input.fingerprint !== pl.fingerprint) {
+        throw new ConflictError("The rota has changed since this preview was worked out, so nothing was saved. Press Preview to see the latest plan, then save again.");
+      }
       const staffIds = [...new Set(pl.visits.flatMap((v) => v.slots.map((s) => s.staffId)).filter((x): x is string => !!x))].sort();
       if (staffIds.length) await tx.$queryRaw`SELECT id FROM "StaffMember" WHERE id = ANY(${staffIds}) ORDER BY id FOR UPDATE`;
       const settings = await rotaSettings(tx, scope.organisationId);

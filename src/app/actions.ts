@@ -21,6 +21,7 @@ import { requestManualCheck } from "@/server/sources/engine";
 import { cancelJob, retryJob } from "@/server/jobs/queue";
 import { addFinding, answerQuestion, completeAudit, createAction, startAudit, transitionAction } from "@/server/compliance/audits";
 import { uploadEvidence } from "@/server/compliance/evidence";
+import { importPolicies } from "@/server/policies/import";
 import { audit } from "@/server/audit-log";
 import type { ChangeStatus, Urgency } from "@prisma/client";
 import { askAssistant, type AssistantResult } from "@/server/search/assistant";
@@ -302,6 +303,30 @@ export async function uploadEvidenceAction(fd: FormData) {
       await uploadEvidence(ctx, { name: file.name, type: file.type, bytes: Buffer.from(await file.arrayBuffer()) }, { description: str(fd, "description") || undefined });
     },
     "Evidence uploaded",
+  );
+}
+
+/**
+ * Upload policy: each .docx or .pdf becomes a Draft v1 policy with its original kept as private evidence. One upload
+ * opens its draft so the extracted text can be checked; several return to the library with what came in.
+ */
+export async function uploadPoliciesAction(fd: FormData) {
+  await handle(
+    fd,
+    async (ctx) => {
+      const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+      const r = await importPolicies(
+        ctx,
+        await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) }))),
+        { categoryCode: str(fd, "category"), ownerId: str(fd, "ownerId"), duplicateCheck: fd.get("duplicateCheck") === "on", extractText: fd.get("extractText") === "on" },
+      );
+      const skipped = r.skipped.length ? ` Not uploaded: ${r.skipped.map((s) => `${s.name} (${s.reason})`).join("; ")}.` : "";
+      if (!r.created.length) throw new ValidationError(`No policy was uploaded.${skipped}`);
+      const made = r.created.length === 1 ? `${r.created[0]!.ref} ${r.created[0]!.title} uploaded as Draft v1` : `${r.created.length} policies uploaded as Draft v1 (${r.created.map((c) => c.ref).join(", ")})`;
+      const check = r.created.some((c) => c.extracted) ? " Check the extracted text before sending it for review." : " Add or paste the policy text before sending it for review.";
+      return { to: r.created.length === 1 ? `/revisions/${r.created[0]!.revisionId}` : "/policies?sort=updated", ok: `${made}. Nothing has been approved or published.${check}${skipped}` };
+    },
+    "Uploaded",
   );
 }
 

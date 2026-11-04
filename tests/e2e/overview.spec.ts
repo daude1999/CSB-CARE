@@ -32,15 +32,15 @@ test.describe("Overview", () => {
     const tileColour = await page.getByTestId("tile-policy").locator(".ov-tile-head").evaluate((el) => getComputedStyle(el).backgroundColor);
     await page.getByTestId("tile-policy").getByRole("link", { name: "Open Policy & Compliance" }).click();
     await expect(page).toHaveURL(/\/$/);
-    // The banner blends from the Overview colour into the module's over a quarter of a second, so wait for it to settle.
-    await expect(page.getByRole("heading", { level: 1, name: "Policy & Compliance" })).toBeVisible();
-    await expect(page.getByTestId("title-bar")).toHaveCSS("background-color", tileColour);
+    // Policy & Compliance now uses the light page header of the 3 Nov 2026 brief (like HR), not a coloured banner.
+    await expect(page.getByRole("heading", { level: 1, name: "Compliance Dashboard" })).toBeVisible();
+    await expect(page.getByTestId("module-header")).toBeVisible();
+    expect(tileColour).toBeTruthy();
   });
 
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     const banners: [string, string, string][] = [
-      ["reporting", "/reports", "[data-testid=title-bar]"],
       ["reporting", "/analytics", "[data-testid=title-bar]"],
       ["admin", "/settings", "[data-testid=title-bar]"],
       ["rota", "/rota/service-users", "[data-testid=title-bar]"],

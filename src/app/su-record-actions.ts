@@ -1,9 +1,13 @@
 "use server";
 
+import { after } from "next/server";
 import { ValidationError } from "@/lib/errors";
 import { handle, str } from "./action-kit";
+import { acceptRecommendation, autoRecommend, createTaskFromRecommendation, dismissRecommendation, generateRecommendations, setBodyMapAiEnabled, startRecommendationReview } from "@/server/care/body-map-ai";
+import { closeBodyMapTask, createBodyMapTask } from "@/server/care/body-map-tasks";
+import { endApplicationSite, recordApplicationSite } from "@/server/care/medication-sites";
 import { replaceDocument, setDocumentArchived, updateDocumentDetails, uploadDocument, type DocumentDetails, type UploadedFile } from "@/server/care/su-documents";
-import { addObservationPhoto, decideIncident, recordObservation, reviewObservation, type IncidentDecision } from "@/server/care/body-map";
+import { MAX_PHOTOS_PER_SAVE, addObservationNote, addObservationPhoto, assignObservationReviewer, decideIncident, recordObservation, reviewObservation, type IncidentDecision } from "@/server/care/body-map";
 
 /** Server actions for a service user's Council Documents, Other Documents and Digital Body Map. */
 
@@ -71,13 +75,87 @@ export async function archiveSuDocumentAction(fd: FormData) {
   return handle(fd, (ctx) => setDocumentArchived(ctx, str(fd, "documentId"), whole(fd, "lockVersion"), archive, str(fd, "reason")), archive ? "Moved to historical documents" : "Document restored");
 }
 
+async function filesFrom(fd: FormData, key: string, max: number): Promise<UploadedFile[]> {
+  const files = fd.getAll(key).filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > max) throw new ValidationError(`Add up to ${max} photographs at a time`);
+  return Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) })));
+}
+
 export async function recordBodyMapAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const photo = await fileFrom(fd, "photo", false);
+    const photos = await filesFrom(fd, "photo", MAX_PHOTOS_PER_SAVE);
     const suId = str(fd, "serviceUserId");
-    const o = await recordObservation(ctx, suId, Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")), photo ? { ...photo, caption: str(fd, "caption") } : undefined);
-    return { to: `/rota/service-users/${encodeURIComponent(suId)}?tab=bodymap&obs=${o.id}`, ok: "Observation recorded" };
-  }, "Observation recorded");
+    const caption = str(fd, "caption");
+    const o = await recordObservation(ctx, suId, Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")), photos.map((p) => ({ ...p, caption })));
+    // Recommendations are prepared after the response is sent, so saving is never slowed or stopped by the AI.
+    after(() => autoRecommend(ctx, o.id));
+    return { to: `/rota/service-users/${encodeURIComponent(suId)}?tab=bodymap&obs=${o.id}&saved=1`, ok: "Observation saved" };
+  }, "Observation saved");
+}
+
+export async function noteBodyMapAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const photo = await fileFrom(fd, "photo", false);
+    await addObservationNote(ctx, str(fd, "observationId"), str(fd, "text"), photo ? { ...photo, caption: str(fd, "caption") } : undefined);
+  }, "Note saved. The original observation and earlier notes are unchanged.");
+}
+
+export async function reviewerBodyMapAction(fd: FormData) {
+  return handle(fd, (ctx) => assignObservationReviewer(ctx, str(fd, "observationId"), whole(fd, "version"), str(fd, "reviewerId")), "Reviewer assigned");
+}
+
+export async function generateBodyMapRecsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await generateRecommendations(ctx, str(fd, "observationId"), "MANUAL");
+    if (r.status === "UP_TO_DATE") return { ok: "Recommendations are already up to date with the information recorded" };
+    if (r.status === "FAILED") throw new ValidationError(r.message);
+    if (r.status === "NONE") return { ok: "No reliable recommendation could be made from the records. See what was missing below." };
+    return { ok: `${r.count} recommendation${r.count === 1 ? "" : "s"} ready for review` };
+  }, "Recommendations ready");
+}
+
+export async function bodyMapRecDecisionAction(fd: FormData) {
+  const decision = str(fd, "decision");
+  return handle(fd, async (ctx) => {
+    const id = str(fd, "recommendationId");
+    if (decision === "REVIEW") await startRecommendationReview(ctx, id);
+    else if (decision === "ACCEPT") await acceptRecommendation(ctx, id, str(fd, "note"));
+    else if (decision === "DISMISS") await dismissRecommendation(ctx, id, str(fd, "note"));
+    else throw new ValidationError("Choose what to do with the suggestion");
+  }, decision === "REVIEW" ? "Marked as under review" : decision === "ACCEPT" ? "Suggestion accepted. This is not a clinical or safeguarding decision." : "Suggestion dismissed");
+}
+
+export async function bodyMapRecTaskAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await createTaskFromRecommendation(ctx, str(fd, "recommendationId"), { kind: str(fd, "kind"), assigneeId: str(fd, "assigneeId"), dueOn: str(fd, "dueOn"), details: str(fd, "details") });
+  }, "Task created and assigned");
+}
+
+export async function bodyMapTaskAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await createBodyMapTask(ctx, str(fd, "observationId"), { kind: str(fd, "kind"), assigneeId: str(fd, "assigneeId"), dueOn: str(fd, "dueOn"), details: str(fd, "details") });
+  }, "Task created and assigned");
+}
+
+export async function closeBodyMapTaskAction(fd: FormData) {
+  const done = str(fd, "done") !== "0";
+  return handle(fd, (ctx) => closeBodyMapTask(ctx, str(fd, "taskId"), whole(fd, "version"), { outcome: str(fd, "outcome"), done }), done ? "Task completed" : "Task cancelled");
+}
+
+export async function medicationSiteAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    await recordApplicationSite(ctx, str(fd, "serviceUserId"), { medicationId: str(fd, "medicationId"), view: str(fd, "view"), x: str(fd, "x"), y: str(fd, "y"), region: str(fd, "region"), note: str(fd, "note") });
+    return { to: `/rota/service-users/${encodeURIComponent(str(fd, "serviceUserId"))}?tab=bodymap`, ok: "Application site recorded" };
+  }, "Application site recorded");
+}
+
+export async function endMedicationSiteAction(fd: FormData) {
+  return handle(fd, (ctx) => endApplicationSite(ctx, str(fd, "siteId"), str(fd, "reason")), "Application site ended");
+}
+
+export async function bodyMapAiSwitchAction(fd: FormData) {
+  const on = str(fd, "on") === "1";
+  return handle(fd, (ctx) => setBodyMapAiEnabled(ctx, on, str(fd, "authorisedBy")), on ? "Body map recommendations switched on" : "Body map recommendations switched off");
 }
 
 export async function reviewBodyMapAction(fd: FormData) {

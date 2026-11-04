@@ -84,3 +84,24 @@ export const CareSummarySchema = z.object({
   gaps: z.array(z.string()).describe("What the records do not show, or where the evidence is too thin to say anything."),
 });
 export type CareSummaryOutput = z.infer<typeof CareSummarySchema>;
+
+// ── Body map AI-Assisted Recommendations ───────────────────────────────────
+
+export const BODY_MAP_REC_CATEGORIES = ["OBSERVATION_FOLLOW_UP", "CARE_PLAN_REVIEW", "RISK_REVIEW", "INCIDENT_SAFEGUARDING", "MEDICATION_REVIEW", "HISTORICAL_COMPARISON"] as const;
+export const BODY_MAP_ACTION_KINDS = ["FOLLOW_UP", "CARE_PLAN_REVIEW", "RISK_REVIEW", "INCIDENT_ASSESSMENT", "MANAGER_REVIEW"] as const;
+
+export const BodyMapRecommendationSchema = z.object({
+  recommendations: z.array(
+    z.object({
+      category: z.enum(BODY_MAP_REC_CATEGORIES).describe("Which kind of review the suggestion is about."),
+      title: z.string().describe("Short title phrased as something to consider, e.g. 'Consider risk assessment review'. Never an instruction."),
+      explanation: z.string().describe("One or two plain sentences on why, describing what the records say. No diagnosis, no conclusion about abuse, no medication advice."),
+      suggestedAction: z.string().describe("The next step for a manager to consider, e.g. 'Ask the registered manager to review the skin-integrity risk assessment'."),
+      actionKind: z.enum(BODY_MAP_ACTION_KINDS).nullable().describe("The follow-up task a manager could create, or null if none fits."),
+      facts: z.array(z.string()).describe("The recorded facts this relies on, quoted or closely paraphrased from the records. Facts only, no interpretation."),
+      sources: z.array(z.string()).describe("Ids of the records and approved policies (O1, H2, N1, P1, R1, I1, M1, G1…) this suggestion is based on. At least one."),
+    }),
+  ),
+  gaps: z.array(z.string()).describe("Information that is missing or too thin to say anything, stated plainly."),
+});
+export type BodyMapRecommendationOutput = z.infer<typeof BodyMapRecommendationSchema>;

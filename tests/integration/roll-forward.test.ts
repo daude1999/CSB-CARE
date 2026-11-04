@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
-import { ValidationError } from "@/lib/errors";
+import { ConflictError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, londonDate, londonMinute, mondayOf } from "@/lib/london";
 import { setMemberBranches } from "@/server/admin/branches";
 import { previewBuild, publishBuild } from "@/server/rota/build";
-import { confirmRollForward, previewRollForward } from "@/server/rota/roll-forward";
-import { updateVisit } from "@/server/rota/visits";
+import { confirmRollForward, previewRollForward, rollForwardRows } from "@/server/rota/roll-forward";
+import { updateVisit, visitReference } from "@/server/rota/visits";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -49,6 +49,25 @@ describe("roll forward", () => {
     expect(londonMinute(copied.start)).toBe(londonMinute(start));
   });
 
+  it("previews without writing anything, and gives the same answer for the same rota", async () => {
+    const counts = async () => Promise.all([db.visit.count(), db.visitAssignment.count(), db.visitEvent.count(), db.rotaBuild.count(), db.auditLog.count(), db.runRoute.count()]);
+    const before = await counts();
+    const a = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 });
+    const b = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 2 });
+    const c = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 });
+    expect(await counts()).toEqual(before);
+    expect(c.fingerprint).toBe(a.fingerprint);
+    expect(b.fingerprint).not.toBe(a.fingerprint);
+    expect(b.targetWeeks).toEqual([wk(2), wk(3)]);
+    // A save against a preview of other choices is refused, and nothing is written.
+    await expect(confirmRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1, fingerprint: b.fingerprint })).rejects.toThrow(ConflictError);
+    expect(await counts()).toEqual(before);
+    // Every proposed visit is in the rows, labelled as new.
+    const rows = rollForwardRows(a);
+    expect(rows.filter((r) => r.kind === "NEW")).toHaveLength(a.visits.length);
+    expect(rows.every((r, i) => i === 0 || rows[i - 1]!.startMs <= r.startMs)).toBe(true);
+  });
+
   it("saves drafts once, never duplicates, and a later template build adds nothing", async () => {
     const before = await db.visit.count({ where: { organisationId: orgId } });
     const r = await confirmRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 });
@@ -67,6 +86,33 @@ describe("roll forward", () => {
     expect(await db.auditLog.count({ where: { organisationId: orgId, action: "rota.rolled_forward" } })).toBe(1);
     const pub = await publishBuild(await manager(), r.builds[0]!.id);
     expect(pub.published).toBe(r.plan.visits.length);
+  });
+
+  it("shows the whole destination rota, and refuses a save once the rota has changed since the preview", async () => {
+    // Week 2 is now fully rolled forward: the preview lists every visit already there and offers nothing new.
+    const full = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(2), weeks: 1 });
+    expect(full.destination.length).toBeGreaterThanOrEqual(full.existing);
+    const rows = rollForwardRows(full);
+    expect(rows.filter((r) => r.kind === "EXISTING")).toHaveLength(full.destination.length);
+    expect(rows.some((r) => r.kind === "NEW")).toBe(false);
+    expect(rows.filter((r) => r.kind === "EXISTING").every((r) => r.previous !== "")).toBe(true);
+
+    // Week 8: preview, then the office adds one of the proposed visits by hand before saving.
+    const p = await previewRollForward(await manager(), { sourceWeek: wk(1), targetWeek: wk(8), weeks: 1 });
+    const one = p.visits[0]!;
+    const src = await db.visit.findUniqueOrThrow({ where: { id: one.sourceVisitId } });
+    const mgr = await manager();
+    await db.visit.create({ data: { organisationId: orgId, reference: visitReference(one.date), serviceUserId: one.serviceUserId, callTypeId: src.callTypeId, areaId: one.areaId, date: dbDate(one.date), scheduledStart: one.start, scheduledEnd: one.end, createdById: mgr.userId } });
+    const visits = await db.visit.count();
+    await expect(confirmRollForward(mgr, { sourceWeek: wk(1), targetWeek: wk(8), weeks: 1, fingerprint: p.fingerprint })).rejects.toThrow(/changed since this preview/);
+    expect(await db.visit.count()).toBe(visits);
+    // A fresh preview sees it as already in place, and saving that preview works.
+    const fresh = await previewRollForward(mgr, { sourceWeek: wk(1), targetWeek: wk(8), weeks: 1 });
+    expect(fresh.existing).toBe(p.existing + 1);
+    expect(fresh.destination.some((d) => d.serviceUserName === one.serviceUserName && d.start.getTime() === one.start.getTime())).toBe(true);
+    const r = await confirmRollForward(mgr, { sourceWeek: wk(1), targetWeek: wk(8), weeks: 1, fingerprint: fresh.fingerprint });
+    expect(r.plan.visits).toHaveLength(p.visits.length - 1);
+    expect(await dupes()).toBe(0);
   });
 
   it("does not copy a carer who is on leave in the new weeks, and says why", async () => {

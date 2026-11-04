@@ -13,7 +13,7 @@ import { dbDate, londonDate } from "@/lib/london";
  * People only see items for the work their role can act on; everyone sees their own overdue reading.
  */
 
-export interface AttentionItem { key: string; label: string; count: number; href: string; tone: "rose" | "amber"; detail: string }
+export interface AttentionItem { key: string; label: string; count: number; href: string; tone: "rose" | "amber"; detail: string; action: string }
 export interface ActivityItem { at: Date; kind: string; text: string; href: string | null }
 
 const DAY = 86_400_000;
@@ -60,7 +60,8 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     { key: "safeguarding", label: "Safeguarding incidents open", count: care.safeguarding, href: "/rota/incidents?safeguarding=1", tone: "rose" as const, detail: "Reported in Care Management, not yet closed", show: care.show.incidents },
     { key: "carePlans", label: "Care plans overdue review", count: care.plansOverdue, href: "/rota/care-plans?filter=overdue", tone: "amber" as const, detail: "Plan in use past its review date", show: care.show.plans },
     { key: "triage", label: "Regulatory updates to triage", count: triage, href: "/changes?group=triage", tone: "amber" as const, detail: "Detected, not yet decided", show: true },
-  ].filter((x) => x.show).map(({ show: _s, ...x }) => x);
+  ].filter((x) => x.show).map(({ show: _s, ...x }) => ({ ...x, action: ACTION_VERB[x.key] ?? "Open" }));
+  await describeAttention(ctx, attention, policyWhere, ackScope, actionScope, now);
 
   // Review status of the active library: overdue (past the review date), due within 60 days (the Policy Library's
   // "due for review" window), and current (everything else, including policies with no review date set).
@@ -68,14 +69,71 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     db.policy.count({ where: { ...policyWhere, nextReviewDate: { gte: now, lt: new Date(now.getTime() + 60 * DAY) } } }),
     db.policy.findMany({ where: { ...policyWhere, nextReviewDate: { gte: now } }, orderBy: { nextReviewDate: "asc" }, take: 5, select: { id: true, ref: true, title: true, nextReviewDate: true } }),
   ]);
+  const [upToDate, recentUpdates, keyDates] = await Promise.all([
+    // Up to date: the live version carries a recorded approval and its review is not due within 60 days. CSB starter
+    // text that the organisation has not approved is never counted here.
+    db.policy.count({ where: { ...policyWhere, currentPublishedVersion: { approvals: { some: { decision: "APPROVE" } } }, revisions: { none: { closedAt: null, submittedAt: { not: null } } }, OR: [{ nextReviewDate: null }, { nextReviewDate: { gte: new Date(now.getTime() + 60 * DAY) } }] } }),
+    db.regulatoryChange.findMany({ orderBy: { detectedAt: "desc" }, take: 4, select: { id: true, title: true, isSimulated: true, status: true, detectedAt: true, officialDate: true, source: { select: { name: true } } } }),
+    db.policy.findMany({ where: { ...policyWhere, nextReviewDate: { not: null } }, orderBy: { nextReviewDate: "asc" }, take: 6, select: { id: true, ref: true, title: true, nextReviewDate: true, ownerId: true } }),
+  ]);
+  const owners = await db.user.findMany({ where: { id: { in: keyDates.map((p) => p.ownerId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } });
+  const ownerName = new Map(owners.map((u) => [u.id, u.name]));
   return {
     kpis: { activePolicies, overdueReviews, awaitingApproval, outstandingAcks },
+    figures: { total: activePolicies, upToDate, needsReview: overdueReviews + dueSoon, overdue: overdueReviews, dueSoon, awaitingApproval },
+    recentUpdates: recentUpdates.map((c) => ({ ...c, title: c.title.replace(/^SIMULATED:\s*/, "") })),
+    keyDates: keyDates.map((p) => ({ id: p.id, ref: p.ref, title: p.title, nextReviewDate: p.nextReviewDate!, owner: p.ownerId ? (ownerName.get(p.ownerId) ?? null) : null, state: p.nextReviewDate! < now ? ("overdue" as const) : p.nextReviewDate!.getTime() - now.getTime() <= 60 * DAY ? ("due" as const) : ("scheduled" as const) })),
     reviewStatus: { overdue: overdueReviews, dueSoon, current: Math.max(0, activePolicies - overdueReviews - dueSoon) },
     upcomingReviews,
     manager,
     attention,
     activity: await recentActivity(ctx, now),
   };
+}
+
+const ACTION_VERB: Record<string, string> = {
+  reviews: "Start review", approvals: "Review", acks: "Chase", findings: "Open", actions: "Open", verify: "Verify", risks: "Open", riskReviews: "Review",
+  signoffReadiness: "Open", safeguarding: "Open", carePlans: "Review", triage: "Triage",
+};
+
+const shortDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+const andMore = (n: number) => (n > 0 ? ` and ${n} more` : "");
+
+/**
+ * Names the records behind the main attention items, so a row reads "GOV-012 Complaints · due 28 Oct 2026" rather
+ * than a bare count. When only one record is behind an item, its link opens that record itself. Each lookup uses the
+ * same scope as the count it describes, so nothing outside the caller's view is named.
+ */
+async function describeAttention(ctx: Ctx, items: AttentionItem[], policyWhere: Prisma.PolicyWhereInput, ackScope: Prisma.AcknowledgementWhereInput, actionScope: Prisma.ComplianceActionWhereInput, now: Date) {
+  const want = (key: string) => items.find((x) => x.key === key && x.count > 0);
+  const scope = { organisationId: ctx.organisationId ?? null };
+  const [review, approval, acks, action, change] = await Promise.all([
+    want("reviews") ? db.policy.findFirst({ where: { ...policyWhere, nextReviewDate: { lt: now } }, orderBy: { nextReviewDate: "asc" }, select: { id: true, ref: true, title: true, nextReviewDate: true } }) : null,
+    want("approvals") ? db.policyRevision.findFirst({ where: { ...scope, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } }, orderBy: { submittedAt: "asc" }, select: { id: true, policy: { select: { ref: true, title: true } }, draftVersion: { select: { label: true } } } }) : null,
+    want("acks") ? db.acknowledgement.findMany({ where: { ...ackScope, ...outstandingAckWhere, mandatory: true, dueAt: { lt: now }, publication: { status: "PUBLISHED" } }, orderBy: { dueAt: "asc" }, take: 50, select: { staffMember: { select: { displayName: true } }, user: { select: { name: true } } } }) : [],
+    want("actions") ? db.complianceAction.findFirst({ where: { ...actionScope, status: { in: ["OPEN", "IN_PROGRESS"] }, dueDate: { lt: now } }, orderBy: { dueDate: "asc" }, select: { id: true, title: true, dueDate: true } }) : null,
+    want("triage") ? db.regulatoryChange.findFirst({ where: { status: { in: ["NEWLY_DETECTED", "AWAITING_CLASSIFICATION", "POTENTIALLY_SUBSTANTIVE", "UNDER_REVIEW"] } }, orderBy: { detectedAt: "desc" }, select: { id: true, title: true } }) : null,
+  ]);
+  for (const x of items) {
+    if (!x.count) continue;
+    if (x.key === "reviews" && review) {
+      x.detail = `${review.ref} ${review.title} · due ${shortDate(review.nextReviewDate!)}${andMore(x.count - 1)}`;
+      if (x.count === 1) x.href = `/policies?selected=${review.id}`;
+    } else if (x.key === "approvals" && approval) {
+      x.detail = `${approval.policy.ref} ${approval.policy.title} ${approval.draftVersion.label}${andMore(x.count - 1)}`;
+      if (x.count === 1) x.href = `/revisions/${approval.id}`;
+    } else if (x.key === "acks" && acks.length) {
+      const names = [...new Set(acks.map((a) => a.staffMember?.displayName ?? a.user?.name ?? "A member of staff"))];
+      const shown = names.slice(0, 2);
+      x.detail = names.length === 1 ? `${shown[0]} is past the due date` : `${shown.join(" and ")}${names.length > 2 ? ` and ${names.length - 2} more` : ""} are past their due date`;
+    } else if (x.key === "actions" && action) {
+      x.detail = `${action.title} · due ${shortDate(action.dueDate)}${andMore(x.count - 1)}`;
+      if (x.count === 1) x.href = `/actions/${action.id}`;
+    } else if (x.key === "triage" && change) {
+      x.detail = `${change.title.replace(/^SIMULATED:\s*/, "")}${andMore(x.count - 1)}`;
+      if (x.count === 1) x.href = `/changes/${change.id}`;
+    }
+  }
 }
 
 /** The last fortnight's governance events in the caller's scope, newest first. */

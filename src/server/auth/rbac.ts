@@ -64,6 +64,9 @@ export const ORG_PERMISSIONS = {
   "serviceUser.documents": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   /** Recording body map observations, follow-ups and photos (office staff and managers in this phase). */
   "bodyMap.record": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Deciding on body map AI-assisted recommendations, creating and assigning body map review tasks, and choosing an
+   *  observation's reviewer. Managers only: an accepted suggestion is still not a clinical or safeguarding decision. */
+  "bodyMap.review": ["ORG_ADMIN", "CARE_MANAGER"],
   /** Seeing body map photographs. */
   "bodyMap.photos": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],

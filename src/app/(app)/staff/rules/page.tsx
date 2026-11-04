@@ -43,7 +43,7 @@ export default async function AssignmentRulesPage({ searchParams }: { searchPara
 
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="rules" />} title="Policy Sign-off" subtitle="Assignment rules decide who must read each policy. When someone joins, moves branch or changes role in HR, their reading list is brought up to date from these rules." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="signoff" active="rules" />} title="Staff Sign-off" subtitle="Assignment rules decide who must read each policy. When someone joins, moves branch or changes role in HR, their reading list is brought up to date from these rules." />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0">
