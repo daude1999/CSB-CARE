@@ -259,11 +259,32 @@ export async function kpiScope(ctx: Ctx, input: Record<string, string | undefine
   return { scope: { organisationId: ctx.organisationId, branchIds, from, to } satisfies KpiScope, branches, branch: f.branch ?? null, group: f.group ?? null };
 }
 
+/** The measures this member may see, in registry order. The permission check for every figure lives here. */
+const permittedKpis = (ctx: Ctx) => KPIS.filter((k) => hasOrgPermission(ctx, k.perm));
+
+export interface KpiCategory { group: KpiGroup; label: string; count: number }
+
+/**
+ * Navigation for Analytics: every category, always in the same order, with the number of measures this member may
+ * see in it. It reads only the registry and the member's permissions, so it works nothing out and does not depend on
+ * the category, branch or dates chosen. A category the member has no measures in is still listed, with 0.
+ */
+export function kpiCategories(ctx: Ctx): { total: number; groups: KpiCategory[] } {
+  const allowed = permittedKpis(ctx);
+  return { total: allowed.length, groups: (Object.keys(KPI_GROUPS) as KpiGroup[]).map((g) => ({ group: g, label: KPI_GROUPS[g], count: allowed.filter((k) => k.group === g).length })) };
+}
+
+/** Names of the measures this member may see, for Recently viewed reports. Only registry text, nothing worked out. */
+export function permittedKpiNames(ctx: Ctx) {
+  return permittedKpis(ctx).map((k) => ({ key: k.key, name: k.name, area: KPI_GROUPS[k.group] }));
+}
+
+/** The measures for the chosen category (all of them when none is chosen), worked out for the chosen branch and dates. */
 export async function computeKpis(ctx: Ctx, input: Record<string, string | undefined>) {
   const { scope, branches, branch, group } = await kpiScope(ctx, input);
-  const visible = KPIS.filter((k) => hasOrgPermission(ctx, k.perm) && (!group || k.group === group));
+  const visible = permittedKpis(ctx).filter((k) => !group || k.group === group);
   const values = await Promise.all(visible.map((k) => k.compute(scope)));
-  return { scope, branches, branch, group, rows: visible.map((k, i) => ({ key: k.key, group: k.group, name: k.name, definition: k.definition, branchAware: k.branchAware, ...values[i]! })) };
+  return { scope, branches, branch, group, categories: kpiCategories(ctx), rows: visible.map((k, i) => ({ key: k.key, group: k.group, name: k.name, definition: k.definition, branchAware: k.branchAware, ...values[i]! })) };
 }
 
 /** The same figures as a CSV, with their definitions. Needs report.export; the export is audited. */

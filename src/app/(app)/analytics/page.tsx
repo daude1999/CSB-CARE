@@ -4,7 +4,9 @@ import { AppError } from "@/lib/errors";
 import { fmtLondonDate } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
-import { computeKpis, KPI_GROUPS, type KpiGroup } from "@/server/reports/kpis";
+import { computeKpis, KPI_GROUPS, permittedKpiNames } from "@/server/reports/kpis";
+import { ActiveTabIntoView } from "@/components/active-tab-into-view";
+import { RecentReports } from "@/components/recent-reports";
 import { Card, Empty, PageHeader, SegmentNav } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -26,14 +28,15 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     if (!(e instanceof AppError)) throw e;
     return <><PageHeader title="Analytics" /><Card><Empty>{e.message} <Link href="/analytics">Reset the filters</Link></Empty></Card></>;
   }
-  const { scope, branches, branch, group, rows } = data;
+  const { scope, branches, branch, group, categories, rows } = data;
   const q = (over: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ branch: branch ?? undefined, from: sp.from, to: sp.to, group: group ?? undefined, ...over })) if (v) p.set(k, v);
     return p.toString();
   };
-  const groups = (Object.keys(KPI_GROUPS) as KpiGroup[]).filter((g) => rows.some((r) => r.group === g) || group === g);
-  const shown = group ? [group] : groups;
+  // The tabs come from the registry and the member's permissions, never from the rows worked out for the chosen
+  // category, so every category stays in the navigation whichever one is selected.
+  const shown = group ? [group] : categories.groups.map((c) => c.group);
   const scopeName = branch ? branches.find((b) => b.id === branch)?.name ?? "Branch" : ctx.branchIds ? "My branches" : "All branches";
 
   return (
@@ -46,10 +49,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           <label><span className="label">From</span><input type="date" name="from" defaultValue={scope.from} className="input" /></label>
           <label><span className="label">To</span><input type="date" name="to" defaultValue={scope.to} className="input" /></label>
           <button className="btn-primary">Apply</button>
-          <Link href="/analytics" className="btn-secondary">Last 28 days</Link>
+          <Link href={`/analytics?${q({ from: undefined, to: undefined })}`} className="btn-secondary">Last 28 days</Link>
         </form>
       </section>
-      <SegmentNav label="Area" items={[{ href: `/analytics?${q({ group: undefined })}`, label: "All", active: !group }, ...groups.map((g) => ({ href: `/analytics?${q({ group: g })}`, label: KPI_GROUPS[g], active: group === g }))]} />
+      <RecentReports userId={ctx.userId} options={permittedKpiNames(ctx)} />
+      <SegmentNav label="Report categories" items={[{ href: `/analytics?${q({ group: undefined })}`, label: "All", active: !group, count: categories.total }, ...categories.groups.map((c) => ({ href: `/analytics?${q({ group: c.group })}`, label: c.label, active: group === c.group, count: c.count }))]} />
+      <ActiveTabIntoView label="Report categories" />
       {rows.length ? shown.map((g) => {
         const list = rows.filter((r) => r.group === g);
         if (!list.length) return null;
@@ -71,7 +76,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             </div>
           </Card>
         );
-      }) : <Card><Empty>None of the measures apply to your roles.</Empty></Card>}
+      }) : <Card><Empty>{group && categories.total ? `None of the ${KPI_GROUPS[group]} measures apply to your roles. Choose another category above.` : "None of the measures apply to your roles."}</Empty></Card>}
       <p className="text-[13px] text-slate-600">More detail: <Link href="/rota/reports">Rota reports</Link>{hasOrgPermission(ctx, "report.view") ? <> · <Link href="/compliance/reports">Compliance reports</Link></> : null}. Scheduled reports and charts by month are not built yet.</p>
     </>
   );
