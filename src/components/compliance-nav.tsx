@@ -29,12 +29,16 @@ export function workspaceTabs(ctx: Ctx, ws: WorkspaceId): WorkspaceTab[] {
           { key: "archived", label: "Archived", href: "/policies?tab=archived", show: org },
           { key: "calendar", label: "Review Calendar", href: "/policies?tab=calendar", show: org },
           { key: "queue", label: "Review & Approval Queue", href: "/queue", show: canUseQueue(ctx) },
+          { key: "generator", label: "Policy Generator", href: "/policies/generator", show: org && hasOrgPermission(ctx, "policy.author") },
+          { key: "coverage", label: "Branch Coverage", href: "/policies/coverage", show: org && hasOrgPermission(ctx, "policy.coverage") },
+          { key: "branches", label: "Branch Configuration", href: "/policies/branches", show: org && hasOrgPermission(ctx, "policy.localConfig") },
         ];
       case "regulatory":
         return [
           { key: "updates", label: "Regulatory Updates", href: "/changes", show: true },
           { key: "requirements", label: "Requirements Register", href: "/requirements", show: true },
           { key: "sources", label: "Source Status", href: "/compliance/regulatory/sources", show: true },
+          { key: "references", label: "Local & Safeguarding References", href: "/compliance/regulatory/references", show: org },
         ];
       case "signoff": {
         const manager = hasOrgPermission(ctx, "staff.view");

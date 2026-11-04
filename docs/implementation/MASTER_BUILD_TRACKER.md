@@ -1,5 +1,12 @@
 # Master build tracker — five-module CSB CRM
 
+## Branch-specific Policy Generator (4 Nov 2026, draft PR)
+Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level
+verification of national, regional and local sources), a Policy Generator (company policy with branch appendices or
+separate branch policies, gaps shown before generating, AI optional and checked), publish confirmations, branch
+reading rules, Branch Coverage and cross-boundary safeguarding decisions. Starter sources are all "not yet verified"
+and no contact numbers are recorded. Details: `BRANCH_POLICY_GENERATOR.md`.
+
 ## Daily Rota bulk actions repair and Complete Calls (2 Nov 2026, draft PR)
 All 17 bulk actions were traced from the dropdown to the database and repaired; Complete Calls (office-confirmed
 completion of past visits, no clock or medicine records created) is the 18th. Go opens a review that runs the real

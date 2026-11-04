@@ -95,7 +95,7 @@ export function SignoffFilterForm({ f, view, branches, roles, policies, base }: 
   );
 }
 
-export const SCOPE_LABEL: Record<string, string> = { ORG: "Everyone in the organisation", BRANCH: "Branch", ROLE: "Platform role", JOB_TITLE: "Job title", STAFF: "Named person" };
+export const SCOPE_LABEL: Record<string, string> = { ORG: "Everyone in the organisation", BRANCH: "Branch", WORKS_IN_BRANCH: "Works in branch (incl. cross-branch staff)", ROLE: "Platform role", JOB_TITLE: "Job title", STAFF: "Named person" };
 const ROLES = ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "CARE_COORDINATOR", "FINANCE_OFFICER", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "STAFF", "CARER"] as const;
 
 /**
@@ -109,7 +109,7 @@ export function RuleForm({ back, policyId, policies, branches, roles, staff }: {
       {policyId ? <input type="hidden" name="policyId" value={policyId} /> : (
         <label className="col-span-2"><span className="label">Policy (published policies only)</span><select name="policyId" required defaultValue="" className="input"><option value="" disabled>Choose a policy…</option>{(policies ?? []).map((p) => <option key={p.id} value={p.id}>{p.ref} {p.title}</option>)}</select></label>
       )}
-      <label className="col-span-2"><span className="label">Assign to</span><select name="scope" className="input"><option value="ORG">Everyone in the organisation</option><option value="BRANCH">One branch</option><option value="JOB_TITLE">A job title</option><option value="ROLE">A platform role</option><option value="STAFF">Named people</option></select></label>
+      <label className="col-span-2"><span className="label">Assign to</span><select name="scope" className="input"><option value="ORG">Everyone in the organisation</option><option value="BRANCH">One branch (employed there)</option><option value="WORKS_IN_BRANCH">Everyone who works in a branch (incl. staff based elsewhere)</option><option value="JOB_TITLE">A job title</option><option value="ROLE">A platform role</option><option value="STAFF">Named people</option></select></label>
       <label><span className="label">Branch</span><select name="branchId" className="input"><option value="">—</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <label><span className="label">Job title</span><select name="jobTitle" className="input"><option value="">—</option>{roles.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
       <label><span className="label">Platform role</span><select name="orgRole" className="input"><option value="">—</option>{ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ").toLowerCase()}</option>)}</select></label>

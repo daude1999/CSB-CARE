@@ -8,6 +8,7 @@ import { enqueue, PermanentJobError } from "../jobs/queue";
 import { notify, usersWithOrgRoles } from "../notifications/notify";
 import { indexPolicyVersion } from "../search/index-chunks";
 import { createDraftVersion, sectionsHash, toSectionInputs, type SectionInput } from "./versions";
+import { ensureBranchAssignmentRules, generatedPublicationCheck, REVIEW_MARKER, type GovernanceKey } from "../policy-geo/generator";
 
 type RevisionFull = PolicyRevision & { policy: Policy; draftVersion: PolicyVersion };
 
@@ -117,6 +118,10 @@ export async function submitForReview(ctx: Ctx, revisionId: string, input: { app
     const base = await db.policyVersion.findUniqueOrThrow({ where: { id: r.baseVersionId } });
     if (base.contentHash === r.draftVersion.contentHash) throw new ValidationError("The draft is identical to the approved version; there is nothing to review");
   }
+  if (await db.policyGenerationRun.findUnique({ where: { revisionId: r.id }, select: { id: true } })) {
+    const marked = await db.policySection.findMany({ where: { versionId: r.draftVersionId, body: { contains: REVIEW_MARKER } }, select: { heading: true } });
+    if (marked.length) throw new ValidationError(`Complete the sections marked "${REVIEW_MARKER}" before submitting: ${marked.map((m) => m.heading).join(", ")}.`);
+  }
   const authorId = r.authorId ?? ctx.userId;
   const eligible = (await eligibleApprovers(r.policy)).filter((id) => id !== authorId);
   const approvers = (input.approverIds?.length ? input.approverIds : r.policy.approverId ? [r.policy.approverId] : eligible).filter((id) => eligible.includes(id));
@@ -197,11 +202,13 @@ export async function decide(ctx: Ctx, revisionId: string, input: { decision: "A
 export async function publishRevision(
   ctx: Ctx,
   revisionId: string,
-  input: { effectiveDate?: Date; scheduleFor?: Date | null; requireAcknowledgement?: boolean; acknowledgementDueDays?: number; materialRevision?: boolean } = {},
+  input: { effectiveDate?: Date; scheduleFor?: Date | null; requireAcknowledgement?: boolean; acknowledgementDueDays?: number; materialRevision?: boolean; governance?: Partial<Record<GovernanceKey, boolean>>; assignBranchStaff?: boolean } = {},
 ) {
   const r = await loadRevision(revisionId);
   requireOnPolicy(ctx, r.policy, "publish");
   if (r.draftVersion.status !== "APPROVED") throw new ConflictError("Only an approved version can be published. Human approval is mandatory.");
+  // Generated (branch-specific) drafts also need the manager's pre-publication confirmations and no open critical gaps.
+  const governanceChecks = await generatedPublicationCheck(r.id, r.draftVersionId, input.governance, ctx.userId);
   const now = new Date();
   const scheduleFor = input.scheduleFor && input.scheduleFor > now ? input.scheduleFor : null;
   const effectiveDate = input.effectiveDate ?? scheduleFor ?? now;
@@ -221,8 +228,10 @@ export async function publishRevision(
       // A material change is assigned to staff again; a non-material one keeps the previous acknowledgements as evidence.
       materialRevision: input.materialRevision ?? true,
       acknowledgementDueAt: requireAck ? ackDue : null,
+      governanceChecks: governanceChecks ?? undefined,
     },
   });
+  if (governanceChecks && input.assignBranchStaff !== false) await db.$transaction((tx) => ensureBranchAssignmentRules(tx, r.id, ctx.userId));
   if (scheduleFor) {
     await db.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: "SCHEDULED", effectiveDate } });
     await enqueue("publication.publish", { publicationId: publication.id }, { idempotencyKey: `publish:${publication.id}`, runAfter: scheduleFor, maxAttempts: 3 });
