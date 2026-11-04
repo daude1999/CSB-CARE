@@ -123,6 +123,9 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   const parsed = intakeSchema.safeParse(raw);
   if (!parsed.success) throw new ValidationError(parsed.error.issues.map(i=>i.path.join(".")+": "+i.message).slice(0,5).join("; "));
   const d = parsed.data;
+  if((d.serviceUser.dateOfBirth || d.serviceUser.nhsNumber || d.clinicalReviewNotes.length || d.riskReviewNotes.length)
+      && !hasOrgPermission(ctx,"serviceUser.sensitive"))
+    throw new ValidationError("A care manager must import restricted identifiers and clinical review items");
   const area = await db.area.findFirst({where:{organisationId:scope.organisationId,id:d.serviceUser.areaId,active:true}});
   if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose an authorised active area");
   const callTypes = await db.callType.findMany({where:{organisationId:scope.organisationId,id:{in:d.visits.map(v=>v.callTypeId)},active:true},select:{id:true}});
@@ -132,7 +135,7 @@ export async function previewIntake(ctx: Ctx, raw: unknown) {
   const existing = await db.serviceUser.findMany({where:{
     ...serviceUserWhere(scope),
     OR:[
-      ...(d.serviceUser.nhsNumber ? [{nhsNumber:d.serviceUser.nhsNumber.replace(/\\s/g,"")}] : []),
+      ...(d.serviceUser.nhsNumber ? [{nhsNumber:d.serviceUser.nhsNumber.replace(/\s/g,"")}] : []),
       {firstName:{equals:d.serviceUser.firstName,mode:"insensitive"},
         lastName:{equals:d.serviceUser.lastName,mode:"insensitive"},
         ...(d.serviceUser.dateOfBirth ? {dateOfBirth:dbDate(d.serviceUser.dateOfBirth)} : {}),
