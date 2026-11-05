@@ -116,3 +116,57 @@ describe("askCsbCoordinator (built-in CRM search)", () => {
     await expect(ask("x")).rejects.toThrow();
   });
 });
+
+describe("askCsbCoordinator: P0 questions (no key)", () => {
+  it("recognises the new questions", () => {
+    expect(topicOf("Who is unavailable tomorrow?", { kind: "rota", id: null })).toBe("unavailable");
+    expect(topicOf("Why can't Sam be booked?", { kind: "visit", id: "x" })).toBe("why-not");
+    expect(topicOf("What is missing from this care package?", { kind: "service-user", id: "x" })).toBe("package-gaps");
+    expect(topicOf("Which visits are unassigned tomorrow?", { kind: "rota", id: null })).toBe("unassigned");
+  });
+
+  it("lists staff absences for tomorrow in this organisation only, and why an absent carer cannot be booked", async () => {
+    const m = await manager();
+    authMock.ctx = m;
+    const tomorrow = addDays(londonDate(), 1);
+    const staff = await db.staffMember.findFirstOrThrow({ where: { organisationId: orgId, hrMissing: false, employmentStatus: "ACTIVE" }, orderBy: { displayName: "asc" } });
+    const otherOrg = (await db.organisation.findUniqueOrThrow({ where: { slug: OAKRIDGE } })).id;
+    const otherStaff = await db.staffMember.findFirst({ where: { organisationId: otherOrg } });
+    const day = (d: string, h: number) => new Date(`${d}T${String(h).padStart(2, "0")}:00:00Z`);
+    await db.staffAbsence.create({ data: { organisationId: orgId, staffId: staff.id, kind: "SICKNESS", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
+    if (otherStaff) await db.staffAbsence.create({ data: { organisationId: otherOrg, staffId: otherStaff.id, kind: "HOLIDAY", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
+    const r = await ask("Who is unavailable tomorrow?", "/rota");
+    expect(r.answer).toContain(staff.preferredName || staff.displayName);
+    expect(r.answer).toMatch(/sickness/);
+    if (otherStaff) expect(r.answer).not.toContain(otherStaff.displayName);
+    expect(r.answer).toMatch(/nobody is moved automatically/);
+
+    const visit = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, date: dbDate(tomorrow), status: "SCHEDULED" } });
+    const absences = await db.staffAbsence.count();
+    const assignments = await db.visitAssignment.count();
+    const why = await ask(`Why can't ${staff.displayName} be booked?`, `/rota/visits/${visit.id}`);
+    expect(why.answer).toMatch(/cannot be booked on this visit/);
+    expect(why.answer).toMatch(/I don't book anyone/);
+    expect(why.links[0]?.href).toBe(`/rota/visits/${visit.id}`);
+    // Read only.
+    expect([await db.staffAbsence.count(), await db.visitAssignment.count()]).toEqual([absences, assignments]);
+    // Off a visit page it points to the right screen instead of guessing.
+    expect((await ask(`Why can't ${staff.displayName} be booked?`, "/rota")).answer).toMatch(/Open the visit/);
+  });
+
+  it("says what is missing from the care package on the person's page, and refuses another organisation's person", async () => {
+    authMock.ctx = await manager();
+    const r = await ask("What is missing from this care package?", `/rota/service-users/${ownSu.id}`);
+    expect(r.answer).toMatch(/active care package|no active care package/);
+    expect(r.links[0]?.href).toBe(`/rota/service-users/${ownSu.id}?tab=package`);
+    const other = await ask("What is missing from this care package?", `/rota/service-users/${otherSu.id}`);
+    expect(other.answer).toMatch(/can't see those records/);
+  });
+
+  it("answers unassigned visits for tomorrow", async () => {
+    authMock.ctx = await manager();
+    const r = await ask("Which visits are unassigned tomorrow?", "/rota");
+    expect(r.answer).toMatch(/tomorrow/);
+    expect(r.links.map((l) => l.href)).toContain("/rota/unassigned");
+  });
+});

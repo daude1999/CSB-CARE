@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { addDays, dbDate, fmtLondonDate, fromDbDate, londonDate } from "@/lib/london";
 import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
 import { hasOrgPermission, visiblePolicyWhere, type Ctx } from "@/server/auth/rbac";
-import { memberScope, serviceUserWhere, visitWhere, type Scope } from "@/server/rota/scope";
+import { memberScope, serviceUserWhere, staffDirectoryWhere, visitWhere, type Scope } from "@/server/rota/scope";
+import { eligibilityFor } from "@/server/workforce/eligibility";
+import { packageCoverage } from "@/server/care/packages";
 import { suName } from "@/server/rota/queries";
 import { carePlanRegister } from "@/server/care/care-plans";
 import { listRisks } from "@/server/care/risks";
@@ -20,7 +22,7 @@ import { serviceUserChatContext } from "@/server/care/coordinator/chat";
 export interface CrmLink { label: string; href: string }
 export interface CrmAnswer { topic: string; answer: string; links: CrmLink[] }
 
-export interface CrmPage { kind: "intake" | "service-user" | "rota" | "overview" | "other"; id: string | null }
+export interface CrmPage { kind: "intake" | "service-user" | "visit" | "rota" | "overview" | "other"; id: string | null }
 
 const has = (q: string, ...words: (string | RegExp)[]) => words.some((w) => (typeof w === "string" ? q.includes(w) : w.test(q)));
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -31,6 +33,9 @@ export function topicOf(question: string, page: CrmPage): string {
   const q = question.toLowerCase();
   if (has(q, "upload", "support plan", "discharge", "referral", "document", "attach")) return "upload";
   if (has(q, "next step", "finish", "intake", "approve this", "submit")) return page.kind === "intake" ? "intake" : "intakes";
+  if (has(q, /why (?:can'?t|cannot|can not|isn'?t|is not|won'?t)\b/, /\b(not|n't) (?:be )?(?:allocated|assigned|booked|eligible)\b/)) return "why-not";
+  if (has(q, "unavailable", "not available", "off sick", "sickness", "on holiday", "on leave", "absent", "absence", "who is off", "who's off")) return "unavailable";
+  if (page.kind === "service-user" && has(q, /(missing|gap|incomplete|wrong).*(package)|package.*(missing|gap|incomplete|complete|wrong)/)) return "package-gaps";
   if (has(q, "risk")) return "risks";
   if (has(q, "ready for rota", "rota generation", /ready.*rota/, /package.*ready/)) return "rota-ready";
   if (has(q, "care plan", "careplan", /plan.*(missing|approv|review|draft)/)) return "care-plans";
@@ -133,6 +138,11 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
       });
       const open = rows.filter((v) => v.assignments.length < v.carersRequired);
       const todayCount = open.filter((v) => fromDbDate(v.date) === today).length;
+      if (has(question.toLowerCase(), "tomorrow")) {
+        const tomorrow = addDays(today, 1);
+        const t = open.filter((v) => fromDbDate(v.date) === tomorrow).length;
+        return done(t ? `${plural(t, "visit")} tomorrow (${fmtLondonDate(tomorrow)}) still need a carer. Use Find cover to see carers who are eligible and free.` : `Every visit tomorrow (${fmtLondonDate(tomorrow)}) has its carers.`, [{ label: "Unassigned visits", href: "/rota/unassigned" }, { label: "Tomorrow's Daily Rota", href: `/rota/visits?date=${tomorrow}` }]);
+      }
       return done(open.length ? `${plural(open.length, "visit")} in the next 7 days still need a carer, ${todayCount} of them today. Use Find cover to see carers who are eligible and free. Every assignment goes through the eligibility checks.` : "Every visit in the next 7 days has its carers.", [{ label: "Unassigned visits", href: "/rota/unassigned" }, { label: "Sickness & holiday cover", href: "/rota/cover" }]);
     }
     case "missed": {
@@ -191,9 +201,58 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
       const visits = su.nextSevenDaysVisits as { total: number; needingACarer: number } | string;
       return done(`${p.name} (${p.reference}) is ${p.status.toLowerCase()}.\n• Care plan: ${plans.some((x) => x.status === "ACTIVE") ? "approved plan in use" : "no approved plan in use"}\n• Risk assessments: ${risks.length} active, ${risks.filter((r) => r.overdue).length} overdue for review\n• Care package: ${(su.activePackages as unknown[]).length ? "active" : "none active"}${typeof visits === "object" ? `\n• Next 7 days: ${plural(visits.total, "visit")}, ${visits.needingACarer} needing a carer` : ""}`, [{ label: "Care plans", href: `/rota/care-plans/${suPage}` }, { label: "Risk assessments", href: `/rota/risks?su=${suPage}` }]);
     }
+    case "unavailable": {
+      if (!can("rota.view")) return noAccess;
+      const day0 = has(question.toLowerCase(), "tomorrow") ? addDays(today, 1) : today;
+      const from = new Date(`${day0}T00:00:00Z`);
+      const to = new Date(`${addDays(day0, 1)}T00:00:00Z`);
+      const rows = await db.staffAbsence.findMany({
+        where: { organisationId, status: { in: ["APPROVED", "REQUESTED"] }, startsAt: { lt: to }, endsAt: { gt: from }, staff: staffDirectoryWhere(scope, {}) },
+        select: { kind: true, status: true, endsAt: true, staff: { select: { displayName: true, preferredName: true } } },
+        orderBy: { startsAt: "asc" }, take: 50,
+      });
+      const when = day0 === today ? "today" : "tomorrow";
+      if (!rows.length) return done(`No staff absence is recorded for ${when} (${fmtLondonDate(day0)}). Absences come from HR & Workforce; weekly availability is on each staff page.`, [{ label: "Staff absences", href: "/workforce/absences" }]);
+      const line = (r: (typeof rows)[number]) => `• ${r.staff.preferredName || r.staff.displayName}: ${r.kind.toLowerCase()}${r.status === "REQUESTED" ? " (requested, not yet approved)" : ""}, until ${fmtLondonDate(r.endsAt.toISOString().slice(0, 10))}`;
+      return done(`${plural(rows.length, "member of staff", "members of staff")} with an absence recorded for ${when}:\n${rows.slice(0, 10).map(line).join("\n")}${rows.length > 10 ? `\n…and ${rows.length - 10} more.` : ""}\n\nVisits already booked with them are flagged on the rota; nobody is moved automatically.`, [{ label: "Staff absences", href: "/workforce/absences" }, { label: "Sickness & holiday cover", href: "/rota/cover" }]);
+    }
+    case "why-not": {
+      if (!can("rota.view")) return noAccess;
+      if (page.kind !== "visit" || !page.id) return done("Open the visit on the Daily Rota and ask again, for example \"why can't Sam be booked?\". The allocation picker on the visit also shows each carer's reasons.", [{ label: "Daily Rota", href: "/rota/visits" }]);
+      const visit = await db.visit.findFirst({ where: { ...visitWhere(scope), id: page.id }, select: { id: true, scheduledStart: true, scheduledEnd: true, serviceUserId: true, areaId: true, timeLocked: true, tasks: { select: { careTaskId: true } } } });
+      if (!visit) return noAccess;
+      const term = question.toLowerCase().replace(/[?.!,']/g, " ").replace(/\b(why|can|cant|cannot|not|be|is|isnt|won|wont|t|allocated|assigned|booked|book|allocate|assign|eligible|to|this|visit|carer|staff|the|on|for|i)\b/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+      if (term.length < 2) return done("Which carer? For example: \"why can't Sam be booked?\"");
+      const staff = await db.staffMember.findMany({ where: staffDirectoryWhere(scope, { q: term }), select: { id: true, displayName: true }, take: 3, orderBy: { displayName: "asc" } });
+      if (!staff.length) return done(`No carer you can see matches "${term}".`, [{ label: "Open this visit", href: `/rota/visits/${visit.id}` }]);
+      if (staff.length > 1) return done(`More than one carer matches "${term}": ${staff.map((x) => x.displayName).join(", ")}. Use more of the name.`);
+      const who = staff[0]!;
+      const r = await eligibilityFor(db, organisationId, { staffId: who.id, start: visit.scheduledStart, end: visit.scheduledEnd, visitId: visit.id, serviceUserId: visit.serviceUserId, areaId: visit.areaId, timeLocked: visit.timeLocked, careTaskIds: visit.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x) });
+      const lines = [...r.blocking.map((b) => `✗ ${b.message}`), ...r.warnings.map((w) => `! ${w.message}`), ...r.advice.map((a) => `• ${a.message}`)];
+      const verdict = r.blocking.length ? "cannot be booked on this visit" : r.warnings.length ? "can be booked only if you accept the warnings" : "can be booked on this visit";
+      return done(`${who.displayName} ${verdict}. These are the same checks the allocation picker uses.${lines.length ? `\n${lines.join("\n")}` : ""}\n\nI don't book anyone. Use the visit page to allocate.`, [{ label: "Open this visit", href: `/rota/visits/${visit.id}` }]);
+    }
+    case "package-gaps": {
+      if (!can("serviceUser.view") || !suPage) return noAccess;
+      const su = await db.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: suPage }, select: { id: true, firstName: true, lastName: true, preferredName: true } });
+      if (!su) return noAccess;
+      const pkg = await db.carePackage.findFirst({ where: { organisationId, serviceUserId: su.id, status: "ACTIVE" }, orderBy: { startDate: "desc" } });
+      const link = [{ label: "Care package", href: `/rota/service-users/${su.id}?tab=package` }];
+      if (!pkg) return done(`${suName(su)} has no active care package. Record one from the Care package tab before building a rota.`, link);
+      const cov = await packageCoverage(organisationId, su.id);
+      const gaps = [
+        pkg.commissionedMinutesPerWeek === null ? "No commissioned weekly hours are recorded." : null,
+        !pkg.funderId ? "No funder is linked (finance links the funder)." : null,
+        !pkg.reference ? "No package or purchase order reference." : null,
+        !pkg.requirements ? "No staffing requirements written." : null,
+        !pkg.endDate ? "No end date (fine for an ongoing package; check with the commissioner if it is temporary)." : null,
+        !cov.templates ? "No current visit templates." : cov.difference ? `Visit templates plan ${cov.planned} minutes a week but ${cov.commissioned} are commissioned (${Math.abs(cov.difference)} ${cov.difference > 0 ? "over" : "short"}). A manager settles this with the commissioner; nothing is changed automatically.` : null,
+      ].filter(Boolean);
+      return done(`${suName(su)}'s active care package (from ${fmtLondonDate(fromDbDate(pkg.startDate))}):${gaps.length ? `\n${gaps.map((g) => `• ${g}`).join("\n")}` : "\nNothing obvious is missing, and the visit templates match the commissioned hours."}\nVisit templates plan ${cov.planned} visit minutes and ${cov.plannedCarerMinutes} carer minutes a week.`, link);
+    }
     default:
       return done(
-        "I answer from your CRM records only. Try asking:\n• \"Which risk assessments still need reviewing?\"\n• \"Which care plans are awaiting approval?\"\n• \"How many visits need a carer?\"\n• \"What is the next step to finish this intake?\" (on an intake page)\n• \"Is this care package ready for rota generation?\" (on a service user's page)\n• \"Find Smith\" or \"safeguarding policy\"",
+        "I answer from your CRM records only. Try asking:\n• \"Which risk assessments still need reviewing?\"\n• \"Which care plans are awaiting approval?\"\n• \"How many visits need a carer?\"\n• \"What is the next step to finish this intake?\" (on an intake page)\n• \"Is this care package ready for rota generation?\" (on a service user's page)\n• \"Who is unavailable tomorrow?\" or \"Which visits are unassigned tomorrow?\"\n• \"Why can't Sam be booked?\" (on a visit's page)\n• \"What is missing from this care package?\" (on a service user's page)\n• \"Find Smith\" or \"safeguarding policy\"",
       );
   }
 }
