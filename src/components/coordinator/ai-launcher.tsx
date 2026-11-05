@@ -132,7 +132,7 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
     try {
       const data = new FormData();
       data.set("file", attachment);
-      const target = intakeId ?? (uploadTarget === "new" ? "" : uploadTarget);
+      const target = intakeId ?? attachedIntakeId ?? (uploadTarget === "new" ? "" : uploadTarget);
       if (target) data.set("intakeId", target);
       if (!target && serviceUserId) data.set("serviceUserId", serviceUserId);
       const result = await uploadCsbCoordinatorDocument(data);
@@ -140,7 +140,7 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
       const summary = result.duplicate
         ? "This document was already attached to " + result.reference + ". I did not upload or process it again. Open the review to continue."
         : "Saved " + result.filename + " to draft intake " + result.reference + ". Documents: " + result.documents + ". Extracted facts: " + result.facts + ". Facts awaiting coordinator review: " + result.remainingToCheck + "."
-          + (result.extractionFailures ? " The document could not be read fully; review the file and add unsupported facts manually." : "")
+          + (result.extractionFailures ? " The document could not be read fully; review the file and add unsupported facts manually." : (result.facts === 0 ? " No structured facts were recognised; add facts manually after checking the original." : ""))
           + "\n\nNothing has been approved, applied to the service-user record or published to the rota. Open the intake to review source pages and confirm each detail.";
       setMessages((m) => [...m,
         { role: "user", content: "Attached: " + result.filename },
