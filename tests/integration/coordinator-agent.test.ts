@@ -3,6 +3,8 @@ vi.mock("server-only", () => ({}));
 const authMock = vi.hoisted(() => ({ ctx: null as unknown }));
 vi.mock("@/server/auth/current", () => ({ getCtx: vi.fn(async () => authMock.ctx), requireCtx: vi.fn(async () => authMock.ctx) }));
 import { db } from "@/lib/db";
+import { addDays, londonDate, londonTime } from "@/lib/london";
+import { createVisit } from "@/server/rota/visits";
 import { setAiProviderForTests } from "@/server/ai";
 import { AiUnavailableError, type CoordinatorAgentInput, type LlmProvider } from "@/server/ai/provider";
 import { SimulatedProvider } from "@/server/ai/simulated";
@@ -289,5 +291,69 @@ describe("tool permissions and tenancy", () => {
     expect(a.created).toBe(true);
     expect(b).toMatchObject({ created: false, reusedExisting: true, intakeId: a.intakeId });
     expect(s1.wrote).toEqual([{ tool: "create_intake", ref: `CareIntake:${a.intakeId}` }]);
+  });
+});
+
+describe("operational rota coordinator tools (fictional records)", () => {
+  it("finds full first and last names exactly like the Service Users directory, and treats typos as unverified", async () => {
+    const c = await coordinator();
+    const confirmed = state();
+    const exact = await executeTool(c, confirmed, "search_records", { query: "Margaret Ellison" });
+    expect(exact.isError).toBe(false);
+    const found = JSON.parse(exact.content) as { serviceUsers: { id: string; name: string }[] };
+    expect(found.serviceUsers).toHaveLength(1);
+    expect(found.serviceUsers[0]!.name).toBe("Margaret Ellison");
+    expect(confirmed.confirmedServiceUserIds).toContain(found.serviceUsers[0]!.id);
+
+    const typo = state();
+    const unsure = await executeTool(c, typo, "search_records", { query: "Margaret Ellisn" });
+    expect(unsure.isError).toBe(false);
+    const possible = JSON.parse(unsure.content) as { serviceUsers: unknown[]; possibleServiceUsers: { name: string; verified: boolean }[] };
+    expect(possible.serviceUsers).toHaveLength(0);
+    expect(possible.possibleServiceUsers.some((p) => p.name === "Margaret Ellison" && !p.verified)).toBe(true);
+    expect(typo.confirmedServiceUserIds).toBeUndefined();
+  });
+
+  it("moves precisely one future visit's time without touching any template, using real visit checks and audit", async () => {
+    const c = await coordinator();
+    const person = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, firstName: "Margaret", lastName: "Ellison" } });
+    const callType = await db.callType.findFirstOrThrow({ where: { organisationId: orgId, name: "Morning call" } });
+    const date = addDays(londonDate(), 14);
+    // One unassigned, unpublished visit eliminates unrelated carer clashes; all records are fictional.
+    const visit = await createVisit(c, { serviceUserId: person.id, callTypeId: callType.id, date, startMinute: 10 * 60, durationMin: 30, carersRequired: 1, publish: false });
+    const stateForRota: ToolState = { ...state(), userQuestion: `Please move Margaret Ellison's 10:00 visit on ${date} to 09:50` };
+    const search = await executeTool(c, stateForRota, "search_records", { query: "Margaret Ellison" });
+    expect(search.isError).toBe(false);
+    const visits = await executeTool(c, stateForRota, "find_visits", { serviceUserId: person.id, date, start: "10:00" });
+    expect(visits.isError).toBe(false);
+    const selected = JSON.parse(visits.content) as { matched: number; visits: { visitId: string; lockVersion: number }[] };
+    expect(selected.matched).toBe(1);
+    expect(selected.visits[0]!.visitId).toBe(visit.id);
+
+    const moved = await executeTool(c, stateForRota, "adjust_visit_time", { visitId: visit.id, lockVersion: visit.lockVersion, start: "09:50" });
+    expect(moved.isError, moved.content).toBe(false);
+    expect(JSON.parse(moved.content)).toMatchObject({ changed: true, recurringTemplateUnchanged: true });
+    const saved = await db.visit.findUniqueOrThrow({ where: { id: visit.id } });
+    expect(londonTime(saved.scheduledStart)).toBe("09:50");
+    expect(londonTime(saved.scheduledEnd)).toBe("10:20");
+    expect(saved.templateId).toBeNull();
+    expect(stateForRota.wrote).toEqual([{ tool: "adjust_visit_time", ref: `Visit:${visit.id}` }]);
+    // A second write against the earlier version is refused, even by the same employee.
+    const stale = await executeTool(c, stateForRota, "adjust_visit_time", { visitId: visit.id, lockVersion: visit.lockVersion, start: "09:50" });
+    expect(stale.isError).toBe(true);
+  });
+
+  it("never books without an explicit instruction, a verified visit and an eligible carer", async () => {
+    const c = await coordinator();
+    const denied = await executeTool(c, state(), "book_carer", { visitId: "cm0000000010", staffId: "cm0000000011", lockVersion: 0, slot: "PRIMARY" });
+    expect(denied.isError).toBe(true);
+    expect(denied.content).toMatch(/Identify exactly one visit/);
+    const noIntent = await executeTool(c, { ...state(), identifiedVisitIds: ["cm0000000010"], userQuestion: "Who is free?" }, "book_carer", { visitId: "cm0000000010", staffId: "cm0000000011", lockVersion: 0, slot: "PRIMARY" });
+    expect(noIntent.isError).toBe(true);
+    expect(noIntent.content).toMatch(/explicitly ask/);
+    const k = await carer();
+    const noPermission = await executeTool(k, { ...state(), identifiedVisitIds: ["cm0000000010"], userQuestion: "Book the best available carer" }, "book_carer", { visitId: "cm0000000010", staffId: "cm0000000011", lockVersion: 0, slot: "PRIMARY" });
+    expect(noPermission.isError).toBe(true);
+    expect(noPermission.content).toMatch(/permission/);
   });
 });
