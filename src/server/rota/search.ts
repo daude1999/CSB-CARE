@@ -3,27 +3,29 @@ import { fromDbDate, londonTime } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, staffDirectoryWhere, visitWhere } from "./scope";
 import { suName } from "./queries";
-import { searchReferenceHits } from "@/server/care/external-references";
-import { referenceTitle } from "@/lib/reference-numbers";
+import { lookUpReferences, matchedReferenceLabel, serviceUserMatchWhere } from "@/server/care/service-user-search";
+import { cleanSearch } from "@/lib/service-user-search";
 
 const LIMIT = 15;
 
 /**
  * The top bar search on rostering pages: service users, team members and visit references the member may see. Each
  * group is only searched with the permission its page checks, and every query keeps the member's branch and area limits.
+ * Service users are found the same way as in the Service Users directory (every status, ended people included). If the
+ * encrypted reference lookup fails, the other results are still returned with `referenceProblem` saying why.
  */
 export async function rotaSearch(ctx: Ctx, raw: string) {
   const scope = await rotaScope(ctx, "rota.view");
-  const q = raw.trim().slice(0, 100);
-  if (q.length < 2) return { q, serviceUsers: [], staff: [], visits: [] };
+  const q = cleanSearch(raw);
+  if (q.length < 2) return { q, serviceUsers: [], staff: [], visits: [], referenceProblem: null };
   const like = { contains: q, mode: "insensitive" as const };
   const canSu = hasOrgPermission(ctx, "serviceUser.view");
   // External references (council, Frameworki, package, NHS for restricted roles) are exact, encrypted lookups.
-  const hits = canSu ? await searchReferenceHits(ctx, q) : [];
-  const nhs = canSu && hasOrgPermission(ctx, "serviceUser.sensitive") && /^\d{10}$/.test(q.replace(/\s/g, "")) ? [{ nhsNumber: q.replace(/\s/g, "") }] : [];
+  const refs = canSu ? await lookUpReferences(ctx, q) : { hits: [], problem: null };
+  const match = serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] });
   const [serviceUsers, staff, visits] = await Promise.all([
     canSu
-      ? db.serviceUser.findMany({ where: { AND: [serviceUserWhere(scope), { OR: [{ firstName: like }, { lastName: like }, { preferredName: like }, { reference: like }, { csbReference: like }, ...nhs, { id: { in: [...new Set(hits.map((h) => h.serviceUserId))] } }, { postcode: like }] }] }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: LIMIT })
+      ? db.serviceUser.findMany({ where: { AND: [serviceUserWhere(scope), match] }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: LIMIT })
       : Promise.resolve([]),
     hasOrgPermission(ctx, "staff.directory")
       ? db.staffMember.findMany({ where: { organisationId: scope.organisationId, ...staffDirectoryWhere(scope, { status: "all", q }) }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true }, orderBy: { displayName: "asc" }, take: LIMIT })
@@ -32,9 +34,10 @@ export async function rotaSearch(ctx: Ctx, raw: string) {
   ]);
   return {
     q,
+    referenceProblem: refs.problem,
     serviceUsers: serviceUsers.map((s) => {
-      const h = hits.find((x) => x.serviceUserId === s.id);
-      const matched = h ? `matched ${referenceTitle(h)}${h.type === "COUNCIL_FRAMEWORK" ? " (shared framework ID)" : ""}` : null;
+      const m = matchedReferenceLabel(refs.hits, s.id);
+      const matched = m ? `matched ${m}` : null;
       return { id: s.id, name: suName(s), detail: [s.csbReference ?? s.reference, s.csbReference && s.reference !== s.csbReference ? `legacy ${s.reference}` : null, s.postcode, s.status.toLowerCase(), matched].filter(Boolean).join(" · ") };
     }),
     staff: staff.map((s) => ({ id: s.id, name: s.displayName, detail: [s.jobTitle, s.employmentStatus === "ACTIVE" ? null : s.employmentStatus.toLowerCase()].filter(Boolean).join(" · ") })),

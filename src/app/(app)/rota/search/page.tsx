@@ -2,6 +2,8 @@ import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { rotaSearch } from "@/server/rota/search";
 import { Empty, PageHeader } from "@/components/ui";
+import { EXACT_REFERENCE_HINT, SearchProblem } from "@/components/search-notice";
+import { mayBeExternalReference } from "@/lib/service-user-search";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,8 @@ export default async function RotaSearchPage({ searchParams }: { searchParams: P
           <label><span className="label">Search</span><input name="q" type="search" defaultValue={r.q} minLength={2} required placeholder="Name, postcode, CSB or council reference" className="input w-[320px]" /></label>
           <button className="btn-primary">Search</button>
         </form>
-        {r.q.length < 2 ? <Empty>Type at least two letters.</Empty> : !found ? <Empty>Nothing matches “{r.q}”.</Empty> : (
+        {r.referenceProblem ? <SearchProblem>{r.referenceProblem}</SearchProblem> : null}
+        {r.q.length < 2 ? <Empty>Type at least two letters.</Empty> : !found ? <Empty>Nothing you are allowed to see matches “{r.q}”.{mayBeExternalReference(r.q) && !r.referenceProblem ? ` ${EXACT_REFERENCE_HINT}` : ""}</Empty> : (
           <div className="grid gap-4 lg:grid-cols-3">
             {groups.map((g) => (
               <section key={g.title} aria-label={g.title}>
@@ -38,6 +41,7 @@ export default async function RotaSearchPage({ searchParams }: { searchParams: P
             ))}
           </div>
         )}
+        <p className="mt-4 text-[13px] text-slate-600">This box searches Rostering & Care Management only. Looking for a policy? <Link href={`/policies?q=${encodeURIComponent(r.q)}`}>Search policies</Link>.</p>
       </section>
     </>
   );
