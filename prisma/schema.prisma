@@ -1670,6 +1670,7 @@ model ServiceUser {
   documents             ServiceUserDocument[]
   bodyMapObservations   BodyMapObservation[]
   safeguardingDecisions SafeguardingAuthorityDecision[]
+  callNotes             CallNote[]
 
   @@unique([organisationId, reference])
   @@unique([organisationId, csbReference])
@@ -4827,4 +4828,174 @@ model SafeguardingAuthorityDecision {
   decidedAt                      DateTime    @default(now())
 
   @@index([organisationId, serviceUserId])
+}
+
+// ───────────────────────────── Service user Call Notes ─────────────────────────────
+// src/server/care/call-notes.ts. A record of a conversation, email or meeting about one person. Call Notes hold only
+// general communication: anything that belongs in a structured record (care plan, risk, medication, rota, incident,
+// contacts, personal details, documents) is sent to that record's own review queue and only linked from here.
+// Notes are never deleted: a correction keeps the previous text as a CallNoteRevision, and a note can be superseded.
+
+/// One Call Note. originalText is what the person typed or the source quote, and is never changed after saving.
+/// method: TELEPHONE | FACE_TO_FACE | EMAIL | MEETING | VIDEO | OTHER
+/// origin: MANUAL | AI_ASSISTED | BASIC_ORGANISER | INTAKE
+/// status: DRAFT | AWAITING_REVIEW | APPROVED | CLARIFICATION_REQUESTED | REJECTED | SUPERSEDED | WITHDRAWN
+model CallNote {
+  id                String               @id @default(cuid())
+  organisationId    String
+  serviceUserId     String
+  serviceUser       ServiceUser          @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Restrict)
+  /// CALL-2026-000001: from CallNoteReferenceCounter, never reused.
+  reference         String
+  /// The form's one-time key, so a repeated or retried submission returns the same note instead of a second one.
+  submissionKey     String
+  communicationAt   DateTime
+  method            String
+  contactName       String
+  contactRole       String?
+  /// The contact on record this conversation was with, when known.
+  contactId         String?
+  summary           String
+  details           String?
+  originalText      String
+  clarification     String?
+  /// A Council or Other Document this note relates to (for example the email it was copied from).
+  sourceDocumentId  String?
+  /// Where the information came from, for intake notes: "CI-0003 · Discharge letter, page 2".
+  sourceLabel       String?
+  intakeId          String?
+  intakeFactId      String?               @unique
+  /// Restricted notes (safeguarding, or marked so) open only for their author and people with serviceUser.sensitive.
+  restricted        Boolean              @default(false)
+  origin            String               @default("MANUAL")
+  /// The AI provider name, "basic-organiser" (no AI) or null for a note typed without organising.
+  reader            String?
+  /// What the organiser proposed, exactly as produced, kept so human edits can be compared with it.
+  proposal          Json?
+  status            String               @default("DRAFT")
+  /// SAFEGUARDING | MEDICATION | SAFETY: urgent concerns the note raised. Shown prominently, never hidden in the text.
+  urgentKinds       String[]             @default([])
+  escalatedAt       DateTime?
+  escalationNote    String?
+  escalationById    String?
+  version           Int                  @default(1)
+  supersededById    String?
+  createdById       String
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  submittedAt       DateTime?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  reviewNote        String?
+  lockVersion       Int                  @default(1)
+  items             CallNoteItem[]
+  revisions         CallNoteRevision[]
+  links             CallNoteLink[]
+  tasks             CallNoteTask[]
+
+  @@unique([organisationId, reference])
+  @@unique([organisationId, submissionKey])
+  @@index([organisationId, serviceUserId, communicationAt])
+  @@index([organisationId, status])
+}
+
+/// One piece of information in a note, how it was classified, where it belongs and what was decided.
+/// kind: CONFIRMED_FACT | THIRD_PARTY_REPORT | UNVERIFIED | PREFERENCE_REQUEST | PROFESSIONAL_ADVICE | AUTHORISED_INSTRUCTION
+/// destination: CALL_NOTE | CARE_PLAN | RISK | MEDICATION | ROTA | VISIT | INCIDENT | SAFEGUARDING | CONTACTS | PERSONAL | DOCUMENTS
+/// duplicate: NEW | EXACT | POSSIBLE | UPDATE | CONFLICT
+/// decision: KEEP (stays in the note) | ROUTE (sent to its destination's review queue) | LINK (linked to an existing record) | LEAVE_OUT
+model CallNoteItem {
+  id               String   @id @default(cuid())
+  organisationId   String
+  callNoteId       String
+  callNote         CallNote @relation(fields: [callNoteId], references: [id], onDelete: Cascade)
+  position         Int
+  text             String
+  kind             String
+  destination      String
+  /// The exact words in the original text this item came from; quoteFound is false when they are not there.
+  quote            String?
+  quoteFound       Boolean  @default(true)
+  urgent           Boolean  @default(false)
+  /// AI | BASIC | MANUAL: what produced the item. aiKind / aiDestination keep what the organiser proposed.
+  origin           String   @default("MANUAL")
+  aiKind           String?
+  aiDestination    String?
+  duplicate        String   @default("NEW")
+  /// "RiskAssessment:<id>" and so on: the existing record the duplicate check matched.
+  duplicateRef     String?
+  duplicateLabel   String?
+  decision         String   @default("KEEP")
+  /// The Care Coordinator review item a routed item became, once the note was approved.
+  reviewItemId     String?
+  createdAt        DateTime @default(now())
+
+  @@index([callNoteId, position])
+}
+
+/// The previous content of a note each time it is corrected. Append-only (database trigger).
+model CallNoteRevision {
+  id         String   @id @default(cuid())
+  callNoteId String
+  callNote   CallNote @relation(fields: [callNoteId], references: [id], onDelete: Restrict)
+  version    Int
+  snapshot   Json
+  reason     String
+  createdById String
+  createdAt  DateTime @default(now())
+
+  @@unique([callNoteId, version])
+}
+
+/// A record the note is linked to. Shown only when the viewer may open the destination.
+/// targetType: CARE_PLAN | RISK | VISIT | INCIDENT | REVIEW_ITEM | CONTACT | DOCUMENT | INTAKE | CALL_NOTE | MEDICATION
+model CallNoteLink {
+  id             String   @id @default(cuid())
+  organisationId String
+  callNoteId     String
+  callNote       CallNote @relation(fields: [callNoteId], references: [id], onDelete: Cascade)
+  targetType     String
+  targetId       String
+  label          String
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  @@unique([callNoteId, targetType, targetId])
+}
+
+/// A follow-up action from a note, assigned to one person. Listed in Active Reminders and the assignee's
+/// notifications, reminded when overdue, and closed only by the assignee or a manager with a completion note.
+/// priority: LOW | MEDIUM | HIGH | URGENT. status: OPEN | DONE | CANCELLED
+model CallNoteTask {
+  id                 String    @id @default(cuid())
+  organisationId     String
+  serviceUserId      String
+  callNoteId         String
+  callNote           CallNote  @relation(fields: [callNoteId], references: [id], onDelete: Restrict)
+  description        String
+  assigneeId         String
+  priority           String    @default("MEDIUM")
+  dueOn              DateTime  @db.Date
+  status             String    @default("OPEN")
+  evidenceRequired   Boolean   @default(false)
+  evidenceDocumentId String?
+  completionNote     String?
+  createdById        String
+  createdAt          DateTime  @default(now())
+  closedById         String?
+  closedAt           DateTime?
+  version            Int       @default(1)
+
+  @@index([organisationId, status, dueOn])
+  @@index([callNoteId])
+  @@index([assigneeId, status])
+}
+
+/// Atomic per-organisation, per-year counter for Call Note references. Never decremented.
+model CallNoteReferenceCounter {
+  organisationId String
+  year           Int
+  nextNumber     Int    @default(1)
+
+  @@id([organisationId, year])
 }

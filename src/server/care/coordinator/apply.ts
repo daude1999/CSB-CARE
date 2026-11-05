@@ -4,7 +4,7 @@ import { AppError, ConflictError, ForbiddenError, ValidationError } from "@/lib/
 import { addDays, dbDate, fromDbDate, hhmm, londonDate, parseHhmm } from "@/lib/london";
 import {
   ACCEPTED, APPLY_ORDER, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
-  type IntakeSection, type contactValue, type incidentValue, type medArrangementValue, type medItemValue, type planValue, type riskValue, type skinValue, type visitValue,
+  type IntakeSection, type callNoteValue, type contactValue, type incidentValue, type medArrangementValue, type medItemValue, type planValue, type riskValue, type skinValue, type visitValue,
 } from "@/lib/care-coordinator-rules";
 import { guessCallType, type FundedBy } from "@/lib/su-import-rules";
 import type { z } from "zod";
@@ -19,6 +19,7 @@ import { linkExternalReferenceInTx } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
 import { coordinatorAccess, intakeInScope } from "./intake";
+import { createIntakeCallNote } from "../call-notes";
 import { rotaScope } from "@/server/rota/scope";
 
 type Tx = Prisma.TransactionClient;
@@ -137,6 +138,7 @@ async function run(ctx: Ctx, scope: Scope, intakeId: string, section: IntakeSect
     case "INCIDENTS": return applyHistory(ctx, scope, intakeId, "INCIDENTS");
     case "BODY_MAP": return applyHistory(ctx, scope, intakeId, "BODY_MAP");
     case "VISITS": return applyVisits(ctx, scope, intakeId);
+    case "CALL_NOTES": return applyCallNotes(ctx, scope, intakeId);
   }
 }
 
@@ -445,6 +447,29 @@ async function applyHistory(ctx: Ctx, scope: Scope, intakeId: string, section: "
     out.created.push(`${f.label}: ${section === "INCIDENTS" ? "kept as incident history to check" : "kept as a skin finding to check at the first visit"}`);
   }
   out.notes.push(section === "INCIDENTS" ? "No incident records were created. Historical incidents stay as history." : "No body map observations were created. Historical findings are never shown as current.");
+  return out;
+}
+
+// ── Call Notes: general communication, approved with the section ───────────
+
+async function applyCallNotes(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
+  const out: SectionResult = { created: [], skipped: [], notes: [], verified: true };
+  const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "CALL_NOTES", decision: { in: [...ACCEPTED] } }, orderBy: { position: "asc" } });
+  for (const f of fs) {
+    if (f.appliedAt) { out.skipped.push(`${f.label}: already saved`); continue; }
+    await db.$transaction(async (tx) => {
+      const { su, intake } = await suFor(tx, scope, intakeId);
+      const doc = f.sourceDocumentId ? await tx.careIntakeDocument.findUnique({ where: { id: f.sourceDocumentId }, select: { name: true, documentDate: true } }) : null;
+      const section = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section: "CALL_NOTES" } } });
+      const note = await createIntakeCallNote(tx, ctx, {
+        organisationId: scope.organisationId, serviceUserId: su.id, intake: { id: intake.id, reference: intake.reference, createdAt: intake.createdAt }, fact: f, documentName: doc?.name ?? null, documentDate: doc?.documentDate ?? null,
+        approvedById: section.decidedById, value: f.value as z.output<typeof callNoteValue>, sourceLabel: `${intake.reference} · ${await docLabel(tx, f.sourceDocumentId, f.sourcePage)}`,
+      });
+      await markApplied(tx, f, `CallNote:${note.id}`);
+      out.created.push(`${note.reference}: ${f.label}`);
+    });
+  }
+  out.notes.push("Only general communication becomes a Call Note. Anything for another record is decided in that record's own section.");
   return out;
 }
 

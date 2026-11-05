@@ -21,6 +21,7 @@ export const INTAKE_SECTIONS = [
   { key: "MEDICATION", label: "Medication", profile: "Care → Medication (reconciliation)", restricted: true },
   { key: "INCIDENTS", label: "Incident history", profile: "Health and Safety → Incidents (history only)", restricted: true },
   { key: "BODY_MAP", label: "Skin and body map", profile: "Health and Safety → Body Map (review only)", restricted: true },
+  { key: "CALL_NOTES", label: "Call Notes", profile: "Call Notes (general communication only)", restricted: false },
 ] as const;
 export type IntakeSection = (typeof INTAKE_SECTIONS)[number]["key"];
 export const SECTION_KEYS = INTAKE_SECTIONS.map((s) => s.key) as [IntakeSection, ...IntakeSection[]];
@@ -32,7 +33,7 @@ export const RESTRICTED_SECTIONS = new Set<string>(INTAKE_SECTIONS.filter((s) =>
 export const RESTRICTED_PERSON_FIELDS = new Set(["dateOfBirth", "nhsNumber"]);
 
 /** The order sections are applied in: the person first, then everything that hangs off them, the rota last. */
-export const APPLY_ORDER: IntakeSection[] = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "MEDICATION", "INCIDENTS", "BODY_MAP", "VISITS"];
+export const APPLY_ORDER: IntakeSection[] = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "MEDICATION", "INCIDENTS", "BODY_MAP", "VISITS", "CALL_NOTES"];
 
 export const DECISIONS = { PENDING: "To review", APPROVED: "Approved", EDITED: "Edited and approved", REJECTED: "Rejected", CLARIFY: "Needs clarification", DUPLICATE: "Duplicate" } as const;
 export type Decision = keyof typeof DECISIONS;
@@ -178,6 +179,13 @@ export const medItemValue = z.object({
 });
 export const incidentValue = z.object({ date: optDate, type: s(120), description: s(4000), consequences: opt(2000), actions: opt(2000) });
 export const skinValue = z.object({ date: optDate, area: opt(120), finding: s(120), description: s(4000) });
+/** General communication found in a document or typed from a meeting: becomes an approved Call Note, nothing else. */
+export const callNoteValue = z.object({
+  summary: s(2000),
+  contactName: opt(200),
+  method: z.enum(["TELEPHONE", "FACE_TO_FACE", "EMAIL", "MEETING", "VIDEO", "OTHER"]).nullish().transform((v) => v ?? "OTHER"),
+  date: optDate,
+});
 
 /** Every destination a fact may have. Anything else is refused. */
 export function destinationSchema(destination: string): { section: IntakeSection; label: string; schema: z.ZodTypeAny } | null {
@@ -197,6 +205,7 @@ export function destinationSchema(destination: string): { section: IntakeSection
   if (destination === "medication.allergy") return { section: "MEDICATION", label: "Allergy", schema: s(300) };
   if (destination === "incident.history") return { section: "INCIDENTS", label: "Historical incident", schema: incidentValue };
   if (destination === "bodymap.history") return { section: "BODY_MAP", label: "Documented skin finding", schema: skinValue };
+  if (destination === "callnote") return { section: "CALL_NOTES", label: "Call Note", schema: callNoteValue };
   return null;
 }
 
@@ -215,6 +224,7 @@ export function destinationField(destination: string): string {
   if (head === "medication") return "Medication reconciliation queue (DRAFT medicine only after checks)";
   if (destination === "incident.history") return "Incident history review item (no new incident)";
   if (destination === "bodymap.history") return "Body map review item (no new observation)";
+  if (destination === "callnote") return "CallNote (approved, linked to this intake)";
   return destination;
 }
 
@@ -245,6 +255,7 @@ export function displayValue(destination: string, v: unknown): string {
     case "medication.item": return join(o.name, o.strength, o.dose, o.route, o.frequency, o.asRequired ? "As required (PRN)" : null, o.status !== "CURRENT" ? String(o.status).toLowerCase() : null);
     case "incident.history": return join(o.date, o.type, o.description);
     case "bodymap.history": return join(o.date, o.area, o.finding, o.description);
+    case "callnote": return join(o.date, o.contactName ? `With ${o.contactName}` : null, o.summary);
     default:
       if (destination.startsWith("careplan.")) return join(o.canDo ? `Can do: ${o.canDo}` : null, o.support ? `Needs: ${o.support}` : null, o.how ? `How: ${o.how}` : null, o.outcome ? `Outcome: ${o.outcome}` : null, o.clarify ? `To clarify: ${o.clarify}` : null);
       return JSON.stringify(v);
@@ -376,6 +387,8 @@ export interface Reading {
   flags: { text: string; page: number }[];
   missing: string[];
   unreadable: { page: number; reason: string }[];
+  /** General communication that belongs in Call Notes (optional: older readings do not have it). */
+  communications?: { summary: string; contactName: string | null; method: "TELEPHONE" | "FACE_TO_FACE" | "EMAIL" | "MEETING" | "VIDEO" | "OTHER" | null; date: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
 }
 
 /** Turns one reading into individual facts. Bad shapes are dropped; nothing is invented to fill a gap. */
@@ -422,6 +435,7 @@ export function readingToFacts(r: Reading): FactSeed[] {
   for (const i of m.items) add({ section: "MEDICATION", destination: "medication.item", label: i.name, value: { name: i.name, strength: i.strength, dose: i.dose, route: i.route, frequency: i.frequency, times: i.times, asRequired: i.asRequired, prnInstructions: i.prnInstructions, status: i.status, note: i.note }, page: i.page, quote: i.quote, temporal: i.temporal });
   for (const a of m.allergies) add({ section: "MEDICATION", destination: "medication.allergy", label: "Allergy", value: a.value, page: a.page, quote: a.quote, temporal: a.temporal });
   for (const i of r.incidents) add({ section: "INCIDENTS", destination: "incident.history", label: i.type, value: { date: i.date ? toIso(i.date) : null, type: i.type, description: i.description, consequences: i.consequences, actions: i.actions }, page: i.page, quote: i.quote, temporal: "HISTORICAL" });
+  for (const c of r.communications ?? []) add({ section: "CALL_NOTES", destination: "callnote", label: c.contactName ? `Communication with ${c.contactName}` : "Communication", value: { summary: c.summary, contactName: c.contactName, method: c.method, date: c.date ? toIso(c.date) : null }, page: c.page, quote: c.quote, temporal: c.temporal });
   for (const k of r.skin) add({ section: "BODY_MAP", destination: "bodymap.history", label: k.finding, value: { date: k.date ? toIso(k.date) : null, area: k.area, finding: k.finding, description: k.description }, page: k.page, quote: k.quote, temporal: k.temporal === "CURRENT" ? "UNKNOWN" : k.temporal });
   return out;
 }
@@ -435,7 +449,7 @@ export function readingToFacts(r: Reading): FactSeed[] {
  * is left for the coordinator; it never guesses.
  */
 export function basicRead(pages: string[]): Reading {
-  const r: Reading = { document: { ...classifyText(pages.join("\n")), pageCount: pages.length }, person: [], references: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [], medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [] };
+  const r: Reading = { document: { ...classifyText(pages.join("\n")), pageCount: pages.length }, person: [], references: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [], medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [], communications: [] };
   const historicalDoc = r.document.kind === "DISCHARGE_LETTER";
   pages.forEach((text, i) => {
     const page = i + 1;
@@ -450,6 +464,12 @@ export function basicRead(pages: string[]): Reading {
       const value = lv[2]!.trim();
       const base = { page, quote: line, temporal: (historicalDoc ? "UNKNOWN" : "CURRENT") as FactSeed["temporal"] };
       if (/key ?safe|alarm code|door code|pin\b/.test(label)) { r.flags.push({ text: "A key safe or door code appears in the document. It was not copied; record it through Key Safe if needed.", page }); continue; }
+      const comm = /^(call note|phone call|telephone call|telephone conversation|conversation with|spoke (to|with)|email from|meeting note|communication with)(?: with)?\s*(.*)$/.exec(label);
+      if (comm) {
+        const method = /mail/.test(label) ? "EMAIL" : /meeting/.test(label) ? "MEETING" : /phone|call/.test(label) ? "TELEPHONE" : "OTHER";
+        r.communications!.push({ summary: value, contactName: comm[3]?.trim() ? comm[3].trim().replace(/^\w/, (ch) => ch.toUpperCase()) : null, method, date: null, ...base });
+        continue;
+      }
       const person = PERSON_LABELS.find(([re]) => re.test(label));
       if (person) {
         if (person[1] === "fullName") {

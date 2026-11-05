@@ -205,7 +205,7 @@ export function ReviewStep({ view, back, section, show, add }: { view: View; bac
 
 function sectionOfDestination(d: string) {
   const head = d.split(".")[0];
-  return { person: "PERSONAL", contact: "CONTACTS", preference: "CARER_PREFERENCES", careplan: "CARE_PLAN", risk: "RISKS", package: "PACKAGE", visit: "VISITS", medication: "MEDICATION", incident: "INCIDENTS", bodymap: "BODY_MAP" }[head ?? ""] ?? null;
+  return { person: "PERSONAL", contact: "CONTACTS", preference: "CARER_PREFERENCES", careplan: "CARE_PLAN", risk: "RISKS", package: "PACKAGE", visit: "VISITS", medication: "MEDICATION", incident: "INCIDENTS", bodymap: "BODY_MAP", callnote: "CALL_NOTES" }[head ?? ""] ?? null;
 }
 
 function SubmitPanel({ view, back, openYours, openAll }: { view: View; back: string; openYours: number; openAll: number }) {
