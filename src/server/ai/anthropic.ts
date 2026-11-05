@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
-import { AiUnavailableError, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
+import { AiUnavailableError, type CoordinatorAgentInput, type CoordinatorAgentResult, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
 import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema, BranchPolicyDraftSchema, CallNoteOrganisationSchema } from "./schemas";
 
 const SYSTEM = `You support regulatory compliance reviewers at CSB, a policy management platform for adult social care providers in England.
@@ -139,6 +139,89 @@ Respond in short paragraphs. Mention case section or source-page details only if
     }
   }
 
+  /** Whether the configured model exists for this key, checked once per process (re-checked after 10 minutes on a
+   *  failure other than "not found"). A missing model gives a plain error instead of a failed chat. */
+  private modelCheck: { at: number; ok: boolean; error?: AiUnavailableError } | null = null;
+  async checkModel(): Promise<void> {
+    if (this.modelCheck && (this.modelCheck.ok || Date.now() - this.modelCheck.at < 10 * 60_000)) {
+      if (this.modelCheck.error) throw this.modelCheck.error;
+      return;
+    }
+    try {
+      await this.client.models.retrieve(this.model, {}, { timeout: 10_000, maxRetries: 1 });
+      this.modelCheck = { at: Date.now(), ok: true };
+    } catch (e) {
+      const err = toUnavailable(e, this.model);
+      // Only a definite answer is remembered; a network blip is retried on the next chat.
+      if (err.reason === "model-unavailable" || err.reason === "auth") this.modelCheck = { at: Date.now(), ok: false, error: err };
+      throw err;
+    }
+  }
+
+  /**
+   * AI CSB Coordinator with tools. A plain loop we own: the model asks for a tool, our server runs it with the
+   * employee's permissions and hands back the result as data, until the model answers or the step/time budget ends.
+   * Thinking blocks are passed back unchanged. Nothing is streamed and nothing is stored here.
+   */
+  async runCoordinatorAgent(input: CoordinatorAgentInput): Promise<CoordinatorAgentResult> {
+    await this.checkModel();
+    const started = Date.now();
+    const usage = { requests: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const tools: Anthropic.Beta.BetaTool[] = input.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema, strict: true }));
+    const messages: Anthropic.Beta.BetaMessageParam[] = [
+      ...input.history.slice(-8).map((m) => ({ role: m.role, content: m.content.slice(0, 2000) })),
+      { role: "user", content: input.message },
+    ];
+    // The API needs the conversation to start with the employee.
+    while (messages.length && messages[0]!.role !== "user") messages.shift();
+    let lastText = "";
+    for (let step = 0; step < input.maxSteps; step++) {
+      const remaining = input.deadlineMs - (Date.now() - started);
+      if (remaining < 3_000) return { text: lastText, model: this.model, usage, truncated: true };
+      let res: Anthropic.Beta.BetaMessage;
+      try {
+        res = await this.client.beta.messages.create(
+          {
+            model: this.model,
+            max_tokens: 4000,
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+            thinking: { type: "adaptive" },
+            output_config: { effort: "medium" },
+            // The system prompt and tool list never change between turns, so they are cached.
+            system: [{ type: "text", text: input.system, cache_control: { type: "ephemeral" } }],
+            tools,
+            messages,
+          },
+          { timeout: Math.min(remaining, 45_000), maxRetries: 1 },
+        );
+      } catch (e) {
+        throw toUnavailable(e, this.model);
+      }
+      usage.requests++;
+      usage.inputTokens += res.usage.input_tokens;
+      usage.outputTokens += res.usage.output_tokens;
+      usage.cacheReadTokens += res.usage.cache_read_input_tokens ?? 0;
+      usage.cacheWriteTokens += res.usage.cache_creation_input_tokens ?? 0;
+      if (res.stop_reason === "refusal") throw new AiUnavailableError("The AI service declined this request. Use the CRM screens, or rephrase the question.", "refused");
+      const text = res.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
+      if (text) lastText = text;
+      const calls = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+      if (res.stop_reason !== "tool_use" || !calls.length) {
+        return { text: lastText, model: this.model, usage, truncated: res.stop_reason === "max_tokens" };
+      }
+      messages.push({ role: "assistant", content: res.content as Anthropic.Beta.BetaContentBlockParam[] });
+      // Tool calls run one after another: several of them write, and each re-checks permissions and locks itself.
+      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+      for (const call of calls) {
+        const r = await input.execute(call.name, call.input);
+        results.push({ type: "tool_result", tool_use_id: call.id, content: r.content, is_error: r.isError });
+      }
+      messages.push({ role: "user", content: results });
+    }
+    return { text: lastText, model: this.model, usage, truncated: true };
+  }
+
   analyseChange(input: ChangeAnalysisInput) {
     return this.structured(
       ChangeAnalysisSchema,
@@ -260,4 +343,17 @@ ${input.sections.map((s) => `<section key="${xmlEscape(s.key)}" heading="${xmlEs
 </policy>`,
     );
   }
+}
+
+/** Maps an SDK error to a plain, key-free AiUnavailableError. Anything unexpected is a general outage. */
+export function toUnavailable(e: unknown, model: string): AiUnavailableError {
+  if (e instanceof AiUnavailableError) return e;
+  if (e instanceof Anthropic.NotFoundError) return new AiUnavailableError(`The AI model "${model}" is not available to this Anthropic account. Choose a model the account can use (ANTHROPIC_MODEL), or leave it unset for the default.`, "model-unavailable");
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return new AiUnavailableError("The Anthropic API key was rejected. An administrator needs to check ANTHROPIC_API_KEY on the server.", "auth");
+  if (e instanceof Anthropic.RateLimitError) return new AiUnavailableError("The AI service is busy or this account's usage limit was reached. Try again in a minute.", "busy");
+  if (e instanceof Anthropic.APIConnectionTimeoutError) return new AiUnavailableError("The AI service took too long to answer.", "timeout");
+  if (e instanceof Anthropic.APIConnectionError || e instanceof Anthropic.InternalServerError) return new AiUnavailableError("The AI service could not be reached just now.", "unavailable");
+  if (e instanceof Anthropic.APIError && e.status === 529) return new AiUnavailableError("The AI service is overloaded just now. Try again in a minute.", "busy");
+  if (e instanceof Anthropic.BadRequestError) return new AiUnavailableError("The AI service rejected the request.", "unavailable");
+  return new AiUnavailableError("The AI service could not answer just now.", "unavailable");
 }
