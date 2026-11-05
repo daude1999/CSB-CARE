@@ -102,6 +102,61 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
       setSending(false);
     }
   }
+  async function pickAttachment(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setError("Each document must be no larger than 4 MB.");
+      return;
+    }
+    if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) {
+      setError("Choose a PDF, PNG or JPEG document.");
+      return;
+    }
+    setAttachment(file);
+    setError(null);
+    setUploadTarget("new");
+    if (!intakeId && !attachedIntakeId) {
+      try {
+        setDraftIntakes(await listCsbCoordinatorDraftIntakes());
+      } catch {
+        setDraftIntakes([]);
+        setError("Existing intakes couldn't be loaded. You can still create a new draft intake.");
+      }
+    }
+  }
+
+  async function uploadAttachment() {
+    if (!attachment || uploading || sending) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const data = new FormData();
+      data.set("file", attachment);
+      const target = intakeId ?? (uploadTarget === "new" ? "" : uploadTarget);
+      if (target) data.set("intakeId", target);
+      if (!target && serviceUserId) data.set("serviceUserId", serviceUserId);
+      const result = await uploadCsbCoordinatorDocument(data);
+      setAttachedIntakeId(result.intakeId);
+      const summary = result.duplicate
+        ? "This document was already attached to " + result.reference + ". I did not upload or process it again. Open the review to continue."
+        : "Saved " + result.filename + " to draft intake " + result.reference + ". Documents: " + result.documents + ". Extracted facts: " + result.facts + ". Facts awaiting coordinator review: " + result.remainingToCheck + "."
+          + (result.extractionFailures ? " The document could not be read fully; review the file and add unsupported facts manually." : "")
+          + "\n\nNothing has been approved, applied to the service-user record or published to the rota. Open the intake to review source pages and confirm each detail.";
+      setMessages((m) => [...m,
+        { role: "user", content: "Attached: " + result.filename },
+        { role: "assistant", content: summary, links: [{ label: "Review the care intake", href: result.reviewHref }] },
+      ]);
+      setAttachment(null);
+      setDraftIntakes([]);
+      setUploadTarget("new");
+      if (attachmentInput.current) attachmentInput.current.value = "";
+    } catch (e) {
+      setError(e instanceof Error ? e.message.slice(0, 250) : "The document could not be saved. Nothing has been approved.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault();
     void ask(query);
