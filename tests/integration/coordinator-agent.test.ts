@@ -103,6 +103,27 @@ describe("when Claude is used", () => {
     expect(r.notice).toMatch(/not available to this Anthropic account/);
   });
 
+  it("never shows the employee an error: an unexpected failure falls back to the CRM and names the error type, without the key", async () => {
+    await setAi(true);
+    authMock.ctx = await coordinator();
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test-not-real-123456";
+    script = async () => {
+      const e = Object.assign(new Error("400 fallbacks: unexpected field (key sk-ant-test-not-real-123456)"), { status: 400 });
+      e.name = "BadRequestError";
+      throw e;
+    };
+    const r = await ask("Which risk assessments still need reviewing?");
+    expect(r.mode).toBe("crm");
+    expect(r.topic).toBe("risks");
+    expect(r.notice).toMatch(/Claude couldn't answer this time \(BadRequestError 400: 400 fallbacks: unexpected field/);
+    expect(r.notice).not.toMatch(/sk-ant/);
+    script = async () => { throw new TypeError("x is undefined"); };
+    const t = await ask("Which risk assessments still need reviewing?");
+    expect(t.mode).toBe("crm");
+    expect(t.notice).toMatch(/\(TypeError\)/);
+    delete process.env.ANTHROPIC_API_KEY;
+  });
+
   it("falls back when the per-person hourly limit is reached", async () => {
     await setAi(true);
     authMock.ctx = await coordinator();

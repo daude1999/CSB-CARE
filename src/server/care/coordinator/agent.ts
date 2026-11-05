@@ -83,6 +83,27 @@ export async function coordinatorAiStatus(organisationId: string) {
   return { orgEnabled: !!settings?.careCoordinatorAiEnabledAt, providerReady: capable, on: !!settings?.careCoordinatorAiEnabledAt && capable, provider: capable ? provider!.name : null };
 }
 
+/**
+ * A short, key-free description of an unexpected error, so an administrator can see why Claude was not used without
+ * opening the server logs: the error type, the HTTP status and code if any, and for HTTP errors the service's own
+ * one-line reason. Anything shaped like an API key is removed. Database errors give only their type and code.
+ */
+export function describeUnexpected(e: unknown): string {
+  const err = (e ?? {}) as { name?: unknown; status?: unknown; code?: unknown; message?: unknown; constructor?: { name?: string } };
+  const name = typeof err.name === "string" && err.name !== "Error" ? err.name : (err.constructor?.name || "Error");
+  const parts = [name];
+  if (typeof err.status === "number") parts.push(String(err.status));
+  if (typeof err.code === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(err.code)) parts.push(err.code);
+  let text = parts.join(" ");
+  if (typeof err.status === "number" && typeof err.message === "string") {
+    const key = process.env.ANTHROPIC_API_KEY?.trim();
+    let msg = err.message.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[key]");
+    if (key) msg = msg.split(key).join("[key]");
+    text += `: ${msg.replace(/\s+/g, " ").slice(0, 160)}`;
+  }
+  return text;
+}
+
 async function overLimit(ctx: Ctx, organisationId: string): Promise<string | null> {
   const aiUsed = { path: ["aiUsed"], equals: true };
   const [mine, org] = await Promise.all([
@@ -132,7 +153,13 @@ export async function coordinatorChat(ctx: Ctx, input: { question: string; histo
   const organisationId = ctx.organisationId!;
   const started = Date.now();
   const status = await coordinatorAiStatus(organisationId);
-  const limit = status.on ? await overLimit(ctx, organisationId) : null;
+  // If the usage count itself fails, the employee still gets an answer, from the CRM, with the reason.
+  const limit = status.on
+    ? await overLimit(ctx, organisationId).catch((e: unknown) => {
+        logger.error({ err: describeUnexpected(e) }, "AI CSB Coordinator usage check failed; used CRM answers");
+        return `Claude wasn't used because the usage limit couldn't be checked (${describeUnexpected(e)}). This answer comes from the built-in CRM search.`;
+      })
+    : null;
   const provider = status.on && !limit ? getAiProvider() : null;
 
   let notice: string | null = limit;
@@ -161,10 +188,16 @@ export async function coordinatorChat(ctx: Ctx, input: { question: string; histo
         links: state.links.slice(0, 6), topic: "ai-coordinator", mode: "ai", notice: null,
       };
     } catch (e) {
-      if (!(e instanceof AiUnavailableError)) throw e;
-      logger.warn({ reason: e.reason }, "AI CSB Coordinator unavailable; used CRM answers");
-      // A misconfiguration is said plainly to the office (it needs an administrator); outages are kept short.
-      notice = e.reason === "model-unavailable" || e.reason === "auth" ? `Claude isn't available: ${e.message} This answer comes from the built-in CRM search.` : `Claude isn't available just now (${e.message.replace(/\.$/, "")}). This answer comes from the built-in CRM search, and nothing in the CRM was changed by the failed attempt.`;
+      if (e instanceof AiUnavailableError) {
+        logger.warn({ reason: e.reason }, "AI CSB Coordinator unavailable; used CRM answers");
+        // A misconfiguration is said plainly to the office (it needs an administrator); outages are kept short.
+        notice = e.reason === "model-unavailable" || e.reason === "auth" ? `Claude isn't available: ${e.message} This answer comes from the built-in CRM search.` : `Claude isn't available just now (${e.message.replace(/\.$/, "")}). This answer comes from the built-in CRM search, and nothing in the CRM was changed by the failed attempt.`;
+      } else {
+        // Never leave the employee with an error: answer from the CRM and say why Claude was not used.
+        const why = describeUnexpected(e);
+        logger.error({ err: why }, "AI CSB Coordinator failed unexpectedly; used CRM answers");
+        notice = `Claude couldn't answer this time (${why}). This answer comes from the built-in CRM search, and nothing in the CRM was changed by the failed attempt.`;
+      }
       // Anything a tool already did (a draft intake, a document read) is real and was audited by that service.
       if (state.wrote.length) notice += ` Before it stopped: ${state.wrote.length} draft step(s) were completed; open the intake to see them.`;
     } finally {
