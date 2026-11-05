@@ -36,8 +36,9 @@ let otherSuId = "";
 let coordinatorId = "";
 let managerId = "";
 const today = londonDate();
+// Midnight today: always in the past, whatever time of day the tests run.
 
-const base = (over: Partial<CallNoteInput> = {}): CallNoteInput => ({ submissionKey: randomUUID(), date: today, time: "09:30", method: "TELEPHONE", contactName: "Jane Example", contactRole: "Daughter", details: EXAMPLE, ...over });
+const base = (over: Partial<CallNoteInput> = {}): CallNoteInput => ({ submissionKey: randomUUID(), date: today, time: "00:00", method: "TELEPHONE", contactName: "Jane Example", contactRole: "Daughter", details: EXAMPLE, ...over });
 
 beforeAll(async () => {
   await resetDb();
