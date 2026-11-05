@@ -563,7 +563,7 @@ export function augmentCouncilSupportPlan(pages: string[], r: Reading): Reading 
           "Tasks: " + tasks].join(" | ");
         const parsed = parseVisitLine(line);
         if (parsed && !r.visits.some(v => v.page === index + 1 && v.startTime === parsed.startTime && v.durationMinutes === parsed.durationMinutes && v.fundedBy === parsed.fundedBy))
-          r.visits.push({ ...parsed, label: visitLabel.slice(0,80), quote: source, page: index + 1, temporal: "CURRENT" });
+          r.visits.push({ ...parsed, label: visitLabel.replace(/\s+(?:call|visit)$/i, "").slice(0,80), quote: source, page: index + 1, temporal: "CURRENT" });
         else if (!parsed) r.flags.push({text:"Visit timetable not fully recognised on page " + (index + 1) + " for " + visitLabel + ". Check manually.",page:index + 1});
       }
       visitLabel = null; visitFields = [];
