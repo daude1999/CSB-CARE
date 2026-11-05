@@ -3,6 +3,8 @@ import { requireCtx } from "@/server/auth/current";
 import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { PcBadge, PcFoot } from "@/components/compliance-ui";
+import { startableByRef } from "@/server/forms/records";
+import { startFormAction } from "../../../actions";
 import { RESOURCE_DOC_TYPES, RESOURCE_TYPE_LABELS, isResourceDocType, resourceRegister } from "@/server/forms/catalogue";
 import { FilePdf, FileText, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
@@ -28,9 +30,10 @@ export default async function PolicyFormsPage({
   const type = isResourceDocType(requestedType) ? requestedType : "";
   const category = /^[A-Z_]{1,40}$/.test(val(params, "category")) ? val(params, "category") : "";
   const requestedPage = Number(val(params, "page") || 1);
-  const { rows, total, page: currentPage, pages: pageCount, categories } = await resourceRegister(ctx, {
-    q, type, category, page: Number.isSafeInteger(requestedPage) && requestedPage >= 1 ? Math.min(requestedPage, 500) : 1,
-  });
+  const [{ rows, total, page: currentPage, pages: pageCount, categories }, onScreen] = await Promise.all([
+    resourceRegister(ctx, { q, type, category, page: Number.isSafeInteger(requestedPage) && requestedPage >= 1 ? Math.min(requestedPage, 500) : 1 }),
+    startableByRef(ctx),
+  ]);
   const href = (newPage: number) => {
     const p = new URLSearchParams();
     if (q) p.set("q", q);
@@ -47,6 +50,7 @@ export default async function PolicyFormsPage({
         title="Forms & Resources"
         subtitle="Search CSB forms, templates, checklists and audit tools. Blank documents are not completed digital form records."
         tabs={<ComplianceTabs ctx={ctx} ws="library" active="forms" />}
+        actions={ctx.organisationId ? <Link className="btn-secondary" href="/policies/forms/records" data-testid="my-forms-link">My forms &amp; reviews</Link> : undefined}
       />
       <form action="/policies/forms" method="get" role="search" className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <label className="min-w-[220px] flex-1">
@@ -117,7 +121,14 @@ export default async function PolicyFormsPage({
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        {onScreen.get(r.ref) ? (
+                          <form action={startFormAction}>
+                            <input type="hidden" name="definitionId" value={onScreen.get(r.ref)} />
+                            <input type="hidden" name="back" value="/policies/forms" />
+                            <button type="submit" className="pc-btn pc-btn-sm" data-testid={`start-${r.ref}`}>Fill in on screen</button>
+                          </form>
+                        ) : null}
                         <Link href={"/policies/" + r.id} className="pc-btn-secondary pc-btn-sm"><FileText size={14} aria-hidden="true" />Open</Link>
                         <a href={"/api/policies/" + r.id + "/download?format=pdf"} download className="pc-btn-secondary pc-btn-sm" aria-label={"Download " + r.title + " as PDF"}><FilePdf size={14} aria-hidden="true" />PDF</a>
                       </div>
@@ -133,7 +144,7 @@ export default async function PolicyFormsPage({
         </div>
       </section>
       <p className="mt-3 text-[12px] text-slate-600">
-        This register lists existing versioned documents to download and print. Digital completion, signatures and saved form records are not built yet.
+        This register lists versioned documents to download and print. Only forms marked &ldquo;Fill in on screen&rdquo; can be completed and saved here; more will follow once each has been reviewed.
       </p>
     </div>
   );

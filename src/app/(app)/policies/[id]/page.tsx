@@ -7,7 +7,7 @@ import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
 import { getPolicy } from "@/server/policies/library";
 import { bookmarksFor } from "@/server/policies/bookmarks";
 import { REVIEW_MARKER } from "@/server/policy-geo/generator";
-import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction } from "../../../actions";
+import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction, startFormAction } from "../../../actions";
 import { DOC_TYPES } from "../../../../../prisma/seed-data/library/types";
 import { Badge, Empty, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 import { TagBody, TagText } from "@/components/tag-text";
@@ -18,6 +18,7 @@ import { Timeline, TimelineItem } from "@/components/timeline";
 import { ActionDialog } from "@/components/dialog";
 import { PrintButton } from "@/components/print-button";
 import { BookmarkToggle, PolicyReader, ReaderNav, ReaderProgress, type ReaderNavItem } from "@/components/policy-reader";
+import { startableByRef } from "@/server/forms/records";
 import { linkedResourcesFor, type LinkedResource, type ResourceUse } from "@/server/forms/links";
 import {
   ArrowSquareOut, ArrowsClockwise, Books, BookOpenText, CalendarBlank, CalendarCheck, CaretDown, CaretRight, CheckCircle, ClipboardText, ClockCounterClockwise, DownloadSimple, FileDoc, FilePdf, FileText,
@@ -131,8 +132,10 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const reviewStatus = !v ? { label: "Not published", tone: "amber" as const } : overdue ? { label: "Overdue", tone: "rose" as const } : openRevision ? { label: "Revision in progress", tone: "blue" as const } : starter ? { label: "Awaiting first approval", tone: "amber" as const } : dueSoon ? { label: "Due soon", tone: "amber" as const } : { label: "Up to date", tone: "green" as const };
   const workflows = digitalWorkflows(p.categoryCode, ctx);
   // Forms placed at a procedure step are also shown inside that step.
+  // Forms that can be filled in on screen (by reference); only ones this person is asked to complete.
+  const onScreen = forms.length ? await startableByRef(ctx) : new Map<string, string>();
   const stepForms = new Map<string, StepForm[]>();
-  for (const f of forms) for (const use of f.uses) if (use.placement) stepForms.set(use.placement.sectionKey, [...(stepForms.get(use.placement.sectionKey) ?? []), { ...f, use }]);
+  for (const f of forms) for (const use of f.uses) if (use.placement) stepForms.set(use.placement.sectionKey, [...(stepForms.get(use.placement.sectionKey) ?? []), { ...f, use, startId: onScreen.get(f.ref) ?? null }]);
   const canManageLinks = Boolean(isPolicy && p.kind === "CUSTOMER" && p.organisationId === ctx.organisationId && p.status === "ACTIVE" && hasOrgPermission(ctx, "policy.author"));
 
   return (
@@ -348,6 +351,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                                   <td className="text-[#344054]">{f.typeLabel}</td>
                                   <td className="pr-3">
                                     <span className="flex justify-end gap-1.5">
+                                      {onScreen.get(f.ref) ? <StartForm definitionId={onScreen.get(f.ref)!} back={`/policies/${p.id}#forms`} /> : null}
                                       <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=docx`} download><FileDoc size={14} aria-hidden="true" />Word</a>
                                       <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=pdf`} download><FilePdf size={14} aria-hidden="true" />PDF</a>
                                       <Link className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/policies/${f.id}`}>Open</Link>
@@ -690,7 +694,18 @@ function FrameworkLists({ framework }: { framework: ReturnType<typeof parseFrame
   );
 }
 
-type StepForm = LinkedResource & { use: ResourceUse };
+type StepForm = LinkedResource & { use: ResourceUse; startId: string | null };
+
+/** Starts an on-screen copy of a form; shown only for forms that can be filled in on screen. */
+function StartForm({ definitionId, back }: { definitionId: string; back: string }) {
+  return (
+    <form action={startFormAction}>
+      <input type="hidden" name="definitionId" value={definitionId} />
+      <input type="hidden" name="back" value={back} />
+      <button type="submit" className="btn-primary !min-h-0 px-2.5 py-1 text-xs">Fill in on screen</button>
+    </form>
+  );
+}
 
 /** Where a linked form is used, and why, under its name in the Forms & Resources table. */
 function LinkMeta({ f }: { f: LinkedResource }) {
@@ -729,6 +744,7 @@ function StepForms({ items }: { items?: StepForm[] }) {
               </span>
             </span>
             <span className="flex gap-1.5">
+              {f.startId ? <StartForm definitionId={f.startId} back="/policies/forms/records" /> : null}
               <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=docx`} download aria-label={`Download ${f.title} as Word`}><FileDoc size={14} aria-hidden="true" />Word</a>
               <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=pdf`} download aria-label={`Download ${f.title} as PDF`}><FilePdf size={14} aria-hidden="true" />PDF</a>
             </span>

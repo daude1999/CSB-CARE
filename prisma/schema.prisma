@@ -5045,3 +5045,93 @@ model PolicyResourceLink {
   @@index([resourceId])
   @@index([organisationId])
 }
+
+/// A form staff fill in on screen (Forms PR 2). CSB master definitions have organisationId null and are used by every
+/// organisation; an organisation never edits them. `ref` matches the downloadable CSB document (e.g. CSB-FRM-020).
+/// completeRoles / reviewRoles say who may fill it in and who reviews and sees every completed copy.
+model FormDefinition {
+  id               String        @id @default(cuid())
+  organisationId   String?
+  ref              String
+  title            String
+  description      String
+  categoryCode     String
+  sensitivity      String        @default("CONFIDENTIAL") // CONFIDENTIAL | INTERNAL
+  status           String        @default("ACTIVE") // ACTIVE | ARCHIVED
+  completeRoles    OrgRole[]
+  reviewRoles      OrgRole[]
+  subjectType      String? // SELF: the record is about the person filling it in
+  currentVersionId String?       @unique
+  currentVersion   FormVersion?  @relation("CurrentFormVersion", fields: [currentVersionId], references: [id])
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  versions         FormVersion[] @relation("FormVersions")
+  records          FormRecord[]
+
+  @@index([organisationId])
+}
+
+/// An immutable published version of a form's fields. A record always keeps the version it was started on.
+model FormVersion {
+  id            String          @id @default(cuid())
+  definitionId  String
+  definition    FormDefinition  @relation("FormVersions", fields: [definitionId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  schemaJson    Json
+  instructions  String
+  changeSummary String
+  contentHash   String
+  status        String          @default("PUBLISHED") // PUBLISHED | SUPERSEDED
+  createdById   String?
+  publishedAt   DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  currentOf     FormDefinition? @relation("CurrentFormVersion")
+  records       FormRecord[]
+
+  @@unique([definitionId, versionNumber])
+}
+
+/// One completed (or in-progress) copy of a form. Answers are keyed by the pinned version's stable field keys and are
+/// frozen by the database once submitted, except while returned for correction.
+model FormRecord {
+  id             String            @id @default(cuid())
+  organisationId String
+  definitionId   String
+  definition     FormDefinition    @relation(fields: [definitionId], references: [id])
+  versionId      String
+  version        FormVersion       @relation(fields: [versionId], references: [id])
+  reference      String
+  status         String            @default("DRAFT") // DRAFT | SUBMITTED | RETURNED | APPROVED | VOIDED
+  answers        Json              @default("{}")
+  subjectType    String?
+  subjectId      String?
+  createdById    String
+  reviewerId     String?
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  returnReason   String?
+  voidReason     String?
+  lockVersion    Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  events         FormRecordEvent[]
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([createdById])
+}
+
+/// Append-only history of a form record.
+model FormRecordEvent {
+  id             String     @id @default(cuid())
+  organisationId String
+  recordId       String
+  record         FormRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  type           String // CREATED | SAVED | SUBMITTED | RETURNED | RESUBMITTED | APPROVED | VOIDED | PRINTED
+  actorId        String
+  note           String?
+  data           Json?
+  createdAt      DateTime   @default(now())
+
+  @@index([recordId])
+}

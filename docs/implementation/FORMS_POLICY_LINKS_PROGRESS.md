@@ -7,8 +7,8 @@ in stages, each a separate draft PR that waits for the owner's "I approve the sc
 |---|---|---|
 | PR 0 | Stabilise the Forms & Resources register from PR #94 | **Done in this branch** (see below) |
 | PR 1 | Explicit policy-to-form links, placed at procedure steps, shown in the existing Policy Reader | **Done in this branch** |
-| PR 2 | Form definitions and immutable form versions (`FormDefinition`, `FormVersion`, field schema) | Not built |
-| PR 3 | Form completion engine (draft, submit, return, review, approve, void), 2–3 pilot forms | Not built |
+| PR 2 | Form definitions and immutable form versions (`FormDefinition`, `FormVersion`, field schema) | Built as one PR with PR 3 (draft PR, awaiting approval) |
+| PR 3 | Form completion engine (draft, submit, return, review, approve, void), 2–3 pilot forms | Built: pilots CSB-FRM-020 and CSB-FRM-013 (draft PR, awaiting approval) |
 | PR 4 | Links from completed forms to service users, staff, incidents, audits and evidence | Not built |
 | PR 5 | "Start digital form" / "Open existing workflow" at the exact procedure step | Not built (PR 1 shows the form and its downloads at the step) |
 | PR 6 | Staff compliance, review queue and reporting for forms | Not built |
@@ -74,9 +74,29 @@ was not changed.
 the app and the database, roles, duplicate and concurrent adds, withdrawal once with history, frozen rows, text fallback,
 template adoption, register de-duplication) and `tests/e2e/policy-resource-links.spec.ts` (3 browser tests).
 
+## PR 2 + 3: on-screen forms (pilot)
+
+- Tables `FormDefinition`, `FormVersion`, `FormRecord`, `FormRecordEvent` (migration `20261105230000_form_records`).
+  Triggers: published versions never change (only PUBLISHED → SUPERSEDED), records start as drafts on the current
+  version, answers freeze once submitted, status follows DRAFT → SUBMITTED → RETURNED/APPROVED → VOIDED, history is
+  append-only, nothing is deleted.
+- Field schema (`src/lib/forms/schema.ts`) is pure data validated with zod: text, long text, date, time, number,
+  yes/no, choice, multiple choice, "I confirm" statement, headings, conditional questions. No code in a form.
+- Pilot forms are defined in `src/server/forms/pilots.ts` and synced by `prisma/sync-forms.ts` (run in `vercel-build`
+  and the seed). A new version is published only when fields or instructions change; records keep their version.
+- Screens: `/policies/forms/records` (fill in a form, review queue, my open forms, finished) and
+  `/policies/forms/records/[id]` (fill in, save draft, submit, approve, return with reason, void with reason, print,
+  history). "Fill in on screen" buttons on the register and in the Policy Reader for the pilot forms only.
+- Records are visible only to their author and the form's reviewers (ORG_ADMIN, COMPLIANCE_LEAD). A reviewer cannot
+  approve their own record. History records which questions changed, never the answers.
+- Tests: `tests/integration/form-records.test.ts` (8), `tests/e2e/form-records.spec.ts` (1).
+
+Limits: no screen to author new forms yet (pilots are in code); no autosave; no attachments or repeating tables; no
+separate "under review" state; no notifications; no CRM or evidence links (PR 4).
+
 ## Not done or limited
 
-- No form definitions, digital completion, completed records, signatures or review queue yet (PR 2–6).
+- On-screen forms exist only for the two pilots (see below). Other forms remain downloads.
 - "Open existing workflow" links at a step (incident report, body map, safeguarding) are PR 4/5; the existing
   category-based "Record it in CSB Care" links are unchanged.
 - No branch-specific placement (`branchScope`) yet; policies already carry branch scope.

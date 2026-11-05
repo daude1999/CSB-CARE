@@ -1,4 +1,5 @@
 import { backfillResourceLinks } from "../forms/links";
+import { syncPilotForms } from "../forms/pilots";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { TEMPLATES, type TemplateVersion } from "../../../prisma/seed-data/templates";
@@ -137,6 +138,8 @@ export async function seedBase(opts: { refs?: string[] } = {}) {
   await seedAuditTemplates(templates, masters);
   // Explicit policy-to-form links from each resource's "Related policies" section (idempotent).
   await backfillResourceLinks();
+  // CSB forms that can be filled in on screen (idempotent; publishes a new version only when the fields change).
+  await syncPilotForms();
   return masters;
 }
 
