@@ -553,7 +553,7 @@ export function augmentCouncilSupportPlan(pages: string[], r: Reading): Reading 
           section, canDo: null, support: section === "outcomes" ? null : content,
           how: null, outcome: section === "outcomes" ? content : null,
           clarify: null, page: index + 1,
-          quote: sectionHeading, temporal: "CURRENT",
+          quote: [sectionHeading, ...sectionLines].join("\n"), temporal: "CURRENT",
         });
       }
       section = null; sectionLines = []; sectionHeading = "";
