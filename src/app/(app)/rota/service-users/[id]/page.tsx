@@ -7,7 +7,10 @@ import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getServiceUser, nextStatuses, revealKeySafe } from "@/server/care/service-users";
-import { packageCoverage } from "@/server/care/packages";
+import { packageCoverage, packageHistory, packageReviewItems, packageSources } from "@/server/care/packages";
+import { carePackageSummary } from "@/server/care/package-view";
+import { CarePackageSummaryCard } from "@/components/su-care-package-summary";
+import { CarePackageTab } from "@/components/su-care-package-tab";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
 import { recentIncidentsFor } from "@/server/care/incidents";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incident-ui";
@@ -26,7 +29,7 @@ import { parseList, ServiceUserTemplateTab } from "@/components/su-template-tab"
 import { ServiceUserRotaTab } from "@/components/su-rota-tab";
 import { futureRotaDefaults, ServiceUserFutureRota } from "@/components/su-future-rota";
 import { previewServiceUserRota } from "@/server/rota/build";
-import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction, createPackageAction, endPackageAction, updatePackageAction } from "@/app/rota-actions";
+import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
@@ -34,11 +37,12 @@ import { ServiceUserForm } from "@/components/service-user-form";
 import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
 import { ServiceUserDocuments } from "@/components/su-documents";
 import { BodyMapSection } from "@/components/body-map";
+import { ServiceUserReferenceNumbers } from "@/components/su-reference-numbers";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["references", "Reference Numbers"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
@@ -48,6 +52,7 @@ type TabKey = (typeof TABS)[number][0];
 const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Overview", tabs: ["overview"] },
   { label: "Personal details", tabs: ["details"] },
+  { label: "Reference Numbers", tabs: ["references"] },
   { label: "Care", tabs: ["care-plans", "risks", "package", "medication"] },
   { label: "Health and safety", tabs: ["incidents", "bodymap"] },
   { label: "Visits", tabs: ["visits", "template", "rota", "notes", "missed"] },
@@ -94,6 +99,12 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const [glance, compliance] = tab === "overview" ? await Promise.all([serviceUserGlance(ctx, su), serviceUserCompliance(ctx, su)]) : [null, []];
+  // Care package: the Overview card needs only the open-question count; the tab needs the questions, sources and history.
+  const [pkgReviews, pkgSources, pkgHistory] = await Promise.all([
+    tab === "overview" || tab === "package" ? packageReviewItems(ctx, su.id) : Promise.resolve(null),
+    tab === "package" ? packageSources(ctx, su.id) : Promise.resolve(null),
+    tab === "package" ? packageHistory(ctx, su.id) : Promise.resolve([]),
+  ]);
   // The person owns these records. Only load what the selected profile section needs.
   const [plans, risks, archivedRisks, incidents, notes] = await Promise.all([
     tab === "care-plans"
@@ -126,7 +137,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     }
   }
   const todayDb = dbDate(today);
-  const names = await memberNames(ctx, history.map((h) => h.actorId));
+  const names = await memberNames(ctx, [...history, ...pkgHistory].map((h) => h.actorId));
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
   const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
 
@@ -135,7 +146,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       <PageHeader
         title={suName(su)}
         back="/rota/service-users"
-        subtitle={`${su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
+        subtitle={`${su.csbReference ?? su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
         actions={<StatusBadge status={su.status} />}
       />
       <Flash searchParams={sp} />
@@ -216,16 +227,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             </Card>
           </div>
           <div className="space-y-3">
-            <Card title="Care package" actions={<Link href={`${base}?tab=package`} className="btn-secondary py-1">{canEdit ? "Manage" : "History"}</Link>}>
-              {active ? (
-                <div className="text-[14px]">
-                  <div className="font-medium">{active.reference ?? "Package"} <Badge tone="green">Active</Badge></div>
-                  <div className="text-slate-600">{active.commissionedMinutesPerWeek !== null ? `${hours(active.commissionedMinutesPerWeek)} commissioned hours a week` : "Hours not recorded"} · from {fmtDate(active.startDate)}{active.endDate ? ` to ${fmtDate(active.endDate)}` : ""}{active.funder ? ` · ${active.funder.name}` : " · no funder linked"}</div>
-                  {active.requirements ? <div className="text-slate-600">{active.requirements}</div> : null}
-                </div>
-              ) : <Empty>No active care package.</Empty>}
-              {coverage ? <Coverage c={coverage} /> : null}
-            </Card>
+            <CarePackageSummaryCard summary={carePackageSummary({ pkg: active, coverage, templates: su.templates, openQueries: pkgReviews?.open ?? 0, today })} href={`${base}?tab=package`} canEdit={canEdit} />
             <Card title="Key contacts" actions={<Link href={`${base}?tab=people`} className="btn-secondary py-1">All contacts</Link>}>
               {su.contacts.length ? (
                 <ul className="space-y-2 text-[14px]">
@@ -430,46 +432,22 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         })()
       ) : null}
 
-      {tab === "package" ? (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <Card title="Packages">
-            {coverage ? <Coverage c={coverage} /> : null}
-            {su.packages.length ? (
-              <ul className="rows mt-2">
-                {su.packages.map((p) => (
-                  <li key={p.id} className="py-3 text-[14px]">
-                    <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{p.reference ?? "Package"}</span>{p.status === "ACTIVE" ? <Badge tone="green">Active</Badge> : <Badge>Ended</Badge>}</div>
-                    <div className="text-slate-600">{p.commissionedMinutesPerWeek !== null ? `${hours(p.commissionedMinutesPerWeek)} hours a week` : "Hours not recorded"} · {fmtDate(p.startDate)} to {p.endDate ? fmtDate(p.endDate) : "open-ended"}{p.funder ? ` · ${p.funder.name}` : " · no funder linked"}</div>
-                    {p.requirements ? <div className="text-slate-600">{p.requirements}</div> : null}
-                    {canEdit && p.status === "ACTIVE" ? (
-                      <div className="mt-2 grid gap-3 lg:grid-cols-2">
-                        <details>
-                          <summary className="btn-secondary inline-block cursor-pointer py-1">Edit</summary>
-                          <PackageForm action={updatePackageAction} hidden={{ packageId: p.id }} back={back} p={p} funders={funders} canFund={canFund} submit="Save changes" />
-                        </details>
-                        <details>
-                          <summary className="btn-secondary inline-block cursor-pointer py-1">End package</summary>
-                          <form action={endPackageAction} className="mt-2 space-y-2">
-                            <input type="hidden" name="back" value={back} /><input type="hidden" name="packageId" value={p.id} />
-                            <label className="block"><span className="label">Last day</span><input type="date" name="endDate" required defaultValue={today} className="input" /></label>
-                            <label className="block"><span className="label">Why it ends</span><input name="reason" required minLength={3} className="input" /></label>
-                            <button className="btn-danger">End package</button>
-                          </form>
-                        </details>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : <Empty>No care package recorded yet.</Empty>}
-          </Card>
-          {canEdit ? (
-            <Card title={active ? "Replace with a new package" : "Record a package"}>
-              {active ? <p className="mb-2 text-[13.5px] text-slate-600">The active package ends the day before the new one starts. Past invoices keep using the package that was in force on each visit date.</p> : null}
-              <PackageForm action={createPackageAction} hidden={{ serviceUserId: su.id }} back={back} funders={funders} canFund={canFund} submit="Record package" today={today} />
-            </Card>
-          ) : null}
-        </div>
+      {tab === "package" && coverage && pkgReviews && pkgSources ? (
+        <CarePackageTab
+          person={{ id: su.id, name: suName(su), reference: su.reference }}
+          packages={su.packages}
+          templates={su.templates}
+          coverage={coverage}
+          reviews={pkgReviews}
+          sources={pkgSources}
+          history={pkgHistory}
+          names={names}
+          funders={funders}
+          can={{ edit: canEdit, fund: canFund, rota: canNotes, resolve: canEdit && hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents"), intake: canEdit && hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") }}
+          base={base}
+          back={back}
+          today={today}
+        />
       ) : null}
 
       {tab === "visits" ? (
@@ -579,6 +557,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </Card>
       ) : null}
 
+      {tab === "references" ? <ServiceUserReferenceNumbers ctx={ctx} serviceUserId={su.id} base={base} /> : null}
+
       {tab === "template" && suTemplates ? <ServiceUserTemplateTab base={base} rows={suTemplates} weeks={tplWeeks} days={tplDays} cycleLength={cycleLength} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} confirmOff={sp.off} /> : null}
       {future ? <ServiceUserFutureRota base={base} from={future.from} weeks={future.weeks} thisMonday={mondayOf(today)} preview={futurePreview} error={futureError} /> : null}
       {tab === "rota" && suRota ? <ServiceUserRotaTab base={base} rota={suRota} filter={parseSuRotaFilter(sp.status)} thisMonday={mondayOf(today)} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} /> : null}
@@ -613,42 +593,6 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         </Card>
       ) : null}
     </>
-  );
-}
-
-const hours = (min: number) => (min / 60).toFixed(1).replace(/\.0$/, "");
-
-/** Commissioned against planned, so a coordinator sees at once when the repeating visits do not match the package. */
-function Coverage({ c }: { c: Awaited<ReturnType<typeof packageCoverage>> }) {
-  if (c.commissioned === null) return <p className="mt-2 text-[13.5px] text-slate-600">Repeating visits plan {hours(c.planned)} hours a week ({hours(c.plannedCarerMinutes)} carer hours). No commissioned hours recorded to compare.</p>;
-  const off = Math.abs(c.difference ?? 0) > 30;
-  return (
-    <p className={`mt-2 text-[13.5px] ${off ? "text-[#8a5a00]" : "text-slate-600"}`}>
-      Repeating visits plan {hours(c.planned)} hours a week against {hours(c.commissioned)} commissioned
-      {c.difference ? ` (${c.difference > 0 ? "over" : "under"} by ${hours(Math.abs(c.difference))} hours)` : " (matches)"}; {hours(c.plannedCarerMinutes)} carer hours with double-ups, averaged over the rota cycle.
-    </p>
-  );
-}
-
-type PackageRow = { reference: string | null; commissionedMinutesPerWeek: number | null; startDate: Date; endDate: Date | null; requirements: string | null; funderId: string | null };
-
-function PackageForm({ action, hidden, back, p, funders, canFund, submit, today }: { action: (fd: FormData) => Promise<void>; hidden: Record<string, string>; back: string; p?: PackageRow; funders: { id: string; name: string }[]; canFund: boolean; submit: string; today?: string }) {
-  return (
-    <form action={action} className="mt-2 space-y-2">
-      <input type="hidden" name="back" value={back} />
-      {Object.entries(hidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
-      <div className="grid grid-cols-2 gap-2">
-        <label><span className="label">Reference</span><input name="reference" defaultValue={p?.reference ?? ""} maxLength={80} className="input" /></label>
-        <label><span className="label">Hours a week</span><input name="hoursPerWeek" type="number" min="0" max="336" step="0.25" defaultValue={p?.commissionedMinutesPerWeek != null ? p.commissionedMinutesPerWeek / 60 : ""} className="input" /></label>
-        <label><span className="label">Starts</span><input name="startDate" type="date" required defaultValue={p ? fromDbDate(p.startDate) : today} className="input" /></label>
-        <label><span className="label">Ends (optional)</span><input name="endDate" type="date" defaultValue={p?.endDate ? fromDbDate(p.endDate) : ""} className="input" /></label>
-      </div>
-      <label className="block"><span className="label">What was commissioned</span><textarea name="requirements" rows={2} maxLength={2000} defaultValue={p?.requirements ?? ""} placeholder="e.g. four calls a day, two carers for hoist transfers" className="input" /></label>
-      {canFund ? (
-        <label className="block"><span className="label">Funder</span><select name="funderId" defaultValue={p?.funderId ?? ""} className="input"><option value="">None yet</option>{funders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
-      ) : <p className="text-[12.5px] text-slate-600">Finance links the funder.</p>}
-      <button className="btn-primary">{submit}</button>
-    </form>
   );
 }
 

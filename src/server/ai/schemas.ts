@@ -194,6 +194,8 @@ export const CareDocumentExtractionSchema = z.object({
       .describe("Do not classify framework-wide IDs as individual client numbers"),
     issuer:z.string().describe("Issuing organisation, exactly as stated"),
     value:z.string().describe("Exact reference, including leading zeroes and punctuation"),
+    system:z.string().nullable().optional().describe("The council system or label printed with the number, e.g. Frameworki"),
+    typeClear:z.boolean().optional().describe("False when the document does not say whether the number identifies the person, a care package or a shared framework"),
     ...Sourced,
   })).describe("All individual and shared references, each explicitly classified and source-linked"),
   contacts: z.array(z.object({
@@ -220,7 +222,8 @@ export const CareDocumentExtractionSchema = z.object({
     level: z.enum(["LOW", "MEDIUM", "HIGH"]).nullable().describe("Only if the document itself states a level; otherwise null"),
     ...Sourced,
   })),
-  package: z.array(z.object({ field: z.enum(["funder", "reference", "startDate", "endDate", "hoursPerWeek", "requirements"]), value: z.string(), ...Sourced })),
+  package: z.array(z.object({ field: z.enum(["funder", "reference", "startDate", "endDate", "hoursPerWeek", "requirements"]), value: z.string(), ...Sourced }))
+    .describe("Commissioning facts only. requirements = how the commissioned care is staffed or delivered (e.g. two carers for hoist transfers). Never put medication, diagnoses, resuscitation decisions, clinical instructions, family requests, funding notes or open questions in requirements: use carePlan, medication, risks, contacts or flags instead"),
   visits: z.array(z.object({
     label: z.string().describe("e.g. Morning, Lunch, Tea, Evening, Shopping"),
     weekdays: z.array(z.number().int().min(1).max(7)), startTime: z.string().describe("HH:MM"), durationMinutes: z.number().int().min(5), carers: z.number().int().min(1),

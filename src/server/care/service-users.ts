@@ -9,7 +9,8 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { cancelVisitInTx } from "@/server/rota/visits";
 import { reviewStaffImpact } from "@/server/workforce/impact";
 import { decryptKeySafe, encryptKeySafe } from "./keysafe";
-import { searchReferenceIds } from "./external-references";
+import { searchReferenceHits } from "./external-references";
+import { referenceTitle } from "@/lib/reference-numbers";
 
 /**
  * Service users: the people the organisation supports. Every read and write is scoped to the caller's organisation
@@ -27,19 +28,25 @@ export interface ServiceUserFilters {
 
 export async function listServiceUsers(ctx: Ctx, f: ServiceUserFilters) {
   const scope = await rotaScope(ctx, "serviceUser.view");
-  const ids=f.q ? await searchReferenceIds(ctx,f.q) : [];
+  const hits=f.q ? await searchReferenceHits(ctx,f.q) : [];
+  const ids=[...new Set(hits.map((h)=>h.serviceUserId))];
   const canSensitive=hasOrgPermission(ctx,"serviceUser.sensitive");
   const where: Prisma.ServiceUserWhereInput = {
     ...serviceUserWhere(scope),
     ...(f.status === "CURRENT" || !f.status ? { status: { in: ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED"] } } : { status: f.status }),
     ...(f.areaId ? { areaId: f.areaId } : {}),
-    ...(f.q ? { OR: [{ firstName: { contains: f.q, mode: "insensitive" } }, { lastName: { contains: f.q, mode: "insensitive" } }, { preferredName: { contains: f.q, mode: "insensitive" } }, { reference: { contains: f.q, mode: "insensitive" } }, { csbReference: { contains: f.q, mode: "insensitive" } }, ...(canSensitive ? [{ nhsNumber: { equals: f.q.replace(/\\s/g,"") } }] : []), { id: { in: ids } }, { postcode: { contains: f.q, mode: "insensitive" } }] } : {}),
+    ...(f.q ? { OR: [{ firstName: { contains: f.q, mode: "insensitive" } }, { lastName: { contains: f.q, mode: "insensitive" } }, { preferredName: { contains: f.q, mode: "insensitive" } }, { reference: { contains: f.q, mode: "insensitive" } }, { csbReference: { contains: f.q, mode: "insensitive" } }, ...(canSensitive ? [{ nhsNumber: { equals: f.q.replace(/\s/g,"") } }] : []), { id: { in: ids } }, { postcode: { contains: f.q, mode: "insensitive" } }] } : {}),
   };
-  return db.serviceUser.findMany({
+  const rows = await db.serviceUser.findMany({
     where,
     select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     take: 500,
+  });
+  // Say which external reference matched, so a shared framework ID is never mistaken for the person's own number.
+  return rows.map((r) => {
+    const h = hits.find((x) => x.serviceUserId === r.id);
+    return { ...r, matchedReference: h ? `${referenceTitle(h)}${h.type === "COUNCIL_FRAMEWORK" ? " (shared framework ID)" : ""}` : null };
   });
 }
 

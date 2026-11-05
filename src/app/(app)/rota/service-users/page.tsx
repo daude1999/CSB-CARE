@@ -23,7 +23,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
-          <label><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Name, reference, postcode" className="input w-64" /></label>
+          <label><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Name, CSB or council reference, postcode" className="input w-64" /></label>
           <label><span className="label">Status</span><select name="status" defaultValue={sp.status ?? ""} className="input"><option value="">Current (not ended)</option>{STATUSES.map((s) => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}</select></label>
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <button className="btn-primary">Apply</button>
@@ -39,7 +39,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
                 const mins = s.packages.reduce((n, p) => n + (p.commissionedMinutesPerWeek ?? 0), 0);
                 return (
                   <tr key={s.id}>
-                    <td><Link href={`/rota/service-users/${s.id}`}>{suName(s)}</Link><div className="text-[12.5px] text-slate-500">{s.reference}</div></td>
+                    <td><Link href={`/rota/service-users/${s.id}`}>{suName(s)}</Link><div className="text-[12.5px] text-slate-500">{s.csbReference ?? s.reference}{s.csbReference && s.reference !== s.csbReference ? ` · legacy ${s.reference}` : ""}{s.matchedReference ? ` · matched ${s.matchedReference}` : ""}</div></td>
                     <td><StatusBadge status={s.status} /></td>
                     <td><AreaDot area={s.area} /></td>
                     <td>{s.postcode ?? "—"}</td>

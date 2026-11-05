@@ -357,3 +357,12 @@ export async function seedFinance(organisationId: string, coordinator: Ctx, mana
     await prepareInvoiceRun(finance, lastWeek);
   }
 }
+
+/** Seeded people get permanent CSB numbers the same way the live migration gave them: in creation order, from the counter. */
+export async function assignCsbReferences(organisationId: string) {
+  const people = await db.serviceUser.findMany({ where: { organisationId, csbReference: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: { id: true } });
+  if (!people.length) return;
+  const counter = await db.serviceUserReferenceCounter.upsert({ where: { organisationId }, create: { organisationId, nextNumber: 1 + people.length }, update: { nextNumber: { increment: people.length } } });
+  const first = counter.nextNumber - people.length;
+  for (const [i, p] of people.entries()) await db.serviceUser.update({ where: { id: p.id }, data: { csbReference: `CSB-${String(first + i).padStart(6, "0")}` } });
+}
