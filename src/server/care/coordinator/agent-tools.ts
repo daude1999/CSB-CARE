@@ -7,12 +7,13 @@ import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { memberScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { suName, visitCandidates } from "@/server/rota/queries";
 import { lookUpReferences, serviceUserMatchWhere } from "@/server/care/service-user-search";
-import { fromDbDate, dbDate, isIsoDate, londonDate, londonTime, parseHhmm } from "@/lib/london";
+import { addDays, fromDbDate, dbDate, isIsoDate, londonDate, londonTime, londonToUtc, londonMinute, parseHhmm } from "@/lib/london";
 import { visitWhere, rotaScope } from "@/server/rota/scope";
 import { previewAdjustVisitTime, adjustVisitTime } from "@/server/rota/adjust-time";
-import { getVisit } from "@/server/rota/visits";
+import { getVisit, createVisit, moveVisit } from "@/server/rota/visits";
 import { assignCarer } from "@/server/rota/assign";
-import { carerPlaces, openPlaces, parsePlace, placeLabel } from "@/lib/carer-places";
+import { eligibilityFor } from "@/server/workforce/eligibility";
+import { openPlaces, parsePlace, placeLabel, placeKey } from "@/lib/carer-places";
 import { AiUnavailableError, type AgentToolSpec } from "@/server/ai/provider";
 import { answerFromCrm, type CrmLink, type CrmPage } from "./crm-assistant";
 import { serviceUserChatContext } from "./chat";
@@ -97,11 +98,27 @@ const adjustTimeSchema = z.object({
   start: z.string().refine((v) => parseHhmm(v) !== null, "Use HH:mm"),
 });
 const rankedCarersSchema = z.object({ visitId: id });
+const createVisitSchema = z.object({
+  serviceUserId: id,
+  date: z.string().refine(isIsoDate, "Use a valid YYYY-MM-DD local date"),
+  start: z.string().refine((v) => parseHhmm(v) !== null, "Use HH:mm"),
+  durationMin: z.number().int().min(5).max(1440),
+  carersRequired: z.number().int().min(1).max(20),
+  callTypeName: z.string().trim().min(2).max(80),
+});
+const moveDaySchema = z.object({ visitId: id, lockVersion: z.number().int().nonnegative(), toDate: z.string().refine(isIsoDate, "Use YYYY-MM-DD") });
 const bookCarerSchema = z.object({ visitId: id, lockVersion: z.number().int().nonnegative(), slot: z.string(), staffId: id });
 
 /** Confirm that the employee explicitly requested a rota change, not just a question about one. */
 function requestedChange(state: ToolState, verbs: RegExp) {
-  return Boolean(state.userQuestion && verbs.test(state.userQuestion));
+  const q = state.userQuestion ?? "";
+  if (/\b(?:do not|don't|never|no need to)\s+(?:move|change|shift|edit|book|assign|allocate|schedule|create|add)\b/i.test(q)) return false;
+  if (/\b(?:preview only|show me how|how do i|what if|without changing|before changing)\b/i.test(q)) return false;
+  return Boolean(q && verbs.test(q));
+}
+function requestedDate(state: ToolState, date: string) {
+  const q = (state.userQuestion ?? "").toLowerCase();
+  return q.includes(date) || (/\btomorrow\b/.test(q) && date === addDays(londonDate(), 1)) || (/\btoday\b/.test(q) && date === londonDate());
 }
 function targetTimeMentioned(state: ToolState, target: string) {
   const times = (state.userQuestion ?? "").match(/\b\d{1,2}[:.]\d{2}\b/g) ?? [];
@@ -349,6 +366,77 @@ const tools = {
     },
   } satisfies Tool<typeof adjustTimeSchema>,
 
+  create_one_off_visit: {
+    spec: {
+      name: "create_one_off_visit",
+      description: "Create a NEW one-off SCHEDULED but UNPUBLISHED visit, only on the confirmed service user's record and only if the employee explicitly specified the date, time, duration, call type and number of carers. Refuse missing details, past times, or an existing matching visit. This does not assign a carer or alter recurring templates.",
+      inputSchema: obj({ serviceUserId: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD" }, start: { type: "string", description: "HH:mm" }, durationMin: { type: "integer" }, carersRequired: { type: "integer" }, callTypeName: { type: "string" } }),
+    },
+    schema: createVisitSchema,
+    async run(ctx, { serviceUserId, date, start, durationMin, carersRequired, callTypeName }, state) {
+      if (!can(ctx, "rota.edit")) throw new ForbiddenError("You don't have permission to create visits.");
+      if (!state.confirmedServiceUserIds?.includes(serviceUserId) && !(state.page.kind === "service-user" && state.page.id === serviceUserId)) throw new ConflictError("First identify exactly one service user by their name or reference.");
+      const q = (state.userQuestion ?? "").toLowerCase();
+      if (!requestedChange(state, /\b(add|create|schedule|book)\b/i) || !/\b(new|one.off|additional|extra|visit|call)\b/i.test(q)) throw new ConflictError("Only create a new visit when the employee explicitly asks to book or add it.");
+      if (!requestedDate(state, date) || !targetTimeMentioned(state, start)) throw new ConflictError("Confirm the exact date and start time in the employee's request before creating a visit.");
+      if (!new RegExp("\\b" + durationMin + "\\s*(?:minutes?|mins?)\\b", "i").test(q)) throw new ConflictError("The employee must specify how many minutes the visit lasts.");
+      const statedCarers = new RegExp("\\b" + carersRequired + "\\s*(?:carers?|care workers?)\\b", "i").test(q) || (carersRequired === 2 && /\bdouble.up\b/.test(q)) || (carersRequired === 1 && /\b(?:single carer|one carer)\b/.test(q));
+      if (!statedCarers) throw new ConflictError("Confirm the number of carers needed; do not guess the staffing required by a care plan.");
+      if (!q.includes(callTypeName.toLowerCase()) && !q.includes(callTypeName.toLowerCase().split(" ")[0]!)) throw new ConflictError("Confirm the visit call type with the employee rather than choosing one automatically.");
+      const startAt = londonToUtc(date, parseHhmm(start)!);
+      if (startAt <= new Date()) throw new ConflictError("A new visit must start in the future.");
+      const ct = await db.callType.findFirst({ where: { organisationId: ctx.organisationId!, name: { equals: callTypeName, mode: "insensitive" } }, select: { id: true, name: true } });
+      if (!ct) throw new NotFoundError("Call type");
+      const scope = await rotaScope(ctx, "rota.edit");
+      const person = await db.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: serviceUserId }, select: { id: true } });
+      if (!person) throw new NotFoundError("Service user");
+      const existing = await db.visit.findFirst({ where: { ...visitWhere(scope), serviceUserId, callTypeId: ct.id, scheduledStart: startAt, status: { not: "CANCELLED" } }, select: { id: true, reference: true } });
+      if (existing) {
+        link(state, { label: "Existing " + existing.reference, href: "/rota/visits/" + existing.id });
+        return { created: false, duplicate: true, reference: existing.reference, instruction: "This visit already exists. Nothing new was created." };
+      }
+      const v = await createVisit(ctx, { serviceUserId, callTypeId: ct.id, date, startMinute: parseHhmm(start)!, durationMin, carersRequired, publish: false });
+      state.wrote.push({ tool: "create_one_off_visit", ref: "Visit:" + v.id });
+      link(state, { label: "Created " + v.reference, href: "/rota/visits/" + v.id });
+      return { created: true, visitId: v.id, reference: v.reference, date, start, durationMin, carersRequired, status: "Scheduled but unpublished (draft)", carerBooked: false, recurringTemplateUnchanged: true };
+    },
+  } satisfies Tool<typeof createVisitSchema>,
+
+  move_visit_day: {
+    spec: {
+      name: "move_visit_day",
+      description: "Move one uniquely identified SCHEDULED visit to a specifically requested UK local DATE, keeping the time of day, duration, staff and recurring template unchanged. No move on ambiguous dates, staff clashes, travel/eligibility warnings or locked/past visits. Does NOT change a template or send external messages.",
+      inputSchema: obj({ visitId: { type: "string" }, lockVersion: { type: "integer" }, toDate: { type: "string", description: "YYYY-MM-DD" } }),
+    },
+    schema: moveDaySchema,
+    async run(ctx, { visitId, lockVersion, toDate }, state) {
+      if (!can(ctx, "rota.edit")) throw new ForbiddenError("You don't have permission to move visits.");
+      if (!canChangeIdentifiedVisit(state, visitId)) throw new ConflictError("Identify exactly one visit first.");
+      if (!requestedChange(state, /\b(move|reschedule|shift|change)\b/i) || !requestedDate(state, toDate)) throw new ConflictError("The employee must explicitly request the destination date; do not guess from a weekday alone.");
+      const v = await getVisit(ctx, visitId);
+      if (v.lockVersion !== lockVersion) throw new ConflictError("This visit was updated by someone else. Reload it first.");
+      const originalDate = fromDbDate(v.date);
+      if (originalDate === toDate) return { moved: false, reason: "Already scheduled on this date" };
+      const futureStart = londonToUtc(toDate, londonMinute(v.scheduledStart));
+      if (futureStart <= new Date()) throw new ConflictError("Cannot move a visit into the past.");
+      const duration = v.scheduledEnd.getTime() - v.scheduledStart.getTime();
+      const assignments = v.assignments.filter((a) => !a.removedAt);
+      const taskIds = v.tasks.map((t) => t.careTaskId).filter((x): x is string => !!x);
+      const blocking: string[] = [], warnings: string[] = [];
+      for (const a of assignments) {
+        const r = await eligibilityFor(db, ctx.organisationId!, { staffId: a.staffId, start: futureStart, end: new Date(futureStart.getTime() + duration), slot: a.slot, visitId: v.id, serviceUserId: v.serviceUserId, areaId: v.areaId, careTaskIds: taskIds }, { otherSlotStaffIds: assignments.filter((x) => x.id !== a.id).map((x) => x.staffId) });
+        blocking.push(...r.blocking.map((b) => a.staff.displayName + ": " + b.message));
+        if (r.state === "REQUIRES_REVIEW") warnings.push(...r.warnings.map((w) => a.staff.displayName + ": " + w.message));
+      }
+      if (blocking.length || warnings.length) return { moved: false, blocking, warnings, next: "The move requires a coordinator to review the staffing problem in Visit Details. Nothing has changed." };
+      const primary = assignments.find((a) => a.slot !== "SHADOW");
+      const moved = await moveVisit(ctx, { visitId, lockVersion, toDate, slot: primary ? placeKey(primary) : "PRIMARY", staffId: primary?.staffId ?? null, acceptWarnings: false });
+      state.wrote.push({ tool: "move_visit_day", ref: "Visit:" + visitId });
+      link(state, { label: "Moved " + moved.reference, href: "/rota/visits/" + visitId });
+      return { moved: true, reference: moved.reference, fromDate: originalDate, toDate, localTime: londonTime(moved.scheduledStart), recurringTemplateUnchanged: true, carersAndFamilyNotAutomaticallyNotified: true };
+    },
+  } satisfies Tool<typeof moveDaySchema>,
+
   suggest_carers: {
     spec: {
       name: "suggest_carers",
@@ -416,7 +504,7 @@ export type ToolName = keyof typeof tools;
 export const TOOL_NAMES = Object.keys(tools) as ToolName[];
 export const TOOL_SPECS: AgentToolSpec[] = TOOL_NAMES.map((n) => tools[n].spec);
 /** Tools that create or change a draft. Everything else only reads. */
-export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents", "adjust_visit_time", "book_carer"]);
+export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents", "adjust_visit_time", "move_visit_day", "create_one_off_visit", "book_carer"]);
 
 /**
  * Runs one tool call for the model. Unknown tools and bad input are refused; errors the employee may see are returned
