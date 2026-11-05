@@ -9,6 +9,8 @@ import { db } from "@/lib/db";
 import { getAiProvider } from "@/server/ai";
 import { logger } from "@/lib/logger";
 import { NotFoundError } from "@/lib/errors";
+import { getIntake, readIntakeDocument } from "@/server/care/coordinator/intake";
+import { coordinatorIntent } from "@/lib/coordinator-chat-intent";
 
 /**
  * Permission-scoped CRM assistant: the existing deterministic CRM answer is retrieved first,
@@ -56,6 +58,58 @@ export async function askCsbCoordinator(raw: CoordinatorChatRequest): Promise<Co
     // A record on the page that this employee may not open is answered as not available, never described.
     if (e instanceof NotFoundError) result = { topic: "not-found", answer: "That record isn't available to you, so I can't answer about it.", links: [] };
     else throw e;
+  }
+  // An explicit request to process an existing intake uses the CRM's real
+  // upload/reading pipeline, never model-generated database instructions.
+  // Document extraction proposes facts only; review, approval, save and rota
+  // publication remain in the established CRM workflow.
+  if (coordinatorIntent(d.question) === "process-plan") {
+    if (page.kind !== "intake" || !page.id) {
+      result = {
+        topic: "process-plan", links: [{ label: "Open Care Coordinator", href: "/rota/coordinator" }],
+        answer: "I can prepare a complete care-intake draft for review. Start a new intake or open an existing one, upload the council support plan, then ask me to process it there. I will not create or approve clinical records without the CRM's review process.",
+      };
+    } else {
+      const before = await getIntake(ctx, page.id);
+      const canRead = before.intake.status === "DRAFT";
+      const pending = before.documents.filter(doc => doc.contentType === "application/pdf" && doc.readStatus === "PENDING");
+      // Bound the number of additional chargeable API reads per chat action.
+      let attempted = 0;
+      let failed = 0;
+      if (canRead) {
+        for (const doc of pending.slice(0, 2)) {
+          attempted++;
+          try { await readIntakeDocument(ctx, doc.id); }
+          catch (e) {
+            failed++;
+            logger.warn({ reason: (e as Error).name }, "Coordinator chat document read failed");
+          }
+        }
+      }
+      const current = attempted ? await getIntake(ctx, page.id) : before;
+      const count = (destination: string) => current.facts.filter(f => f.destination === destination).length;
+      const plans = new Set(current.facts.filter(f => f.destination.startsWith("careplan.")).map(f => f.destination)).size;
+      const risks = count("risk");
+      const visits = count("visit");
+      const missing = current.sections.reduce((total, section) => total + section.open, 0);
+      const remaining = current.documents.filter(doc => doc.readStatus === "PENDING").length;
+      const notes = [
+        "I've checked the actual intake and its saved extraction results.",
+        `Documents: ${current.documents.length}. New extraction attempts: ${attempted}${failed ? ` (${failed} failed)` : ""}.`,
+        `Draft facts available for review: ${current.facts.length}; care-plan section entries: ${plans}; risk proposals: ${risks}; visit proposals: ${visits}.`,
+        `Facts still requiring coordinator decisions: ${missing}.`,
+        remaining ? `${remaining} document(s) are still awaiting extraction. Open the intake to continue.` : "",
+        "Nothing has been automatically approved, saved to a service-user record, or published to the rota.",
+        "Review each source, resolve missing/conflicting fields, then submit the intake for manager approval. Approved sections can be applied through the existing CRM workflow.",
+      ].filter(Boolean);
+      result = {
+        topic: "process-plan", answer: notes.join("\n\n"),
+        links: [{ label: "Review extracted care intake", href: `/rota/coordinator/${encodeURIComponent(page.id)}` }],
+      };
+    }
+    await audit({ organisationId, actorId: ctx.userId, action: "coordinator.chat.asked", entityType: "Organisation", entityId: organisationId,
+      data: { page: page.kind, topic: result.topic, historyCount: d.history.length, aiUsed: false } });
+    return result;
   }
   // Provider secrets are server-side. Enabling the environment variable alone must
   // never send a care organisation's records off-platform without its opt-in.
