@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 const authMock = vi.hoisted(() => ({ ctx: null as unknown }));
 vi.mock("@/server/auth/current", () => ({ getCtx: vi.fn(async () => authMock.ctx), requireCtx: vi.fn(async () => authMock.ctx) }));
 import { db } from "@/lib/db";
-import { addDays, dbDate, londonDate } from "@/lib/london";
+import { addDays, dbDate, fmtLondonDate, londonDate } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
 import { serviceUserChatContext } from "@/server/care/coordinator/chat";
 import { createIntake } from "@/server/care/coordinator/intake";
@@ -136,7 +136,8 @@ describe("askCsbCoordinator: P0 questions (no key)", () => {
     await db.staffAbsence.create({ data: { organisationId: orgId, staffId: staff.id, kind: "SICKNESS", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
     if (otherStaff) await db.staffAbsence.create({ data: { organisationId: otherOrg, staffId: otherStaff.id, kind: "HOLIDAY", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
     const r = await ask("Who is unavailable tomorrow?", "/rota");
-    expect(r.answer).toContain(staff.preferredName || staff.displayName);
+    expect(r.answer).toContain(`${staff.displayName} (${staff.jobTitle}): sickness`);
+    expect(r.answer).toContain(`last day ${fmtLondonDate(tomorrow)}`);
     expect(r.answer).toMatch(/sickness/);
     if (otherStaff) expect(r.answer).not.toContain(otherStaff.displayName);
     expect(r.answer).toMatch(/nobody is moved automatically/);

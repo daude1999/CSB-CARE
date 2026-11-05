@@ -208,12 +208,12 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
       const to = new Date(`${addDays(day0, 1)}T00:00:00Z`);
       const rows = await db.staffAbsence.findMany({
         where: { organisationId, status: { in: ["APPROVED", "REQUESTED"] }, startsAt: { lt: to }, endsAt: { gt: from }, staff: staffDirectoryWhere(scope, {}) },
-        select: { kind: true, status: true, endsAt: true, staff: { select: { displayName: true, preferredName: true } } },
+        select: { kind: true, status: true, endsAt: true, staff: { select: { displayName: true, jobTitle: true } } },
         orderBy: { startsAt: "asc" }, take: 50,
       });
       const when = day0 === today ? "today" : "tomorrow";
       if (!rows.length) return done(`No staff absence is recorded for ${when} (${fmtLondonDate(day0)}). Absences come from HR & Workforce; weekly availability is on each staff page.`, [{ label: "Staff absences", href: "/workforce/absences" }]);
-      const line = (r: (typeof rows)[number]) => `• ${r.staff.preferredName || r.staff.displayName}: ${r.kind.toLowerCase()}${r.status === "REQUESTED" ? " (requested, not yet approved)" : ""}, until ${fmtLondonDate(r.endsAt.toISOString().slice(0, 10))}`;
+      const line = (r: (typeof rows)[number]) => `• ${r.staff.displayName} (${r.staff.jobTitle}): ${r.kind.toLowerCase()}${r.status === "REQUESTED" ? " (requested, not yet approved)" : ""}, last day ${fmtLondonDate(londonDate(new Date(r.endsAt.getTime() - 1)))}`;
       return done(`${plural(rows.length, "member of staff", "members of staff")} with an absence recorded for ${when}:\n${rows.slice(0, 10).map(line).join("\n")}${rows.length > 10 ? `\n…and ${rows.length - 10} more.` : ""}\n\nVisits already booked with them are flagged on the rota; nobody is moved automatically.`, [{ label: "Staff absences", href: "/workforce/absences" }, { label: "Sickness & holiday cover", href: "/rota/cover" }]);
     }
     case "why-not": {
