@@ -5,7 +5,14 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/er
 import { INTAKE_STATUS, SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { memberScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
-import { suName } from "@/server/rota/queries";
+import { suName, visitCandidates } from "@/server/rota/queries";
+import { lookUpReferences, serviceUserMatchWhere } from "@/server/care/service-user-search";
+import { fromDbDate, dbDate, isIsoDate, londonDate, londonTime, parseHhmm } from "@/lib/london";
+import { visitWhere, rotaScope } from "@/server/rota/scope";
+import { previewAdjustVisitTime, adjustVisitTime } from "@/server/rota/adjust-time";
+import { getVisit } from "@/server/rota/visits";
+import { assignCarer } from "@/server/rota/assign";
+import { carerPlaces, openPlaces, parsePlace, placeLabel } from "@/lib/carer-places";
 import { AiUnavailableError, type AgentToolSpec } from "@/server/ai/provider";
 import { answerFromCrm, type CrmLink, type CrmPage } from "./crm-assistant";
 import { serviceUserChatContext } from "./chat";
@@ -34,6 +41,14 @@ export interface ToolState {
   /** Calls so far, by name, for the audit (never their inputs). */
   calls: { name: string; ok: boolean }[];
   page: CrmPage;
+  /** Exact employee utterance, never model-authored. All rota writes must be requested here. */
+  userQuestion?: string;
+  /** Verified one-result lookups within this message; prevents a model choosing a guessed or ambiguous person. */
+  confirmedServiceUserIds?: string[];
+  /** Exactly one identified visit within this message (or the opened visit page). */
+  identifiedVisitIds?: string[];
+  /** Carers actually returned by a ranked eligibility query in this message. */
+  offeredCarers?: { id: string; name: string; state: string }[];
 }
 
 interface Tool<S extends z.ZodTypeAny> {
@@ -71,25 +86,67 @@ export async function readOnce<T>(key: string, fn: () => Promise<T>): Promise<{ 
 /** At most this many documents are read (chargeable with AI reading on) in one chat message. */
 export const MAX_READS_PER_MESSAGE = 2;
 
+const findVisitsSchema = z.object({
+  serviceUserId: id,
+  date: z.string().refine(isIsoDate, "Use a valid YYYY-MM-DD local date"),
+  start: z.string().nullable().refine((v) => v === null || parseHhmm(v) !== null, "Use HH:mm or null"),
+});
+const adjustTimeSchema = z.object({
+  visitId: id,
+  lockVersion: z.number().int().nonnegative(),
+  start: z.string().refine((v) => parseHhmm(v) !== null, "Use HH:mm"),
+});
+const rankedCarersSchema = z.object({ visitId: id });
+const bookCarerSchema = z.object({ visitId: id, lockVersion: z.number().int().nonnegative(), slot: z.string(), staffId: id });
+
+/** Confirm that the employee explicitly requested a rota change, not just a question about one. */
+function requestedChange(state: ToolState, verbs: RegExp) {
+  return Boolean(state.userQuestion && verbs.test(state.userQuestion));
+}
+function targetTimeMentioned(state: ToolState, target: string) {
+  const times = (state.userQuestion ?? "").match(/\b\d{1,2}[:.]\d{2}\b/g) ?? [];
+  return times.some((t) => parseHhmm(t.replace(".", ":")) === parseHhmm(target));
+}
+function canChangeIdentifiedVisit(state: ToolState, visitId: string) {
+  return state.identifiedVisitIds?.includes(visitId) || (state.page.kind === "visit" && state.page.id === visitId);
+}
+
 const tools = {
   search_records: {
     spec: {
       name: "search_records",
-      description: "Search the service users and care intakes this employee may see, by name, CSB/CRM reference or intake reference/title. Returns ids for the other tools. Use before asking the employee for an id.",
+      description: "Find service users and care intakes the employee may see. Full names such as Angus Abbott work; references, postcodes and Frameworki references use the CRM's normal search. If a surname appears misspelt, possibleServiceUsers is a SUGGESTION ONLY, never verified for changing visits.",
       inputSchema: obj({ query: { type: "string", description: "Name or reference, at least 2 characters" } }),
     },
     schema: z.object({ query: z.string().trim().min(2).max(60) }),
     async run(ctx, { query }, state) {
-      const out: { serviceUsers: unknown[]; intakes: unknown[] } = { serviceUsers: [], intakes: [] };
+      const out: { serviceUsers: unknown[]; possibleServiceUsers: unknown[]; intakes: unknown[]; referenceProblem: string | null } = { serviceUsers: [], possibleServiceUsers: [], intakes: [], referenceProblem: null };
       if (can(ctx, "serviceUser.view")) {
         const scope = await scopeOf(ctx);
-        const like = { contains: query, mode: "insensitive" as const };
+        const references = await lookUpReferences(ctx, query);
+        out.referenceProblem = references.problem;
+        const match = serviceUserMatchWhere(query, { sensitive: can(ctx, "serviceUser.sensitive"), referenceIds: references.hits.map((x) => x.serviceUserId) });
         const rows = await db.serviceUser.findMany({
-          where: { AND: [serviceUserWhere(scope), { OR: [{ firstName: like }, { lastName: like }, { preferredName: like }, { reference: like }, { csbReference: like }] }] },
-          select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, status: true }, take: 8, orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          where: { AND: [serviceUserWhere(scope), match] },
+          select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, status: true },
+          take: 9, orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
         });
-        out.serviceUsers = rows.map((s) => ({ id: s.id, name: suName(s), reference: s.reference, status: s.status.toLowerCase() }));
-        for (const s of rows.slice(0, 3)) link(state, { label: `${suName(s)} · ${s.reference}`, href: `/rota/service-users/${s.id}` });
+        out.serviceUsers = rows.slice(0, 8).map((person) => ({ id: person.id, name: suName(person), reference: person.csbReference ?? person.reference, status: person.status.toLowerCase() }));
+        // A unique result is a clear identity. Multiple matches must be disambiguated by reference.
+        if (rows.length === 1) state.confirmedServiceUserIds = [...new Set([...(state.confirmedServiceUserIds ?? []), rows[0]!.id])];
+        for (const person of rows.slice(0, 3)) link(state, { label: suName(person) + " · " + (person.csbReference ?? person.reference), href: "/rota/service-users/" + person.id });
+        // Never auto-select a partial first-name fallback: only show possible candidates for human confirmation.
+        if (!rows.length && query.trim().includes(" ")) {
+          const given = query.trim().split(/\s+/)[0]!;
+          if (/^[a-z]{3,}$/i.test(given)) {
+            const options = await db.serviceUser.findMany({
+              where: { AND: [serviceUserWhere(scope), { OR: [{ firstName: { contains: given, mode: "insensitive" } }, { preferredName: { contains: given, mode: "insensitive" } }] }] },
+              select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true },
+              take: 6,
+            });
+            out.possibleServiceUsers = options.map((person) => ({ id: person.id, name: suName(person), reference: person.csbReference ?? person.reference, verified: false }));
+          }
+        }
       }
       if (coordinatorRole(ctx)) {
         const q = query.toLowerCase();
@@ -237,6 +294,109 @@ const tools = {
     },
   } satisfies Tool<z.ZodObject<{ intakeId: typeof id; retryFailed: z.ZodBoolean }>>,
 
+  find_visits: {
+    spec: {
+      name: "find_visits",
+      description: "Find a named service user's scheduled visits on a specific local date, optionally at a specific start time. Returns visit IDs, reference, actual saved times, lockVersion and booked carers. Search for the person first. To change a visit, exactly one visit must be identified.",
+      inputSchema: obj({ serviceUserId: { type: "string" }, date: { type: "string", description: "YYYY-MM-DD UK local date" }, start: nullableString("HH:mm, or null for every visit on that date") }),
+    },
+    schema: findVisitsSchema,
+    async run(ctx, { serviceUserId, date, start }, state) {
+      const scope = await rotaScope(ctx, "rota.view");
+      const person = await db.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: serviceUserId }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true } });
+      if (!person) throw new NotFoundError("Service user");
+      const visits = await db.visit.findMany({
+        where: { ...visitWhere(scope), serviceUserId, date: dbDate(date), status: { not: "CANCELLED" } },
+        select: { id: true, reference: true, scheduledStart: true, scheduledEnd: true, status: true, lockVersion: true, carersRequired: true, publishedAt: true, assignments: { where: { removedAt: null }, select: { slot: true, position: true, staff: { select: { displayName: true } } } } },
+        orderBy: { scheduledStart: "asc" }, take: 40,
+      });
+      const found = start ? visits.filter((v) => parseHhmm(londonTime(v.scheduledStart)) === parseHhmm(start)) : visits;
+      if (found.length === 1 && (state.confirmedServiceUserIds?.includes(serviceUserId) || (state.page.kind === "service-user" && state.page.id === serviceUserId) || (state.page.kind === "visit" && state.page.id === found[0]!.id))) {
+        state.identifiedVisitIds = [...new Set([...(state.identifiedVisitIds ?? []), found[0]!.id])];
+      }
+      for (const v of found.slice(0, 3)) link(state, { label: v.reference + " · " + date + " " + londonTime(v.scheduledStart), href: "/rota/visits/" + v.id });
+      return { person: suName(person), reference: person.reference, date, matched: found.length, visits: found.slice(0, 12).map((v) => ({
+        visitId: v.id, reference: v.reference, lockVersion: v.lockVersion, time: londonTime(v.scheduledStart), durationMin: Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000), status: v.status, published: !!v.publishedAt,
+        carersRequired: v.carersRequired, bookedCarers: v.assignments.map((a) => ({ name: a.staff.displayName, place: a.position })),
+      })), ambiguous: found.length !== 1, instruction: found.length > 1 ? "Ask which visit using its exact time or reference before changing anything." : found.length === 0 ? "No matching visit; do not invent one." : undefined };
+    },
+  } satisfies Tool<typeof findVisitsSchema>,
+
+  adjust_visit_time: {
+    spec: {
+      name: "adjust_visit_time",
+      description: "Change ONLY one uniquely identified SCHEDULED visit's start time on its own day, retaining its existing duration and recurring template. Only if the employee explicitly requested this change. Previews and checks staff conflicts first; warnings require the employee to explicitly confirm them in the chat before changing anything. Never changes past, started or locked visits.",
+      inputSchema: obj({ visitId: { type: "string" }, lockVersion: { type: "integer" }, start: { type: "string", description: "New HH:mm start time" } }),
+    },
+    schema: adjustTimeSchema,
+    async run(ctx, { visitId, lockVersion, start }, state) {
+      if (!can(ctx, "rota.edit")) throw new ForbiddenError("You don't have permission to edit the rota.");
+      if (!canChangeIdentifiedVisit(state, visitId)) throw new ConflictError("Identify exactly one visit through find_visits first. No rota change was made.");
+      if (!requestedChange(state, /\b(move|change|shift|adjust|reschedule|edit|confirm)\b/i) || !targetTimeMentioned(state, start)) throw new ConflictError("The employee must explicitly request this particular new time. No rota change was made.");
+      const current = await getVisit(ctx, visitId);
+      const durationMin = Math.round((current.scheduledEnd.getTime() - current.scheduledStart.getTime()) / 60000);
+      const reason = "One-off time change explicitly requested in AI CSB Coordinator by " + ctx.userName;
+      const input = { visitId, lockVersion, start, durationMin, reason };
+      const preview = await previewAdjustVisitTime(ctx, input);
+      if (preview.blocking.length) return { changed: false, blocked: preview.blocking, warnings: preview.warnings, preview };
+      if (preview.warnings.length && !/\b(confirm|proceed)\b.*\b(warning|despite|anyway)\b/i.test(state.userQuestion ?? "")) {
+        return { changed: false, needsConfirmation: true, warnings: preview.warnings, preview, next: "Explain the exact warnings and ask for an explicit confirmation including the visit reference and target time. Do not claim the visit moved." };
+      }
+      const done = await adjustVisitTime(ctx, input);
+      state.wrote.push({ tool: "adjust_visit_time", ref: "Visit:" + visitId });
+      link(state, { label: "Updated " + preview.reference, href: "/rota/visits/" + visitId });
+      return { changed: true, reference: done.reference, from: done.from, to: done.to, carersToldInApp: done.carersTold, warnings: done.warnings, recurringTemplateUnchanged: true, familyNotAutomaticallyNotified: true };
+    },
+  } satisfies Tool<typeof adjustTimeSchema>,
+
+  suggest_carers: {
+    spec: {
+      name: "suggest_carers",
+      description: "Show the existing eligibility-checked, ranked carer options for a uniquely identified visit, including reasons and any warnings. Staff are NOT booked by this tool.",
+      inputSchema: obj({ visitId: { type: "string" } }),
+    },
+    schema: rankedCarersSchema,
+    async run(ctx, { visitId }, state) {
+      if (!can(ctx, "rota.view")) throw new ForbiddenError("You can't see the rota.");
+      const visit = await getVisit(ctx, visitId);
+      const candidates = await visitCandidates(ctx, visit, "ANY");
+      const offered = candidates.filter((c) => c.state !== "NOT_ELIGIBLE").slice(0, 10);
+      state.offeredCarers = offered.map((c) => ({ id: c.id, name: c.name, state: c.state }));
+      link(state, { label: "Visit Details and all carers", href: "/rota/visits/" + visitId });
+      return { visitId, lockVersion: visit.lockVersion, slots: openPlaces(visit.carersRequired, visit.assignments.filter((a) => !a.removedAt)), carers: offered.map((c) => ({ staffId: c.id, name: c.name, status: c.state, matchScore: c.score, reasons: c.reasons, why: c.explain })) };
+    },
+  } satisfies Tool<typeof rankedCarersSchema>,
+
+  book_carer: {
+    spec: {
+      name: "book_carer",
+      description: "Book an explicitly requested, eligible carer into an EMPTY place on an identified visit using the CRM's existing conflict, scope, eligibility and audit checks. No warning overrides, no speculative bookings. To choose automatically the employee must say 'book best available' or 'book top match'; otherwise the employee must name the carer. Requires suggest_carers in this same message.",
+      inputSchema: obj({ visitId: { type: "string" }, lockVersion: { type: "integer" }, slot: { type: "string", description: "PRIMARY, SECOND, C3 etc" }, staffId: { type: "string" } }),
+    },
+    schema: bookCarerSchema,
+    async run(ctx, { visitId, lockVersion, slot, staffId }, state) {
+      if (!can(ctx, "rota.edit")) throw new ForbiddenError("You don't have permission to book carers.");
+      if (!canChangeIdentifiedVisit(state, visitId)) throw new ConflictError("Identify exactly one visit before booking a carer.");
+      if (!requestedChange(state, /\b(book|assign|allocate|confirm)\b/i)) throw new ConflictError("The employee must explicitly ask you to book this visit.");
+      const place = parsePlace(slot);
+      if (!place || place === "SHADOW") throw new ConflictError("Specify an ordinary carer place.");
+      const offered = state.offeredCarers?.find((c) => c.id === staffId);
+      if (!offered || offered.state !== "ELIGIBLE") throw new ConflictError("This carer was not verified eligible by suggest_carers in this message.");
+      const request = (state.userQuestion ?? "").toLowerCase();
+      const requestedBest = /\b(book|assign|allocate)\b.{0,45}\b(best available|top match|best match)\b/.test(request);
+      const firstEligible = state.offeredCarers?.find((c) => c.state === "ELIGIBLE");
+      const named = request.includes(offered.name.toLowerCase());
+      if (!named && !(requestedBest && firstEligible?.id === staffId)) throw new ConflictError("Ask the employee to name the selected carer or explicitly request the best available match.");
+      const v = await getVisit(ctx, visitId);
+      const empty = openPlaces(v.carersRequired, v.assignments.filter((a) => !a.removedAt));
+      if (!empty.includes(place)) throw new ConflictError("This carer place is already filled. Use the regular replacement workflow instead.");
+      await assignCarer(ctx, { visitId, slot: place, staffId, lockVersion, acceptWarnings: false }, "ai-coordinator");
+      state.wrote.push({ tool: "book_carer", ref: "Visit:" + visitId });
+      link(state, { label: "Booked visit", href: "/rota/visits/" + visitId });
+      return { booked: true, visitId, carer: offered.name, place: placeLabel(place), verifiedEligible: true, notificationsNotConfirmed: true };
+    },
+  } satisfies Tool<typeof bookCarerSchema>,
+
   crm_lookup: {
     spec: {
       name: "crm_lookup",
@@ -256,7 +416,7 @@ export type ToolName = keyof typeof tools;
 export const TOOL_NAMES = Object.keys(tools) as ToolName[];
 export const TOOL_SPECS: AgentToolSpec[] = TOOL_NAMES.map((n) => tools[n].spec);
 /** Tools that create or change a draft. Everything else only reads. */
-export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents"]);
+export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents", "adjust_visit_time", "book_carer"]);
 
 /**
  * Runs one tool call for the model. Unknown tools and bad input are refused; errors the employee may see are returned
