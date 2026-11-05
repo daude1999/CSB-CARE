@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
+import { withDbRetry } from "@/lib/db-retry";
 import { sha256 } from "@/lib/text";
 import { verifyPassword } from "./password";
 import type { Ctx } from "./rbac";
@@ -46,10 +47,14 @@ export async function logout(token: string) {
 /** Resolves a session token to an authorisation context, or null if invalid/expired. */
 export async function ctxFromToken(token: string | undefined | null): Promise<Ctx | null> {
   if (!token) return null;
-  const session = await db.session.findUnique({
-    where: { tokenHash: sha256(token) },
-    include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } } },
-  });
+  // The first query of nearly every request: a connection that cannot be opened yet (just after a deployment) is
+  // retried briefly instead of failing the whole page.
+  const session = await withDbRetry(() =>
+    db.session.findUnique({
+      where: { tokenHash: sha256(token) },
+      include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } } },
+    }),
+  );
   if (!session || session.expiresAt < new Date() || session.user.deactivatedAt) return null;
   if (Date.now() - session.lastSeenAt.getTime() > 5 * 60 * 1000) {
     await db.session.update({
