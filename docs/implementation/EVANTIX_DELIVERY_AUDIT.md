@@ -47,3 +47,15 @@ Key: **Complete** (works and has tests) · **Partial** (works for part of the jo
 ## Approved designs
 
 No screen layout was changed in this branch. The only user-visible changes are words inside the existing Care Coordinator check screen (flags and the reader note) and the floating assistant's upload answer. Missing visual references named in the brief that are not in the repository: none were needed for this PR.
+
+## Test baseline (main at 92d6070, run 5 Nov 2026 in the cloud container)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | Pass |
+| `npm run lint` | Pass |
+| `npm test` (vitest, local `csb_test`) | 1,050 passed, 3 failed, 1 file could not load (116 files) |
+| `npm run test:hr` | 22 passed, 0 failed |
+| `npm run build`, `npm run test:e2e` | Not run in this pass |
+
+The 4 failures on main are all the same environment problem, not product defects: `tests/support/pdf-inspect.ts` loads pdf.js 6.3.289 against a 6.4.299 worker ("The API version does not match the Worker version"). Affected: `tests/unit/document-rendering.test.ts` (whole file) and 3 tests in `tests/integration/document-qa.test.ts` (printable rota, MAR chart). Earlier known time-of-day failures (cutoff, CQC just after midnight) did not occur at 16:25 UTC.
