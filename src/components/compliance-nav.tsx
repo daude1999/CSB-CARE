@@ -30,6 +30,7 @@ export function workspaceTabs(ctx: Ctx, ws: WorkspaceId): WorkspaceTab[] {
       case "library":
         return [
           { key: "policies", label: "My Policies", href: "/policies", show: org },
+          { key: "forms", label: "Forms & Resources", href: "/policies/forms", show: true },
           { key: "templates", label: "Templates", href: "/policies?tab=templates", show: true },
           { key: "archived", label: "Archived", href: "/policies?tab=archived", show: org },
           { key: "calendar", label: "Review Calendar", href: "/policies?tab=calendar", show: org },
