@@ -32,6 +32,7 @@ export type AskState = { question: string; result?: AssistantResult; error?: str
 import { handle, handleData, str } from "./action-kit";
 import { BookmarkKindSchema, toggleBookmark } from "@/server/policies/bookmarks";
 import { addResourceLink, withdrawResourceLink } from "@/server/forms/links";
+import { approveRecord, returnRecord, saveDraft, startForm, submitRecord, voidRecord } from "@/server/forms/records";
 import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
@@ -216,6 +217,47 @@ export async function addResourceLinkAction(fd: FormData) {
 }
 export async function withdrawResourceLinkAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await withdrawResourceLink(ctx, { linkId: str(fd, "linkId"), reason: str(fd, "reason") })), "Link removed. It stays in this policy's link history.");
+}
+// ───────── on-screen forms (Forms PR 2/3)
+const LockVersion = z.coerce.number().int().min(0);
+/** The answers posted by a form: fields are named f_<key>; multi-select fields post several values. */
+function postedAnswers(fd: FormData): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+  for (const name of new Set([...fd.keys()].filter((k) => k.startsWith("f_")))) {
+    const values = fd.getAll(name).filter((v): v is string => typeof v === "string");
+    out[name.slice(2)] = values.length > 1 ? values : (values[0] ?? "");
+  }
+  return out;
+}
+export async function startFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => `/policies/forms/records/${(await startForm(ctx, str(fd, "definitionId"))).id}`, "Form started. Save it as a draft at any time.");
+}
+export async function saveFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const id = str(fd, "recordId");
+    const lock = LockVersion.parse(str(fd, "lockVersion") || "0");
+    const answers = postedAnswers(fd);
+    // Save first, so a submission that is not complete yet keeps what was typed.
+    await saveDraft(ctx, id, answers, lock);
+    if (str(fd, "intent") !== "submit") return { ok: "Draft saved" };
+    await submitRecord(ctx, id, answers, lock + 1);
+    return { ok: "Submitted for review. Your answers are now locked." };
+  }, "Saved");
+}
+export async function reviewFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const id = str(fd, "recordId");
+    const lock = LockVersion.parse(str(fd, "lockVersion") || "0");
+    if (str(fd, "decision") === "approve") {
+      await approveRecord(ctx, id, lock);
+      return { ok: "Approved" };
+    }
+    await returnRecord(ctx, id, lock, str(fd, "reason"));
+    return { ok: "Returned for correction with your reason" };
+  }, "Saved");
+}
+export async function voidFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => void (await voidRecord(ctx, str(fd, "recordId"), str(fd, "reason"))), "Form voided. It stays on record, marked void.");
 }
 // ───────── policy library workspace
 const RecordId = z.string().regex(/^[a-z0-9]{8,40}$/i, "That record could not be found");
