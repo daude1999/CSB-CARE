@@ -98,19 +98,19 @@ export const FICTIONAL_CARDS = { firstName: "Bea", lastName: "Example", postcode
  * commissioned visits (09:00 60 min, 12:00 45 min, 16:30 30 min, 20:00 60 min = 1,365 minutes a week) and one weekly
  * family shopping visit that must not count towards the commissioned total.
  */
-export function supportPlanCardsPdf() {
+export function supportPlanCardsPdf(opts: { hoursPerWeek?: string; name?: string } = {}) {
   return pdf([
     [
       "Sample Borough Council - Adult Social Care",
       "Support Plan",
       "Date of plan: 20/10/2026",
-      "Full name: Bea Example",
+      `Full name: ${opts.name ?? "Bea Example"}`,
       "Date of birth: 01/02/1945",
       "Address: 10 Test Street, Exampleton, E2 0ZZ",
       "Frameworki client reference: 1088676",
       "Funder: Sample Borough Council",
       "Package start: 01/11/2026",
-      "Hours per week: 22.75",
+      `Hours per week: ${opts.hoursPerWeek ?? "22.75"}`,
       "Staffing: Single-handed visits",
       "Risk - Falls: Bea uses a walking frame and is unsteady when tired.",
     ],

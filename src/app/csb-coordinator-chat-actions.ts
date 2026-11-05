@@ -3,29 +3,29 @@
 import { z } from "zod";
 import { requirePortal } from "@/server/auth/portals";
 import { requireOrgPermission } from "@/server/auth/rbac";
-import { answerFromCrm, type CrmLink, type CrmPage } from "@/server/care/coordinator/crm-assistant";
-import { audit } from "@/server/audit-log";
-import { db } from "@/lib/db";
-import { getAiProvider } from "@/server/ai";
+import type { CrmLink, CrmPage } from "@/server/care/coordinator/crm-assistant";
+import { coordinatorChat, type ChatMode } from "@/server/care/coordinator/agent";
+import { chatUploadTargets, uploadFromChat } from "@/server/care/coordinator/chat-upload";
+import { AppError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { NotFoundError } from "@/lib/errors";
-import { getIntake, readIntakeDocument } from "@/server/care/coordinator/intake";
-import { coordinatorIntent } from "@/lib/coordinator-chat-intent";
+import { MAX_DOCUMENT_BYTES } from "@/server/care/su-documents";
 
 /**
- * Permission-scoped CRM assistant: the existing deterministic CRM answer is retrieved first,
- * then optionally explained by Claude if the organisation has explicitly enabled AI document
- * processing after its data-protection review.
- * Never directly writes to patient records or sends raw document bytes in chat.
+ * AI CSB Coordinator chat. Claude with permission-checked CRM tools when the organisation has switched AI on and the
+ * server has a provider; otherwise (or over a limit, or during an outage) the built-in CRM answers. See
+ * src/server/care/coordinator/agent.ts. The page the panel was opened on is sent as its path; any record id in it is
+ * re-checked on the server before use. Nothing here takes an organisation id from the browser.
  */
 const requestSchema = z.object({
   question: z.string().trim().min(2).max(2000),
   intakeId: z.string().trim().max(80).nullable(),
   path: z.string().trim().max(300).optional(),
   history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(8),
+  /** Names of documents the employee has just attached to this intake with the paperclip. */
+  attached: z.array(z.string().max(160)).max(3).optional(),
 });
 export type CoordinatorChatRequest = z.input<typeof requestSchema>;
-export type CoordinatorChatResponse = { answer: string; links: CrmLink[]; topic: string };
+export type CoordinatorChatResponse = { answer: string; links: CrmLink[]; topic: string; mode: ChatMode; notice: string | null };
 
 const ID = /^[a-zA-Z0-9]{10,40}$/;
 /** Visits use UUIDs rather than cuids. */
@@ -48,100 +48,49 @@ function pageOf(path: string | undefined, intakeId: string | null): CrmPage {
 
 export async function askCsbCoordinator(raw: CoordinatorChatRequest): Promise<CoordinatorChatResponse> {
   const ctx = await requirePortal("rota");
-  const organisationId = requireOrgPermission(ctx, "serviceUser.documents");
+  requireOrgPermission(ctx, "serviceUser.documents");
   const d = requestSchema.parse(raw);
-  const page = pageOf(d.path, d.intakeId);
-  let result: CoordinatorChatResponse;
+  const attachedNote = d.attached?.length ? `The employee has just attached ${d.attached.length} document(s) to this intake with the paperclip; they were stored and read by the CRM's intake upload.` : null;
+  return coordinatorChat(ctx, { question: d.question, history: d.history, page: pageOf(d.path, d.intakeId), attachedNote });
+}
+
+export type UploadTargetsResponse = { ok: true; data: Awaited<ReturnType<typeof chatUploadTargets>> } | { ok: false; error: string };
+export type ChatUploadResponse = { ok: true; data: Awaited<ReturnType<typeof uploadFromChat>> } | { ok: false; error: string };
+
+/** Where an attached document can go: the intake open on the page, or recent open intakes, or a new intake. */
+export async function coordinatorUploadTargets(path: string | null): Promise<UploadTargetsResponse> {
   try {
-    result = await answerFromCrm(ctx, d.question, page);
+    const ctx = await requirePortal("rota");
+    const page = pageOf(path ?? undefined, null);
+    return { ok: true, data: await chatUploadTargets(ctx, page) };
   } catch (e) {
-    // A record on the page that this employee may not open is answered as not available, never described.
-    if (e instanceof NotFoundError) result = { topic: "not-found", answer: "That record isn't available to you, so I can't answer about it.", links: [] };
-    else throw e;
+    return { ok: false, error: e instanceof AppError ? e.message : "The intakes could not be loaded just now." };
   }
-  // An explicit request to process an existing intake uses the CRM's real
-  // upload/reading pipeline, never model-generated database instructions.
-  // Document extraction proposes facts only; review, approval, save and rota
-  // publication remain in the established CRM workflow.
-  if (coordinatorIntent(d.question) === "process-plan") {
-    if (page.kind !== "intake" || !page.id) {
-      result = {
-        topic: "process-plan", links: [{ label: "Open Care Coordinator", href: "/rota/coordinator" }],
-        answer: "I can prepare a complete care-intake draft for review. Start a new intake or open an existing one, upload the council support plan, then ask me to process it there. I will not create or approve clinical records without the CRM's review process.",
-      };
-    } else {
-      const before = await getIntake(ctx, page.id);
-      const canRead = before.intake.status === "DRAFT";
-      const pending = before.documents.filter(doc => doc.contentType === "application/pdf" && doc.readStatus === "PENDING");
-      // Bound the number of additional chargeable API reads per chat action.
-      let attempted = 0;
-      let failed = 0;
-      if (canRead) {
-        for (const doc of pending.slice(0, 2)) {
-          attempted++;
-          try { await readIntakeDocument(ctx, doc.id); }
-          catch (e) {
-            failed++;
-            logger.warn({ reason: (e as Error).name }, "Coordinator chat document read failed");
-          }
-        }
-      }
-      const current = attempted ? await getIntake(ctx, page.id) : before;
-      const count = (destination: string) => current.facts.filter(f => f.destination === destination).length;
-      const plans = new Set(current.facts.filter(f => f.destination.startsWith("careplan.")).map(f => f.destination)).size;
-      const risks = count("risk");
-      const visits = count("visit");
-      const missing = current.sections.reduce((total, section) => total + section.open, 0);
-      const remaining = current.documents.filter(doc => doc.readStatus === "PENDING").length;
-      const notes = [
-        "I've checked the actual intake and its saved extraction results.",
-        `Documents: ${current.documents.length}. New extraction attempts: ${attempted}${failed ? ` (${failed} failed)` : ""}.`,
-        `Draft facts available for review: ${current.facts.length}; care-plan section entries: ${plans}; risk proposals: ${risks}; visit proposals: ${visits}.`,
-        `Facts still requiring coordinator decisions: ${missing}.`,
-        remaining ? `${remaining} document(s) are still awaiting extraction. Open the intake to continue.` : "",
-        "Nothing has been automatically approved, saved to a service-user record, or published to the rota.",
-        "Review each source, resolve missing/conflicting fields, then submit the intake for manager approval. Approved sections can be applied through the existing CRM workflow.",
-      ].filter(Boolean);
-      result = {
-        topic: "process-plan", answer: notes.join("\n\n"),
-        links: [{ label: "Review extracted care intake", href: `/rota/coordinator/${encodeURIComponent(page.id)}` }],
-      };
-    }
-    await audit({ organisationId, actorId: ctx.userId, action: "coordinator.chat.asked", entityType: "Organisation", entityId: organisationId,
-      data: { page: page.kind, topic: result.topic, historyCount: d.history.length, aiUsed: false } });
-    return result;
+}
+
+const uploadSchema = z.object({
+  target: z.enum(["intake", "new"]),
+  intakeId: z.string().regex(ID).nullable(),
+  serviceUserId: z.string().regex(ID).nullable(),
+  title: z.string().trim().max(120).nullable(),
+});
+
+/** The paperclip: stores the file through the intake's own upload (size, type, virus scan, private storage, audit),
+ *  reads it with the organisation's reading pipeline, and returns what was found. Never approves anything. */
+export async function uploadToCoordinator(fd: FormData): Promise<ChatUploadResponse> {
+  try {
+    const ctx = await requirePortal("rota");
+    const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+    if (!files.length) throw new ValidationError("Choose a document to attach");
+    if (files.length > 3) throw new ValidationError("Attach up to 3 documents at a time");
+    for (const f of files) if (f.size > MAX_DOCUMENT_BYTES) throw new ValidationError(`${f.name.slice(0, 80)} is larger than ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB`);
+    const field = (k: string) => { const v = fd.get(k); return typeof v === "string" && v.trim() ? v.trim() : null; };
+    const p = uploadSchema.safeParse({ target: field("target"), intakeId: field("intakeId"), serviceUserId: field("serviceUserId"), title: field("title") });
+    if (!p.success) throw new ValidationError("Choose where the document should go");
+    const uploaded = await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) })));
+    return { ok: true, data: await uploadFromChat(ctx, { ...p.data, files: uploaded }) };
+  } catch (e) {
+    if (!(e instanceof AppError)) logger.error({ err: (e as Error).name }, "coordinator chat upload failed");
+    return { ok: false, error: e instanceof AppError ? e.message : "The document could not be attached just now. Nothing was saved. Try again, or upload it on the Care Coordinator page." };
   }
-  // Provider secrets are server-side. Enabling the environment variable alone must
-  // never send a care organisation's records off-platform without its opt-in.
-  const settings = await db.rotaSettings.findUnique({
-    where: { organisationId }, select: { careCoordinatorAiEnabledAt: true },
-  });
-  const provider = settings?.careCoordinatorAiEnabledAt ? getAiProvider() : null;
-  let usedModel = false;
-  if (provider?.coordinateChat && !provider.isSimulated && result.topic !== "not-found") {
-    try {
-      // The deterministic engine has already applied organisation/branch/area/role
-      // permissions. Send only this scoped summary and its verified navigation links.
-      const caseContext = JSON.stringify({
-        page: page.kind,
-        crmAnswer: result.answer.slice(0, 10000),
-        links: result.links.slice(0, 12),
-        note: "CRM summary only. Do not claim the person or document was fully reviewed.",
-      });
-      const answer = await provider.coordinateChat({
-        question: d.question, history: d.history, caseContext,
-      });
-      if (answer.trim()) {
-        result = { ...result, answer, topic: "ai-coordinator" };
-        usedModel = true;
-      }
-    } catch (e) {
-      // Retain a useful, correctly-scoped answer during API outages or rate limits.
-      // Never log patient details or message content.
-      logger.warn({ reason: (e as Error).name }, "AI coordinator provider failed; used CRM fallback");
-    }
-  }
-  await audit({ organisationId, actorId: ctx.userId, action: "coordinator.chat.asked", entityType: "Organisation", entityId: organisationId,
-    data: { page: page.kind, topic: result.topic, historyCount: d.history.length, aiUsed: usedModel } });
-  return result;
 }
