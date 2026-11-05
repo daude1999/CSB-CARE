@@ -83,9 +83,11 @@ export class AnthropicProvider implements LlmProvider {
   private model: string;
 
   constructor(opts: { apiKey?: string; model?: string } = {}) {
-    if (!opts.apiKey && !process.env.ANTHROPIC_API_KEY) throw new AiUnavailableError("ANTHROPIC_API_KEY is not set");
-    this.client = new Anthropic({ apiKey: opts.apiKey ?? process.env.ANTHROPIC_API_KEY, timeout: 5 * 60_000, maxRetries: 2 });
-    this.model = opts.model ?? process.env.ANTHROPIC_MODEL ?? "claude-opus-5-5";
+    // Trimmed: a key or model pasted with a trailing space or newline must still work.
+    const apiKey = (opts.apiKey ?? process.env.ANTHROPIC_API_KEY ?? "").trim();
+    if (!apiKey) throw new AiUnavailableError("ANTHROPIC_API_KEY is not set");
+    this.client = new Anthropic({ apiKey, timeout: 5 * 60_000, maxRetries: 2 });
+    this.model = opts.model ?? (process.env.ANTHROPIC_MODEL?.trim() || "claude-opus-5-5");
     this.name = `anthropic:${this.model}`;
   }
 
