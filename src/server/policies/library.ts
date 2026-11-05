@@ -5,6 +5,7 @@ import { canOnPolicy, hasOrgPermission, requireOnPolicy, requireOrgPermission, v
 import { createDraftVersion, toSectionInputs, type SectionInput } from "./versions";
 import { ForbiddenError } from "@/lib/errors";
 import { notify } from "../notifications/notify";
+import { inheritTemplateLinks } from "@/server/forms/links";
 
 export async function listPolicies(ctx: Ctx, opts: { q?: string; category?: string; kind?: "MASTER" | "CUSTOMER"; docType?: string; page?: number; pageSize?: number; overdueOnly?: boolean } = {}) {
   const pageSize = Math.min(opts.pageSize ?? 20, 100);
@@ -101,7 +102,9 @@ export async function adoptTemplate(ctx: Ctx, templateId: string) {
     });
     const draft = await createDraftVersion(tx, { policyId: policy.id, organisationId: orgId, sections, origin: "MASTER_SYNC", createdById: ctx.userId, basedOnMasterVersionId: tpl.currentPublishedVersion!.id, reasonForChange: `Adopted from template ${tpl.ref} ${tpl.currentPublishedVersion!.label}`, changeSummary: "Adopted from CSB template; complete the local sections before approval." });
     const rev = await tx.policyRevision.create({ data: { policyId: policy.id, organisationId: orgId, kind: "MASTER_SYNC", draftVersionId: draft.id, title: `Adopt template ${tpl.ref}`, createdById: ctx.userId, authorId: ctx.userId } });
-    await audit({ organisationId: orgId, actorId: ctx.userId, action: "policy.adopted_template", entityType: "Policy", entityId: policy.id, data: { templateId } }, tx);
+    // CSB's links between this template and its forms carry over to the organisation's copies.
+    const links = await inheritTemplateLinks(tx, orgId, policy.id, templateId);
+    await audit({ organisationId: orgId, actorId: ctx.userId, action: "policy.adopted_template", entityType: "Policy", entityId: policy.id, data: { templateId, resourceLinksInherited: links } }, tx);
     return { policy, revision: rev };
   });
 }

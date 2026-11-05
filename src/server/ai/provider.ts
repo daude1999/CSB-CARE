@@ -84,6 +84,9 @@ export interface LlmProvider {
   isSimulated: boolean;
   /** Read-only, contextual office-assistant conversation. Never executes database writes. */
   coordinateChat?(input: CoordinatorChatInput): Promise<string>;
+  /** AI CSB Coordinator with tools: the model may only call the tools it is given; every call is executed by our own
+   *  server code with the employee's permissions (src/server/care/coordinator/agent-tools.ts). Optional. */
+  runCoordinatorAgent?(input: CoordinatorAgentInput): Promise<CoordinatorAgentResult>;
   analyseChange(input: ChangeAnalysisInput): Promise<ChangeAnalysis>;
   assessImpact(input: ImpactInput): Promise<ImpactAssessmentOutput>;
   draftRevision(input: RevisionInput): Promise<RevisionDraftOutput>;
@@ -134,8 +137,12 @@ export interface SupportPlanExtractionInput {
   filename: string;
 }
 
+/** Why AI could not be used, so callers can say it plainly: not set up, model not available, rejected key, busy or
+ *  rate limited, declined, or a general outage. Messages never contain the key or any care text. */
+export type AiUnavailableReason = "not-configured" | "model-unavailable" | "auth" | "busy" | "refused" | "timeout" | "unavailable";
+
 export class AiUnavailableError extends Error {
-  constructor(message = "AI provider is not configured or unavailable") {
+  constructor(message = "AI provider is not configured or unavailable", public readonly reason: AiUnavailableReason = "unavailable") {
     super(message);
   }
 }
@@ -145,4 +152,41 @@ export interface CoordinatorChatInput {
   question: string;
   history: { role:"user"|"assistant"; content:string }[];
   caseContext: string;
+}
+
+/** One tool the coordinator model may call. inputSchema is a strict JSON schema; the server validates again with zod. */
+export interface AgentToolSpec {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface CoordinatorAgentInput {
+  system: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  /** The employee's message, with the page context prepended by the server. */
+  message: string;
+  tools: AgentToolSpec[];
+  /** Runs one tool call on our server. The result is JSON text given back to the model as data. */
+  execute(name: string, input: unknown): Promise<{ content: string; isError: boolean }>;
+  /** Most model requests in one chat turn (each tool round trip is one). */
+  maxSteps: number;
+  /** Wall-clock budget for the whole turn, in milliseconds. */
+  deadlineMs: number;
+}
+
+export interface CoordinatorAgentUsage {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export interface CoordinatorAgentResult {
+  text: string;
+  model: string;
+  usage: CoordinatorAgentUsage;
+  /** True when the step or time budget ran out before the model finished. */
+  truncated: boolean;
 }

@@ -3,12 +3,13 @@ vi.mock("server-only", () => ({}));
 const authMock = vi.hoisted(() => ({ ctx: null as unknown }));
 vi.mock("@/server/auth/current", () => ({ getCtx: vi.fn(async () => authMock.ctx), requireCtx: vi.fn(async () => authMock.ctx) }));
 import { db } from "@/lib/db";
-import { addDays, dbDate, londonDate } from "@/lib/london";
+import { addDays, dbDate, fmtLondonDate, londonDate } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
 import { serviceUserChatContext } from "@/server/care/coordinator/chat";
 import { createIntake } from "@/server/care/coordinator/intake";
 import { topicOf } from "@/server/care/coordinator/crm-assistant";
-import { askCsbCoordinator } from "@/app/csb-coordinator-chat-actions";
+import { askCsbCoordinator, listCsbCoordinatorDraftIntakes, uploadCsbCoordinatorDocument } from "@/app/csb-coordinator-chat-actions";
+import { supportPlanPdf } from "../support/coordinator-fixture";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -114,5 +115,109 @@ describe("askCsbCoordinator (built-in CRM search)", () => {
     await expect(ask("Hello there")).rejects.toThrow();
     authMock.ctx = await manager();
     await expect(ask("x")).rejects.toThrow();
+  });
+});
+
+describe("askCsbCoordinator: P0 questions (no key)", () => {
+  it("recognises the new questions", () => {
+    expect(topicOf("Who is unavailable tomorrow?", { kind: "rota", id: null })).toBe("unavailable");
+    expect(topicOf("Why can't Sam be booked?", { kind: "visit", id: "x" })).toBe("why-not");
+    expect(topicOf("What is missing from this care package?", { kind: "service-user", id: "x" })).toBe("package-gaps");
+    expect(topicOf("Which visits are unassigned tomorrow?", { kind: "rota", id: null })).toBe("unassigned");
+  });
+
+  it("lists staff absences for tomorrow in this organisation only, and why an absent carer cannot be booked", async () => {
+    const m = await manager();
+    authMock.ctx = m;
+    const tomorrow = addDays(londonDate(), 1);
+    const staff = await db.staffMember.findFirstOrThrow({ where: { organisationId: orgId, hrMissing: false, employmentStatus: "ACTIVE" }, orderBy: { displayName: "asc" } });
+    const otherOrg = (await db.organisation.findUniqueOrThrow({ where: { slug: OAKRIDGE } })).id;
+    const otherStaff = await db.staffMember.findFirst({ where: { organisationId: otherOrg } });
+    const day = (d: string, h: number) => new Date(`${d}T${String(h).padStart(2, "0")}:00:00Z`);
+    await db.staffAbsence.create({ data: { organisationId: orgId, staffId: staff.id, kind: "SICKNESS", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
+    if (otherStaff) await db.staffAbsence.create({ data: { organisationId: otherOrg, staffId: otherStaff.id, kind: "HOLIDAY", status: "APPROVED", startsAt: day(tomorrow, 0), endsAt: day(addDays(tomorrow, 1), 0), requestedById: m.userId } });
+    const r = await ask("Who is unavailable tomorrow?", "/rota");
+    expect(r.answer).toContain(`${staff.displayName} (${staff.jobTitle}): sickness`);
+    expect(r.answer).toContain(`last day ${fmtLondonDate(tomorrow)}`);
+    expect(r.answer).toMatch(/sickness/);
+    if (otherStaff) expect(r.answer).not.toContain(otherStaff.displayName);
+    expect(r.answer).toMatch(/nobody is moved automatically/);
+
+    const visit = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, date: dbDate(tomorrow), status: "SCHEDULED" } });
+    const absences = await db.staffAbsence.count();
+    const assignments = await db.visitAssignment.count();
+    const why = await ask(`Why can't ${staff.displayName} be booked?`, `/rota/visits/${visit.id}`);
+    expect(why.answer).toMatch(/cannot be booked on this visit/);
+    expect(why.answer).toMatch(/I don't book anyone/);
+    expect(why.links[0]?.href).toBe(`/rota/visits/${visit.id}`);
+    // Read only.
+    expect([await db.staffAbsence.count(), await db.visitAssignment.count()]).toEqual([absences, assignments]);
+    // Off a visit page it points to the right screen instead of guessing.
+    expect((await ask(`Why can't ${staff.displayName} be booked?`, "/rota")).answer).toMatch(/Open the visit/);
+  });
+
+  it("says what is missing from the care package on the person's page, and refuses another organisation's person", async () => {
+    authMock.ctx = await manager();
+    const r = await ask("What is missing from this care package?", `/rota/service-users/${ownSu.id}`);
+    expect(r.answer).toMatch(/active care package|no active care package/);
+    expect(r.links[0]?.href).toBe(`/rota/service-users/${ownSu.id}?tab=package`);
+    const other = await ask("What is missing from this care package?", `/rota/service-users/${otherSu.id}`);
+    expect(other.answer).toMatch(/can't see those records/);
+  });
+
+  it("answers unassigned visits for tomorrow", async () => {
+    authMock.ctx = await manager();
+    const r = await ask("Which visits are unassigned tomorrow?", "/rota");
+    expect(r.answer).toMatch(/tomorrow/);
+    expect(r.links.map((l) => l.href)).toContain("/rota/unassigned");
+  });
+});
+
+
+describe("AI CSB Coordinator attachment workflow", () => {
+  const formFor = (pdf: Uint8Array<ArrayBuffer>, intakeId?: string) => {
+    const fd = new FormData();
+    fd.set("file", new File([pdf], "fictional-council-plan.pdf", { type: "application/pdf" }));
+    if (intakeId) fd.set("intakeId", intakeId);
+    return fd;
+  };
+
+  it("uploads a fictional PDF from chat, creates only a draft, and reuses the same intake on duplicate upload", async () => {
+    authMock.ctx = await manager();
+    const pdf = new Uint8Array(await supportPlanPdf());
+    const response = await uploadCsbCoordinatorDocument(formFor(pdf));
+    expect(response.reference).toMatch(/^CI-/);
+    expect(response.documents).toBe(1);
+    expect(response.duplicate).toBe(false);
+    expect(response.facts).toBeGreaterThan(0);
+    expect(response.reviewHref).toBe("/rota/coordinator/" + response.intakeId);
+
+    const draft = await db.careIntake.findUniqueOrThrow({ where: { id: response.intakeId } });
+    expect(draft.status).toBe("DRAFT");
+    expect(draft.serviceUserId).toBeNull();
+    const count = await db.careIntakeDocument.count({ where: { intakeId: response.intakeId } });
+    const again = await uploadCsbCoordinatorDocument(formFor(pdf, response.intakeId));
+    expect(again.duplicate).toBe(true);
+    expect(await db.careIntakeDocument.count({ where: { intakeId: response.intakeId } })).toBe(count);
+    const options = await listCsbCoordinatorDraftIntakes();
+    expect(options.map((r) => r.id)).toContain(response.intakeId);
+  });
+
+  it("rejects a person without coordinator rights and unsupported file types", async () => {
+    authMock.ctx = await carer();
+    await expect(uploadCsbCoordinatorDocument(formFor(new Uint8Array([37, 80, 68, 70, 45])))).rejects.toThrow();
+    authMock.ctx = await manager();
+    const fd = new FormData();
+    fd.set("file", new File(["not a PDF"], "notes.txt", { type: "text/plain" }));
+    await expect(uploadCsbCoordinatorDocument(fd)).rejects.toThrow(/PDF, PNG or JPEG/);
+  });
+
+  it("does not allow attaching to another organisation's intake", async () => {
+    authMock.ctx = await manager();
+    const other = await ctxFor("manager@oakridge.demo", OAKRIDGE);
+    const foreign = await createIntake(other, { title: "Foreign synthetic test intake" });
+    const fd = formFor(new Uint8Array(await supportPlanPdf()), foreign.id);
+    await expect(uploadCsbCoordinatorDocument(fd)).rejects.toThrow();
+    expect(await db.careIntakeDocument.count({ where: { intakeId: foreign.id } })).toBe(0);
   });
 });

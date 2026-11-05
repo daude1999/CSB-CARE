@@ -22,7 +22,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "postinstall": "prisma generate && node scripts/prepare-pdfjs.mjs",
-    "vercel-build": "prisma migrate deploy && tsx prisma/demo-reset.ts && tsx prisma/seed.ts --if-empty && tsx prisma/seed-hr.ts && tsx prisma/seed-recruitment.ts && npm run build",
+    "vercel-build": "prisma migrate deploy && tsx prisma/demo-reset.ts && tsx prisma/seed.ts --if-empty && tsx prisma/seed-hr.ts && tsx prisma/seed-recruitment.ts && tsx prisma/sync-forms.ts && npm run build",
     "test:hr": "tsx --test tests/hr/*.test.ts",
     "build:hr-css": "node scripts/build-hr-css.mjs",
     "uat:data": "node scripts/uat-data.mjs"

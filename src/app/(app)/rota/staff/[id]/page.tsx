@@ -18,6 +18,8 @@ import { VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
 import { ReadinessPanel } from "@/components/readiness-ui";
 import { listRequirements, staffReadiness } from "@/server/readiness";
+import { PersonForms } from "@/components/forms/person-forms";
+import { formsForStaffMember } from "@/server/forms/record-links";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +71,8 @@ export default async function StaffMemberPage({ params, searchParams }: { params
     }
   }
   const back = `/rota/staff/${s.id}`;
+  // On-screen forms about this person that the viewer may open: linked forms and their own declarations.
+  const staffForms = await formsForStaffMember(ctx, s.id);
   const careDefault = settings.careRoleTitles.some((t) => t.toLowerCase() === s.jobTitle.toLowerCase());
 
   return (
@@ -236,6 +240,11 @@ export default async function StaffMemberPage({ params, searchParams }: { params
         </div>
       </div>
       <MissedHistory ctx={ctx} staffId={s.id} />
+      {staffForms && (staffForms.rows.length || staffForms.startable.length) ? (
+        <div id="forms" className="mt-4">
+          <PersonForms rows={staffForms.rows} startable={staffForms.startable} about={`STAFF_MEMBER:${s.id}`} back={back} personName={s.displayName} testId="staff-forms" />
+        </div>
+      ) : null}
     </>
   );
 }

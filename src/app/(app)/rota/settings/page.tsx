@@ -12,7 +12,8 @@ import { careSummarySwitchAction } from "@/app/care-summary-actions";
 import { bodyMapAiSwitchAction } from "@/app/su-record-actions";
 import { missedAutomationSettingsAction } from "@/app/missed-auto-actions";
 import { coordinatorAiSwitchAction } from "@/app/coordinator-actions";
-import { getAiProvider } from "@/server/ai";
+import { aiProviderProblem, getAiProvider } from "@/server/ai";
+import { coordinatorAiUsage } from "@/server/care/coordinator/agent";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,11 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
   const back = "/rota/settings";
   const ai = getAiProvider();
   const aiName = ai?.summariseCare ? (ai.isSimulated ? "Simulated (rule-based, labelled; no AI and nothing leaves the platform)" : ai.name) : null;
+  // Which hosting setting stops Claude being used, for the organisation admin (never shows the key or the raw value).
+  const aiProblem = hasOrgPermission(ctx, "org.manage") ? aiProviderProblem() : null;
+  const aiProblemLine = aiProblem ? <p className="mt-1 text-[13px] text-amber-800" data-testid="ai-provider-problem">Why Claude is not in use: {aiProblem}</p> : null;
+  // Usage of the Claude chat, from the audit log (token counts only), for the organisation admin.
+  const coordinatorUsage = aiName && s.careCoordinatorAiEnabledAt && hasOrgPermission(ctx, "org.manage") ? await coordinatorAiUsage(ctx, 30) : null;
   return (
     <>
       <PageHeader title="Rostering Settings" back="/rota" subtitle="How the rota cycle, allocation checks and call timings work for your organisation. Every change is recorded. Clocking, geofence and carer-app settings take effect when those features are built." />
@@ -177,12 +183,14 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
               </form>
             ) : <p className="text-[14px]">Off. An organisation admin can switch it on after the data protection and clinical safety review.</p>}
           </Card>
-          <Card title="Care Coordinator document reading (AI)">
+          <Card title="Care Coordinator AI (document reading and AI CSB Coordinator chat)">
             <div id="coordinator-ai" className="scroll-mt-20" />
             {s.careCoordinatorAiEnabledAt ? (
               <>
                 <p className="text-[14px]">Switched on {fmtDate(s.careCoordinatorAiEnabledAt, true)}. Authorised by: {s.careCoordinatorAiReviewNote}</p>
-                <p className="mt-1 text-[13px] text-slate-600">AI provider: {aiName ?? "not configured, so CSB's own reader is used"}.</p>
+                <p className="mt-1 text-[13px] text-slate-600">AI provider: {aiName ?? "not configured, so CSB's own reader and the built-in CRM answers are used"}.</p>
+                {aiProblemLine}
+                {coordinatorUsage ? <p className="mt-1 text-[13px] text-slate-600" data-testid="coordinator-ai-usage">AI CSB Coordinator, last 30 days: {coordinatorUsage.messages} AI message{coordinatorUsage.messages === 1 ? "" : "s"} from {coordinatorUsage.people} {coordinatorUsage.people === 1 ? "person" : "people"}, about ${coordinatorUsage.estimatedCostUsd.toFixed(2)} at list price (an estimate from token counts, not a bill).</p> : null}
                 {hasOrgPermission(ctx, "org.manage") ? (
                   <form action={coordinatorAiSwitchAction} className="mt-2"><input type="hidden" name="back" value={`${back}#coordinator-ai`} /><input type="hidden" name="on" value="0" /><button className="btn-secondary">Switch off</button></form>
                 ) : null}
@@ -190,8 +198,9 @@ export default async function RotaSettingsPage({ searchParams }: { searchParams:
             ) : hasOrgPermission(ctx, "org.manage") ? (
               <form action={coordinatorAiSwitchAction} className="space-y-2">
                 <input type="hidden" name="back" value={`${back}#coordinator-ai`} /><input type="hidden" name="on" value="1" />
-                <p className="text-[14px]">Off. Documents uploaded to the Care Coordinator are read on CSB&apos;s own server, which recognises labelled lines and timetable rows only. Switching on sends each uploaded PDF, including names, health details and addresses, to the AI provider to read every page. Every quote it returns is checked against the page, nothing is saved until a coordinator and a manager approve it, and the AI never approves anything.</p>
+                <p className="text-[14px]">Off. Documents uploaded to the Care Coordinator are read on CSB&apos;s own server, which recognises labelled lines and timetable rows only. Switching on sends each uploaded PDF, including names, health details and addresses, to the AI provider to read every page. Every quote it returns is checked against the page, nothing is saved until a coordinator and a manager approve it, and the AI never approves anything. The same switch lets the AI CSB Coordinator chat use Claude with the CRM&apos;s own permission-checked tools (search, intakes, extracted facts, review steps); it can start draft intakes and read uploaded documents, but cannot approve, save to a record or publish.</p>
                 <p className="text-[13px] text-slate-600">AI provider: {aiName ?? "not configured"}.</p>
+                {aiProblemLine}
                 <label className="block"><span className="label">Who authorised sending care documents to the AI provider (data protection review), and when</span><input name="authorisedBy" required minLength={10} className="input" placeholder="e.g. M. Mire, CEO, after DPIA, 4 Nov 2026" /></label>
                 <button className="btn-primary">Switch on AI document reading</button>
               </form>

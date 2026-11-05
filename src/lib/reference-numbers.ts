@@ -67,7 +67,7 @@ export function storedSpellings(type: string, value: string): string[] {
  * "Frameworki 1088676", "LBTH Frameworki 1088676", "Frameworki: 1088676", "frameworki ID 0012345", with any spacing
  * or capitalisation. The value must contain a digit and is kept exactly as printed.
  */
-const FRAMEWORKI_RE = /\b(LBTH\s+)?frameworki\b(?:\s*(?:id|ref(?:erence)?|no\.?|number|#))?\s*[:#.\-–]?\s*([A-Z0-9][A-Z0-9\/-]*)/gi;
+const FRAMEWORKI_RE = /\b(LBTH\s+)?frameworki\b(?:\s+(?:client|person|service user|package|case|contract|framework))?(?:\s*(?:id|ref(?:erence)?|no\.?|number|#))?\s*[:#.\-–]?\s*([A-Z0-9][A-Z0-9\/-]*)/gi;
 
 export interface FrameworkiMatch {
   value: string;

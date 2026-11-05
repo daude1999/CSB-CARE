@@ -17,6 +17,10 @@ test.describe("Overview", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care Solution Bureau CIC");
+    // The owner removed only the Overview Quick Actions row; module cards and arrange control remain.
+    await expect(page.getByRole("navigation", { name: "Quick actions" })).toHaveCount(0);
+    await expect(page.getByText("Quick Actions", { exact: true })).toHaveCount(0);
+    await expect(page.getByTestId("arrange-modules")).toBeVisible();
     // Approved design (1 Nov 2026): no row of figures above the cards; the Rota card carries today's five figures,
     // each linking to the page it was counted from, in place of the old planner drawing.
     await expect(page.getByTestId("overview-stats")).toHaveCount(0);

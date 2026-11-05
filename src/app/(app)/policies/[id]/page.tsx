@@ -7,7 +7,7 @@ import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
 import { getPolicy } from "@/server/policies/library";
 import { bookmarksFor } from "@/server/policies/bookmarks";
 import { REVIEW_MARKER } from "@/server/policy-geo/generator";
-import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction } from "../../../actions";
+import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction, startFormAction } from "../../../actions";
 import { DOC_TYPES } from "../../../../../prisma/seed-data/library/types";
 import { Badge, Empty, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 import { TagBody, TagText } from "@/components/tag-text";
@@ -18,6 +18,8 @@ import { Timeline, TimelineItem } from "@/components/timeline";
 import { ActionDialog } from "@/components/dialog";
 import { PrintButton } from "@/components/print-button";
 import { BookmarkToggle, PolicyReader, ReaderNav, ReaderProgress, type ReaderNavItem } from "@/components/policy-reader";
+import { startableByRef } from "@/server/forms/records";
+import { linkedResourcesFor, type LinkedResource, type ResourceUse } from "@/server/forms/links";
 import {
   ArrowSquareOut, ArrowsClockwise, Books, BookOpenText, CalendarBlank, CalendarCheck, CaretDown, CaretRight, CheckCircle, ClipboardText, ClockCounterClockwise, DownloadSimple, FileDoc, FilePdf, FileText,
   Flag, GitDiff, Info, Lightbulb, ListChecks, ListNumbers, MapPin, Notepad, Paperclip, PencilSimpleLine, Printer, Scales, ShieldCheck, Signature, Sparkle, Target, Translate, UserList, UsersThree, Warning,
@@ -64,13 +66,10 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
     p.organisationId ? businessDetails(p.organisationId) : null,
     db.user.findMany({ where: { id: { in: [...approvals.map((a) => a.deciderId), p.ownerId, p.reviewerId, p.approverId].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } }),
     db.impactAssessment.findFirst({ where: { policyId: { in: [p.id, ...(p.templateId ? [p.templateId] : [])] } }, orderBy: { createdAt: "desc" }, select: { urgency: true, createdAt: true } }),
-    // Forms, templates, checklists and tools that name this policy as their parent. Only published, active resources
-    // are offered to staff, so a draft is never handed out as though it were approved.
-    db.policy.findMany({
-      where: { organisationId: p.organisationId, status: "ACTIVE", docType: { notIn: ["POLICY", "PROCEDURE", "GUIDANCE"] }, id: { not: p.id }, currentPublishedVersion: { sections: { some: { key: "related", body: { contains: p.ref } } } } },
-      orderBy: { ref: "asc" },
-      select: { id: true, ref: true, title: true, docType: true, description: true, currentPublishedVersion: { select: { label: true, origin: true } } },
-    }),
+    // Forms, templates, checklists and tools linked to this policy (explicit links first, then any named only in a
+    // resource's "Related policies" text). Only published, active resources are offered, so a draft is never handed
+    // out as though it were approved.
+    isPolicy ? linkedResourcesFor(p, v?.sections ?? []) : Promise.resolve([] as LinkedResource[]),
     relatedRefs.length ? db.policy.findMany({ where: { organisationId: p.organisationId, ref: { in: relatedRefs } }, select: { id: true, ref: true, title: true, docType: true } }) : [],
     p.organisationId ? db.policyBranchScope.findMany({ where: { policyId: p.id, organisationId: p.organisationId }, select: { branch: { select: { name: true } } } }) : [],
     bookmarksFor(ctx, p.id),
@@ -132,6 +131,12 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   ].filter((x): x is string => Boolean(x));
   const reviewStatus = !v ? { label: "Not published", tone: "amber" as const } : overdue ? { label: "Overdue", tone: "rose" as const } : openRevision ? { label: "Revision in progress", tone: "blue" as const } : starter ? { label: "Awaiting first approval", tone: "amber" as const } : dueSoon ? { label: "Due soon", tone: "amber" as const } : { label: "Up to date", tone: "green" as const };
   const workflows = digitalWorkflows(p.categoryCode, ctx);
+  // Forms placed at a procedure step are also shown inside that step.
+  // Forms that can be filled in on screen (by reference); only ones this person is asked to complete.
+  const onScreen = forms.length ? await startableByRef(ctx) : new Map<string, string>();
+  const stepForms = new Map<string, StepForm[]>();
+  for (const f of forms) for (const use of f.uses) if (use.placement) stepForms.set(use.placement.sectionKey, [...(stepForms.get(use.placement.sectionKey) ?? []), { ...f, use, startId: onScreen.get(f.ref) ?? null }]);
+  const canManageLinks = Boolean(isPolicy && p.kind === "CUSTOMER" && p.organisationId === ctx.organisationId && p.status === "ACTIVE" && hasOrgPermission(ctx, "policy.author"));
 
   return (
     <div className="policy-reader-page">
@@ -324,7 +329,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
 
               {parts.map((part) => (
                 <PartSection key={part.id} part={part} number={numberOf.get(part.id)!}>
-                  <PartBody part={part} procedure={procedure} details={details} canEdit={canEditDetails} framework={framework} reading={reading} related={related} />
+                  <PartBody part={part} procedure={procedure} details={details} canEdit={canEditDetails} framework={framework} reading={reading} related={related} stepForms={stepForms} />
                 </PartSection>
               ))}
 
@@ -342,10 +347,11 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                               {forms.map((f) => (
                                 <tr key={f.id} className="h-[54px] border-t border-[#f2f4f7]" data-testid={`form-${f.ref}`}>
                                   <td className="pl-3"><FileDoc size={24} className="text-[#2b579a]" aria-hidden="true" /></td>
-                                  <td><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link><span className="block text-[12px] text-[#667085]">{f.ref} · version {f.currentPublishedVersion?.label}{f.currentPublishedVersion?.origin === "SEED" ? " · starter text, not yet approved" : ""}</span></td>
-                                  <td className="text-[#344054]">{new Map<string, string>(DOC_TYPES).get(f.docType) ?? f.docType}</td>
+                                  <td className="py-2"><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>{f.required ? <span className="ml-2 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}<span className="block text-[12px] text-[#667085]">{f.ref} · version {f.versionLabel}{f.starter ? " · starter text, not yet approved" : ""}</span><LinkMeta f={f} /></td>
+                                  <td className="text-[#344054]">{f.typeLabel}</td>
                                   <td className="pr-3">
                                     <span className="flex justify-end gap-1.5">
+                                      {onScreen.get(f.ref) ? <StartForm definitionId={onScreen.get(f.ref)!} back={`/policies/${p.id}#forms`} /> : null}
                                       <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=docx`} download><FileDoc size={14} aria-hidden="true" />Word</a>
                                       <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=pdf`} download><FilePdf size={14} aria-hidden="true" />PDF</a>
                                       <Link className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/policies/${f.id}`}>Open</Link>
@@ -357,6 +363,12 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                           </table>
                         </div>
                       ) : <div className="mt-4"><Empty>No forms are linked to this policy yet.</Empty></div>}
+                      {canManageLinks || forms.length ? (
+                        <p className="mt-3 text-[13px] text-[#667085]">
+                          {forms.some((f) => f.source === "TEXT") ? "Forms marked \u201cnamed in the form\u2019s Related policies\u201d have no confirmed link yet. " : null}
+                          {canManageLinks ? <Link href={`/policies/${p.id}/resources`} data-testid="manage-form-links">Manage linked forms</Link> : <Link href={`/policies/${p.id}/resources`}>Link history</Link>}
+                        </p>
+                      ) : null}
                       {workflows.length ? (
                         <div className="mt-5">
                           <h3 className="reader-h3">Record it in CSB Care</h3>
@@ -407,7 +419,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         <FileDoc size={22} className="mt-0.5 shrink-0 text-[#2b579a]" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                           <Link href={`/policies/${f.id}`} className="block truncate text-[13.5px] font-medium no-underline hover:underline" title={f.title}>{f.title}</Link>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-[#4a2196]">{new Map<string, string>(DOC_TYPES).get(f.docType) ?? f.docType}</span>{f.ref}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-[#4a2196]">{f.typeLabel}</span>{f.ref}{f.uses.filter((u) => u.placement?.step).map((u) => <a key={u.linkId} href={`#${u.placement!.sectionKey}`}>Step {u.placement!.step}</a>)}</span>
                         </div>
                         <span className="flex shrink-0 gap-0.5">
                           <a href={`/api/policies/${f.id}/download?format=docx`} download className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-[#f4f3ff]" aria-label={`Download ${f.title} as Word`} title="Download Word"><DownloadSimple size={17} aria-hidden="true" /></a>
@@ -596,7 +608,7 @@ function PartSection({ part, number, children }: { part: ReaderPart; number: num
   );
 }
 
-function PartBody({ part, procedure, details, canEdit, framework, reading, related }: {
+function PartBody({ part, procedure, details, canEdit, framework, reading, related, stepForms }: {
   part: ReaderPart;
   procedure: Section[];
   details: Details;
@@ -604,6 +616,7 @@ function PartBody({ part, procedure, details, canEdit, framework, reading, relat
   framework: ReturnType<typeof parseFramework>;
   reading: { id: string; title: string; sourceUrl: string; exactReference: string; verificationStatus: string }[];
   related: { id: string; ref: string; title: string }[];
+  stepForms: Map<string, StepForm[]>;
 }) {
   if (part.derived) {
     return (
@@ -627,6 +640,7 @@ function PartBody({ part, procedure, details, canEdit, framework, reading, relat
               <span className="reader-step-num" aria-hidden="true">{step}</span>
               <h3 className="reader-h3 self-center"><span className="sr-only">Step {step}: </span>{s.heading}</h3>
               <TagBody body={s.body} details={details} canEdit={canEdit} className="reader-body col-start-2" />
+              <StepForms items={stepForms.get(s.key)} />
             </div>
           );
         }
@@ -676,6 +690,67 @@ function FrameworkLists({ framework }: { framework: ReturnType<typeof parseFrame
         </div>
       ))}
       <p className="text-[12.5px] text-[#667085]">These references are CSB summaries for orientation, not quotations. Check them against the current official text before approval.</p>
+    </div>
+  );
+}
+
+type StepForm = LinkedResource & { use: ResourceUse; startId: string | null };
+
+/** Starts an on-screen copy of a form; shown only for forms that can be filled in on screen. */
+function StartForm({ definitionId, back }: { definitionId: string; back: string }) {
+  return (
+    <form action={startFormAction}>
+      <input type="hidden" name="definitionId" value={definitionId} />
+      <input type="hidden" name="back" value={back} />
+      <button type="submit" className="btn-primary !min-h-0 px-2.5 py-1 text-xs">Fill in on screen</button>
+    </form>
+  );
+}
+
+/** Where a linked form is used, and why, under its name in the Forms & Resources table. */
+function LinkMeta({ f }: { f: LinkedResource }) {
+  const lines = f.uses.filter((u) => u.placement || u.placementMissing || u.useWhen);
+  if (!lines.length && f.source === "LINK") return null;
+  return (
+    <span className="mt-0.5 block text-[12.5px] leading-5 text-[#475467]" data-testid={`form-meta-${f.ref}`}>
+      {lines.map((u) => (
+        <span key={u.linkId} className="block">
+          {u.placement ? <>Used at <a href={`#${u.placement.sectionKey}`}>{u.placement.step ? `Step ${u.placement.step}: ${u.placement.heading}` : u.placement.heading}</a>{u.useWhen ? " · " : null}</> : null}
+          {u.placementMissing ? <>Its step is not in this version{u.useWhen ? " · " : null}</> : null}
+          {u.useWhen ? <>Use when {u.useWhen}</> : null}
+        </span>
+      ))}
+      {f.source === "TEXT" ? <span className="block italic">Named in the form&rsquo;s Related policies</span> : null}
+    </span>
+  );
+}
+
+/** A discreet note inside a procedure step naming the form to use at that step. */
+function StepForms({ items }: { items?: StepForm[] }) {
+  if (!items?.length) return null;
+  return (
+    <div className="col-start-2 mt-3 rounded-[10px] border border-[#e9e3fb] bg-[#faf8ff] px-3.5 py-2.5" data-testid="step-forms">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#5b2bb5]">{items.length === 1 ? "Form for this step" : "Forms for this step"}</p>
+      <ul className="mt-1 space-y-1.5">
+        {items.map((f) => (
+          <li key={f.use.linkId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
+            <span className="flex min-w-0 flex-1 basis-[16rem] items-start gap-2">
+              <FileDoc size={18} className="mt-0.5 shrink-0 text-[#2b579a]" aria-hidden="true" />
+              <span className="min-w-0">
+                <Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>
+                <span className="text-[#667085]"> · {f.ref}</span>
+                {f.use.required ? <span className="ml-1.5 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}
+                {f.use.useWhen ? <span className="block text-[13px] text-[#475467]">Use when {f.use.useWhen}</span> : null}
+              </span>
+            </span>
+            <span className="flex gap-1.5">
+              {f.startId ? <StartForm definitionId={f.startId} back="/policies/forms/records" /> : null}
+              <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=docx`} download aria-label={`Download ${f.title} as Word`}><FileDoc size={14} aria-hidden="true" />Word</a>
+              <a className="btn-secondary !min-h-0 px-2.5 py-1 text-xs" href={`/api/policies/${f.id}/download?format=pdf`} download aria-label={`Download ${f.title} as PDF`}><FilePdf size={14} aria-hidden="true" />PDF</a>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -15,8 +15,8 @@ import { Flash } from "@/components/ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 import type { Portal, PortalId } from "@/lib/portals";
 import {
-  ArrowRight, ArrowSquareOut, Bell, Buildings, CalendarBlank, CalendarDots, CalendarPlus, CaretRight, ChartBar, CheckCircle, ClipboardText,
-  ClockCounterClockwise, FilePlus, FileText, Gear, GearSix, IdentificationBadge, UserCirclePlus, UserPlus, UsersThree, WarningCircle,
+  ArrowRight, ArrowSquareOut, Buildings, CalendarBlank, CalendarDots, CaretRight, ChartBar, CheckCircle, ClipboardText,
+  ClockCounterClockwise, FileText, Gear, GearSix, IdentificationBadge, UsersThree, WarningCircle,
 } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
@@ -197,7 +197,7 @@ function AdminPreview({ links }: { links: { href: string; label: string; icon: R
 /* ── The page ───────────────────────────────────────────────────────────── */
 
 /**
- * The Overview (owner-approved design, 1 Nov 2026): quick actions, one card per module this person may open with a
+ * The Overview (owner-approved design, 1 Nov 2026): one card per module this person may open with a
  * preview drawn from real records, and the items that need attention. The header (logo, date and time, the signed-in
  * person) is drawn by the app layout. There is deliberately no row of figures above the cards: each module's figures
  * sit in its own card. Every figure is counted from the database.
@@ -234,16 +234,6 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const green = { colour: "#15803d", tint: "#e8f6ee" };
   const amber = { colour: "#c2410c", tint: "#fff1e6" };
   const red = { colour: "#c62828", tint: "#fdecec" };
-  const slate = { colour: "#4b5666", tint: "#eef0f3" };
-
-  const actions: { label: string; href: string; icon: React.ReactNode; colour: string; tint: string; external?: boolean }[] = [];
-  if (policy && can("policy.author")) actions.push({ label: "Create Policy", href: "/policies/new", icon: <FilePlus size={17} />, ...blue });
-  if (rotaPortal && can("serviceUser.edit")) actions.push({ label: "Add Service User", href: "/rota/service-users/new", icon: <UserCirclePlus size={17} />, colour: "#0f8a5f", tint: "#e6f5ee" });
-  if (rotaPortal && can("rota.edit")) actions.push({ label: "Assign Visits", href: "/rota/unassigned", icon: <UsersThree size={17} />, ...purple });
-  if (rotaPortal && can("rota.edit")) actions.push({ label: "Add Visit", href: "/rota/visits/new", icon: <CalendarPlus size={17} />, ...red });
-  if (hrPortal) actions.push({ label: "Add Staff", href: "/hr/people", icon: <UserPlus size={17} />, ...amber, external: true });
-  if (can("report.view")) actions.push({ label: "Generate Report", href: "/compliance/reports", icon: <ChartBar size={17} />, ...blue });
-  actions.push({ label: "View Alerts", href: "/notifications", icon: <Bell size={17} />, ...slate });
 
   const cards: CardSpec[] = [];
   if (policy && m) {
@@ -339,27 +329,6 @@ export default async function Overview({ searchParams }: { searchParams: Promise
       <div className="space-y-2.5 px-4 pb-6 pt-4 md:px-[16px]">
         <Flash searchParams={sp} />
         <AutoRefresh seconds={60} />
-        <nav aria-label="Quick actions" className="flex flex-col gap-2 rounded-[10px] border border-[#e8ebf0] bg-white p-[5px] lg:flex-row lg:items-center">
-          <h2 className="shrink-0 whitespace-nowrap px-3 text-[14px] font-semibold text-[#0b1530]">Quick Actions</h2>
-          <ul className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:flex">
-            {actions.map((a) => {
-              const inner = (
-                <>
-                  <span aria-hidden="true" className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[6px] text-white" style={{ background: a.colour }}>{a.icon}</span>
-                  <span className="truncate">{a.label}</span>
-                </>
-              );
-              const cls = "flex h-[40px] items-center gap-2 rounded-[8px] border px-2 text-[12px] font-medium text-[#1b2533] hover:brightness-[0.98]";
-              const style = { background: a.tint, borderColor: `${a.colour}22` };
-              return (
-                <li key={a.label} className="min-w-0 lg:flex-1">
-                  {a.external ? <a href={a.href} className={cls} style={style}>{inner}</a> : <Link href={a.href} className={cls} style={style}>{inner}</Link>}
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
         <ModuleGrid
           arranging={arranging}
           saveAction={saveOverviewOrderAction}

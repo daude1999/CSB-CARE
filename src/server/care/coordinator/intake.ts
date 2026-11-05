@@ -191,7 +191,7 @@ export async function readIntakeDocument(ctx: Ctx, documentId: string) {
     await tx.careIntakeDocument.update({
       where: { id: doc.id },
       data: {
-        readStatus: outcome.status, readNote: outcome.reader === "ai" ? `Read by ${outcome.providerName}` : "Read on CSB's own server (no AI). Only labelled lines and timetable rows are recognised.", findings: findings as Prisma.InputJsonValue,
+        readStatus: outcome.status, readNote: outcome.reader === "ai" ? `Read by ${outcome.providerName}` : "Read on CSB's own server (no AI). Recognises labelled information, supported council section headings and visit timetables; always review missing or ambiguous facts.", findings: findings as Prisma.InputJsonValue,
         // A better classification from the reading, unless the coordinator already changed it by hand.
         ...(doc.readStatus === "PENDING" ? { section: filing.section, category: filing.category, sensitive: doc.sensitive || !!cat?.sensitive || reading.issuerKind === "NHS" || reading.issuerKind === "GP" } : {}),
         issuer: doc.issuer ?? reading.issuer?.slice(0, 160) ?? null,
@@ -657,8 +657,8 @@ export function readingMode(enabled: boolean) {
   const provider = getAiProvider();
   const capable = !!provider?.extractCareDocument && !provider.isSimulated;
   if (enabled && capable) return { ai: true, label: `AI reading is on (${provider!.name}). Every quote it returns is checked against the page before you see it.` };
-  if (enabled) return { ai: false, label: "AI reading is switched on but no AI provider is set up on the server, so CSB's own reader is used: it recognises labelled lines and timetable rows only, and you add anything else by hand." };
-  return { ai: false, label: "AI reading is off, so documents are read on CSB's own server and are not sent anywhere. It recognises labelled lines and timetable rows only; you add anything else by hand." };
+  if (enabled) return { ai: false, label: "AI reading is switched on but no AI provider is set up on the server, so CSB's own reader is used: it recognises supported council section headings and visit timetables; check missing or ambiguous facts manually." };
+  return { ai: false, label: "AI reading is off, so documents are read on CSB's own server and are not sent anywhere. It recognises supported council section headings and visit timetables; review any gaps manually." };
 }
 
 /** An organisation admin switches AI reading on after recording who authorised sending documents to the provider. */
