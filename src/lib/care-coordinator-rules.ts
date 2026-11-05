@@ -482,9 +482,129 @@ export function basicRead(pages: string[]): Reading {
       if (/^(pressure area|wound|skin|bruis)/.test(label)) { r.skin.push({ date: null, area: null, finding: lv[1]!.trim(), description: value, ...base, temporal: historicalDoc ? "HISTORICAL" : "UNKNOWN" }); continue; }
     }
   });
+  augmentCouncilSupportPlan(pages,r);
   r.references.push(...frameworkiReferences(pages, r.document.issuer).map((f) => ({ type: f.type, typeClear: f.typeClear, issuer: f.issuer, system: f.system, value: f.value, page: f.page, quote: f.quote, temporal: "CURRENT" as const })));
   if (!r.person.some((p) => p.field === "dateOfBirth") && r.document.kind === "SUPPORT_PLAN") r.missing.push("Date of birth");
   if (r.document.kind === "SUPPORT_PLAN" && !r.visits.length) r.missing.push("No timetable rows were recognised. Add the visits by hand.");
+  return r;
+}
+
+
+/**
+ * No-API reader for a second common council layout: subsection headings and
+ * visit cards with one field per line. Only source-backed text becomes a fact.
+ * Each page is handled separately, so a split or ambiguous table is flagged
+ * rather than silently combined into a possibly incorrect commissioned visit.
+ */
+export function augmentCouncilSupportPlan(pages: string[], r: Reading): Reading {
+  if (r.document.kind !== "SUPPORT_PLAN" && r.document.kind !== "CARE_PLAN" && r.document.kind !== "NEEDS_ASSESSMENT") return r;
+
+  const planHeads: [RegExp, (typeof PLAN_SECTION_KEYS)[number]][] = [
+    [/^(?:about me|my background|what matters to me|life history)$/i, "about_me"],
+    [/^(?:communication|communication needs|how i communicate)$/i, "communication"],
+    [/^(?:personal care|washing and dressing|continence and toileting|oral care)$/i, "personal_care"],
+    [/^(?:mobility|moving and handling|transfers and mobility)$/i, "mobility"],
+    [/^(?:nutrition|nutrition and hydration|eating and drinking)$/i, "nutrition"],
+    [/^(?:medication support|medicines support)$/i, "medication"],
+    [/^(?:health and wellbeing|medical conditions|health needs)$/i, "health"],
+    [/^(?:home environment|home and safety|living environment)$/i, "home"],
+    [/^(?:outcomes|my outcomes|desired outcomes|goals)$/i, "outcomes"],
+  ];
+  const visitHead = /^(morning|breakfast|lunch(?:time)?|midday|tea(?:time)?|afternoon|evening|bedtime|night|shopping|cleaning)(?:\s+(?:call|visit))?$/i;
+  const structured = /^(?:start(?:\s+time)?|time|duration|length|frequency|days|day(?:s)? of (?:the )?week|number of carers|carers|staff required|tasks?|support required|funded by|provided by)\s*[:=]\s*(.*)$/i;
+
+  for (const [index, pageText] of pages.entries()) {
+    if (!pageText.trim()) continue;
+    const lines = pageText.split(/\r?\n/).map(line => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    let section: (typeof PLAN_SECTION_KEYS)[number] | null = null;
+    let sectionLines: string[] = [];
+    let sectionHeading = "";
+    let visitLabel: string | null = null;
+    let visitFields: string[] = [];
+
+    const flushPlan = () => {
+      if (!section || !sectionLines.length) return;
+      // Avoid creating a second proposed section from text already read in
+      // the conventional "Personal care: ..." layout.
+      const content = sectionLines.join(" ").trim();
+      if (content.length >= 12 && content.length <= 4000 &&
+          !r.carePlan.some(p => p.section === section && p.page === index + 1 && p.support === content)) {
+        r.carePlan.push({
+          section, canDo: null, support: section === "outcomes" ? null : content,
+          how: null, outcome: section === "outcomes" ? content : null,
+          clarify: null, page: index + 1,
+          quote: sectionHeading, temporal: "CURRENT",
+        });
+      }
+      section = null; sectionLines = []; sectionHeading = "";
+    };
+    const flushVisit = () => {
+      if (!visitLabel) return;
+      const fields = Object.fromEntries(visitFields.map(line => {
+        const m = structured.exec(line);
+        return m ? [m[1]!.toLowerCase(),m[2]!.trim()] : ["", ""];
+      }).filter(([key]) => key)) as Record<string,string>;
+      const time = fields["start"] || fields["start time"] || fields["time"] || "";
+      const duration = fields["duration"] || fields["length"] || "";
+      const days = fields["frequency"] || fields["days"] || fields["day of week"] || fields["days of the week"] || "";
+      const carers = fields["number of carers"] || fields["carers"] || fields["staff required"] || "";
+      const tasks = fields["tasks"] || fields["task"] || fields["support required"] || "";
+      const funding = fields["funded by"] || fields["provided by"] || "";
+      // A missing frequency, duration or staff count is NOT a valid rota row.
+      // Fail closed rather than assume every day or a single-handed visit.
+      const hasEvidence = !!time && !!duration && !!days && !!carers;
+      const source = [visitLabel, ...visitFields].join(" | ");
+      if (!hasEvidence) {
+        if (time || duration || days || carers) r.flags.push({ text: "Incomplete visit details on page " + (index + 1) + " for " + visitLabel + ". Coordinator must check the original timetable.", page: index + 1 });
+      } else {
+        const singleTime = /^(\d{1,2}[:.]\d{2})$/.exec(time)?.[1];
+        const line = [visitLabel, singleTime ? singleTime + " " + duration : time, days,
+          carers + (/^\d+$/.test(carers) ? " carers" : ""), funding,
+          "Tasks: " + tasks].join(" | ");
+        const parsed = parseVisitLine(line);
+        if (parsed && !r.visits.some(v => v.page === index + 1 && v.startTime === parsed.startTime && v.durationMinutes === parsed.durationMinutes && v.fundedBy === parsed.fundedBy))
+          r.visits.push({ ...parsed, label: visitLabel.slice(0,80), quote: source, page: index + 1, temporal: "CURRENT" });
+        else if (!parsed) r.flags.push({text:"Visit timetable not fully recognised on page " + (index + 1) + " for " + visitLabel + ". Check manually.",page:index + 1});
+      }
+      visitLabel = null; visitFields = [];
+    };
+
+    for (const line of lines) {
+      const plan = planHeads.find(([pattern]) => pattern.test(line));
+      const call = visitHead.exec(line);
+      if (plan || call || /^(?:timetable|care visits|care package|support plan|risk assessments?|section \d+|page \d+)/i.test(line)) {
+        flushPlan(); flushVisit();
+        if (plan) {section = plan[1];sectionHeading = line;}
+        if (call) visitLabel = line;
+        continue;
+      }
+      if (visitLabel) {
+        if (structured.test(line)) { visitFields.push(line); continue; }
+        // Unlabelled continuation is not used for a rota instruction.
+        flushVisit();
+      }
+      if (section) {
+        // Do not absorb later labelled demographic, financial, medicine,
+        // or risk material into an unrelated care-plan section.
+        if (/^[A-Za-z][A-Za-z ()'-]{1,42}\s*:\s*\S/.test(line) && !/^(?:support|assistance|needs|preferences|outcome|goal|how to help)\s*:/i.test(line)) {
+          flushPlan();
+        } else sectionLines.push(line);
+      }
+    }
+    flushPlan();flushVisit();
+  }
+  const found = new Set(r.carePlan.map(c => c.section));
+  for (const name of PLAN_SECTION_KEYS) {
+    if (!found.has(name)) r.missing.push("Care plan section " + PLAN_SECTION_LABEL[name] + ": not found in source; coordinator must review and complete");
+  }
+  if(r.document.kind === "SUPPORT_PLAN"){
+    const councilVisits=r.visits.filter(v=>v.fundedBy==="COUNCIL");
+    const total=councilVisits.reduce((n,v)=>n+v.durationMinutes*v.weekdays.length,0);
+    const authorised=r.package.find(p=>p.field==="hoursPerWeek");
+    const parsed=authorised ? hoursToMinutes(authorised.value) : null;
+    if(parsed !== null && parsed !== total)
+      r.flags.push({text:"Council visit pattern totals "+total+" minutes per week, but source states "+parsed+" commissioned minutes. Do not activate rota until reconciled.",page:authorised?.page??1});
+  }
   return r;
 }
 
