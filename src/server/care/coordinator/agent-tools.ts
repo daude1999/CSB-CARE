@@ -123,13 +123,13 @@ function requestedDate(state: ToolState, date: string) {
 }
 function durationMentioned(state: ToolState, duration: number) {
   const q = (state.userQuestion ?? "").toLowerCase();
-  if (new RegExp("\\\\b" + duration + "\\\\s*(?:minutes?|mins?)\\\\b", "i").test(q)) return true;
+  if (new RegExp("\\b" + duration + "\\s*(?:minutes?|mins?)\\b", "i").test(q)) return true;
   if (duration % 60 === 0) {
     const hours = duration / 60;
-    if (new RegExp("\\\\b" + hours + "\\\\s*(?:hours?|hrs?|h)\\\\b", "i").test(q)) return true;
-    if (duration === 60 && /\\b(?:one|an) hour\\b/.test(q)) return true;
+    if (new RegExp("\\b" + hours + "\\s*(?:hours?|hrs?|h)\\b", "i").test(q)) return true;
+    if (duration === 60 && /\b(?:one|an) hour\b/.test(q)) return true;
   }
-  return duration === 30 && /\\bhalf (?:an? )?hour\\b/.test(q);
+  return duration === 30 && /\bhalf (?:an? )?hour\b/.test(q);
 }
 function targetTimeMentioned(state: ToolState, target: string) {
   const times = (state.userQuestion ?? "").match(/\b\d{1,2}[:.]\d{2}\b/g) ?? [];
