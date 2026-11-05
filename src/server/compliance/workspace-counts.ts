@@ -21,15 +21,16 @@ export async function workspaceCounts(ctx: Ctx, ws: WorkspaceId, now = new Date(
     case "library": {
       const own: Prisma.PolicyWhereInput = orgId ? { organisationId: orgId, kind: "CUSTOMER" } : { id: { in: [] } };
       const canQueue = hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author");
-      const [policies, templates, archived, calendar, queue] = await Promise.all([
+      const [policies, templates, archived, calendar, queue, forms] = await Promise.all([
         db.policy.count({ where: { ...own, status: "ACTIVE" } }),
         db.policy.count({ where: { kind: "MASTER", organisationId: null, status: "ACTIVE" } }),
         db.policy.count({ where: { ...own, status: "ARCHIVED" } }),
         // The review calendar's figure is what needs a review soon: overdue or due within the library's 60-day window.
         db.policy.count({ where: { ...own, status: "ACTIVE", nextReviewDate: { lt: new Date(now.getTime() + 60 * DAY) } } }),
         canQueue ? db.policyRevision.count({ where: { organisationId: orgId ?? null, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } } }) : Promise.resolve(0),
+        db.policy.count({ where: { status: "ACTIVE", currentPublishedVersionId: { not: null }, docType: { in: ["FORM", "TEMPLATE", "CHECKLIST", "AUDIT_TOOL", "RISK_ASSESSMENT"] }, OR: [{ kind: "MASTER", organisationId: null }, ...(orgId ? [{ kind: "CUSTOMER" as const, organisationId: orgId }] : [])] } }),
       ]);
-      return { policies, templates, archived, calendar, ...(canQueue ? { queue } : {}) };
+      return { policies, templates, archived, calendar, forms, ...(canQueue ? { queue } : {}) };
     }
     case "regulatory": {
       const [updates, requirements, sources] = await Promise.all([
