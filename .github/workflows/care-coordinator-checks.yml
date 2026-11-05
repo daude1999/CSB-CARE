@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/ai-care-coordinator
+      - feature/claude-coordinator-integration
   pull_request:
     paths:
       - 'src/server/care/coordinator/**'
@@ -37,6 +38,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
       - run: npm run typecheck
-      - run: npx vitest run tests/unit/care-coordinator-rules.test.ts tests/unit/care-coordinator-no-api-support-plan.test.ts tests/integration/care-coordinator.test.ts tests/integration/care-coordinator-no-api.test.ts
+      - run: npx vitest run tests/unit/coordinator-chat-intent.test.ts tests/unit/care-coordinator-rules.test.ts tests/unit/care-coordinator-no-api-support-plan.test.ts tests/integration/care-coordinator.test.ts tests/integration/care-coordinator-no-api.test.ts
         env:
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
