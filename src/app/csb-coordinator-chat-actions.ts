@@ -5,9 +5,8 @@ import { requirePortal } from "@/server/auth/portals";
 import { requireOrgPermission } from "@/server/auth/rbac";
 import type { CrmLink, CrmPage } from "@/server/care/coordinator/crm-assistant";
 import { coordinatorChat, type ChatMode } from "@/server/care/coordinator/agent";
-import { chatUploadTargets, uploadFromChat } from "@/server/care/coordinator/chat-upload";
-import { AppError, ValidationError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
+import { chatDraftIntakes, uploadFromChat } from "@/server/care/coordinator/chat-upload";
+import { ValidationError } from "@/lib/errors";
 import { MAX_DOCUMENT_BYTES } from "@/server/care/su-documents";
 
 /**
@@ -54,43 +53,54 @@ export async function askCsbCoordinator(raw: CoordinatorChatRequest): Promise<Co
   return coordinatorChat(ctx, { question: d.question, history: d.history, page: pageOf(d.path, d.intakeId), attachedNote });
 }
 
-export type UploadTargetsResponse = { ok: true; data: Awaited<ReturnType<typeof chatUploadTargets>> } | { ok: false; error: string };
-export type ChatUploadResponse = { ok: true; data: Awaited<ReturnType<typeof uploadFromChat>> } | { ok: false; error: string };
-
-/** Where an attached document can go: the intake open on the page, or recent open intakes, or a new intake. */
-export async function coordinatorUploadTargets(path: string | null): Promise<UploadTargetsResponse> {
-  try {
-    const ctx = await requirePortal("rota");
-    const page = pageOf(path ?? undefined, null);
-    return { ok: true, data: await chatUploadTargets(ctx, page) };
-  } catch (e) {
-    return { ok: false, error: e instanceof AppError ? e.message : "The intakes could not be loaded just now." };
-  }
+/** Current, accessible draft intake options for the in-chat attachment picker. */
+export async function listCsbCoordinatorDraftIntakes(): Promise<{ id: string; label: string }[]> {
+  const ctx = await requirePortal("rota");
+  return chatDraftIntakes(ctx);
 }
 
-const uploadSchema = z.object({
-  target: z.enum(["intake", "new"]),
-  intakeId: z.string().regex(ID).nullable(),
-  serviceUserId: z.string().regex(ID).nullable(),
-  title: z.string().trim().max(120).nullable(),
-});
+export type CoordinatorUploadResponse = {
+  intakeId: string;
+  reference: string;
+  filename: string;
+  documents: number;
+  facts: number;
+  remainingToCheck: number;
+  duplicate: boolean;
+  /** The same file is already on another open intake, so no new intake was started and nothing was read again. */
+  alreadyOnIntake: boolean;
+  extractionFailures: number;
+  reviewHref: string;
+  /** What was extracted, as plain sentences from the saved intake (no AI). */
+  summary: string;
+};
 
-/** The paperclip: stores the file through the intake's own upload (size, type, virus scan, private storage, audit),
- *  reads it with the organisation's reading pipeline, and returns what was found. Never approves anything. */
-export async function uploadToCoordinator(fd: FormData): Promise<ChatUploadResponse> {
-  try {
-    const ctx = await requirePortal("rota");
-    const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-    if (!files.length) throw new ValidationError("Choose a document to attach");
-    if (files.length > 3) throw new ValidationError("Attach up to 3 documents at a time");
-    for (const f of files) if (f.size > MAX_DOCUMENT_BYTES) throw new ValidationError(`${f.name.slice(0, 80)} is larger than ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB`);
-    const field = (k: string) => { const v = fd.get(k); return typeof v === "string" && v.trim() ? v.trim() : null; };
-    const p = uploadSchema.safeParse({ target: field("target"), intakeId: field("intakeId"), serviceUserId: field("serviceUserId"), title: field("title") });
-    if (!p.success) throw new ValidationError("Choose where the document should go");
-    const uploaded = await Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) })));
-    return { ok: true, data: await uploadFromChat(ctx, { ...p.data, files: uploaded }) };
-  } catch (e) {
-    if (!(e instanceof AppError)) logger.error({ err: (e as Error).name }, "coordinator chat upload failed");
-    return { ok: false, error: e instanceof AppError ? e.message : "The document could not be attached just now. Nothing was saved. Try again, or upload it on the Care Coordinator page." };
-  }
+/**
+ * The chat paperclip uses the same private intake storage, scanning, source-page extraction, tenancy and
+ * human-approval rules as the full Care Coordinator workflow (src/server/care/coordinator/chat-upload.ts). The employee
+ * explicitly confirms the attachment; this only creates DRAFT intake records and facts. A duplicate file is neither
+ * stored nor read again, so it is never charged twice.
+ */
+export async function uploadCsbCoordinatorDocument(form: FormData): Promise<CoordinatorUploadResponse> {
+  const ctx = await requirePortal("rota");
+  requireOrgPermission(ctx, "serviceUser.documents");
+  const file = form.get("file");
+  if (!(file instanceof File) || !file.size) throw new ValidationError("Select a PDF or image to attach");
+  if (file.size > MAX_DOCUMENT_BYTES) throw new ValidationError("A document must be no larger than 4 MB");
+  if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) throw new ValidationError("Attach a PDF, PNG or JPEG document");
+  const field = (k: string) => { const v = form.get(k); return typeof v === "string" && v.trim() ? v.trim() : null; };
+  const selected = field("intakeId");
+  if (selected && !ID.test(selected)) throw new ValidationError("Choose a valid care intake");
+  const serviceUserId = field("serviceUserId");
+  if (serviceUserId && !ID.test(serviceUserId)) throw new ValidationError("Choose a valid service user");
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const r = await uploadFromChat(ctx, {
+    target: selected ? "intake" : "new", intakeId: selected, serviceUserId,
+    title: `Referral — ${file.name.replace(/\.[^.]+$/, "").slice(0, 95)}`,
+    files: [{ name: file.name, type: file.type, bytes }],
+  });
+  return {
+    intakeId: r.intakeId, reference: r.reference, filename: file.name, documents: r.documents, facts: r.facts, remainingToCheck: r.remainingToCheck,
+    duplicate: r.duplicates.length > 0, alreadyOnIntake: r.alreadyOnIntake, extractionFailures: r.failed.length, reviewHref: `/rota/coordinator/${encodeURIComponent(r.intakeId)}`, summary: r.summary,
+  };
 }

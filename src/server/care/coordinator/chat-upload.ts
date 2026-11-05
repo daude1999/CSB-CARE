@@ -4,8 +4,6 @@ import { db } from "@/lib/db";
 import { ValidationError } from "@/lib/errors";
 import { fmtLondonDate, londonDate } from "@/lib/london";
 import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
-import { serviceUserChatContext } from "./chat";
-import type { CrmPage } from "./crm-assistant";
 import { addDocuments, coordinatorAccess, createIntake, getIntake, listIntakes, MAX_INTAKE_DOCUMENTS } from "./intake";
 import { digestText, intakeDigest } from "./intake-digest";
 import { readOnce } from "./agent-tools";
@@ -22,19 +20,15 @@ import type { UploadedFile } from "../su-documents";
  * the employee is pointed to that intake instead. Two identical uploads at the same moment share one upload.
  */
 
+const counts = (view: Awaited<ReturnType<typeof getIntake>>) => ({ documents: view.documents.length, facts: view.facts.length, remainingToCheck: view.sections.reduce((n, x) => n + x.open, 0) });
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
 const OPEN = ["DRAFT", "SUBMITTED", "APPROVED", "APPLYING"];
 
-export async function chatUploadTargets(ctx: Parameters<typeof coordinatorAccess>[0], page: CrmPage) {
+/** Draft intakes this employee may add documents to, for the paperclip's "Attach to" choice. */
+export async function chatDraftIntakes(ctx: Parameters<typeof coordinatorAccess>[0]) {
   coordinatorAccess(ctx);
-  const intakes = (await listIntakes(ctx)).filter((r) => r.status === "DRAFT");
-  const current = page.kind === "intake" && page.id ? intakes.find((r) => r.id === page.id) ?? null : null;
-  const su = page.kind === "service-user" && page.id ? await serviceUserChatContext(ctx, page.id) : null;
-  return {
-    current: current ? { id: current.id, reference: current.reference, title: current.title } : null,
-    serviceUser: su && page.id ? { id: page.id, name: (su.serviceUser as { name: string }).name } : null,
-    recent: intakes.filter((r) => r.id !== current?.id).slice(0, 3).map((r) => ({ id: r.id, reference: r.reference, title: r.title })),
-  };
+  const rows = await listIntakes(ctx, { status: "DRAFT" });
+  return rows.slice(0, 40).map((r) => ({ id: r.id, label: `${r.reference} · ${r.title}${r.person ? ` (${r.person.name})` : ""}`.slice(0, 180) }));
 }
 
 export async function uploadFromChat(
@@ -66,7 +60,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
       const view = await getIntake(ctx, elsewhere.intake.id);
       return {
         intakeId: elsewhere.intake.id, reference: elsewhere.intake.reference, created: false, added: [] as string[], duplicates: input.files.map((f) => f.name), alreadyOnIntake: true,
-        failed: [] as { name: string; error: string }[], summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`,
+        failed: [] as { name: string; error: string }[], summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
       };
     }
     const intake = await createIntake(ctx, {
@@ -99,6 +93,6 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
   const view = await getIntake(ctx, intakeId);
   return {
     intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed,
-    summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${intakeId}?step=facts`,
+    summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${intakeId}?step=facts`, ...counts(view),
   };
 }
