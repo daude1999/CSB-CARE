@@ -24,6 +24,8 @@ export type CoordinatorChatRequest = z.input<typeof requestSchema>;
 export type CoordinatorChatResponse = { answer: string; links: CrmLink[]; topic: string };
 
 const ID = /^[a-zA-Z0-9]{10,40}$/;
+/** Visits use UUIDs rather than cuids. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Which CRM page the panel was opened on. Only the shape of the path is used here; ids are checked later. */
 function pageOf(path: string | undefined, intakeId: string | null): CrmPage {
@@ -33,6 +35,8 @@ function pageOf(path: string | undefined, intakeId: string | null): CrmPage {
   if (intake && ID.test(intake[1]!)) return { kind: "intake", id: intake[1]! };
   const su = path.match(/^\/rota\/(?:service-users|care-plans)\/([^/?#]+)/);
   if (su && ID.test(su[1]!)) return { kind: "service-user", id: su[1]! };
+  const visit = path.match(/^\/rota\/visits\/([^/?#]+)/);
+  if (visit && (UUID.test(visit[1]!) || ID.test(visit[1]!))) return { kind: "visit", id: visit[1]! };
   if (path === "/rota" || path.startsWith("/rota/")) return { kind: "rota", id: null };
   if (path === "/overview") return { kind: "overview", id: null };
   return { kind: "other", id: null };

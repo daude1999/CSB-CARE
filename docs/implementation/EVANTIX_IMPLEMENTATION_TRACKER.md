@@ -4,10 +4,10 @@ One line per delivery. Nothing is merged or deployed without the owner writing "
 
 | Delivery | Priority | Branch | State | Notes |
 |---|---|---|---|---|
-| PR 0 Baseline audit | P0 | `claude/project-thread-ctnclm` | Draft PR (combined with PR 1) | `EVANTIX_DELIVERY_AUDIT.md` |
-| PR 1 No-API document reader | P0 | `claude/project-thread-ctnclm` | Draft PR | Card-layout reader brought over from `feature/ai-care-coordinator` (7 commits), crash fixed, edge cases flagged |
-| PR 2 Coordinator integration | P0 | — | Partly covered | Full upload → draft rota flow passes for both layouts (database tests). Still to do: new chat questions (staff unavailable, why a carer cannot be allocated, what is missing from a package, tomorrow's open visits); Word reading needs a dependency decision |
-| PR 3 Security and reliability | P0 | — | Not started | MFA/SSO, RLS evaluation, governance checklist |
+| PR 0 Baseline audit | P0 | `claude/project-thread-ctnclm` | Merged (#91) | `EVANTIX_DELIVERY_AUDIT.md` |
+| PR 1 No-API document reader | P0 | `claude/project-thread-ctnclm` | Merged (#91) | Card-layout reader brought over from `feature/ai-care-coordinator` (7 commits), crash fixed, edge cases flagged |
+| PR 2 Coordinator integration | P0 | `claude/project-thread-ctnclm-pr2` | Merged (#92) | Full upload → draft rota flow passes for both layouts (database tests). Assistant now answers: who is unavailable today/tomorrow, why a named carer cannot be booked on the open visit (same eligibility service as the picker), what is missing from the open person's care package, unassigned visits tomorrow. Read only. Word reading still needs a dependency decision |
+| PR 3 Security and reliability | P0 | `claude/project-thread-ctnclm-pr3` | Draft PR (#93), part 1 | Audit, governance checklist, 7-day session cap, per-IP sign-in limit. MFA, scanner, retention, RLS wait for owner decisions |
 | PR 4 Production deployment preparation | P0 | — | Not started | Azure runbook, worker heartbeat, backup and restore exercise |
 | PR 5 Replacement cover completion | P1 | — | Not started | |
 | PR 6 Carer mobile | P1 | — | Not started | |
