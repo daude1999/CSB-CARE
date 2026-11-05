@@ -89,3 +89,61 @@ export function dischargeLetterPdf() {
     ],
   ]);
 }
+
+export const FICTIONAL_CARDS = { firstName: "Bea", lastName: "Example", postcode: "E2 0ZZ" };
+
+/**
+ * The second council layout the no-AI reader supports: care-plan headings with a paragraph under each, and visit
+ * "cards" with one field per line, the timetable continuing onto page 4. Invented person and numbers only. Four daily
+ * commissioned visits (09:00 60 min, 12:00 45 min, 16:30 30 min, 20:00 60 min = 1,365 minutes a week) and one weekly
+ * family shopping visit that must not count towards the commissioned total.
+ */
+export function supportPlanCardsPdf() {
+  return pdf([
+    [
+      "Sample Borough Council - Adult Social Care",
+      "Support Plan",
+      "Date of plan: 20/10/2026",
+      "Full name: Bea Example",
+      "Date of birth: 01/02/1945",
+      "Address: 10 Test Street, Exampleton, E2 0ZZ",
+      "Frameworki client reference: 1088676",
+      "Funder: Sample Borough Council",
+      "Package start: 01/11/2026",
+      "Hours per week: 22.75",
+      "Staffing: Single-handed visits",
+      "Risk - Falls: Bea uses a walking frame and is unsteady when tired.",
+    ],
+    [
+      "About me",
+      "Bea wishes to stay in her own home.",
+      "Communication",
+      "Prefers clear spoken information.",
+      "Personal care",
+      "Needs help with washing and dressing.",
+      "Mobility",
+      "Uses a walking frame and needs support standing.",
+      "Nutrition and hydration",
+      "Needs assistance preparing meals.",
+      "Medication support",
+      "Prompting is documented, but staff must check the current medicines.",
+      "Health and wellbeing",
+      "Needs monitoring by authorised care professionals.",
+      "Home environment",
+      "Prefers familiar surroundings.",
+      "Outcomes",
+      "Remain as independent as possible.",
+    ],
+    [
+      "Timetable",
+      "Morning call", "Start time: 09:00", "Duration: 1 hour", "Frequency: Daily", "Carers: 1", "Tasks: Assist with washing; Help with dressing",
+      "Lunchtime visit", "Start time: 12:00", "Duration: 45 minutes", "Days: Mon-Sun", "Staff required: 1", "Tasks: Prepare lunch",
+      "Shopping visit", "Start time: 11:00", "Duration: 60 minutes", "Days: Wednesday", "Carers: 1", "Provided by: Family", "Tasks: Shopping",
+    ],
+    [
+      "Timetable continued",
+      "Teatime call", "Start time: 16:30", "Duration: 30 minutes", "Days: Every day", "Carers: 1", "Tasks: Prepare tea",
+      "Evening visit", "Start time: 20:00", "Duration: 1 hour", "Days: Daily", "Number of carers: 1", "Tasks: Help with bedtime",
+    ],
+  ]);
+}
