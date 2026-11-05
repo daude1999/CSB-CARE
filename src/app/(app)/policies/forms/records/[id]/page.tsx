@@ -9,8 +9,9 @@ import { FormConditions } from "@/components/forms/form-conditions";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getFormRecord, STATUS_LABELS, type RecordStatus } from "@/server/forms/records";
+import { LINK_TYPE_LABELS, recordLinks } from "@/server/forms/record-links";
 import { answerText, isAnswerable, type AnswerValue, type FormField } from "@/lib/forms/schema";
-import { reviewFormAction, saveFormAction, voidFormAction } from "../../../../../actions";
+import { linkFormAction, reviewFormAction, saveFormAction, unlinkFormAction, voidFormAction } from "../../../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ const TONE: Record<RecordStatus, PcTone> = { DRAFT: "grey", SUBMITTED: "blue", R
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Started", SAVED: "Draft saved", SUBMITTED: "Submitted for review", RESUBMITTED: "Resubmitted after correction",
   RETURNED: "Returned for correction", APPROVED: "Approved", VOIDED: "Voided", PRINTED: "Printed",
+  LINKED: "Linked to a person's record", UNLINKED: "Link removed",
 };
 const showAttrs = (f: FormField) => (f.showIf ? { "data-show-field": f.showIf.field, "data-show-equals": f.showIf.equals === true ? "yes" : f.showIf.equals === false ? "no" : f.showIf.equals } : {});
 
@@ -30,6 +32,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
   const sp = await searchParams;
   const ctx = await requireCtx();
   const data = await orNotFound(getFormRecord(ctx, id));
+  const links = await recordLinks(ctx, id);
   const { record, form, version, schema, events, names, can } = data;
   const here = `/policies/forms/records/${record.id}`;
   const who = (uid: string | null) => (uid ? names.get(uid) ?? "Unknown" : "");
@@ -132,6 +135,53 @@ export default async function FormRecordPage({ params, searchParams }: { params:
               <div className="flex justify-between gap-3"><dt className="text-slate-600">Reviewed</dt><dd className="text-right">{record.reviewedAt ? `${fmtDate(record.reviewedAt, true)} · ${who(record.reviewerId)}` : "Not yet"}</dd></div>
             </dl>
           </section>
+
+          {links ? (
+            <section className="pc-panel p-4 text-[13px]" aria-labelledby="about-title" data-testid="form-links">
+              <h2 id="about-title" className="font-semibold">Who this form is about</h2>
+              {links.rows.length ? (
+                <ul className="mt-2 divide-y divide-slate-100">
+                  {links.rows.map((l) => (
+                    <li key={l.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                      <div className="min-w-0">
+                        {l.href ? <Link href={l.href} className="font-medium">{l.name}</Link> : <span className="font-medium">{l.name}</span>}
+                        <div className="text-slate-600">{LINK_TYPE_LABELS[l.entityType]}{l.detail ? ` · ${l.detail}` : ""}</div>
+                      </div>
+                      {links.canChange ? (
+                        <ActionDialog trigger="Remove" triggerClassName="pc-btn-secondary pc-btn-sm" title="Remove this link?" description="The form will no longer show on this person's record. The link stays in the form's history with your reason.">
+                          <form action={unlinkFormAction} className="space-y-3">
+                            <input type="hidden" name="recordId" value={record.id} />
+                            <input type="hidden" name="linkId" value={l.id} />
+                            <input type="hidden" name="back" value={here} />
+                            <label className="block"><span className="label">Reason</span><textarea name="reason" required minLength={5} maxLength={500} rows={2} className="input" /></label>
+                            <button type="submit" className="btn-primary">Remove link</button>
+                          </form>
+                        </ActionDialog>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="mt-1 text-slate-600">Not linked to anyone yet. Linking shows this form on the person&apos;s record; their details are not copied into it.</p>}
+              {links.canChange && links.options.some((g) => g.people.length) ? (
+                <form action={linkFormAction} className="mt-3 space-y-2">
+                  <input type="hidden" name="recordId" value={record.id} />
+                  <input type="hidden" name="back" value={here} />
+                  <label className="block">
+                    <span className="label">Link to a person</span>
+                    <select name="about" required className="input" defaultValue="">
+                      <option value="" disabled>Choose a person</option>
+                      {links.options.map((g) => (
+                        <optgroup key={g.type} label={g.label}>
+                          {g.people.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="pc-btn-secondary pc-btn-sm">Link</button>
+                </form>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="pc-panel p-4" data-testid="form-history">
             <h2 className="font-semibold">History</h2>

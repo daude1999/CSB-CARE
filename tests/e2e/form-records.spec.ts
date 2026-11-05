@@ -69,4 +69,33 @@ test.describe("On-screen forms", () => {
     const res = await other.goto(url);
     expect(res?.status()).toBe(404);
   });
+
+  test("a manager starts a Subject Access Request log from a service user's record and links a staff member", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/rota/service-users");
+    const first = page.locator('a[href^="/rota/service-users/c"]').first();
+    const suHref = (await first.getAttribute("href"))!.split("?")[0]!;
+    await page.goto(`${suHref}?tab=documents&section=forms`);
+    const panel = page.getByTestId("service-user-forms");
+    await expect(panel).toContainText("No on-screen forms");
+    await panel.getByRole("button", { name: /Start Subject Access Request Log/ }).click();
+    await expect(page).toHaveURL(/\/policies\/forms\/records\/c/);
+    const links = page.getByTestId("form-links");
+    await expect(links.locator("li")).toHaveCount(1);
+    await expect(links).toContainText("Service user");
+
+    // Link a staff member too, then find the form on both records.
+    const select = links.locator("select[name=about]");
+    const staffValue = await select.locator('optgroup[label="Staff"] option').first().getAttribute("value");
+    await select.selectOption(staffValue!);
+    await links.getByRole("button", { name: "Link" }).click();
+    await expect(page).toHaveURL(/ok=Linked/);
+    await expect(page.getByTestId("form-links").locator("li")).toHaveCount(2);
+    await expect(page.getByTestId("form-history")).toContainText("Linked to a person's record");
+
+    await page.goto(`${suHref}?tab=documents&section=forms`);
+    await expect(page.getByTestId("service-user-forms").locator("tbody tr")).toHaveCount(1);
+    await page.goto(`/rota/staff/${staffValue!.split(":")[1]}`);
+    await expect(page.getByTestId("staff-forms")).toContainText("Subject Access Request Log");
+  });
 });

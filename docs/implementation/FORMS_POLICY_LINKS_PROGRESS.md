@@ -9,7 +9,7 @@ in stages, each a separate draft PR that waits for the owner's "I approve the sc
 | PR 1 | Explicit policy-to-form links, placed at procedure steps, shown in the existing Policy Reader | **Done in this branch** |
 | PR 2 | Form definitions and immutable form versions (`FormDefinition`, `FormVersion`, field schema) | Built as one PR with PR 3 (draft PR, awaiting approval) |
 | PR 3 | Form completion engine (draft, submit, return, review, approve, void), 2–3 pilot forms | Built: pilots CSB-FRM-020 and CSB-FRM-013 (draft PR, awaiting approval) |
-| PR 4 | Links from completed forms to service users, staff, incidents, audits and evidence | Not built |
+| PR 4 | Links from completed forms to service users, staff, incidents, audits and evidence | Part built: service users and staff (draft PR, awaiting approval). Incidents, audits and evidence not yet |
 | PR 5 | "Start digital form" / "Open existing workflow" at the exact procedure step | Not built (PR 1 shows the form and its downloads at the step) |
 | PR 6 | Staff compliance, review queue and reporting for forms | Not built |
 | PR 7 | Search over sections, steps and forms; completeness review for authors | Not built |
@@ -93,6 +93,25 @@ template adoption, register de-duplication) and `tests/e2e/policy-resource-links
 
 Limits: no screen to author new forms yet (pilots are in code); no autosave; no attachments or repeating tables; no
 separate "under review" state; no notifications; no CRM or evidence links (PR 4).
+
+## PR 4 (part 1): forms linked to service users and staff
+
+- Table `FormRecordLink` (migration `20261106000000_form_record_links`): ids only, never a copy of the person's
+  details. `FormDefinition.linkTypes` says which kinds of record a form may be linked to (CSB-FRM-013: service user or
+  staff member; CSB-FRM-020: none, because a declaration is already about its author).
+- Database guard: same organisation at both ends, only kinds the form allows, no links on a voided form, a link can
+  only be removed (once, with who and why). New history events LINKED and UNLINKED; audit `form.record.linked` /
+  `.unlinked`.
+- Who may change links: the author while the form is a draft or returned, and the form's reviewers until it is
+  voided. Linking checks the person is within the caller's organisation, branch and area scope.
+- Screens: "Who this form is about" panel on the form record; service user profile Documents tab gains a "Forms"
+  section; staff record (`/rota/staff/[id]`) gains "Forms about …" (linked forms plus the person's own declarations
+  once their sign-in is linked to the staff record). Each lists only forms the viewer may open, with a "Start" button
+  that creates the form already linked.
+- Tests: `tests/integration/form-record-links.test.ts` (6), one more browser test in `tests/e2e/form-records.spec.ts`.
+
+Limits: no links to incidents, audits, evidence or visits yet; no "about" column on My forms & reviews; the person
+picker is a plain list of up to 500 people.
 
 ## Not done or limited
 
