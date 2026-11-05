@@ -249,11 +249,35 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
           </div>
 
           <form onSubmit={submit} className="ai-csb-input border-t border-[#e6edf0] bg-white px-4 pt-3">
+            {attachment ? (
+              <div data-testid="ai-pending-attachment" className="mb-2 space-y-2 rounded-lg border border-[#b9d8da] bg-[#f2f9f9] p-2 text-[12px] text-[#22404d]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-semibold">{attachment.name} ({(attachment.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  <button type="button" disabled={uploading} onClick={() => { setAttachment(null); if (attachmentInput.current) attachmentInput.current.value = ""; }} aria-label="Remove attachment" className="rounded p-1 hover:bg-[#dceeee]"><X size={15} /></button>
+                </div>
+                {!intakeId && !attachedIntakeId ? (
+                  <label className="block">
+                    <span className="mb-1 block">Attach to</span>
+                    <select aria-label="Choose care intake" value={uploadTarget} onChange={(e) => setUploadTarget(e.target.value)} disabled={uploading} className="w-full rounded-md border border-[#b9d8da] bg-white px-2 py-1.5">
+                      <option value="new">Create a new draft intake</option>
+                      {draftIntakes.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                    </select>
+                  </label>
+                ) : <p>Attach to {intakeId ? "the intake on this page" : "the draft intake in this conversation"}.</p>}
+                <p className="text-[11px]">If your organisation has AI document reading enabled, the PDF may be processed by its configured AI provider. Human review and manager approval remain required.</p>
+                <button data-testid="ai-upload-confirm" type="button" disabled={uploading || sending} onClick={() => void uploadAttachment()} className="rounded-lg bg-[#0b6b74] px-3 py-1.5 font-semibold text-white disabled:opacity-40">
+                  {uploading ? "Saving and reading…" : "Upload to intake for review"}
+                </button>
+              </div>
+            ) : null}
             <div className="flex items-end gap-2 rounded-[16px] border border-[#d8e3e7] bg-[#f8fafb] py-1.5 pl-1.5 pr-1.5 focus-within:border-[#0b6b74] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(11,107,116,.12)]">
               {uploadHref ? (
-                <Link href={uploadHref} onClick={afterAction} aria-label="Attach a document: opens the secure upload in Care Coordinator" title="Attach a support plan or referral document" data-testid="ai-attach" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4b6470] hover:bg-[#e3f1f1] hover:text-[#0b6b74]">
-                  <Paperclip size={20} aria-hidden="true" />
-                </Link>
+                <>
+                  <input ref={attachmentInput} type="file" accept=".pdf,.png,.jpg,.jpeg" aria-label="Choose a document for the Care Coordinator" className="sr-only" tabIndex={-1} onChange={(e) => void pickAttachment(e.currentTarget.files?.[0])} />
+                  <button type="button" onClick={() => attachmentInput.current?.click()} disabled={uploading} aria-label="Attach a document inside AI CSB Coordinator" title="Attach a support plan or referral document" data-testid="ai-attach" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4b6470] hover:bg-[#e3f1f1] hover:text-[#0b6b74] disabled:opacity-40">
+                    <Paperclip size={20} aria-hidden="true" />
+                  </button>
+                </>
               ) : null}
               <label htmlFor="ai-csb-input" className="sr-only">Message AI CSB Coordinator</label>
               <textarea
