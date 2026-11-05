@@ -1,3 +1,4 @@
+import { backfillResourceLinks } from "../forms/links";
 import { ACK_WORDING } from "@/server/policies/assignment";
 import type { OrgRole, PlatformRole } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -170,6 +171,9 @@ export async function seedDemo(masters: Record<string, string>, opts: { simulate
 
   // Staff readiness: the starter matrix and demo evidence, after policies exist so the policy requirement can link.
   if (opts.care) await seedReadinessDemo(org.id, { manager: ids["manager@care-solution.demo"]!, coordinator: ids["coordinator@care-solution.demo"]! });
+
+  // The demo organisation's copies get the same explicit form links as the CSB templates.
+  await backfillResourceLinks();
 
   if (opts.simulatedChange !== false) await seedSimulatedChange(masters);
 }

@@ -1,27 +1,19 @@
-import type { Prisma } from "@prisma/client";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
-import { visiblePolicyWhere } from "@/server/auth/rbac";
-import { db } from "@/lib/db";
 import { CompliancePageHeader } from "@/components/module-header";
 import { ComplianceTabs } from "@/components/compliance-nav";
 import { PcBadge, PcFoot } from "@/components/compliance-ui";
+import { RESOURCE_DOC_TYPES, RESOURCE_TYPE_LABELS, isResourceDocType, resourceRegister } from "@/server/forms/catalogue";
 import { FilePdf, FileText, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
-
-const TYPES = ["FORM", "TEMPLATE", "CHECKLIST", "AUDIT_TOOL", "RISK_ASSESSMENT"] as const;
-type ResourceType = (typeof TYPES)[number];
-const TYPE_LABELS: Record<ResourceType, string> = {
-  FORM: "Form", TEMPLATE: "Template", CHECKLIST: "Checklist",
-  AUDIT_TOOL: "Audit tool", RISK_ASSESSMENT: "Risk assessment template",
-};
-const PAGE_SIZE = 25;
 
 function val(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key];
   return (Array.isArray(value) ? value[0] : value)?.trim().slice(0, 120) ?? "";
 }
+
+const fmtDate = (d: Date | null) => (d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not set");
 
 /** Existing CSB resources only. A downloadable document is not a digital form submission. */
 export default async function PolicyFormsPage({
@@ -33,39 +25,11 @@ export default async function PolicyFormsPage({
   const params = await searchParams;
   const q = val(params, "q");
   const requestedType = val(params, "type");
-  const type: ResourceType | "" = TYPES.includes(requestedType as ResourceType) ? requestedType as ResourceType : "";
-  const category = val(params, "category");
+  const type = isResourceDocType(requestedType) ? requestedType : "";
+  const category = /^[A-Z_]{1,40}$/.test(val(params, "category")) ? val(params, "category") : "";
   const requestedPage = Number(val(params, "page") || 1);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage >= 1 ? Math.min(requestedPage, 500) : 1;
-
-  // Uses the Policy Library's tenant visibility and the existing published-version gate.
-  const where: Prisma.PolicyWhereInput = {
-    AND: [
-      visiblePolicyWhere(ctx),
-      { status: "ACTIVE", docType: { in: [...TYPES] }, currentPublishedVersionId: { not: null } },
-      ...(type ? [{ docType: type }] : []),
-      ...(category ? [{ categoryCode: category }] : []),
-      ...(q ? [{ OR: [
-        { ref: { contains: q, mode: "insensitive" } },
-        { title: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-      ] }] : []),
-    ],
-  };
-  const [total, categories] = await Promise.all([
-    db.policy.count({ where }),
-    db.policyCategory.findMany({ select: { code: true, name: true }, orderBy: { name: "asc" } }),
-  ]);
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const rows = await db.policy.findMany({
-    where, skip: (currentPage - 1) * PAGE_SIZE, take: PAGE_SIZE,
-    orderBy: [{ title: "asc" }, { ref: "asc" }],
-    select: {
-      id: true, ref: true, title: true, description: true, docType: true, kind: true,
-      category: { select: { name: true } },
-      currentPublishedVersion: { select: { label: true, approvals: { where: { decision: "APPROVE" }, select: { id: true }, take: 1 } } },
-    },
+  const { rows, total, page: currentPage, pages: pageCount, categories } = await resourceRegister(ctx, {
+    q, type, category, page: Number.isSafeInteger(requestedPage) && requestedPage >= 1 ? Math.min(requestedPage, 500) : 1,
   });
   const href = (newPage: number) => {
     const p = new URLSearchParams();
@@ -95,7 +59,7 @@ export default async function PolicyFormsPage({
         <label><span className="mb-1 block text-[13px] font-medium">Type</span>
           <select name="type" defaultValue={type} className="rounded-md border border-slate-300 bg-white px-3 py-2">
             <option value="">All types</option>
-            {TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+            {RESOURCE_DOC_TYPES.map((t) => <option key={t} value={t}>{RESOURCE_TYPE_LABELS[t]}</option>)}
           </select>
         </label>
         <label><span className="mb-1 block text-[13px] font-medium">Category</span>
@@ -121,6 +85,7 @@ export default async function PolicyFormsPage({
                   <th scope="col" className="px-4 py-3">Reference and title</th>
                   <th scope="col" className="px-4 py-3">Type</th>
                   <th scope="col" className="px-4 py-3">Category</th>
+                  <th scope="col" className="px-4 py-3">Linked policies</th>
                   <th scope="col" className="px-4 py-3">Version / approval</th>
                   <th scope="col" className="px-4 py-3">Access</th>
                 </tr>
@@ -132,20 +97,29 @@ export default async function PolicyFormsPage({
                       <Link href={"/policies/" + r.id} className="font-semibold text-[#175cd3] hover:underline">{r.ref} — {r.title}</Link>
                       {r.description && <p className="mt-1 line-clamp-2 text-slate-600">{r.description}</p>}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">{TYPE_LABELS[r.docType as ResourceType] ?? r.docType}</td>
-                    <td className="px-4 py-3">{r.category.name}</td>
+                    <td className="whitespace-nowrap px-4 py-3">{r.typeLabel}</td>
+                    <td className="px-4 py-3">{r.category}</td>
+                    <td className="min-w-[180px] px-4 py-3" data-testid="resource-policies">
+                      {r.policies.length ? (
+                        <ul className="space-y-0.5">
+                          {r.policies.slice(0, 3).map((p) => <li key={p.id}><Link href={"/policies/" + p.id + "#forms"} className="hover:underline" title={p.title}>{p.ref}</Link> <span className="text-slate-600">{p.title}</span></li>)}
+                          {r.policies.length > 3 ? <li className="text-slate-600">and {r.policies.length - 3} more</li> : null}
+                        </ul>
+                      ) : <span className="text-slate-600">None linked</span>}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div>Version {r.currentPublishedVersion?.label ?? "—"}</div>
+                      <div>Version {r.versionLabel ?? "—"}</div>
+                      <div className="mt-0.5 text-slate-600">Next review {fmtDate(r.nextReviewDate)}</div>
                       <div className="mt-1">
-                        {r.kind === "MASTER" ? <PcBadge tone="purple">CSB starter · approval required</PcBadge>
-                          : r.currentPublishedVersion?.approvals.length ? <PcBadge tone="green">Approved</PcBadge>
-                          : <PcBadge tone="amber">Check approval</PcBadge>}
+                        {r.approval === "STARTER" ? <PcBadge tone="purple">CSB template · not adopted</PcBadge>
+                          : r.approval === "APPROVED" ? <PcBadge tone="green">Approved</PcBadge>
+                          : <PcBadge tone="amber">Not yet approved</PcBadge>}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex gap-2">
                         <Link href={"/policies/" + r.id} className="pc-btn-secondary pc-btn-sm"><FileText size={14} aria-hidden="true" />Open</Link>
-                        <Link href={"/api/policies/" + r.id + "/download?format=pdf"} className="pc-btn-secondary pc-btn-sm"><FilePdf size={14} aria-hidden="true" />PDF</Link>
+                        <a href={"/api/policies/" + r.id + "/download?format=pdf"} download className="pc-btn-secondary pc-btn-sm" aria-label={"Download " + r.title + " as PDF"}><FilePdf size={14} aria-hidden="true" />PDF</a>
                       </div>
                     </td>
                   </tr>
@@ -159,7 +133,7 @@ export default async function PolicyFormsPage({
         </div>
       </section>
       <p className="mt-3 text-[12px] text-slate-600">
-        This register lists existing versioned CSB documents. Procedure-step links, digital completion, signatures and submission history are separate implementation phases.
+        This register lists existing versioned documents to download and print. Digital completion, signatures and saved form records are not built yet.
       </p>
     </div>
   );

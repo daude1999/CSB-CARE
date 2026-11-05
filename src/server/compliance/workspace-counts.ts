@@ -4,6 +4,7 @@ import { hasOrgPermission, hasPlatformPermission, type Ctx } from "../auth/rbac"
 import { outstandingAckWhere, signoffRows } from "../policies/assignment";
 import { auditBranchWhere } from "./audits";
 import { riskBranchWhere } from "./risks";
+import { resourceRegisterWhere } from "../forms/catalogue";
 
 /**
  * The count beside each Policy & Compliance workspace tab. Every number is counted at request time from the caller's
@@ -28,7 +29,8 @@ export async function workspaceCounts(ctx: Ctx, ws: WorkspaceId, now = new Date(
         // The review calendar's figure is what needs a review soon: overdue or due within the library's 60-day window.
         db.policy.count({ where: { ...own, status: "ACTIVE", nextReviewDate: { lt: new Date(now.getTime() + 60 * DAY) } } }),
         canQueue ? db.policyRevision.count({ where: { organisationId: orgId ?? null, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } } }) : Promise.resolve(0),
-        db.policy.count({ where: { status: "ACTIVE", currentPublishedVersionId: { not: null }, docType: { in: ["FORM", "TEMPLATE", "CHECKLIST", "AUDIT_TOOL", "RISK_ASSESSMENT"] }, OR: [{ kind: "MASTER", organisationId: null }, ...(orgId ? [{ kind: "CUSTOMER" as const, organisationId: orgId }] : [])] } }),
+        // Same filter as the Forms & Resources register, so the pill always matches the list.
+        db.policy.count({ where: resourceRegisterWhere(ctx) }),
       ]);
       return { policies, templates, archived, calendar, forms, ...(canQueue ? { queue } : {}) };
     }

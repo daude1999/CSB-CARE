@@ -53,8 +53,9 @@ mechanism existed. Nothing existing is changed or deleted.
   Users) or Outstanding Practice sections, so those parts do not appear yet and the Review Sheet lists them under
   "Not written yet". Key Facts (Staff) is drawn from the first line of each procedure step and says so. Procedures
   are short (a few steps each) and need professional writing and review before real use.
-- **Forms (phase 4)**: resources are still linked through the "Related policies" text of each form. No explicit
-  link table was added and no new forms were written. Download from the side panel is Word; the Forms & Resources
+- **Forms (phase 4)**: since Forms PR 1, resources are linked through explicit `PolicyResourceLink` rows (see
+  `FORMS_POLICY_LINKS_PROGRESS.md`) and can be placed at a procedure step; the "Related policies" text is a labelled
+  fallback only. No new forms were written. Download from the side panel is Word; the Forms & Resources
   section offers Word and PDF.
 - **Policy Generator**: unchanged. Its drafts already carry structured sections and branch appendices, which the reader
   places in the right parts. It does not yet write Objectives, Key Facts or Outstanding Practice sections.

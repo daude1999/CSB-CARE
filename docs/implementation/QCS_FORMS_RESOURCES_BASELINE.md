@@ -60,7 +60,12 @@
 
 **This is a functioning discoverability increment, not a complete digital Forms engine.** No fabricated form fields, signatures or completed records have been introduced.
 
-## Subsequent PR acceptance contract (not yet implemented)
+## Update (Forms PR 1)
+
+Item 1 below (explicit links) is now built: see `FORMS_POLICY_LINKS_PROGRESS.md`. The register lists each form once per
+organisation and shows its linked policies.
+
+## Subsequent PR acceptance contract
 
 1. **Explicit links:** introduce an additive normalized relation for policy version/section/step to form/resource, with optional use-when, required/optional, branch scope, order and audit history. Backfill confirmed original-CSB links, retain the current text-reference fallback, prevent cross-tenant links and never silently link an ambiguous reference.
 2. **Definition and version:** separate reusable `FormDefinition` and immutable approved `FormVersion` from a downloaded document; schema fields validated with fixed types, reviewed content and separation of duties.

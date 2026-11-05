@@ -31,6 +31,7 @@ export type AskState = { question: string; result?: AssistantResult; error?: str
 
 import { handle, handleData, str } from "./action-kit";
 import { BookmarkKindSchema, toggleBookmark } from "@/server/policies/bookmarks";
+import { addResourceLink, withdrawResourceLink } from "@/server/forms/links";
 import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
@@ -205,6 +206,16 @@ export async function togglePolicyBookmarkAction(input: { policyId: string; kind
     if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "That action could not be completed");
     return toggleBookmark(ctx, r.data.policyId, r.data.kind);
   });
+}
+// ───────── policy-to-form links (Forms PR 1)
+/** Links a form or resource to a policy, optionally at one procedure step. Validated in the forms domain service. */
+export async function addResourceLinkAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    await addResourceLink(ctx, { policyId: str(fd, "policyId"), resourceId: str(fd, "resourceId"), sectionKey: str(fd, "sectionKey"), useWhen: str(fd, "useWhen"), required: fd.get("required") === "on" });
+  }, "Form linked to this policy");
+}
+export async function withdrawResourceLinkAction(fd: FormData) {
+  await handle(fd, async (ctx) => void (await withdrawResourceLink(ctx, { linkId: str(fd, "linkId"), reason: str(fd, "reason") })), "Link removed. It stays in this policy's link history.");
 }
 // ───────── policy library workspace
 const RecordId = z.string().regex(/^[a-z0-9]{8,40}$/i, "That record could not be found");

@@ -1,3 +1,4 @@
+import { backfillResourceLinks } from "../forms/links";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { TEMPLATES, type TemplateVersion } from "../../../prisma/seed-data/templates";
@@ -134,6 +135,8 @@ export async function seedBase(opts: { refs?: string[] } = {}) {
   }
   await seedRequirements(masters);
   await seedAuditTemplates(templates, masters);
+  // Explicit policy-to-form links from each resource's "Related policies" section (idempotent).
+  await backfillResourceLinks();
   return masters;
 }
 
