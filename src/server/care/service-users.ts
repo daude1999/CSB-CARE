@@ -9,8 +9,8 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { cancelVisitInTx } from "@/server/rota/visits";
 import { reviewStaffImpact } from "@/server/workforce/impact";
 import { decryptKeySafe, encryptKeySafe } from "./keysafe";
-import { searchReferenceHits } from "./external-references";
-import { referenceTitle } from "@/lib/reference-numbers";
+import { cleanSearch } from "@/lib/service-user-search";
+import { lookUpReferences, matchedReferenceLabel, serviceUserMatchWhere } from "./service-user-search";
 
 /**
  * Service users: the people the organisation supports. Every read and write is scoped to the caller's organisation
@@ -22,32 +22,48 @@ type Tx = Prisma.TransactionClient;
 
 export interface ServiceUserFilters {
   q?: string;
-  status?: ServiceUserStatus | "CURRENT";
+  /** CURRENT (the default) hides ended people; ALL shows every status. */
+  status?: ServiceUserStatus | "CURRENT" | "ALL";
   areaId?: string;
 }
 
-export async function listServiceUsers(ctx: Ctx, f: ServiceUserFilters) {
+const CURRENT_STATUSES: ServiceUserStatus[] = ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED"];
+
+/**
+ * The Service Users directory. A search finds people by name (each word), postcode, CSB or SU number, external
+ * reference (exact) and, for restricted access, NHS number. The status and area filters still apply, but the result
+ * says how many other matches they hide so an ended or out-of-area person is never silently missing. A failed
+ * reference lookup is reported in `referenceProblem` while the rest of the search still answers.
+ */
+export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
   const scope = await rotaScope(ctx, "serviceUser.view");
-  const hits=f.q ? await searchReferenceHits(ctx,f.q) : [];
-  const ids=[...new Set(hits.map((h)=>h.serviceUserId))];
-  const canSensitive=hasOrgPermission(ctx,"serviceUser.sensitive");
-  const where: Prisma.ServiceUserWhereInput = {
-    ...serviceUserWhere(scope),
-    ...(f.status === "CURRENT" || !f.status ? { status: { in: ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED"] } } : { status: f.status }),
-    ...(f.areaId ? { areaId: f.areaId } : {}),
-    ...(f.q ? { OR: [{ firstName: { contains: f.q, mode: "insensitive" } }, { lastName: { contains: f.q, mode: "insensitive" } }, { preferredName: { contains: f.q, mode: "insensitive" } }, { reference: { contains: f.q, mode: "insensitive" } }, { csbReference: { contains: f.q, mode: "insensitive" } }, ...(canSensitive ? [{ nhsNumber: { equals: f.q.replace(/\s/g,"") } }] : []), { id: { in: ids } }, { postcode: { contains: f.q, mode: "insensitive" } }] } : {}),
+  const q = cleanSearch(f.q);
+  const refs = q ? await lookUpReferences(ctx, q) : { hits: [], problem: null };
+  const match = q ? serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] }) : {};
+  const status: Prisma.ServiceUserWhereInput = f.status === "ALL" ? {} : !f.status || f.status === "CURRENT" ? { status: { in: CURRENT_STATUSES } } : { status: f.status };
+  const where: Prisma.ServiceUserWhereInput = { AND: [serviceUserWhere(scope), status, f.areaId ? { areaId: f.areaId } : {}, match] };
+  const filtered = f.status !== "ALL" || !!f.areaId;
+  const [rows, matching, shown] = await Promise.all([
+    db.serviceUser.findMany({
+      where,
+      select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      take: 500,
+    }),
+    q && filtered ? db.serviceUser.count({ where: { AND: [serviceUserWhere(scope), match] } }) : Promise.resolve(0),
+    q && filtered ? db.serviceUser.count({ where }) : Promise.resolve(0),
+  ]);
+  return {
+    q,
+    rows: rows.map((r) => ({ ...r, matchedReference: matchedReferenceLabel(refs.hits, r.id) })),
+    /** Matches the member may see that the status or area filter hides. */
+    hiddenByFilters: Math.max(0, matching - shown),
+    referenceProblem: refs.problem,
   };
-  const rows = await db.serviceUser.findMany({
-    where,
-    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 500,
-  });
-  // Say which external reference matched, so a shared framework ID is never mistaken for the person's own number.
-  return rows.map((r) => {
-    const h = hits.find((x) => x.serviceUserId === r.id);
-    return { ...r, matchedReference: h ? `${referenceTitle(h)}${h.type === "COUNCIL_FRAMEWORK" ? " (shared framework ID)" : ""}` : null };
-  });
+}
+
+export async function listServiceUsers(ctx: Ctx, f: ServiceUserFilters) {
+  return (await serviceUserDirectory(ctx, f)).rows;
 }
 
 async function loadSu(tx: Tx | typeof db, scope: Scope, id: string) {
