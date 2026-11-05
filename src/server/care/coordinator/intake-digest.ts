@@ -93,7 +93,7 @@ export function digestText(d: IntakeDigest): string {
   const lines = [
     `Intake ${d.intake.reference} (${d.intake.title}) is at: ${d.intake.status}.`,
     `Documents: ${d.documents.map((x) => `${x.name} (${x.pages ?? "?"} pages, ${x.read.toLowerCase().replace("_", " ")})`).join("; ") || "none yet"}.`,
-    `Facts read: ${d.counts.facts}, of which ${d.counts.waitingForCoordinator} are waiting for your check${d.counts.restrictedHidden ? ` and ${d.counts.restrictedHidden} are restricted (a registered manager reviews them)` : ""}.`,
+    `Facts read: ${d.counts.facts}, of which ${d.counts.waitingForCoordinator} ${d.counts.waitingForCoordinator === 1 ? "is" : "are"} waiting for your check${d.counts.restrictedHidden ? ` and ${d.counts.restrictedHidden} ${d.counts.restrictedHidden === 1 ? "is" : "are"} restricted (a registered manager reviews ${d.counts.restrictedHidden === 1 ? "it" : "them"})` : ""}.`,
     council.length ? `Council-funded visits found: ${council.map((v) => `${v.startTime} for ${v.durationMin} min (${v.days}, page ${v.source.page ?? "?"})`).join("; ")}.` : "No council-funded visits were found.",
     other.length ? `Kept separate (not council-funded): ${other.map((v) => `${v.startTime} ${v.durationMin} min, ${v.fundedBy === "CARERS_SERVICE" ? "carers service / family" : "other funding"}`).join("; ")}.` : "",
     `Council visits add up to ${mins(d.hours.councilMinutesPerWeek)} a week. ${d.hours.message}`,

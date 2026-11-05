@@ -268,7 +268,7 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
             {attachment ? (
               <div data-testid="ai-pending-attachment" className="mb-2 space-y-2 rounded-lg border border-[#b9d8da] bg-[#f2f9f9] p-2 text-[12px] text-[#22404d]">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate font-semibold">{attachment.name} ({(attachment.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  <span className="min-w-0 truncate font-semibold">{attachment.name} ({attachment.size < 1024 * 1024 ? `${Math.max(1, Math.round(attachment.size / 1024))} KB` : `${(attachment.size / 1024 / 1024).toFixed(1)} MB`})</span>
                   <button type="button" disabled={uploading} onClick={() => { setAttachment(null); if (attachmentInput.current) attachmentInput.current.value = ""; }} aria-label="Remove attachment" className="rounded p-1 hover:bg-[#dceeee]"><X size={15} /></button>
                 </div>
                 {!intakeId && !attachedIntakeId ? (
