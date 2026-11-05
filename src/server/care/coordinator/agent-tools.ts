@@ -50,6 +50,7 @@ export interface ToolState {
   identifiedVisitIds?: string[];
   /** Carers actually returned by a ranked eligibility query in this message. */
   offeredCarers?: { id: string; name: string; state: string }[];
+  offeredVisitId?: string;
 }
 
 interface Tool<S extends z.ZodTypeAny> {
@@ -119,6 +120,16 @@ function requestedChange(state: ToolState, verbs: RegExp) {
 function requestedDate(state: ToolState, date: string) {
   const q = (state.userQuestion ?? "").toLowerCase();
   return q.includes(date) || (/\btomorrow\b/.test(q) && date === addDays(londonDate(), 1)) || (/\btoday\b/.test(q) && date === londonDate());
+}
+function durationMentioned(state: ToolState, duration: number) {
+  const q = (state.userQuestion ?? "").toLowerCase();
+  if (new RegExp("\\\\b" + duration + "\\\\s*(?:minutes?|mins?)\\\\b", "i").test(q)) return true;
+  if (duration % 60 === 0) {
+    const hours = duration / 60;
+    if (new RegExp("\\\\b" + hours + "\\\\s*(?:hours?|hrs?|h)\\\\b", "i").test(q)) return true;
+    if (duration === 60 && /\\b(?:one|an) hour\\b/.test(q)) return true;
+  }
+  return duration === 30 && /\\bhalf (?:an? )?hour\\b/.test(q);
 }
 function targetTimeMentioned(state: ToolState, target: string) {
   const times = (state.userQuestion ?? "").match(/\b\d{1,2}[:.]\d{2}\b/g) ?? [];
@@ -379,8 +390,8 @@ const tools = {
       const q = (state.userQuestion ?? "").toLowerCase();
       if (!requestedChange(state, /\b(add|create|schedule|book)\b/i) || !/\b(new|one.off|additional|extra|visit|call)\b/i.test(q)) throw new ConflictError("Only create a new visit when the employee explicitly asks to book or add it.");
       if (!requestedDate(state, date) || !targetTimeMentioned(state, start)) throw new ConflictError("Confirm the exact date and start time in the employee's request before creating a visit.");
-      if (!new RegExp("\\b" + durationMin + "\\s*(?:minutes?|mins?)\\b", "i").test(q)) throw new ConflictError("The employee must specify how many minutes the visit lasts.");
-      const statedCarers = new RegExp("\\b" + carersRequired + "\\s*(?:carers?|care workers?)\\b", "i").test(q) || (carersRequired === 2 && /\bdouble.up\b/.test(q)) || (carersRequired === 1 && /\b(?:single carer|one carer)\b/.test(q));
+      if (!durationMentioned(state, durationMin)) throw new ConflictError("The employee must specify how long the visit lasts.");
+      const statedCarers = new RegExp("\\b" + carersRequired + "\\s*(?:carers?|care workers?)\\b", "i").test(q) || (carersRequired === 2 && /\b(?:double.up|two carers)\b/.test(q)) || (carersRequired === 1 && /\b(?:single.carer|one carer)\b/.test(q));
       if (!statedCarers) throw new ConflictError("Confirm the number of carers needed; do not guess the staffing required by a care plan.");
       if (!q.includes(callTypeName.toLowerCase()) && !q.includes(callTypeName.toLowerCase().split(" ")[0]!)) throw new ConflictError("Confirm the visit call type with the employee rather than choosing one automatically.");
       const startAt = londonToUtc(date, parseHhmm(start)!);
@@ -397,6 +408,7 @@ const tools = {
       }
       const v = await createVisit(ctx, { serviceUserId, callTypeId: ct.id, date, startMinute: parseHhmm(start)!, durationMin, carersRequired, publish: false });
       state.wrote.push({ tool: "create_one_off_visit", ref: "Visit:" + v.id });
+      state.identifiedVisitIds = [...new Set([...(state.identifiedVisitIds ?? []), v.id])];
       link(state, { label: "Created " + v.reference, href: "/rota/visits/" + v.id });
       return { created: true, visitId: v.id, reference: v.reference, date, start, durationMin, carersRequired, status: "Scheduled but unpublished (draft)", carerBooked: false, recurringTemplateUnchanged: true };
     },
@@ -450,6 +462,7 @@ const tools = {
       const candidates = await visitCandidates(ctx, visit, "ANY");
       const offered = candidates.filter((c) => c.state !== "NOT_ELIGIBLE").slice(0, 10);
       state.offeredCarers = offered.map((c) => ({ id: c.id, name: c.name, state: c.state }));
+      state.offeredVisitId = visitId;
       link(state, { label: "Visit Details and all carers", href: "/rota/visits/" + visitId });
       return { visitId, lockVersion: visit.lockVersion, slots: openPlaces(visit.carersRequired, visit.assignments.filter((a) => !a.removedAt)), carers: offered.map((c) => ({ staffId: c.id, name: c.name, status: c.state, matchScore: c.score, reasons: c.reasons, why: c.explain })) };
     },
@@ -469,7 +482,7 @@ const tools = {
       const place = parsePlace(slot);
       if (!place || place === "SHADOW") throw new ConflictError("Specify an ordinary carer place.");
       const offered = state.offeredCarers?.find((c) => c.id === staffId);
-      if (!offered || offered.state !== "ELIGIBLE") throw new ConflictError("This carer was not verified eligible by suggest_carers in this message.");
+      if (!offered || offered.state !== "ELIGIBLE" || state.offeredVisitId !== visitId) throw new ConflictError("This carer was not verified eligible for THIS visit by suggest_carers in this message.");
       const request = (state.userQuestion ?? "").toLowerCase();
       const requestedBest = /\b(book|assign|allocate)\b.{0,45}\b(best available|top match|best match)\b/.test(request);
       const firstEligible = state.offeredCarers?.find((c) => c.state === "ELIGIBLE");
