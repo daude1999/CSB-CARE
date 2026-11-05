@@ -11,10 +11,15 @@ import { rotaScope, serviceUserWhere } from "@/server/rota/scope";
 
 export { REFERENCE_TYPES };
 
+/** The reference encryption key is not configured, so the register can be neither read nor searched. */
+export class ReferenceKeyMissingError extends Error{
+  constructor(){super("CSB_REFERENCE_SECRET must be configured");this.name="ReferenceKeyMissingError";}
+}
+
 /** This secret must be configured separately from database and keysafe secrets in production. */
 function secret(){
   const v=process.env.CSB_REFERENCE_SECRET;
-  if(!v && process.env.NODE_ENV==="production") throw new Error("CSB_REFERENCE_SECRET must be configured");
+  if(!v && process.env.NODE_ENV==="production") throw new ReferenceKeyMissingError();
   return createHash("sha256").update(v || "LOCAL-ONLY-NOT-FOR-PRODUCTION-REFERENCE-KEY").digest();
 }
 function fingerprint(v:string){return createHmac("sha256",secret()).update(v).digest("hex");}
