@@ -357,3 +357,60 @@ describe("operational rota coordinator tools (fictional records)", () => {
     expect(noPermission.content).toMatch(/permission/);
   });
 });
+
+describe("one-off visit booking and date changes by the agent (fictional data)", () => {
+  it("creates one unpublished one-off visit only with verified person and full details; never duplicates it", async () => {
+    const c = await coordinator();
+    const p = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, firstName: "Margaret" } });
+    const date = addDays(londonDate(), 16);
+    const q = `Please create a new Morning call visit for Margaret Ellison on ${date} at 11:00 for 45 minutes with 1 carer`;
+    const st: ToolState = { ...state(), userQuestion: q };
+    expect((await executeTool(c, st, "search_records", { query: "Margaret Ellison" })).isError).toBe(false);
+    const args = { serviceUserId: p.id, date, start: "11:00", durationMin: 45, carersRequired: 1, callTypeName: "Morning call" };
+    const r = await executeTool(c, st, "create_one_off_visit", args);
+    expect(r.isError, r.content).toBe(false);
+    const d = JSON.parse(r.content) as { created: boolean; visitId: string; status: string };
+    expect(d.created).toBe(true);
+    expect(d.status).toContain("unpublished");
+    const v = await db.visit.findUniqueOrThrow({ where: { id: d.visitId } });
+    expect(v.publishedAt).toBeNull();
+    expect(v.templateId).toBeNull();
+    expect(londonTime(v.scheduledStart)).toBe("11:00");
+
+    const again = await executeTool(c, st, "create_one_off_visit", args);
+    expect(again.isError).toBe(false);
+    expect(JSON.parse(again.content)).toMatchObject({ created: false, duplicate: true });
+    expect(await db.visit.count({ where: { organisationId: orgId, serviceUserId: p.id, scheduledStart: v.scheduledStart, callTypeId: v.callTypeId } })).toBe(1);
+
+    const day = addDays(date, 1);
+    const moving: ToolState = { ...state(), userQuestion: `Please move Margaret Ellison's 11:00 visit to ${day}` };
+    await executeTool(c, moving, "search_records", { query: "Margaret Ellison" });
+    const found = await executeTool(c, moving, "find_visits", { serviceUserId: p.id, date, start: "11:00" });
+    expect(found.isError).toBe(false);
+    expect(JSON.parse(found.content).matched).toBe(1);
+    const moved = await executeTool(c, moving, "move_visit_day", { visitId: v.id, lockVersion: v.lockVersion, toDate: day });
+    expect(moved.isError, moved.content).toBe(false);
+    expect(JSON.parse(moved.content)).toMatchObject({ moved: true, fromDate: date, toDate: day, recurringTemplateUnchanged: true });
+    const updated = await db.visit.findUniqueOrThrow({ where: { id: v.id } });
+    expect(londonTime(updated.scheduledStart)).toBe("11:00");
+    expect(updated.templateId).toBeNull();
+    expect(updated.publishedAt).toBeNull();
+  });
+
+  it("refuses invented booking details and carers offered for a different visit", async () => {
+    const c = await coordinator();
+    const p = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, firstName: "Margaret" } });
+    const date = addDays(londonDate(), 18);
+    const st: ToolState = { ...state(), userQuestion: `Please create Margaret Ellison's new visit on ${date} at 09:00` };
+    await executeTool(c, st, "search_records", { query: "Margaret Ellison" });
+    const r = await executeTool(c, st, "create_one_off_visit", { serviceUserId: p.id, date, start: "09:00", durationMin: 45, carersRequired: 2, callTypeName: "Morning call" });
+    expect(r.isError).toBe(true);
+    expect(r.content).toMatch(/how long|carers|call type/);
+
+    const fakeId = "cm0000000010";
+    const wrong: ToolState = { ...state(), userQuestion: "Book Jane Smith for the visit", identifiedVisitIds: [fakeId], offeredVisitId: "cm0000000013", offeredCarers: [{ id: "cm0000000011", name: "Jane Smith", state: "ELIGIBLE" }] };
+    const book = await executeTool(c, wrong, "book_carer", { visitId: fakeId, lockVersion: 0, slot: "PRIMARY", staffId: "cm0000000011" });
+    expect(book.isError).toBe(true);
+    expect(book.content).toMatch(/THIS visit/);
+  });
+});
