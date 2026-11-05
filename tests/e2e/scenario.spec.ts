@@ -80,7 +80,7 @@ test("detected change flows through review, drafting, approval, publication and 
 
   await approver.goto(`${policyHref}?view=procedure`);
   await expect(approver.getByText("within 24 hours").first()).toBeVisible();
-  await approver.getByRole("tab", { name: /Versions/ }).click();
+  await approver.getByTestId("record-views").getByRole("link", { name: /Versions/ }).click();
   await expect(approver.getByTestId("version-history")).toContainText("superseded");
 
   // 5. Staff are asked to acknowledge the updated policy.

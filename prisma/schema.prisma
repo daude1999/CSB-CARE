@@ -4999,3 +4999,18 @@ model CallNoteReferenceCounter {
 
   @@id([organisationId, year])
 }
+
+/// A person's own marker on a policy, from the Policy Reader: IMPORTANT (pinned for quick access) or READING_LIST
+/// (saved to read later). Personal and private to the person; it is never an assignment or an acknowledgement, which
+/// stay in PolicyAssignmentRule and Acknowledgement.
+model PolicyBookmark {
+  id             String   @id @default(cuid())
+  organisationId String
+  userId         String
+  policyId       String
+  kind           String // IMPORTANT | READING_LIST
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, policyId, kind])
+  @@index([organisationId, userId, kind])
+}

@@ -4,6 +4,7 @@ import { ComplianceTabs } from "@/components/compliance-nav";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { acknowledgeAction } from "../../actions";
+import { savedReading } from "@/server/policies/bookmarks";
 import { ACK_NOT_TRAINING, ACK_WORDING, ackBucket } from "@/server/policies/assignment";
 import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
 
@@ -15,6 +16,7 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
   const acks = ctx.organisationId
     ? await db.acknowledgement.findMany({ where: { userId: ctx.userId, organisationId: ctx.organisationId, supersededAt: null, state: { notIn: ["WITHDRAWN", "EXEMPTED"] } }, orderBy: [{ acknowledgedAt: { sort: "asc", nulls: "first" } }, { dueAt: "asc" }], include: { publication: { include: { policy: { select: { id: true, ref: true, title: true } }, version: { select: { label: true, changeSummary: true } } } } } })
     : [];
+  const saved = await savedReading(ctx);
   const now = new Date();
   const signed = acks.filter((a) => a.acknowledgedAt).length;
   const overdue = acks.filter((a) => ackBucket(a, now).overdue).length;
@@ -52,6 +54,24 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
           <Empty>You have nothing to acknowledge.</Empty>
         )}
       </Card>
+      {saved.length ? (
+        <div className="mt-3">
+          <Card title="Saved to read later">
+            <p className="mb-2 text-[13px] text-slate-600">Policies you added from the Policy Reader. Saving a policy is a personal reminder: it is not an assignment and does not sign it.</p>
+            <ul className="rows" data-testid="saved-reading">
+              {saved.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <span className="mr-3 text-[14px] text-slate-700">{s.ref}</span><Link href={`/policies/${s.id}`} className="row-title text-[15.5px]">{s.title}</Link> <span className="text-[13px] text-slate-600">{s.category.name}{s.currentPublishedVersion ? ` · version ${s.currentPublishedVersion.label}` : ""}</span>
+                    <div className="mt-0.5 text-[12.5px] text-slate-500">Saved {fmtDate(s.savedAt)}</div>
+                  </div>
+                  <Link className="btn-secondary" href={`/policies/${s.id}`}>Open</Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      ) : null}
     </>
   );
 }
