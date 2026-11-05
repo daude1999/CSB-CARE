@@ -11,6 +11,10 @@ import { logger } from "@/lib/logger";
 import { NotFoundError } from "@/lib/errors";
 import { getIntake, readIntakeDocument } from "@/server/care/coordinator/intake";
 import { coordinatorIntent } from "@/lib/coordinator-chat-intent";
+import { createHash } from "node:crypto";
+import { addDocuments, coordinatorAccess, createIntake } from "@/server/care/coordinator/intake";
+import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
+import { ConflictError, ValidationError } from "@/lib/errors";
 
 /**
  * Permission-scoped CRM assistant: the existing deterministic CRM answer is retrieved first,
@@ -26,6 +30,82 @@ const requestSchema = z.object({
 });
 export type CoordinatorChatRequest = z.input<typeof requestSchema>;
 export type CoordinatorChatResponse = { answer: string; links: CrmLink[]; topic: string };
+
+
+/** The chat paperclip uses the same private intake storage, scanning, source-page extraction,
+ * tenancy and human-approval rules as the full Care Coordinator workflow. The user explicitly
+ * confirms the attachment; this action only creates DRAFT intake records and facts.
+ */
+export type CoordinatorUploadResponse = {
+  intakeId: string;
+  reference: string;
+  filename: string;
+  documents: number;
+  facts: number;
+  remainingToCheck: number;
+  duplicate: boolean;
+  extractionFailures: number;
+  reviewHref: string;
+};
+
+export async function uploadCsbCoordinatorDocument(form: FormData): Promise<CoordinatorUploadResponse> {
+  const ctx = await requirePortal("rota");
+  coordinatorAccess(ctx);
+  const organisationId = requireOrgPermission(ctx, "serviceUser.documents");
+  const file = form.get("file");
+  if (!(file instanceof File) || !file.size) throw new ValidationError("Select a PDF or image to attach");
+  if (file.size > MAX_DOCUMENT_BYTES) throw new ValidationError("A document must be no larger than 4 MB");
+  if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) throw new ValidationError("Attach a PDF, PNG or JPEG document");
+  const chosenIntakeId = form.get("intakeId");
+  const selected = typeof chosenIntakeId === "string" ? chosenIntakeId.trim() : "";
+  if (selected && !ID.test(selected)) throw new ValidationError("Choose a valid care intake");
+  const rawServiceUserId = form.get("serviceUserId");
+  const serviceUserId = typeof rawServiceUserId === "string" ? rawServiceUserId.trim() : "";
+  if (serviceUserId && !ID.test(serviceUserId)) throw new ValidationError("Choose a valid service user");
+
+  // Check existing intake and file fingerprint before a potentially chargeable document read.
+  // A duplicate does not create another file or trigger the AI provider.
+  const bytes = Buffer.from(await file.arrayBuffer());
+  let id = selected;
+  if (id) {
+    const existing = await getIntake(ctx, id);
+    if (existing.intake.status !== "DRAFT") throw new ConflictError("Only draft intakes can receive documents");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const duplicate = await db.careIntakeDocument.findFirst({
+      where: { organisationId, intakeId: id, sha256 },
+      select: { id: true },
+    });
+    if (duplicate) {
+      return {
+        intakeId: id, reference: existing.intake.reference, filename: file.name,
+        documents: existing.documents.length, facts: existing.facts.length,
+        remainingToCheck: existing.sections.reduce((n, s) => n + s.open, 0),
+        duplicate: true, extractionFailures: 0,
+        reviewHref: `/rota/coordinator/${encodeURIComponent(id)}`,
+      };
+    }
+  } else {
+    // A new intake is deliberately a draft; uploaded information cannot change a
+    // service-user profile until independent coordinator and manager decisions.
+    const title = `Referral — ${file.name.replace(/\.[^.]+$/, "").slice(0, 95)}`;
+    const intake = await createIntake(ctx, {
+      title, mode: serviceUserId ? "EXISTING" : "NEW",
+      ...(serviceUserId ? { serviceUserId } : {}),
+    });
+    id = intake.id;
+  }
+
+  const upload: UploadedFile = { name: file.name, type: file.type, bytes };
+  const response = await addDocuments(ctx, id, [upload]);
+  const current = await getIntake(ctx, id);
+  return {
+    intakeId: id, reference: current.intake.reference, filename: file.name,
+    documents: current.documents.length, facts: current.facts.length,
+    remainingToCheck: current.sections.reduce((n, s) => n + s.open, 0),
+    duplicate: false, extractionFailures: response.results.filter(r => "error" in r).length,
+    reviewHref: `/rota/coordinator/${encodeURIComponent(id)}`,
+  };
+}
 
 const ID = /^[a-zA-Z0-9]{10,40}$/;
 /** Visits use UUIDs rather than cuids. */
