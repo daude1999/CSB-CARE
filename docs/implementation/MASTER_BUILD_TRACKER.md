@@ -172,3 +172,7 @@ Docs: ARCHITECTURE_DECISIONS.md, FEATURE_COMPLETION_MATRIX.md, KNOWN_LIMITATIONS
 
 - Local DB `csb` is disposable (drop/create + `prisma migrate deploy` + `npm run db:seed`). Prisma blocks `migrate reset` from AI sessions; use dropdb/createdb on the local server only.
 - Demo seed: `seedDemo(masters, { care: true })` builds this week and next; 266 visits a week, about 21 empty slots a week (HR fixtures leave some carers non-compliant on purpose).
+
+## Policy, procedure and forms (brief of 5 Nov 2026)
+
+Tracked separately in `FORMS_POLICY_LINKS_PROGRESS.md` (PR 0 register fix and PR 1 explicit policy-to-form links built; PR 2 to PR 7 not started).

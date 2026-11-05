@@ -31,17 +31,19 @@ describe("Policy & Compliance sidebar: six workspaces", () => {
   });
 
   it("lists every workspace's tabs for a manager", () => {
-    expect(workspaceTabs(manager, "library").map((t) => t.label)).toEqual(["My Policies", "Templates", "Archived", "Review Calendar", "Review & Approval Queue", "Policy Generator", "Branch Coverage", "Branch Configuration"]);
+    expect(workspaceTabs(manager, "library").map((t) => t.label)).toEqual(["My Policies", "Forms & Resources", "Templates", "Archived", "Review Calendar", "Review & Approval Queue", "Policy Generator", "Branch Coverage", "Branch Configuration"]);
     expect(workspaceTabs(manager, "regulatory").map((t) => t.href)).toEqual(["/changes", "/requirements", "/compliance/regulatory/sources", "/compliance/regulatory/references"]);
     expect(workspaceTabs(manager, "signoff").map((t) => t.label)).toEqual(["Overview", "By Employee", "By Policy", "Overdue", "Assignment Rules", "My Reading List"]);
     expect(workspaceTabs(manager, "improvements").map((t) => t.label)).toEqual(["Audits & Inspections", "Corrective Actions", "Risk Register", "Evidence Library"]);
     expect(workspaceHome(manager, "improvements")).toBe("/audits");
+    expect(workspaceTabs(carer, "library").some((t) => t.href === "/policies/forms")).toBe(true);
   });
 
   it("keeps the right entry lit on old addresses and on each workspace's tab pages", () => {
     const entries = complianceItems(manager, i);
     expect(activeEntryHref(entries, "/", p())).toBe("/");
     expect(activeEntryHref(entries, "/queue", p())).toBe("/policies");
+    expect(activeEntryHref(entries, "/policies/forms", p())).toBe("/policies");
     expect(activeEntryHref(entries, "/revisions/abc", p())).toBe("/policies");
     expect(activeEntryHref(entries, "/changes/abc", p())).toBe("/compliance/regulatory");
     expect(activeEntryHref(entries, "/requirements", p())).toBe("/compliance/regulatory");

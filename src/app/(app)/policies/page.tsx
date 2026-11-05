@@ -68,7 +68,10 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
     closeHref: libraryHref(query, { selected: undefined, pane: undefined, insp: "closed" }),
   };
   const tabItems = [
-    ...tabs.map((t) => ({ key: t, label: TAB_LABELS[t], href: libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined, insp: undefined }), count: counts[t] })),
+    ...tabs.flatMap((t) => [
+      { key: t, label: TAB_LABELS[t], href: libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined, insp: undefined }), count: counts[t] },
+      ...(t === (ctx.organisationId ? "policies" : "templates") ? [{ key: "forms", label: "Forms & Resources", href: "/policies/forms", count: counts.forms }] : []),
+    ]),
     ...(canUseQueue(ctx) ? [{ key: "queue", label: "Review & Approval Queue", href: "/queue", count: counts.queue }] : []),
     ...(ctx.organisationId && hasOrgPermission(ctx, "policy.author") ? [{ key: "generator", label: "Policy Generator", href: "/policies/generator" }] : []),
     ...(ctx.organisationId && hasOrgPermission(ctx, "policy.coverage") ? [{ key: "coverage", label: "Branch Coverage", href: "/policies/coverage" }] : []),

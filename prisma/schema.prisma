@@ -687,6 +687,8 @@ model Policy {
   branchScopes     PolicyBranchScope[]
   sourceLinks      PolicySourceLink[]
   generationRuns   PolicyGenerationRun[]
+  resourceLinks    PolicyResourceLink[]    @relation("PolicyResourceLinks")
+  linkedFrom       PolicyResourceLink[]    @relation("ResourceLinkedFrom")
 
   @@unique([organisationId, ref])
   @@index([searchVector], map: "policy_search_idx", type: Gin)
@@ -5013,4 +5015,33 @@ model PolicyBookmark {
 
   @@unique([userId, policyId, kind])
   @@index([organisationId, userId, kind])
+}
+
+/// An explicit link from a policy or procedure to a form, template, checklist or tool it relies on (Forms PR 1).
+/// Both ends belong to the same organisation, or both are CSB master documents (organisationId null); the database
+/// enforces this. `sectionKey` places the link at one stable section of the policy, usually a procedure step such as
+/// "procedure.reporting"; null means the whole document. A link is never edited or deleted by the app: it is withdrawn
+/// (withdrawnAt) and a new one added, so the history stays. origin: BACKFILL_RELATED_TEXT (from the resource's
+/// "Related policies" section), TEMPLATE (copied from the CSB master link when a template was adopted) or MANUAL.
+model PolicyResourceLink {
+  id             String    @id @default(cuid())
+  organisationId String?
+  policyId       String
+  policy         Policy    @relation("PolicyResourceLinks", fields: [policyId], references: [id], onDelete: Cascade)
+  resourceId     String
+  resource       Policy    @relation("ResourceLinkedFrom", fields: [resourceId], references: [id], onDelete: Cascade)
+  sectionKey     String?
+  useWhen        String?
+  required       Boolean   @default(false)
+  sortOrder      Int       @default(0)
+  origin         String
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  withdrawnAt    DateTime?
+  withdrawnById  String?
+  withdrawReason String?
+
+  @@index([policyId])
+  @@index([resourceId])
+  @@index([organisationId])
 }
