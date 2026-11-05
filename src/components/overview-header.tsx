@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { CalendarBlank, CaretDown, Clock, SignOut } from "@phosphor-icons/react";
 import { londonClock } from "@/lib/london";
 import { useDismissableDetails } from "@/components/help-menu";
+import { ColourModeOptions, useColourMode } from "@/components/colour-mode-menu";
+import type { ColourMode } from "@/lib/colour-mode";
 
 /**
  * The Overview has its own dark header (logo, organisation, today's date and time, the signed-in person), as in the
@@ -43,16 +45,18 @@ export function LondonClock({ initial }: { initial: number }) {
   );
 }
 
-/** The signed-in person, with their branch and sign out in a small menu. */
-export function AccountMenu({ name, initials, role, branch, sample, signOutAction }: {
+/** The signed-in person, with their branch, the light / dark appearance and sign out in a small menu. */
+export function AccountMenu({ name, initials, role, branch, sample, mode: initialMode, signOutAction }: {
   name: string;
   initials: string;
   role: string;
   branch: string | null;
   sample: boolean;
+  mode: ColourMode;
   signOutAction: () => Promise<void>;
 }) {
   const ref = useDismissableDetails();
+  const [mode, changeMode] = useColourMode(initialMode);
   return (
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-[8px] py-1 pl-1 pr-1.5 hover:bg-white/10 [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
@@ -69,6 +73,10 @@ export function AccountMenu({ name, initials, role, branch, sample, signOutActio
           <p className="truncate text-[12.5px] text-slate-600">{role}</p>
           {branch ? <p className="mt-1 truncate text-[12.5px] text-slate-600">Branch: {branch}</p> : null}
           {sample ? <p className="mt-1.5 w-fit rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600">Sample workspace</p> : null}
+        </div>
+        <div className="border-b border-slate-100 py-1">
+          <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Appearance</p>
+          <ColourModeOptions mode={mode} onChange={changeMode} />
         </div>
         <form action={signOutAction}>
           <button type="submit" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[14px] hover:bg-slate-100">
