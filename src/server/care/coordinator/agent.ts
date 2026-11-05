@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { NotFoundError } from "@/lib/errors";
+import { londonDate } from "@/lib/london";
 import { coordinatorIntent } from "@/lib/coordinator-chat-intent";
 import { getAiProvider } from "@/server/ai";
 import { AiUnavailableError, type CoordinatorAgentUsage } from "@/server/ai/provider";
@@ -17,8 +18,8 @@ import { digestText, intakeDigest } from "./intake-digest";
  *
  *  1. Claude is used only when the organisation has switched on AI in Rota Settings (with its data-protection note)
  *     AND the server has AI_PROVIDER=anthropic with a key. Setting the key alone never sends care records anywhere.
- *  2. Claude can act only through the tools in agent-tools.ts, each run with this employee's permissions. It cannot
- *     approve, save to a record, publish, book, send or delete anything.
+ *  2. Claude can act only through the tools in agent-tools.ts, each run with this employee's permissions. It can adjust one-off visit times and book eligible carers by explicit request,
+ *     but it cannot approve, publish, message families or delete anything.
  *  3. Limits: a bounded conversation (8 earlier messages, 2,000 characters each), at most 6 model requests and 55
  *     seconds per message, per-person and per-organisation message limits counted from the audit log (so they hold
  *     across server instances), and at most 3 AI conversations running at once per organisation on one instance.
