@@ -8,10 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { askCsbCoordinator } from "@/app/csb-coordinator-chat-actions";
 
-type Message = { role: "user" | "assistant"; content: string };
-
-/** What the server found about the AI service when the page was drawn. Only "online" is shown as Online. */
-export type CoordinatorStatus = "online" | "not-enabled" | "no-provider";
+type Message = { role: "user" | "assistant"; content: string; links?: { label: string; href: string }[] };
 
 /** Which existing screens this employee may open; worked out on the server from their permissions. */
 export interface CoordinatorAccess {
@@ -46,18 +43,12 @@ export function suggestedActions(access: CoordinatorAccess, path: string | null)
   ].filter((a): a is Exclude<typeof a, false> => Boolean(a));
 }
 
-const STATUS_TEXT: Record<CoordinatorStatus, { label: string; detail: string }> = {
-  online: { label: "Online", detail: "Connected to the CRM's AI service" },
-  "not-enabled": { label: "AI unavailable", detail: "AI is not switched on in Rota Settings" },
-  "no-provider": { label: "AI unavailable", detail: "The AI service is not configured" },
-};
-
 /**
  * The one AI CSB Coordinator: a launcher fixed to the bottom right of every CRM page this employee may use, which opens
  * a chat panel over the page. It is a fixed layer, so the page underneath never moves or resizes. Minimise keeps the
  * conversation; close clears it. Escape minimises, and focus returns to the launcher.
  */
-export function AiCsbCoordinatorLauncher({ status, access }: { status: CoordinatorStatus; access: CoordinatorAccess }) {
+export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess }) {
   const pathname = usePathname();
   const { intakeId, serviceUserId } = pageContext(pathname);
   const actions = suggestedActions(access, pathname);
@@ -67,12 +58,10 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState<CoordinatorStatus>(status);
   const scrollBottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => setLive(status), [status]);
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => { if (open && messages.length > 1) scrollBottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, open, sending]);
 
@@ -90,15 +79,14 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
   async function ask(q: string) {
     const text = q.trim();
     if (text.length < 2 || sending) return;
-    const history = messages.slice(1).slice(-8);
+    const history = messages.slice(1).slice(-8).map((m) => ({ role: m.role, content: m.content }));
     setMessages((m) => [...m, { role: "user", content: text }]);
     setQuery("");
     setSending(true);
     setError(null);
     try {
       const r = await askCsbCoordinator({ question: text, intakeId, path: pathname ?? undefined, history });
-      setMessages((m) => [...m, { role: "assistant", content: r.answer }]);
-      if (r.status === "not-enabled" || r.status === "no-provider") setLive(r.status);
+      setMessages((m) => [...m, { role: "assistant", content: r.answer, links: r.links }]);
     } catch {
       setError("The assistant couldn't answer just now. Nothing was changed in the CRM. Try again, or open the screen you need from the actions above.");
     } finally {
@@ -115,7 +103,6 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
   }
 
   const uploadHref = actions.find((a) => a.key === "support-plan")?.href ?? null;
-  const s = STATUS_TEXT[live];
   const context = intakeId ? "Using the care intake open on this page" : serviceUserId ? "Using the service user open on this page" : null;
 
   return (
@@ -142,10 +129,10 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
             <button type="button" onClick={() => hide(false)} aria-label="Minimise AI CSB Coordinator" title="Minimise (keeps the conversation)" data-testid="ai-minimise" className="ai-csb-icon-btn"><Minus size={18} aria-hidden="true" /></button>
             <button type="button" onClick={() => hide(true)} aria-label="Close AI CSB Coordinator" title="Close (clears the conversation)" data-testid="ai-close" className="ai-csb-icon-btn"><X size={18} aria-hidden="true" /></button>
           </header>
-          <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-[12px]" data-testid="ai-status" title={s.detail}>
-            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${live === "online" ? "bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,.15)]" : "bg-[#d97706]"}`} />
-            <span className={`whitespace-nowrap font-medium ${live === "online" ? "text-[#15803d]" : "text-[#92400e]"}`}>{s.label}</span>
-            {live !== "online" ? <span className="min-w-0 truncate text-[#5d717c]">· {s.detail}</span> : null}
+          <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-[12px]" data-testid="ai-status">
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,.15)]" />
+            <span className="whitespace-nowrap font-medium text-[#15803d]">Online</span>
+            <span className="min-w-0 truncate text-[#5d717c]">· Answers from your CRM records only</span>
           </div>
           {context ? <p className="border-b border-[#e3eff0] bg-[#f2f9f9] px-5 py-1.5 text-[12px] font-medium text-[#0b6b74]" data-testid="ai-context">{context}</p> : null}
 
@@ -155,6 +142,15 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
                 {m.role === "assistant" ? <span aria-hidden="true" className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#e3f1f1] text-[#0b6b74]"><Sparkle size={15} weight="fill" /></span> : null}
                 <div className={`max-w-[86%] whitespace-pre-wrap px-4 py-3 text-[13.5px] leading-[21px] ${m.role === "user" ? "rounded-[18px] rounded-br-[6px] bg-[#0b6b74] text-white" : "rounded-[18px] rounded-tl-[6px] bg-[#eff4f8] text-[#22404d]"}`}>
                   <span className="sr-only">{m.role === "user" ? "You: " : "AI CSB Coordinator: "}</span>{m.content}
+                  {m.links?.length ? (
+                    <span className="mt-2.5 flex flex-wrap gap-1.5 whitespace-normal">
+                      {m.links.map((l) => (
+                        <Link key={l.href + l.label} href={l.href} onClick={afterAction} className="inline-flex items-center gap-1 rounded-full border border-[#b9d8da] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#0b6b74] no-underline hover:bg-[#e3f1f1]">
+                          {l.label}<CaretRight size={12} weight="bold" aria-hidden="true" />
+                        </Link>
+                      ))}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -181,7 +177,7 @@ export function AiCsbCoordinatorLauncher({ status, access }: { status: Coordinat
             {sending ? (
               <div role="status" className="flex items-center gap-2 pl-9 text-[12.5px] text-[#5d717c]">
                 <span aria-hidden="true" className="flex gap-1"><span className="ai-csb-dot" /><span className="ai-csb-dot [animation-delay:120ms]" /><span className="ai-csb-dot [animation-delay:240ms]" /></span>
-                Thinking with the details you can see…
+                Searching your CRM records…
               </div>
             ) : null}
             {error ? <div role="alert" className="rounded-[12px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12.5px] text-rose-800">{error}</div> : null}

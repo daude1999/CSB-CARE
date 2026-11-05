@@ -2,29 +2,11 @@ import "server-only";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fromDbDate, londonDate } from "@/lib/london";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
-import { getAiProvider } from "@/server/ai";
 import { rotaScope, serviceUserWhere, visitWhere } from "@/server/rota/scope";
 
 /**
  * Supporting reads for the AI CSB Coordinator chat (src/app/csb-coordinator-chat-actions.ts). Nothing here writes.
  */
-
-export type CoordinatorChatStatus =
-  | { online: true }
-  | { online: false; reason: "not-enabled" | "no-provider" };
-
-/**
- * Whether the chat can really answer: the organisation has switched on AI reading in Rota Settings (its data
- * protection review), and a real provider that supports conversation is configured. The simulated provider never
- * counts as online.
- */
-export async function coordinatorChatStatus(organisationId: string): Promise<CoordinatorChatStatus> {
-  const settings = await db.rotaSettings.findUnique({ where: { organisationId }, select: { careCoordinatorAiEnabledAt: true } });
-  if (!settings?.careCoordinatorAiEnabledAt) return { online: false, reason: "not-enabled" };
-  const provider = getAiProvider();
-  if (!provider?.coordinateChat || provider.isSimulated) return { online: false, reason: "no-provider" };
-  return { online: true };
-}
 
 /**
  * A short, non-clinical summary of one service user for the chat, only when the person may see them: status, care
