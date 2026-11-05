@@ -22,6 +22,7 @@ import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-he
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
+import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
@@ -100,7 +101,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const roleName = me?.jobTitle ?? (me?.roles[0] ? ROLE_NAMES[me.roles[0]] : ctx.platformRoles[0] ? ROLE_NAMES[ctx.platformRoles[0]] : "Member");
   // The CSB brand leads the Overview header; a customer organisation's own name sits beneath it.
   const overviewSubtitle = org && !/^care solution bureau\b/i.test(orgName) ? orgName : "Integrated care management";
-  // The AI CSB Coordinator (built-in CRM search), for employees who may use it.
+  // The AI CSB Coordinator (Claude with CRM tools when switched on, built-in CRM search otherwise), for employees who may use it.
   const coordinator = ctx.organisationId && hasOrgPermission(ctx, "serviceUser.documents") && portalsFor(ctx).some((p) => p.id === "rota")
     ? {
         access: {
@@ -109,6 +110,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           carePlans: hasOrgPermission(ctx, "serviceUser.view"),
           buildRota: hasOrgPermission(ctx, "rota.build"),
         },
+        // Claude answers only when the organisation switched AI on and the server has a provider.
+        aiOn: (await coordinatorAiStatus(ctx.organisationId)).on,
       }
     : null;
   const shell = {
@@ -182,7 +185,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </header>
           </TopbarSwitch>
           <MainArea>{children}</MainArea>
-          {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} /> : null}
+          {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
           <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
