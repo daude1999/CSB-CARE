@@ -63,7 +63,7 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
     case "upload": {
       if (!(can("serviceUser.documents") && can("serviceUser.edit") && can("rota.edit"))) return noAccess;
       return done(
-        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (PDF, Word or images, up to 12 per intake). The originals are kept unchanged.\n3. Check each fact against the page it came from, then submit to a manager.\n4. The manager approves each section, and the approved facts are saved to the person's record.\nNothing is saved or sent to carers without a person deciding.",
+        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (up to 12 per intake). The originals are kept unchanged. PDFs with typed text are read on CSB's own server; scanned pages, Word files and images are kept but their facts are added by hand.\n3. Check each fact against the page it came from, then submit to a manager.\n4. The manager approves each section, and the approved facts are saved to the person's record.\nNothing is saved or sent to carers without a person deciding.",
         [{ label: "Open Care Coordinator", href: page.kind === "intake" && page.id ? `/rota/coordinator/${page.id}` : "/rota/coordinator" }],
       );
     }
