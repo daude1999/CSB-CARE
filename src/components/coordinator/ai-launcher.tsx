@@ -6,9 +6,13 @@ import Link from "@/components/link";
 import {
   ArrowsInSimple, ArrowsOutSimple, CalendarPlus, CaretRight, ClipboardText, FileArrowUp, Minus, PaperPlaneRight, Paperclip, Sparkle, UserPlus, X,
 } from "@phosphor-icons/react";
-import { askCsbCoordinator } from "@/app/csb-coordinator-chat-actions";
+import { askCsbCoordinator, coordinatorUploadTargets, uploadToCoordinator } from "@/app/csb-coordinator-chat-actions";
 
-type Message = { role: "user" | "assistant"; content: string; links?: { label: string; href: string }[] };
+type Message = { role: "user" | "assistant"; content: string; links?: { label: string; href: string }[]; notice?: string | null; choices?: UploadChoice[] };
+/** Where an attached document can go, offered as buttons in the conversation. */
+type UploadChoice = { key: string; label: string; target: "intake" | "new"; intakeId: string | null; serviceUserId: string | null };
+
+const ACCEPT = "application/pdf,.pdf,.doc,.docx,image/png,image/jpeg";
 
 /** Which existing screens this employee may open; worked out on the server from their permissions. */
 export interface CoordinatorAccess {
@@ -48,7 +52,7 @@ export function suggestedActions(access: CoordinatorAccess, path: string | null)
  * a chat panel over the page. It is a fixed layer, so the page underneath never moves or resizes. Minimise keeps the
  * conversation; close clears it. Escape minimises, and focus returns to the launcher.
  */
-export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess }) {
+export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: CoordinatorAccess; aiOn?: boolean }) {
   const pathname = usePathname();
   const { intakeId, serviceUserId } = pageContext(pathname);
   const actions = suggestedActions(access, pathname);
@@ -61,6 +65,9 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
   const scrollBottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<File[]>([]);
+  const [busyLabel, setBusyLabel] = useState("Searching your CRM records…");
 
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => { if (open && messages.length > 1) scrollBottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, open, sending]);
@@ -70,27 +77,83 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
     setExpanded(false);
     if (clear) {
       setMessages([initial]);
+      setPending([]);
       setQuery("");
       setError(null);
     }
     requestAnimationFrame(() => launcher.current?.focus());
   }, []);
 
-  async function ask(q: string) {
+  async function ask(q: string, opts: { intakeId?: string; attached?: string[]; hidden?: boolean } = {}) {
     const text = q.trim();
-    if (text.length < 2 || sending) return;
-    const history = messages.slice(1).slice(-8).map((m) => ({ role: m.role, content: m.content }));
-    setMessages((m) => [...m, { role: "user", content: text }]);
+    if (text.length < 2 || (sending && !opts.hidden)) return;
+    const history = messages.slice(1).filter((m) => !m.choices).slice(-8).map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+    if (!opts.hidden) setMessages((m) => [...m, { role: "user", content: text }]);
     setQuery("");
     setSending(true);
+    setBusyLabel(aiOn ? "AI CSB Coordinator is working on it…" : "Searching your CRM records…");
     setError(null);
     try {
-      const r = await askCsbCoordinator({ question: text, intakeId, path: pathname ?? undefined, history });
-      setMessages((m) => [...m, { role: "assistant", content: r.answer, links: r.links }]);
+      const r = await askCsbCoordinator({ question: text, intakeId: opts.intakeId ?? intakeId, path: opts.intakeId ? `/rota/coordinator/${opts.intakeId}` : (pathname ?? undefined), history, attached: opts.attached });
+      setMessages((m) => [...m, { role: "assistant", content: r.answer, links: r.links, notice: r.notice }]);
     } catch {
       setError("The assistant couldn't answer just now. Nothing was changed in the CRM. Try again, or open the screen you need from the actions above.");
     } finally {
       setSending(false);
+    }
+  }
+
+  /** The paperclip: choose files, then choose (or confirm) the intake they belong to. */
+  async function onFiles(list: FileList | null) {
+    const files = Array.from(list ?? []).slice(0, 3);
+    if (fileInput.current) fileInput.current.value = "";
+    if (!files.length || sending) return;
+    setError(null);
+    setPending(files);
+    const t = await coordinatorUploadTargets(pathname ?? null);
+    if (!t.ok) {
+      setPending([]);
+      setError(t.error);
+      return;
+    }
+    const choices: UploadChoice[] = [
+      ...(t.data.current ? [{ key: `i-${t.data.current.id}`, label: `Add to ${t.data.current.reference} (open on this page)`, target: "intake" as const, intakeId: t.data.current.id, serviceUserId: null }] : []),
+      { key: "new", label: t.data.serviceUser ? `Start a new intake for ${t.data.serviceUser.name}` : "Start a new intake (new person)", target: "new", intakeId: null, serviceUserId: t.data.serviceUser?.id ?? null },
+      ...t.data.recent.map((r) => ({ key: `i-${r.id}`, label: `Add to ${r.reference} ${r.title}`, target: "intake" as const, intakeId: r.id, serviceUserId: null })),
+    ];
+    const names = files.map((f) => f.name).join(", ");
+    setMessages((m) => [...m, { role: "user", content: `📎 ${names}` }, { role: "assistant", content: "Where should this go? Choose the care intake, or start a new one. Nothing is approved or added to anyone's record from here.", choices }]);
+  }
+
+  async function attach(choice: UploadChoice) {
+    const files = pending;
+    if (!files.length || sending) return;
+    setPending([]);
+    setMessages((m) => m.map((x) => (x.choices ? { ...x, choices: undefined, content: `${x.content}\n\nChosen: ${choice.label}.` } : x)));
+    setSending(true);
+    setBusyLabel("Uploading securely and reading the document…");
+    setError(null);
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    fd.set("target", choice.target);
+    if (choice.intakeId) fd.set("intakeId", choice.intakeId);
+    if (choice.serviceUserId) fd.set("serviceUserId", choice.serviceUserId);
+    const r = await uploadToCoordinator(fd).catch(() => ({ ok: false as const, error: "The document could not be attached just now. Nothing was saved." }));
+    setSending(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    const d = r.data;
+    const review = { label: `Open the full review (${d.reference})`, href: d.href };
+    const head = d.alreadyOnIntake
+      ? `This document is already on ${d.reference}, so I haven't started another intake or read it again.`
+      : [`${d.created ? `Started ${d.reference} and attached` : `Attached to ${d.reference}:`} ${d.added.join(", ") || "nothing new"}.`, d.duplicates.length ? `Already on this intake, so not added or read again: ${d.duplicates.join(", ")}.` : "", d.failed.length ? `Could not be read just now: ${d.failed.map((f) => `${f.name} (${f.error})`).join("; ")}. Press Read again on the intake, or add the facts by hand.` : ""].filter(Boolean).join(" ");
+    if (aiOn && d.added.length && !d.failed.length) {
+      setMessages((m) => [...m, { role: "assistant", content: `${head}\n\nNow checking what was extracted…`, links: [review] }]);
+      await ask("I've uploaded this council support plan. Please process everything and prepare the service user, care plan, risks, care package and rota for review.", { intakeId: d.intakeId, attached: d.added, hidden: true });
+    } else {
+      setMessages((m) => [...m, { role: "assistant", content: `${head}\n\n${d.summary}`, links: [review] }]);
     }
   }
   function submit(e: FormEvent) {
@@ -102,7 +165,7 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
     if (window.matchMedia("(max-width: 639px)").matches) hide(false);
   }
 
-  const uploadHref = actions.find((a) => a.key === "support-plan")?.href ?? null;
+  const canAttach = access.intake;
   const context = intakeId ? "Using the care intake open on this page" : serviceUserId ? "Using the service user open on this page" : null;
 
   return (
@@ -132,7 +195,7 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
           <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-[12px]" data-testid="ai-status">
             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,.15)]" />
             <span className="whitespace-nowrap font-medium text-[#15803d]">Online</span>
-            <span className="min-w-0 truncate text-[#5d717c]">· Answers from your CRM records only</span>
+            <span className="min-w-0 truncate text-[#5d717c]">{aiOn ? "· Claude AI, using your CRM records" : "· Answers from your CRM records only"}</span>
           </div>
           {context ? <p className="border-b border-[#e3eff0] bg-[#f2f9f9] px-5 py-1.5 text-[12px] font-medium text-[#0b6b74]" data-testid="ai-context">{context}</p> : null}
 
@@ -142,6 +205,15 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
                 {m.role === "assistant" ? <span aria-hidden="true" className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#e3f1f1] text-[#0b6b74]"><Sparkle size={15} weight="fill" /></span> : null}
                 <div className={`max-w-[86%] whitespace-pre-wrap px-4 py-3 text-[13.5px] leading-[21px] ${m.role === "user" ? "rounded-[18px] rounded-br-[6px] bg-[#0b6b74] text-white" : "rounded-[18px] rounded-tl-[6px] bg-[#eff4f8] text-[#22404d]"}`}>
                   <span className="sr-only">{m.role === "user" ? "You: " : "AI CSB Coordinator: "}</span>{m.content}
+                  {m.notice ? <span className="mt-2 block whitespace-normal rounded-[10px] border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] leading-[17px] text-amber-900" data-testid="ai-notice">{m.notice}</span> : null}
+                  {m.choices?.length ? (
+                    <span className="mt-2.5 flex flex-col gap-1.5 whitespace-normal" data-testid="ai-upload-choices">
+                      {m.choices.map((c) => (
+                        <button key={c.key} type="button" onClick={() => void attach(c)} disabled={sending} className="rounded-[10px] border border-[#b9d8da] bg-white px-3 py-2 text-left text-[12.5px] font-semibold text-[#0b6b74] hover:bg-[#e3f1f1] disabled:opacity-50">{c.label}</button>
+                      ))}
+                      <button type="button" onClick={() => { setPending([]); setMessages((all) => all.map((x) => (x.choices ? { ...x, choices: undefined, content: `${x.content}\n\nCancelled. Nothing was uploaded.` } : x))); }} className="self-start px-1 text-[12px] text-[#5d717c] underline">Cancel</button>
+                    </span>
+                  ) : null}
                   {m.links?.length ? (
                     <span className="mt-2.5 flex flex-wrap gap-1.5 whitespace-normal">
                       {m.links.map((l) => (
@@ -171,13 +243,13 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Each action opens the CRM screen for that job. Nothing is created, approved or published from the chat.</p>
+                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">{aiOn ? "Each action opens the CRM screen for that job. I can prepare drafts for review, but nothing is approved or published from the chat." : "Each action opens the CRM screen for that job. Nothing is created, approved or published from the chat."}</p>
               </nav>
             ) : null}
             {sending ? (
               <div role="status" className="flex items-center gap-2 pl-9 text-[12.5px] text-[#5d717c]">
                 <span aria-hidden="true" className="flex gap-1"><span className="ai-csb-dot" /><span className="ai-csb-dot [animation-delay:120ms]" /><span className="ai-csb-dot [animation-delay:240ms]" /></span>
-                Searching your CRM records…
+                {busyLabel}
               </div>
             ) : null}
             {error ? <div role="alert" className="rounded-[12px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12.5px] text-rose-800">{error}</div> : null}
@@ -186,10 +258,13 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
 
           <form onSubmit={submit} className="ai-csb-input border-t border-[#e6edf0] bg-white px-4 pt-3">
             <div className="flex items-end gap-2 rounded-[16px] border border-[#d8e3e7] bg-[#f8fafb] py-1.5 pl-1.5 pr-1.5 focus-within:border-[#0b6b74] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(11,107,116,.12)]">
-              {uploadHref ? (
-                <Link href={uploadHref} onClick={afterAction} aria-label="Attach a document: opens the secure upload in Care Coordinator" title="Attach a support plan or referral document" data-testid="ai-attach" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4b6470] hover:bg-[#e3f1f1] hover:text-[#0b6b74]">
-                  <Paperclip size={20} aria-hidden="true" />
-                </Link>
+              {canAttach ? (
+                <>
+                  <input ref={fileInput} type="file" accept={ACCEPT} multiple className="sr-only" tabIndex={-1} aria-hidden="true" data-testid="ai-attach-input" onChange={(e) => void onFiles(e.target.files)} />
+                  <button type="button" onClick={() => fileInput.current?.click()} disabled={sending} aria-label="Attach a support plan or referral document" title="Attach a support plan or referral document (PDF, up to 4 MB)" data-testid="ai-attach" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4b6470] hover:bg-[#e3f1f1] hover:text-[#0b6b74] disabled:opacity-40">
+                    <Paperclip size={20} aria-hidden="true" />
+                  </button>
+                </>
               ) : null}
               <label htmlFor="ai-csb-input" className="sr-only">Message AI CSB Coordinator</label>
               <textarea
