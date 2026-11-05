@@ -20,6 +20,8 @@ type Pilot = {
   completeRoles: OrgRole[];
   reviewRoles: OrgRole[];
   subjectType: "SELF" | null;
+  /** CRM records a copy may be linked to (the person the form is about). */
+  linkTypes: ("SERVICE_USER" | "STAFF_MEMBER")[];
   instructions: string;
   changeSummary: string;
   fields: z.input<typeof FormSchema>;
@@ -36,6 +38,8 @@ export const PILOT_FORMS: Pilot[] = [
     completeRoles: EVERYONE,
     reviewRoles: ["ORG_ADMIN", "COMPLIANCE_LEAD"],
     subjectType: "SELF",
+    // A declaration is already about its author, so it shows on their staff record without a separate link.
+    linkTypes: [],
     instructions: "Complete this before you start work and again each year. A declaration does not automatically stop you working: your manager looks at each one and decides what, if anything, needs to happen. Only you and the people who review declarations can see it.",
     changeSummary: "First on-screen version, based on the CSB-FRM-020 document.",
     fields: [
@@ -63,6 +67,7 @@ export const PILOT_FORMS: Pilot[] = [
     completeRoles: ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "CARE_COORDINATOR"],
     reviewRoles: ["ORG_ADMIN", "COMPLIANCE_LEAD"],
     subjectType: null,
+    linkTypes: ["SERVICE_USER", "STAFF_MEMBER"],
     instructions: "Start an entry on the day a request arrives, however it is made, and save it as a draft as you go. Submit it for review once the response has been sent. Record only what is needed to identify the request: the information itself stays in its own records.",
     changeSummary: "First on-screen version, based on the CSB-FRM-013 document.",
     fields: [
@@ -95,7 +100,7 @@ export async function syncPilotForms(): Promise<number> {
     const fields = FormSchema.parse(p.fields);
     const hash = hashOf(p);
     await db.$transaction(async (tx) => {
-      const meta = { title: p.title, description: p.description, categoryCode: p.categoryCode, completeRoles: p.completeRoles, reviewRoles: p.reviewRoles, subjectType: p.subjectType };
+      const meta = { title: p.title, description: p.description, categoryCode: p.categoryCode, completeRoles: p.completeRoles, reviewRoles: p.reviewRoles, subjectType: p.subjectType, linkTypes: p.linkTypes };
       const existing = await tx.formDefinition.findFirst({ where: { organisationId: null, ref: p.ref }, include: { currentVersion: true } });
       const def = existing ? await tx.formDefinition.update({ where: { id: existing.id }, data: meta }) : await tx.formDefinition.create({ data: { ...meta, ref: p.ref } });
       if (existing?.currentVersion?.contentHash === hash) return;

@@ -1422,6 +1422,7 @@ model StaffMember {
   createdAt           DateTime                      @default(now())
   updatedAt           DateTime                      @updatedAt
   missedConfirmations MissedCallCarerConfirmation[]
+  formLinks           FormRecordLink[]
 
   profile            RotaStaffProfile?
   compliance         StaffCompliance[]
@@ -1673,6 +1674,7 @@ model ServiceUser {
   bodyMapObservations   BodyMapObservation[]
   safeguardingDecisions SafeguardingAuthorityDecision[]
   callNotes             CallNote[]
+  formLinks             FormRecordLink[]
 
   @@unique([organisationId, reference])
   @@unique([organisationId, csbReference])
@@ -5061,6 +5063,8 @@ model FormDefinition {
   completeRoles    OrgRole[]
   reviewRoles      OrgRole[]
   subjectType      String? // SELF: the record is about the person filling it in
+  /// CRM records a copy of this form may be linked to: SERVICE_USER, STAFF_MEMBER (Forms PR 4).
+  linkTypes        String[]      @default([])
   currentVersionId String?       @unique
   currentVersion   FormVersion?  @relation("CurrentFormVersion", fields: [currentVersionId], references: [id])
   createdAt        DateTime      @default(now())
@@ -5115,6 +5119,7 @@ model FormRecord {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   events         FormRecordEvent[]
+  links          FormRecordLink[]
 
   @@unique([organisationId, reference])
   @@index([organisationId, status])
@@ -5127,11 +5132,34 @@ model FormRecordEvent {
   organisationId String
   recordId       String
   record         FormRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  type           String // CREATED | SAVED | SUBMITTED | RETURNED | RESUBMITTED | APPROVED | VOIDED | PRINTED
+  type           String // CREATED | SAVED | SUBMITTED | RETURNED | RESUBMITTED | APPROVED | VOIDED | PRINTED | LINKED | UNLINKED
   actorId        String
   note           String?
   data           Json?
   createdAt      DateTime   @default(now())
 
   @@index([recordId])
+}
+
+/// Links a form record to the CRM record it is about (Forms PR 4). The person's details stay in their own record:
+/// the link holds only ids. Removing a link keeps the row, marked removed with who, when and why.
+model FormRecordLink {
+  id             String        @id @default(cuid())
+  organisationId String
+  recordId       String
+  record         FormRecord    @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  entityType     String // SERVICE_USER | STAFF_MEMBER
+  serviceUserId  String?
+  serviceUser    ServiceUser?  @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  staffMemberId  String?
+  staffMember    StaffMember?  @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdAt      DateTime      @default(now())
+  removedAt      DateTime?
+  removedById    String?
+  removeReason   String?
+
+  @@index([recordId])
+  @@index([serviceUserId])
+  @@index([staffMemberId])
 }

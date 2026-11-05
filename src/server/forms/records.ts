@@ -60,8 +60,11 @@ async function nextReference(tx: Tx, orgId: string, ref: string) {
   return `${prefix}${String(n + 1).padStart(4, "0")}`;
 }
 
-/** Starts a draft from the form's current published version. */
-export async function startForm(ctx: Ctx, definitionId: string) {
+/**
+ * Starts a draft from the form's current published version. `onCreate` runs in the same transaction (used to link
+ * the new record to the person it is about).
+ */
+export async function startForm(ctx: Ctx, definitionId: string, onCreate?: (tx: Tx, record: { id: string; organisationId: string; reference: string }, def: { linkTypes: string[] }) => Promise<unknown>) {
   const orgId = requireOrg(ctx);
   const parsed = Id.safeParse(definitionId);
   if (!parsed.success) throw new NotFoundError("Form");
@@ -79,6 +82,7 @@ export async function startForm(ctx: Ctx, definitionId: string) {
         });
         await tx.formRecordEvent.create({ data: { organisationId: orgId, recordId: record.id, type: "CREATED", actorId: ctx.userId, data: { version: def.currentVersion!.versionNumber } } });
         await audit({ organisationId: orgId, actorId: ctx.userId, action: "form.record.created", entityType: "FormRecord", entityId: record.id, data: { ref: def.ref, reference, version: def.currentVersion!.versionNumber } }, tx);
+        if (onCreate) await onCreate(tx, record, def);
         return record;
       });
     } catch (e) {
@@ -89,7 +93,7 @@ export async function startForm(ctx: Ctx, definitionId: string) {
   throw new ConflictError("Could not start the form. Please try again.");
 }
 
-async function loadRecord(ctx: Ctx, recordId: string) {
+export async function loadRecord(ctx: Ctx, recordId: string) {
   const orgId = requireOrg(ctx);
   const parsed = Id.safeParse(recordId);
   if (!parsed.success) throw new NotFoundError("Form record");
