@@ -191,13 +191,16 @@ test.describe("Policy & Compliance, approved design", () => {
     expect((await page.goto("/compliance/reports"))?.status()).toBe(404);
   });
 
-  test("the policy page keeps every view as a tab", async ({ page }) => {
+  test("the policy page keeps every record view next to the reader", async ({ page }) => {
     await signIn(page);
     await page.goto("/policies");
-    const href = await page.locator('a[href^="/policies/c"]').first().getAttribute("href");
+    const href = await page.locator('a[href^="/policies/c"]:not([href^="/policies/coverage"]):not([href^="/policies/cross"])').first().getAttribute("href");
     await page.goto(href!);
-    for (const name of ["Review Sheet", "Versions", "Read & Sign", "Regulation Map"]) await expect(page.getByRole("tab", { name: new RegExp(name) })).toBeVisible();
-    await page.getByRole("tab", { name: /Versions/ }).click();
-    await expect(page.getByRole("tab", { name: /Versions/ })).toHaveAttribute("data-state", "active");
+    await expect(page.getByTestId("reader-nav").getByRole("link", { name: "Review Sheet" })).toBeVisible();
+    const views = page.getByTestId("record-views");
+    for (const name of ["Versions", "Read & Sign", "Regulation Map"]) await expect(views.getByRole("link", { name: new RegExp(name) })).toBeVisible();
+    await views.getByRole("link", { name: /Versions/ }).click();
+    await expect(views.getByRole("link", { name: /Versions/ })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("version-history")).toBeVisible();
   });
 });

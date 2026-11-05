@@ -29,7 +29,8 @@ import { askAssistant, type AssistantResult } from "@/server/search/assistant";
 
 export type AskState = { question: string; result?: AssistantResult; error?: string };
 
-import { handle, str } from "./action-kit";
+import { handle, handleData, str } from "./action-kit";
+import { BookmarkKindSchema, toggleBookmark } from "@/server/policies/bookmarks";
 import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
@@ -193,6 +194,17 @@ export async function acknowledgeAction(fd: FormData) {
 }
 export async function logReadAndSignAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await logReadAndSign(ctx, str(fd, "policyId"))), "Read and signed. Your signature has been logged");
+}
+// ───────── policy reader
+const ToggleBookmark = z.object({ policyId: z.string().regex(/^[a-z0-9]{8,40}$/i, "That policy could not be found"), kind: BookmarkKindSchema });
+
+/** Policy Reader "Mark as Important" / "Add to Reading List": toggles the signed-in person's own marker, no page reload. */
+export async function togglePolicyBookmarkAction(input: { policyId: string; kind: string }) {
+  return handleData(async (ctx) => {
+    const r = ToggleBookmark.safeParse(input);
+    if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "That action could not be completed");
+    return toggleBookmark(ctx, r.data.policyId, r.data.kind);
+  });
 }
 // ───────── policy library workspace
 const RecordId = z.string().regex(/^[a-z0-9]{8,40}$/i, "That record could not be found");
