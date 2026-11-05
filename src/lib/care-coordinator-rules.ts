@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hhmm, isIsoDate, parseHhmm, WEEKDAYS } from "@/lib/london";
 import { FUNDED_BY, hoursToMinutes, weeklyTotals, type FundedBy } from "@/lib/su-import-rules";
+import { findFrameworki, frameworkiReferences, issuerShort } from "@/lib/reference-numbers";
 
 /**
  * AI Care Coordinator: pure rules shared by the server and the review screen (no database, no secrets).
@@ -78,6 +79,10 @@ export const externalReferenceValue = z.object({
   type:z.enum(EXTERNAL_REFERENCE_TYPES),
   issuer:s(180),
   value:s(120),
+  /** The council system or label printed with the number, e.g. "Frameworki". */
+  system:opt(80).optional(),
+  /** Set by a reader when the words around the number do not say what it identifies. Cleared when a person edits it. */
+  typeUnclear:z.literal(true).optional(),
 }).strict();
 export const EXTERNAL_REFERENCE_LABEL: Record<(typeof EXTERNAL_REFERENCE_TYPES)[number], string> = { NHS: "NHS number", COUNCIL_CLIENT: "Council client number", COUNCIL_FRAMEWORK: "Council framework / contract ID", COUNCIL_PACKAGE: "Council package reference", OTHER_EXTERNAL: "Other reference" };
 export const CONTACT_KINDS = ["NEXT_OF_KIN", "FAMILY", "GP", "PHARMACY", "SOCIAL_WORKER", "DISTRICT_NURSE", "OTHER"] as const;
@@ -238,7 +243,7 @@ export function displayValue(destination: string, v: unknown): string {
   const o = v as Record<string, unknown>;
   const join = (...parts: unknown[]) => parts.filter((p) => p !== null && p !== undefined && p !== "" && p !== false).join(" · ");
   switch (destination) {
-    case "externalReference": return join(EXTERNAL_REFERENCE_LABEL[o.type as keyof typeof EXTERNAL_REFERENCE_LABEL] ?? o.type, o.value, o.issuer ? `issued by ${o.issuer}` : null, o.type === "COUNCIL_FRAMEWORK" ? "Shared contract ID, not proof of identity" : null);
+    case "externalReference": return join(o.typeUnclear ? "Type to confirm" : (EXTERNAL_REFERENCE_LABEL[o.type as keyof typeof EXTERNAL_REFERENCE_LABEL] ?? o.type), o.system, o.value, o.issuer ? `issued by ${o.issuer}` : null, o.type === "COUNCIL_FRAMEWORK" && !o.typeUnclear ? "Shared contract ID, not proof of identity" : null);
     case "contact": return join(CONTACT_KIND_LABEL[o.kind as keyof typeof CONTACT_KIND_LABEL] ?? o.kind, o.name, o.relationship, o.phone, o.email, o.isEmergency ? "Emergency contact" : null, o.isKeyHolder ? "Key holder" : null, o.authority ? `Authority as written: ${o.authority}` : null);
     case "risk": return join(o.title, o.level ? `${o.level}${o.levelIsProvisional ? " (provisional)" : ""}` : "Level not set", o.hazard);
     case "visit": {
@@ -345,6 +350,9 @@ export function realDate(iso: string) {
   return d.toISOString().slice(0, 10) === iso;
 }
 
+/** Shown on a reference fact whose type a person must choose. */
+export const UNCLEAR_REFERENCE = "Frameworki is the council's information system, so the label alone does not say what this number identifies. Edit it to choose client, package or framework before approving.";
+
 // ── From a reading to facts ────────────────────────────────────────────────
 
 export interface FactSeed {
@@ -362,7 +370,7 @@ export interface FactSeed {
 export interface Reading {
   document: { kind: DocKind; issuer: string | null; issuerKind: IssuerKind; documentDate: string | null; pageCount: number };
   person: { field: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
-  references: { type: (typeof EXTERNAL_REFERENCE_TYPES)[number]; issuer: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
+  references: { type: (typeof EXTERNAL_REFERENCE_TYPES)[number]; issuer: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"]; system?: string | null; typeClear?: boolean }[];
   contacts: { kind: (typeof CONTACT_KINDS)[number]; name: string; relationship: string | null; phone: string | null; email: string | null; address: string | null; isEmergency: boolean; isKeyHolder: boolean; authority: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   carerPreferences: { kind: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   carePlan: { section: string; canDo: string | null; support: string | null; how: string | null; outcome: string | null; clarify: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
@@ -397,9 +405,14 @@ export function readingToFacts(r: Reading): FactSeed[] {
     if (!value) continue;
     add({ section: "PERSONAL", destination: `person.${p.field}`, label: PERSON_FIELDS[p.field as PersonField].label, value, page: p.page, quote: p.quote, temporal: p.temporal });
   }
-  for(const ref of r.references ?? []) add({section:"PERSONAL",destination:"externalReference",
-    label:`${EXTERNAL_REFERENCE_LABEL[ref.type]} (${ref.issuer})`,value:{type:ref.type,issuer:ref.issuer,value:ref.value},
-    page:ref.page,quote:ref.quote,temporal:ref.temporal});
+  for(const ref of r.references ?? []){
+    const unclear=ref.typeClear===false;
+    add({section:"PERSONAL",destination:"externalReference",
+      label:ref.system?`${issuerShort(ref.issuer)} – ${ref.system} (${unclear?"type to confirm":EXTERNAL_REFERENCE_LABEL[ref.type].toLowerCase()})`:`${EXTERNAL_REFERENCE_LABEL[ref.type]} (${ref.issuer})`,
+      value:{type:ref.type,issuer:ref.issuer,value:ref.value,...(ref.system?{system:ref.system}:{}),...(unclear?{typeUnclear:true}:{})},
+      page:ref.page,quote:ref.quote,temporal:ref.temporal,
+      note:unclear?UNCLEAR_REFERENCE:undefined});
+  }
   for (const c of r.contacts) add({ section: "CONTACTS", destination: "contact", label: `${CONTACT_KIND_LABEL[c.kind]}: ${c.name}`, value: { kind: c.kind, name: c.name, relationship: c.relationship, phone: c.phone, email: c.email, address: c.address, isEmergency: c.isEmergency, isKeyHolder: c.isKeyHolder, authority: c.authority }, page: c.page, quote: c.quote, temporal: c.temporal });
   for (const p of r.carerPreferences) {
     const g = /\b(female|woman|women|lady)\b/i.test(p.value) ? "FEMALE" : /\b(male|man|men)\b/i.test(p.value) ? "MALE" : null;
@@ -476,6 +489,7 @@ export function basicRead(pages: string[]): Reading {
       if (contact) { r.contacts.push({ ...parseContact(contact[1], value, /emergency/.test(label)), ...base }); continue; }
       if (/carer gender|gender of carer|care worker gender|carer preference|preferences? for carers?/.test(label)) { r.carerPreferences.push({ kind: /gender/.test(label) ? "GENDER" : "OTHER", value, ...base }); continue; }
       const pkg = PACKAGE_LABELS.find(([re]) => re.test(label));
+      if (pkg && findFrameworki(line).length) continue; // a Frameworki number is never proposed as the care package reference
       if (pkg) { r.package.push({ field: pkg[1], value: pkg[1] === "hoursPerWeek" ? (/(\d+(?:\.\d+)?)/.exec(value)?.[1] ?? value) : value, ...base }); continue; }
       const plan = PLAN_LABELS.find(([re]) => re.test(label));
       if (plan) { r.carePlan.push({ section: plan[1], canDo: null, support: plan[1] === "outcomes" ? null : value, how: null, outcome: plan[1] === "outcomes" ? value : null, clarify: null, ...base }); continue; }
@@ -488,6 +502,7 @@ export function basicRead(pages: string[]): Reading {
       if (/^(pressure area|wound|skin|bruis)/.test(label)) { r.skin.push({ date: null, area: null, finding: lv[1]!.trim(), description: value, ...base, temporal: historicalDoc ? "HISTORICAL" : "UNKNOWN" }); continue; }
     }
   });
+  r.references.push(...frameworkiReferences(pages, r.document.issuer).map((f) => ({ type: f.type, typeClear: f.typeClear, issuer: f.issuer, system: f.system, value: f.value, page: f.page, quote: f.quote, temporal: "CURRENT" as const })));
   if (!r.person.some((p) => p.field === "dateOfBirth") && r.document.kind === "SUPPORT_PLAN") r.missing.push("Date of birth");
   if (r.document.kind === "SUPPORT_PLAN" && !r.visits.length) r.missing.push("No timetable rows were recognised. Add the visits by hand.");
   return r;

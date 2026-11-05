@@ -4617,24 +4617,35 @@ model ServiceUserReferenceCounter {
  * Store only encrypted values and keyed fingerprints for exact lookup.
  */
 model ServiceUserExternalReference {
-  id               String      @id @default(cuid())
-  organisationId   String
-  serviceUserId    String
-  serviceUser      ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
-  type             String
-  issuer           String
-  issuerKey        String
-  valueCipher      String
-  valueHash        String
-  verified         Boolean     @default(false)
-  verificationNote String?
-  sourceDocumentId String?
-  sourcePage       Int?
-  createdById      String
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  verifiedById     String?
-  verifiedAt       DateTime?
+  id                 String      @id @default(cuid())
+  organisationId     String
+  serviceUserId      String
+  serviceUser        ServiceUser @relation(fields: [serviceUserId, organisationId], references: [id, organisationId], onDelete: Cascade)
+  type               String
+  issuer             String
+  issuerKey          String
+  valueCipher        String
+  valueHash          String
+  verified           Boolean     @default(false)
+  verificationNote   String?
+  sourceDocumentId   String?
+  sourcePage         Int?
+  createdById        String
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  verifiedById       String?
+  verifiedAt         DateTime?
+  /// The council system or label the number belongs to, as written (e.g. "Frameworki"). Display only.
+  systemLabel        String?
+  /// The original wording around the number in its source document, encrypted like the value.
+  sourceQuoteCipher  String?
+  /// ACTIVE | SUPERSEDED. A superseded row is kept for audit and never used for search or conflict checks.
+  status             String      @default("ACTIVE")
+  supersededAt       DateTime?
+  supersededByUserId String?
+  /// The corrected reference that replaced this one, when there is one.
+  replacedById       String?
+  supersedeReason    String?
 
   @@unique([organisationId, serviceUserId, type, issuerKey, valueHash])
   @@index([organisationId, type, valueHash])

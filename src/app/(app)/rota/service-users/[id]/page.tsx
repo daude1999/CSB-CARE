@@ -38,11 +38,12 @@ import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communicat
 import { ServiceUserDocuments } from "@/components/su-documents";
 import { BodyMapSection } from "@/components/body-map";
 import { CallNotesSection } from "@/components/call-notes";
+import { ServiceUserReferenceNumbers } from "@/components/su-reference-numbers";
 
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["call-notes", "Call Notes"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["references", "Reference Numbers"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["call-notes", "Call Notes"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
@@ -52,6 +53,7 @@ type TabKey = (typeof TABS)[number][0];
 const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Overview", tabs: ["overview"] },
   { label: "Personal details", tabs: ["details"] },
+  { label: "Reference Numbers", tabs: ["references"] },
   { label: "Care", tabs: ["care-plans", "risks", "package", "medication"] },
   { label: "Health and safety", tabs: ["incidents", "bodymap"] },
   { label: "Visits", tabs: ["visits", "template", "rota", "notes", "missed"] },
@@ -147,7 +149,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       <PageHeader
         title={suName(su)}
         back="/rota/service-users"
-        subtitle={`${su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
+        subtitle={`${su.csbReference ?? su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
         actions={<StatusBadge status={su.status} />}
       />
       <Flash searchParams={sp} />
@@ -557,6 +559,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           )}
         </Card>
       ) : null}
+
+      {tab === "references" ? <ServiceUserReferenceNumbers ctx={ctx} serviceUserId={su.id} base={base} /> : null}
 
       {tab === "template" && suTemplates ? <ServiceUserTemplateTab base={base} rows={suTemplates} weeks={tplWeeks} days={tplDays} cycleLength={cycleLength} canEdit={hasOrgPermission(ctx, "rota.edit")} canBuild={canBuild} serviceUserId={su.id} confirmOff={sp.off} /> : null}
       {future ? <ServiceUserFutureRota base={base} from={future.from} weeks={future.weeks} thisMonday={mondayOf(today)} preview={futurePreview} error={futureError} /> : null}

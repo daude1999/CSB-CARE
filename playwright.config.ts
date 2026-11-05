@@ -19,6 +19,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { DATABASE_URL, AI_PROVIDER: "simulated", STORAGE_PROVIDER: "local", STORAGE_LOCAL_DIR: ".data/e2e-storage", EMAIL_PROVIDER: "log", COOKIE_SECURE: "false", SHOW_DEMO_LOGINS: "true", LOG_LEVEL: "warn" },
+    env: { DATABASE_URL, AI_PROVIDER: "simulated", STORAGE_PROVIDER: "local", STORAGE_LOCAL_DIR: ".data/e2e-storage", EMAIL_PROVIDER: "log", COOKIE_SECURE: "false", SHOW_DEMO_LOGINS: "true", LOG_LEVEL: "warn", CSB_REFERENCE_SECRET: "E2E-ONLY-REFERENCE-KEY" },
   },
 });

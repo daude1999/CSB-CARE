@@ -14,6 +14,8 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { checkArea, contactData, contactSchema, detailData, detailsSchema, nextServiceUserReference } from "./service-users";
 import { packageSchema } from "./packages";
+import { linkExternalReferenceInTx } from "./external-references";
+import { FRAMEWORKI, TOWER_HAMLETS_COUNCIL, findFrameworki } from "@/lib/reference-numbers";
 import { canSeeSensitive, categoriesFor, MAX_DOCUMENT_BYTES, parseDetails, promptCarePlanReview, storePrivateFile, type UploadedFile } from "./su-documents";
 
 /**
@@ -285,6 +287,7 @@ export async function confirmImport(ctx: Ctx, input: unknown, files: UploadedFil
       data: {
         organisationId: org,
         reference,
+        csbReference: reference,
         status: careActive ? "ACTIVE" : "ASSESSMENT",
         startDate: careActive ? dbDate(d.careActiveFrom!) : null,
         areaId: area?.id ?? null,
@@ -309,7 +312,7 @@ export async function confirmImport(ctx: Ctx, input: unknown, files: UploadedFil
     let packageId: string | null = null;
     if (d.package.startDate) {
       const requirements = [d.package.funderName ? `Funder: ${d.package.funderName}` : null, d.package.requirements || null].filter(Boolean).join("\n") || null;
-      const pkg = await tx.carePackage.create({ data: { organisationId: org, serviceUserId: su.id, reference: d.package.reference || d.person.councilReference || null, commissionedMinutesPerWeek: d.package.commissionedMinutesPerWeek ?? null, startDate: dbDate(d.package.startDate), endDate: d.package.endDate ? dbDate(d.package.endDate) : null, requirements } });
+      const pkg = await tx.carePackage.create({ data: { organisationId: org, serviceUserId: su.id, reference: d.package.reference || null, commissionedMinutesPerWeek: d.package.commissionedMinutesPerWeek ?? null, startDate: dbDate(d.package.startDate), endDate: d.package.endDate ? dbDate(d.package.endDate) : null, requirements } });
       packageId = pkg.id;
       await audit({ organisationId: org, actorId: ctx.userId, action: "care.package.created", entityType: "ServiceUser", entityId: su.id, data: { packageId: pkg.id, minutes: pkg.commissionedMinutesPerWeek, via: "support-plan-import" } }, tx);
     }
@@ -351,8 +354,19 @@ export async function confirmImport(ctx: Ctx, input: unknown, files: UploadedFil
       documents++;
     }
 
+    // The council's reference for the person goes to the encrypted reference register, unverified, never into the
+    // care package reference. "LBTH Frameworki 1088676" is stored as 1088676 with the Frameworki label.
+    let councilReference: string | null = null;
+    if (d.person.councilReference) {
+      const fw = findFrameworki(d.person.councilReference)[0];
+      const issuer = fw?.lbth || /tower hamlets/i.test(`${d.package.funderName ?? ""}`) ? TOWER_HAMLETS_COUNCIL : (d.package.funderName?.trim() || "Council (check the issuer)");
+      const plan = await tx.serviceUserDocument.findFirst({ where: { serviceUserId: su.id, category: "COUNCIL_SUPPORT_PLAN" }, select: { id: true } });
+      const res = await linkExternalReferenceInTx(tx, ctx, org, su.id, { type: "COUNCIL_CLIENT", issuer: issuer.slice(0, 180), value: (fw?.value ?? d.person.councilReference).slice(0, 120), systemLabel: fw ? FRAMEWORKI : null, sourceDocumentId: plan?.id ?? null, sourceQuote: d.person.councilReference, verificationNote: "Entered as the council reference when setting up from the support plan; not verified" });
+      councilReference = res.status;
+    }
+
     const totals = weeklyTotals(d.visits);
-    await audit({ organisationId: org, actorId: ctx.userId, action: "serviceUser.import.confirmed", entityType: "ServiceUser", entityId: su.id, data: { contacts: d.contacts.length, templates, documents, packageId, careActive, weeklyMinutes: totals.total, councilMinutes: totals.COUNCIL, flags: d.flags.slice(0, 40) } as Prisma.InputJsonValue }, tx);
+    await audit({ organisationId: org, actorId: ctx.userId, action: "serviceUser.import.confirmed", entityType: "ServiceUser", entityId: su.id, data: { contacts: d.contacts.length, templates, documents, packageId, careActive, councilReference, weeklyMinutes: totals.total, councilMinutes: totals.COUNCIL, flags: d.flags.slice(0, 40) } as Prisma.InputJsonValue }, tx);
     return { serviceUserId: su.id, reference, contacts: d.contacts.length, templates, documents, packageId, careActive };
   });
 }
