@@ -12,7 +12,7 @@ import { NotFoundError } from "@/lib/errors";
 import { getIntake, readIntakeDocument } from "@/server/care/coordinator/intake";
 import { coordinatorIntent } from "@/lib/coordinator-chat-intent";
 import { createHash } from "node:crypto";
-import { addDocuments, coordinatorAccess, createIntake } from "@/server/care/coordinator/intake";
+import { addDocuments, coordinatorAccess, createIntake, listIntakes } from "@/server/care/coordinator/intake";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
 import { ConflictError, ValidationError } from "@/lib/errors";
 
@@ -31,6 +31,17 @@ const requestSchema = z.object({
 export type CoordinatorChatRequest = z.input<typeof requestSchema>;
 export type CoordinatorChatResponse = { answer: string; links: CrmLink[]; topic: string };
 
+
+/** Current, accessible draft intake options for the in-chat attachment picker. */
+export async function listCsbCoordinatorDraftIntakes(): Promise<{ id: string; label: string }[]> {
+  const ctx = await requirePortal("rota");
+  coordinatorAccess(ctx);
+  const rows = await listIntakes(ctx, { status: "DRAFT" });
+  return rows.slice(0, 40).map((r) => ({
+    id: r.id,
+    label: `${r.reference} · ${r.title}${r.person ? ` (${r.person.name})` : ""}`.slice(0, 180),
+  }));
+}
 
 /** The chat paperclip uses the same private intake storage, scanning, source-page extraction,
  * tenancy and human-approval rules as the full Care Coordinator workflow. The user explicitly
