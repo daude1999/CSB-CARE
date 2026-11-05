@@ -6,7 +6,7 @@ import Link from "@/components/link";
 import {
   ArrowsInSimple, ArrowsOutSimple, CalendarPlus, CaretRight, ClipboardText, FileArrowUp, Minus, PaperPlaneRight, Paperclip, Sparkle, UserPlus, X,
 } from "@phosphor-icons/react";
-import { askCsbCoordinator } from "@/app/csb-coordinator-chat-actions";
+import { askCsbCoordinator, listCsbCoordinatorDraftIntakes, uploadCsbCoordinatorDocument } from "@/app/csb-coordinator-chat-actions";
 
 type Message = { role: "user" | "assistant"; content: string; links?: { label: string; href: string }[] };
 
@@ -57,9 +57,15 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
   const [messages, setMessages] = useState<Message[]>([initial]);
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [draftIntakes, setDraftIntakes] = useState<{ id: string; label: string }[]>([]);
+  const [uploadTarget, setUploadTarget] = useState("new");
+  const [attachedIntakeId, setAttachedIntakeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollBottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
 
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
@@ -72,20 +78,23 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
       setMessages([initial]);
       setQuery("");
       setError(null);
+      setAttachment(null);
+      setAttachedIntakeId(null);
+      setUploadTarget("new");
     }
     requestAnimationFrame(() => launcher.current?.focus());
   }, []);
 
   async function ask(q: string) {
     const text = q.trim();
-    if (text.length < 2 || sending) return;
+    if (text.length < 2 || sending || uploading) return;
     const history = messages.slice(1).slice(-8).map((m) => ({ role: m.role, content: m.content }));
     setMessages((m) => [...m, { role: "user", content: text }]);
     setQuery("");
     setSending(true);
     setError(null);
     try {
-      const r = await askCsbCoordinator({ question: text, intakeId, path: pathname ?? undefined, history });
+      const r = await askCsbCoordinator({ question: text, intakeId: intakeId ?? attachedIntakeId, path: pathname ?? undefined, history });
       setMessages((m) => [...m, { role: "assistant", content: r.answer, links: r.links }]);
     } catch {
       setError("The assistant couldn't answer just now. Nothing was changed in the CRM. Try again, or open the screen you need from the actions above.");
@@ -132,7 +141,7 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
           <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-[12px]" data-testid="ai-status">
             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,.15)]" />
             <span className="whitespace-nowrap font-medium text-[#15803d]">Online</span>
-            <span className="min-w-0 truncate text-[#5d717c]">· Answers from your CRM records only</span>
+            <span className="min-w-0 truncate text-[#5d717c]">· CRM data · Claude when enabled</span>
           </div>
           {context ? <p className="border-b border-[#e3eff0] bg-[#f2f9f9] px-5 py-1.5 text-[12px] font-medium text-[#0b6b74]" data-testid="ai-context">{context}</p> : null}
 
@@ -171,13 +180,13 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Each action opens the CRM screen for that job. Nothing is created, approved or published from the chat.</p>
+                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Shortcuts open existing screens. Attachments create draft intakes; nothing is approved or published automatically.</p>
               </nav>
             ) : null}
             {sending ? (
               <div role="status" className="flex items-center gap-2 pl-9 text-[12.5px] text-[#5d717c]">
                 <span aria-hidden="true" className="flex gap-1"><span className="ai-csb-dot" /><span className="ai-csb-dot [animation-delay:120ms]" /><span className="ai-csb-dot [animation-delay:240ms]" /></span>
-                Searching your CRM records…
+                Checking your CRM and available AI services…
               </div>
             ) : null}
             {error ? <div role="alert" className="rounded-[12px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12.5px] text-rose-800">{error}</div> : null}
@@ -203,11 +212,11 @@ export function AiCsbCoordinatorLauncher({ access }: { access: CoordinatorAccess
                 placeholder="Ask AI CSB Coordinator anything..."
                 className={`max-h-32 min-h-[36px] min-w-0 flex-1 resize-none bg-transparent ${query ? "" : "overflow-hidden whitespace-nowrap"} px-1.5 py-[7px] text-[14px] leading-[22px] text-[#13303b] outline-none placeholder:text-[#7c8f99]`}
               />
-              <button type="submit" aria-label="Send message" data-testid="ai-send" disabled={sending || query.trim().length < 2} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#0b6b74] text-white hover:bg-[#08545b] disabled:opacity-40">
+              <button type="submit" aria-label="Send message" data-testid="ai-send" disabled={sending || uploading || query.trim().length < 2} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#0b6b74] text-white hover:bg-[#08545b] disabled:opacity-40">
                 <PaperPlaneRight size={18} weight="fill" aria-hidden="true" />
               </button>
             </div>
-            <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send, Shift+Enter for a new line. A person approves every change.</p>
+            <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send; attach documents with the paperclip. A person approves every change.</p>
           </form>
         </section>
       ) : (
