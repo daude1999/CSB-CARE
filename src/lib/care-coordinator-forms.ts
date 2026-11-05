@@ -32,6 +32,7 @@ export function formSpec(destination: string): FormField[] {
           ["COUNCIL_PACKAGE","Council package / placement reference"],["OTHER_EXTERNAL","Other issuer reference"],
         ]},
         {name:"issuer",label:"Issuing organisation",kind:"text",required:true},
+        {name:"system",label:"System or label (optional)",kind:"text",help:"For example Frameworki for Tower Hamlets Council."},
         {name:"value",label:"Reference as printed",kind:"text",required:true,help:"Preserve leading zeroes. Framework IDs are shared contracts, never proof of identity."},
       ];
     case "contact":

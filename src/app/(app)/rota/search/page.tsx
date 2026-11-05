@@ -18,10 +18,10 @@ export default async function RotaSearchPage({ searchParams }: { searchParams: P
   const found = groups.some((g) => g.rows.length);
   return (
     <>
-      <PageHeader title="Search rostering" back="/rota" subtitle="Service users, team members and visit references you are allowed to see. Up to 15 of each are shown." />
+      <PageHeader title="Search rostering" back="/rota" subtitle="Service users (by name, CSB number, council or Frameworki reference), team members and visit references you are allowed to see. Up to 15 of each are shown." />
       <section className="panel">
         <form method="get" role="search" className="mb-4 flex flex-wrap items-end gap-2">
-          <label><span className="label">Search</span><input name="q" type="search" defaultValue={r.q} minLength={2} required placeholder="Name, postcode or reference" className="input w-[320px]" /></label>
+          <label><span className="label">Search</span><input name="q" type="search" defaultValue={r.q} minLength={2} required placeholder="Name, postcode, CSB or council reference" className="input w-[320px]" /></label>
           <button className="btn-primary">Search</button>
         </form>
         {r.q.length < 2 ? <Empty>Type at least two letters.</Empty> : !found ? <Empty>Nothing matches “{r.q}”.</Empty> : (

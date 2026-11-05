@@ -2,6 +2,7 @@ import { CareDocumentExtractionSchema } from "@/server/ai/schemas";
 import { getAiProvider } from "@/server/ai";
 import { AiUnavailableError } from "@/server/ai/provider";
 import { basicRead, quoteOnPage, readingToFacts, type FactSeed, type Reading } from "@/lib/care-coordinator-rules";
+import { classifyReferenceContext, findFrameworki, frameworkiReferences, FRAMEWORKI } from "@/lib/reference-numbers";
 
 /**
  * Reading one uploaded document for the AI Care Coordinator.
@@ -20,6 +21,24 @@ export async function pdfPages(bytes: Buffer): Promise<string[]> {
   const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { text } = await extractText(pdf, { mergePages: false });
   return (Array.isArray(text) ? text : [text]).map((t) => String(t ?? ""));
+}
+
+/**
+ * Tower Hamlets Frameworki numbers are also found on our own server from the page text, so the AI cannot miss or
+ * reword one. A Frameworki number's type is only clear when the words beside it say so; the AI's own confidence never
+ * settles it.
+ */
+export function withFrameworki(reading: Reading, pages: string[]): Reading {
+  const refs = (reading.references ?? []).map((r) => {
+    if (!findFrameworki(r.quote ?? "").some((m) => m.value === r.value.trim())) return r;
+    const c = classifyReferenceContext(r.quote);
+    return { ...r, system: r.system ?? FRAMEWORKI, typeClear: c.clear && c.type === r.type };
+  });
+  for (const f of frameworkiReferences(pages, reading.document.issuer)) {
+    if (refs.some((r) => r.value.trim() === f.value)) continue;
+    refs.push({ type: f.type, typeClear: f.typeClear, issuer: f.issuer, system: f.system, value: f.value, page: f.page, quote: f.quote, temporal: "CURRENT" });
+  }
+  return { ...reading, references: refs };
 }
 
 export interface ReadOutcome {
@@ -45,7 +64,7 @@ export async function readDocument(input: { bytes: Buffer; filename: string; cat
     }
     const parsed = CareDocumentExtractionSchema.safeParse(raw);
     if (!parsed.success) throw new AiUnavailableError("The AI reading did not have the expected shape, so it was not used. Try again, or add the facts by hand.");
-    reading = parsed.data as Reading;
+    reading = withFrameworki(parsed.data as Reading, input.pages);
     reader = "ai";
   } else {
     reading = basicRead(input.pages);

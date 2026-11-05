@@ -5,8 +5,9 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@
 import { fromDbDate, isIsoDate } from "@/lib/london";
 import {
   ACCEPTED, APPLY_ORDER, DECISIONS, OPEN_DECISIONS, RESTRICTED_PERSON_FIELDS, RESTRICTED_SECTIONS, SECTION_KEYS,
-  destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
+  UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
 } from "@/lib/care-coordinator-rules";
+import { registerCheckInTx } from "../external-references";
 import type { FundedBy } from "@/lib/su-import-rules";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
@@ -309,6 +310,16 @@ export async function compareFacts(tx: Tx, scope: Scope, intakeId: string) {
       if (templates.some((t) => t.startMinute === st && t.weekdays.some((d) => v.weekdays.includes(d)))) notes.push("The person already has a repeating visit at this time on some of these days.");
       if (facts.some((o) => o.id !== f.id && o.position < f.position && o.destination === "visit" && (o.value as { startTime: string }).startTime === v.startTime && (o.value as { weekdays: number[] }).weekdays.some((d) => v.weekdays.includes(d)) && o.decision !== "REJECTED" && o.decision !== "DUPLICATE")) notes.push("Another visit row starts at the same time on the same day. Check whether it is a continuation of the same row.");
     }
+    if (f.destination === "externalReference") {
+      const v = f.value as { type: string; issuer: string; value: string; typeUnclear?: boolean };
+      if (v.typeUnclear) notes.push(UNCLEAR_REFERENCE);
+      const reg = await registerCheckInTx(tx, scope.organisationId, su?.id ?? null, v);
+      if (reg.onThisProfile) notes.push("Already on this person's Reference Numbers tab. Mark this one as a duplicate.");
+      if (reg.sameOnOtherProfiles && v.type !== "COUNCIL_FRAMEWORK") notes.push("This number is already on another person's profile. Investigate before approving: it will not be linked here.");
+      if (reg.sameOnOtherProfiles && v.type === "COUNCIL_FRAMEWORK") notes.push(`Shared framework ID, also recorded for ${reg.sameOnOtherProfiles} other ${reg.sameOnOtherProfiles === 1 ? "person" : "people"}. Not proof of identity.`);
+      if (reg.otherTypeElsewhere) notes.push("The same number is recorded elsewhere as a different type or issuer. Check the document before approving.");
+      if (facts.some((o) => o.id !== f.id && o.position < f.position && o.destination === "externalReference" && (o.value as { value: string }).value === v.value && o.decision !== "REJECTED" && o.decision !== "DUPLICATE")) notes.push("The same reference appears earlier. Mark this one as a duplicate.");
+    }
     if (f.destination === "medication.item") {
       const name = (f.value as { name: string }).name.toLowerCase().split(" ")[0];
       if (facts.some((o) => o.id !== f.id && o.destination === "medication.item" && (o.value as { name: string }).name.toLowerCase().startsWith(name ?? "") && JSON.stringify(o.value) !== val)) notes.push("This medicine appears differently in another document. It goes to reconciliation.");
@@ -391,6 +402,7 @@ export async function decideFact(ctx: Ctx, factId: string, lockVersion: number |
 function checkAcceptable(destination: string, value: unknown, temporal: string) {
   const parsed = parseValue(destination, value);
   if (!parsed.ok) throw new ValidationError(parsed.error);
+  if (destination === "externalReference" && (value as { typeUnclear?: boolean }).typeUnclear) throw new ValidationError("Choose what this reference identifies (client, package or framework) with Edit before approving it");
   if (destination === "risk" && !(value as { level: string | null }).level) throw new ValidationError("Set a provisional risk level (it stays a draft until an assessor approves it), or reject this risk");
   if (temporal === "HISTORICAL" && (destination.startsWith("person.") || destination.startsWith("package.") || destination === "visit")) throw new ValidationError("This fact is marked as historical. Edit it to the current value, or reject it.");
 }
