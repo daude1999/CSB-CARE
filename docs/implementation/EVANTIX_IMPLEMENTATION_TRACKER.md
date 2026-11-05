@@ -6,7 +6,7 @@ One line per delivery. Nothing is merged or deployed without the owner writing "
 |---|---|---|---|---|
 | PR 0 Baseline audit | P0 | `claude/project-thread-ctnclm` | Draft PR (combined with PR 1) | `EVANTIX_DELIVERY_AUDIT.md` |
 | PR 1 No-API document reader | P0 | `claude/project-thread-ctnclm` | Draft PR | Card-layout reader brought over from `feature/ai-care-coordinator` (7 commits), crash fixed, edge cases flagged |
-| PR 2 Coordinator integration | P0 | — | Partly covered | Full upload → draft rota flow passes for both layouts (database tests). Still to do: new chat questions (staff unavailable, why a carer cannot be allocated, what is missing from a package, tomorrow's open visits); Word reading needs a dependency decision |
+| PR 2 Coordinator integration | P0 | `claude/project-thread-ctnclm-pr2` (stacked on PR 1) | Draft PR | Full upload → draft rota flow passes for both layouts (database tests). Assistant now answers: who is unavailable today/tomorrow, why a named carer cannot be booked on the open visit (same eligibility service as the picker), what is missing from the open person's care package, unassigned visits tomorrow. Read only. Word reading still needs a dependency decision |
 | PR 3 Security and reliability | P0 | — | Not started | MFA/SSO, RLS evaluation, governance checklist |
 | PR 4 Production deployment preparation | P0 | — | Not started | Azure runbook, worker heartbeat, backup and restore exercise |
 | PR 5 Replacement cover completion | P1 | — | Not started | |
