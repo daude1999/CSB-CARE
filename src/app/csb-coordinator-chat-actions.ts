@@ -5,14 +5,16 @@ import { requirePortal } from "@/server/auth/portals";
 import { requireOrgPermission } from "@/server/auth/rbac";
 import { answerFromCrm, type CrmLink, type CrmPage } from "@/server/care/coordinator/crm-assistant";
 import { audit } from "@/server/audit-log";
+import { db } from "@/lib/db";
+import { getAiProvider } from "@/server/ai";
+import { logger } from "@/lib/logger";
 import { NotFoundError } from "@/lib/errors";
 
 /**
- * AI CSB Coordinator chat (owner's decision, 5 Nov 2026: built-in CRM search, no AI key, nothing online). Every answer
- * comes from the organisation's own records through answerFromCrm, with the employee's own permission, branch and area
- * checks. Read-only: nothing is written except a usage audit entry, which never stores the question text.
- *
- * The page the panel was opened on is sent as its path; any record id in it is re-checked on the server before use.
+ * Permission-scoped CRM assistant: the existing deterministic CRM answer is retrieved first,
+ * then optionally explained by Claude if the organisation has explicitly enabled AI document
+ * processing after its data-protection review.
+ * Never directly writes to patient records or sends raw document bytes in chat.
  */
 const requestSchema = z.object({
   question: z.string().trim().min(2).max(2000),
@@ -55,7 +57,37 @@ export async function askCsbCoordinator(raw: CoordinatorChatRequest): Promise<Co
     if (e instanceof NotFoundError) result = { topic: "not-found", answer: "That record isn't available to you, so I can't answer about it.", links: [] };
     else throw e;
   }
+  // Provider secrets are server-side. Enabling the environment variable alone must
+  // never send a care organisation's records off-platform without its opt-in.
+  const settings = await db.rotaSettings.findUnique({
+    where: { organisationId }, select: { careCoordinatorAiEnabledAt: true },
+  });
+  const provider = settings?.careCoordinatorAiEnabledAt ? getAiProvider() : null;
+  let usedModel = false;
+  if (provider?.coordinateChat && !provider.isSimulated && result.topic !== "not-found") {
+    try {
+      // The deterministic engine has already applied organisation/branch/area/role
+      // permissions. Send only this scoped summary and its verified navigation links.
+      const caseContext = JSON.stringify({
+        page: page.kind,
+        crmAnswer: result.answer.slice(0, 10000),
+        links: result.links.slice(0, 12),
+        note: "CRM summary only. Do not claim the person or document was fully reviewed.",
+      });
+      const answer = await provider.coordinateChat({
+        question: d.question, history: d.history, caseContext,
+      });
+      if (answer.trim()) {
+        result = { ...result, answer, topic: "ai-coordinator" };
+        usedModel = true;
+      }
+    } catch (e) {
+      // Retain a useful, correctly-scoped answer during API outages or rate limits.
+      // Never log patient details or message content.
+      logger.warn({ reason: (e as Error).name }, "AI coordinator provider failed; used CRM fallback");
+    }
+  }
   await audit({ organisationId, actorId: ctx.userId, action: "coordinator.chat.asked", entityType: "Organisation", entityId: organisationId,
-    data: { page: page.kind, topic: result.topic, historyCount: d.history.length } });
+    data: { page: page.kind, topic: result.topic, historyCount: d.history.length, aiUsed: usedModel } });
   return result;
 }
