@@ -82,6 +82,8 @@ export interface BodyMapRecommendationInput {
 export interface LlmProvider {
   name: string;
   isSimulated: boolean;
+  /** Read-only, contextual office-assistant conversation. Never executes database writes. */
+  coordinateChat?(input: CoordinatorChatInput): Promise<string>;
   analyseChange(input: ChangeAnalysisInput): Promise<ChangeAnalysis>;
   assessImpact(input: ImpactInput): Promise<ImpactAssessmentOutput>;
   draftRevision(input: RevisionInput): Promise<RevisionDraftOutput>;
@@ -125,4 +127,11 @@ export class AiUnavailableError extends Error {
   constructor(message = "AI provider is not configured or unavailable") {
     super(message);
   }
+}
+
+/** Only authenticated, redacted, approved-to-share CRM context may be passed. */
+export interface CoordinatorChatInput {
+  question: string;
+  history: { role:"user"|"assistant"; content:string }[];
+  caseContext: string;
 }
