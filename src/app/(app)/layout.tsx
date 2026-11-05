@@ -15,6 +15,9 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { complianceItems } from "@/components/compliance-nav";
 import { HelpMenu } from "@/components/help-menu";
+import { ColourModeMenu } from "@/components/colour-mode-menu";
+import { MODE_COOKIE, parseMode } from "@/lib/colour-mode";
+import { cookies } from "next/headers";
 import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-header";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
@@ -24,6 +27,7 @@ import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, C
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
+  const colourMode = parseMode((await cookies()).get(MODE_COOKIE)?.value);
   const [memberships, unread, org] = await Promise.all([
     db.membership.findMany({ where: { userId: ctx.userId }, include: { organisation: true, branch: { select: { name: true } } } }),
     db.notification.count({ where: { userId: ctx.userId, readAt: null } }),
@@ -150,7 +154,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   </Link>
                   <HelpMenu assistant={can.assistant} dark />
                   <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 sm:block" />
-                  <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} signOutAction={logoutAction} />
+                  <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
                 </div>
               </header>
             }
@@ -171,6 +175,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <Bell size={21} aria-hidden="true" />
                   {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
                 </Link>
+                <ColourModeMenu initial={colourMode} />
                 <HelpMenu assistant={can.assistant} />
                 <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
               </div>

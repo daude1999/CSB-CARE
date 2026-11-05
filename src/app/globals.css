@@ -538,3 +538,14 @@
   .reader-doc, .reader-head { border: 0 !important; box-shadow: none !important; }
   .reader-section { break-inside: auto; padding: 14px 0 !important; }
 }
+
+/*
+ * Dark mode (scripts/dark-mode): every colour rule above gets a dark twin at build time. These are the few things the
+ * generator cannot know: native controls and scrollbars follow the page, and the CSB wordmark swaps to its official
+ * version for dark backgrounds (public/csb-logo-light.svg).
+ */
+:root[data-mode="dark"] { color-scheme: dark; }
+@media screen {
+  :root[data-mode="dark"] img.csb-wordmark-ink { content: url("/csb-logo-light.svg"); }
+}
+@dark-mode inline-colours;
