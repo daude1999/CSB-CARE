@@ -214,7 +214,7 @@ describe("AI CSB Coordinator attachment workflow", () => {
 
   it("does not allow attaching to another organisation's intake", async () => {
     authMock.ctx = await manager();
-    const other = await ctxFor("manager@care-solution.demo", OAKRIDGE);
+    const other = await ctxFor("manager@oakridge.demo", OAKRIDGE);
     const foreign = await createIntake(other, { title: "Foreign synthetic test intake" });
     const fd = formFor(new Uint8Array(await supportPlanPdf()), foreign.id);
     await expect(uploadCsbCoordinatorDocument(fd)).rejects.toThrow();
