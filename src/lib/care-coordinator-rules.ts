@@ -165,6 +165,7 @@ export const FOLLOW_UP_LABEL: Record<string, string> = {
   INCIDENT_HISTORY: "Incident history",
   BODY_MAP: "Skin and body map history",
   MISSING_INFO: "Missing or informal",
+  VISIT_TASKS: "Visit tasks to check",
   FUNDING: "Funding to verify",
   PACKAGE_HOURS: "Commissioned hours to check",
 };

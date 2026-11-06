@@ -11,6 +11,7 @@ import type { z } from "zod";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
+import { durationCheck, visitTasks } from "./visit-tasks";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
@@ -518,9 +519,20 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const dup = await tx.visitTemplate.findFirst({ where: { serviceUserId: su.id, enabled: true, startMinute: start, weekdays: { hasSome: v.weekdays } } });
       if (dup) { await markApplied(tx, f, `existing:VisitTemplate:${dup.id}`); out.skipped.push(`${v.label} ${v.startTime} already has a repeating visit`); continue; }
       const taskIds: string[] = [];
-      for (const name of v.tasks.slice(0, 30)) {
-        const clean = name.replace(/\s+/g, " ").trim().slice(0, 80);
-        if (!clean) continue;
+      const { tasks: carerTasks, heldMedication } = visitTasks(v.tasks);
+      const src = (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300);
+      const when = `${v.label} ${v.startTime} (${dayList(v.weekdays)})`;
+      if (heldMedication.length) {
+        // Never a carer task from a document: medication waits for an authorised medication record.
+        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "MEDICATION", description: `${when}: medication task${heldMedication.length === 1 ? "" : "s"} not given to carers until the medication record is authorised: ${heldMedication.join("; ")}.`.slice(0, 2000), sourceRef: src, restricted: true, createdById: ctx.userId } });
+        out.notes.push(`${when}: ${heldMedication.length} medication task${heldMedication.length === 1 ? " was" : "s were"} held back until medication is authorised.`);
+      }
+      const fit = durationCheck(carerTasks, v.durationMin);
+      if (!fit.fits) {
+        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "VISIT_TASKS", description: `${when}: ${carerTasks.length} tasks look like about ${fit.needed} minutes of care in a ${v.durationMin}-minute visit. Check the tasks or the visit length with the council. Nothing was changed.`, sourceRef: src, restricted: false, createdById: ctx.userId } });
+        out.notes.push(`${when}: the tasks may not fit in ${v.durationMin} minutes. Flagged for you to check.`);
+      }
+      for (const clean of carerTasks) {
         let task = await tx.careTask.findFirst({ where: { organisationId: scope.organisationId, name: { equals: clean, mode: "insensitive" } } });
         if (!task) { task = await tx.careTask.create({ data: { organisationId: scope.organisationId, name: clean, description: `Added from Care Coordinator intake ${intake.reference}` } }); createdTasks++; }
         if (!task.active) continue;

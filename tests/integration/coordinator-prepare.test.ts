@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
+import { isMedicationTask } from "@/server/care/coordinator/visit-tasks";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
@@ -61,6 +62,10 @@ describe("1. One upload fills the CRM as drafts", () => {
     expect(risks[0]!.hazards).toMatch(/NO RISK LEVEL IS STATED/);
     // Four commissioned visits a day; the two family rows are never scheduled.
     expect(await db.visitTemplate.count({ where: { serviceUserId: suId } })).toBe(4);
+    // Each visit has short carer tasks, and no medication task reaches carers from a document.
+    const taskNames = (await db.templateTask.findMany({ where: { template: { serviceUserId: suId } }, select: { careTask: { select: { name: true } } } })).map((x) => x.careTask.name);
+    expect(taskNames.length).toBeGreaterThan(0);
+    expect(taskNames.every((n) => n.length <= 80 && !isMedicationTask(n))).toBe(true);
     // A proposed rota while the person is still at Assessment: unpublished, and nobody was told.
     expect(r.rota?.visits).toBeGreaterThan(0);
     const visits = await db.visit.findMany({ where: { serviceUserId: suId } });

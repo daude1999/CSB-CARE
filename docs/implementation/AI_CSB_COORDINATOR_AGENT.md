@@ -177,3 +177,10 @@ Still open:
 - Within one reading, the AI's page parts are not saved separately. A cut-off reading starts that document's AI
   reading again from the first part.
 - There is no OCR, so a scanned plan still needs the AI.
+
+## Visit-specific care-worker tasks (phase 5)
+
+- **Short tasks.** `src/server/care/coordinator/visit-tasks.ts` splits each timetable row's task text into short tasks (at most 80 characters, at most 30 per visit, in the order written, no duplicates). The full wording stays in the visit template's notes. Each task is linked to the visit template through the organisation's care task list, so Build Rota copies it onto every visit.
+- **No medication tasks from a document.** Any task about medicines (tablets, blister packs, insulin, eye drops, inhalers, patches and similar) is kept off the carer's list. It becomes a restricted "Medication to reconcile" follow-up until the medication record is authorised. Nothing switches on eMAR.
+- **Tasks that may not fit.** A rough, cautious estimate of each task's minutes is compared with the visit length. When the tasks plainly need more time, a "Visit tasks to check" follow-up is raised. Neither the tasks nor the visit length is changed.
+- **Carer outcomes.** A carer records each task as Completed, Not completed, Refused, Unable to complete, Not applicable or Concern identified. Anything other than Completed needs an explanation. A concern raises an in-app alert for the office (the same exception queue as a concern note). No outbound message is sent. Not completed, refused, unable and concern outcomes count as missed tasks in the KPIs and care summary.

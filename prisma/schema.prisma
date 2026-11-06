@@ -2305,10 +2305,14 @@ model VisitTask {
   @@index([visitId])
 }
 
+/// How a carer records each planned task. Every outcome other than DONE needs an explanation; CONCERN alerts the office.
 enum TaskOutcome {
   DONE
   NOT_DONE
   REFUSED
+  UNABLE
+  NOT_APPLICABLE
+  CONCERN
 }
 
 model VisitTaskOutcome {

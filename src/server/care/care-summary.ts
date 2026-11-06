@@ -11,6 +11,7 @@ import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/
 import { rotaScope, serviceUserWhere } from "@/server/rota/scope";
 import { startDraft } from "./care-plans";
 import { OUTCOME_LABEL, medicationEnabled } from "./medication";
+import { MISSED_TASK_OUTCOMES, OUTCOME_LABEL as TASK_OUTCOME_LABEL } from "./visit-record";
 
 /**
  * Care Summary for one person over a period. Two views, always kept apart:
@@ -84,7 +85,7 @@ export async function careRecords(ctx: Ctx, serviceUserId: string, range: { from
 
   const [notes, tasks, incidents, risks, plans, visits, mar] = await Promise.all([
     db.visitNote.findMany({ where: { organisationId: orgId, visit: { serviceUserId: su.id, date: days } }, select: { id: true, visitId: true, category: true, text: true, createdAt: true, visit: { select: { date: true } } }, orderBy: { createdAt: "desc" }, take: 120 }),
-    db.visitTaskOutcome.findMany({ where: { organisationId: orgId, outcome: { in: ["NOT_DONE", "REFUSED"] }, visit: { serviceUserId: su.id, date: days } }, select: { id: true, visitId: true, outcome: true, note: true, at: true, visitTask: { select: { name: true } }, visit: { select: { date: true } } }, orderBy: { at: "desc" }, take: 60 }),
+    db.visitTaskOutcome.findMany({ where: { organisationId: orgId, outcome: { in: [...MISSED_TASK_OUTCOMES] }, visit: { serviceUserId: su.id, date: days } }, select: { id: true, visitId: true, outcome: true, note: true, at: true, visitTask: { select: { name: true } }, visit: { select: { date: true } } }, orderBy: { at: "desc" }, take: 60 }),
     db.incident.findMany({ where: { organisationId: orgId, serviceUserId: su.id, OR: [{ occurredAt: { gte: startUtc, lt: endUtc } }, { status: { not: "CLOSED" } }] }, select: { id: true, reference: true, category: true, severity: true, status: true, safeguarding: true, description: true, occurredAt: true }, orderBy: { occurredAt: "desc" }, take: 30 }),
     db.riskAssessment.findMany({ where: { organisationId: orgId, serviceUserId: su.id, status: "ACTIVE", OR: [{ assessedAt: { gte: startUtc, lt: endUtc } }, { reviewDue: { lt: today } }] }, select: { id: true, title: true, level: true, reviewDue: true, assessedAt: true }, take: 30 }),
     db.carePlan.findMany({ where: { organisationId: orgId, serviceUserId: su.id, OR: [{ approvedAt: { gte: startUtc, lt: endUtc } }, { status: "ACTIVE", reviewDue: { lt: today } }] }, select: { id: true, version: true, status: true, approvedAt: true, reviewDue: true, createdAt: true }, take: 10 }),
@@ -95,7 +96,7 @@ export async function careRecords(ctx: Ctx, serviceUserId: string, range: { from
   const out: CareRecord[] = [];
   const push = (prefix: string, r: Omit<CareRecord, "sid">) => out.push({ ...r, sid: `${prefix}${out.filter((x) => x.sid.startsWith(prefix)).length + 1}` });
   for (const n of notes) push("N", { id: n.id, kind: "Visit note", date: fromDbDate(n.visit.date), text: clip(`${n.category === "GENERAL" ? "" : `${n.category.charAt(0)}${n.category.slice(1).toLowerCase().replace(/_/g, " ")}: `}${n.text}`), href: `/rota/visits/${n.visitId}`, at: n.createdAt });
-  for (const t of tasks) push("T", { id: t.id, kind: "Task not done", date: fromDbDate(t.visit.date), text: clip(`${t.visitTask.name}: ${t.outcome === "REFUSED" ? "refused" : "not done"}${t.note ? ` (${t.note})` : ""}`), href: `/rota/visits/${t.visitId}`, at: t.at });
+  for (const t of tasks) push("T", { id: t.id, kind: t.outcome === "CONCERN" ? "Task concern" : "Task not done", date: fromDbDate(t.visit.date), text: clip(`${t.visitTask.name}: ${TASK_OUTCOME_LABEL[t.outcome].toLowerCase()}${t.note ? ` (${t.note})` : ""}`), href: `/rota/visits/${t.visitId}`, at: t.at });
   for (const i of incidents) push("I", { id: i.id, kind: "Incident", date: i.occurredAt.toISOString().slice(0, 10), text: clip(`${i.reference} ${i.category}, ${i.severity.toLowerCase()} severity, ${i.status.toLowerCase()}${i.safeguarding ? ", safeguarding" : ""}: ${i.description}`), href: `/rota/incidents/${i.id}`, at: i.occurredAt });
   for (const r of risks) push("R", { id: r.id, kind: "Risk assessment", date: r.assessedAt.toISOString().slice(0, 10), text: `${r.title}, ${r.level.toLowerCase()} risk${r.reviewDue < today ? `, review overdue since ${fromDbDate(r.reviewDue)}` : ""}`, href: `/rota/risks/${r.id}`, at: r.assessedAt });
   for (const p of plans) push("P", { id: p.id, kind: "Care plan", date: (p.approvedAt ?? p.createdAt).toISOString().slice(0, 10), text: p.status === "ACTIVE" && p.reviewDue && p.reviewDue < today ? `Care plan version ${p.version} review overdue since ${fromDbDate(p.reviewDue)}` : `Care plan version ${p.version} approved`, href: `/rota/care-plans/${su.id}?v=${p.version}`, at: p.approvedAt ?? p.createdAt });

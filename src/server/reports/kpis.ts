@@ -8,6 +8,7 @@ import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rb
 import { outstandingAckWhere } from "@/server/policies/assignment";
 import { readinessFor } from "@/server/readiness";
 import { rotaSettings } from "@/server/rota/settings";
+import { MISSED_TASK_OUTCOMES } from "@/server/care/visit-record";
 
 /**
  * The KPI registry: every figure on Reporting & Analytics, with the definition shown next to it, worked out live from
@@ -164,7 +165,7 @@ export const KPIS: KpiDef[] = [
     definition: "Task outcomes recorded on visits in the period as not done or refused by the person.",
     compute: async (s) => {
       const where = { organisationId: s.organisationId, visit: { date: inRange(s), ...visitScope(s) } };
-      const [n, refused] = await Promise.all([db.visitTaskOutcome.count({ where: { ...where, outcome: { in: ["NOT_DONE", "REFUSED"] } } }), db.visitTaskOutcome.count({ where: { ...where, outcome: "REFUSED" } })]);
+      const [n, refused] = await Promise.all([db.visitTaskOutcome.count({ where: { ...where, outcome: { in: [...MISSED_TASK_OUTCOMES] } } }), db.visitTaskOutcome.count({ where: { ...where, outcome: "REFUSED" } })]);
       return { value: n, unit: "count", detail: `${refused} refused by the person` };
     },
   },

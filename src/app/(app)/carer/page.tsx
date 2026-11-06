@@ -11,7 +11,7 @@ import { CarerMedication } from "@/components/medication-ui";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
 import { acknowledgeMyVisitsAction, submitMileageAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
-import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL } from "@/server/care/visit-record";
+import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL, TASK_OUTCOMES } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
 import { VisitStatusBadge } from "@/components/rota-ui";
@@ -167,7 +167,7 @@ function ClockControls({ v, now, doorstep }: { v: MyVisit; now: number; doorstep
   );
 }
 
-/** After clocking in, the carer records each task once: done, not done or refused (with a reason). */
+/** After clocking in, the carer records each task once; anything other than completed needs an explanation. */
 function TaskControls({ v }: { v: MyVisit }) {
   if (!v.tasks.length || ["CANCELLED", "NOT_DELIVERED"].includes(v.status)) return null;
   const clockedIn = effectiveClocks(v.clocks).some((c) => c.kind === "IN");
@@ -188,9 +188,9 @@ function TaskControls({ v }: { v: MyVisit }) {
             <fieldset key={t.id} className="space-y-1">
               <legend className="text-[14px] font-medium">{t.name}</legend>
               <div className="flex flex-wrap gap-3 text-[14px]">
-                {(["DONE", "NOT_DONE", "REFUSED"] as const).map((o) => <label key={o} className="flex items-center gap-1.5"><input type="radio" name={`outcome_${t.id}`} value={o} />{OUTCOME_LABEL[o]}</label>)}
+                {TASK_OUTCOMES.map((o) => <label key={o} className="flex items-center gap-1.5"><input type="radio" name={`outcome_${t.id}`} value={o} />{OUTCOME_LABEL[o]}</label>)}
               </div>
-              <input name={`note_${t.id}`} className="input py-1.5 text-[14px]" placeholder="Reason if not done or refused" aria-label={`Note for ${t.name}`} />
+              <input name={`note_${t.id}`} className="input py-1.5 text-[14px]" placeholder="Explain anything not completed, or describe the concern" aria-label={`Note for ${t.name}`} />
             </fieldset>
           ))}
           <button className="btn-primary w-full sm:w-auto">Save tasks</button>
