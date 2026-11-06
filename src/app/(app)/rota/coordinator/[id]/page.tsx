@@ -1,6 +1,8 @@
 import { requireRotaPage } from "@/server/auth/portals";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getIntake } from "@/server/care/coordinator/intake";
+import { revisionSummary } from "@/server/care/coordinator/compare";
+import { RevisionPanel } from "@/components/coordinator/revision";
 import { previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
 import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
 import { addDays, londonDate, mondayOf } from "@/lib/london";
@@ -36,6 +38,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
   const waiting = view.sections.filter((s) => s.status === "OPEN" && s.accepted > 0).length;
   const toSave = view.sections.filter((s) => s.status === "APPROVED" && s.applyStatus !== "DONE" && s.accepted > 0).length;
 
+  const revision = step === "review" && intake.mode === "EXISTING" ? await revisionSummary(ctx, intake.id) : null;
   let rota: { readiness: Awaited<ReturnType<typeof rotaReadiness>>; preview: Awaited<ReturnType<typeof previewIntakeRota>> | null; previewError: string | null; proposals: Awaited<ReturnType<typeof staffingProposals>> } | null = null;
   if (step === "rota") {
     const readiness = await rotaReadiness(ctx, intake.id);
@@ -81,6 +84,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
       />
       <div className="rounded-b-[3px] rounded-tr-[3px] bg-white px-[15px] pb-4 pt-3">
         {step === "documents" ? <DocumentsStep view={view} back={back} /> : null}
+        {step === "review" && revision ? <RevisionPanel intakeId={intake.id} summary={revision} back={back} open={intake.status === "DRAFT"} /> : null}
         {step === "review" ? <ReviewStep view={view} back={back} section={sp.section} show={sp.show} add={sp.add} /> : null}
         {step === "approval" ? <ApprovalStep view={view} back={back} /> : null}
         {step === "save" ? <SaveStep view={view} back={back} /> : null}

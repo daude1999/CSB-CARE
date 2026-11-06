@@ -200,3 +200,20 @@ Entry points:
 - "Add service user" links to the Coordinator.
 - The chat paperclip creates the same intakes, and the agent's start-intake tool accepts all three modes.
 - The older "Set up from support plan" form stays reachable for typing a plan in by hand, with a note pointing to the Coordinator.
+
+## Revised support plans (phase 6)
+
+For an "Updated or revised plan" intake (B), the Check facts step opens with **What the revised plan changes** (`src/server/care/coordinator/compare.ts`, `src/components/coordinator/revision.tsx`). Every detail read from the new documents is set against the person's current record, field by field:
+
+- **New:** not on the record.
+- **Unchanged:** same as the record. Text is compared ignoring case and spacing. A visit counts as the same when its time, length and carers match.
+- **Changed:** different from the record.
+- **Conflicting:** the documents disagree with each other, or a value comes from an older document.
+- **Removed or superseded:** a repeating visit on record that the revised timetable no longer has. This is only shown when the documents give a timetable.
+- **Missing:** a key detail (date of birth, address, postcode, NHS number) that neither the documents nor the record gives.
+
+**Accept all routine** approves only non-clinical values that match the record, and new personal, contact or carer-preference details read word for word from a page. Care plan, risk, medication, incident and skin details are always decided one by one, even when unchanged. **Keep current** rejects a changed or conflicting detail with the note "Kept the current record". Accept, edit, reject and clarify stay on each fact's own row.
+
+The comparison itself writes nothing. Package and visit changes still go to a manager, and completed visits are never rewritten.
+
+**Limitation.** A removed or superseded visit is shown, but it is not ended automatically. The coordinator changes or ends it on the Templates screen once the council confirms.

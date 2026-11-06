@@ -254,3 +254,32 @@ describe("Option C: a supporting document for someone already on record", () => 
     expect(await db.serviceUserDocument.count({ where: { serviceUserId: su.id } })).toBe(docsBefore + 1);
   });
 });
+
+describe("Revised plan for someone already on record", () => {
+  it("compares every detail with the record, accepts only routine ones, and changes nothing by itself", async () => {
+    const { revisionSummary, acceptRoutineChanges } = await import("@/server/care/coordinator/compare");
+    const c = await coordinator();
+    const intake = await createIntake(c, { title: "Revised plan check", mode: "EXISTING", serviceUserId: suId });
+    await addDocuments(c, intake.id, [{ name: "Revised support plan.pdf", type: "application/pdf", bytes: plan }]);
+    const templatesBefore = await db.visitTemplate.findMany({ where: { serviceUserId: suId }, orderBy: { id: "asc" } });
+    const s = (await revisionSummary(c, intake.id))!;
+    expect(s.rows.length).toBeGreaterThan(0);
+    // The same plan again: the person's name and the visits nobody moved match the record. Two visits were moved by
+    // hand in the tests above, so the plan's original times read as new and the moved visits as no longer in it.
+    expect(s.rows.find((r) => r.label.toLowerCase().includes("first name"))?.status).toBe("UNCHANGED");
+    expect(s.counts.UNCHANGED).toBeGreaterThan(0);
+    expect(s.counts.REMOVED_SUPERSEDED).toBe(2);
+    expect(s.rows.filter((r) => r.status === "REMOVED_SUPERSEDED").map((r) => r.label).sort()).toEqual(["Repeating visit at 09:30", "Repeating visit at 17:00"]);
+    expect(s.routine).toBeGreaterThan(0);
+    const r = await acceptRoutineChanges(c, intake.id);
+    expect(r.accepted).toBe(s.routine);
+    // Only routine facts were accepted; care, risk and medication facts still wait for a person.
+    const accepted = await db.careIntakeFact.findMany({ where: { intakeId: intake.id, decision: "APPROVED" }, select: { section: true } });
+    expect(accepted.every((f) => !["CARE_PLAN", "RISKS", "MEDICATION", "INCIDENTS", "BODY_MAP"].includes(f.section))).toBe(true);
+    expect(await db.careIntakeFact.count({ where: { intakeId: intake.id, section: { in: ["CARE_PLAN", "RISKS", "MEDICATION"] }, decision: "APPROVED" } })).toBe(0);
+    expect(await db.visitTemplate.findMany({ where: { serviceUserId: suId }, orderBy: { id: "asc" } })).toEqual(templatesBefore);
+    // Not available for a new person's intake.
+    await expect(acceptRoutineChanges(c, intakeId)).rejects.toThrow(/updated plan/);
+    expect(await revisionSummary(c, intakeId)).toBeNull();
+  });
+});
