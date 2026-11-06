@@ -8,7 +8,7 @@ import type { Ctx } from "@/server/auth/rbac";
 import { drain, enqueue, PermanentJobError } from "@/server/jobs/queue";
 import { rotaScope } from "@/server/rota/scope";
 import { coordinatorAccess, intakeInScope, readIntakeDocument } from "./intake";
-import { prepareDrafts, prepareReportText } from "./prepare";
+import { databaseRefusal, prepareDrafts, prepareReportText } from "./prepare";
 
 /**
  * Background reading of intake documents (owner's brief of 6 Nov 2026, 17:21).
@@ -82,6 +82,8 @@ function parsePayload(p: Record<string, unknown>): Payload {
 /** Plain words for a failure, safe to show: our own messages as they are, anything else by its kind only. */
 function failureText(e: unknown) {
   if (e instanceof AppError) return e.message.slice(0, 300);
+  const refused = databaseRefusal(e);
+  if (refused) return `The database refused a change (${refused}). The original is stored safely.`;
   const name = e instanceof Error ? e.name : "Error";
   return `An unexpected ${name} stopped the reading. The original is stored safely.`;
 }
