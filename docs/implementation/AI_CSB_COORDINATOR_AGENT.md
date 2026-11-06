@@ -97,7 +97,11 @@ comparison now adds that warning itself.
 after an upload (intake screen and chat paperclip) and from a button on Check facts, and it can be run again:
 
 1. Facts whose words were found on the page, with no warning, are accepted for drafting and marked with who ran it.
-   Unverified, contradicted, historical or restricted facts stay for a person.
+   **Scanned council plans** (Tower Hamlets and most councils send page images with no text layer) cannot be checked
+   word for word, so facts the AI read from a scanned page are also accepted for drafting, with the decision note
+   "from a scanned page ... compare with the original before relying on it", and they stay marked unverified. A quote
+   missing from a page that does have text is never accepted (that is a misreading). Contradicted, historical or
+   restricted facts stay for a person.
 2. Identity first. A new person is created only with a first and last name, and not when someone with the same name
    (and date of birth or postcode) is on record, unless the coordinator confirms it is a different person. Until then
    nothing is written and the intake stays a prospective intake.
@@ -130,4 +134,8 @@ section is retried on the next run.
 - No separate DRAFT status for the care package: the package is saved for a person at Assessment, and it only matters
   operationally once care is activated.
 - No browser (Playwright) test for the whole flow yet; it is covered by integration tests and screenshots.
-- No OCR: scanned pages are listed for a person to read.
+- No OCR. A scanned plan is read only by the AI (Rota Settings switch on, `AI_PROVIDER=anthropic`). With the AI off,
+  CSB's own reader finds nothing on a scanned plan and the pages are listed for a person to read. Adding OCR (for
+  example Tesseract) would be a new dependency and needs the owner's approval.
+- Tested with a real Tower Hamlets "One Off Service Request" layout only locally, never committed; the tests and
+  screenshots use fictional people. The real AI reading of it is still to be checked on the live site.
