@@ -24,5 +24,9 @@ export async function runJobsNow(workerId: string, max: number) {
   const now = Date.now();
   await enqueue("maintenance.tick", {}, { idempotencyKey: `tick:${Math.floor(now / TICK_MS)}`, maxAttempts: 1 });
   await enqueue("rota.sweep", {}, { idempotencyKey: `sweep:${Math.floor(now / SWEEP_MS)}`, maxAttempts: 1 });
-  return drain(workerId, handlers, { max });
+  // Document reading can take minutes, longer than this route may run; it has its own route with a longer limit.
+  return drain(workerId, handlers, { max, excludeTypes: [...LONG_JOB_TYPES] });
 }
+
+/** Jobs that need the long-running route (/api/care-coordinator/reads/run, up to 5 minutes) on hosts without a worker. */
+export const LONG_JOB_TYPES = ["coordinator.read"] as const;

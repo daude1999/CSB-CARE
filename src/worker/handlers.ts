@@ -15,6 +15,7 @@ import { catchUpInvestigations, investigateJob } from "@/server/rota/missed-auto
 import { checkConfirmationDeadlines } from "@/server/rota/missed-auto/confirmations";
 import { sweepMissedMedication } from "@/server/care/medication";
 import { reconcileStaffAssignments } from "@/server/policies/assignment";
+import { runDocumentReadJob } from "@/server/care/coordinator/read-jobs";
 import type { RunTrigger } from "@prisma/client";
 
 export const handlers: Record<string, JobHandler> = {
@@ -52,6 +53,8 @@ export const handlers: Record<string, JobHandler> = {
   },
   // One evidence run for a missed call (and, the first time, the carer requests). Runs apart from detection.
   "missed.investigate": async (p, job) => investigateJob(p, job.id),
+  // AI CSB Coordinator: read an uploaded document, then prepare the person's drafts and a proposed rota.
+  "coordinator.read": async (p, job) => runDocumentReadJob(p, job),
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();

@@ -111,7 +111,11 @@ export async function createIntake(ctx: Ctx, input: z.input<typeof createSchema>
 }
 
 /** Stores the originals privately (checked and virus-scanned), keeps each page's text, then reads every document. */
-export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFile[]) {
+/**
+ * Stores uploaded documents. With read: "now" (tests, scripts) each PDF is read straight away; the screens pass
+ * "later" and queue a background read (read-jobs.ts), so the upload returns as soon as the originals are stored.
+ */
+export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFile[], opts: { read?: "now" | "later" } = {}) {
   const { scope } = await scopeFor(ctx);
   if (!files.length) throw new ValidationError("Choose at least one document");
   const intake = await intakeInScope(db, scope, intakeId);
@@ -155,11 +159,14 @@ export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFi
     created.push(doc.id);
   }
   const results = [];
+  const toRead: string[] = [];
   for (const id of created) {
     const d = await db.careIntakeDocument.findUniqueOrThrow({ where: { id } });
-    if (d.readStatus === "PENDING") results.push(await readIntakeDocument(ctx, id).catch((e: unknown) => ({ documentId: id, facts: 0, error: e instanceof Error ? e.message : "Could not read" })));
+    if (d.readStatus !== "PENDING") continue;
+    if (opts.read === "later") toRead.push(id);
+    else results.push(await readIntakeDocument(ctx, id).catch((e: unknown) => ({ documentId: id, facts: 0, error: e instanceof Error ? e.message : "Could not read" })));
   }
-  return { documents: created.length, results, duplicates };
+  return { documents: created.length, results, duplicates, documentIds: created, toRead };
 }
 
 /**
@@ -615,7 +622,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
   const { scope, access } = await scopeFor(ctx);
   const intake = await intakeInScope(db, scope, intakeId);
   const [docs, facts, sections, history, members, areas, callTypes] = await Promise.all([
-    db.careIntakeDocument.findMany({ where: { intakeId }, orderBy: { position: "asc" }, select: { id: true, position: true, filename: true, contentType: true, sizeBytes: true, sha256: true, section: true, category: true, name: true, issuer: true, issuerKind: true, documentDate: true, sensitive: true, pageCount: true, readStatus: true, readNote: true, readMethod: true, readFailure: true, readAt: true, findings: true, filedDocumentId: true, createdAt: true, createdById: true } }),
+    db.careIntakeDocument.findMany({ where: { intakeId }, orderBy: { position: "asc" }, select: { id: true, position: true, filename: true, contentType: true, sizeBytes: true, sha256: true, section: true, category: true, name: true, issuer: true, issuerKind: true, documentDate: true, sensitive: true, pageCount: true, readStatus: true, readNote: true, readMethod: true, readFailure: true, readAt: true, readStage: true, readStageAt: true, readStageNote: true, findings: true, filedDocumentId: true, createdAt: true, createdById: true } }),
     db.careIntakeFact.findMany({ where: { intakeId }, orderBy: [{ position: "asc" }] }),
     db.careIntakeSection.findMany({ where: { intakeId } }),
     db.auditLog.findMany({ where: { organisationId: scope.organisationId, entityType: "CareIntake", entityId: intakeId }, orderBy: { createdAt: "desc" }, take: 300 }),

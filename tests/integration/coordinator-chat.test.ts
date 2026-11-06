@@ -2,6 +2,10 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 const authMock = vi.hoisted(() => ({ ctx: null as unknown }));
 vi.mock("@/server/auth/current", () => ({ getCtx: vi.fn(async () => authMock.ctx), requireCtx: vi.fn(async () => authMock.ctx) }));
+// Work the action starts after its response (the background reading) is collected here and run by the test.
+const afterMock = vi.hoisted(() => ({ tasks: [] as (() => unknown)[] }));
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: (fn: () => unknown) => { afterMock.tasks.push(fn); } }));
+const runAfterTasks = async () => { for (const t of afterMock.tasks.splice(0)) await t(); };
 import { db } from "@/lib/db";
 import { addDays, dbDate, fmtLondonDate, londonDate } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
@@ -189,8 +193,15 @@ describe("AI CSB Coordinator attachment workflow", () => {
     expect(response.reference).toMatch(/^CI-/);
     expect(response.documents).toBe(1);
     expect(response.duplicate).toBe(false);
-    expect(response.facts).toBeGreaterThan(0);
     expect(response.reviewHref).toBe("/rota/coordinator/" + response.intakeId);
+    // The upload returns once the original is stored; the reading is a background job started after the response.
+    expect(response.summary).toMatch(/being read now/);
+    expect(afterMock.tasks).toHaveLength(1);
+    await runAfterTasks();
+    const doc = await db.careIntakeDocument.findFirstOrThrow({ where: { intakeId: response.intakeId } });
+    expect(doc.readStage).toBe("DONE");
+    expect(doc.readStageNote).toMatch(/Records prepared for/);
+    expect(await db.careIntakeFact.count({ where: { intakeId: response.intakeId } })).toBeGreaterThan(0);
 
     const draft = await db.careIntake.findUniqueOrThrow({ where: { id: response.intakeId } });
     expect(draft.status).toBe("DRAFT");
@@ -198,7 +209,6 @@ describe("AI CSB Coordinator attachment workflow", () => {
     expect(draft.serviceUserId).toBeTruthy();
     expect((await db.serviceUser.findUniqueOrThrow({ where: { id: draft.serviceUserId! } })).status).toBe("ASSESSMENT");
     expect(await db.visit.count({ where: { serviceUserId: draft.serviceUserId!, publishedAt: { not: null } } })).toBe(0);
-    expect(response.summary).toMatch(/Records prepared for/);
     const count = await db.careIntakeDocument.count({ where: { intakeId: response.intakeId } });
     const again = await uploadCsbCoordinatorDocument(formFor(pdf, response.intakeId));
     expect(again.duplicate).toBe(true);
