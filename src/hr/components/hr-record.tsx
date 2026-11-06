@@ -185,7 +185,7 @@ export function HRRecord({
         <div className="h-prof__in">
           <div className="h-id">
             <Avatar name={e.name} large />
-            <div>
+            <div className="h-id__main">
               <h1>{e.name}</h1>
               <p className="role">
                 {e.job} · {branch}

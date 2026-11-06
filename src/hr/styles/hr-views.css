@@ -1,73 +1,80 @@
 /* HR & Workforce screens built to the owner's approved orange designs (src/hr/components/hr-views.tsx). Plain CSS
    so the look does not depend on the HR Hub's older table and button rules. HR orange is #c2410c (AA on white). */
-.cs .hrv { font-size: 14px; color: #0c1728; }
+.cs .hrv { font-size: 14px; color: var(--ink); }
 .cs .hrv-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .cs .hrv-table th {
-  background: #f6f7f9; color: #344054; font-size: 13px; font-weight: 600; text-align: left;
-  padding: 9px 12px; border-bottom: 1px solid #e5e8ed; white-space: nowrap;
+  background: var(--hr-head-bg); color: var(--hr-head-ink); font-size: 13px; font-weight: 600; text-align: left;
+  padding: 9px 12px; border-bottom: 1px solid var(--hr-line); white-space: nowrap;
 }
-.cs .hrv-table td { padding: 8px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+.cs .hrv-table td { padding: 8px 12px; border-bottom: 1px solid var(--hr-line-soft); vertical-align: middle; }
 .cs .hrv-table tbody tr:last-child td { border-bottom: 0; }
-.cs .hrv-table tbody tr:hover td { background: #fffaf5; }
+.cs .hrv-table tbody tr:hover td { background: var(--hr-row-hover); }
 .cs .hrv-table--compact th, .cs .hrv-table--compact td { padding: 7px 12px; }
-.cs .hrv-table--matrix th { white-space: normal; line-height: 1.25; vertical-align: bottom; min-width: 84px; }
-.cs .hrv-table--matrix th:first-child { min-width: 200px; }
-.cs .hrv-name { color: #0c1728; font-weight: 600; text-decoration: none; }
-.cs .hrv-name:hover { color: #9a3412; text-decoration: underline; }
-.cs .hrv-name:focus-visible, .cs .hrv-link:focus-visible { outline: 2px solid #c2410c; outline-offset: 2px; border-radius: 3px; }
-.cs .hrv-link { color: #9a3412; font-weight: 600; font-size: 13.5px; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
+/* Matrix headings wrap onto two lines at most: every column has room for its status chip and a two-line label. */
+.cs .hrv-table--matrix th { white-space: normal; line-height: 1.25; vertical-align: bottom; min-width: 104px; }
+.cs .hrv-table--matrix th:nth-child(2) { min-width: 118px; }
+.cs .hrv-table--matrix th:first-child { min-width: 220px; }
+/* The employee column stays in view while the rest of the matrix scrolls sideways. */
+.cs .hrv-table--matrix :is(th, td):first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: inset -1px 0 0 var(--hr-line-soft); }
+.cs .hrv-table--matrix th:first-child { background: var(--hr-head-bg); }
+.cs .hrv-table--matrix tbody tr:hover td:first-child { background: var(--hr-row-hover); }
+.cs .hrv-scroll:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: -2px; }
+.cs .hrv-name { color: var(--ink); font-weight: 600; text-decoration: none; }
+.cs .hrv-name:hover { color: var(--hr-accent-ink); text-decoration: underline; }
+.cs .hrv-name:focus-visible, .cs .hrv-link:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: 2px; border-radius: 3px; }
+.cs .hrv-link { color: var(--hr-accent-ink); font-weight: 600; font-size: 13.5px; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
 .cs .hrv-link:hover { text-decoration: underline; }
 .cs .hrv-input {
-  height: 38px; border: 1px solid #d0d5dd; border-radius: 6px; background: #fff; padding: 0 10px; font-size: 14px; color: #0c1728;
+  height: 38px; border: 1px solid var(--hr-control-line); border-radius: 6px; background: var(--hr-control-bg); padding: 0 10px; font-size: 14px; color: var(--ink);
 }
-.cs .hrv-input:focus { outline: none; border-color: #c2410c; box-shadow: 0 0 0 3px #fed7aa; }
+.cs .hrv-input:focus { outline: none; border-color: var(--hr-accent); box-shadow: 0 0 0 3px var(--hr-accent-ring); }
 .cs .hrv-pg {
-  min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid #d0d5dd; border-radius: 6px; background: #fff;
-  color: #344054; font-size: 13.5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid var(--hr-control-line); border-radius: 6px; background: var(--hr-control-bg);
+  color: var(--hr-head-ink); font-size: 13.5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.cs .hrv-pg[aria-current="page"] { background: #c2410c; border-color: #c2410c; color: #fff; font-weight: 600; }
+.cs .hrv-pg[aria-current="page"] { background: var(--hr-accent); border-color: var(--hr-accent); color: #fff; font-weight: 600; }
 .cs .hrv-pg:disabled { opacity: .45; cursor: default; }
-.cs .hrv-pg:focus-visible { outline: 2px solid #c2410c; outline-offset: 2px; }
+.cs .hrv-pg:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: 2px; }
 .cs .hrv-quick {
   display: flex; width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  min-height: 78px; padding: 10px; border: 1px solid #e5e8ed; border-radius: 8px; background: #fff;
-  color: #0c1728; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; text-align: center;
+  min-height: 78px; padding: 10px; border: 1px solid var(--hr-line); border-radius: 8px; background: var(--surface);
+  color: var(--ink); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; text-align: center;
 }
-.cs .hrv-quick:hover { border-color: #f9b98a; background: #fffaf5; }
-.cs .hrv-quick:focus-visible { outline: 2px solid #c2410c; outline-offset: 2px; }
+.cs .hrv-quick:hover { border-color: var(--hr-accent-line); background: var(--hr-row-hover); }
+.cs .hrv-quick:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: 2px; }
 .cs .hrv-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px;
   border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer;
 }
-.cs .hrv-btn--primary { background: #c2410c; border: 1px solid #c2410c; color: #fff; }
-.cs .hrv-btn--primary:hover { background: #a7380a; }
-.cs .hrv-btn--secondary { background: #fff; border: 1px solid #d0d5dd; color: #0c1728; }
-.cs .hrv-btn--secondary:hover { background: #f9fafb; }
-.cs .hrv-btn:focus-visible { outline: 2px solid #c2410c; outline-offset: 2px; }
+.cs .hrv-btn--primary { background: var(--hr-accent); border: 1px solid var(--hr-accent); color: #fff; }
+.cs .hrv-btn--primary:hover { background: var(--hr-accent-hover); }
+.cs .hrv-btn--secondary { background: var(--hr-control-bg); border: 1px solid var(--hr-control-line); color: var(--ink); }
+.cs .hrv-btn--secondary:hover { background: var(--surface-2); }
+.cs .hrv-btn:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: 2px; }
 .cs .hrv-seg {
   display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 6px; font-size: 13.5px;
-  font-weight: 600; color: #475467; text-decoration: none;
+  font-weight: 600; color: var(--hr-ink-2); text-decoration: none;
 }
-.cs .hrv-seg.is-on { background: #fff1e6; color: #9a3412; }
-.cs .hrv-seg:focus-visible { outline: 2px solid #c2410c; outline-offset: 1px; }
+.cs .hrv-seg.is-on { background: var(--hr-accent-soft); color: var(--hr-accent-ink); }
+.cs .hrv-seg:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: 1px; }
 .cs .hrv-person {
   display: flex; width: 100%; align-items: center; gap: 12px; padding: 9px 14px; border: 0; border-left: 3px solid transparent;
-  background: transparent; cursor: pointer; border-bottom: 1px solid #f0f2f5;
+  background: transparent; cursor: pointer; border-bottom: 1px solid var(--hr-line-soft);
 }
-.cs .hrv-person:hover { background: #fffaf5; }
-.cs .hrv-person.is-on { background: #fff1e6; border-left-color: #c2410c; }
-.cs .hrv-person:focus-visible { outline: 2px solid #c2410c; outline-offset: -2px; }
+.cs .hrv-person:hover { background: var(--hr-row-hover); }
+.cs .hrv-person.is-on { background: var(--hr-accent-soft); border-left-color: var(--hr-accent); }
+.cs .hrv-person:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: -2px; }
 .cs .hrv-tab {
-  position: relative; padding: 10px 12px; font-size: 14px; font-weight: 600; color: #475467; background: none; border: 0; cursor: pointer;
+  position: relative; padding: 10px 12px; font-size: 14px; font-weight: 600; color: var(--hr-ink-2); background: none; border: 0; cursor: pointer;
 }
-.cs .hrv-tab.is-on { color: #9a3412; }
-.cs .hrv-tab.is-on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 3px; border-radius: 2px 2px 0 0; background: #c2410c; }
-.cs .hrv-tab:focus-visible { outline: 2px solid #c2410c; outline-offset: -2px; }
+.cs .hrv-tab.is-on { color: var(--hr-accent-ink); }
+.cs .hrv-tab.is-on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 3px; border-radius: 2px 2px 0 0; background: var(--hr-accent); }
+.cs .hrv-tab:focus-visible { outline: 2px solid var(--hr-accent); outline-offset: -2px; }
 /* The redesigned screens sit straight under the header, like the platform's other modules (no inner page margin). */
 .cs.h-embed .h-content:has(> .hrv) { max-width: none; padding: 0; }
 /* Search box with its icon inside (HR Hub input rules are unlayered, so this is plain CSS too). */
 .cs .hrv-search { position: relative; display: block; min-width: 200px; flex: 1 1 220px; }
-.cs .hrv-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: #667085; }
+.cs .hrv-search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--hr-muted); }
 .cs .hrv-search input { width: 100%; padding-left: 34px; }
 .cs .hrv-table td, .cs .hrv-table th { padding-left: 10px; padding-right: 10px; }
 .cs .hrv-table td:first-child, .cs .hrv-table th:first-child { padding-left: 16px; }
@@ -75,15 +82,21 @@
   .cs .hrv-search { flex-basis: 100%; }
   .cs .hrv select.hrv-input { width: 100%; }
 }
-.cs .hrv-keychecks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; max-width: 900px; list-style: none; padding: 0; }
+/* Key checks under the employee's name (DBS, Right to work, Training, All checks). The cards are sized by the width of
+   the name column, not the screen, because the action buttons share that row: four across when every card has room
+   for its icon, label and status, otherwise two, otherwise one. A card that is still too narrow puts its status under
+   the label rather than over it. */
+.cs .h-id__main { flex: 1 1 320px; min-width: 0; container-type: inline-size; }
+.cs .h-prof .h-id > .cs-av { align-self: flex-start; }
+.cs .hrv-keychecks { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; max-width: 900px; min-width: 0; list-style: none; padding: 0; }
+@container (min-width: 480px) { .cs .hrv-keychecks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 980px) { .cs .hrv-keychecks { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.cs .hrv-keychecks li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; padding: 8px 10px; border: 1px solid var(--hr-line); border-radius: 8px; background: var(--surface); font-size: 13.5px; }
+.cs .hrv-keychecks li > :first-child { flex: none; display: inline-flex; }
 .cs .hrv-keychecks li > :nth-child(2) { white-space: nowrap; }
-.cs .hrv-keychecks li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #e5e8ed; border-radius: 8px; background: #fff; font-size: 13.5px; }
 .cs .hrv-keychecks li > :last-child { margin-left: auto; }
-@media (max-width: 900px) { .cs .hrv-keychecks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* Every HR Hub screen sits close under its header (the approved designs have no large inner page margin). */
 .cs.h-embed .h-content.h-wrap { max-width: none; padding: 4px 0 32px; }
-@media (max-width: 560px) { .cs .hrv-keychecks { grid-template-columns: minmax(0, 1fr); } }
-.cs .hrv-keychecks { min-width: 0; }
 
 /* Documents split view: one column on phones and tablets (never wider than the screen), list + detail from 1024px. */
 .hrv-split{grid-template-columns:minmax(0,1fr)}
@@ -93,34 +106,34 @@
 .hrv .overflow-x-auto{position:relative}
 
 /* Assign Training and Send Reminder panels (training-actions.tsx) */
-.hrv-pick { border: 1px solid #e4e7ec; border-radius: 10px; padding: 10px 12px 12px; margin: 4px 0 14px; min-width: 0; }
-.hrv-pick legend { padding: 0 6px; font-size: 14px; font-weight: 600; color: #0c1728; }
+.hrv-pick { border: 1px solid var(--hr-line); border-radius: 10px; padding: 10px 12px 12px; margin: 4px 0 14px; min-width: 0; }
+.hrv-pick legend { padding: 0 6px; font-size: 14px; font-weight: 600; color: var(--ink); }
 .hrv-pick__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
-.hrv-pick__tools select, .hrv-pick__search input { height: 34px; border: 1px solid #d0d5dd; border-radius: 8px; padding: 0 10px; font-size: 13.5px; background: #fff; }
+.hrv-pick__tools select, .hrv-pick__search input { height: 34px; border: 1px solid var(--hr-control-line); border-radius: 8px; padding: 0 10px; font-size: 13.5px; background: var(--hr-control-bg); }
 .hrv-pick__search { position: relative; flex: 1 1 180px; display: flex; align-items: center; }
-.hrv-pick__search svg { position: absolute; left: 9px; color: #667085; }
+.hrv-pick__search svg { position: absolute; left: 9px; color: var(--hr-muted); }
 .hrv-pick__search input { width: 100%; padding-left: 30px; }
-.hrv-pick__hint { margin: 0 0 8px; font-size: 13px; color: #475467; }
-.hrv-pick__list { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; border-top: 1px solid #eef0f3; }
+.hrv-pick__hint { margin: 0 0 8px; font-size: 13px; color: var(--hr-ink-2); }
+.hrv-pick__list { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; border-top: 1px solid var(--hr-line-soft); }
 .hrv-pick__list--tall { max-height: 380px; }
-.hrv-pick__list li { border-bottom: 1px solid #eef0f3; }
+.hrv-pick__list li { border-bottom: 1px solid var(--hr-line-soft); }
 .hrv-pick__list label { display: flex; align-items: flex-start; gap: 10px; padding: 9px 4px; cursor: pointer; }
-.hrv-pick__list label.is-disabled { cursor: default; color: #667085; }
-.hrv-pick__list input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; accent-color: #c2410c; flex: none; }
+.hrv-pick__list label.is-disabled { cursor: default; color: var(--hr-muted); }
+.hrv-pick__list input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--hr-accent); flex: none; }
 .hrv-pick__list b { display: block; font-size: 14px; font-weight: 600; }
-.hrv-pick__list small { display: block; font-size: 12.5px; color: #667085; }
+.hrv-pick__list small { display: block; font-size: 12.5px; color: var(--hr-muted); }
 .hrv-pick__items { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .hrv-pick__item { border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 500; }
 .hrv-pick__item.is-red { background: #fde1e3; color: #9b1c24; }
 .hrv-pick__item.is-amber { background: #fdf0d8; color: #7a4f00; }
-.hrv-pick__tag { flex: none; max-width: 42%; text-align: right; font-size: 12.5px; color: #667085; }
+.hrv-pick__tag { flex: none; max-width: 42%; text-align: right; font-size: 12.5px; color: var(--hr-muted); }
 .hrv-pick__tag.is-ok { color: #17663a; font-weight: 600; }
-.hrv-pick__empty { padding: 14px 4px; font-size: 14px; color: #667085; }
-.hrv-preview { border: 1px dashed #d0d5dd; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; background: #fcfcfd; }
-.hrv-preview__label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #667085; margin-bottom: 4px; }
+.hrv-pick__empty { padding: 14px 4px; font-size: 14px; color: var(--hr-muted); }
+.hrv-preview { border: 1px dashed var(--hr-control-line); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; background: var(--surface-2); }
+.hrv-preview__label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--hr-muted); margin-bottom: 4px; }
 .hrv-preview b { font-size: 14px; }
-.hrv-preview p { margin: 2px 0 0; font-size: 13.5px; color: #344054; }
-.hrv-chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12.5px; font-weight: 500; background: #f2f4f7; color: #475467; }
+.hrv-preview p { margin: 2px 0 0; font-size: 13.5px; color: var(--hr-head-ink); }
+.hrv-chip { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12.5px; font-weight: 500; background: #f2f4f7; color: var(--hr-ink-2); }
 .hrv-chip.is-green { background: #dff3e7; color: #17663a; }
 .hrv-chip.is-amber { background: #fdf0d8; color: #7a4f00; }
 .hrv-chip.is-red { background: #fde1e3; color: #9b1c24; }

@@ -49,63 +49,46 @@
   --row-height: 48px;
   --font-sans: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-sans);
+  /* HR & Workforce screens (hr-views.css): the orange module accent and the table/control neutrals of the approved
+     orange designs. */
+  --hr-accent: #c2410c;
+  --hr-accent-hover: #a7380a;
+  --hr-accent-ink: #9a3412;
+  --hr-accent-soft: #fff1e6;
+  --hr-accent-ring: #fed7aa;
+  --hr-accent-line: #f9b98a;
+  --hr-row-hover: #fffaf5;
+  --hr-head-bg: #f6f7f9;
+  --hr-head-ink: #344054;
+  --hr-ink-2: #475467;
+  --hr-muted: #667085;
+  --hr-line: #e5e8ed;
+  --hr-line-soft: #f0f2f5;
+  --hr-control-line: #d0d5dd;
+  --hr-control-bg: #ffffff;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0b111b;
-    --surface: #111a27;
-    --surface-2: #162131;
-    --surface-selected: #10303b;
-    --border: #223047;
-    --border-strong: #2e3e57;
-    --border-control: #5d6f88;
-    --ink: #eef2f7;
-    --ink-2: #b4c0cf;
-    --ink-3: #8a99ad;
-    --nav-bg: #070c14;
-    --nav-ink: #a9b6c6;
-    --nav-ink-muted: #7f8ea3;
-    --nav-active: #152235;
-    --brand-cyan: #3cc8df;
-    --primary: #3cc8df;
-    --on-primary: #062530;
-    --link: #6fd8ea;
-    --accent-soft: #0f2f3a;
-    --focus: #3cc8df;
-    --danger: #ff8a95;
-    --danger-soft: #3a1519;
-    --warning: #f2bd5c;
-    --warning-soft: #33260c;
-    --success: #5fd3a3;
-    --success-soft: #0f2d22;
-    --neutral: #b4c0cf;
-    --neutral-soft: #1c2737;
-    --chart-ok: #2fbf86;
-    --chart-due: #f0a63a;
-    --chart-over: #f0606b;
-    --chart-missing: #6b7a8f;
-    --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
-    --shadow-pop: 0 16px 40px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
-  }
-}
+/* Dark appearance. The build (scripts/build-hr-css.mjs) scopes this to `<html data-mode="dark">`, the platform's own
+   appearance switch, so the HR Hub turns dark together with the sidebar, top bar and every other module. Surfaces and
+   lines use the same values the platform's generated dark mode gives white panels and grey lines, so HR panels drawn
+   with these tokens and those drawn with utility classes match. */
 :root[data-theme="dark"] {
-  --bg: #0b111b;
-  --surface: #111a27;
-  --surface-2: #162131;
+  --bg: #0d1723;
+  --surface: #151f2b;
+  --surface-2: #1a2533;
   --surface-selected: #10303b;
-  --border: #223047;
-  --border-strong: #2e3e57;
+  --border: #2a3442;
+  --border-strong: #36414f;
   --border-control: #5d6f88;
   --ink: #eef2f7;
   --ink-2: #b4c0cf;
-  --ink-3: #8a99ad;
+  --ink-3: #9aa8bb;
   --nav-bg: #070c14;
   --nav-ink: #a9b6c6;
   --nav-ink-muted: #7f8ea3;
   --nav-active: #152235;
   --brand-cyan: #3cc8df;
-  --primary: #3cc8df;
-  --on-primary: #062530;
+  --primary: #e6ecf3;
+  --on-primary: #0c1728;
   --link: #6fd8ea;
   --accent-soft: #0f2f3a;
   --focus: #3cc8df;
@@ -116,11 +99,29 @@
   --success: #5fd3a3;
   --success-soft: #0f2d22;
   --neutral: #b4c0cf;
-  --neutral-soft: #1c2737;
+  --neutral-soft: #222d3c;
   --chart-ok: #2fbf86;
   --chart-due: #f0a63a;
   --chart-over: #f0606b;
   --chart-missing: #6b7a8f;
   --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-pop: 0 16px 40px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+  --hr-accent: #c2410c;
+  --hr-accent-hover: #d4521c;
+  --hr-accent-ink: #fb9a6c;
+  --hr-accent-soft: #3a2014;
+  --hr-accent-ring: #7c2d12;
+  --hr-accent-line: #9a4a24;
+  --hr-row-hover: #1c2836;
+  --hr-head-bg: #1a2533;
+  --hr-head-ink: #c3cedb;
+  --hr-ink-2: #b4c0cf;
+  --hr-muted: #9aa8bb;
+  --hr-line: #2a3442;
+  --hr-line-soft: #222c39;
+  --hr-control-line: #3d4a5c;
+  --hr-control-bg: #101925;
+  /* Older HR Hub aliases (globals.css) pointed text at the sidebar's navy, which is dark in both appearances. */
+  --text: var(--ink);
+  --muted: var(--ink-3);
 }
