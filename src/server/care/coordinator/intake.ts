@@ -78,7 +78,7 @@ export const isRestrictedFact = (f: { section: string; destination: string }, do
 
 const createSchema = z.object({
   title: z.string().trim().min(3, "Give the intake a name, e.g. 'New referral, Stepney'").max(120),
-  mode: z.enum(["NEW", "EXISTING"]).default("NEW"),
+  mode: z.enum(["NEW", "EXISTING", "DOCUMENT"]).default("NEW"),
   serviceUserId: z.string().trim().optional().transform((v) => v || undefined),
   areaId: z.string().trim().optional().transform((v) => v || undefined),
 });
@@ -88,7 +88,7 @@ export async function createIntake(ctx: Ctx, input: z.input<typeof createSchema>
   const p = createSchema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the details");
   const d = p.data;
-  if (d.mode === "EXISTING" && !d.serviceUserId) throw new ValidationError("Choose the person this intake updates");
+  if (d.mode !== "NEW" && !d.serviceUserId) throw new ValidationError(d.mode === "DOCUMENT" ? "Choose the person the document is for" : "Choose the person this intake updates");
   return db.$transaction(async (tx) => {
     const org = scope.organisationId;
     if (d.serviceUserId) {
@@ -102,7 +102,7 @@ export async function createIntake(ctx: Ctx, input: z.input<typeof createSchema>
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`care-intake-ref:${org}`}))`;
     const count = await tx.careIntake.count({ where: { organisationId: org } });
     const intake = await tx.careIntake.create({
-      data: { organisationId: org, reference: `CI-${String(count + 1).padStart(4, "0")}`, title: d.title, mode: d.mode, serviceUserId: d.mode === "EXISTING" ? d.serviceUserId! : null, areaId: d.areaId ?? null, createdById: ctx.userId },
+      data: { organisationId: org, reference: `CI-${String(count + 1).padStart(4, "0")}`, title: d.title, mode: d.mode, serviceUserId: d.mode !== "NEW" ? d.serviceUserId! : null, areaId: d.areaId ?? null, createdById: ctx.userId },
     });
     await tx.careIntakeSection.createMany({ data: SECTION_KEYS.map((section) => ({ organisationId: org, intakeId: intake.id, section })) });
     await audit({ organisationId: org, actorId: ctx.userId, action: "coordinator.intake.created", entityType: "CareIntake", entityId: intake.id, data: { reference: intake.reference, mode: d.mode, serviceUserId: intake.serviceUserId } }, tx);

@@ -11,6 +11,12 @@ import { RotaTabs } from "@/components/rota-nav";
 export const dynamic = "force-dynamic";
 
 const STATUS_TONE = { DRAFT: "teal", SUBMITTED: "amber", APPROVED: "green", APPLYING: "amber", COMPLETED: "slate", CANCELLED: "slate" } as const;
+/** The three ways in (owner's brief, 6 Nov 2026): every upload of care documents starts here. */
+const START_MODES = [
+  { value: "NEW", label: "A. New service user", hint: "A referral or support plan for someone not yet on the system. Their records are drafted for you to check." },
+  { value: "EXISTING", label: "B. Updated or revised plan", hint: "New or revised documents for someone already on the system. Changes are shown for you to accept; package and visit changes go to a manager." },
+  { value: "DOCUMENT", label: "C. Supporting document", hint: "A letter, assessment or report for someone already on the system. It is filed in their documents and changes no records." },
+] as const;
 const FILTERS = [["", "Open"], ["SUBMITTED", "Waiting for manager"], ["COMPLETED", "Completed"], ["CANCELLED", "Cancelled"]] as const;
 
 /** AI Care Coordinator: start an intake from a referral's documents, and every intake with where it has got to. */
@@ -18,6 +24,8 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const ctx = await requireRotaPage("serviceUser.documents");
   const [opts, rows] = await Promise.all([orNotFound(intakeStartOptions(ctx)), listIntakes(ctx, { status: sp.status })]);
+  const mode = START_MODES.some((m) => m.value === sp.mode) ? sp.mode! : "NEW";
+  const person = sp.person && opts.people.some((p) => p.id === sp.person) ? sp.person : "";
   const shown = sp.status ? rows : rows.filter((r) => r.status !== "COMPLETED" && r.status !== "CANCELLED");
   return (
     <>
@@ -54,16 +62,17 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
           </Card>
         </section>
         <Card title="Start an intake">
-          <form action={createIntakeAction} className="space-y-3">
+          <form id="start" action={createIntakeAction} className="space-y-3">
             <input type="hidden" name="back" value="/rota/coordinator" />
             <label className="block"><span className="label">Name for this intake</span><input name="title" required minLength={3} maxLength={120} className="input" placeholder="e.g. New referral from the council, Stepney" /></label>
             <fieldset>
-              <legend className="label">Who it is for</legend>
-              <label className="flex items-center gap-2 text-[14px]"><input type="radio" name="mode" value="NEW" defaultChecked /> A new person</label>
-              <label className="mt-1 flex items-center gap-2 text-[14px]"><input type="radio" name="mode" value="EXISTING" /> Someone already on the system (updated documents)</label>
+              <legend className="label">What these documents are</legend>
+              {START_MODES.map((m) => (
+                <label key={m.value} className="mt-1 flex items-start gap-2 text-[14px]"><input type="radio" name="mode" value={m.value} defaultChecked={mode === m.value} className="mt-1" /><span><span className="font-medium">{m.label}</span><span className="block text-[13px] text-slate-600">{m.hint}</span></span></label>
+              ))}
             </fieldset>
-            <label className="block"><span className="label">Existing person (only if updating someone)</span>
-              <select name="serviceUserId" className="input" defaultValue=""><option value="">Choose a person</option>{opts.people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
+            <label className="block"><span className="label">Person already on the system (for B and C)</span>
+              <select name="serviceUserId" className="input" defaultValue={person}><option value="">Choose a person</option>{opts.people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
             </label>
             <label className="block"><span className="label">Area</span>
               <select name="areaId" className="input" defaultValue=""><option value="">Choose later</option>{opts.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>

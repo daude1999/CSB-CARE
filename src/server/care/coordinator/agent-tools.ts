@@ -333,10 +333,10 @@ const tools = {
   create_intake: {
     spec: {
       name: "create_intake",
-      description: "Start a new DRAFT care intake (nothing is added to any person's record). Only when the employee asked to start one and no suitable open intake exists. mode NEW sets up a new person; EXISTING updates the given service user. Returns the intake id; documents are attached by the employee with the paperclip.",
-      inputSchema: obj({ title: { type: "string", description: "e.g. 'New referral, Stepney'" }, mode: { type: "string", enum: ["NEW", "EXISTING"] }, serviceUserId: nullableString("Required for EXISTING") }),
+      description: "Start a new DRAFT care intake (nothing is added to any person's record). Only when the employee asked to start one and no suitable open intake exists. mode NEW sets up a new person; EXISTING updates the given service user from new or revised documents; DOCUMENT files a supporting document for the given service user without changing their records. Returns the intake id; documents are attached by the employee with the paperclip.",
+      inputSchema: obj({ title: { type: "string", description: "e.g. 'New referral, Stepney'" }, mode: { type: "string", enum: ["NEW", "EXISTING", "DOCUMENT"] }, serviceUserId: nullableString("Required for EXISTING and DOCUMENT") }),
     },
-    schema: z.object({ title: z.string().trim().min(3).max(120), mode: z.enum(["NEW", "EXISTING"]), serviceUserId: id.nullable() }),
+    schema: z.object({ title: z.string().trim().min(3).max(120), mode: z.enum(["NEW", "EXISTING", "DOCUMENT"]), serviceUserId: id.nullable() }),
     async run(ctx, input, state) {
       if (!coordinatorRole(ctx)) throw new ForbiddenError("This employee's role cannot start care intakes.");
       // A repeated message must not create a second intake: the same title by the same person in the last 10 minutes is reused.
@@ -346,7 +346,7 @@ const tools = {
       link(state, { label: `Open ${intake.reference}`, href: intakeHref(intake.id, "documents") });
       return { created: !recent, reusedExisting: !!recent, intakeId: intake.id, reference: intake.reference, status: "Coordinator review (draft)", next: "Attach the support plan with the paperclip, or upload it on the intake's Documents step." };
     },
-  } satisfies Tool<z.ZodObject<{ title: z.ZodString; mode: z.ZodEnum<["NEW", "EXISTING"]>; serviceUserId: z.ZodNullable<typeof id> }>>,
+  } satisfies Tool<z.ZodObject<{ title: z.ZodString; mode: z.ZodEnum<["NEW", "EXISTING", "DOCUMENT"]>; serviceUserId: z.ZodNullable<typeof id> }>>,
 
   read_documents: {
     spec: {

@@ -55,7 +55,7 @@ const READING_NOTE = "It is being read now: you can watch each stage on this pag
 
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
+    const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : str(fd, "mode") === "DOCUMENT" ? "DOCUMENT" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
     const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length) {
       const r = await addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" });

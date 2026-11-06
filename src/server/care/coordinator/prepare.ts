@@ -8,7 +8,7 @@ import { createProposedRota } from "@/server/rota/build";
 import { applyTemplateChanges, updateTemplate } from "@/server/rota/templates";
 import { rotaScope, serviceUserWhere } from "@/server/rota/scope";
 import { findPossibleDuplicates } from "../su-import";
-import { DRAFT_SECTIONS, applySection, isDraftSection } from "./apply";
+import { DRAFT_SECTIONS, applySection, fileDocuments, isDraftSection } from "./apply";
 import { checkAcceptable, coordinatorAccess, intakeInScope, isRestrictedFact } from "./intake";
 
 /**
@@ -40,6 +40,9 @@ export interface PrepareReport {
   sections: { section: IntakeSection; label: string; status: "DRAFTED" | "FAILED" | "NOTHING" | "WITH_MANAGER" | "SKIPPED"; created: string[]; error?: string }[];
   rota: { visits: number; unassignedSlots: number; alreadyBuilt: number; weekStart: string; weeks: number; error?: string } | null;
   attention: { facts: number; restricted: number; followUps: number };
+  /** Option C (supporting document): documents filed in the person's records, or why they were not. */
+  filed?: number;
+  filedError?: string;
 }
 
 const AUTO_NOTE = "Accepted for drafting by the AI CSB Coordinator: the words were found on the page and nothing contradicts them.";
@@ -52,7 +55,8 @@ export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADupl
   const step1 = await db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
     if (intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing. This intake is with a manager or finished.");
-    const allowed = DRAFT_SECTIONS.filter((s) => !(intake.mode === "EXISTING" && (s === "PACKAGE" || s === "VISITS")));
+    // A supporting document (option C) changes no records by itself: it is filed, and its facts wait for a person.
+    const allowed = intake.mode === "DOCUMENT" ? [] : DRAFT_SECTIONS.filter((s) => !(intake.mode === "EXISTING" && (s === "PACKAGE" || s === "VISITS")));
     const docs = await tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true } });
     // Checked facts, and facts the AI read from a scanned page (an image has no text to check a quote against; most
     // council plans arrive scanned). A quote missing from a page that has text is never accepted: that is a misreading.
@@ -88,7 +92,15 @@ export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADupl
   });
 
   const report: PrepareReport = { intakeId, reference: step1.intake.reference, serviceUserId: step1.intake.serviceUserId, serviceUserReference: null, blocked: step1.blocked, duplicate: step1.duplicate, accepted: step1.accepted, sections: [], rota: null, attention: { facts: 0, restricted: 0, followUps: 0 } };
-  if (!step1.blocked) {
+  if (!step1.blocked && step1.intake.mode === "DOCUMENT") {
+    // Option C: file the document in the person's records, in the category it was classified into. Nothing else.
+    try {
+      report.filed = await fileDocuments(ctx, intakeId);
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+      report.filedError = e.message;
+    }
+  } else if (!step1.blocked) {
     for (const section of APPLY_ORDER) {
       if (!isDraftSection(section)) continue;
       const s = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
@@ -176,6 +188,7 @@ export async function draftSummary(ctx: Ctx, intakeId: string) {
 export function prepareReportText(r: PrepareReport) {
   if (r.blocked) return `Nothing was created yet. ${r.blocked}`;
   const lines: string[] = [];
+  if (r.filed !== undefined || r.filedError) lines.push(r.filedError ? `Supporting document: not filed (${r.filedError}).` : `Supporting document: ${r.filed} filed in ${r.serviceUserReference ?? "the person"}'s records. No other records were changed.`);
   const drafted = r.sections.filter((s) => s.status === "DRAFTED");
   if (r.serviceUserReference) lines.push(`Records prepared for ${r.serviceUserReference} (care not active yet).`);
   for (const s of drafted) lines.push(`${s.label}: ${s.created.length ? s.created.join("; ") : "nothing new"}.`);
@@ -183,7 +196,7 @@ export function prepareReportText(r: PrepareReport) {
   if (r.rota) lines.push(r.rota.error ? `Draft rota: not created (${r.rota.error}).` : r.rota.visits ? `Draft rota: ${r.rota.visits} proposed visit${r.rota.visits === 1 ? "" : "s"} over ${r.rota.weeks} weeks from ${r.rota.weekStart}, unpublished, ${r.rota.unassignedSlots} carer place${r.rota.unassignedSlots === 1 ? "" : "s"} still open. Carers are not told.` : `Draft rota: no new visits (${r.rota.alreadyBuilt} already proposed).`);
   const a = r.attention;
   if (a.facts || a.followUps) lines.push(`Still needs attention: ${[a.facts ? `${a.facts} fact${a.facts === 1 ? "" : "s"} to check${a.restricted ? ` (${a.restricted} for a manager)` : ""}` : null, a.followUps ? `${a.followUps} follow-up${a.followUps === 1 ? "" : "s"}` : null].filter(Boolean).join(", ")}.`);
-  if (!drafted.length && !r.rota?.visits) lines.push("Nothing new could be drafted: every remaining fact needs a person to check it.");
+  if (!drafted.length && !r.rota?.visits && r.filed === undefined && !r.filedError) lines.push("Nothing new could be drafted: every remaining fact needs a person to check it.");
   return lines.join("\n");
 }
 

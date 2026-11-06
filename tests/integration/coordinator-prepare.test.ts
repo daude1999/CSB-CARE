@@ -227,3 +227,30 @@ describe("3. Scanned council plans (no text layer)", () => {
     }
   }, 120_000);
 });
+
+describe("Option C: a supporting document for someone already on record", () => {
+  it("files the document in the person's records and changes nothing else", async () => {
+    const c = await coordinator();
+    const su = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, status: "ACTIVE" } });
+    await expect(createIntake(c, { title: "Letter without a person", mode: "DOCUMENT" })).rejects.toThrow(/Choose the person the document is for/);
+    const intake = await createIntake(c, { title: "GP letter for an existing person", mode: "DOCUMENT", serviceUserId: su.id });
+    expect(intake.serviceUserId).toBe(su.id);
+    await addDocuments(c, intake.id, [{ name: "GP letter.pdf", type: "application/pdf", bytes: plan }]);
+    const counts = async () => [await db.serviceUserContact.count({ where: { serviceUserId: su.id } }), await db.carePackage.count({ where: { serviceUserId: su.id } }), await db.carePlan.count({ where: { serviceUserId: su.id } }), await db.riskAssessment.count({ where: { serviceUserId: su.id } }), await db.visitTemplate.count({ where: { serviceUserId: su.id } }), await db.visit.count({ where: { serviceUserId: su.id } })];
+    const before = await counts();
+    const docsBefore = await db.serviceUserDocument.count({ where: { serviceUserId: su.id } });
+    const r = await prepareDrafts(c, intake.id);
+    expect(r.blocked).toBeNull();
+    expect(r.filed).toBe(1);
+    expect(r.sections).toEqual([]);
+    expect(r.rota).toBeNull();
+    expect(prepareReportText(r)).toMatch(/Supporting document: 1 filed/);
+    expect(await counts()).toEqual(before);
+    expect(await db.serviceUserDocument.count({ where: { serviceUserId: su.id } })).toBe(docsBefore + 1);
+    // No fact was accepted automatically: they wait for a person.
+    expect(await db.careIntakeFact.count({ where: { intakeId: intake.id, decision: "APPROVED" } })).toBe(0);
+    // Running it again files nothing twice.
+    expect((await prepareDrafts(c, intake.id)).filed).toBe(0);
+    expect(await db.serviceUserDocument.count({ where: { serviceUserId: su.id } })).toBe(docsBefore + 1);
+  });
+});

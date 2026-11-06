@@ -67,7 +67,7 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
     const intake = await intakeInScope(tx, scope, intakeId, true);
     if (intake.status === "CANCELLED" || (intake.status === "DRAFT" && !prepare)) throw new ConflictError("This intake is not approved");
     if (prepare && intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing the intake");
-    if (prepare && intake.mode === "EXISTING" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
+    if (prepare && intake.mode !== "NEW" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
     const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
     if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved by a manager`);
     if (prepare && !(s.status === "OPEN" || s.status === "DRAFTED")) throw new ConflictError(`${sectionLabel(section)} is with a manager`);

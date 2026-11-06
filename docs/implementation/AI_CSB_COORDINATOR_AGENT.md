@@ -184,3 +184,19 @@ Still open:
 - **No medication tasks from a document.** Any task about medicines (tablets, blister packs, insulin, eye drops, inhalers, patches and similar) is kept off the carer's list. It becomes a restricted "Medication to reconcile" follow-up until the medication record is authorised. Nothing switches on eMAR.
 - **Tasks that may not fit.** A rough, cautious estimate of each task's minutes is compared with the visit length. When the tasks plainly need more time, a "Visit tasks to check" follow-up is raised. Neither the tasks nor the visit length is changed.
 - **Carer outcomes.** A carer records each task as Completed, Not completed, Refused, Unable to complete, Not applicable or Concern identified. Anything other than Completed needs an explanation. A concern raises an in-app alert for the office (the same exception queue as a concern note). No outbound message is sent. Not completed, refused, unable and concern outcomes count as missed tasks in the KPIs and care summary.
+
+## One way in for care documents (phase 3)
+
+Every upload of care documents starts on the Care Coordinator's "Start an intake" form, with three choices:
+
+- **A. New service user** (`mode: NEW`): a referral or support plan for someone not on the system. Their records are drafted for checking, as before.
+- **B. Updated or revised plan** (`mode: EXISTING`): new documents for someone already on the system. Changes are shown for acceptance. Package and visit changes go to a manager.
+- **C. Supporting document** (`mode: DOCUMENT`): a letter, assessment or report for someone already on the system. It is read so its facts can be seen, and filed in the person's documents in the category it was classified into. No facts are accepted automatically and no other record changes.
+
+Entry points:
+
+- Service Users list: "Upload support plan" opens choice A.
+- A person's page: "Upload documents" opens choice B with the person chosen.
+- "Add service user" links to the Coordinator.
+- The chat paperclip creates the same intakes, and the agent's start-intake tool accepts all three modes.
+- The older "Set up from support plan" form stays reachable for typing a plan in by hand, with a note pointing to the Coordinator.

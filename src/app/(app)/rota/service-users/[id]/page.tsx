@@ -154,7 +154,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         title={suName(su)}
         back="/rota/service-users"
         subtitle={`${su.csbReference ?? su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
-        actions={<StatusBadge status={su.status} />}
+        actions={<div className="flex flex-wrap items-center gap-2"><StatusBadge status={su.status} />{canEdit && hasOrgPermission(ctx, "serviceUser.documents") && su.status !== "ENDED" ? <Link href={`/rota/coordinator?mode=EXISTING&person=${su.id}#start`} className="btn-secondary py-1">Upload documents</Link> : null}</div>}
       />
       <Flash searchParams={sp} />
       <SegmentNav label="Service user sections" items={groups.map((g) => ({ href: `${base}?tab=${g.tabs[0]}`, label: g.label, active: g === group }))} />
