@@ -15,8 +15,9 @@ import { checkAcceptable, coordinatorAccess, intakeInScope, isRestrictedFact } f
  * The AI CSB Coordinator's preparation step (brief of 6 Nov 2026, phases 3 and 4): from what the documents say, it
  * fills the person's real CRM records as drafts and proposes a rota, so nobody retypes the support plan.
  *
- *  1. Facts whose words were found on the page, with no conflict, are accepted for drafting. Anything unverified,
- *     contradicted, restricted or already on the record differently stays for the coordinator.
+ *  1. Facts whose words were found on the page, with no conflict, are accepted for drafting, and so are facts the AI
+ *     read from a scanned page (labelled as not checked word for word). A quote missing from a page with text,
+ *     anything contradicted, restricted or already on the record differently stays for the coordinator.
  *  2. Identity first: a new person is created only with a first and last name and when no one similar is on record
  *     (or the coordinator confirmed it is a different person). Otherwise the intake stays a prospective intake.
  *  3. The draft-safe sections are saved through the same code as a manager-approved section: the person at Assessment,
@@ -42,6 +43,8 @@ export interface PrepareReport {
 }
 
 const AUTO_NOTE = "Accepted for drafting by the AI CSB Coordinator: the words were found on the page and nothing contradicts them.";
+const SCANNED_NOTE = "Accepted for drafting by the AI CSB Coordinator from a scanned page: the AI read the page image, so the words could not be checked automatically. Compare with the original before relying on it.";
+const SCANNED_ONLY = /^Page \d+ is scanned, so the quote could not be checked\.( Compare with the original\.)?$/;
 
 export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; rotaWeeks?: number } = {}): Promise<PrepareReport> {
   const access = coordinatorAccess(ctx);
@@ -51,7 +54,10 @@ export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADupl
     if (intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing. This intake is with a manager or finished.");
     const allowed = DRAFT_SECTIONS.filter((s) => !(intake.mode === "EXISTING" && (s === "PACKAGE" || s === "VISITS")));
     const docs = await tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true } });
-    const candidates = await tx.careIntakeFact.findMany({ where: { intakeId, section: { in: [...allowed] }, decision: "PENDING", verification: "VERIFIED", conflict: null, appliedAt: null }, orderBy: { position: "asc" } });
+    // Checked facts, and facts the AI read from a scanned page (an image has no text to check a quote against; most
+    // council plans arrive scanned). A quote missing from a page that has text is never accepted: that is a misreading.
+    const candidates = (await tx.careIntakeFact.findMany({ where: { intakeId, section: { in: [...allowed] }, decision: "PENDING", appliedAt: null, OR: [{ verification: "VERIFIED", conflict: null }, { verification: "UNVERIFIED", origin: "AI", conflict: { startsWith: "Page " } }] }, orderBy: { position: "asc" } }))
+      .filter((f) => f.verification === "VERIFIED" || SCANNED_ONLY.test(f.conflict ?? ""));
     const ok = candidates.filter((f) => {
       if (isRestrictedFact(f, !!docs.find((d) => d.id === f.sourceDocumentId)?.sensitive) && !access.sensitive) return false;
       try {
@@ -76,7 +82,7 @@ export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADupl
       }
       if (dupes.length) await tx.careIntake.update({ where: { id: intake.id }, data: { notDuplicateById: ctx.userId } });
     }
-    for (const f of ok) await tx.careIntakeFact.update({ where: { id: f.id }, data: { decision: "APPROVED", decisionNote: AUTO_NOTE, decidedById: ctx.userId, decidedAt: new Date(), lockVersion: { increment: 1 } } });
+    for (const f of ok) await tx.careIntakeFact.update({ where: { id: f.id }, data: { decision: "APPROVED", decisionNote: f.verification === "VERIFIED" ? AUTO_NOTE : SCANNED_NOTE, decidedById: ctx.userId, decidedAt: new Date(), lockVersion: { increment: 1 } } });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.drafts.accepted", entityType: "CareIntake", entityId: intake.id, data: { accepted: ok.length, sections: [...new Set(ok.map((f) => f.section))] } }, tx);
     return { intake, blocked: null, duplicate: null, accepted: ok.length };
   });

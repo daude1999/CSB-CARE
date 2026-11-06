@@ -165,3 +165,16 @@ export function topicsPlanPdf() {
     ],
   ]);
 }
+
+/** A "scanned" plan: pages with drawings only and no text layer, the way most council plans arrive. */
+export function scannedPlanPdf() {
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const chunks: Buffer[] = [];
+  doc.on("data", (c: Buffer) => chunks.push(c));
+  const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
+  doc.rect(40, 40, 500, 30).fill("#2b6c8f");
+  doc.addPage();
+  doc.rect(40, 40, 500, 30).fill("#2b6c8f");
+  doc.end();
+  return done;
+}

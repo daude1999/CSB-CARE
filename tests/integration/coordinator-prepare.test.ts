@@ -11,7 +11,9 @@ import { executeTool, type ToolState } from "@/server/care/coordinator/agent-too
 import { publishBuild } from "@/server/rota/build";
 import { bulkVisits } from "@/server/rota/visits";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
-import { supportPlanPdf } from "../support/coordinator-fixture";
+import { scannedPlanPdf, supportPlanPdf } from "../support/coordinator-fixture";
+import type { LlmProvider } from "@/server/ai/provider";
+import type { CareDocumentExtraction } from "@/server/ai/schemas";
 
 /**
  * AI CSB Coordinator phases 3 to 6: one upload fills the person's real records as drafts and proposes a rota, without
@@ -134,7 +136,11 @@ describe("2. Corrections, identity and access", () => {
     const refused = await executeTool(await coordinator(), newState("what is missing?"), "prepare_records", { intakeId, notADuplicate: false });
     expect(refused.isError).toBe(true);
     const again = await executeTool(await coordinator(), newState("please prepare the records"), "prepare_records", { intakeId, notADuplicate: false });
-    expect(JSON.parse(again.content).draftRota.visits).toBe(0);
+    // Nothing is duplicated. (A visit the earlier correction moved from a time already passed today to one still
+    // ahead may be proposed now, so the count is not always zero.)
+    const proposed = await db.visit.findMany({ where: { serviceUserId: suId }, select: { templateId: true, date: true } });
+    expect(new Set(proposed.map((v) => `${v.templateId}|${v.date.toISOString()}`)).size).toBe(proposed.length);
+    expect(JSON.parse(again.content).draftRota.visits).toBeLessThanOrEqual(1);
     const t = await db.visitTemplate.findFirstOrThrow({ where: { serviceUserId: suId, startMinute: 540 } });
     const guessed = await executeTool(await coordinator(), newState("fix the morning visit"), "correct_draft_visit", { templateId: t.id, startTime: "09:30", durationMin: null });
     expect(guessed.isError).toBe(true);
@@ -174,4 +180,45 @@ describe("2. Corrections, identity and access", () => {
     await expect(correctDraftVisit(await coordinator(), t.id, { startTime: "10:00" })).rejects.toBeInstanceOf(ConflictError);
     await db.serviceUser.update({ where: { id: suId }, data: { status: "ASSESSMENT" } });
   });
+});
+
+describe("3. Scanned council plans (no text layer)", () => {
+  it("drafts what the AI read from the page images, labelled as not checked word for word", async () => {
+    await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: new Date() } });
+    const at = (page: number, quote: string) => ({ page, quote, temporal: "CURRENT" as const });
+    const ai: LlmProvider = Object.assign(new SimulatedProvider(), {
+      name: "test-reader", isSimulated: false,
+      async extractCareDocument(): Promise<CareDocumentExtraction> {
+        return {
+          document: { kind: "SUPPORT_PLAN", issuer: "Example Borough Council", issuerKind: "COUNCIL", documentDate: null, pageCount: 2 },
+          person: [{ field: "firstName", value: "Cara", ...at(1, "First name(s) Cara") }, { field: "lastName", value: "Specimen", ...at(1, "Surname Specimen") }],
+          references: [], contacts: [], carerPreferences: [],
+          carePlan: [{ section: "mobility", topic: "MOBILITY_TRANSFERS", canDo: null, support: "Walks with a stick", how: null, preferences: null, outcome: null, clarify: null, ...at(2, "Walking stick") }],
+          risks: [], package: [],
+          visits: [{ label: "Morning", weekdays: [1, 2, 3, 4, 5, 6, 7], startTime: "08:30", durationMinutes: 45, carers: 1, tasks: ["Personal care"], fundedBy: "COUNCIL", medicationPrompt: false, endDate: null, ...at(2, "Morning 08:30 45 minutes") }],
+          medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [],
+        };
+      },
+    });
+    setAiProviderForTests(ai);
+    try {
+      const c = await coordinator();
+      const intake = await createIntake(c, { title: "Scanned plan check" });
+      await addDocuments(c, intake.id, [{ name: "Scanned plan.pdf", type: "application/pdf", bytes: await scannedPlanPdf() }]);
+      const facts = await db.careIntakeFact.findMany({ where: { intakeId: intake.id } });
+      expect(facts.length).toBe(4);
+      expect(facts.every((f) => f.verification === "UNVERIFIED" && /is scanned/.test(f.conflict ?? ""))).toBe(true);
+      const r = await prepareDrafts(c, intake.id);
+      expect(r.blocked).toBeNull();
+      const su = await db.serviceUser.findUniqueOrThrow({ where: { id: r.serviceUserId! } });
+      expect([su.firstName, su.lastName, su.status]).toEqual(["Cara", "Specimen", "ASSESSMENT"]);
+      const decided = await db.careIntakeFact.findMany({ where: { intakeId: intake.id } });
+      expect(decided.every((f) => f.decision === "APPROVED" && /scanned page/.test(f.decisionNote ?? "") && f.verification === "UNVERIFIED")).toBe(true);
+      expect(await db.visitTemplate.count({ where: { serviceUserId: su.id } })).toBe(1);
+      expect(r.rota?.visits).toBeGreaterThan(0);
+    } finally {
+      setAiProviderForTests(new SimulatedProvider());
+      await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
+    }
+  }, 120_000);
 });
