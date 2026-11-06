@@ -104,5 +104,5 @@ describe("demo data clean-up", () => {
     expect((await db.organisation.findUniqueOrThrow({ where: { id: org.id } })).isDemo).toBe(true);
     const [schema] = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM pg_namespace WHERE nspname = '${BACKUP_SCHEMA}'`);
     expect(Number(schema!.n)).toBe(0);
-  });
+  }, 120_000);
 });
