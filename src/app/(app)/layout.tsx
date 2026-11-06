@@ -27,10 +27,11 @@ import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
 /**
- * Server actions run in the page's function. The AI CSB Coordinator's Claude loop can take up to 55 seconds, so pages
- * in the app get a 60-second limit instead of the hosting default (as low as 10 to 15 seconds without fluid compute).
+ * Server actions run in the page's function. The AI CSB Coordinator's Claude loop can take up to 55 seconds, and an AI
+ * reading of a long support plan up to about 3.5 minutes (it then falls back to CSB's basic reader), so pages in the
+ * app get a 300-second limit, the same as the daily cron route, instead of the hosting default.
  */
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();

@@ -5,7 +5,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@
 import { addDays, londonDate, mondayOf } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
-import type { LlmProvider } from "@/server/ai/provider";
+import { AiUnavailableError, type LlmProvider } from "@/server/ai/provider";
 import type { CareDocumentExtraction } from "@/server/ai/schemas";
 import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, getIntake, listIntakes, openIntakeDocument, readIntakeDocument, submitIntake } from "@/server/care/coordinator/intake";
 import { applyApproved, applySection } from "@/server/care/coordinator/apply";
@@ -112,6 +112,54 @@ describe("1. Upload, reading and classification", () => {
     setAiProviderForTests(new SimulatedProvider());
     await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
     await cancelIntake(await coordinator(), tmp.id, "Test of the AI reading only");
+  });
+
+  it("keeps an upload whose AI reading fails, reads it with the basic reader, and reads it again by AI later without re-uploading", async () => {
+    process.env.COORDINATOR_READ_RETRY_BASE_MS = "1";
+    await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: new Date() } });
+    const failing: LlmProvider = Object.assign(new SimulatedProvider(), {
+      name: "test-reader", isSimulated: false,
+      async extractCareDocument(): Promise<CareDocumentExtraction> { throw new AiUnavailableError("The AI service rejected the request.", "rejected"); },
+    });
+    setAiProviderForTests(failing);
+    const c = await coordinator();
+    const tmp = await createIntake(c, { title: "AI reading failure recovery" });
+    const added = await addDocuments(c, tmp.id, [{ name: "Plan.pdf", type: "application/pdf", bytes: planBytes }]);
+    expect(added.results[0]).not.toHaveProperty("error");
+    const doc = await db.careIntakeDocument.findFirstOrThrow({ where: { intakeId: tmp.id } });
+    expect([doc.readStatus, doc.readMethod, doc.readFailure]).toEqual(["PARTLY_READ", "basic-reader", "rejected"]);
+    expect(doc.readNote).toMatch(/Uploaded and stored safely\. The AI reading failed because the AI service rejected the request/);
+    expect((await storage().get(doc.storageKey)).equals(planBytes)).toBe(true);
+    const basicFacts = await db.careIntakeFact.findMany({ where: { intakeId: tmp.id } });
+    expect(basicFacts.length).toBeGreaterThan(5);
+    expect(basicFacts.every((f) => f.origin === "BASIC")).toBe(true);
+    // A document stuck as FAILED by the old reader is recovered the same way.
+    await db.careIntakeDocument.update({ where: { id: doc.id }, data: { readStatus: "FAILED", readNote: "The document could not be read by the AI service just now.", readMethod: null, readFailure: null } });
+
+    setAiProviderForTests(Object.assign(new SimulatedProvider(), {
+      name: "test-reader", isSimulated: false,
+      async extractCareDocument(): Promise<CareDocumentExtraction> {
+        return {
+          document: { kind: "SUPPORT_PLAN", issuer: "Example Borough Council", issuerKind: "COUNCIL", documentDate: null, pageCount: 4 },
+          person: [{ field: "firstName", value: "Ada", page: 1, quote: "Full name: Ada Fictional", temporal: "CURRENT" }],
+          references: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [],
+          medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [],
+        };
+      },
+    }));
+    const again = await readIntakeDocument(c, doc.id);
+    expect([again.reader, again.aiFailure]).toEqual(["ai", null]);
+    const after = await db.careIntakeDocument.findUniqueOrThrow({ where: { id: doc.id } });
+    expect([after.readStatus, after.readMethod, after.readFailure, after.section]).toEqual(["READ", "ai", null, "COUNCIL"]);
+    const aiFacts = await db.careIntakeFact.findMany({ where: { intakeId: tmp.id } });
+    expect(aiFacts.map((f) => [f.destination, f.origin])).toEqual([["person.firstName", "AI"]]);
+    const log = await db.auditLog.findMany({ where: { entityId: tmp.id, action: "coordinator.document.read" }, orderBy: { createdAt: "asc" } });
+    expect(log.map((l) => (l.data as { aiFailure: { reason: string } | null }).aiFailure?.reason ?? null)).toEqual(["rejected", null]);
+    expect(JSON.stringify(log.map((l) => l.data))).not.toContain("Ada");
+
+    setAiProviderForTests(new SimulatedProvider());
+    await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
+    await cancelIntake(c, tmp.id, "Test of the AI reading recovery only");
   });
 });
 

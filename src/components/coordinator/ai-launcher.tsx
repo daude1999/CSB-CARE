@@ -147,7 +147,11 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
         : result.duplicate
           ? "This document was already attached to " + result.reference + ". I did not upload or process it again. Open the review to continue."
           : "Saved " + result.filename + " to draft intake " + result.reference + ". Documents: " + result.documents + ". Extracted facts: " + result.facts + ". Facts awaiting coordinator review: " + result.remainingToCheck + "."
-            + (result.extractionFailures ? " The document could not be read fully; review the file and add unsupported facts manually." : (result.facts === 0 ? " No structured facts were recognised; add facts manually after checking the original." : ""));
+            + (result.aiFallback
+              ? (result.aiFallback.partly
+                ? " Some pages could not be read by the AI (" + result.aiFallback.reason + "), so CSB's basic reader read those pages. Check them against the original, or press Read again on the review page to try the AI again."
+                : " The upload worked, but the AI reading failed (" + result.aiFallback.reason + "), so CSB's basic reader read the labelled parts instead. Press Read again on the review page to try the AI again; there is no need to upload it again.")
+              : result.extractionFailures ? " The document is stored, but it could not be read just now. Press Read again on the review page to try again." : (result.facts === 0 ? " No structured facts were recognised; add facts manually after checking the original." : ""));
       const review = { label: "Review the care intake", href: result.reviewHref };
       setAttachedIntakeId(result.intakeId);
       setAttachment(null);

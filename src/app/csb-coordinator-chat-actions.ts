@@ -70,6 +70,8 @@ export type CoordinatorUploadResponse = {
   /** The same file is already on another open intake, so no new intake was started and nothing was read again. */
   alreadyOnIntake: boolean;
   extractionFailures: number;
+  /** The upload worked but the AI could not read all of it; the basic reader covered it. */
+  aiFallback: { reason: string; partly: boolean } | null;
   reviewHref: string;
   /** What was extracted, as plain sentences from the saved intake (no AI). */
   summary: string;
@@ -101,6 +103,6 @@ export async function uploadCsbCoordinatorDocument(form: FormData): Promise<Coor
   });
   return {
     intakeId: r.intakeId, reference: r.reference, filename: file.name, documents: r.documents, facts: r.facts, remainingToCheck: r.remainingToCheck,
-    duplicate: r.duplicates.length > 0, alreadyOnIntake: r.alreadyOnIntake, extractionFailures: r.failed.length, reviewHref: `/rota/coordinator/${encodeURIComponent(r.intakeId)}`, summary: r.summary,
+    duplicate: r.duplicates.length > 0, alreadyOnIntake: r.alreadyOnIntake, extractionFailures: r.failed.length, aiFallback: r.fallback[0] ? { reason: r.fallback[0].reason, partly: r.fallback[0].partly } : null, reviewHref: `/rota/coordinator/${encodeURIComponent(r.intakeId)}`, summary: r.summary,
   };
 }

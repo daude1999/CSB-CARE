@@ -14,7 +14,15 @@ import { FactRow } from "./fact-row";
 import { ValueFields } from "./value-fields";
 
 type View = IntakeView;
-const READ_STATUS = { PENDING: ["Not read yet", "slate"], READ: ["Read", "green"], PARTLY_READ: ["Partly read", "amber"], UNREADABLE: ["Could not be read", "rose"], FAILED: ["Reading failed", "rose"] } as const;
+const READ_STATUS = { PENDING: ["Not read yet", "slate"], READ: ["Read", "green"], PARTLY_READ: ["Partly read", "amber"], UNREADABLE: ["Could not be read", "rose"], FAILED: ["Stored, not read yet", "rose"] } as const;
+/** How it was read, shown next to the status so "uploaded, AI failed, basic reader used" is never mistaken for a failed upload. */
+function readMethodBadge(d: { readMethod: string | null; readFailure: string | null }) {
+  if (d.readMethod === "ai") return <Badge tone="teal">Read by AI</Badge>;
+  if (d.readMethod === "ai-and-basic") return <Badge tone="amber">AI and basic reader</Badge>;
+  if (d.readMethod === "basic-reader" && d.readFailure) return <Badge tone="amber">AI failed, basic reader used</Badge>;
+  if (d.readMethod === "basic-reader") return <Badge tone="slate">Basic reader (no AI)</Badge>;
+  return null;
+}
 const SECTION_TONE = { OPEN: "amber", APPROVED: "green", RETURNED: "rose", REJECTED: "rose", INFO_REQUESTED: "amber" } as const;
 const APPLY_TONE = { NOT_STARTED: "slate", DONE: "green", FAILED: "rose", BLOCKED: "amber" } as const;
 const closed = (v: View) => v.intake.status === "COMPLETED" || v.intake.status === "CANCELLED";
@@ -42,6 +50,7 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     <Badge tone={tone}>{statusLabel}</Badge>
+                    {readMethodBadge(d)}
                     {d.sensitive ? <Badge tone="violet">Restricted</Badge> : null}
                     {d.filedDocumentId ? <Badge tone="navy">Filed in profile</Badge> : null}
                   </div>
@@ -55,7 +64,7 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
                 <div className="mt-2 flex flex-wrap items-start gap-2">
                   {d.canOpen ? <a className="btn-secondary" href={`/api/care-coordinator/documents/${d.id}`} target="_blank" rel="noopener">Open original<span className="sr-only"> {d.name} (opens in a new tab)</span></a> : <span className="text-[13px] text-slate-600">A manager opens this document.</span>}
                   {d.canOpen && intake.status === "DRAFT" ? (
-                    <form action={rereadIntakeDocumentAction}><Hidden back={back} intakeId={intake.id} /><input type="hidden" name="documentId" value={d.id} /><button className="btn-secondary">Read again</button></form>
+                    <form action={rereadIntakeDocumentAction}><Hidden back={back} intakeId={intake.id} /><input type="hidden" name="documentId" value={d.id} /><button className={d.readStatus === "FAILED" || d.readFailure ? "btn-primary" : "btn-secondary"}>Read again<span className="sr-only"> {d.name}</span></button></form>
                   ) : null}
                   {d.canOpen && !d.filedDocumentId && !closed(view) ? (
                     <details className="w-full sm:w-auto [&[open]]:w-full">

@@ -4106,6 +4106,11 @@ model CareIntakeDocument {
   pageText        Json                       @default("[]")
   readStatus      String                     @default("PENDING")
   readNote        String?
+  /// Who last read it: ai | basic-reader | ai-and-basic (the basic reader covered pages the AI could not read).
+  readMethod      String?
+  /// Why the AI could not read it (or some of its pages) last time, as a safe category such as busy or timeout.
+  readFailure     String?
+  readAt          DateTime?
   /// What the reading found that is not a fact: [{ kind: "FLAG" | "MISSING" | "UNREADABLE", text, page }].
   findings        Json                       @default("[]")
   /// The Council/Other Documents record this was filed as, once applied.

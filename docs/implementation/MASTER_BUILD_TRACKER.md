@@ -176,3 +176,7 @@ Docs: ARCHITECTURE_DECISIONS.md, FEATURE_COMPLETION_MATRIX.md, KNOWN_LIMITATIONS
 ## Policy, procedure and forms (brief of 5 Nov 2026)
 
 Tracked separately in `FORMS_POLICY_LINKS_PROGRESS.md` (PR 0 register fix and PR 1 explicit policy-to-form links built; PR 2 to PR 7 not started).
+
+## AI CSB Coordinator agent (brief of 6 Nov 2026)
+
+Tracked in `AI_CSB_COORDINATOR_AGENT.md` (Phase 1, document reading fix, in a draft PR; Phases 2 to 6 not started).

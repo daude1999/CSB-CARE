@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
 import { AiUnavailableError, type CoordinatorAgentInput, type CoordinatorAgentResult, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
+import { toWire, fromWire } from "./wire-schema";
 import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema, BranchPolicyDraftSchema, CallNoteOrganisationSchema } from "./schemas";
 
 const SYSTEM = `You support regulatory compliance reviewers at CSB, a policy management platform for adult social care providers in England.
@@ -91,29 +92,45 @@ export class AnthropicProvider implements LlmProvider {
     this.name = `anthropic:${this.model}`;
   }
 
-  private async structured<T extends z.ZodType>(schema: T, prompt: string | Anthropic.Beta.BetaContentBlockParam[], system = SYSTEM): Promise<z.infer<T>> {
-    let res;
+  /**
+   * One structured answer. The schema is sent in its wire form (see wire-schema.ts: no unions, so the API can compile
+   * it), and the answer is turned back and validated against the real schema here. Every failure becomes a key-free
+   * AiUnavailableError with a reason, so callers can retry, fall back or explain it.
+   */
+  private async structured<T extends z.ZodType>(
+    schema: T,
+    prompt: string | Anthropic.Beta.BetaContentBlockParam[],
+    system = SYSTEM,
+    opts: { maxTokens?: number; effort?: "low" | "medium" | "high"; timeoutMs?: number; stream?: boolean } = {},
+  ): Promise<z.infer<T>> {
+    const wire = toWire(schema);
+    const body = {
+      model: this.model,
+      max_tokens: opts.maxTokens ?? 16000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default" as const,
+      thinking: { type: "adaptive" as const },
+      output_config: { effort: opts.effort ?? "high", format: betaZodOutputFormat(wire as z.ZodType) },
+      system,
+      messages: [{ role: "user" as const, content: prompt }],
+    };
+    const request = opts.timeoutMs ? { timeout: opts.timeoutMs, maxRetries: 0 } : undefined;
+    let res: { stop_reason: string | null; parsed_output: unknown };
     try {
-      res = await this.client.beta.messages.parse({
-        model: this.model,
-        max_tokens: 16000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        thinking: { type: "adaptive" },
-        output_config: { effort: "high", format: betaZodOutputFormat(schema) },
-        system,
-        messages: [{ role: "user", content: prompt }],
-      });
+      // Long readings stream, so a large answer is never cut off by an HTTP timeout.
+      res = opts.stream ? await this.client.beta.messages.stream(body, request).finalMessage() : await this.client.beta.messages.parse(body, request);
     } catch (e) {
-      if (e instanceof Anthropic.APIConnectionError || e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError) {
-        throw new AiUnavailableError(`AI provider temporarily unavailable: ${e.message}`);
+      if (e instanceof Anthropic.AnthropicError && !(e instanceof Anthropic.APIError) && /pars|JSON|schema/i.test(e.message)) {
+        throw new AiUnavailableError("The AI answer did not have the expected shape.", "invalid-output");
       }
-      throw e;
+      throw toUnavailable(e, this.model);
     }
-    if (res.stop_reason === "refusal") throw new AiUnavailableError("The AI provider declined this request; manual assessment required");
-    if (res.stop_reason === "max_tokens") throw new Error("AI output was truncated; retry or assess manually");
-    if (!res.parsed_output) throw new Error("AI output did not match the required schema");
-    return res.parsed_output as z.infer<T>;
+    if (res.stop_reason === "refusal") throw new AiUnavailableError("The AI service declined this request; manual assessment required", "refused");
+    if (res.stop_reason === "max_tokens") throw new AiUnavailableError("The AI answer was too long and was cut off.", "truncated");
+    if (res.parsed_output == null) throw new AiUnavailableError("The AI answer did not have the expected shape.", "invalid-output");
+    const checked = schema.safeParse(fromWire(schema, res.parsed_output));
+    if (!checked.success) throw new AiUnavailableError("The AI answer did not have the expected shape.", "invalid-output");
+    return checked.data as z.infer<T>;
   }
 
 
@@ -296,16 +313,22 @@ ${input.records.map((r) => `<record id="${r.sid}" kind="${xmlEscape(r.kind)}" da
   }
 
   extractCareDocument(input: CareDocumentExtractionInput) {
+    const range = input.pageRange;
+    const scope = range
+      ? `This request covers pages ${range.from} to ${range.to} only. List only facts, flags and unreadable pages found on pages ${range.from}-${range.to}, but read the pages around them so a timetable or table that continues onto these pages is understood. Fill in "document" from the whole document.`
+      : "Read EVERY page.";
     return this.structured(
       CareDocumentExtractionSchema,
       [
-        { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.pdfBase64 }, title: input.filename.slice(0, 120) },
+        // The document comes first and is cached, so the parts of a long document share one upload of it.
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.pdfBase64 }, title: input.filename.slice(0, 120), cache_control: { type: "ephemeral" } },
         {
           type: "text",
-          text: `The office filed this as: ${xmlEscape(input.categoryLabel)}. Read EVERY page, including tables, timetables and continuation pages, and fill in the schema with individual facts, not a summary. For every fact give the page and a short quote copied exactly from that page; facts whose quote cannot be found on the page are thrown away. Copy values as written and never guess, infer or complete anything. Mark facts about the past as HISTORICAL (an earlier admission, a previous fall, medicines listed at discharge). Separate informal or family support from commissioned visits. Put contradictions, out-of-date information and missing authorisations under flags, and information a home care provider needs but the document does not give under missing. Never decide a risk level that the document does not state.`,
+          text: `The office filed this as: ${xmlEscape(input.categoryLabel)}. ${scope} Include tables, timetables and continuation pages, and fill in the schema with individual facts, not a summary. For every fact give the page and a short quote copied exactly from that page; facts whose quote cannot be found on the page are thrown away. Copy values as written and never guess, infer or complete anything. Mark facts about the past as HISTORICAL (an earlier admission, a previous fall, medicines listed at discharge). Separate informal or family support from commissioned visits. Put contradictions, out-of-date information and missing authorisations under flags, and information a home care provider needs but the document does not give under missing. Never decide a risk level that the document does not state.`,
         },
       ],
       IMPORT_SYSTEM,
+      { maxTokens: 64000, effort: "medium", stream: true, timeoutMs: input.timeoutMs },
     );
   }
 
@@ -353,9 +376,9 @@ export function toUnavailable(e: unknown, model: string): AiUnavailableError {
   if (e instanceof Anthropic.NotFoundError) return new AiUnavailableError(`The AI model "${model}" is not available to this Anthropic account. Choose a model the account can use (ANTHROPIC_MODEL), or leave it unset for the default.`, "model-unavailable");
   if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return new AiUnavailableError("The Anthropic API key was rejected. An administrator needs to check ANTHROPIC_API_KEY on the server.", "auth");
   if (e instanceof Anthropic.RateLimitError) return new AiUnavailableError("The AI service is busy or this account's usage limit was reached. Try again in a minute.", "busy");
+  if (e instanceof Anthropic.APIError && e.status === 529) return new AiUnavailableError("The AI service is overloaded just now. Try again in a minute.", "busy");
   if (e instanceof Anthropic.APIConnectionTimeoutError) return new AiUnavailableError("The AI service took too long to answer.", "timeout");
   if (e instanceof Anthropic.APIConnectionError || e instanceof Anthropic.InternalServerError) return new AiUnavailableError("The AI service could not be reached just now.", "unavailable");
-  if (e instanceof Anthropic.APIError && e.status === 529) return new AiUnavailableError("The AI service is overloaded just now. Try again in a minute.", "busy");
-  if (e instanceof Anthropic.BadRequestError) return new AiUnavailableError("The AI service rejected the request.", "unavailable");
+  if (e instanceof Anthropic.BadRequestError) return new AiUnavailableError("The AI service rejected the request.", "rejected");
   return new AiUnavailableError("The AI service could not answer just now.", "unavailable");
 }
