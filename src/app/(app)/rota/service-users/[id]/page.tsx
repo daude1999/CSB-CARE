@@ -36,6 +36,8 @@ import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
 import { AUTHORITY_LABEL, PREFERRED_LABEL } from "@/server/rota/cover-communication";
 import { ServiceUserDocuments } from "@/components/su-documents";
+import { DischargeReviews } from "@/components/discharge-reviews";
+import { listDischargeReviews } from "@/server/care/discharge-review";
 import { BodyMapSection } from "@/components/body-map";
 import { CallNotesSection } from "@/components/call-notes";
 import { ServiceUserReferenceNumbers } from "@/components/su-reference-numbers";
@@ -103,6 +105,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
+  const discharge = tab === "overview" ? await listDischargeReviews(ctx, su.id) : null;
   const [glance, compliance] = tab === "overview" ? await Promise.all([serviceUserGlance(ctx, su), serviceUserCompliance(ctx, su)]) : [null, []];
   // Care package: the Overview card needs only the open-question count; the tab needs the questions, sources and history.
   const [pkgReviews, pkgSources, pkgHistory] = await Promise.all([
@@ -169,6 +172,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "overview" ? (
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-3">
+            {discharge?.length ? <DischargeReviews reviews={discharge} back={`${base}?tab=overview`} serviceUserId={su.id} /> : null}
             <Card title="About">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
                 <Field label="Known as">{su.preferredName ?? su.firstName}</Field>

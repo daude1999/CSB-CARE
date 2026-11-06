@@ -1681,6 +1681,7 @@ model ServiceUser {
   @@unique([id, organisationId])
   @@index([organisationId, status])
   @@index([organisationId, lastName])
+  dischargeReviews DischargeReview[]
 }
 
 enum ContactKind {
@@ -5202,4 +5203,33 @@ model FormRecordLink {
   @@index([recordId])
   @@index([serviceUserId])
   @@index([staffMemberId])
+}
+
+/// Post-hospital discharge review (AI CSB Coordinator, phase 7): one per discharge document read by the Care
+/// Coordinator, linked to its source. A checklist the office works through; it never replaces the council support
+/// plan and never authorises medication. status: OPEN | COMPLETED
+model DischargeReview {
+  id               String      @id @default(cuid())
+  organisationId   String
+  serviceUserId    String
+  serviceUser      ServiceUser @relation(fields: [serviceUserId], references: [id], onDelete: Cascade)
+  intakeId         String?
+  intakeDocumentId String?     @unique
+  /// The filed ServiceUserDocument (the original letter, unchanged).
+  documentId       String?
+  documentName     String
+  dischargeDate    DateTime?   @db.Date
+  urgent           Boolean     @default(false)
+  urgentReasons    String[]    @default([])
+  /// [{ key, label, finding, outcome: null | NO_CHANGE | UPDATED | ACTION, note, by, at }]
+  checks           Json
+  status           String      @default("OPEN")
+  createdById      String
+  createdAt        DateTime    @default(now())
+  completedById    String?
+  completedAt      DateTime?
+  outcome          String?
+  lockVersion      Int         @default(1)
+
+  @@index([organisationId, serviceUserId, status])
 }

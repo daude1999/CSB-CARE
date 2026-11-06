@@ -237,3 +237,17 @@ The comparison itself writes nothing. Package and visit changes still go to a ma
 **On the person's Documents tab**, a document's "Document history" shows each version with its dates, status and actions. "Compare previous version" lays out the dates, file and status side by side. When the version came from an intake, it links to that intake's detail-by-detail comparison. "Which version was in force on" answers for any date.
 
 **Limitation.** A hand-uploaded version is not compared detail by detail. Only versions that came through the Care Coordinator are.
+
+## Post-hospital discharge review (phase 7)
+
+When the Care Coordinator files a hospital discharge letter for a person (category Hospital Discharge Documents or Discharge Information, under option B or C, or when Personal details are saved for a new person), it opens a **Hospital discharge review** linked to the letter and its intake (`src/server/care/discharge-review.ts`, migration `20261106220000_discharge_review`).
+
+**Checklist.** The review covers mobility, personal care, medicines, skin, equipment, follow-up appointments, risks and visits. Each check starts with what the letter says about it. Each is closed as "No change needed", "Record updated" or "Action needed". "Action needed" needs a note. The medicines check always needs a note saying how the medicines were reconciled, for example with the GP or pharmacy.
+
+**Completion.** The review is completed with a summary once every check is answered.
+
+**Urgent issues.** These mark the review urgent and alert managers in the CRM: pressure damage at grade or category 2 to 4, an end of life or resuscitation decision, a high-risk medicine, oxygen, safeguarding, or a request for urgent action. Nothing is sent outside the CRM.
+
+**What it never does.** The review never replaces the council support plan and never authorises or changes medication. The letter's facts still go through the intake's own checks. Discharge letters are restricted, so the reviews show on the person's overview only to people who can see restricted records.
+
+**One review per letter.** Filing the same intake again opens no second review.
