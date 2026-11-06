@@ -127,6 +127,8 @@ describe("publishing workflow controls (including drafts approved under the earl
     expect((await db.policyVersion.findUniqueOrThrow({ where: { id: rev.draftVersionId } })).status).toBe("SCHEDULED");
     await drain("t", handlers, { types: ["publication.publish"] });
     expect((await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId).toBe(before);
+    // Move the scheduled time into the past, as if the minute had passed.
+    await db.policyPublication.updateMany({ where: { versionId: rev.draftVersionId }, data: { scheduledFor: new Date(Date.now() - 1000) } });
     await db.backgroundJob.updateMany({ where: { type: "publication.publish" }, data: { runAfter: new Date() } });
     await drain("t", handlers, { types: ["publication.publish"] });
     expect((await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId).toBe(rev.draftVersionId);
