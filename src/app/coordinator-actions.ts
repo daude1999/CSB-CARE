@@ -1,5 +1,6 @@
 "use server";
 
+import { acceptRoutineChanges } from "@/server/care/coordinator/compare";
 import { after } from "next/server";
 import { z } from "zod";
 import { ValidationError } from "@/lib/errors";
@@ -55,7 +56,7 @@ const READING_NOTE = "It is being read now: you can watch each stage on this pag
 
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
+    const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : str(fd, "mode") === "DOCUMENT" ? "DOCUMENT" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
     const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length) {
       const r = await addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" });
@@ -107,6 +108,14 @@ export async function decideFactAction(fd: FormData) {
     const value = decision === "EDITED" ? valueFromForm(destination, fd) : undefined;
     await decideFact(ctx, str(fd, "factId"), lockOf(fd), { decision: decision as "APPROVED", note: str(fd, "note"), question: str(fd, "question"), assignedToId: str(fd, "assignedToId"), value });
   }, "Saved");
+}
+
+/** Revised plan: approves only unchanged values and verified new non-clinical details (compare.ts). */
+export async function acceptRoutineChangesAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await acceptRoutineChanges(ctx, intakeId(fd));
+    return { ok: r.accepted ? `${r.accepted} routine change${r.accepted === 1 ? "" : "s"} accepted. Check the rest one by one.` : "Nothing routine was left to accept." };
+  }, "Accepted");
 }
 
 export async function approveVerifiedAction(fd: FormData) {

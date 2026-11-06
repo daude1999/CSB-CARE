@@ -6,6 +6,7 @@ import { handle, str } from "./action-kit";
 import { acceptRecommendation, autoRecommend, createTaskFromRecommendation, dismissRecommendation, generateRecommendations, setBodyMapAiEnabled, startRecommendationReview } from "@/server/care/body-map-ai";
 import { closeBodyMapTask, createBodyMapTask } from "@/server/care/body-map-tasks";
 import { endApplicationSite, recordApplicationSite } from "@/server/care/medication-sites";
+import { decideVersion } from "@/server/care/document-versions";
 import { replaceDocument, setDocumentArchived, updateDocumentDetails, uploadDocument, type DocumentDetails, type UploadedFile } from "@/server/care/su-documents";
 import { MAX_PHOTOS_PER_SAVE, addObservationNote, addObservationPhoto, assignObservationReviewer, decideIncident, recordObservation, reviewObservation, type IncidentDecision } from "@/server/care/body-map";
 
@@ -64,6 +65,17 @@ export async function replaceSuDocumentAction(fd: FormData) {
     const v = await replaceDocument(ctx, str(fd, "documentId"), whole(fd, "lockVersion"), file, str(fd, "changeNote"));
     return { ok: `New version ${v} saved. Earlier versions are kept.` };
   }, "Replaced");
+}
+
+/** Approve or reject a version waiting for review, or withdraw one (document version control). */
+export async function decideSuDocumentVersionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const decision = str(fd, "decision");
+    if (decision !== "APPROVE" && decision !== "REJECT" && decision !== "WITHDRAW") throw new ValidationError("Choose approve, reject or withdraw");
+    const version = whole(fd, "version");
+    const r = await decideVersion(ctx, str(fd, "documentId"), version, { decision, note: str(fd, "note") || undefined });
+    return { ok: decision === "APPROVE" ? `V${version} approved and now in force. The earlier version is kept as superseded.` : decision === "REJECT" ? `V${version} rejected. V${r.currentVersion} stays in force.` : `V${version} withdrawn.${r.currentVersion !== version ? ` V${r.currentVersion} is in force.` : ""}` };
+  }, "Saved");
 }
 
 export async function updateSuDocumentAction(fd: FormData) {

@@ -16,7 +16,7 @@ import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
-import { addVisitNote, recordTaskOutcomes } from "@/server/care/visit-record";
+import { addVisitNote, recordTaskOutcomes, TASK_OUTCOMES, type TaskOutcomeValue } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
 import { decideClockCorrection, requestClockCorrection } from "@/server/rota/corrections";
@@ -901,15 +901,16 @@ export async function resolveExceptionAction(fd: FormData) {
 /** Task outcomes arrive as outcome_<taskId> and note_<taskId>; tasks left blank are not recorded. */
 export async function recordTasksMineAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const rows: { visitTaskId: string; outcome: "DONE" | "NOT_DONE" | "REFUSED"; note?: string }[] = [];
+    const rows: { visitTaskId: string; outcome: TaskOutcomeValue; note?: string }[] = [];
     for (const [k, val] of fd.entries()) {
       if (!k.startsWith("outcome_") || typeof val !== "string" || !val) continue;
-      if (val !== "DONE" && val !== "NOT_DONE" && val !== "REFUSED") throw new ValidationError("Choose done, not done or refused");
+      const outcome = TASK_OUTCOMES.find((o) => o === val);
+      if (!outcome) throw new ValidationError("Choose an outcome for each task");
       const id = k.slice("outcome_".length);
-      rows.push({ visitTaskId: id, outcome: val, note: str(fd, `note_${id}`) || undefined });
+      rows.push({ visitTaskId: id, outcome, note: str(fd, `note_${id}`) || undefined });
     }
     const r = await recordTaskOutcomes(ctx, str(fd, "visitId"), rows);
-    return { ok: `${r.recorded} task${r.recorded === 1 ? "" : "s"} recorded` };
+    return { ok: `${r.recorded} task${r.recorded === 1 ? "" : "s"} recorded${r.concerns ? `. The office has been alerted to ${r.concerns === 1 ? "the concern" : `${r.concerns} concerns`}` : ""}` };
   }, "Tasks recorded");
 }
 

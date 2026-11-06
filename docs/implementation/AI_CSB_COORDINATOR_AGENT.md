@@ -177,3 +177,63 @@ Still open:
 - Within one reading, the AI's page parts are not saved separately. A cut-off reading starts that document's AI
   reading again from the first part.
 - There is no OCR, so a scanned plan still needs the AI.
+
+## Visit-specific care-worker tasks (phase 5)
+
+- **Short tasks.** `src/server/care/coordinator/visit-tasks.ts` splits each timetable row's task text into short tasks (at most 80 characters, at most 30 per visit, in the order written, no duplicates). The full wording stays in the visit template's notes. Each task is linked to the visit template through the organisation's care task list, so Build Rota copies it onto every visit.
+- **No medication tasks from a document.** Any task about medicines (tablets, blister packs, insulin, eye drops, inhalers, patches and similar) is kept off the carer's list. It becomes a restricted "Medication to reconcile" follow-up until the medication record is authorised. Nothing switches on eMAR.
+- **Tasks that may not fit.** A rough, cautious estimate of each task's minutes is compared with the visit length. When the tasks plainly need more time, a "Visit tasks to check" follow-up is raised. Neither the tasks nor the visit length is changed.
+- **Carer outcomes.** A carer records each task as Completed, Not completed, Refused, Unable to complete, Not applicable or Concern identified. Anything other than Completed needs an explanation. A concern raises an in-app alert for the office (the same exception queue as a concern note). No outbound message is sent. Not completed, refused, unable and concern outcomes count as missed tasks in the KPIs and care summary.
+
+## One way in for care documents (phase 3)
+
+Every upload of care documents starts on the Care Coordinator's "Start an intake" form, with three choices:
+
+- **A. New service user** (`mode: NEW`): a referral or support plan for someone not on the system. Their records are drafted for checking, as before.
+- **B. Updated or revised plan** (`mode: EXISTING`): new documents for someone already on the system. Changes are shown for acceptance. Package and visit changes go to a manager.
+- **C. Supporting document** (`mode: DOCUMENT`): a letter, assessment or report for someone already on the system. It is read so its facts can be seen, and filed in the person's documents in the category it was classified into. No facts are accepted automatically and no other record changes.
+
+Entry points:
+
+- Service Users list: "Upload support plan" opens choice A.
+- A person's page: "Upload documents" opens choice B with the person chosen.
+- "Add service user" links to the Coordinator.
+- The chat paperclip creates the same intakes, and the agent's start-intake tool accepts all three modes.
+- The older "Set up from support plan" form stays reachable for typing a plan in by hand, with a note pointing to the Coordinator.
+
+## Revised support plans (phase 6)
+
+For an "Updated or revised plan" intake (B), the Check facts step opens with **What the revised plan changes** (`src/server/care/coordinator/compare.ts`, `src/components/coordinator/revision.tsx`). Every detail read from the new documents is set against the person's current record, field by field:
+
+- **New:** not on the record.
+- **Unchanged:** same as the record. Text is compared ignoring case and spacing. A visit counts as the same when its time, length and carers match.
+- **Changed:** different from the record.
+- **Conflicting:** the documents disagree with each other, or a value comes from an older document.
+- **Removed or superseded:** a repeating visit on record that the revised timetable no longer has. This is only shown when the documents give a timetable.
+- **Missing:** a key detail (date of birth, address, postcode, NHS number) that neither the documents nor the record gives.
+
+**Accept all routine** approves only non-clinical values that match the record, and new personal, contact or carer-preference details read word for word from a page. Care plan, risk, medication, incident and skin details are always decided one by one, even when unchanged. **Keep current** rejects a changed or conflicting detail with the note "Kept the current record". Accept, edit, reject and clarify stay on each fact's own row.
+
+The comparison itself writes nothing. Package and visit changes still go to a manager, and completed visits are never rewritten.
+
+**Limitation.** A removed or superseded visit is shown, but it is not ended automatically. The coordinator changes or ends it on the Templates screen once the council confirms.
+
+## Support plan version control (phase 8)
+
+`src/server/care/document-versions.ts` and migration `20261106210000_su_document_version_control` (additive) add version control to a person's documents.
+
+**Dates.** Each version (V1, V2, V3…) carries its own dates, set once when the file is added: on the document, received, uploaded, effective from, plus the approval date and who approved it. Versions stay immutable.
+
+**Status.** Each version is Pending review, Current, Superseded, Withdrawn or Rejected. The status is kept in an append-only log (`ServiceUserDocumentVersionStatus`, protected by a database trigger), so every decision stays in the history. Versions from before version control read as Current (the document's current version) or Superseded.
+
+**How versions change:**
+- A hand upload is Current.
+- A hand replacement makes the new file Current and the earlier one Superseded.
+- A revised support plan filed by the Care Coordinator for someone who already has one (options B and C) becomes the next version of the existing plan as **Pending review**. The plan in force stays Current until someone with document permission approves the new one.
+- Approving a pending version makes it Current and supersedes the one before. It also prompts a care plan review, as before.
+- Rejecting a pending version needs a reason.
+- Withdrawing a version needs a reason. Withdrawing the current version puts the previous approved version back in force.
+
+**On the person's Documents tab**, a document's "Document history" shows each version with its dates, status and actions. "Compare previous version" lays out the dates, file and status side by side. When the version came from an intake, it links to that intake's detail-by-detail comparison. "Which version was in force on" answers for any date.
+
+**Limitation.** A hand-uploaded version is not compared detail by detail. Only versions that came through the Care Coordinator are.

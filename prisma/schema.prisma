@@ -2305,10 +2305,14 @@ model VisitTask {
   @@index([visitId])
 }
 
+/// How a carer records each planned task. Every outcome other than DONE needs an explanation; CONCERN alerts the office.
 enum TaskOutcome {
   DONE
   NOT_DONE
   REFUSED
+  UNABLE
+  NOT_APPLICABLE
+  CONCERN
 }
 
 model VisitTaskOutcome {
@@ -3780,8 +3784,31 @@ model ServiceUserDocumentVersion {
   changeNote     String?
   uploadedById   String
   uploadedAt     DateTime            @default(now())
+  /// Dates written on or given for this version (set once when it is added).
+  documentDate   DateTime?           @db.Date
+  receivedOn     DateTime?           @db.Date
+  effectiveFrom  DateTime?           @db.Date
+  /// The Care Coordinator intake this version came from, if any.
+  intakeId       String?
+  statuses       ServiceUserDocumentVersionStatus[]
 
   @@unique([documentId, version])
+}
+
+/// A version's status over time, append-only (database trigger): PENDING_REVIEW | CURRENT | SUPERSEDED | WITHDRAWN |
+/// REJECTED. The latest row is the version's status; a version with no rows predates version control.
+model ServiceUserDocumentVersionStatus {
+  id             String                     @id @default(cuid())
+  organisationId String
+  documentId     String
+  versionId      String
+  version        ServiceUserDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  status         String
+  note           String?
+  actorId        String
+  at             DateTime                   @default(now())
+
+  @@index([documentId, at])
 }
 
 enum BodyMapView {

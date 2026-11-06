@@ -18,19 +18,26 @@ import { myStaff } from "@/server/workforce/link";
 export const NOTE_CATEGORIES = { GENERAL: "General note", HANDOVER: "Handover for the next carer", CONCERN: "Concern for the office" } as const;
 /** How each kind of note reads in lists, including the notes written at clock-out. */
 export const NOTE_LABEL: Record<string, string> = { GENERAL: "Note", HANDOVER: "Handover", CONCERN: "Concern", SHORT_VISIT: "Short visit note", CLOCK_OUT: "Clock-out note" };
-export const OUTCOME_LABEL = { DONE: "Done", NOT_DONE: "Not done", REFUSED: "Refused" } as const;
+export const OUTCOME_LABEL = { DONE: "Completed", NOT_DONE: "Not completed", REFUSED: "Refused", UNABLE: "Unable to complete", NOT_APPLICABLE: "Not applicable", CONCERN: "Concern identified" } as const;
+export const TASK_OUTCOMES = ["DONE", "NOT_DONE", "REFUSED", "UNABLE", "NOT_APPLICABLE", "CONCERN"] as const;
+export type TaskOutcomeValue = (typeof TASK_OUTCOMES)[number];
+/** Outcomes the office should look at: the task was not delivered as planned, or the carer raised a concern. */
+export const MISSED_TASK_OUTCOMES = ["NOT_DONE", "REFUSED", "UNABLE", "CONCERN"] as const satisfies readonly TaskOutcomeValue[];
 
 const outcomesSchema = z.array(z.object({
   visitTaskId: z.string().min(1),
-  outcome: z.enum(["DONE", "NOT_DONE", "REFUSED"]),
+  outcome: z.enum(TASK_OUTCOMES),
   note: z.string().trim().max(1000).optional(),
 })).min(1, "Record at least one task");
 
-/** The carer records task outcomes on their own visit. Refused or not done needs a reason. */
+/**
+ * The carer records task outcomes on their own visit. Anything other than completed needs an explanation, and a
+ * concern raises an in-app alert for the office (never an outbound message).
+ */
 export async function recordTaskOutcomes(ctx: Ctx, visitId: string, input: z.input<typeof outcomesSchema>) {
   const p = outcomesSchema.safeParse(input);
   if (!p.success) throw new ValidationError(p.error.issues[0]?.message ?? "Check the tasks");
-  for (const o of p.data) if (o.outcome !== "DONE" && !o.note) throw new ValidationError("Say why a task was not done or was refused");
+  for (const o of p.data) if (o.outcome !== "DONE" && !o.note) throw new ValidationError(o.outcome === "CONCERN" ? "Describe the concern" : "Explain why the task was not completed");
   const staff = await myStaff(ctx);
   return db.$transaction(async (tx) => {
     const v = await tx.visit.findFirst({ where: { id: visitId, organisationId: staff.organisationId, publishedAt: { not: null }, assignments: { some: { staffId: staff.id, removedAt: null } } }, include: { tasks: true, clocks: { where: { staffId: staff.id } } } });
@@ -39,16 +46,22 @@ export async function recordTaskOutcomes(ctx: Ctx, visitId: string, input: z.inp
     if (["CANCELLED", "NOT_DELIVERED"].includes(v.status)) throw new ConflictError("This visit was not delivered");
     const already = new Set((await tx.visitTaskOutcome.findMany({ where: { visitId: v.id, staffId: staff.id }, select: { visitTaskId: true } })).map((x) => x.visitTaskId));
     let recorded = 0;
+    let concerns = 0;
     for (const o of p.data) {
       if (!v.tasks.some((t) => t.id === o.visitTaskId)) throw new NotFoundError("Task");
       if (already.has(o.visitTaskId)) continue; // one outcome per task per carer; the first one stands
-      await tx.visitTaskOutcome.create({ data: { organisationId: v.organisationId, visitId: v.id, visitTaskId: o.visitTaskId, outcome: o.outcome, note: o.note || null, staffId: staff.id, recordedById: ctx.userId } });
+      const row = await tx.visitTaskOutcome.create({ data: { organisationId: v.organisationId, visitId: v.id, visitTaskId: o.visitTaskId, outcome: o.outcome, note: o.note || null, staffId: staff.id, recordedById: ctx.userId } });
       recorded++;
+      if (o.outcome === "CONCERN") {
+        const task = v.tasks.find((t) => t.id === o.visitTaskId)!;
+        await raiseAlert(tx, { organisationId: v.organisationId, kind: "CONCERN", severity: "WARNING", visitId: v.id, staffId: staff.id, message: `Concern on task "${task.name.slice(0, 60)}" at ${v.reference}, recorded by ${ctx.userName}: ${(o.note ?? "").slice(0, 160)}`, dedupeKey: `task-concern:${row.id}`, actionUrl: `/rota/visits/${v.id}` });
+        concerns++;
+      }
     }
     if (!recorded) throw new ConflictError("These tasks are already recorded");
-    await tx.visitEvent.create({ data: { organisationId: v.organisationId, visitId: v.id, type: "TASKS", actorId: ctx.userId, data: { staffId: staff.id, recorded } } });
-    await audit({ organisationId: v.organisationId, actorId: ctx.userId, action: "visit.tasks.recorded", entityType: "Visit", entityId: v.id, data: { recorded } }, tx);
-    return { recorded };
+    await tx.visitEvent.create({ data: { organisationId: v.organisationId, visitId: v.id, type: "TASKS", actorId: ctx.userId, data: { staffId: staff.id, recorded, concerns } } });
+    await audit({ organisationId: v.organisationId, actorId: ctx.userId, action: "visit.tasks.recorded", entityType: "Visit", entityId: v.id, data: { recorded, concerns } }, tx);
+    return { recorded, concerns };
   });
 }
 

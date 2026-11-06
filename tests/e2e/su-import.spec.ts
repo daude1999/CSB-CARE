@@ -39,8 +39,10 @@ test.describe("Set up from support plan", () => {
     mkdirSync(OUT, { recursive: true });
     await page.setViewportSize({ width: 1672, height: 941 });
     await signIn(page);
+    // Uploads now start in the Care Coordinator; the quick form is still reachable for typing a plan in.
     await page.goto("/rota/service-users");
-    await page.getByRole("link", { name: "Set up from support plan" }).click();
+    await expect(page.getByRole("link", { name: "Upload support plan" })).toHaveAttribute("href", /\/rota\/coordinator\?mode=NEW/);
+    await page.goto("/rota/service-users/import");
     await expect(page.getByRole("heading", { name: "Set up from support plan" })).toBeVisible();
     await page.screenshot({ path: `${OUT}/1-upload-1672.png` });
 

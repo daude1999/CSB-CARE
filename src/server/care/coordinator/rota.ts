@@ -39,8 +39,8 @@ export async function rotaReadiness(ctx: Ctx, intakeId: string) {
     : [null, null, 0, 0, 0, null];
   const gates = [
     { key: "person", label: "Person on record", ok: !!su && su.status !== "ENDED", detail: su ? `Status: ${su.status.toLowerCase()}` : "Save Personal details first" },
-    { key: "package", label: "Care package saved", ok: !!pkg && (done("PACKAGE") || intake.mode === "EXISTING"), detail: pkg ? "Active package on record" : "Save the approved care package" },
-    { key: "visits", label: "Repeating visits saved", ok: templates > 0 && (done("VISITS") || intake.mode === "EXISTING"), detail: `${templates} active template${templates === 1 ? "" : "s"}` },
+    { key: "package", label: "Care package saved", ok: !!pkg && (done("PACKAGE") || intake.mode !== "NEW"), detail: pkg ? "Active package on record" : "Save the approved care package" },
+    { key: "visits", label: "Repeating visits saved", ok: templates > 0 && (done("VISITS") || intake.mode !== "NEW"), detail: `${templates} active template${templates === 1 ? "" : "s"}` },
     { key: "careplan", label: "Care plan approved by a different person", ok: !!activePlan, detail: activePlan ? `Version ${activePlan.version} is approved` : planInReview ? `Version ${planInReview.version} is ${planInReview.status === "DRAFT" ? "a draft: submit it on the Care tab" : "waiting for approval"}` : "No approved care plan" },
     { key: "risks", label: "Risk drafts reviewed by an assessor", ok: draftRisks === 0 && activeRisks > 0, detail: draftRisks ? `${draftRisks} draft${draftRisks === 1 ? "" : "s"} still waiting for review` : activeRisks ? `${activeRisks} active assessment${activeRisks === 1 ? "" : "s"}` : "No active risk assessment" },
   ];

@@ -382,7 +382,9 @@ describe("5. Care plan, risks and the draft rota", () => {
     const suId = (await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).serviceUserId!;
     const visits = await db.visit.findMany({ where: { serviceUserId: suId }, include: { tasks: true } });
     expect(visits.every((v) => v.publishedAt === null)).toBe(true);
-    expect(visits.find((v) => v.tasks.length >= 4)).toBeTruthy();
+    // Wash, dress and breakfast reach the visit; "Prompt medication" waits for the medication record (phase 5).
+    expect(visits.find((v) => v.tasks.length >= 3)).toBeTruthy();
+    expect(visits.every((v) => v.tasks.every((t) => !/medication/i.test(t.name)))).toBe(true);
     const again = await previewIntakeRota(m, intakeId, week, 2);
     expect(again.totals.create).toBe(0);
     await expect(createIntakeRota(m, intakeId, { weekStart: week, weeks: 2, fingerprint: again.fingerprint })).rejects.toThrow(/nothing new/);

@@ -11,11 +11,13 @@ import type { z } from "zod";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
+import { durationCheck, visitTasks } from "./visit-tasks";
+import { addPendingVersion, currentSupportPlan, recordVersionStatus } from "../document-versions";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
 import { createRiskDraft } from "../risks";
-import { linkExternalReferenceInTx } from "../external-references";
+import { linkExternalReferenceInTx, referenceKeyConfigured } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
 import { coordinatorAccess, intakeInScope } from "./intake";
@@ -66,7 +68,7 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
     const intake = await intakeInScope(tx, scope, intakeId, true);
     if (intake.status === "CANCELLED" || (intake.status === "DRAFT" && !prepare)) throw new ConflictError("This intake is not approved");
     if (prepare && intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing the intake");
-    if (prepare && intake.mode === "EXISTING" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
+    if (prepare && intake.mode !== "NEW" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
     const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
     if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved by a manager`);
     if (prepare && !(s.status === "OPEN" || s.status === "DRAFTED")) throw new ConflictError(`${sectionLabel(section)} is with a manager`);
@@ -221,6 +223,7 @@ async function applyReferences(tx: Tx, ctx: Ctx, scope: Scope, serviceUserId: st
     if (r.typeUnclear) { out.skipped.push(`${f.label}: choose what this reference identifies before saving it`); continue; }
     if (r.type === "NHS" && !sensitive) { out.skipped.push(`${f.label} needs a registered manager to save`); continue; }
     if (r.type === "NHS" && !/^\d{3} ?\d{3} ?\d{4}$/.test(r.value)) { out.skipped.push(`${f.label}: an NHS number has 10 digits`); continue; }
+    if (!referenceKeyConfigured()) { out.skipped.push(`${f.label}: the reference register is not set up on this system yet, so it was not saved. Add it on the Reference Numbers tab once it is.`); continue; }
     const res = await linkExternalReferenceInTx(tx, ctx, scope.organisationId, serviceUserId, { type: r.type, issuer: r.issuer, value: r.value, systemLabel: r.system ?? null, sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, sourceQuote: f.quote, verificationNote: "Read from documents by the Care Coordinator; not verified" });
     if (res.status === "conflict") { out.skipped.push(`${f.label}: this reference is already on another person's profile. Investigate before linking.`); continue; }
     await markApplied(tx, f, `ServiceUserExternalReference:${res.id}`);
@@ -518,9 +521,20 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const dup = await tx.visitTemplate.findFirst({ where: { serviceUserId: su.id, enabled: true, startMinute: start, weekdays: { hasSome: v.weekdays } } });
       if (dup) { await markApplied(tx, f, `existing:VisitTemplate:${dup.id}`); out.skipped.push(`${v.label} ${v.startTime} already has a repeating visit`); continue; }
       const taskIds: string[] = [];
-      for (const name of v.tasks.slice(0, 30)) {
-        const clean = name.replace(/\s+/g, " ").trim().slice(0, 80);
-        if (!clean) continue;
+      const { tasks: carerTasks, heldMedication } = visitTasks(v.tasks);
+      const src = (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300);
+      const when = `${v.label} ${v.startTime} (${dayList(v.weekdays)})`;
+      if (heldMedication.length) {
+        // Never a carer task from a document: medication waits for an authorised medication record.
+        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "MEDICATION", description: `${when}: medication task${heldMedication.length === 1 ? "" : "s"} not given to carers until the medication record is authorised: ${heldMedication.join("; ")}.`.slice(0, 2000), sourceRef: src, restricted: true, createdById: ctx.userId } });
+        out.notes.push(`${when}: ${heldMedication.length} medication task${heldMedication.length === 1 ? " was" : "s were"} held back until medication is authorised.`);
+      }
+      const fit = durationCheck(carerTasks, v.durationMin);
+      if (!fit.fits) {
+        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "VISIT_TASKS", description: `${when}: ${carerTasks.length} tasks look like about ${fit.needed} minutes of care in a ${v.durationMin}-minute visit. Check the tasks or the visit length with the council. Nothing was changed.`, sourceRef: src, restricted: false, createdById: ctx.userId } });
+        out.notes.push(`${when}: the tasks may not fit in ${v.durationMin} minutes. Flagged for you to check.`);
+      }
+      for (const clean of carerTasks) {
         let task = await tx.careTask.findFirst({ where: { organisationId: scope.organisationId, name: { equals: clean, mode: "insensitive" } } });
         if (!task) { task = await tx.careTask.create({ data: { organisationId: scope.organisationId, name: clean, description: `Added from Care Coordinator intake ${intake.reference}` } }); createdTasks++; }
         if (!task.active) continue;
@@ -560,9 +574,20 @@ export async function fileDocuments(ctx: Ctx, intakeId: string) {
     let filed = 0;
     for (const d of docs) {
       if (!categoriesFor(d.section).some((c) => c.key === d.category)) throw new ValidationError(`Choose a valid category for ${d.name}`);
+      // A revised support plan for someone who already has one becomes its next version, waiting for review; the
+      // plan in force stays current until a person approves the new one (version control, phase 8).
+      const existingPlan = intake.mode !== "NEW" && d.section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN" ? await currentSupportPlan(tx, su.id) : null;
+      if (existingPlan) {
+        const pending = await addPendingVersion(tx, { organisationId: scope.organisationId, documentId: existingPlan.id, actorId: ctx.userId, file: { filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus }, documentDate: d.documentDate, receivedOn: dbDate(londonDate()), effectiveFrom: d.documentDate, intakeId: intake.id, note: `Revised plan from Care Coordinator intake ${intake.reference}. Waiting for review; the earlier version stays in force until it is approved.` });
+        await tx.careIntakeDocument.update({ where: { id: d.id }, data: { filedDocumentId: existingPlan.id } });
+        await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "suDocument.version.pending", entityType: "ServiceUserDocument", entityId: existingPlan.id, data: { serviceUserId: su.id, version: pending.version, intakeId } }, tx);
+        filed++;
+        continue;
+      }
       const details = parseDetails(d.section, { name: d.name, category: d.category, issuingAuthority: d.issuer ?? undefined, receivedOn: londonDate(), effectiveFrom: d.documentDate ? fromDbDate(d.documentDate) : undefined, notes: `Filed from Care Coordinator intake ${intake.reference}. Original file, unchanged (SHA-256 ${d.sha256.slice(0, 16)}…).`, markSensitive: d.sensitive });
       const row = await tx.serviceUserDocument.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, section: d.section, ...details, sensitive: d.sensitive || details.sensitive, createdById: ctx.userId } });
-      await tx.serviceUserDocumentVersion.create({ data: { organisationId: scope.organisationId, documentId: row.id, version: 1, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus, uploadedById: d.createdById } });
+      const v1 = await tx.serviceUserDocumentVersion.create({ data: { organisationId: scope.organisationId, documentId: row.id, version: 1, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus, uploadedById: d.createdById, documentDate: d.documentDate, receivedOn: details.receivedOn, effectiveFrom: details.effectiveFrom, intakeId: intake.id } });
+      await recordVersionStatus(tx, { organisationId: scope.organisationId, documentId: row.id, versionId: v1.id, status: "CURRENT", actorId: ctx.userId, note: `Filed from Care Coordinator intake ${intake.reference}` });
       await tx.careIntakeDocument.update({ where: { id: d.id }, data: { filedDocumentId: row.id } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "suDocument.uploaded", entityType: "ServiceUserDocument", entityId: row.id, data: { serviceUserId: su.id, section: d.section, category: d.category, filename: d.filename, sizeBytes: d.sizeBytes, sensitive: row.sensitive, via: "care-coordinator", intakeId } }, tx);
       if (d.section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN") await promptCarePlanReview(tx, scope.organisationId, ctx.userId, su, row.id, 1);

@@ -25,7 +25,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
   const showAll = `/rota/service-users?${new URLSearchParams({ q: dir.q, status: "ALL" })}`;
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle={`The people you support, with their care package, carer preferences and repeating visits.${org?.isDemo ? " All names in the demo are fictional." : ""}`} actions={hasOrgPermission(ctx, "serviceUser.edit") ? <div className="flex flex-wrap gap-2">{hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") ? <Link href="/rota/service-users/import" className="btn-secondary">Set up from support plan</Link> : null}<Link href="/rota/service-users/new" className="btn-primary">Add service user</Link></div> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle={`The people you support, with their care package, carer preferences and repeating visits.${org?.isDemo ? " All names in the demo are fictional." : ""}`} actions={hasOrgPermission(ctx, "serviceUser.edit") ? <div className="flex flex-wrap gap-2">{hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") ? <Link href="/rota/coordinator?mode=NEW#start" className="btn-secondary">Upload support plan</Link> : null}<Link href="/rota/service-users/new" className="btn-primary">Add service user</Link></div> : null} />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">

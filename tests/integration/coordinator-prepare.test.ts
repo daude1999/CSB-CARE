@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
+import { isMedicationTask } from "@/server/care/coordinator/visit-tasks";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
@@ -61,6 +62,10 @@ describe("1. One upload fills the CRM as drafts", () => {
     expect(risks[0]!.hazards).toMatch(/NO RISK LEVEL IS STATED/);
     // Four commissioned visits a day; the two family rows are never scheduled.
     expect(await db.visitTemplate.count({ where: { serviceUserId: suId } })).toBe(4);
+    // Each visit has short carer tasks, and no medication task reaches carers from a document.
+    const taskNames = (await db.templateTask.findMany({ where: { template: { serviceUserId: suId } }, select: { careTask: { select: { name: true } } } })).map((x) => x.careTask.name);
+    expect(taskNames.length).toBeGreaterThan(0);
+    expect(taskNames.every((n) => n.length <= 80 && !isMedicationTask(n))).toBe(true);
     // A proposed rota while the person is still at Assessment: unpublished, and nobody was told.
     expect(r.rota?.visits).toBeGreaterThan(0);
     const visits = await db.visit.findMany({ where: { serviceUserId: suId } });
@@ -221,4 +226,60 @@ describe("3. Scanned council plans (no text layer)", () => {
       await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
     }
   }, 120_000);
+});
+
+describe("Option C: a supporting document for someone already on record", () => {
+  it("files the document in the person's records and changes nothing else", async () => {
+    const c = await coordinator();
+    const su = await db.serviceUser.findFirstOrThrow({ where: { organisationId: orgId, status: "ACTIVE" } });
+    await expect(createIntake(c, { title: "Letter without a person", mode: "DOCUMENT" })).rejects.toThrow(/Choose the person the document is for/);
+    const intake = await createIntake(c, { title: "GP letter for an existing person", mode: "DOCUMENT", serviceUserId: su.id });
+    expect(intake.serviceUserId).toBe(su.id);
+    await addDocuments(c, intake.id, [{ name: "GP letter.pdf", type: "application/pdf", bytes: plan }]);
+    const counts = async () => [await db.serviceUserContact.count({ where: { serviceUserId: su.id } }), await db.carePackage.count({ where: { serviceUserId: su.id } }), await db.carePlan.count({ where: { serviceUserId: su.id } }), await db.riskAssessment.count({ where: { serviceUserId: su.id } }), await db.visitTemplate.count({ where: { serviceUserId: su.id } }), await db.visit.count({ where: { serviceUserId: su.id } })];
+    const before = await counts();
+    const docsBefore = await db.serviceUserDocument.count({ where: { serviceUserId: su.id } });
+    const r = await prepareDrafts(c, intake.id);
+    expect(r.blocked).toBeNull();
+    expect(r.filed).toBe(1);
+    expect(r.sections).toEqual([]);
+    expect(r.rota).toBeNull();
+    expect(prepareReportText(r)).toMatch(/Supporting document: 1 filed/);
+    expect(await counts()).toEqual(before);
+    expect(await db.serviceUserDocument.count({ where: { serviceUserId: su.id } })).toBe(docsBefore + 1);
+    // No fact was accepted automatically: they wait for a person.
+    expect(await db.careIntakeFact.count({ where: { intakeId: intake.id, decision: "APPROVED" } })).toBe(0);
+    // Running it again files nothing twice.
+    expect((await prepareDrafts(c, intake.id)).filed).toBe(0);
+    expect(await db.serviceUserDocument.count({ where: { serviceUserId: su.id } })).toBe(docsBefore + 1);
+  });
+});
+
+describe("Revised plan for someone already on record", () => {
+  it("compares every detail with the record, accepts only routine ones, and changes nothing by itself", async () => {
+    const { revisionSummary, acceptRoutineChanges } = await import("@/server/care/coordinator/compare");
+    const c = await coordinator();
+    const intake = await createIntake(c, { title: "Revised plan check", mode: "EXISTING", serviceUserId: suId });
+    await addDocuments(c, intake.id, [{ name: "Revised support plan.pdf", type: "application/pdf", bytes: plan }]);
+    const templatesBefore = await db.visitTemplate.findMany({ where: { serviceUserId: suId }, orderBy: { id: "asc" } });
+    const s = (await revisionSummary(c, intake.id))!;
+    expect(s.rows.length).toBeGreaterThan(0);
+    // The same plan again: the person's name and the visits nobody moved match the record. Two visits were moved by
+    // hand in the tests above, so the plan's original times read as new and the moved visits as no longer in it.
+    expect(s.rows.find((r) => r.label.toLowerCase().includes("first name"))?.status).toBe("UNCHANGED");
+    expect(s.counts.UNCHANGED).toBeGreaterThan(0);
+    expect(s.counts.REMOVED_SUPERSEDED).toBe(2);
+    expect(s.rows.filter((r) => r.status === "REMOVED_SUPERSEDED").map((r) => r.label).sort()).toEqual(["Repeating visit at 09:30", "Repeating visit at 17:00"]);
+    expect(s.routine).toBeGreaterThan(0);
+    const r = await acceptRoutineChanges(c, intake.id);
+    expect(r.accepted).toBe(s.routine);
+    // Only routine facts were accepted; care, risk and medication facts still wait for a person.
+    const accepted = await db.careIntakeFact.findMany({ where: { intakeId: intake.id, decision: "APPROVED" }, select: { section: true } });
+    expect(accepted.every((f) => !["CARE_PLAN", "RISKS", "MEDICATION", "INCIDENTS", "BODY_MAP"].includes(f.section))).toBe(true);
+    expect(await db.careIntakeFact.count({ where: { intakeId: intake.id, section: { in: ["CARE_PLAN", "RISKS", "MEDICATION"] }, decision: "APPROVED" } })).toBe(0);
+    expect(await db.visitTemplate.findMany({ where: { serviceUserId: suId }, orderBy: { id: "asc" } })).toEqual(templatesBefore);
+    // Not available for a new person's intake.
+    await expect(acceptRoutineChanges(c, intakeId)).rejects.toThrow(/updated plan/);
+    expect(await revisionSummary(c, intakeId)).toBeNull();
+  });
 });

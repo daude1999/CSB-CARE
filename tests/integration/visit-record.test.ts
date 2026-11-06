@@ -70,6 +70,29 @@ describe("task outcomes", () => {
     await clockMine(me, v.id, "IN", { nonce: `vr2-${v.id}` });
     await expect(recordTaskOutcomes(me, v.id, [{ visitTaskId: other.tasks[0]!.id, outcome: "DONE" }])).rejects.toBeInstanceOf(NotFoundError);
   });
+
+  it("records unable, not applicable and concern outcomes with an explanation, and alerts the office to a concern", async () => {
+    const v = await ameliaVisitWithTasks(3);
+    expect(v.tasks.length).toBeGreaterThan(0);
+    const me = await carer();
+    at(v.scheduledStart, 1);
+    await clockMine(me, v.id, "IN", { nonce: `vr3-${v.id}` });
+    const [t1, t2, t3] = v.tasks;
+    await expect(recordTaskOutcomes(me, v.id, [{ visitTaskId: t1!.id, outcome: "CONCERN" }])).rejects.toThrow(/Describe the concern/);
+    await expect(recordTaskOutcomes(me, v.id, [{ visitTaskId: t1!.id, outcome: "UNABLE" }])).rejects.toThrow(/Explain/);
+    await expect(recordTaskOutcomes(me, v.id, [{ visitTaskId: t1!.id, outcome: "NOT_APPLICABLE" }])).rejects.toThrow(/Explain/);
+    const rows = [
+      { visitTaskId: t1!.id, outcome: "CONCERN" as const, note: "Red mark on heel, new since yesterday" },
+      ...(t2 ? [{ visitTaskId: t2.id, outcome: "UNABLE" as const, note: "Shower chair broken" }] : []),
+      ...(t3 ? [{ visitTaskId: t3.id, outcome: "NOT_APPLICABLE" as const, note: "Already done by family this morning" }] : []),
+    ];
+    const r = await recordTaskOutcomes(me, v.id, rows);
+    expect(r).toEqual({ recorded: rows.length, concerns: 1 });
+    const concern = await db.visitTaskOutcome.findFirstOrThrow({ where: { visitId: v.id, outcome: "CONCERN" } });
+    const alert = await db.rotaAlert.findUniqueOrThrow({ where: { dedupeKey: `task-concern:${concern.id}` } });
+    expect(alert.kind).toBe("CONCERN");
+    expect(alert.message).toMatch(/Red mark on heel/);
+  });
 });
 
 describe("visit notes", () => {

@@ -15,7 +15,7 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { checkArea, contactData, contactSchema, detailData, detailsSchema, nextServiceUserReference } from "./service-users";
 import { packageSchema } from "./packages";
-import { linkExternalReferenceInTx } from "./external-references";
+import { linkExternalReferenceInTx, referenceKeyConfigured } from "./external-references";
 import { FRAMEWORKI, TOWER_HAMLETS_COUNCIL, findFrameworki } from "@/lib/reference-numbers";
 import { canSeeSensitive, categoriesFor, MAX_DOCUMENT_BYTES, parseDetails, promptCarePlanReview, storePrivateFile, type UploadedFile } from "./su-documents";
 
@@ -363,7 +363,9 @@ export async function confirmImport(ctx: Ctx, input: unknown, files: UploadedFil
     // The council's reference for the person goes to the encrypted reference register, unverified, never into the
     // care package reference. "LBTH Frameworki 1088676" is stored as 1088676 with the Frameworki label.
     let councilReference: string | null = null;
-    if (d.person.councilReference) {
+    // Without the reference key the register cannot store it; the reference is still kept in the care preferences above.
+    if (d.person.councilReference && !referenceKeyConfigured()) councilReference = "not-saved-no-key";
+    else if (d.person.councilReference) {
       const fw = findFrameworki(d.person.councilReference)[0];
       const issuer = fw?.lbth || /tower hamlets/i.test(`${d.package.funderName ?? ""}`) ? TOWER_HAMLETS_COUNCIL : (d.package.funderName?.trim() || "Council (check the issuer)");
       const plan = await tx.serviceUserDocument.findFirst({ where: { serviceUserId: su.id, category: "COUNCIL_SUPPORT_PLAN" }, select: { id: true } });
