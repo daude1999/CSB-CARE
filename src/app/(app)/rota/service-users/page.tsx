@@ -9,6 +9,7 @@ import { rotaLookups, suName } from "@/server/rota/queries";
 import { Badge, Card, Empty, Flash, PageHeader, StatusBadge } from "@/components/ui";
 import { AreaDot } from "@/components/rota-ui";
 import { RotaTabs } from "@/components/rota-nav";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,14 @@ const STATUSES: ServiceUserStatus[] = ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSE
 export default async function ServiceUsersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireRotaPage("serviceUser.view");
+  const org = ctx.organisationId ? await db.organisation.findUnique({ where: { id: ctx.organisationId }, select: { isDemo: true } }) : null;
   const status = sp.status === "ALL" ? "ALL" : STATUSES.find((s) => s === sp.status) ?? "CURRENT";
   const [dir, lk] = await Promise.all([serviceUserDirectory(ctx, { q: sp.q, status, areaId: sp.area || undefined }), rotaLookups(ctx)]);
   const rows = dir.rows;
   const showAll = `/rota/service-users?${new URLSearchParams({ q: dir.q, status: "ALL" })}`;
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle="The people you support, with their care package, carer preferences and repeating visits. All names in the demo are fictional." actions={hasOrgPermission(ctx, "serviceUser.edit") ? <div className="flex flex-wrap gap-2">{hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") ? <Link href="/rota/service-users/import" className="btn-secondary">Set up from support plan</Link> : null}<Link href="/rota/service-users/new" className="btn-primary">Add service user</Link></div> : null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="Service Users" back="/rota" subtitle={`The people you support, with their care package, carer preferences and repeating visits.${org?.isDemo ? " All names in the demo are fictional." : ""}`} actions={hasOrgPermission(ctx, "serviceUser.edit") ? <div className="flex flex-wrap gap-2">{hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") ? <Link href="/rota/service-users/import" className="btn-secondary">Set up from support plan</Link> : null}<Link href="/rota/service-users/new" className="btn-primary">Add service user</Link></div> : null} />
       <Flash searchParams={sp} />
       <section aria-label="Filters" className="panel mb-3">
         <form method="get" className="flex flex-wrap items-end gap-2">
