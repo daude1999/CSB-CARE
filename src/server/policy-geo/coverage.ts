@@ -12,9 +12,10 @@ import { listBranchProfiles } from "./branches";
  */
 export type CellState = "approved" | "approved_needs_review" | "awaiting_approval" | "draft" | "missing_local" | "national" | "not_started";
 export const CELL_LABEL: Record<CellState, string> = {
-  approved: "Approved",
+  approved: "Published",
   approved_needs_review: "Needs review",
-  awaiting_approval: "Awaiting approval",
+  // Scheduled, or sent for review under the earlier process: either way it can be published now.
+  awaiting_approval: "Ready to publish",
   draft: "Draft",
   missing_local: "Missing local arrangements",
   national: "National policy only",

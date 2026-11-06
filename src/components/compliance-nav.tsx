@@ -18,7 +18,7 @@ export function canUseCqc(ctx: Ctx) {
 }
 export type WorkspaceTab = { key: string; label: string; href: string };
 
-/** Who may open the Review & Approval Queue: the people the queue page itself lets in. */
+/** Who may open Drafts (formerly the Review & Approval Queue): the people the page itself lets in. */
 export function canUseQueue(ctx: Ctx) {
   return hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.approve") || hasPlatformPermission(ctx, "master.review") || hasPlatformPermission(ctx, "master.author");
 }
@@ -31,10 +31,11 @@ export function workspaceTabs(ctx: Ctx, ws: WorkspaceId): WorkspaceTab[] {
         return [
           { key: "policies", label: "My Policies", href: "/policies", show: org },
           { key: "forms", label: "Forms & Resources", href: "/policies/forms", show: true },
-          { key: "templates", label: "Templates", href: "/policies?tab=templates", show: true },
+          { key: "templates", label: "CSB Central Library", href: "/policies?tab=templates", show: true },
           { key: "archived", label: "Archived", href: "/policies?tab=archived", show: org },
           { key: "calendar", label: "Review Calendar", href: "/policies?tab=calendar", show: org },
-          { key: "queue", label: "Review & Approval Queue", href: "/queue", show: canUseQueue(ctx) },
+          { key: "queue", label: "Drafts", href: "/queue", show: canUseQueue(ctx) },
+          { key: "updates", label: "Monthly Updates", href: "/policies/updates", show: org },
           { key: "generator", label: "Policy Generator", href: "/policies/generator", show: org && hasOrgPermission(ctx, "policy.author") },
           { key: "coverage", label: "Branch Coverage", href: "/policies/coverage", show: org && hasOrgPermission(ctx, "policy.coverage") },
           { key: "branches", label: "Branch Configuration", href: "/policies/branches", show: org && hasOrgPermission(ctx, "policy.localConfig") },

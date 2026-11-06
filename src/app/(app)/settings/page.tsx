@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requirePortal } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { getAiProvider } from "@/server/ai";
-import { updateBusinessDetailsAction, updateOrgSettingsAction } from "../../actions";
+import { updateBusinessDetailsAction } from "../../actions";
 import { Card, Field, Flash } from "@/components/ui";
 import { SettingsDirectory } from "@/components/settings-directory";
 import { TitleBar } from "@/components/title-bar";
@@ -19,7 +19,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const ctx = await requirePortal("admin");
   if (!hasOrgPermission(ctx, "org.manage")) notFound();
   const org = await db.organisation.findUniqueOrThrow({ where: { id: ctx.organisationId! }, include: { branches: { include: { services: { include: { serviceType: true } } } } } });
-  const settings = (org.settings ?? {}) as { requiredApprovals?: number };
   const ai = getAiProvider();
   const details = (await businessDetails(org.id))!;
   const missing = missingDetails(details);
@@ -45,17 +44,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <BusinessForm initial={details} action={updateBusinessDetailsAction} />
       </section>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div id="approval-rules" className="scroll-mt-24">
-        <Card title="Approval rules">
-          <form action={updateOrgSettingsAction} className="space-y-2">
-            <input type="hidden" name="back" value="/settings" />
-            <label className="label" htmlFor="ra">Approvals required before publishing a policy</label>
-            <select id="ra" name="requiredApprovals" className="input" defaultValue={String(settings.requiredApprovals ?? 1)}>
-              {[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <p className="text-xs text-slate-500">Authors can never approve their own drafts, whatever this setting.</p>
-            <button className="btn-primary" type="submit">Save</button>
-          </form>
+        <div id="publishing-rules" className="scroll-mt-24">
+        <Card title="Policy publishing">
+          <div className="space-y-2 text-sm text-slate-700" data-testid="publishing-rules">
+            <p>Organisation administrators and policy approvers publish your documents directly. No second approval is needed. Policy authors can write and save drafts.</p>
+            <p>CSB central policies, procedures, forms and templates reach your library automatically when CSB publishes them. Your local sections are never overwritten.</p>
+            <p className="text-xs text-slate-500">Staff reading and sign-off is separate from publishing: set it when you publish, and track it in Staff Sign-off.</p>
+          </div>
         </Card>
         </div>
         <Card title="Services">

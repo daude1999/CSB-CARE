@@ -50,13 +50,13 @@ export default async function Dashboard() {
 
       <section aria-label="Key figures" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="dashboard-figures">
         <PcFigure icon={<Files size={20} />} label={own ? "Total policies" : "Total templates"} value={f.total} note={own ? "Active in your library" : "CSB starter library"} href="/policies" testId="figure-total" />
-        <PcFigure icon={<CheckCircle size={20} />} iconTone="green" label="Up to date" value={f.upToDate} note="Approved, review not yet due" href="/policies?status=published" testId="figure-up-to-date" />
+        <PcFigure icon={<CheckCircle size={20} />} iconTone="green" label="Up to date" value={f.upToDate} note="Published, review not yet due" href="/policies?status=current" testId="figure-up-to-date" />
         <PcFigure icon={<CalendarX size={20} />} iconTone="amber" label="Needs review" value={f.needsReview} note={`${f.overdue} overdue · ${f.dueSoon} due in 60 days`} href="/policies?tab=calendar" testId="figure-needs-review" />
-        <PcFigure icon={<Stamp size={20} />} iconTone="blue" label="Awaiting approval" value={f.awaitingApproval} note="Revisions submitted for approval" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=awaiting"} testId="figure-awaiting" />
+        <PcFigure icon={<Stamp size={20} />} iconTone="blue" label="Drafts in progress" value={f.draftsInProgress} note="Not yet published" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=drafts"} testId="figure-drafts" />
       </section>
       <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-[#667085]">
         <Info size={14} aria-hidden="true" className="shrink-0" />
-        Counted from your own policy library today ({fmtDate(now)}). Starter templates you have not adopted and approved are not counted as up to date.{org?.isDemo ? " Sample workspace: records are illustrative." : ""}
+        Counted from your own policy library today ({fmtDate(now)}). CSB central documents you use as published are kept up to date by CSB and are not counted here.{org?.isDemo ? " Sample workspace: records are illustrative." : ""}
       </p>
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
@@ -68,7 +68,7 @@ export default async function Dashboard() {
             <ul className="divide-y divide-[#f2f4f7]" data-testid="needs-attention">
               {dash.attention.filter((x) => x.count).map((x) => (
                 <li key={x.key} className="flex items-center gap-3 px-5 py-3">
-                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${x.key === "approvals" ? "bg-[#6941c6]" : x.tone === "rose" ? "bg-[#d92d20]" : "bg-[#f79009]"}`} />
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${x.key === "drafts" ? "bg-[#6941c6]" : x.tone === "rose" ? "bg-[#d92d20]" : "bg-[#f79009]"}`} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-semibold text-[#101828]">{x.label} <span className="font-normal text-[#667085]">· {x.count}</span></span>
                     <span className="block truncate text-[13px] text-[#475467]" title={x.detail}>{x.detail}</span>

@@ -29,20 +29,24 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
     db.reviewAssignment.findMany({ where: { assigneeId: ctx.userId, status: "PENDING", revision: { closedAt: null, ...scope } }, select: { revisionId: true } }),
   ]);
   const mine = new Set(myAssignments.map((a) => a.revisionId));
+  const isMine = (r: (typeof revisions)[number]) => r.authorId === ctx.userId || r.createdById === ctx.userId;
+  const unpublished = revisions.filter((r) => ["DRAFT", "CHANGES_REQUESTED", "UNDER_REVIEW", "APPROVED"].includes(r.draftVersion.status));
+  // Direct publishing (owner's brief, 5 Nov 2026): no review or approval column. Drafts sent for review under the old
+  // process appear with the other drafts, labelled, and can be published as they are.
   const columns = [
-    { title: "Drafts in progress", items: revisions.filter((r) => ["DRAFT", "CHANGES_REQUESTED"].includes(r.draftVersion.status)) },
-    { title: "Awaiting review and approval", items: revisions.filter((r) => r.draftVersion.status === "UNDER_REVIEW") },
-    { title: "Approved, ready to publish or scheduled", items: revisions.filter((r) => ["APPROVED", "SCHEDULED"].includes(r.draftVersion.status)) },
+    { title: "My drafts", items: unpublished.filter(isMine) },
+    { title: "Other drafts in progress", items: unpublished.filter((r) => !isMine(r)) },
+    { title: "Scheduled to publish", items: revisions.filter((r) => r.draftVersion.status === "SCHEDULED") },
   ];
   return (
     <>
-      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Review & Approval Queue" subtitle="Every change to a policy moves from draft, through review and approval, to publication. Nothing here reaches staff until it is published." />
+      <CompliancePageHeader tabs={<ComplianceTabs ctx={ctx} ws="library" active="queue" />} eyebrow="Revisions · draft to publication" title="Drafts" subtitle="Documents being written or changed. Authorised people publish a draft directly when it is ready; nothing here reaches staff until it is published." />
       <Flash searchParams={sp} />
       <ModuleStatRow>
         <ModuleStat label="Needs a Draft" value={needsDraft.length} hint="Revision required, not started" tone="rose" />
-        <ModuleStat label="Drafts" value={columns[0]!.items.length} hint="Being written" tone="amber" />
-        <ModuleStat label="In Review" value={columns[1]!.items.length} hint="Awaiting review and approval" tone="navy" />
-        <ModuleStat label="Ready to Publish" value={columns[2]!.items.length} hint="Approved or scheduled" tone="green" />
+        <ModuleStat label="My Drafts" value={columns[0]!.items.length} hint="Started by you" tone="amber" />
+        <ModuleStat label="Other Drafts" value={columns[1]!.items.length} hint="Started by colleagues or by CSB updates" tone="navy" />
+        <ModuleStat label="Scheduled" value={columns[2]!.items.length} hint="Will publish automatically" tone="green" />
       </ModuleStatRow>
       {needsDraft.length ? (
         <section className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-white px-[15px] py-3" aria-labelledby="needs-draft">
@@ -65,7 +69,7 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
             <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-[17px] ${["border-[#e3934a] text-[#b35e14]", "border-[#4a7fc9] text-[#2f5fa3]", "border-[#3fae6a] text-[#1c7a43]"][n]}`}>{col.items.length}</span>
               <div>
-                <div className="text-[12px] text-slate-500">Step {n + 1} of 3</div>
+
                 <h2 className="text-[17px] leading-snug">{col.title}</h2>
               </div>
             </div>
@@ -78,7 +82,7 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
                     <p className="mt-1 text-[13px] text-slate-700">{r.title}</p>
                     {r.impactAssessment ? <p className="mt-1 text-[12.5px] text-slate-600">Prompted by: {r.impactAssessment.change.title.replace(/^SIMULATED:\s*/, "")}</p> : null}
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <StatusBadge status={r.draftVersion.status} />
+                      {r.draftVersion.status === "UNDER_REVIEW" || r.draftVersion.status === "APPROVED" ? <Badge tone="slate">Sent for review earlier · can publish</Badge> : <StatusBadge status={r.draftVersion.status} />}
                       <Badge>{r.kind.replace(/_/g, " ").toLowerCase()}</Badge>
                       <StatusBadge status={r.urgency} />
                       <SimulatedBadge show={r.isSimulated} />

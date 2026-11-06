@@ -11,7 +11,7 @@ const size = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}
 /**
  * The Upload policy form (owner's brief of 3 Nov 2026). Word and PDF files are dropped or browsed, checked here for
  * type and size so mistakes show before sending, and checked again on the server. Each file becomes a Draft v1 policy;
- * nothing is approved or published automatically.
+ * nothing is published automatically.
  */
 export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { categories: { code: string; name: string }[]; owners: { id: string; name: string }[]; defaultOwner: string; back: string }) {
   const input = useRef<HTMLInputElement>(null);
@@ -91,7 +91,7 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
       </fieldset>
       <p className="flex gap-2 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2.5 text-[13px] leading-5 text-[#b54708]">
         <Warning size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-        <span>Uploads are never approved or published automatically. Each file becomes a Draft v1 with version history, and the original file is stored securely with the policy.</span>
+        <span>Uploads are never published automatically. Each file becomes a Draft v1 with version history, and the original file is stored securely with the policy.</span>
       </p>
       <button type="submit" className="pc-btn w-full justify-center" disabled={busy || !files.length || Boolean(problem)}>
         {busy ? "Uploading…" : files.length > 1 ? `Upload ${files.length} policies` : "Upload policy"}

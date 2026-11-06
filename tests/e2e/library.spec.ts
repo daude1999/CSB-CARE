@@ -44,8 +44,8 @@ test.describe("Policy Library", () => {
     await expect(page).toHaveURL(/area=safeguarding/);
     const n = Number((await register.getByRole("heading", { level: 2 }).innerText()).match(/\((\d+)\)/)![1]);
     expect(n).toBeGreaterThan(0);
-    await page.getByLabel("Status").selectOption("published");
-    await expect(page).toHaveURL(/status=published/);
+    await page.getByLabel("Status").selectOption("current");
+    await expect(page).toHaveURL(/status=current/);
     await expect(page.getByTestId("register-empty").or(register.getByTestId("policy-row").first())).toBeVisible();
 
     // Search covers titles and policy text, and can be cleared.
@@ -57,9 +57,9 @@ test.describe("Policy Library", () => {
     await page.getByRole("link", { name: "Clear filters" }).first().click();
     await expect(page).not.toHaveURL(/q=/);
 
-    // Templates and the review calendar.
-    await page.getByRole("navigation", { name: "Policy Library sections" }).getByRole("link", { name: "Templates" }).click();
-    await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^Templates \(\d+\)$/);
+    // The CSB central library and the review calendar.
+    await page.getByRole("navigation", { name: "Policy Library sections" }).getByRole("link", { name: "CSB Central Library" }).click();
+    await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^CSB Central Library \(\d+\)$/);
     await page.getByRole("navigation", { name: "Policy Library sections" }).getByRole("link", { name: "Review Calendar" }).click();
     await expect(page.getByTestId("review-calendar")).toBeVisible();
   });

@@ -31,7 +31,7 @@ describe("Policy & Compliance sidebar: six workspaces", () => {
   });
 
   it("lists every workspace's tabs for a manager", () => {
-    expect(workspaceTabs(manager, "library").map((t) => t.label)).toEqual(["My Policies", "Forms & Resources", "Templates", "Archived", "Review Calendar", "Review & Approval Queue", "Policy Generator", "Branch Coverage", "Branch Configuration"]);
+    expect(workspaceTabs(manager, "library").map((t) => t.label)).toEqual(["My Policies", "Forms & Resources", "CSB Central Library", "Archived", "Review Calendar", "Drafts", "Monthly Updates", "Policy Generator", "Branch Coverage", "Branch Configuration"]);
     expect(workspaceTabs(manager, "regulatory").map((t) => t.href)).toEqual(["/changes", "/requirements", "/compliance/regulatory/sources", "/compliance/regulatory/references"]);
     expect(workspaceTabs(manager, "signoff").map((t) => t.label)).toEqual(["Overview", "By Employee", "By Policy", "Overdue", "Assignment Rules", "My Reading List"]);
     expect(workspaceTabs(manager, "improvements").map((t) => t.label)).toEqual(["Audits & Inspections", "Corrective Actions", "Risk Register", "Evidence Library"]);
@@ -81,16 +81,14 @@ describe("risk scoring: 5 x 5 matrix", () => {
 
 describe("policy statuses are distinct", () => {
   const now = new Date("2026-11-01");
-  const base = { currentPublishedVersion: { approved: true }, openRevision: null, nextReviewDate: new Date("2027-11-01") };
-  it("separates starter template, draft, under review, approved, published, review due, overdue and archived", () => {
-    expect(policyStatus({ ...base, starterTemplate: true }, now)).toBe("template");
+  const base = { currentPublishedVersion: { publishedAt: new Date("2026-06-01"), replacedEarlier: true }, nextReviewDate: new Date("2027-11-01") };
+  it("separates draft, current, updated, review due, overdue and archived, with no approval states", () => {
     expect(policyStatus({ ...base, currentPublishedVersion: null }, now)).toBe("draft");
-    expect(policyStatus({ ...base, openRevision: { submittedAt: now, draftStatus: "UNDER_REVIEW" } }, now)).toBe("under_review");
-    expect(policyStatus({ ...base, openRevision: { submittedAt: now, draftStatus: "APPROVED" } }, now)).toBe("approved");
-    expect(policyStatus(base, now)).toBe("published");
+    expect(policyStatus(base, now)).toBe("current");
+    expect(policyStatus({ ...base, currentPublishedVersion: { publishedAt: new Date("2026-10-25"), replacedEarlier: true } }, now)).toBe("updated");
     expect(policyStatus({ ...base, nextReviewDate: new Date("2026-11-20") }, now)).toBe("review_due");
     expect(policyStatus({ ...base, nextReviewDate: new Date("2026-10-01") }, now)).toBe("overdue");
-    expect(policyStatus({ ...base, archived: true, starterTemplate: true }, now)).toBe("archived");
+    expect(policyStatus({ ...base, archived: true }, now)).toBe("archived");
   });
 });
 

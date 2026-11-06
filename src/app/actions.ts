@@ -14,7 +14,7 @@ import { hasOrgPermission, requireOrgPermission, requirePlatformPermission } fro
 import { triageChange, reviewAssessment } from "@/server/changes/workflow";
 import { createManualAssessment } from "@/server/impact/assess";
 import { draftRevisionFromAssessment } from "@/server/policies/revise";
-import { acknowledge, addComment, logReadAndSign, confirmImplementation, createManualRevision, createRollbackRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
+import { acknowledge, addComment, cancelScheduledPublication, discardDraft, logReadAndSign, confirmImplementation, createManualRevision, createRollbackRevision, editDraftSection, publishRevision, returnToDraft } from "@/server/policies/workflow";
 import { GOVERNANCE_CHECKS } from "@/server/policy-geo/generator";
 import { adoptTemplate, assignPolicyReviewer, createPolicy, setPolicyArchived } from "@/server/policies/library";
 import { z } from "zod";
@@ -120,7 +120,7 @@ export async function generateDraftAction(fd: FormData) {
       if (!r.revision) throw new AppError(r.reason ?? "No draft created", "NO_DRAFT", 422);
       return `/revisions/${r.revision.id}`;
     },
-    "Draft prepared for review. Nothing has been published.",
+    "Draft prepared. Check every change against the source, then publish it. Nothing has been published yet.",
   );
 }
 
@@ -128,36 +128,64 @@ export async function generateDraftAction(fd: FormData) {
 export async function editSectionAction(fd: FormData) {
   await handle(fd, (ctx) => editDraftSection(ctx, str(fd, "revisionId"), str(fd, "key"), { body: str(fd, "body"), heading: str(fd, "heading") || undefined }), "Section saved");
 }
-export async function submitAction(fd: FormData) {
-  await handle(fd, (ctx) => submitForReview(ctx, str(fd, "revisionId"), { note: str(fd, "note") || undefined }), "Submitted for review");
-}
-export async function decideAction(fd: FormData) {
-  await handle(
-    fd,
-    async (ctx) => {
-      await decide(ctx, str(fd, "revisionId"), { decision: str(fd, "decision") as "APPROVE", comment: str(fd, "comment") });
-    },
-    "Decision recorded",
-  );
-}
+const PublishSchema = z.object({
+  revisionId: z.string().min(1).max(40),
+  scheduleFor: z.string().max(40).optional().transform((v, c) => {
+    if (!v) return null;
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) {
+      c.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a valid publication date and time" });
+      return z.NEVER;
+    }
+    return d;
+  }),
+  effectiveDate: z.string().max(40).optional().transform((v, c) => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) {
+      c.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a valid effective date" });
+      return z.NEVER;
+    }
+    return d;
+  }),
+  ackDays: z.coerce.number().int().min(1, "Allow at least one day to read it").max(90, "Allow at most 90 days to read it").catch(14),
+  changeSummary: z.string().max(2000, "Keep the summary of changes under 2,000 characters").optional(),
+});
+
+/** Publishes a draft directly (or schedules it). No review or approval step: the server checks the publisher's permission. */
 export async function publishAction(fd: FormData) {
   await handle(
     fd,
     async (ctx) => {
-      const when = str(fd, "scheduleFor");
-      const eff = str(fd, "effectiveDate");
-      await publishRevision(ctx, str(fd, "revisionId"), {
-        scheduleFor: when ? new Date(when) : null,
-        effectiveDate: eff ? new Date(eff) : undefined,
+      const parsed = PublishSchema.safeParse({ revisionId: str(fd, "revisionId"), scheduleFor: str(fd, "scheduleFor") || undefined, effectiveDate: str(fd, "effectiveDate") || undefined, ackDays: str(fd, "ackDays") || 14, changeSummary: str(fd, "changeSummary") || undefined });
+      if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Check the publication details");
+      const p = parsed.data;
+      const r = await publishRevision(ctx, p.revisionId, {
+        scheduleFor: p.scheduleFor,
+        effectiveDate: p.effectiveDate,
         requireAcknowledgement: fd.get("requireAcknowledgement") === "on",
         materialRevision: fd.get("materialRevision") === "on",
-        acknowledgementDueDays: Number(str(fd, "ackDays") || 14),
+        acknowledgementDueDays: p.ackDays,
+        changeSummary: p.changeSummary,
         governance: Object.fromEntries(GOVERNANCE_CHECKS.map(([k]) => [k, fd.get(`gov_${k}`) === "on"])),
         assignBranchStaff: fd.get("assignBranchStaff") !== "off",
       });
+      return { ok: r.scheduled ? "Scheduled. It will be published automatically at the time you chose." : "Published. Staff can read the new version now." };
     },
-    "Publication recorded",
+    "Published",
   );
+}
+export async function cancelScheduleAction(fd: FormData) {
+  await handle(fd, (ctx) => cancelScheduledPublication(ctx, str(fd, "revisionId")), "Schedule cancelled. The version is a draft again.");
+}
+export async function returnToDraftAction(fd: FormData) {
+  await handle(fd, (ctx) => returnToDraft(ctx, str(fd, "revisionId")), "Returned to draft. You can edit and publish it.");
+}
+export async function discardDraftAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    await discardDraft(ctx, str(fd, "revisionId"), str(fd, "reason"));
+    return "/queue";
+  }, "Draft discarded. It is kept in the record but will not be published.");
 }
 export async function commentAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await addComment(ctx, str(fd, "revisionId"), str(fd, "body"), str(fd, "sectionKey") || undefined)), "Comment added");
@@ -166,10 +194,10 @@ export async function newRevisionAction(fd: FormData) {
   await handle(fd, async (ctx) => `/revisions/${(await createManualRevision(ctx, str(fd, "policyId"), str(fd, "reason"))).id}`, "Draft created");
 }
 export async function rollbackAction(fd: FormData) {
-  await handle(fd, async (ctx) => `/revisions/${(await createRollbackRevision(ctx, str(fd, "policyId"), str(fd, "versionId"), str(fd, "reason"))).id}`, "Rollback draft created; it requires approval");
+  await handle(fd, async (ctx) => `/revisions/${(await createRollbackRevision(ctx, str(fd, "policyId"), str(fd, "versionId"), str(fd, "reason"))).id}`, "Restore draft created. Publish it to make it the current version.");
 }
 export async function adoptTemplateAction(fd: FormData) {
-  await handle(fd, async (ctx) => `/revisions/${(await adoptTemplate(ctx, str(fd, "templateId"))).revision.id}`, "Template adopted as a draft. Complete the local sections, then submit for approval.");
+  await handle(fd, async (ctx) => `/revisions/${(await adoptTemplate(ctx, str(fd, "templateId"))).revision.id}`, "Your own copy has been created as a draft. Complete the local sections, then publish it. CSB updates will still reach it.");
 }
 export async function createPolicyAction(fd: FormData) {
   await handle(
@@ -392,7 +420,7 @@ export async function uploadPoliciesAction(fd: FormData) {
       if (!r.created.length) throw new ValidationError(`No policy was uploaded.${skipped}`);
       const made = r.created.length === 1 ? `${r.created[0]!.ref} ${r.created[0]!.title} uploaded as Draft v1` : `${r.created.length} policies uploaded as Draft v1 (${r.created.map((c) => c.ref).join(", ")})`;
       const check = r.created.some((c) => c.extracted) ? " Check the extracted text before sending it for review." : " Add or paste the policy text before sending it for review.";
-      return { to: r.created.length === 1 ? `/revisions/${r.created[0]!.revisionId}` : "/policies?sort=updated", ok: `${made}. Nothing has been approved or published.${check}${skipped}` };
+      return { to: r.created.length === 1 ? `/revisions/${r.created[0]!.revisionId}` : "/policies?sort=updated", ok: `${made}. Nothing has been published yet.${check}${skipped}` };
     },
     "Uploaded",
   );
@@ -400,20 +428,6 @@ export async function uploadPoliciesAction(fd: FormData) {
 
 export async function markNotificationsReadAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await db.notification.updateMany({ where: { userId: ctx.userId, readAt: null }, data: { readAt: new Date() } })), "Notifications marked as read");
-}
-
-export async function updateOrgSettingsAction(fd: FormData) {
-  await handle(
-    fd,
-    async (ctx) => {
-      const orgId = requireOrgPermission(ctx, "org.manage");
-      const n = Math.min(3, Math.max(1, Number(str(fd, "requiredApprovals")) || 1));
-      const org = await db.organisation.findUniqueOrThrow({ where: { id: orgId } });
-      await db.organisation.update({ where: { id: orgId }, data: { settings: { ...(org.settings as object), requiredApprovals: n } } });
-      await audit({ organisationId: orgId, actorId: ctx.userId, action: "org.settings_updated", entityType: "Organisation", entityId: orgId, data: { requiredApprovals: n } });
-    },
-    "Settings saved",
-  );
 }
 
 export async function updateBusinessDetailsAction(fd: FormData) {

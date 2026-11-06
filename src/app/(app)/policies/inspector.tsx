@@ -16,7 +16,7 @@ const ORIGIN: Record<string, string> = {
   SEED: "CSB starter text",
   MANUAL: "Manual revision",
   AI_REGULATORY_REVISION: "Regulatory revision",
-  MASTER_SYNC: "From CSB template",
+  MASTER_SYNC: "CSB central update",
   ROLLBACK: "Restored version",
 };
 
@@ -40,11 +40,11 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
   const canRevise = active && canOnPolicy(ctx, p, "author");
   const canAssign = active && !isTemplate && hasOrgPermission(ctx, "policy.author") && data.reviewers.length > 0;
   const canArchive = !isTemplate && hasOrgPermission(ctx, "org.manage");
-  const canAdopt = isTemplate && hasOrgPermission(ctx, "policy.author");
+  const canAdopt = isTemplate && hasOrgPermission(ctx, "policy.author") && !data.orgCopy;
   const typeName = DOC_TYPE_NAMES.get(p.docType) ?? p.docType;
   const category = data.area ? `${data.area.label} › ${p.category.name}` : p.category.name;
   const pdfHref = `/api/policies/${p.id}/download?format=pdf`;
-  const approval = data.openRevision?.submitted ? "Awaiting approval" : data.approvals.length ? "Approved" : v ? "Not yet approved" : "Draft";
+  const source = isTemplate ? "CSB central library" : p.templateId ? "CSB central, with your local sections" : "Your organisation";
 
   const panes = [
     {
@@ -54,7 +54,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
         <div className="px-[14px] pt-[16px]">
           <DocumentViewer src={`${pdfHref}&disposition=inline`} downloadHref={pdfHref} wordHref={`/api/policies/${p.id}/download?format=docx`} title={p.title} headings={v.sections.filter((s) => s.key !== "framework" && s.key !== "related").map((s) => s.heading)} />
           <p className="mt-2 text-[12px] text-[#646e7f]">
-            {v.origin === "SEED" ? "CSB starter text, not yet approved by your organisation. " : ""}
+            {isTemplate && ctx.organisationId ? "CSB central document, kept up to date by CSB. " : ""}
             <Link href={`/policies/${p.id}?view=text`}>Read as accessible text</Link>
           </p>
         </div>
@@ -80,7 +80,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
             <dt>Review cycle</dt><dd>At least every {p.reviewIntervalMonths} months</dd>
             <dt>Next review</dt><dd>{p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"}</dd>
             {data.template ? <><dt>Based on</dt><dd><Link href={`/policies/${data.template.id}`}>{data.template.ref} {data.template.title}</Link></dd></> : null}
-            {data.openRevision ? <><dt>In progress</dt><dd><Link href={`/revisions/${data.openRevision.id}`}>{data.openRevision.title}</Link>{data.openRevision.submitted ? " (submitted for review)" : " (draft)"}</dd></> : null}
+            {data.openRevision ? <><dt>In progress</dt><dd><Link href={`/revisions/${data.openRevision.id}`}>{data.openRevision.title}</Link>{data.openRevision.submitted ? " (draft, sent for review under the old process)" : " (draft)"}</dd></> : null}
           </dl>
         </div>
       ),
@@ -97,7 +97,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
                 <span className="text-[12.5px] text-[#646e7f]">{fmtShort(h.publishedAt)} · {ORIGIN[h.origin] ?? h.origin}{h.status === "PUBLISHED" ? " · current" : ""}</span>
               </div>
               {h.changeSummary ? <p className="mt-1 text-[13px] text-[#2f3d52]">{h.changeSummary}</p> : null}
-              <p className="mt-1 text-[12.5px] text-[#646e7f]">{h.approvers.length ? `Approved by ${h.approvers.join(", ")}` : "No approval record"}</p>
+              <p className="mt-1 text-[12.5px] text-[#646e7f]">{h.publishedBy ? `Published by ${h.publishedBy}` : "Published"}{h.approvers.length ? ` · reviewed by ${h.approvers.join(", ")}` : ""}</p>
             </li>
           ))}
         </ol>
@@ -116,7 +116,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
   ];
 
   const revisionDialog = (label: string, cls: string, reason?: string) => (
-    <ActionDialog triggerClassName={cls} trigger={<><NotePencil size={16} aria-hidden="true" />{label}</>} title={`${label}: ${p.ref}`} description="A revision creates a draft copy of the current text. Nothing changes for staff until the draft is reviewed, approved and published.">
+    <ActionDialog triggerClassName={cls} trigger={<><NotePencil size={16} aria-hidden="true" />{label}</>} title={`${label}: ${p.ref}`} description="A revision creates a draft copy of the current text. Nothing changes for staff until the draft is published.">
       <form action={newRevisionAction} className="space-y-4">
         <input type="hidden" name="policyId" value={p.id} />
         <input type="hidden" name="back" value={back} />
@@ -157,27 +157,28 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
         </ActionDialog>
       );
     }
-  } else if (data.status === "template") {
-    if (canAdopt) {
+  } else if (isTemplate && ctx.organisationId) {
+    // A CSB central document is already in use as published. Customising it is optional.
+    if (data.orgCopy) {
+      primaryKey = "open";
+      primary = <Link href={`/policies?selected=${data.orgCopy.id}`} className="pc-btn"><ArrowSquareOut size={16} aria-hidden="true" />Open our version</Link>;
+    } else if (canAdopt) {
       primaryKey = "adopt";
       primary = (
         <form action={adoptTemplateAction}>
           <input type="hidden" name="templateId" value={p.id} />
           <input type="hidden" name="back" value={back} />
-          <button className="pc-btn" type="submit">Adopt template</button>
+          <button className="pc-btn" type="submit" title="Make your own copy with local sections. CSB updates still reach it automatically.">Customise for us</button>
         </form>
       );
     }
-  } else if ((data.status === "under_review" || data.status === "approved") && open) {
-    primaryKey = "open";
-    primary = <Link href={`/revisions/${open.id}`} className="pc-btn"><Stamp size={16} aria-hidden="true" />{data.status === "approved" ? "Publish approved revision" : "Review and approve"}</Link>;
   } else if (data.status === "draft") {
-    if (canAssign) {
+    if (open && canRevise) {
+      primaryKey = "open";
+      primary = <Link href={`/revisions/${open.id}`} className="pc-btn"><Stamp size={16} aria-hidden="true" />Open draft to publish</Link>;
+    } else if (canAssign) {
       primaryKey = "assign";
       primary = assignDialog("pc-btn");
-    } else if (open && canRevise) {
-      primaryKey = "open";
-      primary = <Link href={`/revisions/${open.id}`} className="pc-btn"><NotePencil size={16} aria-hidden="true" />Open draft</Link>;
     }
   } else if (canRevise) {
     const due = data.status === "review_due" || data.status === "overdue";
@@ -212,7 +213,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
       <div className="flex flex-wrap items-center gap-2 px-[18px] pb-[14px]" data-testid="inspector-actions">
         {primary}
         {!isTemplate && active ? <Link href={libraryHref(query, { selected: p.id, pane: "signoff" })} scroll={false} className="pc-btn-secondary"><Signature size={16} aria-hidden="true" />Manage sign-off</Link> : null}
-        {!isTemplate ? <Link href={`/policies/${p.id}?view=history`} className="pc-btn-secondary"><ClockCounterClockwise size={16} aria-hidden="true" />Versions</Link> : null}
+        <Link href={`/policies/${p.id}?view=history`} className="pc-btn-secondary"><ClockCounterClockwise size={16} aria-hidden="true" />Versions</Link>
         <Menu label="More policy actions" trigger={<DotsThree size={20} weight="bold" />} className="rounded-[9px] border border-[#d0d5dd] bg-white" align="right">
           <Link href={`/policies/${p.id}`} className="pl-menu-item"><ArrowSquareOut size={15} />Open full record</Link>
           {v ? <a href={`/api/policies/${p.id}/download?format=docx`} download className="pl-menu-item"><FileDoc size={15} />Download Word</a> : null}
@@ -236,7 +237,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
           <KeyRow label="Owner" value={data.owner ?? "Not recorded"} />
           <KeyRow label="Next review" value={p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"} />
           <KeyRow label="Category" value={<span title={category}>{p.category.name}</span>} />
-          <KeyRow label="Approval" value={<span className="pc-badge" data-tone={approval === "Approved" ? "green" : approval === "Awaiting approval" ? "purple" : "grey"}>{approval}</span>} />
+          <KeyRow label="Source" value={<span className="pc-badge" data-tone={isTemplate ? "blue" : "grey"}>{source}</span>} />
           <KeyRow label="Last updated" value={fmtShort(v?.publishedAt ?? p.updatedAt)} />
           <KeyRow label="Applies to" value={data.services.length ? data.services.map((s) => s.name).join(", ") : "All services"} />
         </dl>

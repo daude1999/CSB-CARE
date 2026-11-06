@@ -60,23 +60,17 @@ test("detected change flows through review, drafting, approval, publication and 
   await expect(author.getByText("within 48 hours").first()).toBeVisible();
   await expect(author.getByText("within 24 hours")).toHaveCount(0);
 
+  // 3b. The author can't publish; they are told who can.
   await author.goto(revisionUrl);
-  await author.getByRole("button", { name: "Submit for review" }).click();
-  await expect(author.getByRole("status")).toContainText("Submitted for review");
-  await expect(author.getByText("You are the author, so you cannot approve this revision.")).toBeVisible();
+  await expect(author.getByTestId("publish-not-allowed")).toBeVisible();
+  await expect(author.getByRole("button", { name: "Submit for review" })).toHaveCount(0);
 
-  // 4. A different person approves and publishes.
+  // 4. An authorised publisher publishes it directly: no approval step.
   const approver = await signIn(browser, "approver@care-solution.demo");
-  await approver.goto("/notifications");
-  await expect(approver.getByTestId("notification-list")).toContainText("Draft awaiting your review");
   await approver.goto(revisionUrl);
-  const decision = approver.getByTestId("decision-form");
-  await decision.getByLabel("Decision", { exact: true }).selectOption("APPROVE");
-  await decision.getByLabel("Decision comment").fill("Checked against the source text. Approved.");
-  await decision.getByRole("button", { name: "Record decision" }).click();
-  await expect(approver.getByRole("status")).toContainText("Decision recorded");
+  await approver.getByLabel("Summary of changes").fill("Referral timescale shortened to 24 hours.");
   await approver.getByTestId("publish-form").getByRole("button", { name: "Publish" }).click();
-  await expect(approver.getByRole("status")).toContainText("Publication recorded");
+  await expect(approver.getByRole("status")).toContainText("Published");
 
   await approver.goto(`${policyHref}?view=procedure`);
   await expect(approver.getByText("within 24 hours").first()).toBeVisible();

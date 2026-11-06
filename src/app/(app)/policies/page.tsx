@@ -35,8 +35,8 @@ import { CaretLeft, CaretRight, DotsThree, DotsThreeVertical, DownloadSimple, Fi
 
 export const dynamic = "force-dynamic";
 
-const QUICK_DOT: Record<(typeof QUICK_KEYS)[number], string> = { due: "#f79009", overdue: "#d92d20", recent: "#12b76a", awaiting: "#7a5af8" };
-const TAB_LABELS: Record<LibraryTab, string> = { policies: "My Policies", templates: "Templates", archived: "Archived", calendar: "Review Calendar" };
+const QUICK_DOT: Record<(typeof QUICK_KEYS)[number], string> = { due: "#f79009", overdue: "#d92d20", recent: "#12b76a", drafts: "#7a5af8" };
+const TAB_LABELS: Record<LibraryTab, string> = { policies: "My Policies", templates: "CSB Central Library", archived: "Archived", calendar: "Review Calendar" };
 
 /**
  * Policy Library (owner's brief of 3 Nov 2026, screenshot 02): categories and quick filters on the left, the register in
@@ -72,7 +72,8 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
       { key: t, label: TAB_LABELS[t], href: libraryHref({ ...query, tab: t }, { page: undefined, selected: undefined, pane: undefined, insp: undefined }), count: counts[t] },
       ...(t === (ctx.organisationId ? "policies" : "templates") ? [{ key: "forms", label: "Forms & Resources", href: "/policies/forms", count: counts.forms }] : []),
     ]),
-    ...(canUseQueue(ctx) ? [{ key: "queue", label: "Review & Approval Queue", href: "/queue", count: counts.queue }] : []),
+    ...(canUseQueue(ctx) ? [{ key: "queue", label: "Drafts", href: "/queue", count: counts.queue }] : []),
+    ...(ctx.organisationId ? [{ key: "updates", label: "Monthly Updates", href: "/policies/updates" }] : []),
     ...(ctx.organisationId && hasOrgPermission(ctx, "policy.author") ? [{ key: "generator", label: "Policy Generator", href: "/policies/generator" }] : []),
     ...(ctx.organisationId && hasOrgPermission(ctx, "policy.coverage") ? [{ key: "coverage", label: "Branch Coverage", href: "/policies/coverage" }] : []),
     ...(ctx.organisationId && hasOrgPermission(ctx, "policy.localConfig") ? [{ key: "branches", label: "Branch Configuration", href: "/policies/branches" }] : []),
@@ -82,11 +83,11 @@ export default async function PolicyLibraryPage({ searchParams }: { searchParams
     <div className="pl-root min-w-0">
       <CompliancePageHeader
         title={ctx.organisationId ? "Policy Library" : "Template Library"}
-        subtitle={ctx.organisationId ? "Manage your organisation's policies and procedures: keep them up to date, approved and read by your team." : "Original CSB starter documents that provider organisations adopt and approve through their own governance."}
+        subtitle={ctx.organisationId ? "Your organisation's policies and procedures, with CSB central documents kept up to date automatically. Publish your own documents directly and track who has read them." : "CSB central documents. Each version you publish reaches every eligible organisation's library straight away."}
         actions={
           <>
             {canUpload ? (
-              <ActionDialog size="lg" triggerClassName="pc-btn-secondary" trigger={<><UploadSimple size={16} aria-hidden="true" />Upload policy</>} title="Upload policy" description="Bring in your existing policies as drafts. Each file is checked, stored securely and goes through your normal review and approval.">
+              <ActionDialog size="lg" triggerClassName="pc-btn-secondary" trigger={<><UploadSimple size={16} aria-hidden="true" />Upload policy</>} title="Upload policy" description="Bring in your existing policies as drafts. Each file is checked and stored securely. Check the text, then publish it when it is ready.">
                 <UploadPolicyForm categories={categories} owners={members.map((m) => m.user)} defaultOwner={ctx.userId} back={libraryHref(query, { selected: undefined })} />
               </ActionDialog>
             ) : null}

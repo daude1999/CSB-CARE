@@ -8,7 +8,7 @@ import { canOnPolicy } from "@/server/auth/rbac";
 import { getRevision } from "@/server/policies/library";
 import { versionDiff } from "@/server/policies/versions";
 import type { RevisionValidation } from "@/server/policies/revise";
-import { commentAction, decideAction, editSectionAction, publishAction, submitAction } from "../../../actions";
+import { cancelScheduleAction, commentAction, discardDraftAction, editSectionAction, publishAction, returnToDraftAction } from "../../../actions";
 import { PolicyDiffView } from "@/components/diff";
 import { Badge, Card, Empty, Field, Flash, fmtDate, SimulatedBadge, StatusBadge } from "@/components/ui";
 import { GeneratedDraftCard } from "@/components/generated-draft-card";
@@ -26,11 +26,14 @@ export default async function RevisionPage({ params, searchParams }: { params: P
   const validation = (r.validation ?? {}) as Partial<RevisionValidation>;
   const userIds = [...new Set([...r.decisions.map((d) => d.deciderId), ...r.comments.map((c) => c.authorId), ...r.assignments.map((a) => a.assigneeId), r.authorId, r.createdById].filter((x): x is string => Boolean(x)))];
   const names = new Map((await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  const isAuthor = r.authorId === ctx.userId || r.createdById === ctx.userId;
   const canAuthor = canOnPolicy(ctx, r.policy, "author");
-  const canDecide = !isAuthor && (canOnPolicy(ctx, r.policy, "approve") || canOnPolicy(ctx, r.policy, "review"));
+  const canComment = canAuthor || canOnPolicy(ctx, r.policy, "review") || canOnPolicy(ctx, r.policy, "approve");
   const canPublish = canOnPolicy(ctx, r.policy, "publish");
   const editable = ["DRAFT", "CHANGES_REQUESTED"].includes(v.status) && !r.closedAt;
+  // Direct publishing (owner's brief, 5 Nov 2026): a draft, or one sent for review under the old process, publishes straight away.
+  const publishable = ["DRAFT", "CHANGES_REQUESTED", "UNDER_REVIEW", "APPROVED"].includes(v.status) && !r.closedAt;
+  const legacyReview = v.status === "UNDER_REVIEW" && !r.closedAt;
+  const schedule = v.status === "SCHEDULED" ? await db.policyPublication.findUnique({ where: { versionId: v.id }, select: { scheduledFor: true } }) : null;
   const back = `/revisions/${r.id}`;
   const currentDecisions = r.decisions.filter((d) => d.versionId === v.id);
   const generated = await generationForRevision(ctx, r.id);
@@ -40,11 +43,17 @@ export default async function RevisionPage({ params, searchParams }: { params: P
       <CompliancePageHeader back="/queue"
         eyebrow="Revision · draft"
         title={<span className="flex flex-wrap items-center gap-2">{r.policy.ref} {r.policy.title} <StatusBadge status={v.status} /> <SimulatedBadge show={r.isSimulated} /></span>}
-        subtitle={<>{r.title}. Draft {v.label}{r.baseVersion ? `, based on approved ${r.baseVersion.label}` : ""}. <Link href={`/policies/${r.policyId}`}>View current policy</Link></>}
+        subtitle={<>{r.title}. Draft {v.label}{r.baseVersion ? `, based on published ${r.baseVersion.label}` : ""}. <Link href={`/policies/${r.policyId}`}>View current policy</Link></>}
       />
       <Flash searchParams={sp} />
       <div className="mb-3 rounded-[3px] border-l-4 border-[#f0a92e] bg-[#fdf0d8] px-4 py-3 text-sm text-[#8a5a00]" data-testid="draft-banner">
-        {v.status === "PUBLISHED" ? "This version has been published." : "This is a draft. The approved policy remains in force until this draft is approved by someone other than its author and then published."}
+        {v.status === "PUBLISHED" || v.status === "SUPERSEDED"
+          ? "This version has been published."
+          : v.status === "SCHEDULED"
+            ? `This version is scheduled to publish${schedule?.scheduledFor ? ` on ${fmtDate(schedule.scheduledFor, true)}` : ""}. Staff keep using the current version until then.`
+            : r.closedAt
+              ? "This draft was closed without being published."
+              : "This is a draft. Staff keep using the current published version until this draft is published."}
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
@@ -62,7 +71,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
 
           {editable && canAuthor ? (
             <Card title="Edit draft sections">
-              <p className="muted mb-3">Edits create no new approved version; they change this draft only. Customer-specific sections are never changed automatically.</p>
+              <p className="muted mb-3">Each section saves as you go, so you can come back to the draft later. Edits change this draft only; local sections are never changed automatically.</p>
               <div className="space-y-4">
                 {v.sections.map((s) => (
                   <details key={s.key} className="border-b border-slate-200 py-3 [&[open]]:pb-5">
@@ -94,7 +103,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
             ) : (
               <p className="muted mb-3">No comments yet.</p>
             )}
-            {canAuthor || canDecide ? (
+            {canComment ? (
               <form action={commentAction} className="flex gap-2">
                 <input type="hidden" name="revisionId" value={r.id} />
                 <input type="hidden" name="back" value={back} />
@@ -111,49 +120,41 @@ export default async function RevisionPage({ params, searchParams }: { params: P
               <Field label="Author">{r.authorId ? names.get(r.authorId) : "—"}</Field>
               <Field label="Kind">{r.kind.replace(/_/g, " ").toLowerCase()}</Field>
               <Field label="Urgency"><StatusBadge status={r.urgency} /></Field>
-              <Field label="Submitted">{fmtDate(r.submittedAt, true)}</Field>
+              <Field label="Last saved">{fmtDate(v.updatedAt, true)}</Field>
             </div>
             {r.assignments.length ? (
               <ul className="mt-3 space-y-1 text-xs">
-                {r.assignments.map((a) => <li key={a.id}>{a.role.toLowerCase()}: {names.get(a.assigneeId) ?? "user"} <StatusBadge status={a.status === "PENDING" ? "OPEN" : "COMPLETED"} /></li>)}
+                {r.assignments.map((a) => <li key={a.id}>{a.role.toLowerCase()}: {names.get(a.assigneeId) ?? "user"} <StatusBadge status={a.status === "PENDING" ? "OPEN" : a.status === "CLOSED" ? "CLOSED" : "COMPLETED"} /></li>)}
               </ul>
             ) : null}
 
-            {editable && canAuthor ? (
-              <form action={submitAction} className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-                <input type="hidden" name="revisionId" value={r.id} />
-                <input type="hidden" name="back" value={back} />
-                <textarea name="note" className="input" placeholder="Note for reviewers (optional)" aria-label="Note for reviewers" />
-                <button className="btn-primary" type="submit">Submit for review</button>
-              </form>
+            {legacyReview ? (
+              <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-sm" data-testid="legacy-review">
+                <p className="text-slate-600">This draft was sent for review under the old process. Review is no longer required: it can be published as it is, or returned to draft to make changes. Any decisions already recorded are kept below.</p>
+                {canAuthor ? (
+                  <form action={returnToDraftAction}>
+                    <input type="hidden" name="revisionId" value={r.id} />
+                    <input type="hidden" name="back" value={back} />
+                    <button className="btn-secondary" type="submit">Return to draft to edit</button>
+                  </form>
+                ) : null}
+              </div>
             ) : null}
 
-            {v.status === "UNDER_REVIEW" && canDecide ? (
-              <form action={decideAction} className="mt-4 space-y-2 border-t border-slate-100 pt-4" data-testid="decision-form">
-                <input type="hidden" name="revisionId" value={r.id} />
-                <input type="hidden" name="back" value={back} />
-                <select name="decision" className="input" aria-label="Decision">
-                  <option value="APPROVE">Approve</option>
-                  <option value="REQUEST_CHANGES">Request changes</option>
-                  <option value="REJECT">Reject</option>
-                </select>
-                <textarea name="comment" className="input" required placeholder="Comment (required)" aria-label="Decision comment" />
-                <button className="btn-primary" type="submit">Record decision</button>
-              </form>
-            ) : null}
-            {v.status === "UNDER_REVIEW" && isAuthor ? <p className="mt-3 text-xs text-slate-500">You are the author, so you cannot approve this revision.</p> : null}
-
-            {v.status === "APPROVED" && canPublish ? (
+            {publishable && canPublish ? (
               <form action={publishAction} className="mt-4 space-y-2 border-t border-slate-100 pt-4" data-testid="publish-form">
                 <input type="hidden" name="revisionId" value={r.id} />
                 <input type="hidden" name="back" value={back} />
+                <label className="label" htmlFor="changeSummary">Summary of changes{r.baseVersionId ? "" : " (optional)"}</label>
+                <textarea id="changeSummary" name="changeSummary" className="input" maxLength={2000} required={Boolean(r.baseVersionId) && !v.changeSummary} defaultValue={v.changeSummary ?? ""} placeholder="What changed, in a sentence or two. Shown to staff in version history and Monthly Updates." />
                 <label className="label" htmlFor="scheduleFor">Publish at (leave empty to publish now)</label>
                 <input id="scheduleFor" type="datetime-local" name="scheduleFor" className="input" />
                 <label className="label" htmlFor="effectiveDate">Effective date</label>
                 <input id="effectiveDate" type="date" name="effectiveDate" className="input" />
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requireAcknowledgement" defaultChecked={r.policy.kind === "CUSTOMER"} /> Staff must acknowledge</label>
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="materialRevision" defaultChecked /> Material change: staff read and acknowledge this version again (untick for wording-only changes; earlier acknowledgements stay as evidence)</label>
-                <input type="number" name="ackDays" min={1} max={90} defaultValue={14} className="input" aria-label="Acknowledgement due in days" />
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requireAcknowledgement" defaultChecked={r.policy.kind === "CUSTOMER"} /> Staff must read and sign it</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="materialRevision" defaultChecked /> Material change: staff read and sign this version again (untick for wording-only changes; earlier signatures stay as evidence)</label>
+                <label className="label" htmlFor="ackDays">Days staff have to read it</label>
+                <input id="ackDays" type="number" name="ackDays" min={1} max={90} defaultValue={14} className="input" />
                 {generated ? (
                   <fieldset className="space-y-2 rounded border border-amber-300 bg-amber-50 p-3" data-testid="governance-checks">
                     <legend className="px-1 text-sm font-semibold text-navy-900">Before publishing this generated policy, confirm:</legend>
@@ -169,11 +170,37 @@ export default async function RevisionPage({ params, searchParams }: { params: P
                   </fieldset>
                 ) : null}
                 <button className="btn-primary" type="submit">Publish</button>
+                <p className="text-xs text-slate-500">Publishing creates a new version that cannot be changed. The current version is kept in the history.</p>
               </form>
+            ) : null}
+            {publishable && !canPublish && canAuthor ? (
+              <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-600" data-testid="publish-not-allowed">Your draft is saved. An organisation administrator or policy approver can publish it.</p>
+            ) : null}
+
+            {v.status === "SCHEDULED" && canPublish ? (
+              <form action={cancelScheduleAction} className="mt-4 border-t border-slate-100 pt-4">
+                <input type="hidden" name="revisionId" value={r.id} />
+                <input type="hidden" name="back" value={back} />
+                <button className="btn-secondary" type="submit">Cancel the schedule</button>
+              </form>
+            ) : null}
+
+            {(editable || legacyReview) && canAuthor ? (
+              <details className="mt-4 border-t border-slate-100 pt-4 text-sm">
+                <summary className="cursor-pointer text-slate-600">Discard this draft</summary>
+                <form action={discardDraftAction} className="mt-2 space-y-2">
+                  <input type="hidden" name="revisionId" value={r.id} />
+                  <input type="hidden" name="back" value={back} />
+                  <label className="label" htmlFor="discard-reason">Reason</label>
+                  <input id="discard-reason" name="reason" className="input" required minLength={3} />
+                  <button className="btn-secondary" type="submit">Discard draft</button>
+                </form>
+              </details>
             ) : null}
           </Card>
 
-          <Card title="Decisions">
+          {r.decisions.length ? (
+          <Card title="Review history">
             {r.decisions.length ? (
               <ul className="space-y-2 text-sm">
                 {r.decisions.map((d) => (
@@ -187,7 +214,9 @@ export default async function RevisionPage({ params, searchParams }: { params: P
               <Empty>No decisions yet.</Empty>
             )}
             {currentDecisions.length !== r.decisions.length ? <p className="mt-2 text-xs text-slate-400">Faded decisions relate to an earlier review round.</p> : null}
+            <p className="mt-2 text-xs text-slate-500">Recorded under the earlier review process and kept for the record.</p>
           </Card>
+          ) : null}
 
           <Card title="Validation checks">
             {validation.provider ? (

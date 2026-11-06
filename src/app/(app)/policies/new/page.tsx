@@ -11,7 +11,7 @@ export default async function NewPolicy({ searchParams }: { searchParams: Promis
   const [categories, services] = await Promise.all([db.policyCategory.findMany({ orderBy: { name: "asc" } }), db.serviceType.findMany()]);
   return (
     <>
-      <CompliancePageHeader eyebrow="Library · new document" title="Create Policy" back="/policies" subtitle="The policy is created as a draft. It must be reviewed and approved by someone other than you before it can be published." />
+      <CompliancePageHeader eyebrow="Library · new document" title="Create Policy" back="/policies" subtitle="The policy is created as a draft you can come back to. An organisation administrator or policy approver publishes it when it is ready; no separate approval is needed." />
       <Flash searchParams={sp} />
       <Card title="Policy details">
         <form action={createPolicyAction} className="grid gap-4 md:grid-cols-2">

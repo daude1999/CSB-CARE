@@ -30,10 +30,11 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
   const ackScope: Prisma.AcknowledgementWhereInput = orgId ? (manager ? { organisationId: orgId } : { organisationId: orgId, userId: ctx.userId }) : { id: { in: [] } };
   const actionScope: Prisma.ComplianceActionWhereInput = orgId ? (canActions ? { organisationId: orgId } : { organisationId: orgId, ownerId: ctx.userId }) : { id: { in: [] } };
 
-  const [activePolicies, overdueReviews, awaitingApproval, outstandingAcks, overdueMandatory, overdueActions, awaitingVerification, triage, significantFindings, risks] = await Promise.all([
+  const [activePolicies, overdueReviews, draftsInProgress, outstandingAcks, overdueMandatory, overdueActions, awaitingVerification, triage, significantFindings, risks] = await Promise.all([
     db.policy.count({ where: policyWhere }),
     db.policy.count({ where: { ...policyWhere, nextReviewDate: { lt: now } } }),
-    db.policyRevision.count({ where: { ...scope, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } } }),
+    // Drafts not yet published. There is no approval step to wait for (owner's brief, 5 Nov 2026).
+    db.policyRevision.count({ where: { ...scope, closedAt: null } }),
     db.acknowledgement.count({ where: { ...ackScope, ...outstandingAckWhere, publication: { status: "PUBLISHED" } } }),
     db.acknowledgement.count({ where: { ...ackScope, ...outstandingAckWhere, mandatory: true, dueAt: { lt: now }, publication: { status: "PUBLISHED" } } }),
     db.complianceAction.count({ where: { ...actionScope, status: { in: ["OPEN", "IN_PROGRESS"] }, dueDate: { lt: now } } }),
@@ -49,7 +50,7 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
 
   const attention: AttentionItem[] = [
     { key: "reviews", label: "Policy reviews overdue", count: overdueReviews, href: "/policies?quick=overdue", tone: "rose" as const, detail: "Past their review date", show: Boolean(orgId) || hasPlatformPermission(ctx, "master.author") },
-    { key: "approvals", label: "Revisions awaiting approval", count: awaitingApproval, href: "/queue", tone: "amber" as const, detail: "Submitted for review and approval", show: canQueue },
+    { key: "drafts", label: "Drafts not yet published", count: draftsInProgress, href: "/queue", tone: "amber" as const, detail: "Being written; publish them when ready", show: canQueue },
     { key: "acks", label: manager ? "Mandatory reading overdue" : "Your reading overdue", count: overdueMandatory, href: manager ? "/staff?view=rows&status=overdue" : "/acknowledgements", tone: "rose" as const, detail: manager ? "Staff past the due date" : "Policies past their due date", show: Boolean(orgId) },
     { key: "findings", label: "Significant audit findings open", count: significantFindings, href: "/audits", tone: "rose" as const, detail: "High or critical, no verified action yet", show: canAudit },
     { key: "actions", label: canActions ? "Corrective actions overdue" : "Your actions overdue", count: overdueActions, href: "/actions?view=overdue", tone: "rose" as const, detail: "Open past the due date", show: Boolean(orgId) },
@@ -70,17 +71,16 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
     db.policy.findMany({ where: { ...policyWhere, nextReviewDate: { gte: now } }, orderBy: { nextReviewDate: "asc" }, take: 5, select: { id: true, ref: true, title: true, nextReviewDate: true } }),
   ]);
   const [upToDate, recentUpdates, keyDates] = await Promise.all([
-    // Up to date: the live version carries a recorded approval and its review is not due within 60 days. CSB starter
-    // text that the organisation has not approved is never counted here.
-    db.policy.count({ where: { ...policyWhere, currentPublishedVersion: { approvals: { some: { decision: "APPROVE" } } }, revisions: { none: { closedAt: null, submittedAt: { not: null } } }, OR: [{ nextReviewDate: null }, { nextReviewDate: { gte: new Date(now.getTime() + 60 * DAY) } }] } }),
+    // Up to date: a version is published and its review is not due within 60 days.
+    db.policy.count({ where: { ...policyWhere, currentPublishedVersionId: { not: null }, OR: [{ nextReviewDate: null }, { nextReviewDate: { gte: new Date(now.getTime() + 60 * DAY) } }] } }),
     db.regulatoryChange.findMany({ orderBy: { detectedAt: "desc" }, take: 4, select: { id: true, title: true, isSimulated: true, status: true, detectedAt: true, officialDate: true, source: { select: { name: true } } } }),
     db.policy.findMany({ where: { ...policyWhere, nextReviewDate: { not: null } }, orderBy: { nextReviewDate: "asc" }, take: 6, select: { id: true, ref: true, title: true, nextReviewDate: true, ownerId: true } }),
   ]);
   const owners = await db.user.findMany({ where: { id: { in: keyDates.map((p) => p.ownerId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } });
   const ownerName = new Map(owners.map((u) => [u.id, u.name]));
   return {
-    kpis: { activePolicies, overdueReviews, awaitingApproval, outstandingAcks },
-    figures: { total: activePolicies, upToDate, needsReview: overdueReviews + dueSoon, overdue: overdueReviews, dueSoon, awaitingApproval },
+    kpis: { activePolicies, overdueReviews, draftsInProgress, outstandingAcks },
+    figures: { total: activePolicies, upToDate, needsReview: overdueReviews + dueSoon, overdue: overdueReviews, dueSoon, draftsInProgress },
     recentUpdates: recentUpdates.map((c) => ({ ...c, title: c.title.replace(/^SIMULATED:\s*/, "") })),
     keyDates: keyDates.map((p) => ({ id: p.id, ref: p.ref, title: p.title, nextReviewDate: p.nextReviewDate!, owner: p.ownerId ? (ownerName.get(p.ownerId) ?? null) : null, state: p.nextReviewDate! < now ? ("overdue" as const) : p.nextReviewDate!.getTime() - now.getTime() <= 60 * DAY ? ("due" as const) : ("scheduled" as const) })),
     reviewStatus: { overdue: overdueReviews, dueSoon, current: Math.max(0, activePolicies - overdueReviews - dueSoon) },
@@ -92,7 +92,7 @@ export async function complianceDashboard(ctx: Ctx, now = new Date()) {
 }
 
 const ACTION_VERB: Record<string, string> = {
-  reviews: "Start review", approvals: "Review", acks: "Chase", findings: "Open", actions: "Open", verify: "Verify", risks: "Open", riskReviews: "Review",
+  reviews: "Start review", drafts: "Open", acks: "Chase", findings: "Open", actions: "Open", verify: "Verify", risks: "Open", riskReviews: "Review",
   signoffReadiness: "Open", safeguarding: "Open", carePlans: "Review", triage: "Triage",
 };
 
@@ -109,7 +109,7 @@ async function describeAttention(ctx: Ctx, items: AttentionItem[], policyWhere: 
   const scope = { organisationId: ctx.organisationId ?? null };
   const [review, approval, acks, action, change] = await Promise.all([
     want("reviews") ? db.policy.findFirst({ where: { ...policyWhere, nextReviewDate: { lt: now } }, orderBy: { nextReviewDate: "asc" }, select: { id: true, ref: true, title: true, nextReviewDate: true } }) : null,
-    want("approvals") ? db.policyRevision.findFirst({ where: { ...scope, closedAt: null, draftVersion: { status: "UNDER_REVIEW" } }, orderBy: { submittedAt: "asc" }, select: { id: true, policy: { select: { ref: true, title: true } }, draftVersion: { select: { label: true } } } }) : null,
+    want("drafts") ? db.policyRevision.findFirst({ where: { ...scope, closedAt: null }, orderBy: { createdAt: "asc" }, select: { id: true, policy: { select: { ref: true, title: true } }, draftVersion: { select: { label: true } } } }) : null,
     want("acks") ? db.acknowledgement.findMany({ where: { ...ackScope, ...outstandingAckWhere, mandatory: true, dueAt: { lt: now }, publication: { status: "PUBLISHED" } }, orderBy: { dueAt: "asc" }, take: 50, select: { staffMember: { select: { displayName: true } }, user: { select: { name: true } } } }) : [],
     want("actions") ? db.complianceAction.findFirst({ where: { ...actionScope, status: { in: ["OPEN", "IN_PROGRESS"] }, dueDate: { lt: now } }, orderBy: { dueDate: "asc" }, select: { id: true, title: true, dueDate: true } }) : null,
     want("triage") ? db.regulatoryChange.findFirst({ where: { status: { in: ["NEWLY_DETECTED", "AWAITING_CLASSIFICATION", "POTENTIALLY_SUBSTANTIVE", "UNDER_REVIEW"] } }, orderBy: { detectedAt: "desc" }, select: { id: true, title: true } }) : null,
@@ -119,7 +119,7 @@ async function describeAttention(ctx: Ctx, items: AttentionItem[], policyWhere: 
     if (x.key === "reviews" && review) {
       x.detail = `${review.ref} ${review.title} · due ${shortDate(review.nextReviewDate!)}${andMore(x.count - 1)}`;
       if (x.count === 1) x.href = `/policies?selected=${review.id}`;
-    } else if (x.key === "approvals" && approval) {
+    } else if (x.key === "drafts" && approval) {
       x.detail = `${approval.policy.ref} ${approval.policy.title} ${approval.draftVersion.label}${andMore(x.count - 1)}`;
       if (x.count === 1) x.href = `/revisions/${approval.id}`;
     } else if (x.key === "acks" && acks.length) {

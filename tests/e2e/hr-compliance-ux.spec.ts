@@ -175,7 +175,7 @@ test.describe("Policy & Compliance, approved design", () => {
     await signIn(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1, name: "Compliance Dashboard" })).toBeVisible();
-    for (const id of ["figure-total", "figure-up-to-date", "figure-needs-review", "figure-awaiting"]) await expect(page.getByTestId(id)).toBeVisible();
+    for (const id of ["figure-total", "figure-up-to-date", "figure-needs-review", "figure-drafts"]) await expect(page.getByTestId(id)).toBeVisible();
     await expect(page.getByTestId("needs-attention")).toBeVisible();
     await expect(page.getByTestId("key-dates").getByRole("link").first()).toHaveAttribute("href", /\/policies\?selected=/);
     await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
