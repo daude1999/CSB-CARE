@@ -213,7 +213,7 @@ function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
           <li>
             <Link href={libraryHref({ ...query, ...reset }, { selected: undefined })} scroll={false} aria-current={isAll ? "true" : undefined} className="pl-tree-row pl-[10px]">
               <Files size={16} aria-hidden="true" className="text-[#3a4b5e]" />
-              <span className="min-w-0 flex-1 truncate">All {query.tab === "templates" ? "Templates" : "Policies"}</span>
+              <span className="min-w-0 flex-1 truncate">All {query.tab === "templates" ? "CSB central documents" : "Policies"}</span>
               <span className="pl-count">{view.treeTotal}</span>
             </Link>
           </li>
@@ -275,7 +275,7 @@ function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
 
 function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; selectedId?: string }) {
   const { query } = view;
-  const noun = query.tab === "templates" ? "Templates" : query.tab === "archived" ? "Archived policies" : "Policies";
+  const noun = query.tab === "templates" ? "CSB Central Library" : query.tab === "archived" ? "Archived policies" : "Policies";
   const grid = query.layout === "grid";
   return (
     <section aria-labelledby="register-title" className="pc-panel min-w-0" data-testid="policy-register" data-keep-inspector="">

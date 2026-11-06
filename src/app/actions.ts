@@ -436,7 +436,7 @@ export async function uploadPoliciesAction(fd: FormData) {
       const skipped = r.skipped.length ? ` Not uploaded: ${r.skipped.map((s) => `${s.name} (${s.reason})`).join("; ")}.` : "";
       if (!r.created.length) throw new ValidationError(`No policy was uploaded.${skipped}`);
       const made = r.created.length === 1 ? `${r.created[0]!.ref} ${r.created[0]!.title} uploaded as Draft v1` : `${r.created.length} policies uploaded as Draft v1 (${r.created.map((c) => c.ref).join(", ")})`;
-      const check = r.created.some((c) => c.extracted) ? " Check the extracted text before sending it for review." : " Add or paste the policy text before sending it for review.";
+      const check = r.created.some((c) => c.extracted) ? " Check the extracted text before publishing it." : " Add or paste the policy text before publishing it.";
       return { to: r.created.length === 1 ? `/revisions/${r.created[0]!.revisionId}` : "/policies?sort=updated", ok: `${made}. Nothing has been published yet.${check}${skipped}` };
     },
     "Uploaded",

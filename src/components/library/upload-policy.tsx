@@ -87,7 +87,7 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
       <fieldset className="space-y-2 text-[13.5px] text-[#344054]">
         <legend className="sr-only">Upload options</legend>
         <label className="flex items-start gap-2"><input type="checkbox" name="duplicateCheck" defaultChecked className="pc-check mt-0.5" />Skip files whose title matches a policy already in the library</label>
-        <label className="flex items-start gap-2"><input type="checkbox" name="extractText" defaultChecked className="pc-check mt-0.5" />Take editable text from Word files (you check it in the draft before review)</label>
+        <label className="flex items-start gap-2"><input type="checkbox" name="extractText" defaultChecked className="pc-check mt-0.5" />Take editable text from Word files (you check it in the draft before publishing)</label>
       </fieldset>
       <p className="flex gap-2 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2.5 text-[13px] leading-5 text-[#b54708]">
         <Warning size={16} aria-hidden="true" className="mt-0.5 shrink-0" />

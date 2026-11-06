@@ -859,7 +859,7 @@ const ORIGIN: Record<string, string> = {
 
 function VersionState({ version, starter }: { version: { label: string; publishedAt: Date | null } | null; starter: boolean }) {
   if (!version) return <span className="reader-pill bg-[#fffaeb] text-[#b54708]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full border-2 border-current" />Not published</span>;
-  return <span className="reader-pill bg-[#ecfdf3] text-[#067647]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />Current · published {fmtDate(version.publishedAt)}{starter ? " · CSB starter text" : ""}</span>;
+  return <span className="reader-pill bg-[#ecfdf3] text-[#067647]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />{starter ? "Published · CSB starter text" : `Published ${fmtDate(version.publishedAt)}`}</span>;
 }
 
 function Verification({ status }: { status: string }) {
