@@ -16,7 +16,7 @@ import { approvePlan, submitPlan } from "@/server/care/care-plans";
 import { approveRiskDraft } from "@/server/care/risks";
 import { storage } from "@/server/storage";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
-import { dischargeLetterPdf, supportPlanPdf } from "../support/coordinator-fixture";
+import { dischargeLetterPdf, supportPlanPdf, topicsPlanPdf } from "../support/coordinator-fixture";
 import { packageSources } from "@/server/care/packages";
 
 /**
@@ -430,5 +430,70 @@ describe("6. Shift check, history, isolation and access", () => {
     await expect(submitIntake(c, dup.id)).rejects.toThrow(/already on record/);
     await submitIntake(c, dup.id, { notADuplicate: true });
     expect((await db.careIntake.findUniqueOrThrow({ where: { id: dup.id } })).notDuplicateById).toBeTruthy();
+  });
+});
+
+describe("7. Structured extraction (phase 2): care plan topics, risk mitigation and visit details reach the drafts", () => {
+  it("files each topic under its section heading, keeps the mitigation on the risk draft and the instructions on a temporary two-carer template", async () => {
+    await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: new Date() } });
+    const at = (page: number, quote: string) => ({ page, quote, temporal: "CURRENT" as const });
+    const ai: LlmProvider = Object.assign(new SimulatedProvider(), {
+      name: "test-reader", isSimulated: false,
+      async extractCareDocument(): Promise<CareDocumentExtraction> {
+        return {
+          document: { kind: "SUPPORT_PLAN", issuer: "Example Borough Council", issuerKind: "COUNCIL", documentDate: null, pageCount: 2 },
+          person: [
+            { field: "firstName", value: "Bea", ...at(1, "Full name: Bea Specimen") },
+            { field: "lastName", value: "Specimen", ...at(1, "Full name: Bea Specimen") },
+          ],
+          references: [], contacts: [], carerPreferences: [],
+          carePlan: [
+            { section: "personal_care", topic: "TOILETING_CONTINENCE", canDo: "Uses the toilet with her frame", support: "Help at night", how: "Leave the commode within reach", preferences: "Prefers a female carer", outcome: null, clarify: null, ...at(2, "Leave the commode within reach") },
+            { section: "personal_care", topic: "WASHING_DRESSING", canDo: null, support: "A full strip wash at the sink", how: null, preferences: "Chooses her own clothes", outcome: null, clarify: null, ...at(2, "She likes to choose her own clothes") },
+          ],
+          risks: [{ type: "FALLS", title: "Falls at night", hazard: "Has fallen twice getting up to the toilet", whoAffected: null, existingControls: null, mitigation: "A sensor light on the landing", assessmentGaps: "No falls assessment date", level: "HIGH", ...at(2, "A sensor light on the landing is recommended") }],
+          package: [],
+          visits: [{ label: "Morning", weekdays: [1, 2, 3, 4, 5], startTime: "08:00", durationMinutes: 45, carers: 2, tasks: ["Hoist transfer", "Strip wash"], fundedBy: "COUNCIL", medicationPrompt: false, endDate: null, startDate: null, visitType: "Personal care", instructions: "Two carers for the hoist", temporary: true, ...at(2, "Two carers for the hoist") }],
+          medication: { arrangement: null, items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [],
+        };
+      },
+    });
+    setAiProviderForTests(ai);
+    try {
+      const c = await coordinator();
+      const tmp = await createIntake(c, { title: "Topics check" });
+      await addDocuments(c, tmp.id, [{ name: "Plan.pdf", type: "application/pdf", bytes: await topicsPlanPdf() }]);
+      const facts = await db.careIntakeFact.findMany({ where: { intakeId: tmp.id }, orderBy: { position: "asc" } });
+      expect(facts.every((f) => f.verification === "VERIFIED")).toBe(true);
+      expect(facts.filter((f) => f.section === "CARE_PLAN").map((f) => f.label)).toEqual(["Toileting and continence", "Washing and dressing"]);
+      // A temporary visit with no end date is flagged, so it is not bulk-approved: the coordinator approves it on its own.
+      const visit = facts.find((f) => f.destination === "visit")!;
+      expect(visit.conflict).toMatch(/no end date/);
+      for (const s of ["PERSONAL", "CARE_PLAN", "RISKS", "VISITS"]) await approveVerified(c, tmp.id, s);
+      expect((await db.careIntakeFact.findUniqueOrThrow({ where: { id: visit.id } })).decision).toBe("PENDING");
+      await decideFact(c, visit.id, null, { decision: "APPROVED" });
+      await submitIntake(c, tmp.id);
+      for (const s of ["PERSONAL", "CARE_PLAN", "RISKS", "VISITS"]) await decideSection(await manager(), tmp.id, s, { decision: "APPROVED" });
+      const results = await applyApproved(await manager(), tmp.id);
+      expect(results.every((r) => r.status === "DONE")).toBe(true);
+      const suId = (await db.careIntake.findUniqueOrThrow({ where: { id: tmp.id } })).serviceUserId!;
+      const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
+      expect(plan.status).toBe("DRAFT");
+      const body = plan.sections.find((s) => s.key === "personal_care")!.body;
+      expect(body).toMatch(/^Toileting and continence\n[\s\S]*How staff should support me: Leave the commode within reach[\s\S]*My preferences: Prefers a female carer/);
+      expect(body).toMatch(/Washing and dressing\n[\s\S]*My preferences: Chooses her own clothes/);
+      const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId } });
+      expect(risk.status).toBe("DRAFT");
+      expect(JSON.stringify(risk)).toContain("A sensor light on the landing");
+      expect(JSON.stringify(risk)).toContain("For a qualified assessor: No falls assessment date");
+      const t = await db.visitTemplate.findFirstOrThrow({ where: { serviceUserId: suId } });
+      expect([t.carersRequired, t.startMinute, t.durationMin, t.weekdays]).toEqual([2, 480, 45, [1, 2, 3, 4, 5]]);
+      expect(t.notes).toContain("Morning (Personal care).");
+      expect(t.notes).toContain("Instructions: Two carers for the hoist");
+      expect(t.notes).toContain("Temporary visit, end date to confirm.");
+    } finally {
+      setAiProviderForTests(new SimulatedProvider());
+      await db.rotaSettings.update({ where: { organisationId: orgId }, data: { careCoordinatorAiEnabledAt: null } });
+    }
   });
 });

@@ -5,7 +5,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError
 import { fromDbDate, isIsoDate } from "@/lib/london";
 import {
   ACCEPTED, APPLY_ORDER, DECISIONS, OPEN_DECISIONS, RESTRICTED_PERSON_FIELDS, RESTRICTED_SECTIONS, SECTION_KEYS,
-  UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
+  TEMPORARY_WITHOUT_END, UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
 } from "@/lib/care-coordinator-rules";
 import { registerCheckInTx } from "../external-references";
 import type { FundedBy } from "@/lib/su-import-rules";
@@ -318,7 +318,8 @@ export async function compareFacts(tx: Tx, scope: Scope, intakeId: string) {
       if (facts.some((o) => o.id !== f.id && o.position < f.position && o.destination === "contact" && (o.value as { name?: string }).name?.toLowerCase().trim() === name && o.decision !== "REJECTED" && o.decision !== "DUPLICATE")) notes.push("The same contact appears earlier. Mark one as a duplicate.");
     }
     if (f.destination === "visit") {
-      const v = f.value as { weekdays: number[]; startTime: string };
+      const v = f.value as { weekdays: number[]; startTime: string; temporary?: boolean; effectiveTo?: string | null };
+      if (v.temporary && !v.effectiveTo) notes.push(TEMPORARY_WITHOUT_END);
       const [h, m] = v.startTime.split(":").map(Number);
       const st = (h ?? 0) * 60 + (m ?? 0);
       if (templates.some((t) => t.startMinute === st && t.weekdays.some((d) => v.weekdays.includes(d)))) notes.push("The person already has a repeating visit at this time on some of these days.");
