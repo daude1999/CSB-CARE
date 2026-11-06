@@ -16,6 +16,9 @@ export class ReferenceKeyMissingError extends Error{
   constructor(){super("CSB_REFERENCE_SECRET must be configured");this.name="ReferenceKeyMissingError";}
 }
 
+/** True when references can be stored and checked (always in development; in production only with CSB_REFERENCE_SECRET). */
+export function referenceKeyConfigured(){return !!process.env.CSB_REFERENCE_SECRET || process.env.NODE_ENV!=="production";}
+
 /** This secret must be configured separately from database and keysafe secrets in production. */
 function secret(){
   const v=process.env.CSB_REFERENCE_SECRET;
@@ -140,6 +143,8 @@ export async function linkExternalReferenceInTx(tx:Tx,ctx:Ctx,organisationId:str
 
 /** What the register already says about a proposed reference, for the Care Coordinator's checks. Never decrypts. */
 export async function registerCheckInTx(tx:Tx,organisationId:string,serviceUserId:string|null,d:{type:string;issuer:string;value:string}){
+  // Without the reference key the register cannot be searched: say so on the fact instead of stopping the reading.
+  if(!referenceKeyConfigured()) return {onThisProfile:false,sameOnOtherProfiles:0,otherTypeElsewhere:false,unchecked:true};
   const hashes=hashesOf(d.type,d.value);
   const rows=await tx.serviceUserExternalReference.findMany({where:{organisationId,status:"ACTIVE",valueHash:{in:hashes}},select:{serviceUserId:true,type:true,issuerKey:true},take:50});
   const key=issuerKey(d.issuer);
@@ -148,6 +153,7 @@ export async function registerCheckInTx(tx:Tx,organisationId:string,serviceUserI
     onThisProfile:!!serviceUserId && rows.some(r=>r.serviceUserId===serviceUserId && same(r)),
     sameOnOtherProfiles:new Set(rows.filter(r=>r.serviceUserId!==serviceUserId && same(r)).map(r=>r.serviceUserId)).size,
     otherTypeElsewhere:rows.some(r=>r.serviceUserId!==serviceUserId && !same(r)),
+    unchecked:false,
   };
 }
 

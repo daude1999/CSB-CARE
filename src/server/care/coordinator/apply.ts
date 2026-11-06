@@ -17,7 +17,7 @@ import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates"
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
 import { createRiskDraft } from "../risks";
-import { linkExternalReferenceInTx } from "../external-references";
+import { linkExternalReferenceInTx, referenceKeyConfigured } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
 import { coordinatorAccess, intakeInScope } from "./intake";
@@ -223,6 +223,7 @@ async function applyReferences(tx: Tx, ctx: Ctx, scope: Scope, serviceUserId: st
     if (r.typeUnclear) { out.skipped.push(`${f.label}: choose what this reference identifies before saving it`); continue; }
     if (r.type === "NHS" && !sensitive) { out.skipped.push(`${f.label} needs a registered manager to save`); continue; }
     if (r.type === "NHS" && !/^\d{3} ?\d{3} ?\d{4}$/.test(r.value)) { out.skipped.push(`${f.label}: an NHS number has 10 digits`); continue; }
+    if (!referenceKeyConfigured()) { out.skipped.push(`${f.label}: the reference register is not set up on this system yet, so it was not saved. Add it on the Reference Numbers tab once it is.`); continue; }
     const res = await linkExternalReferenceInTx(tx, ctx, scope.organisationId, serviceUserId, { type: r.type, issuer: r.issuer, value: r.value, systemLabel: r.system ?? null, sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, sourceQuote: f.quote, verificationNote: "Read from documents by the Care Coordinator; not verified" });
     if (res.status === "conflict") { out.skipped.push(`${f.label}: this reference is already on another person's profile. Investigate before linking.`); continue; }
     await markApplied(tx, f, `ServiceUserExternalReference:${res.id}`);

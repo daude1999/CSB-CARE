@@ -9,6 +9,8 @@ import {
   TEMPORARY_WITHOUT_END, UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
 } from "@/lib/care-coordinator-rules";
 import { registerCheckInTx } from "../external-references";
+
+const REFERENCE_UNCHECKED = "The reference register is not set up on this system yet (its key is missing), so this number could not be checked against other profiles. Check it by hand.";
 import type { FundedBy } from "@/lib/su-import-rules";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
@@ -345,6 +347,7 @@ export async function compareFacts(tx: Tx, scope: Scope, intakeId: string) {
       const v = f.value as { type: string; issuer: string; value: string; typeUnclear?: boolean };
       if (v.typeUnclear) notes.push(UNCLEAR_REFERENCE);
       const reg = await registerCheckInTx(tx, scope.organisationId, su?.id ?? null, v);
+      if (reg.unchecked) notes.push(REFERENCE_UNCHECKED);
       if (reg.onThisProfile) notes.push("Already on this person's Reference Numbers tab. Mark this one as a duplicate.");
       if (reg.sameOnOtherProfiles && v.type !== "COUNCIL_FRAMEWORK") notes.push("This number is already on another person's profile. Investigate before approving: it will not be linked here.");
       if (reg.sameOnOtherProfiles && v.type === "COUNCIL_FRAMEWORK") notes.push(`Shared framework ID, also recorded for ${reg.sameOnOtherProfiles} other ${reg.sameOnOtherProfiles === 1 ? "person" : "people"}. Not proof of identity.`);
