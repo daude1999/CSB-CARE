@@ -10,7 +10,8 @@ import { leadForCarer } from "@/server/care/medication-lead";
 import { CarerMedication } from "@/components/medication-ui";
 import { suName } from "@/server/rota/queries";
 import { randomUUID } from "node:crypto";
-import { acknowledgeMyVisitsAction, submitMileageAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
+import { acknowledgeInstructionsAction, acknowledgeMyVisitsAction, submitMileageAction, requestClockCorrectionAction, addVisitNoteAction, clockMineAction, notDeliveredMineAction, recordTasksMineAction } from "@/app/rota-actions";
+import { myInstructionChanges } from "@/server/care/instructions";
 import { NOTE_CATEGORIES, NOTE_LABEL, OUTCOME_LABEL, TASK_OUTCOMES } from "@/server/care/visit-record";
 import { effectiveClocks } from "@/server/rota/attendance";
 import { Badge, Card, Empty, Flash, PageHeader } from "@/components/ui";
@@ -29,7 +30,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     throw e;
   }
   const { staff, settings, visits, lastHandover } = data;
-  const [claims, missed] = await Promise.all([myMileage(ctx), myMissedConfirmations(ctx)]);
+  const [claims, missed, changes] = await Promise.all([myMileage(ctx), myMissedConfirmations(ctx), myInstructionChanges(ctx)]);
   const meds = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await medsForMyVisit(staff.organisationId, v)] as const)));
   const leads = new Map(await Promise.all(visits.filter((v) => !["CANCELLED", "NOT_DELIVERED"].includes(v.status)).map(async (v) => [v.id, await leadForCarer(staff.organisationId, v.id)] as const)));
   const now = Date.now();
@@ -41,6 +42,15 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
     <div className="mx-auto max-w-2xl">
       <PageHeader title="My Visits" back="/overview" subtitle={`${staff.displayName}. Your published visits. Clock in when you arrive and out when you leave; the time is taken from our server when you press the button. Location and NFC checks are not used, and the page needs a signal (there is no offline mode). Record each task after you clock in; task records and notes cannot be changed once saved.`} />
       <Flash searchParams={sp} />
+      {changes.map((c) => (
+        <section key={c.id} className="mb-3 rounded-[10px] border border-[#c7d7fe] bg-[#eef4ff] p-3.5" aria-labelledby={`instr-${c.id}`} data-testid="carer-instruction-change">
+          <h2 id={`instr-${c.id}`} className="text-[16px] font-bold text-[#1d2939]">New instructions for {c.person}</h2>
+          <p className="mt-1 text-[14.5px] text-[#101828]">{c.summary} From {fmtLondonDate(c.effectiveFrom, { weekday: "short", day: "numeric", month: "short" })}. Visits you have already done are not changed.</p>
+          {c.tasks.length ? <p className="mt-1 text-[14px] text-[#344054]">Tasks now: {c.tasks.join("; ")}.</p> : null}
+          {c.notes ? <p className="mt-1 whitespace-pre-line text-[14px] text-[#344054]">{c.notes}</p> : null}
+          <form action={acknowledgeInstructionsAction} className="mt-2"><input type="hidden" name="back" value="/carer" /><input type="hidden" name="versionId" value={c.id} /><button className="btn-primary">I have read the new instructions</button></form>
+        </section>
+      ))}
       {missed.filter((m) => m.status !== "RESPONDED").map((m) => (
         <section key={m.id} className="mb-3 rounded-[10px] border border-[#f3c1bd] bg-[#fef3f2] p-3.5" aria-labelledby={`missed-${m.id}`} data-testid="carer-missed-card">
           <h2 id={`missed-${m.id}`} className="text-[16px] font-bold text-[#912018]">Action required: missed visit</h2>

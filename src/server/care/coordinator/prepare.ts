@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, londonDate, mondayOf, parseHhmm } from "@/lib/london";
@@ -50,6 +51,27 @@ const SCANNED_NOTE = "Accepted for drafting by the AI CSB Coordinator from a sca
 const SCANNED_ONLY = /^Page \d+ is scanned, so the quote could not be checked\.( Compare with the original\.)?$/;
 
 export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; rotaWeeks?: number } = {}): Promise<PrepareReport> {
+  try {
+    return await prepare(ctx, intakeId, opts);
+  } catch (e) {
+    // A database refusal is turned into a plain message naming the check that failed (its code, table and fields,
+    // never the record's contents), so the screen can say what stopped and support can find it. Each section is
+    // saved in its own transaction, so a refused one leaves nothing half-written.
+    const why = databaseRefusal(e);
+    if (why) throw new ConflictError(`Drafts could not be prepared: the database refused a change (${why}). The facts read from the documents are kept; check them, then press Prepare records again or tell support this code.`);
+    throw e;
+  }
+}
+
+/** The code, table and fields of a Prisma request error, or null for any other error. Contains no record data. */
+export function databaseRefusal(e: unknown): string | null {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError)) return null;
+  const meta = (e.meta ?? {}) as { modelName?: unknown; target?: unknown; field_name?: unknown };
+  const fields = Array.isArray(meta.target) ? meta.target.join(", ") : typeof meta.target === "string" ? meta.target : typeof meta.field_name === "string" ? meta.field_name : null;
+  return [e.code, typeof meta.modelName === "string" ? meta.modelName : null, fields].filter(Boolean).join(" ").slice(0, 200);
+}
+
+async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; rotaWeeks?: number }): Promise<PrepareReport> {
   const access = coordinatorAccess(ctx);
   const scope = await rotaScope(ctx, "serviceUser.edit");
   const step1 = await db.$transaction(async (tx) => {
@@ -86,7 +108,12 @@ export async function prepareDrafts(ctx: Ctx, intakeId: string, opts: { notADupl
       }
       if (dupes.length) await tx.careIntake.update({ where: { id: intake.id }, data: { notDuplicateById: ctx.userId } });
     }
-    for (const f of ok) await tx.careIntakeFact.update({ where: { id: f.id }, data: { decision: "APPROVED", decisionNote: f.verification === "VERIFIED" ? AUTO_NOTE : SCANNED_NOTE, decidedById: ctx.userId, decidedAt: new Date(), lockVersion: { increment: 1 } } });
+    // Two writes, not one per fact: a long plan has dozens of facts, and the transaction must stay short.
+    const decidedAt = new Date();
+    for (const [verified, note] of [[true, AUTO_NOTE], [false, SCANNED_NOTE]] as const) {
+      const ids = ok.filter((f) => (f.verification === "VERIFIED") === verified).map((f) => f.id);
+      if (ids.length) await tx.careIntakeFact.updateMany({ where: { id: { in: ids } }, data: { decision: "APPROVED", decisionNote: note, decidedById: ctx.userId, decidedAt, lockVersion: { increment: 1 } } });
+    }
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.drafts.accepted", entityType: "CareIntake", entityId: intake.id, data: { accepted: ok.length, sections: [...new Set(ok.map((f) => f.section))] } }, tx);
     return { intake, blocked: null, duplicate: null, accepted: ok.length };
   });

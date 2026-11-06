@@ -7,6 +7,7 @@ import { acceptRecommendation, autoRecommend, createTaskFromRecommendation, dism
 import { closeBodyMapTask, createBodyMapTask } from "@/server/care/body-map-tasks";
 import { endApplicationSite, recordApplicationSite } from "@/server/care/medication-sites";
 import { decideVersion } from "@/server/care/document-versions";
+import { completeDischargeReview, recordDischargeCheck } from "@/server/care/discharge-review";
 import { replaceDocument, setDocumentArchived, updateDocumentDetails, uploadDocument, type DocumentDetails, type UploadedFile } from "@/server/care/su-documents";
 import { MAX_PHOTOS_PER_SAVE, addObservationNote, addObservationPhoto, assignObservationReviewer, decideIncident, recordObservation, reviewObservation, type IncidentDecision } from "@/server/care/body-map";
 
@@ -76,6 +77,18 @@ export async function decideSuDocumentVersionAction(fd: FormData) {
     const r = await decideVersion(ctx, str(fd, "documentId"), version, { decision, note: str(fd, "note") || undefined });
     return { ok: decision === "APPROVE" ? `V${version} approved and now in force. The earlier version is kept as superseded.` : decision === "REJECT" ? `V${version} rejected. V${r.currentVersion} stays in force.` : `V${version} withdrawn.${r.currentVersion !== version ? ` V${r.currentVersion} is in force.` : ""}` };
   }, "Saved");
+}
+
+export async function recordDischargeCheckAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const outcome = str(fd, "outcome");
+    if (outcome !== "NO_CHANGE" && outcome !== "UPDATED" && outcome !== "ACTION") throw new ValidationError("Choose an outcome");
+    await recordDischargeCheck(ctx, str(fd, "reviewId"), whole(fd, "lockVersion"), { key: str(fd, "key"), outcome, note: str(fd, "note") || undefined });
+  }, "Check saved");
+}
+
+export async function completeDischargeReviewAction(fd: FormData) {
+  return handle(fd, (ctx) => completeDischargeReview(ctx, str(fd, "reviewId"), whole(fd, "lockVersion"), str(fd, "outcome")), "Discharge review completed");
 }
 
 export async function updateSuDocumentAction(fd: FormData) {

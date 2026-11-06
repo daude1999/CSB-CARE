@@ -12,6 +12,7 @@ import { audit } from "@/server/audit-log";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { durationCheck, visitTasks } from "./visit-tasks";
+import { DISCHARGE_CATEGORIES, openDischargeReview } from "../discharge-review";
 import { addPendingVersion, currentSupportPlan, recordVersionStatus } from "../document-versions";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
@@ -591,6 +592,8 @@ export async function fileDocuments(ctx: Ctx, intakeId: string) {
       await tx.careIntakeDocument.update({ where: { id: d.id }, data: { filedDocumentId: row.id } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "suDocument.uploaded", entityType: "ServiceUserDocument", entityId: row.id, data: { serviceUserId: su.id, section: d.section, category: d.category, filename: d.filename, sizeBytes: d.sizeBytes, sensitive: row.sensitive, via: "care-coordinator", intakeId } }, tx);
       if (d.section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN") await promptCarePlanReview(tx, scope.organisationId, ctx.userId, su, row.id, 1);
+      // A hospital discharge letter opens a post-discharge review linked to it (phase 7); the support plan is untouched.
+      if (DISCHARGE_CATEGORIES.has(d.category)) await openDischargeReview(tx, { organisationId: scope.organisationId, serviceUserId: su.id, serviceUserName: `${su.firstName} ${su.lastName}`, intakeId: intake.id, intakeDocumentId: d.id, documentId: row.id, actorId: ctx.userId });
       filed++;
     }
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.documents.filed", entityType: "CareIntake", entityId: intakeId, data: { filed } }, tx);

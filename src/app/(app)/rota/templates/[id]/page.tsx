@@ -9,6 +9,7 @@ import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
 import { templateScopeWhere } from "@/server/rota/scope";
 import { previewTemplateChanges } from "@/server/rota/templates";
+import { instructionHistory } from "@/server/care/instructions";
 import { applyTemplateChangesAction, duplicateTemplateAction, templateBulkAction, updateTemplateAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
 import { TemplateForm } from "@/components/template-form";
@@ -28,6 +29,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
   );
   const settings = await rotaSettings(db, lk.scope.organisationId);
   const preview = canEdit ? await previewTemplateChanges(ctx, t.id) : null;
+  const instructions = await instructionHistory(ctx, t.id);
   const history = await db.auditLog.findMany({ where: { organisationId: lk.scope.organisationId, entityType: "VisitTemplate", entityId: t.id }, orderBy: { createdAt: "desc" }, take: 20 });
   const names = await memberNames(ctx, history.map((h) => h.actorId));
   const back = `/rota/templates/${t.id}`;
@@ -84,6 +86,20 @@ export default async function TemplatePage({ params, searchParams }: { params: P
               ) : null}
             </Card>
           ) : null}
+          <Card title="Carer instructions">
+            {instructions.length ? (
+              <ol className="space-y-2 text-[13.5px]" data-testid="instruction-versions">
+                {instructions.map((v) => (
+                  <li key={v.id} className="border-l-2 border-slate-200 pl-3">
+                    <div className="font-medium">Version {v.version} · from {fmtLondonDate(v.effectiveFrom)}</div>
+                    <div className="text-slate-600">{v.summary}</div>
+                    {v.version > 1 ? <div className="text-slate-500">{v.confirmed.length ? `Read by ${v.confirmed.map((c) => c.name).join(", ")}` : "Not confirmed by any carer yet"}{v.waiting.length ? `. Waiting for ${v.waiting.join(", ")}` : ""}.</div> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : <Empty>No instruction versions yet. A version is kept each time the notes or tasks change.</Empty>}
+            <p className="mt-2 text-[12.5px] text-slate-500">Changes reach future visits only, when applied above. Visits already done keep the instructions they had.</p>
+          </Card>
           <div id="history" className="scroll-mt-20"><Card title="History">
             {history.length ? (
               <ol className="space-y-2 text-[13.5px]">
