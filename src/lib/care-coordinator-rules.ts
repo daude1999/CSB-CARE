@@ -102,13 +102,45 @@ export const contactValue = z.object({
 
 export const PLAN_SECTION_KEYS = ["about_me", "communication", "personal_care", "mobility", "nutrition", "medication", "health", "home", "outcomes"] as const;
 export const PLAN_SECTION_LABEL: Record<(typeof PLAN_SECTION_KEYS)[number], string> = { about_me: "About me", communication: "Communication", personal_care: "Personal care", mobility: "Mobility and moving", nutrition: "Eating and drinking", medication: "Medication support", health: "Health and wellbeing", home: "Home and safety", outcomes: "Outcomes" };
+/**
+ * The care plan topics a support plan is read into (brief of 6 Nov 2026). Each lands in one of the nine sections of
+ * the existing care plan, under its own heading, so the CRM's care plan screens stay as they are.
+ */
+export const CARE_PLAN_TOPICS = {
+  ABOUT_ME: { label: "About me", section: "about_me" },
+  DAILY_ROUTINE: { label: "Daily routine", section: "about_me" },
+  INDEPENDENCE_CHOICE: { label: "Independence and personal choice", section: "about_me" },
+  CULTURE_RELIGION: { label: "Cultural and religious preferences", section: "about_me" },
+  COMMUNITY: { label: "Community activities", section: "about_me" },
+  COMMUNICATION: { label: "Communication", section: "communication" },
+  COGNITION_MEMORY: { label: "Cognition and memory", section: "communication" },
+  PERSONAL_CARE: { label: "Personal care", section: "personal_care" },
+  WASHING_DRESSING: { label: "Washing and dressing", section: "personal_care" },
+  TOILETING_CONTINENCE: { label: "Toileting and continence", section: "personal_care" },
+  MOBILITY_TRANSFERS: { label: "Mobility and transfers", section: "mobility" },
+  EATING_DRINKING: { label: "Eating and drinking", section: "nutrition" },
+  NUTRITION_HYDRATION: { label: "Nutrition and hydration", section: "nutrition" },
+  MEDICATION_SUPPORT: { label: "Medication support arrangements", section: "medication" },
+  HEALTH_CONDITIONS: { label: "Documented long-term conditions", section: "health" },
+  EMOTIONAL_WELLBEING: { label: "Emotional wellbeing", section: "health" },
+  SLEEP_NIGHT: { label: "Sleep and night support", section: "health" },
+  HOUSEHOLD: { label: "Support with household tasks", section: "home" },
+  HOME_SAFETY: { label: "Home and safety", section: "home" },
+  EMERGENCY: { label: "Emergency considerations", section: "home" },
+  OUTCOMES: { label: "Outcomes and goals", section: "outcomes" },
+} as const satisfies Record<string, { label: string; section: (typeof PLAN_SECTION_KEYS)[number] }>;
+export type CarePlanTopic = keyof typeof CARE_PLAN_TOPICS;
+export const CARE_PLAN_TOPIC_KEYS = Object.keys(CARE_PLAN_TOPICS) as [CarePlanTopic, ...CarePlanTopic[]];
+
 export const planValue = z.object({
+  topic: z.enum(CARE_PLAN_TOPIC_KEYS).nullish().transform((v) => v ?? null),
   canDo: opt(4000),
   support: opt(4000),
   how: opt(4000),
+  preferences: opt(2000),
   outcome: opt(2000),
   clarify: opt(2000),
-}).refine((v) => !!(v.canDo || v.support || v.how || v.outcome || v.clarify), "Write at least one part of this care plan entry");
+}).refine((v) => !!(v.canDo || v.support || v.how || v.preferences || v.outcome || v.clarify), "Write at least one part of this care plan entry");
 
 export const RISK_TYPES = ["ENVIRONMENT", "MOVING_HANDLING", "FALLS", "PRESSURE_SKIN", "MEDICATION_SUPPORT", "NUTRITION", "LONE_WORKING", "OTHER"] as const;
 export const riskValue = z.object({
@@ -158,6 +190,12 @@ export const visitValue = z.object({
   tasks: z.array(z.string().trim().min(1).max(200)).max(30).default([]),
   fundedBy: z.enum(["COUNCIL", "CARERS_SERVICE", "OTHER"]).default("COUNCIL"),
   medicationPrompt: z.boolean().default(false),
+  /** The kind of visit as written (e.g. personal care, sitting service, domestic). */
+  visitType: opt(80),
+  /** Special instructions for this visit, as written in the document. */
+  instructions: opt(1000),
+  /** The document says the visit is temporary. */
+  temporary: z.boolean().default(false),
   effectiveFrom: optDate,
   effectiveTo: optDate,
   callTypeId: opt(40),
@@ -245,11 +283,11 @@ export function displayValue(destination: string, v: unknown): string {
   switch (destination) {
     case "externalReference": return join(o.typeUnclear ? "Type to confirm" : (EXTERNAL_REFERENCE_LABEL[o.type as keyof typeof EXTERNAL_REFERENCE_LABEL] ?? o.type), o.system, o.value, o.issuer ? `issued by ${o.issuer}` : null, o.type === "COUNCIL_FRAMEWORK" && !o.typeUnclear ? "Shared contract ID, not proof of identity" : null);
     case "contact": return join(CONTACT_KIND_LABEL[o.kind as keyof typeof CONTACT_KIND_LABEL] ?? o.kind, o.name, o.relationship, o.phone, o.email, o.isEmergency ? "Emergency contact" : null, o.isKeyHolder ? "Key holder" : null, o.authority ? `Authority as written: ${o.authority}` : null);
-    case "risk": return join(o.title, o.level ? `${o.level}${o.levelIsProvisional ? " (provisional)" : ""}` : "Level not set", o.hazard);
+    case "risk": return join(o.title, o.level ? `${o.level}${o.levelIsProvisional ? " (provisional)" : ""}` : "Level not set", o.hazard, o.existingControls ? `In place: ${o.existingControls}` : null, o.recommendedActions ? `Mitigation: ${o.recommendedActions}` : null, o.openQuestions ? String(o.openQuestions) : null);
     case "visit": {
       const st = parseHhmm(String(o.startTime ?? ""));
       const end = st === null ? "" : hhmm((st + Number(o.durationMin ?? 0)) % 1440);
-      return join(o.label, `${o.startTime}–${end}`, `${o.durationMin} min`, dayList((o.weekdays as number[]) ?? []), `${o.carers} carer${Number(o.carers) > 1 ? "s" : ""}`, o.fundedBy !== "COUNCIL" ? FUNDED_BY[o.fundedBy as FundedBy] : null, ((o.tasks as string[]) ?? []).length ? `${(o.tasks as string[]).length} tasks` : null);
+      return join(o.label, o.visitType, `${o.startTime}–${end}`, `${o.durationMin} min`, dayList((o.weekdays as number[]) ?? []), `${o.carers} carer${Number(o.carers) > 1 ? "s" : ""}`, o.fundedBy !== "COUNCIL" ? FUNDED_BY[o.fundedBy as FundedBy] : null, o.temporary ? (o.effectiveTo ? `Temporary, until ${o.effectiveTo}` : "Temporary") : null, o.effectiveFrom ? `From ${o.effectiveFrom}` : null, ((o.tasks as string[]) ?? []).length ? `${(o.tasks as string[]).length} tasks` : null, o.instructions ? `Instructions: ${o.instructions}` : null);
     }
     case "medication.arrangement": return join(MED_SUPPORT[o.support as keyof typeof MED_SUPPORT], o.detail);
     case "medication.item": return join(o.name, o.strength, o.dose, o.route, o.frequency, o.asRequired ? "As required (PRN)" : null, o.status !== "CURRENT" ? String(o.status).toLowerCase() : null);
@@ -257,7 +295,7 @@ export function displayValue(destination: string, v: unknown): string {
     case "bodymap.history": return join(o.date, o.area, o.finding, o.description);
     case "callnote": return join(o.date, o.contactName ? `With ${o.contactName}` : null, o.summary);
     default:
-      if (destination.startsWith("careplan.")) return join(o.canDo ? `Can do: ${o.canDo}` : null, o.support ? `Needs: ${o.support}` : null, o.how ? `How: ${o.how}` : null, o.outcome ? `Outcome: ${o.outcome}` : null, o.clarify ? `To clarify: ${o.clarify}` : null);
+      if (destination.startsWith("careplan.")) return join(o.canDo ? `Can do: ${o.canDo}` : null, o.support ? `Needs: ${o.support}` : null, o.how ? `How: ${o.how}` : null, o.preferences ? `Preferences: ${o.preferences}` : null, o.outcome ? `Outcome: ${o.outcome}` : null, o.clarify ? `To clarify: ${o.clarify}` : null);
       return JSON.stringify(v);
   }
 }
@@ -350,6 +388,9 @@ export function realDate(iso: string) {
   return d.toISOString().slice(0, 10) === iso;
 }
 
+/** Shown on a temporary visit whose end date the documents do not give. */
+export const TEMPORARY_WITHOUT_END = "The document says this visit is temporary but gives no end date. Confirm the end date with the commissioner.";
+
 /** Shown on a reference fact whose type a person must choose. */
 export const UNCLEAR_REFERENCE = "Frameworki is the council's information system, so the label alone does not say what this number identifies. Edit it to choose client, package or framework before approving.";
 
@@ -373,10 +414,10 @@ export interface Reading {
   references: { type: (typeof EXTERNAL_REFERENCE_TYPES)[number]; issuer: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"]; system?: string | null; typeClear?: boolean }[];
   contacts: { kind: (typeof CONTACT_KINDS)[number]; name: string; relationship: string | null; phone: string | null; email: string | null; address: string | null; isEmergency: boolean; isKeyHolder: boolean; authority: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   carerPreferences: { kind: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
-  carePlan: { section: string; canDo: string | null; support: string | null; how: string | null; outcome: string | null; clarify: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
-  risks: { type: (typeof RISK_TYPES)[number]; title: string; hazard: string; whoAffected: string | null; existingControls: string | null; level: "LOW" | "MEDIUM" | "HIGH" | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
+  carePlan: { section: string; topic?: CarePlanTopic | null; canDo: string | null; support: string | null; how: string | null; preferences?: string | null; outcome: string | null; clarify: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
+  risks: { type: (typeof RISK_TYPES)[number]; title: string; hazard: string; whoAffected: string | null; existingControls: string | null; mitigation?: string | null; assessmentGaps?: string | null; level: "LOW" | "MEDIUM" | "HIGH" | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   package: { field: string; value: string; page: number; quote: string; temporal: FactSeed["temporal"] }[];
-  visits: { label: string; weekdays: number[]; startTime: string; durationMinutes: number; carers: number; tasks: string[]; fundedBy: FundedBy; medicationPrompt: boolean; endDate: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
+  visits: { label: string; weekdays: number[]; startTime: string; durationMinutes: number; carers: number; tasks: string[]; fundedBy: FundedBy; medicationPrompt: boolean; endDate: string | null; startDate?: string | null; visitType?: string | null; instructions?: string | null; temporary?: boolean; page: number; quote: string; temporal: FactSeed["temporal"] }[];
   medication: {
     arrangement: { support: keyof typeof MED_SUPPORT; detail: string; page: number; quote: string; temporal: FactSeed["temporal"] } | null;
     items: { name: string; strength: string | null; dose: string | null; route: string | null; frequency: string | null; times: string[]; asRequired: boolean; prnInstructions: string | null; status: "CURRENT" | "STOPPED" | "WITHHELD" | "TEMPORARY" | "CHANGED"; note: string | null; page: number; quote: string; temporal: FactSeed["temporal"] }[];
@@ -419,8 +460,16 @@ export function readingToFacts(r: Reading): FactSeed[] {
     if (p.kind === "GENDER" && g) add({ section: "CARER_PREFERENCES", destination: "preference.gender", label: "Care-worker gender preference", value: g, page: p.page, quote: p.quote, temporal: p.temporal });
     else add({ section: "CARER_PREFERENCES", destination: "preference.note", label: `Preference (${p.kind.toLowerCase().replace(/_/g, " ")})`, value: p.value, page: p.page, quote: p.quote, temporal: p.temporal });
   }
-  for (const c of r.carePlan) add({ section: "CARE_PLAN", destination: `careplan.${c.section}`, label: PLAN_SECTION_LABEL[c.section as keyof typeof PLAN_SECTION_LABEL] ?? c.section, value: { canDo: c.canDo, support: c.support, how: c.how, outcome: c.outcome, clarify: c.clarify }, page: c.page, quote: c.quote, temporal: c.temporal });
-  for (const k of r.risks) add({ section: "RISKS", destination: "risk", label: k.title, value: { type: k.type, title: k.title, hazard: k.hazard, whoAffected: k.whoAffected, existingControls: k.existingControls, level: k.level, levelIsProvisional: k.level === null, recommendedActions: null, responsiblePerson: null, reviewDue: null, openQuestions: k.level === null ? "The documents do not state a risk level. The assessor must set one." : null }, page: k.page, quote: k.quote, temporal: k.temporal });
+  for (const c of r.carePlan) {
+    // The topic decides the care plan section, so a topic is never filed under the wrong heading.
+    const topic = c.topic && c.topic in CARE_PLAN_TOPICS ? CARE_PLAN_TOPICS[c.topic] : null;
+    const section = topic?.section ?? c.section;
+    add({ section: "CARE_PLAN", destination: `careplan.${section}`, label: topic?.label ?? PLAN_SECTION_LABEL[section as keyof typeof PLAN_SECTION_LABEL] ?? section, value: { topic: c.topic ?? null, canDo: c.canDo, support: c.support, how: c.how, preferences: c.preferences ?? null, outcome: c.outcome, clarify: c.clarify }, page: c.page, quote: c.quote, temporal: c.temporal });
+  }
+  for (const k of r.risks) {
+    const open = [k.assessmentGaps ? `For a qualified assessor: ${k.assessmentGaps.trim().replace(/[.\s]*$/, ".")}` : null, k.level === null ? "The documents do not state a risk level. The assessor must set one." : null].filter(Boolean).join(" ");
+    add({ section: "RISKS", destination: "risk", label: k.title, value: { type: k.type, title: k.title, hazard: k.hazard, whoAffected: k.whoAffected, existingControls: k.existingControls, level: k.level, levelIsProvisional: k.level === null, recommendedActions: k.mitigation ?? null, responsiblePerson: null, reviewDue: null, openQuestions: open || null }, page: k.page, quote: k.quote, temporal: k.temporal });
+  }
   for (const p of r.package) {
     let field = p.field;
     let value: unknown = p.value.trim();
@@ -429,7 +478,7 @@ export function readingToFacts(r: Reading): FactSeed[] {
     if (!(field in PACKAGE_FIELDS)) continue;
     add({ section: "PACKAGE", destination: `package.${field}`, label: PACKAGE_FIELDS[field as PackageField].label, value, page: p.page, quote: p.quote, temporal: p.temporal, note: p.field === "hoursPerWeek" ? `Document states ${p.value} hours a week` : undefined });
   }
-  for (const v of r.visits) add({ section: "VISITS", destination: "visit", label: v.label, value: { label: v.label, weekdays: v.weekdays, startTime: v.startTime, durationMin: v.durationMinutes, carers: v.carers, tasks: v.tasks, fundedBy: v.fundedBy, medicationPrompt: v.medicationPrompt, effectiveFrom: null, effectiveTo: v.endDate ? toIso(v.endDate) : null, callTypeId: null }, page: v.page, quote: v.quote, temporal: v.temporal });
+  for (const v of r.visits) add({ section: "VISITS", destination: "visit", label: v.label, value: { label: v.label, weekdays: v.weekdays, startTime: v.startTime, durationMin: v.durationMinutes, carers: v.carers, tasks: v.tasks, fundedBy: v.fundedBy, medicationPrompt: v.medicationPrompt, visitType: v.visitType ?? null, instructions: v.instructions ?? null, temporary: !!v.temporary || !!v.endDate, effectiveFrom: v.startDate ? toIso(v.startDate) : null, effectiveTo: v.endDate ? toIso(v.endDate) : null, callTypeId: null }, page: v.page, quote: v.quote, temporal: v.temporal, note: v.temporary && !v.endDate ? TEMPORARY_WITHOUT_END : undefined });
   const m = r.medication;
   if (m.arrangement) add({ section: "MEDICATION", destination: "medication.arrangement", label: "Medication support arrangement", value: { support: m.arrangement.support, detail: m.arrangement.detail }, page: m.arrangement.page, quote: m.arrangement.quote, temporal: m.arrangement.temporal });
   for (const i of m.items) add({ section: "MEDICATION", destination: "medication.item", label: i.name, value: { name: i.name, strength: i.strength, dose: i.dose, route: i.route, frequency: i.frequency, times: i.times, asRequired: i.asRequired, prnInstructions: i.prnInstructions, status: i.status, note: i.note }, page: i.page, quote: i.quote, temporal: i.temporal });
@@ -492,7 +541,7 @@ export function basicRead(pages: string[]): Reading {
       if (pkg && findFrameworki(line).length) continue; // a Frameworki number is never proposed as the care package reference
       if (pkg) { r.package.push({ field: pkg[1], value: pkg[1] === "hoursPerWeek" ? (/(\d+(?:\.\d+)?)/.exec(value)?.[1] ?? value) : value, ...base }); continue; }
       const plan = PLAN_LABELS.find(([re]) => re.test(label));
-      if (plan) { r.carePlan.push({ section: plan[1], canDo: null, support: plan[1] === "outcomes" ? null : value, how: null, outcome: plan[1] === "outcomes" ? value : null, clarify: null, ...base }); continue; }
+      if (plan) { r.carePlan.push({ section: plan[1], topic: plan[2] ?? null, canDo: null, support: plan[1] === "outcomes" ? null : value, how: null, outcome: plan[1] === "outcomes" ? value : null, clarify: null, ...base }); continue; }
       const risk = /^risk(?: assessment)?\s*[-–]?\s*(.+)$/.exec(label);
       if (risk) { const t = riskType(risk[1]!); r.risks.push({ type: t, title: `${risk[1]!.replace(/^\w/, (c) => c.toUpperCase())} risk`, hazard: value, whoAffected: null, existingControls: null, level: null, ...base }); continue; }
       if (/^medication support|^support with medication/.test(label)) { r.medication.arrangement = { support: medSupport(value), detail: value, ...base }; continue; }
@@ -734,15 +783,27 @@ const PACKAGE_LABELS: [RegExp, string][] = [
   [/^(purchase order|po number|package reference|reference)$/, "reference"],
   [/^(staffing|staffing requirements|requirements|number of carers)$/, "requirements"],
 ];
-const PLAN_LABELS: [RegExp, string][] = [
-  [/^(about me|background|what matters to me|life history)$/, "about_me"],
-  [/^communication support$/, "communication"],
-  [/^(personal care|washing|dressing|continence|toileting|oral care)$/, "personal_care"],
-  [/^(mobility|transfers|moving and handling|equipment)$/, "mobility"],
-  [/^(nutrition|eating and drinking|meals|hydration|diet)$/, "nutrition"],
-  [/^(health|medical conditions|diagnosis|conditions|wellbeing|emotional wellbeing|sleep)$/, "health"],
-  [/^(home|home environment|environment|safety)$/, "home"],
-  [/^(outcomes|desired outcomes|goals)$/, "outcomes"],
+const PLAN_LABELS: [RegExp, string, CarePlanTopic?][] = [
+  [/^(about me|background|what matters to me|life history)$/, "about_me", "ABOUT_ME"],
+  [/^(daily routine|my routine|routines?)$/, "about_me", "DAILY_ROUTINE"],
+  [/^(independence|choice|choice and control|independence and choice)$/, "about_me", "INDEPENDENCE_CHOICE"],
+  [/^(cultural (and|&) religious (needs|preferences)|cultural needs|religious needs)$/, "about_me", "CULTURE_RELIGION"],
+  [/^(community|community activities|social activities|hobbies|activities)$/, "about_me", "COMMUNITY"],
+  [/^communication support$/, "communication", "COMMUNICATION"],
+  [/^(cognition|memory|cognition and memory|memory and cognition)$/, "communication", "COGNITION_MEMORY"],
+  [/^(personal care|oral care)$/, "personal_care", "PERSONAL_CARE"],
+  [/^(washing|dressing|washing and dressing|bathing)$/, "personal_care", "WASHING_DRESSING"],
+  [/^(continence|toileting|toileting and continence|continence and toileting)$/, "personal_care", "TOILETING_CONTINENCE"],
+  [/^(mobility|transfers|moving and handling|equipment)$/, "mobility", "MOBILITY_TRANSFERS"],
+  [/^(eating and drinking|meals)$/, "nutrition", "EATING_DRINKING"],
+  [/^(nutrition|hydration|diet|nutrition and hydration)$/, "nutrition", "NUTRITION_HYDRATION"],
+  [/^(health|medical conditions|diagnosis|conditions|long[- ]term conditions)$/, "health", "HEALTH_CONDITIONS"],
+  [/^(wellbeing|emotional wellbeing|mental health|mood)$/, "health", "EMOTIONAL_WELLBEING"],
+  [/^(sleep|night|night support|sleep and night support)$/, "health", "SLEEP_NIGHT"],
+  [/^(household|household tasks|domestic|domestic tasks|shopping and cleaning)$/, "home", "HOUSEHOLD"],
+  [/^(home|home environment|environment|safety)$/, "home", "HOME_SAFETY"],
+  [/^(emergency|in an emergency|emergency plan|emergency considerations)$/, "home", "EMERGENCY"],
+  [/^(outcomes|desired outcomes|goals)$/, "outcomes", "OUTCOMES"],
 ];
 
 function riskType(t: string): (typeof RISK_TYPES)[number] {

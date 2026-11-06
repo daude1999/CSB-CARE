@@ -1,4 +1,4 @@
-import { CONTACT_KIND_LABEL, CONTACT_KINDS, MED_SUPPORT, PACKAGE_FIELDS, PERSON_FIELDS, PLAN_SECTION_KEYS, RISK_TYPES, type PackageField, type PersonField } from "@/lib/care-coordinator-rules";
+import { CARE_PLAN_TOPICS, CONTACT_KIND_LABEL, CONTACT_KINDS, MED_SUPPORT, PACKAGE_FIELDS, PERSON_FIELDS, PLAN_SECTION_KEYS, RISK_TYPES, type PackageField, type PersonField } from "@/lib/care-coordinator-rules";
 import { FUNDED_BY } from "@/lib/su-import-rules";
 import { WEEKDAYS } from "@/lib/london";
 
@@ -76,6 +76,9 @@ export function formSpec(destination: string): FormField[] {
         { name: "fundedBy", label: "Who provides it", kind: "select", options: Object.entries(FUNDED_BY), help: "Only visits the council commissions from the agency are scheduled. Family or other support is kept for information." },
         { name: "tasks", label: "Tasks, one per line", kind: "lines" },
         { name: "medicationPrompt", label: "Includes a medication prompt", kind: "checkbox" },
+        { name: "visitType", label: "Type of visit", kind: "text" },
+        { name: "instructions", label: "Special instructions", kind: "textarea" },
+        { name: "temporary", label: "Temporary visit", kind: "checkbox" },
         { name: "effectiveFrom", label: "From", kind: "date" },
         { name: "effectiveTo", label: "Until", kind: "date" },
         { name: "callTypeId", label: "Call type", kind: "select", options: [["", "Choose from the visit name"]] },
@@ -124,10 +127,13 @@ export function formSpec(destination: string): FormField[] {
       ];
   }
   if (head === "careplan" && key && (PLAN_SECTION_KEYS as readonly string[]).includes(key)) {
+    const topics = Object.entries(CARE_PLAN_TOPICS).filter(([, t]) => t.section === key).map(([k, t]) => [k, t.label] as [string, string]);
     return [
+      { name: "topic", label: "Topic", kind: "select", options: [["", "Whole section"], ...topics] },
       { name: "canDo", label: "What they can do themselves", kind: "textarea" },
       { name: "support", label: "Support needed", kind: "textarea" },
       { name: "how", label: "How carers should help", kind: "textarea" },
+      { name: "preferences", label: "Their preferences", kind: "textarea" },
       { name: "outcome", label: "Outcome", kind: "textarea" },
       { name: "clarify", label: "Still to clarify", kind: "textarea" },
     ];

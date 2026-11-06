@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { CARE_PLAN_TOPICS, CARE_PLAN_TOPIC_KEYS } from "@/lib/care-coordinator-rules";
 
 /** All AI outputs are proposals validated against these schemas before use. */
 
@@ -208,17 +209,21 @@ export const CareDocumentExtractionSchema = z.object({
   carerPreferences: z.array(z.object({ kind: z.enum(["GENDER", "LANGUAGE", "CULTURE", "CONTINUITY", "PREFERRED_CARER", "NOT_WANTED", "OTHER"]), value: z.string(), ...Sourced })),
   carePlan: z.array(z.object({
     section: z.enum(CARE_DOC_PLAN_KEYS),
+    topic: z.enum(CARE_PLAN_TOPIC_KEYS).nullable().optional().describe(`The care plan topic: ${Object.entries(CARE_PLAN_TOPICS).map(([k, v]) => `${k} (${v.label})`).join(", ")}`),
     canDo: z.string().nullable().describe("What the person does for themselves, as written"),
     support: z.string().nullable().describe("What help they need, as written"),
-    how: z.string().nullable().describe("How the help should be given, only where the document gives instructions"),
-    outcome: z.string().nullable(),
-    clarify: z.string().nullable().describe("What a professional must clarify, if the document is unclear"),
+    how: z.string().nullable().describe("How staff should give the help, only where the document gives instructions"),
+    preferences: z.string().nullable().optional().describe("The person's own preferences for this part of their care, as written"),
+    outcome: z.string().nullable().describe("The outcome or goal for this topic, as written"),
+    clarify: z.string().nullable().describe("What a professional must clarify, if the document is unclear or silent on something needed"),
     ...Sourced,
-  })),
+  })).describe("One entry per topic the document covers, not one paragraph for everything. Several entries may share a section."),
   risks: z.array(z.object({
     type: z.enum(["ENVIRONMENT", "MOVING_HANDLING", "FALLS", "PRESSURE_SKIN", "MEDICATION_SUPPORT", "NUTRITION", "LONE_WORKING", "OTHER"]),
     title: z.string(), hazard: z.string(), whoAffected: z.string().nullable(),
     existingControls: z.string().nullable().describe("Controls the document says are in place"),
+    mitigation: z.string().nullable().optional().describe("Instructions to staff for reducing the risk, only as written in the document"),
+    assessmentGaps: z.string().nullable().optional().describe("What a qualified assessor still needs to establish, where the document is silent or unclear"),
     level: z.enum(["LOW", "MEDIUM", "HIGH"]).nullable().describe("Only if the document itself states a level; otherwise null"),
     ...Sourced,
   })),
@@ -230,8 +235,12 @@ export const CareDocumentExtractionSchema = z.object({
     tasks: z.array(z.string()).describe("Each care task on its own, as written, including continuation pages"),
     fundedBy: z.enum(["COUNCIL", "CARERS_SERVICE", "OTHER"]).describe("CARERS_SERVICE for informal or family support rows"),
     medicationPrompt: z.boolean(), endDate: z.string().nullable(),
+    startDate: z.string().nullable().optional().describe("YYYY-MM-DD the visit starts, only if written"),
+    visitType: z.string().nullable().optional().describe("The kind of visit as written, e.g. personal care, sitting service, domestic"),
+    instructions: z.string().nullable().optional().describe("Special instructions for this visit, as written"),
+    temporary: z.boolean().optional().describe("True only when the document says this visit is temporary"),
     ...Sourced,
-  })).describe("One entry per timetable row, across every timetable page"),
+  })).describe("One entry per timetable row, across every timetable page. Never invent days, times, durations or carer numbers"),
   medication: z.object({
     arrangement: z.object({ support: z.enum(["SELF", "PROMPT", "ASSIST", "ADMINISTER", "UNKNOWN"]), detail: z.string(), ...Sourced }).nullable(),
     items: z.array(z.object({

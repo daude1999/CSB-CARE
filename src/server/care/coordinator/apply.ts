@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { AppError, ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, hhmm, londonDate, parseHhmm } from "@/lib/london";
 import {
-  ACCEPTED, APPLY_ORDER, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
+  ACCEPTED, APPLY_ORDER, CARE_PLAN_TOPICS, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
   type IntakeSection, type callNoteValue, type contactValue, type incidentValue, type medArrangementValue, type medItemValue, type planValue, type riskValue, type skinValue, type visitValue,
 } from "@/lib/care-coordinator-rules";
 import { guessCallType, type FundedBy } from "@/lib/su-import-rules";
@@ -321,7 +321,8 @@ async function applyCarePlan(ctx: Ctx, scope: Scope, intakeId: string): Promise<
     for (const f of mine) {
       const v = f.value as z.output<typeof planValue>;
       const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
-      parts.push([v.canDo ? `What I can do myself: ${v.canDo}` : null, v.support ? `Support I need: ${v.support}` : null, v.how ? `How to support me: ${v.how}` : null, v.clarify ? `To clarify with a professional: ${v.clarify}` : null, `(Source: ${src})`].filter(Boolean).join("\n"));
+      const topic = v.topic ? CARE_PLAN_TOPICS[v.topic].label : null;
+      parts.push([topic ? `${topic}` : null, v.canDo ? `What I can do myself: ${v.canDo}` : null, v.support ? `Support I need: ${v.support}` : null, v.how ? `How staff should support me: ${v.how}` : null, v.preferences ? `My preferences: ${v.preferences}` : null, v.clarify ? `To clarify with a professional: ${v.clarify}` : null, `(Source: ${src})`].filter(Boolean).join("\n"));
       if (v.outcome) outcomes.push(v.outcome);
     }
     sections[key] = { body: parts.join("\n\n").slice(0, 10000), outcomes: outcomes.join("\n").slice(0, 4000) || undefined };
@@ -509,7 +510,7 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const callTypeId = v.callTypeId && callTypes.some((c) => c.id === v.callTypeId) ? v.callTypeId : guessCallType(v.startTime, `${v.label} ${v.tasks.join(" ")}`, callTypes);
       const effectiveFrom = v.effectiveFrom ?? (pkg ? fromDbDate(pkg.startDate) : londonDate());
       const effectiveTo = v.effectiveTo ?? (pkg?.endDate ? fromDbDate(pkg.endDate) : null);
-      const notes = [`${v.label}.`, v.tasks.length ? `Tasks: ${v.tasks.join("; ")}.` : null, v.medicationPrompt ? "Medication support at this visit, as in the care plan and MAR." : null, `Source: ${await docLabel(tx, f.sourceDocumentId, f.sourcePage)}.`].filter(Boolean).join(" ").slice(0, 2000);
+      const notes = [`${v.label}${v.visitType ? ` (${v.visitType})` : ""}.`, v.tasks.length ? `Tasks: ${v.tasks.join("; ")}.` : null, v.instructions ? `Instructions: ${v.instructions}` : null, v.temporary ? `Temporary visit${v.effectiveTo ? ` until ${v.effectiveTo}` : ", end date to confirm"}.` : null, v.medicationPrompt ? "Medication support at this visit, as in the care plan and MAR." : null, `Source: ${await docLabel(tx, f.sourceDocumentId, f.sourcePage)}.`].filter(Boolean).join(" ").slice(0, 2000);
       const input: TemplateInput = { serviceUserId: su.id, callTypeId, areaId: area?.id ?? null, cycleWeeks: [1, 2, 3, 4], weekdays: v.weekdays, startMinute: start, durationMin: v.durationMin, carersRequired: v.carers, medicationRequired: v.medicationPrompt, alertOnLate: true, timeLocked: false, rotaType: "NORMAL", effectiveFrom, effectiveTo, notes, taskIds, extraPreferredStaffIds: [] };
       const t = await createTemplateInTx(tx, scope, ctx.userId, input);
       await markApplied(tx, f, `VisitTemplate:${t.id}`);

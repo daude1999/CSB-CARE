@@ -147,3 +147,21 @@ export function supportPlanCardsPdf(opts: { hoursPerWeek?: string; name?: string
     ],
   ]);
 }
+
+/** A short fictional plan whose wording the AI-reading tests quote: care plan topics, a risk with mitigation and a temporary two-carer visit. */
+export function topicsPlanPdf() {
+  return pdf([
+    [
+      "Example Borough Council - Adult Social Care",
+      "Support Plan",
+      "Full name: Bea Specimen",
+      "Postcode: E2 0ZZ",
+    ],
+    [
+      "Toileting: Bea uses the toilet with her frame but needs help at night. Leave the commode within reach. She prefers a female carer.",
+      "Washing and dressing: Bea needs a full strip wash at the sink. She likes to choose her own clothes.",
+      "Risk - Falls at night: Bea has fallen twice getting up to the toilet. A sensor light on the landing is recommended.",
+      "Morning | 08:00-08:45 | Mon-Fri | 2 carers | Tasks: Hoist transfer; Strip wash. Temporary until the OT review. Two carers for the hoist.",
+    ],
+  ]);
+}

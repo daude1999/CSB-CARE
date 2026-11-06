@@ -2,11 +2,12 @@
 
 Goal: one support plan upload → CRM draft records across the existing modules → editable draft rota → exception
 review → controlled activation. Built in six phases, one draft PR each. No merge or deploy without the owner's
-explicit instruction (the earlier blanket approvals do not cover this build).
+explicit instruction. The owner wrote "Once complete please merge." on 6 Nov 2026 at 15:03, which covers each phase PR
+once its tests pass.
 
 | Phase | Scope | State |
 |---|---|---|
-| 1 | Fix document reading: root cause, retries, fallback, Read again | Draft PR |
+| 1 | Fix document reading: root cause, retries, fallback, Read again | Merged (#108) |
 | 2 | Complete structured extraction (personal, contacts, package, care plan detail, risks, medication, all visits) | Not started |
 | 3 | CRM population orchestration through existing services (drafts, provenance) | Not started |
 | 4 | Draft rota separated from activation | Not started |
@@ -61,3 +62,31 @@ left as FAILED by the old reader is re-classified on that read.
   against a text layer and stay UNVERIFIED. Without AI, scanned pages are listed as needing manual review. No OCR
   service is configured.
 - A chat message that triggers a reading through the agent's tools still shares the chat's time budget.
+
+## Phase 2: structured extraction
+
+What the reading now produces, all as facts the coordinator checks against the page:
+
+- **Care plan topics.** 21 topics (`CARE_PLAN_TOPICS` in `src/lib/care-coordinator-rules.ts`): about me, daily routine,
+  independence and choice, culture and religion, community, communication, cognition and memory, personal care,
+  washing and dressing, toileting and continence, mobility and transfers, eating and drinking, nutrition and hydration,
+  medication support arrangements, documented long-term conditions, emotional wellbeing, sleep and night support,
+  household tasks, home and safety, emergency considerations, outcomes. Each topic belongs to one of the nine existing
+  care plan sections and is written into that section under its own heading ("How staff should support me", "My
+  preferences"), so the care plan screens are unchanged. The topic decides the section, so a topic cannot be filed
+  under the wrong heading. The basic reader recognises the same headings.
+- **Risks.** Documented hazard, who is affected, existing controls, mitigation (saved as recommended actions on the
+  risk draft) and what a qualified assessor still has to establish (saved as open questions). A risk level is never
+  invented: with no stated level the assessor must set one before the fact can be approved.
+- **Visits.** Days, start time, duration, carers, tasks, type of visit, special instructions, start and end dates and
+  whether the visit is temporary. A temporary visit with no end date is flagged ("Confirm the end date with the
+  commissioner") and is not bulk-approved. The type, instructions and temporary status go into the visit template's
+  notes.
+- **Medication.** The prompt now asks the AI to keep current medication apart from historical (discharge) lists.
+  Medication stays a review item; nothing is activated.
+
+The schema sent to the AI still fits the API's limits (checked by a unit test). Every new field is optional, so older
+readings still load.
+
+Fixed on the way: reader notes (such as the temporary-visit warning) were overwritten when facts were compared; the
+comparison now adds that warning itself.
