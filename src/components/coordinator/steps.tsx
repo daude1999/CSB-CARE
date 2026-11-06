@@ -7,7 +7,7 @@ import { APPLY_STATUS, FOLLOW_UP_LABEL, INTAKE_SECTIONS, SECTION_STATUS, section
 import { MANUAL_DESTINATIONS } from "@/lib/care-coordinator-forms";
 import { fmtLondonDate, londonTime } from "@/lib/london";
 import {
-  activateCareAction, addManualFactAction, applyApprovedAction, applySectionAction, approveVerifiedAction, createIntakeRotaAction, decideSectionAction, fileIntakeDocumentsAction,
+  activateCareAction, addManualFactAction, prepareDraftsAction, applyApprovedAction, applySectionAction, approveVerifiedAction, createIntakeRotaAction, decideSectionAction, fileIntakeDocumentsAction,
   rereadIntakeDocumentAction, resolveFollowUpAction, submitIntakeAction, updateIntakeDocumentAction, uploadIntakeDocumentsAction,
 } from "@/app/coordinator-actions";
 import { FactRow } from "./fact-row";
@@ -23,7 +23,7 @@ function readMethodBadge(d: { readMethod: string | null; readFailure: string | n
   if (d.readMethod === "basic-reader") return <Badge tone="slate">Basic reader (no AI)</Badge>;
   return null;
 }
-const SECTION_TONE = { OPEN: "amber", APPROVED: "green", RETURNED: "rose", REJECTED: "rose", INFO_REQUESTED: "amber" } as const;
+const SECTION_TONE = { DRAFTED: "teal", OPEN: "amber", APPROVED: "green", RETURNED: "rose", REJECTED: "rose", INFO_REQUESTED: "amber" } as const;
 const APPLY_TONE = { NOT_STARTED: "slate", DONE: "green", FAILED: "rose", BLOCKED: "amber" } as const;
 const closed = (v: View) => v.intake.status === "COMPLETED" || v.intake.status === "CANCELLED";
 const sectionEditable = (v: View, key: string) => !closed(v) && (v.intake.status === "DRAFT" || ["RETURNED", "INFO_REQUESTED"].includes(v.sections.find((s) => s.key === key)?.status ?? ""));
@@ -206,6 +206,7 @@ export function ReviewStep({ view, back, section, show, add }: { view: View; bac
           </details>
         ) : null}
 
+        {canSubmit && intake.status === "DRAFT" ? <PreparePanel view={view} back={back} /> : null}
         {canSubmit ? <SubmitPanel view={view} back={back} openYours={openYours} openAll={open.length} /> : null}
       </div>
     </div>
@@ -215,6 +216,24 @@ export function ReviewStep({ view, back, section, show, add }: { view: View; bac
 function sectionOfDestination(d: string) {
   const head = d.split(".")[0];
   return { person: "PERSONAL", contact: "CONTACTS", preference: "CARER_PREFERENCES", careplan: "CARE_PLAN", risk: "RISKS", package: "PACKAGE", visit: "VISITS", medication: "MEDICATION", incident: "INCIDENTS", bodymap: "BODY_MAP", callnote: "CALL_NOTES" }[head ?? ""] ?? null;
+}
+
+/** The AI CSB Coordinator's data entry: checked facts become drafts in the person's records and a proposed rota. */
+function PreparePanel({ view, back }: { view: View; back: string }) {
+  const { intake } = view;
+  const drafted = view.sections.filter((s) => s.status === "DRAFTED");
+  return (
+    <form action={prepareDraftsAction} className="space-y-2 rounded-[3px] border border-teal-700/30 bg-[#f1f8f7] p-3">
+      <Hidden back={back} intakeId={intake.id} />
+      <h3 className="text-[15px] font-semibold">Prepare the records and a draft rota</h3>
+      <p className="text-[13.5px] text-slate-700">
+        Facts whose words were found on the page, with no warning, are saved straight into the person&apos;s records as drafts: the person at Assessment, contacts, the care package, the care plan and risk assessments as drafts, the visit templates, and a proposed rota for the next two weeks. The proposed visits are not published and cannot be until care is activated, so carers are not told. Facts with a warning, and medication, incident and skin details, stay here for a person to check.
+      </p>
+      {drafted.length ? <p className="text-[13.5px] text-slate-700">Already saved as drafts: {drafted.map((s) => sectionLabel(s.key)).join(", ")}. Run it again after checking more facts to add them.</p> : null}
+      {intake.mode === "NEW" ? <label className="flex items-start gap-2 text-[14px]"><input type="checkbox" name="notADuplicate" className="mt-1" /> If a similar person is found, I have checked and this is a different person</label> : null}
+      <button className="btn-primary">{drafted.length ? "Prepare again with newly checked facts" : "Prepare records and draft rota"}</button>
+    </form>
+  );
 }
 
 function SubmitPanel({ view, back, openYours, openAll }: { view: View; back: string; openYours: number; openAll: number }) {
@@ -256,7 +275,7 @@ export function ApprovalStep({ view, back }: { view: View; back: string }) {
                     <h3 className="text-[15px] font-semibold"><Link href={`/rota/coordinator/${intake.id}?step=review&section=${s.key}`}>{info.label}</Link></h3>
                     <p className="text-[13px] text-slate-600">Saved to {info.profile}. {s.accepted} to save, {s.rejected} rejected or duplicate{s.open ? `, ${s.open} still open` : ""}{s.hidden ? `, ${s.hidden} restricted` : ""}.</p>
                   </div>
-                  <Badge tone={SECTION_TONE[s.status as keyof typeof SECTION_TONE] ?? "slate"}>{intake.status === "DRAFT" ? "Not sent yet" : SECTION_STATUS[s.status as keyof typeof SECTION_STATUS] ?? s.status}</Badge>
+                  <Badge tone={SECTION_TONE[s.status as keyof typeof SECTION_TONE] ?? "slate"}>{s.status === "DRAFTED" ? SECTION_STATUS.DRAFTED : intake.status === "DRAFT" ? "Not sent yet" : SECTION_STATUS[s.status as keyof typeof SECTION_STATUS] ?? s.status}</Badge>
                 </div>
                 {s.decidedBy ? <p className="mt-1 text-[13px] text-slate-700">{SECTION_STATUS[s.status as keyof typeof SECTION_STATUS]} by {s.decidedBy}{s.decidedAt ? `, ${fmtDate(s.decidedAt, true)}` : ""}{s.reason ? `: ${s.reason}` : ""}</p> : null}
                 {decidable(s) ? (

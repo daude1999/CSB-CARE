@@ -20,6 +20,7 @@ import { serviceUserChatContext } from "./chat";
 import { createIntake, getIntake, listIntakes, readIntakeDocument } from "./intake";
 import { intakeDigest } from "./intake-digest";
 import { rotaReadiness } from "./rota";
+import { correctDraftVisit, draftSummary, prepareDrafts, prepareReportText } from "./prepare";
 
 /**
  * The only things the AI CSB Coordinator model can do (owner's brief, 5 Nov 2026). Each tool is ordinary server code:
@@ -273,6 +274,62 @@ const tools = {
     },
   } satisfies Tool<z.ZodObject<{ intakeId: typeof id }>>,
 
+  prepare_records: {
+    spec: {
+      name: "prepare_records",
+      description: "Do the coordinator's data entry for an intake in DRAFT: facts found word for word on the page with no warning are saved into the person's real CRM records as drafts (the person at Assessment, contacts, carer preferences, care package, care plan DRAFT, risk DRAFTs, visit templates, call notes) and a proposed rota of unpublished visits is created for the next two weeks. Nothing is activated or published and no carer is told. Medication, incident and skin facts and anything with a warning stay for a person. Stops before creating anyone if a similar person is already on record, unless notADuplicate is true because the employee confirmed it. Safe to run again: it carries on from where it stopped. Reports real counts.",
+      inputSchema: obj({ intakeId: { type: "string" }, notADuplicate: { type: "boolean" } }),
+    },
+    schema: z.object({ intakeId: id, notADuplicate: z.boolean() }),
+    async run(ctx, { intakeId, notADuplicate }, state) {
+      if (!coordinatorRole(ctx)) throw new ForbiddenError("This employee's role cannot prepare records from intakes.");
+      if (state.userQuestion !== undefined && !requestedChange(state, /\b(prepare|set up|setup|create|fill|enter|populate|process|do it|go ahead|yes)\b/i)) throw new ConflictError("Ask the employee to confirm first: preparing records writes drafts into the person's profile.");
+      if (notADuplicate && state.userQuestion !== undefined && !/\b(different person|not (?:the same|a duplicate)|someone else)\b/i.test(state.userQuestion)) throw new ConflictError("Only the employee can confirm this is a different person. Ask them.");
+      const r = await prepareDrafts(ctx, intakeId, { notADuplicate });
+      if (r.sections.some((x) => x.status === "DRAFTED") || r.rota?.visits) state.wrote.push({ tool: "prepare_records", ref: `CareIntake:${intakeId}` });
+      link(state, { label: `Open ${r.reference}`, href: intakeHref(intakeId, "facts") });
+      if (r.serviceUserId) link(state, { label: "Open the service user", href: `/rota/service-users/${r.serviceUserId}` });
+      return { report: prepareReportText(r), blocked: r.blocked, sections: r.sections.map((x) => ({ section: x.label, status: x.status, created: x.created, error: x.error })), draftRota: r.rota, stillNeedsAttention: r.attention };
+    },
+  } satisfies Tool<z.ZodObject<{ intakeId: typeof id; notADuplicate: z.ZodBoolean }>>,
+
+  get_prepared_records: {
+    spec: {
+      name: "get_prepared_records",
+      description: "What is now in the person's CRM records from an intake, read from the database: the service user and status, number of contacts, care package, care plan version and status, risk assessments with status, visit templates (with ids, times, days, carers), the proposed unpublished visits for the next four weeks, and the facts still needing a person. Use it for 'show me the rota you prepared', 'what is missing', 'which risks need review'.",
+      inputSchema: obj({ intakeId: { type: "string" } }),
+    },
+    schema: z.object({ intakeId: id }),
+    async run(ctx, { intakeId }, state) {
+      const s = await draftSummary(ctx, intakeId);
+      link(state, { label: `Open ${s.intake.reference}`, href: intakeHref(intakeId, "rota") });
+      if (!s.serviceUser) return { intake: s.intake, serviceUser: null, note: "Nothing has been saved to a person's record yet. Run prepare_records first." };
+      link(state, { label: "Open the service user", href: `/rota/service-users/${s.serviceUser.id}` });
+      const hhmmOf = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+      return {
+        ...s,
+        templates: s.templates.map((t) => ({ templateId: t.id, start: hhmmOf(t.startMinute), durationMin: t.durationMin, weekdays: t.weekdays, carersRequired: t.carersRequired, notes: t.notes?.slice(0, 300) ?? null })),
+        proposedVisits: s.proposedVisits.map((v) => ({ reference: v.reference, date: londonDate(v.scheduledStart), start: londonTime(v.scheduledStart), end: londonTime(v.scheduledEnd), carersRequired: v.carersRequired, published: false })),
+      };
+    },
+  } satisfies Tool<z.ZodObject<{ intakeId: typeof id }>>,
+
+  correct_draft_visit: {
+    spec: {
+      name: "correct_draft_visit",
+      description: "Correct a prepared visit template's start time (and optionally length) for someone whose care is not active yet, when the employee gives the corrected time. Its unpublished proposed visits move with it. Get the templateId from get_prepared_records. Refused for live care.",
+      inputSchema: obj({ templateId: { type: "string" }, startTime: { type: "string", description: "HH:mm" }, durationMin: { type: ["integer", "null"] } }),
+    },
+    schema: z.object({ templateId: id, startTime: z.string().regex(/^\d{2}:\d{2}$/), durationMin: z.number().int().min(5).max(1440).nullable() }),
+    async run(ctx, { templateId, startTime, durationMin }, state) {
+      if (state.userQuestion !== undefined && !targetTimeMentioned(state, startTime)) throw new ConflictError(`The employee has not given ${startTime} as the new time. Ask them for the corrected time.`);
+      if (durationMin && state.userQuestion !== undefined && !durationMentioned(state, durationMin)) throw new ConflictError("The employee has not given that length. Ask them.");
+      const r = await correctDraftVisit(ctx, templateId, { startTime, durationMin: durationMin ?? undefined });
+      state.wrote.push({ tool: "correct_draft_visit", ref: `VisitTemplate:${templateId}` });
+      return r;
+    },
+  } satisfies Tool<z.ZodObject<{ templateId: typeof id; startTime: z.ZodString; durationMin: z.ZodNullable<z.ZodNumber> }>>,
+
   create_intake: {
     spec: {
       name: "create_intake",
@@ -517,7 +574,7 @@ export type ToolName = keyof typeof tools;
 export const TOOL_NAMES = Object.keys(tools) as ToolName[];
 export const TOOL_SPECS: AgentToolSpec[] = TOOL_NAMES.map((n) => tools[n].spec);
 /** Tools that create or change a draft. Everything else only reads. */
-export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents", "adjust_visit_time", "move_visit_day", "create_one_off_visit", "book_carer"]);
+export const WRITE_TOOLS = new Set<ToolName>(["create_intake", "read_documents", "prepare_records", "correct_draft_visit", "adjust_visit_time", "move_visit_day", "create_one_off_visit", "book_carer"]);
 
 /**
  * Runs one tool call for the model. Unknown tools and bad input are refused; errors the employee may see are returned

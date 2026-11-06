@@ -1,4 +1,5 @@
 import type { Prisma, ServiceUserDocumentSection } from "@prisma/client";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -70,7 +71,7 @@ export async function intakeInScope(tx: Tx | typeof db, scope: Scope, id: string
   return intake;
 }
 
-const isRestrictedFact = (f: { section: string; destination: string }, docSensitive: boolean) =>
+export const isRestrictedFact = (f: { section: string; destination: string }, docSensitive: boolean) =>
   docSensitive || RESTRICTED_SECTIONS.has(f.section) || (f.destination.startsWith("person.") && RESTRICTED_PERSON_FIELDS.has(f.destination.slice(7)));
 
 // ── Creating an intake and adding documents ────────────────────────────────
@@ -118,7 +119,15 @@ export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFi
   const existing = await db.careIntakeDocument.count({ where: { intakeId } });
   if (existing + files.length > MAX_INTAKE_DOCUMENTS) throw new ValidationError(`An intake can hold at most ${MAX_INTAKE_DOCUMENTS} documents`);
   const created: string[] = [];
-  for (const [i, f] of files.entries()) {
+  // The same file twice (same SHA-256) is kept once: uploading it again neither stores nor reads it again.
+  const seen = new Set((await db.careIntakeDocument.findMany({ where: { intakeId }, select: { sha256: true } })).map((d) => d.sha256));
+  const duplicates: string[] = [];
+  let position = existing;
+  for (const f of files) {
+    const hash = createHash("sha256").update(f.bytes).digest("hex");
+    if (seen.has(hash)) { duplicates.push(f.name); continue; }
+    seen.add(hash);
+    const i = position++ - existing;
     const stored = await storePrivateFile(scope.organisationId, "care-intake", f);
     let pages: string[] = [];
     let readNote: string | null = null;
@@ -150,7 +159,7 @@ export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFi
     const d = await db.careIntakeDocument.findUniqueOrThrow({ where: { id } });
     if (d.readStatus === "PENDING") results.push(await readIntakeDocument(ctx, id).catch((e: unknown) => ({ documentId: id, facts: 0, error: e instanceof Error ? e.message : "Could not read" })));
   }
-  return { documents: created.length, results };
+  return { documents: created.length, results, duplicates };
 }
 
 /**
@@ -414,11 +423,12 @@ export async function decideFact(ctx: Ctx, factId: string, lockVersion: number |
 }
 
 /** Rules a fact must meet before it can be approved, whatever the screen allowed. */
-function checkAcceptable(destination: string, value: unknown, temporal: string) {
+export function checkAcceptable(destination: string, value: unknown, temporal: string, opts: { draft?: boolean } = {}) {
   const parsed = parseValue(destination, value);
   if (!parsed.ok) throw new ValidationError(parsed.error);
   if (destination === "externalReference" && (value as { typeUnclear?: boolean }).typeUnclear) throw new ValidationError("Choose what this reference identifies (client, package or framework) with Edit before approving it");
-  if (destination === "risk" && !(value as { level: string | null }).level) throw new ValidationError("Set a provisional risk level (it stays a draft until an assessor approves it), or reject this risk");
+  // A risk with no stated level may become a DRAFT (clearly labelled), never an approved risk with an invented level.
+  if (destination === "risk" && !opts.draft && !(value as { level: string | null }).level) throw new ValidationError("Set a provisional risk level (it stays a draft until an assessor approves it), or reject this risk");
   if (temporal === "HISTORICAL" && (destination.startsWith("person.") || destination.startsWith("package.") || destination === "visit")) throw new ValidationError("This fact is marked as historical. Edit it to the current value, or reject it.");
 }
 
@@ -495,6 +505,7 @@ export async function submitIntake(ctx: Ctx, intakeId: string, opts: { notADupli
     const open = scopeFacts.filter((f) => OPEN_DECISIONS.has(f.decision) && !f.appliedAt);
     if (open.length) throw new ValidationError(`${open.length} fact${open.length === 1 ? " still needs" : "s still need"} a decision (approve, edit, reject or mark duplicate) or an answer to a question`);
     if (!facts.some((f) => ACCEPTED.has(f.decision))) throw new ValidationError("Nothing has been approved, so there is nothing for a manager to check");
+    if (!resubmitting && !facts.some((f) => ACCEPTED.has(f.decision) && !f.appliedAt)) throw new ValidationError("Everything approved is already saved as drafts, so nothing is waiting for a manager");
     let areaId = intake.areaId;
     if (intake.mode === "NEW" && !resubmitting) {
       for (const k of ["person.firstName", "person.lastName"]) if (!facts.some((f) => f.destination === k && ACCEPTED.has(f.decision))) throw new ValidationError(`Approve the person's ${k === "person.firstName" ? "first" : "last"} name before sending to a manager`);
@@ -511,6 +522,7 @@ export async function submitIntake(ctx: Ctx, intakeId: string, opts: { notADupli
     }
     for (const s of sections) {
       const accepted = facts.some((f) => f.section === s.section && ACCEPTED.has(f.decision) && !f.appliedAt);
+      if (s.status === "DRAFTED") continue; // already saved as drafts by the AI CSB Coordinator
       if (!resubmitting || reopen.includes(s.section)) await tx.careIntakeSection.update({ where: { id: s.id }, data: { status: accepted ? "OPEN" : "OPEN", reason: resubmitting ? s.reason : null, decidedById: null, decidedAt: null, lockVersion: { increment: 1 } } });
     }
     await tx.careIntake.update({ where: { id: intake.id }, data: { status: "SUBMITTED", submittedById: ctx.userId, submittedAt: new Date(), areaId, lockVersion: { increment: 1 } } });
@@ -538,7 +550,7 @@ export async function decideSection(ctx: Ctx, intakeId: string, section: string,
     const intake = await intakeInScope(tx, scope, intakeId, true);
     if (intake.status !== "SUBMITTED" && intake.status !== "APPROVED" && intake.status !== "APPLYING") throw new ConflictError("This intake is not waiting for a manager");
     const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
-    if (s.applyStatus === "DONE") throw new ConflictError("This section has already been saved to the record");
+    if (s.applyStatus === "DONE" || s.status === "DRAFTED") throw new ConflictError("This section has already been saved to the record");
     if (s.status === "RETURNED" || s.status === "INFO_REQUESTED") throw new ConflictError("This section is back with the coordinator");
     const facts = await tx.careIntakeFact.findMany({ where: { intakeId, section } });
     const accepted = facts.filter((f) => ACCEPTED.has(f.decision));

@@ -1,12 +1,13 @@
 "use server";
 
 import { z } from "zod";
-import { ValidationError } from "@/lib/errors";
+import { AppError, ValidationError } from "@/lib/errors";
 import { valueFromForm } from "@/lib/care-coordinator-forms";
 import { handle, str } from "./action-kit";
 import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, readIntakeDocument, resolveFollowUp, setCoordinatorAi, submitIntake, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
 import { applyApproved, applySection, fileDocuments } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
+import { prepareDrafts, prepareReportText } from "@/server/care/coordinator/prepare";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
 import { SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 
@@ -48,6 +49,12 @@ export async function createIntakeAction(fd: FormData) {
       const r = await addDocuments(ctx, intake.id, await filesFrom(fd));
       const failed = r.results.filter((x) => "error" in x).length;
       if (failed) return { to: page(intake.id, "?step=documents"), ok: `${intake.reference} started. ${failed} document${failed === 1 ? "" : "s"} could not be read just now: press Read again, or add the facts by hand.` };
+      // The coordinator's data entry, done for them: drafts in the person's records and a proposed rota.
+      const prepared = await prepareDrafts(ctx, intake.id).catch((e: unknown) => {
+        if (e instanceof AppError) return null;
+        throw e;
+      });
+      if (prepared) return { to: page(intake.id), ok: `${intake.reference} started and read. ${prepareReportText(prepared).replace(/\n/g, " ")}` };
     }
     return { to: page(intake.id), ok: files.length ? `${intake.reference} started and ${files.length} document${files.length === 1 ? "" : "s"} read. Check each fact below.` : `${intake.reference} started. Upload the documents next.` };
   }, "Started");
@@ -57,8 +64,16 @@ export async function uploadIntakeDocumentsAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const r = await addDocuments(ctx, intakeId(fd), await filesFrom(fd));
     const failed = r.results.filter((x) => "error" in x);
+    if (!r.documents && r.duplicates.length) return { ok: `${r.duplicates.join(", ")} ${r.duplicates.length === 1 ? "is" : "are"} already on this intake, so nothing was uploaded again.` };
     return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded.${failed.length ? ` ${failed.length} could not be read just now (${"error" in failed[0]! ? failed[0].error : ""}); press Read again on it, or add its facts by hand.` : " Check each fact under Check facts."}` };
   }, "Uploaded");
+}
+
+export async function prepareDraftsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await prepareDrafts(ctx, intakeId(fd), { notADuplicate: fd.get("notADuplicate") === "on" });
+    return { ok: prepareReportText(r).replace(/\n/g, " ") };
+  }, "Prepared");
 }
 
 export async function rereadIntakeDocumentAction(fd: FormData) {

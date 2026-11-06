@@ -377,6 +377,8 @@ async function bulkStep(tx: Tx, scope: Scope, actorId: string, visitId: string, 
     case "publish": {
       if (v.status === "CANCELLED" || v.status === "NOT_DELIVERED") throw new ValidationError(`A ${STATUS_WORD[v.status]} visit is not sent to carers`);
       if (v.publishedAt) return same("Already published to carers");
+      const su = await tx.serviceUser.findUnique({ where: { id: v.serviceUserId }, select: { status: true } });
+      if (su && su.status !== "ACTIVE") throw new ValidationError(`Care is ${su.status.toLowerCase()} for this person, so the visit is a proposal. Activate care first; then publish.`);
       if (preview) return { changed: true };
       await tx.visit.update({ where: { id: visitId }, data: { publishedAt: new Date(), lockVersion: { increment: 1 } } });
       await tx.visitEvent.create({ data: { organisationId: scope.organisationId, visitId, type: "PUBLISHED", actorId, data: { source: "bulk" } } });
