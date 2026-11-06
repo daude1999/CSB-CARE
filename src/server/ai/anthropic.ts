@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
-import { AiUnavailableError, type CoordinatorAgentInput, type CoordinatorAgentResult, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
+import { AiUnavailableError, providerDetail, type CoordinatorAgentInput, type CoordinatorAgentResult, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
 import { toWire, fromWire } from "./wire-schema";
 import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema, BranchPolicyDraftSchema, CallNoteOrganisationSchema } from "./schemas";
 
@@ -115,10 +115,22 @@ export class AnthropicProvider implements LlmProvider {
       messages: [{ role: "user" as const, content: prompt }],
     };
     const request = opts.timeoutMs ? { timeout: opts.timeoutMs, maxRetries: 0 } : undefined;
+    // Long readings stream, so a large answer is never cut off by an HTTP timeout.
+    const send = (b: typeof body) => (opts.stream ? this.client.beta.messages.stream(b, request).finalMessage() : this.client.beta.messages.parse(b, request));
     let res: { stop_reason: string | null; parsed_output: unknown };
     try {
-      // Long readings stream, so a large answer is never cut off by an HTTP timeout.
-      res = opts.stream ? await this.client.beta.messages.stream(body, request).finalMessage() : await this.client.beta.messages.parse(body, request);
+      try {
+        res = await send(body);
+      } catch (e) {
+        if (!(e instanceof Anthropic.BadRequestError)) throw e;
+        // A refused request is sent once more in its plainest form: no beta features (server-side fallback), no
+        // caching marks, no structured-output grammar (the JSON shape is asked for in words and checked here, exactly
+        // as below) and a smaller answer limit. If that is refused too, the service's own reason is kept.
+        const plain = plainRequest(body);
+        const message = await this.client.beta.messages.stream(plain, request).finalMessage();
+        const text = message.content.flatMap((c) => (c.type === "text" ? [c.text] : [])).join("");
+        res = { stop_reason: message.stop_reason, parsed_output: jsonFromText(text) };
+      }
     } catch (e) {
       if (e instanceof Anthropic.AnthropicError && !(e instanceof Anthropic.APIError) && /pars|JSON|schema/i.test(e.message)) {
         throw new AiUnavailableError("The AI answer did not have the expected shape.", "invalid-output");
@@ -370,6 +382,59 @@ ${input.sections.map((s) => `<section key="${xmlEscape(s.key)}" heading="${xmlEs
   }
 }
 
+type StructuredBody = {
+  model: string;
+  max_tokens: number;
+  betas?: string[];
+  fallbacks?: "default";
+  thinking: { type: "adaptive" };
+  output_config: Anthropic.Beta.Messages.MessageCreateParams["output_config"];
+  system: string;
+  messages: { role: "user"; content: string | Anthropic.Beta.BetaContentBlockParam[] }[];
+};
+
+/**
+ * The same request without optional extras, for a second try after the service refused the first: no beta features,
+ * no caching marks, a smaller answer limit and no structured-output format. The JSON shape the format described is
+ * asked for in words instead, and the answer is still validated against the real schema on our server.
+ */
+export function plainRequest(body: StructuredBody): Anthropic.Beta.Messages.MessageCreateParamsNonStreaming {
+  const format = body.output_config?.format as { schema?: unknown } | null | undefined;
+  const ask = `Answer with exactly one JSON object and nothing else (no code fences, no comments). It must match this JSON Schema, with every property present:\n${JSON.stringify(format?.schema ?? {})}`;
+  return {
+    model: body.model,
+    max_tokens: Math.min(body.max_tokens, 32000),
+    thinking: body.thinking,
+    output_config: { effort: body.output_config?.effort ?? "high" },
+    system: body.system,
+    messages: body.messages.map((m) => ({
+      role: m.role,
+      content: [
+        ...(typeof m.content === "string"
+          ? [{ type: "text" as const, text: m.content }]
+          : m.content.map((c) => {
+              const copy = { ...c };
+              if ("cache_control" in copy) delete copy.cache_control;
+              return copy;
+            })),
+        { type: "text" as const, text: ask },
+      ],
+    })),
+  };
+}
+
+/** The JSON object in a plain-text answer (tolerating code fences or a sentence around it); null when there is none. */
+export function jsonFromText(text: string): unknown {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
 /** Maps an SDK error to a plain, key-free AiUnavailableError. Anything unexpected is a general outage. */
 export function toUnavailable(e: unknown, model: string): AiUnavailableError {
   if (e instanceof AiUnavailableError) return e;
@@ -379,6 +444,9 @@ export function toUnavailable(e: unknown, model: string): AiUnavailableError {
   if (e instanceof Anthropic.APIError && e.status === 529) return new AiUnavailableError("The AI service is overloaded just now. Try again in a minute.", "busy");
   if (e instanceof Anthropic.APIConnectionTimeoutError) return new AiUnavailableError("The AI service took too long to answer.", "timeout");
   if (e instanceof Anthropic.APIConnectionError || e instanceof Anthropic.InternalServerError) return new AiUnavailableError("The AI service could not be reached just now.", "unavailable");
-  if (e instanceof Anthropic.BadRequestError) return new AiUnavailableError("The AI service rejected the request.", "rejected");
+  if (e instanceof Anthropic.BadRequestError) {
+    const body = e.error as { error?: { message?: unknown } } | undefined;
+    return new AiUnavailableError("The AI service rejected the request.", "rejected", providerDetail(body?.error?.message ?? e.message));
+  }
   return new AiUnavailableError("The AI service could not answer just now.", "unavailable");
 }

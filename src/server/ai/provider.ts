@@ -150,9 +150,22 @@ export type AiUnavailableReason = "not-configured" | "model-unavailable" | "auth
 export const TRANSIENT_AI_REASONS: ReadonlySet<AiUnavailableReason> = new Set(["busy", "timeout", "unavailable", "invalid-output", "truncated"]);
 
 export class AiUnavailableError extends Error {
-  constructor(message = "AI provider is not configured or unavailable", public readonly reason: AiUnavailableReason = "unavailable") {
+  constructor(
+    message = "AI provider is not configured or unavailable",
+    public readonly reason: AiUnavailableReason = "unavailable",
+    /** For a rejected request: the AI service's own short explanation (about the request, never the document), so
+     *  the cause can be seen and fixed. Cleaned by providerDetail(). */
+    public readonly detail: string | null = null,
+  ) {
     super(message);
   }
+}
+
+/** The AI service's error explanation, made safe to store and show: one line, no key-like strings, at most 200 characters. */
+export function providerDetail(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const text = raw.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[key]").replace(/\s+/g, " ").trim();
+  return text.length > 200 ? `${text.slice(0, 197)}...` : text;
 }
 
 /** Only authenticated, redacted, approved-to-share CRM context may be passed. */
