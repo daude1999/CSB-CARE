@@ -35,5 +35,9 @@ build time rather than written page by page:
 - The choice is per browser, not per account: signing in on another device starts in light.
 - Colours added later in new code are covered automatically on the next build; a colour only built at runtime from
   data (for example an area colour chosen in settings) keeps its light value, which is fine for swatches and dots.
-- The HR Hub's prebuilt style sheet (`public/hr/hr-hub.css`) is not processed; its screens rely on the platform's dark
-  twins for shared utility classes.
+- The HR Hub's prebuilt style sheet (`public/hr/hr-hub.css`, built by `scripts/build-hr-css.mjs`) follows the same
+  switch since 6 Nov 2026: its own dark tokens (`src/hr/styles/hr-tokens.css`) are scoped to `<html data-mode="dark">`,
+  and the build runs this plugin over it as a last pass for the colours it still hard-codes. Before that fix its dark
+  tokens were keyed to `data-theme="dark"`, which the platform never sets, so only the parts drawn with shared utility
+  classes turned dark (white table headings, dark names on dark rows, a white Work profile card). Regression tests:
+  `tests/unit/hr-dark-mode.test.ts`, `tests/e2e/hr-appearance.spec.ts`.

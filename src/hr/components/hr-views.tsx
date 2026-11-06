@@ -239,7 +239,9 @@ export function TrainingMatrix({ data, scope, onAssign, onRemind }: { data: HubD
           </div>
         }
       >
-        <div className="overflow-x-auto">
+        {/* Wider than the panel on most screens: it scrolls sideways inside its own box (never the page), can be scrolled
+            with the keyboard once focused, and keeps the employee column in view. */}
+        <div className="hrv-scroll overflow-x-auto" tabIndex={0} role="region" aria-label="Employee training table (scrolls sideways)">
           <table className="hrv-table hrv-table--matrix">
             <caption className="sr-only">Each employee&apos;s required checks and training. The overall column shows the least healthy status.</caption>
             <thead>
