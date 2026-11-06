@@ -251,3 +251,15 @@ When the Care Coordinator files a hospital discharge letter for a person (catego
 **What it never does.** The review never replaces the council support plan and never authorises or changes medication. The letter's facts still go through the intake's own checks. Discharge letters are restricted, so the reviews show on the person's overview only to people who can see restricted records.
 
 **One review per letter.** Filing the same intake again opens no second review.
+
+## Carer instruction versions and acknowledgements (phase 9)
+
+A repeating visit's carer instructions are its notes and its task list (`src/server/care/instructions.ts`, migration `20261106230000_care_instruction_versions`).
+
+**Versions.** Every change made on the template screen, or by Care Coordinator drafting, is kept as a numbered version. Each version has a plain summary (tasks added, tasks removed, notes changed) and the date it applies from. A template from before versioning gets its current instructions recorded as version 1 the first time it is edited, so that first edit still counts as a change. Versions are never edited (database trigger).
+
+**Confirming.** Carers booked on an upcoming visit of the template in the next 14 days see a "New instructions" card on My Visits. It shows the change, the tasks and the notes. Each carer confirms once with "I have read the new instructions". The confirmation is history and is never edited. A carer can only confirm instructions for a template they are booked on.
+
+**Office view.** The template page has a "Carer instructions" card. It lists every version, who has read it, and which booked carers have not yet.
+
+**Future visits only.** Changes still reach visits only through the existing "Apply to future visits" step. Completed visits keep the tasks they had, and nothing rewrites them.

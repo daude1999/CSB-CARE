@@ -16,6 +16,7 @@ import { updateRotaSettings } from "@/server/rota/settings";
 import { resolveAlert } from "@/server/rota/alerts";
 import { assignExceptionOwner, escalateException, resolveException } from "@/server/rota/exceptions";
 import { acknowledgeMyVisits } from "@/server/rota/carer";
+import { acknowledgeInstructions } from "@/server/care/instructions";
 import { addVisitNote, recordTaskOutcomes, TASK_OUTCOMES, type TaskOutcomeValue } from "@/server/care/visit-record";
 import { createPackage, endPackage, updatePackage, type PackageInput } from "@/server/care/packages";
 import { clockMine, notDeliveredMine, officeClock } from "@/server/rota/attendance";
@@ -912,6 +913,14 @@ export async function recordTasksMineAction(fd: FormData) {
     const r = await recordTaskOutcomes(ctx, str(fd, "visitId"), rows);
     return { ok: `${r.recorded} task${r.recorded === 1 ? "" : "s"} recorded${r.concerns ? `. The office has been alerted to ${r.concerns === 1 ? "the concern" : `${r.concerns} concerns`}` : ""}` };
   }, "Tasks recorded");
+}
+
+/** The carer confirms they have read changed instructions for a repeating visit (phase 9). */
+export async function acknowledgeInstructionsAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await acknowledgeInstructions(ctx, str(fd, "versionId"));
+    return { ok: r.already ? "Already confirmed" : "Thank you. The office can see you have read the new instructions." };
+  }, "Confirmed");
 }
 
 export async function addVisitNoteAction(fd: FormData) {

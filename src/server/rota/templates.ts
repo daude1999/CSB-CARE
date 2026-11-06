@@ -1,3 +1,4 @@
+import { baselineInstructionVersion, recordInstructionVersion } from "@/server/care/instructions";
 import type { Prisma, VisitTemplate } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -117,6 +118,7 @@ export async function createTemplateInTx(tx: Prisma.TransactionClient, scope: Sc
   const { areaId } = await checkRefs(tx, scope, t);
   const created = await tx.visitTemplate.create({ data: { organisationId: scope.organisationId, createdById: userId, ...data(t, areaId), tasks: { create: t.taskIds.map((careTaskId) => ({ careTaskId })) } } });
   await audit({ organisationId: scope.organisationId, actorId: userId, action: "template.created", entityType: "VisitTemplate", entityId: created.id }, tx);
+  await recordInstructionVersion(tx, created.id, userId);
   return created;
 }
 
@@ -140,9 +142,13 @@ export async function updateTemplate(ctx: Ctx, id: string, version: number, inpu
     const before = await loadTemplate(tx, scope, id);
     if (before.version !== version) throw new ConflictError("This template changed since you opened it. Reload and try again.");
     const { areaId } = await checkRefs(tx, scope, t);
+    // The instructions as they were, so the first change to a template made before versioning still counts as a change.
+    await baselineInstructionVersion(tx, id, ctx.userId);
     await tx.templateTask.deleteMany({ where: { templateId: id } });
     const updated = await tx.visitTemplate.update({ where: { id }, data: { ...data(t, areaId), version: { increment: 1 }, tasks: { create: t.taskIds.map((careTaskId) => ({ careTaskId })) } } });
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "template.updated", entityType: "VisitTemplate", entityId: id, data: { fromVersion: before.version } }, tx);
+    // Changed notes or tasks become a new instruction version for carers to confirm (phase 9).
+    await recordInstructionVersion(tx, id, ctx.userId);
     return updated;
   });
 }

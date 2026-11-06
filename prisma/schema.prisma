@@ -2115,6 +2115,7 @@ model VisitTemplate {
 
   @@index([organisationId, serviceUserId])
   @@index([organisationId, enabled])
+  instructionVersions CareInstructionVersion[]
 }
 
 model TemplateTask {
@@ -5232,4 +5233,38 @@ model DischargeReview {
   lockVersion      Int         @default(1)
 
   @@index([organisationId, serviceUserId, status])
+}
+
+/// A version of a repeating visit's carer instructions (notes and task list), kept on every change (phase 9).
+/// Never edited (database trigger). Changes reach future visits only; completed visits keep what they had.
+model CareInstructionVersion {
+  id             String               @id @default(cuid())
+  organisationId String
+  serviceUserId  String
+  templateId     String
+  template       VisitTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version        Int
+  notes          String?
+  tasks          String[]             @default([])
+  changeSummary  String
+  effectiveFrom  DateTime             @db.Date
+  createdById    String
+  createdAt      DateTime             @default(now())
+  acks           CareInstructionAck[]
+
+  @@unique([templateId, version])
+  @@index([organisationId, serviceUserId])
+}
+
+/// A carer's confirmation that they have read a changed version of the instructions. Never edited.
+model CareInstructionAck {
+  id             String                 @id @default(cuid())
+  organisationId String
+  versionId      String
+  version        CareInstructionVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  staffId        String
+  userId         String
+  at             DateTime               @default(now())
+
+  @@unique([versionId, staffId])
 }
