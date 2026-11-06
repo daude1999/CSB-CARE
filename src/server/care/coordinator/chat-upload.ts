@@ -7,6 +7,7 @@ import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
 import { addDocuments, coordinatorAccess, createIntake, getIntake, listIntakes, MAX_INTAKE_DOCUMENTS } from "./intake";
 import { digestText, intakeDigest } from "./intake-digest";
 import { readOnce } from "./agent-tools";
+import { READ_FAILURE_TEXT } from "./reader";
 import type { UploadedFile } from "../su-documents";
 
 /**
@@ -60,7 +61,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
       const view = await getIntake(ctx, elsewhere.intake.id);
       return {
         intakeId: elsewhere.intake.id, reference: elsewhere.intake.reference, created: false, added: [] as string[], duplicates: input.files.map((f) => f.name), alreadyOnIntake: true,
-        failed: [] as { name: string; error: string }[], summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
+        failed: [] as { name: string; error: string }[], fallback: [] as { name: string; reason: string; partly: boolean }[], summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
       };
     }
     const intake = await createIntake(ctx, {
@@ -90,9 +91,14 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
     const docs = await db.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, name: true } });
     for (const x of r.results) if ("error" in x && x.error) failed.push({ name: docs.find((d) => d.id === x.documentId)?.name ?? "document", error: String(x.error).slice(0, 200) });
   }
+  // Uploaded and stored, but the AI could not read all of it: the basic reader covered it. Said in plain words.
+  const fallback = fresh.length
+    ? (await db.careIntakeDocument.findMany({ where: { intakeId, organisationId, readFailure: { not: null }, sha256: { in: fresh.map((f) => hashes[input.files.indexOf(f)]!) } }, select: { name: true, readFailure: true, readMethod: true } }))
+        .map((d) => ({ name: d.name, reason: READ_FAILURE_TEXT[d.readFailure as keyof typeof READ_FAILURE_TEXT] ?? "the AI service could not read it", partly: d.readMethod === "ai-and-basic" }))
+    : [];
   const view = await getIntake(ctx, intakeId);
   return {
-    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed,
+    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback,
     summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${intakeId}?step=facts`, ...counts(view),
   };
 }

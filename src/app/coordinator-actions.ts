@@ -63,7 +63,13 @@ export async function uploadIntakeDocumentsAction(fd: FormData) {
 
 export async function rereadIntakeDocumentAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    await readIntakeDocument(ctx, str(fd, "documentId"));
+    const r = await readIntakeDocument(ctx, str(fd, "documentId"));
+    const found = `${r.facts} fact${r.facts === 1 ? "" : "s"} found`;
+    // An object, not a string: a returned string would be taken as the page to go to.
+    if (r.aiFailure) return { ok: r.reader === "ai-and-basic"
+      ? `Document read again (${found}). Some pages could not be read by the AI because ${r.aiFailure.text}; CSB's basic reader read those pages. Decisions you had already made are kept.`
+      : `Document read again by CSB's basic reader (${found}) because ${r.aiFailure.text}. Try Read again later for the AI reading. Decisions you had already made are kept.` };
+    return { ok: `Document read again (${found}). Decisions you had already made are kept.` };
   }, "Document read again. Decisions you had already made are kept.");
 }
 

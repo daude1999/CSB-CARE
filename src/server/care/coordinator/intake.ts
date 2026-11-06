@@ -1,7 +1,7 @@
 import type { Prisma, ServiceUserDocumentSection } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { fromDbDate, isIsoDate } from "@/lib/london";
 import {
   ACCEPTED, APPLY_ORDER, DECISIONS, OPEN_DECISIONS, RESTRICTED_PERSON_FIELDS, RESTRICTED_SECTIONS, SECTION_KEYS,
@@ -169,10 +169,13 @@ export async function readIntakeDocument(ctx: Ctx, documentId: string) {
   const pages = (doc.pageText as string[]) ?? [];
   let outcome: Awaited<ReturnType<typeof readDocument>>;
   try {
+    // readDocument never fails because the AI failed (the basic reader covers what the AI could not read). What is
+    // left is the stored original not opening, or the database: the upload itself is kept either way.
     outcome = await readDocument({ bytes, filename: doc.filename, categoryLabel: categoryLabel(doc.section, doc.category), pages, aiAllowed: !!settings.careCoordinatorAiEnabledAt });
   } catch (e) {
-    await db.careIntakeDocument.update({ where: { id: doc.id }, data: { readStatus: "FAILED", readNote: e instanceof Error ? e.message.slice(0, 500) : "Could not read" } });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.document.read-failed", entityType: "CareIntake", entityId: intake.id, data: { documentId: doc.id } });
+    const known = e instanceof AppError;
+    await db.careIntakeDocument.update({ where: { id: doc.id }, data: { readStatus: "FAILED", readNote: known ? e.message.slice(0, 500) : "The document is stored, but it could not be read just now. Press Read again to try again.", readAt: new Date() } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.document.read-failed", entityType: "CareIntake", entityId: intake.id, data: { documentId: doc.id, error: e instanceof Error ? e.name : "unknown" } });
     throw e;
   }
   const findings = [
@@ -191,9 +194,10 @@ export async function readIntakeDocument(ctx: Ctx, documentId: string) {
     await tx.careIntakeDocument.update({
       where: { id: doc.id },
       data: {
-        readStatus: outcome.status, readNote: outcome.reader === "ai" ? `Read by ${outcome.providerName}` : "Read on CSB's own server (no AI). Recognises labelled information, supported council section headings and visit timetables; always review missing or ambiguous facts.", findings: findings as Prisma.InputJsonValue,
+        readStatus: outcome.status, readNote: readNoteFor(outcome), findings: findings as Prisma.InputJsonValue,
+        readMethod: outcome.reader, readFailure: outcome.aiFailure?.reason ?? null, readAt: new Date(),
         // A better classification from the reading, unless the coordinator already changed it by hand.
-        ...(doc.readStatus === "PENDING" ? { section: filing.section, category: filing.category, sensitive: doc.sensitive || !!cat?.sensitive || reading.issuerKind === "NHS" || reading.issuerKind === "GP" } : {}),
+        ...(doc.readStatus === "PENDING" || (doc.readStatus === "FAILED" && !doc.readMethod) ? { section: filing.section, category: filing.category, sensitive: doc.sensitive || !!cat?.sensitive || reading.issuerKind === "NHS" || reading.issuerKind === "GP" } : {}),
         issuer: doc.issuer ?? reading.issuer?.slice(0, 160) ?? null,
         documentDate: doc.documentDate ?? (reading.documentDate && isIsoDate(reading.documentDate) ? new Date(`${reading.documentDate}T00:00:00Z`) : null),
       },
@@ -203,15 +207,25 @@ export async function readIntakeDocument(ctx: Ctx, documentId: string) {
         data: fact.map((f, i) => ({
           organisationId: scope.organisationId, intakeId: intake.id, section: f.section, destination: f.destination, label: f.label.slice(0, 200), position: start + i,
           proposed: f.value as Prisma.InputJsonValue, value: f.value as Prisma.InputJsonValue, sourceDocumentId: doc.id, sourcePage: f.page, quote: f.quote?.slice(0, 500) ?? null,
-          verification: f.verification, temporal: f.temporal, origin: outcome.reader === "ai" ? "AI" : "BASIC", conflict: [f.check, f.note].filter(Boolean).join(" ") || null,
+          verification: f.verification, temporal: f.temporal, origin: f.origin, conflict: [f.check, f.note].filter(Boolean).join(" ") || null,
         })),
       });
     }
     await compareFacts(tx, scope, intake.id);
-    await tx.careIntake.update({ where: { id: intake.id }, data: { reader: outcome.reader === "ai" ? outcome.providerName : "basic-reader", lockVersion: { increment: 1 } } });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.document.read", entityType: "CareIntake", entityId: intake.id, data: { documentId: doc.id, reader: outcome.reader, provider: outcome.providerName, facts: fact.length, unverified: fact.filter((f) => f.verification === "UNVERIFIED").length, findings: findings.length, status: outcome.status } }, tx);
+    await tx.careIntake.update({ where: { id: intake.id }, data: { reader: outcome.providerName ?? "basic-reader", lockVersion: { increment: 1 } } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.document.read", entityType: "CareIntake", entityId: intake.id, data: { documentId: doc.id, reader: outcome.reader, provider: outcome.providerName, facts: fact.length, unverified: fact.filter((f) => f.verification === "UNVERIFIED").length, findings: findings.length, status: outcome.status, aiFailure: outcome.aiFailure ? { reason: outcome.aiFailure.reason, pages: outcome.aiFailure.pages.length } : null, parts: outcome.parts.map((p) => ({ from: p.from, to: p.to, ok: p.ok, attempts: p.attempts, reason: p.reason })) } }, tx);
   });
-  return { documentId: doc.id, facts: fact.length, status: outcome.status, reader: outcome.reader };
+  return { documentId: doc.id, facts: fact.length, status: outcome.status, reader: outcome.reader, aiFailure: outcome.aiFailure };
+}
+
+const BASIC_NOTE = "Read on CSB's own server (no AI). Recognises labelled information, supported council section headings and visit timetables; always review missing or ambiguous facts.";
+
+/** What the screen says about how a document was read. Never the provider's own error text. */
+export function readNoteFor(o: Pick<Awaited<ReturnType<typeof readDocument>>, "reader" | "providerName" | "aiFailure" | "parts">) {
+  if (o.reader === "ai") return `Read by ${o.providerName}${o.parts.length > 1 ? ` in ${o.parts.length} parts` : ""}.`;
+  if (o.reader === "ai-and-basic") return `Read by ${o.providerName}, except pages the AI could not read (${o.aiFailure?.text ?? "the AI failed"}): CSB's basic reader read those. Press Read again to try the AI again for the whole document.`;
+  if (o.aiFailure) return `Uploaded and stored safely. The AI reading failed because ${o.aiFailure.text}, so CSB's own reader (no AI) read the labelled parts instead. Press Read again to try the AI again; nothing needs uploading again.`;
+  return BASIC_NOTE;
 }
 
 const docUpdateSchema = z.object({
@@ -588,7 +602,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
   const { scope, access } = await scopeFor(ctx);
   const intake = await intakeInScope(db, scope, intakeId);
   const [docs, facts, sections, history, members, areas, callTypes] = await Promise.all([
-    db.careIntakeDocument.findMany({ where: { intakeId }, orderBy: { position: "asc" }, select: { id: true, position: true, filename: true, contentType: true, sizeBytes: true, sha256: true, section: true, category: true, name: true, issuer: true, issuerKind: true, documentDate: true, sensitive: true, pageCount: true, readStatus: true, readNote: true, findings: true, filedDocumentId: true, createdAt: true, createdById: true } }),
+    db.careIntakeDocument.findMany({ where: { intakeId }, orderBy: { position: "asc" }, select: { id: true, position: true, filename: true, contentType: true, sizeBytes: true, sha256: true, section: true, category: true, name: true, issuer: true, issuerKind: true, documentDate: true, sensitive: true, pageCount: true, readStatus: true, readNote: true, readMethod: true, readFailure: true, readAt: true, findings: true, filedDocumentId: true, createdAt: true, createdById: true } }),
     db.careIntakeFact.findMany({ where: { intakeId }, orderBy: [{ position: "asc" }] }),
     db.careIntakeSection.findMany({ where: { intakeId } }),
     db.auditLog.findMany({ where: { organisationId: scope.organisationId, entityType: "CareIntake", entityId: intakeId }, orderBy: { createdAt: "desc" }, take: 300 }),
