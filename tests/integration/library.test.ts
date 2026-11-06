@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
 import { inspectPolicy, libraryView, parseLibraryQuery } from "@/server/policies/library-view";
 import { assignPolicyReviewer, setPolicyArchived } from "@/server/policies/library";
-import { createManualRevision, decide, editDraftSection, publishRevision, submitForReview } from "@/server/policies/workflow";
+import { createManualRevision, editDraftSection, publishRevision } from "@/server/policies/workflow";
 import { buildDocModel } from "@/server/documents/model";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
@@ -48,26 +48,25 @@ describe("policy library workspace", () => {
     expect(inspected.status).toBe(mine.status);
   });
 
-  it("is truthful about approval: starter text is 'not yet approved' until an approval is recorded", async () => {
+  it("shows published starter text as current, keeps drafts out of the status, and publishes directly", async () => {
     const brook = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
     const approver = await ctxFor("approver@care-solution.demo", BROOKFIELD);
     const policy = await db.policy.findFirstOrThrow({ where: { organisationId: brook.organisationId, ref: "CSB-COM-001" } });
     await db.policy.update({ where: { id: policy.id }, data: { nextReviewDate: new Date(Date.now() + 365 * 86_400_000) } });
-    expect((await inspectPolicy(brook, policy.id)).status).toBe("not_approved");
+    expect((await inspectPolicy(brook, policy.id)).status).toBe("current");
 
     const rev = await createManualRevision(author, policy.id, "Annual review");
     await editDraftSection(author, rev.id, "purpose", { body: "Updated purpose for the annual review." });
-    await submitForReview(author, rev.id);
-    expect((await inspectPolicy(brook, policy.id)).status).toBe("under_review");
-    expect((await libraryView(brook, q({ quick: "awaiting" }))).rows.map((r) => r.id)).toContain(policy.id);
+    // A draft in progress doesn't change what staff see.
+    expect((await inspectPolicy(brook, policy.id)).status).toBe("current");
+    expect((await libraryView(brook, q({ quick: "drafts" }))).rows.map((r) => r.id)).toContain(policy.id);
 
-    await decide(approver, rev.id, { decision: "APPROVE", comment: "Checked." });
-    await publishRevision(approver, rev.id);
+    await publishRevision(approver, rev.id, { changeSummary: "Annual review" });
     const after = await inspectPolicy(brook, policy.id);
-    expect(after.status).toBe("published");
-    expect(after.approvals.map((a) => a.name)).toContain("Avery Approver");
-    expect(after.history[0].approvers).toContain("Avery Approver");
+    expect(after.status).toBe("updated");
+    expect(after.approvals).toHaveLength(0);
+    expect(after.history[0].publishedBy).toBe("Avery Approver");
     expect(after.signOff?.coverage?.assigned).toBeGreaterThan(0);
   });
 

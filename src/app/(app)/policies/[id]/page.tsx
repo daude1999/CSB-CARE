@@ -33,8 +33,8 @@ export const dynamic = "force-dynamic";
  * they scroll; on the right, reading progress, the person's own policy actions and the linked forms.
  *
  * Versions, Regulation Map, Read & Sign and Regulatory Flags are record views of the same policy (`?view=`), reached
- * from the header. Nothing here edits a published version: Edit starts a revision, which goes through review and
- * approval as before.
+ * from the header. Nothing here edits a published version: Edit starts a revision, which an authorised person publishes
+ * directly as a new version (owner's brief of 5 Nov 2026: no mandatory approval step).
  */
 export default async function PolicyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { id } = await params;
@@ -64,7 +64,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const relatedRefs = [...(v?.sections.find((s) => s.key === "related")?.body.matchAll(/CSB-[A-Z]+-\d+/g) ?? [])].map((m) => m[0]);
   const [details, people, impact, forms, related, scopes, marks] = await Promise.all([
     p.organisationId ? businessDetails(p.organisationId) : null,
-    db.user.findMany({ where: { id: { in: [...approvals.map((a) => a.deciderId), p.ownerId, p.reviewerId, p.approverId].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } }),
+    db.user.findMany({ where: { id: { in: [...approvals.map((a) => a.deciderId), p.ownerId, p.reviewerId, ...(p.kind === "CUSTOMER" ? p.publications.map((x) => x.publishedById) : [])].filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } }),
     db.impactAssessment.findFirst({ where: { policyId: { in: [p.id, ...(p.templateId ? [p.templateId] : [])] } }, orderBy: { createdAt: "desc" }, select: { urgency: true, createdAt: true } }),
     // Forms, templates, checklists and tools linked to this policy (explicit links first, then any named only in a
     // resource's "Related policies" text). Only published, active resources are offered, so a draft is never handed
@@ -75,6 +75,14 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
     bookmarksFor(ctx, p.id),
   ]);
   const person = new Map(people.map((u) => [u.id, u.name]));
+  // Who made each version live. CSB's own staff are never named to an organisation; automatic central updates say so.
+  const versionPublisher = (ver: { id: string; origin: string; createdById: string | null }) => {
+    if (p.kind === "MASTER" || ver.origin === "SEED") return "CSB";
+    if (ver.origin === "MASTER_SYNC" && !ver.createdById) return "CSB central update";
+    const by = p.publications.find((x) => x.versionId === ver.id)?.publishedById;
+    return (by && person.get(by)) || "a former member";
+  };
+  const publishedBy = v ? versionPublisher(p.versions.find((x) => x.id === v.id) ?? { id: v.id, origin: v.origin, createdById: v.createdById }) : null;
   // Organisation policies carry the organisation's details; CSB templates stay generic.
   const sections = v ? (p.organisationId ? personaliseSections(v.sections, p.docType) : v.sections) : [];
   const parts = readerParts(sections, isPolicy ? "policy" : "resource");
@@ -88,7 +96,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const lastChanged = p.versions.find((x) => x.status === "PUBLISHED" || x.status === "SUPERSEDED");
   const previous = v ? p.versions.find((x) => x.status === "SUPERSEDED" && x.versionNumber < v.versionNumber) : undefined;
   const openRevision = p.revisions.find((r) => !r.closedAt);
-  const starter = v?.origin === "SEED" && !approvals.length;
+  const starter = v?.origin === "SEED";
   const level = impact ? (impact.urgency === "URGENT" || impact.urgency === "HIGH" ? 3 : impact.urgency === "MEDIUM" ? 2 : 1) : 0;
   const canAssign = Boolean(p.organisationId && hasOrgPermission(ctx, "signoff.manage"));
   const canCompare = p.versions.length > 1;
@@ -120,16 +128,15 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const outstanding = [
     overdue ? `Review is overdue (was due ${fmtDate(p.nextReviewDate)}).` : null,
     openRevision ? "A revision is in progress and has not been published yet." : null,
-    starter ? "This version is CSB starter text with no approval record. It needs review and approval before staff rely on it." : null,
-    !p.reviewerId ? "No reviewer is assigned." : null,
-    !p.approverId ? "No approver is assigned." : null,
+    starter ? "This version is CSB starter text and has not been professionally reviewed. Check it fits your service." : null,
+    !p.reviewerId && p.kind === "CUSTOMER" ? "No reviewer is assigned for the next scheduled review." : null,
     details && missing.length && isPolicy ? "Your business details are incomplete, so parts of the text are not personalised." : null,
     placeholders.length ? `Sections still to complete locally: ${placeholders.join(", ")}.` : null,
     reviewMarkers.length ? `Review markers left in: ${reviewMarkers.join(", ")}.` : null,
     unverified ? `${unverified} linked regulatory reference${unverified === 1 ? " has" : "s have"} not been checked against the official source.` : null,
     notWritten.length ? `Not written yet: ${notWritten.join(", ")}.` : null,
   ].filter((x): x is string => Boolean(x));
-  const reviewStatus = !v ? { label: "Not published", tone: "amber" as const } : overdue ? { label: "Overdue", tone: "rose" as const } : openRevision ? { label: "Revision in progress", tone: "blue" as const } : starter ? { label: "Awaiting first approval", tone: "amber" as const } : dueSoon ? { label: "Due soon", tone: "amber" as const } : { label: "Up to date", tone: "green" as const };
+  const reviewStatus = !v ? { label: "Not published", tone: "amber" as const } : overdue ? { label: "Overdue", tone: "rose" as const } : openRevision ? { label: "Revision in progress", tone: "blue" as const } : dueSoon ? { label: "Due soon", tone: "amber" as const } : { label: "Up to date", tone: "green" as const };
   const workflows = digitalWorkflows(p.categoryCode, ctx);
   // Forms placed at a procedure step are also shown inside that step.
   // Forms that can be filled in on screen (by reference); only ones this person is asked to complete.
@@ -203,7 +210,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               openRevision ? (
                 <Link className="btn-primary" href={`/revisions/${openRevision.id}`}><PencilSimpleLine size={16} aria-hidden="true" />Continue revision</Link>
               ) : (
-                <ActionDialog trigger={<><PencilSimpleLine size={16} aria-hidden="true" />{v ? "Edit · Start revision" : "Start revision"}</>} title={`Revise ${p.ref}`} description="Published text is never edited directly. A revision creates a draft copy of the current text; nothing changes for staff until the draft is reviewed, approved and published.">
+                <ActionDialog trigger={<><PencilSimpleLine size={16} aria-hidden="true" />{v ? "Edit · Start revision" : "Start revision"}</>} title={`Revise ${p.ref}`} description="Published text is never edited directly. A revision creates a draft copy of the current text; nothing changes for staff until the draft is published.">
                   <form action={newRevisionAction} className="space-y-4">
                     <input type="hidden" name="policyId" value={p.id} />
                     <input type="hidden" name="back" value={back} />
@@ -249,7 +256,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 </div>
                 <div className="px-4 pb-6 pt-4 sm:px-8">
                   <div className="reader-facts" data-testid="review-facts">
-                    <Fact icon={<CalendarCheck size={20} />} label="Last reviewed" value={!v ? "Not published" : starter ? "No local review yet" : fmtDate(v.publishedAt ?? v.effectiveDate)} />
+                    <Fact icon={<CalendarCheck size={20} />} label="Last reviewed" value={!v ? "Not published" : fmtDate(v.publishedAt ?? v.effectiveDate)} />
                     <Fact icon={<CalendarBlank size={20} />} label="Last amended" value={lastChanged ? fmtDate(lastChanged.publishedAt ?? lastChanged.createdAt) : "Never"} />
                     <Fact icon={<CalendarBlank size={20} />} label="Next review" value={fmtDate(p.nextReviewDate) || "Not set"} tone={overdue ? "rose" : undefined} />
                     <Fact icon={<ArrowsClockwise size={20} />} label="Review interval" value={p.reviewIntervalMonths === 12 ? "Annually" : `Every ${p.reviewIntervalMonths} months`} />
@@ -272,13 +279,11 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         </Row>
                         <Row label="Policy owner">{(p.ownerId && person.get(p.ownerId)) || <NotAssigned />}</Row>
                         <Row label="Reviewer">{(p.reviewerId && person.get(p.reviewerId)) || <NotAssigned />}</Row>
-                        <Row label="Approver">{(p.approverId && person.get(p.approverId)) || <NotAssigned />}</Row>
-                        <Row label="Approval status">
-                          {approvals.length ? (
-                            <ul className="space-y-1.5">{approvals.map((a) => <li key={a.id} className="flex flex-wrap items-center gap-x-2"><CheckCircle size={16} weight="fill" className="text-[#079455]" aria-hidden="true" /><strong className="font-medium">{person.get(a.deciderId) ?? "Approver"}</strong><span className="text-[#667085]">approved {fmtDate(a.createdAt)}</span>{a.comment ? <span className="text-[#475467]">“{a.comment}”</span> : null}</li>)}</ul>
-                          ) : (
-                            <span className="flex flex-wrap items-center gap-2 text-[#b54708]"><Warning size={16} weight="fill" aria-hidden="true" />{!v ? "Not published." : v.origin === "SEED" ? "Not approved. This is CSB starter text with no approval record." : "No approval recorded for this version."}</span>
+                        <Row label="Published by">
+                          {!v ? "Not published" : (
+                            <span className="flex flex-wrap items-center gap-x-2"><CheckCircle size={16} weight="fill" className="text-[#079455]" aria-hidden="true" /><strong className="font-medium">{publishedBy}</strong><span className="text-[#667085]">{fmtDate(v.publishedAt)}</span></span>
                           )}
+                          {approvals.length ? <span className="mt-1 block text-[#667085]">Also reviewed by {approvals.map((a) => person.get(a.deciderId) ?? "a former member").join(", ")} under the earlier review process.</span> : null}
                         </Row>
                         <Row label="Effective date">{v ? fmtDate(v.effectiveDate) || "Not recorded" : "Not published"}</Row>
                         <Row label="Business impact">
@@ -321,7 +326,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               {v?.origin === "SEED" ? (
                 <div className="mx-4 mb-2 flex gap-3 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-[13.5px] leading-5 text-[#93370d] sm:mx-8">
                   <Warning size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  <span>This is CSB starter text. It has not been professionally reviewed and has no approval record here. Adapt it and take it through approval before staff rely on it.</span>
+                  <span>This is CSB starter text. It has not been professionally reviewed. Check it fits your service and add your local details before staff rely on it.</span>
                 </div>
               ) : null}
 
@@ -347,7 +352,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                               {forms.map((f) => (
                                 <tr key={f.id} className="h-[54px] border-t border-[#f2f4f7]" data-testid={`form-${f.ref}`}>
                                   <td className="pl-3"><FileDoc size={24} className="text-[#2b579a]" aria-hidden="true" /></td>
-                                  <td className="py-2"><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>{f.required ? <span className="ml-2 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}<span className="block text-[12px] text-[#667085]">{f.ref} · version {f.versionLabel}{f.starter ? " · starter text, not yet approved" : ""}</span><LinkMeta f={f} /></td>
+                                  <td className="py-2"><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>{f.required ? <span className="ml-2 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}<span className="block text-[12px] text-[#667085]">{f.ref} · version {f.versionLabel}{f.starter ? " · CSB starter text" : ""}</span><LinkMeta f={f} /></td>
                                   <td className="text-[#344054]">{f.typeLabel}</td>
                                   <td className="pr-3">
                                     <span className="flex justify-end gap-1.5">
@@ -445,7 +450,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
           {view === "history" ? (
             <>
               <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <p className="max-w-2xl text-sm text-slate-600">Approved and published versions are never overwritten. Restoring an earlier version creates a new draft that must be approved again.</p>
+                <p className="max-w-2xl text-sm text-slate-600">Published versions are never overwritten. Restoring an earlier version creates a new draft, which is published as a new version.</p>
                 {canCompare ? <Link className="btn-secondary" href={`${back}/compare`}><GitDiff size={16} aria-hidden="true" />Compare versions</Link> : null}
               </div>
               <Timeline testId="version-history">
@@ -478,7 +483,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                     >
                       <p>{ver.changeSummary ?? ver.reasonForChange ?? "No summary recorded."}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {ORIGIN[ver.origin] ?? ver.origin} · {count ? `${count} approval${count === 1 ? "" : "s"} recorded` : ver.origin === "SEED" ? "no approval record (starter text)" : "no approvals yet"}
+                        {ORIGIN[ver.origin] ?? ver.origin}{draft ? "" : ` · published by ${versionPublisher(ver)}`}{count ? ` · ${count} review approval${count === 1 ? "" : "s"} recorded earlier` : ""}
                       </p>
                     </TimelineItem>
                   );
@@ -848,14 +853,13 @@ const ORIGIN: Record<string, string> = {
   SEED: "Starter text",
   MANUAL: "Manual revision",
   AI_REGULATORY_REVISION: "Revision prompted by a regulatory change",
-  MASTER_SYNC: "Updated from the CSB template",
+  MASTER_SYNC: "CSB central update",
   ROLLBACK: "Restored from an earlier version",
 };
 
 function VersionState({ version, starter }: { version: { label: string; publishedAt: Date | null } | null; starter: boolean }) {
   if (!version) return <span className="reader-pill bg-[#fffaeb] text-[#b54708]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full border-2 border-current" />Not published</span>;
-  if (starter) return <span className="reader-pill bg-[#fffaeb] text-[#b54708]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full border-2 border-current" />Starter text · not yet approved</span>;
-  return <span className="reader-pill bg-[#ecfdf3] text-[#067647]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />Published {fmtDate(version.publishedAt)}</span>;
+  return <span className="reader-pill bg-[#ecfdf3] text-[#067647]" data-testid="reader-status"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />{starter ? "Published · CSB starter text" : `Published ${fmtDate(version.publishedAt)}`}</span>;
 }
 
 function Verification({ status }: { status: string }) {

@@ -53,7 +53,7 @@ function SourceTable({ sources, empty }: { sources: AssembledSource[]; empty: st
 
 /**
  * The branch-specific Policy Generator: Select policy → Select branches → Review applicable requirements → Generate
- * draft. Review, approval and publication then happen on the draft through the normal workflow. Every step is a plain
+ * draft. Checking and publication then happen on the draft through the normal workflow. Every step is a plain
  * GET form, so the choices are in the address bar and the office can go back without losing them.
  */
 export default async function PolicyGeneratorPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -101,7 +101,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="library" active="generator" />}
         title="Policy Generator"
-        subtitle="Create a draft that combines national requirements with each branch's regional and local safeguarding arrangements. You see every source before anything is generated, missing or unverified sources are flagged, and the draft goes through the normal review and approval before anyone can publish it."
+        subtitle="Create a draft that combines national requirements with each branch's regional and local safeguarding arrangements. You see every source before anything is generated, missing or unverified sources are flagged, and an authorised person checks the draft and confirms the local arrangements before publishing it."
       />
       <Flash searchParams={Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, one(v)]))} />
 
@@ -138,7 +138,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                   <option value="">Choose a policy</option>
                   {ownPolicies.map((p) => <option key={p.id} value={p.id}>{p.ref} {p.title}</option>)}
                 </select>
-                <p className="pc-note mt-2">Only approved policies can be used as a basis.</p>
+                <p className="pc-note mt-2">Only published policies can be used as a basis.</p>
               </fieldset>
               <fieldset className="rounded-[10px] border border-[#eaecf0] p-4">
                 <legend className="px-1 text-[14px] font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="TEMPLATE" defaultChecked={basis === "TEMPLATE"} className="pc-check" />A CSB template</label></legend>
@@ -253,7 +253,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 {mode === "NATIONAL" ? null : validBranches.map((id) => <input key={id} type="hidden" name="branchIds" value={id} />)}
                 <h3 className="text-[15px] font-semibold text-[#101828]">4. Generate draft</h3>
                 <p className="mt-1 text-[14px] text-[#344054]">
-                  {criticalCount ? <><strong className="text-[#b42318]">{criticalCount} critical gap{criticalCount === 1 ? "" : "s"}</strong> will be recorded on the draft. Where something is missing the draft says <code>[REVIEW REQUIRED]</code> instead of guessing, and it cannot be sent for review or published until those are completed.</> : "No critical gaps found. The draft still needs review and approval before it can be published."}
+                  {criticalCount ? <><strong className="text-[#b42318]">{criticalCount} critical gap{criticalCount === 1 ? "" : "s"}</strong> will be recorded on the draft. Where something is missing the draft says <code>[REVIEW REQUIRED]</code> instead of guessing, and it cannot be published until those are completed.</> : "No critical gaps found. The draft still needs checking, and the pre-publication confirmations, before it can be published."}
                 </p>
                 <label className="mt-3 flex items-start gap-2 text-[14px]">
                   <input type="checkbox" name="useAi" defaultChecked={aiAvailable} disabled={!aiAvailable} className="pc-check mt-0.5" />
@@ -267,7 +267,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
       </section>
 
       <section className="pc-panel mt-4" aria-label="Recent generated drafts">
-        <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">Recent generated drafts</h2><span className="pc-note">5. Review & approve and 6. Publish happen on each draft.</span></div>
+        <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">Recent generated drafts</h2><span className="pc-note">5. Check the draft and 6. Publish happen on each draft.</span></div>
         {runs.length ? (
           <PcTableWrap>
             <table className="pc-table" data-testid="recent-runs">

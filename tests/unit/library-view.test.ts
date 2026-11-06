@@ -9,28 +9,28 @@ function row(over: Partial<LibraryRow> = {}): LibraryRow {
   return {
     id: "p1", ref: "CSB-SAF-001", title: "Safeguarding Adults", description: "", docType: "POLICY", categoryCode: "SAFEGUARDING", categoryName: "Safeguarding",
     areaKey: "safeguarding", areaLabel: "Safeguarding", serviceTypes: ["HOME_CARE"], kind: "CUSTOMER", ownerId: null, ownerName: null, reviewerId: null,
-    version: "v1", approved: false, publishedAt: days(-100), updatedAt: days(-100), nextReviewDate: days(300), openRevisionId: null, submitted: false, adopted: false,
-    status: "not_approved", ...over,
+    version: "v1", publishedAt: days(-100), updatedAt: days(-100), nextReviewDate: days(300), openRevisionId: null, adopted: false, central: false,
+    status: "current", ...over,
   };
 }
 
 describe("policy status", () => {
-  const published = { approved: true };
-  it("is published only when the live version has an approval", () => {
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: null, nextReviewDate: days(200) }, NOW)).toBe("published");
-    expect(policyStatus({ currentPublishedVersion: { approved: false }, openRevision: null, nextReviewDate: days(200) }, NOW)).toBe("not_approved");
+  const published = { publishedAt: days(-100), replacedEarlier: false };
+  it("is current once a version is published, with no approval needed", () => {
+    expect(policyStatus({ currentPublishedVersion: published, nextReviewDate: days(200) }, NOW)).toBe("current");
+  });
+  it("is updated for 30 days after a new version replaces an earlier one", () => {
+    expect(policyStatus({ currentPublishedVersion: { publishedAt: days(-3), replacedEarlier: true }, nextReviewDate: days(300) }, NOW)).toBe("updated");
+    expect(policyStatus({ currentPublishedVersion: { publishedAt: days(-31), replacedEarlier: true }, nextReviewDate: days(300) }, NOW)).toBe("current");
+    expect(policyStatus({ currentPublishedVersion: { publishedAt: days(-3), replacedEarlier: false }, nextReviewDate: days(300) }, NOW)).toBe("current");
   });
   it("is a draft when nothing has been published", () => {
-    expect(policyStatus({ currentPublishedVersion: null, openRevision: null, nextReviewDate: days(-5) }, NOW)).toBe("draft");
+    expect(policyStatus({ currentPublishedVersion: null, nextReviewDate: days(-5) }, NOW)).toBe("draft");
   });
   it("flags reviews inside the 60-day window and past the date", () => {
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: null, nextReviewDate: days(59) }, NOW)).toBe("review_due");
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: null, nextReviewDate: days(61) }, NOW)).toBe("published");
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: null, nextReviewDate: days(-1) }, NOW)).toBe("overdue");
-  });
-  it("puts a submitted revision first, and an unsubmitted draft revision doesn't count", () => {
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: { submittedAt: NOW }, nextReviewDate: days(-1) }, NOW)).toBe("under_review");
-    expect(policyStatus({ currentPublishedVersion: published, openRevision: { submittedAt: null }, nextReviewDate: days(200) }, NOW)).toBe("published");
+    expect(policyStatus({ currentPublishedVersion: published, nextReviewDate: days(59) }, NOW)).toBe("review_due");
+    expect(policyStatus({ currentPublishedVersion: published, nextReviewDate: days(61) }, NOW)).toBe("current");
+    expect(policyStatus({ currentPublishedVersion: published, nextReviewDate: days(-1) }, NOW)).toBe("overdue");
   });
 });
 
@@ -77,6 +77,7 @@ describe("register helpers", () => {
     expect(matchesQuick(row({ nextReviewDate: days(-2) }), "due", NOW)).toBe(false);
     expect(matchesQuick(row({ nextReviewDate: days(-2) }), "overdue", NOW)).toBe(true);
     expect(matchesQuick(row({ publishedAt: days(-3) }), "recent", NOW)).toBe(true);
-    expect(matchesQuick(row({ submitted: true }), "awaiting", NOW)).toBe(true);
+    expect(matchesQuick(row({ openRevisionId: "r1" }), "drafts", NOW)).toBe(true);
+    expect(matchesQuick(row(), "drafts", NOW)).toBe(false);
   });
 });

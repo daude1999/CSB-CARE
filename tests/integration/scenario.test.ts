@@ -102,10 +102,10 @@ describe("automated policy update workflow (end to end)", () => {
     // Nothing is published yet.
     expect((await db.policy.findUniqueOrThrow({ where: { id: customerPolicy.id } })).currentPublishedVersionId).toBe(customerPolicy.currentPublishedVersionId);
 
-    // ── 7. Human review: publishing before approval is impossible; author cannot approve
+    // ── 7. Human control: only an authorised publisher can publish; optional review keeps separation of duties
     const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
     const approver = await ctxFor("approver@care-solution.demo", BROOKFIELD);
-    await expect(publishRevision(manager, revision.id)).rejects.toThrow(/approved/);
+    await expect(publishRevision(author, revision.id)).rejects.toThrow(/cannot publish/);
     await submitForReview(author, revision.id);
     await expect(decide(author, revision.id, { decision: "APPROVE", comment: "self" })).rejects.toThrow(/own revision|not a reviewer/);
     expect(await db.notification.count({ where: { userId: approver.userId, type: "revision.awaiting_review" } })).toBe(1);

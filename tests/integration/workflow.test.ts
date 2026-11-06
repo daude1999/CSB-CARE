@@ -84,20 +84,21 @@ describe("tenant isolation", () => {
   });
 });
 
-describe("approval workflow controls", () => {
+describe("publishing workflow controls (including drafts approved under the earlier review process)", () => {
   beforeEach(async () => {
     await resetDb();
     await seedAll({ simulatedChange: false });
   });
 
-  it("requires a reason, a separate approver and rejects illegal transitions at the database level", async () => {
+  it("requires a reason, keeps optional review separate from the author and rejects illegal transitions at the database level", async () => {
     const author = await ctxFor("author@care-solution.demo", BROOKFIELD);
     const policy = await db.policy.findFirstOrThrow({ where: { organisationId: author.organisationId, ref: "CSB-MED-001" } });
     await expect(createManualRevision(author, policy.id, " ")).rejects.toThrow(/reason/);
     const rev = await createManualRevision(author, policy.id, "Edit");
     await expect(submitForReview(author, rev.id)).rejects.toThrow(/identical/);
-    // Direct status jump DRAFT → PUBLISHED is blocked by the database trigger.
-    await expect(db.policyVersion.update({ where: { id: rev.draftVersionId }, data: { status: "PUBLISHED" } })).rejects.toThrow(/Illegal policy version transition/);
+    // Jumps outside the state machine are blocked by the database trigger.
+    await expect(db.policyVersion.update({ where: { id: rev.draftVersionId }, data: { status: "SUPERSEDED" } })).rejects.toThrow(/Illegal policy version transition/);
+    await expect(db.policyVersion.update({ where: { id: rev.draftVersionId }, data: { status: "APPROVED" } })).rejects.toThrow(/Illegal policy version transition/);
     const staff = await ctxFor("carer1@care-solution.demo", BROOKFIELD);
     await expect(editDraftSection(staff, rev.id, "purpose", { body: "x" })).rejects.toThrow(/cannot author/);
   });
@@ -126,20 +127,22 @@ describe("approval workflow controls", () => {
     expect((await db.policyVersion.findUniqueOrThrow({ where: { id: rev.draftVersionId } })).status).toBe("SCHEDULED");
     await drain("t", handlers, { types: ["publication.publish"] });
     expect((await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId).toBe(before);
+    // Move the scheduled time into the past, as if the minute had passed.
+    await db.policyPublication.updateMany({ where: { versionId: rev.draftVersionId }, data: { scheduledFor: new Date(Date.now() - 1000) } });
     await db.backgroundJob.updateMany({ where: { type: "publication.publish" }, data: { runAfter: new Date() } });
     await drain("t", handlers, { types: ["publication.publish"] });
     expect((await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId).toBe(rev.draftVersionId);
   });
 
-  it("rolls back by creating a new approved version, never by rewriting history", async () => {
+  it("rolls back by creating a new version, never by rewriting history", async () => {
     const { rev, policy, author, approver } = await approvedRevision();
     const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
     const original = (await db.policy.findUniqueOrThrow({ where: { id: policy.id } })).currentPublishedVersionId!;
     await publishRevision(manager, rev.id);
     await expect(createRollbackRevision(author, policy.id, original, "")).rejects.toThrow(/reason/);
     const rb = await createRollbackRevision(author, policy.id, original, "Change was made in error");
-    await submitForReview(author, rb.id);
-    await decide(approver, rb.id, { decision: "APPROVE", comment: "Restore" });
+    void approver;
+    // Restoring needs no approval round: the publisher publishes the restore draft directly.
     await publishRevision(manager, rb.id);
     const versions = await db.policyVersion.findMany({ where: { policyId: policy.id, status: { not: "DRAFT" } }, orderBy: { versionNumber: "asc" } });
     expect(versions.map((v) => v.status)).toEqual(["SUPERSEDED", "SUPERSEDED", "PUBLISHED"]);
@@ -245,7 +248,7 @@ describe("customer-specific maintenance", () => {
     await resetDb();
     await seedAll();
   });
-  it("turns a master template update into a customer draft that preserves customisations", async () => {
+  it("publishes a central update into the customer's copy automatically, preserving customisations", async () => {
     const regulatory = await ctxFor("regulatory@csb.demo");
     const content = await ctxFor("content@csb.demo");
     const manager = await ctxFor("manager@care-solution.demo", BROOKFIELD);
@@ -255,9 +258,9 @@ describe("customer-specific maintenance", () => {
     await expect(reviewAssessment(manager, masterAssessment.id, { decision: "REVISION_REQUIRED", reason: "x" })).rejects.toThrow(/cannot review/);
     await reviewAssessment(regulatory, masterAssessment.id, { decision: "REVISION_REQUIRED", reason: "Update template" });
     const { revision } = await draftRevisionFromAssessment(masterAssessment.id, null);
-    await submitForReview(content, revision!.id);
-    await decide(regulatory, revision!.id, { decision: "APPROVE", comment: "Approved master update" });
-    await publishRevision(regulatory, revision!.id);
+    // The AI draft is never published by itself: a CSB central publisher checks it and publishes it.
+    expect((await db.policyVersion.findUniqueOrThrow({ where: { id: revision!.draftVersionId } })).status).toBe("DRAFT");
+    await publishRevision(content, revision!.id, { changeSummary: "Reporting timescale updated" });
     await drain("t", handlers);
 
     const customer = await db.policy.findFirstOrThrow({ where: { organisationId: manager.organisationId, ref: "CSB-SAF-001" } });
@@ -267,12 +270,10 @@ describe("customer-specific maintenance", () => {
     expect(report.preservedLocal.length).toBe(1);
     expect(sync.draftVersion.sections.find((s) => s.key === "procedure.reporting")?.body).toContain("24 hours");
     expect(sync.draftVersion.sections.find((s) => s.isLocal)?.body).toContain("Mohamed Mire");
-    expect(sync.draftVersion.status).toBe("DRAFT");
-    expect((await db.policy.findUniqueOrThrow({ where: { id: customer.id } })).currentPublishedVersionId).toBe(customer.currentPublishedVersionId);
-    expect(await db.notification.count({ where: { type: "revision.master_update", organisationId: manager.organisationId } })).toBeGreaterThan(0);
-    // No staff notifications until the customer publishes.
-    const carer = await ctxFor("carer1@care-solution.demo", BROOKFIELD);
-    expect(await db.notification.count({ where: { userId: carer.userId, type: "policy.published" } })).toBe(0);
+    expect(sync.draftVersion.status).toBe("PUBLISHED");
+    expect(sync.closedAt).not.toBeNull();
+    expect((await db.policy.findUniqueOrThrow({ where: { id: customer.id } })).currentPublishedVersionId).toBe(sync.draftVersionId);
+    expect(await db.approvalDecision.count({ where: { revisionId: sync.id } })).toBe(0);
 
     // A customer can adopt a template only once.
     const author = await ctxFor("author@care-solution.demo", BROOKFIELD);

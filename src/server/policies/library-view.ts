@@ -17,8 +17,9 @@ import { DOC_TYPES } from "../../../prisma/seed-data/library/types";
  */
 
 export const LIBRARY_TABS = ["policies", "templates", "archived", "calendar"] as const;
-export const STATUS_KEYS = ["published", "not_approved", "draft", "under_review", "approved", "review_due", "overdue", "template", "archived"] as const;
-export const QUICK_KEYS = ["due", "overdue", "recent", "awaiting"] as const;
+/** Document statuses (owner's brief, 5 Nov 2026): no approval states, because authorised people publish directly. */
+export const STATUS_KEYS = ["current", "updated", "draft", "review_due", "overdue", "archived"] as const;
+export const QUICK_KEYS = ["due", "overdue", "recent", "drafts"] as const;
 export const SORT_KEYS = ["updated", "title", "ref", "review"] as const;
 export const PANE_KEYS = ["document", "overview", "history", "signoff", "linked"] as const;
 export const LAYOUTS = ["list", "grid"] as const;
@@ -35,18 +36,15 @@ export const PAGE_SIZE = 12;
 const DAY = 86_400_000;
 
 export const STATUS_LABELS: Record<StatusKey, string> = {
-  published: "Published",
-  not_approved: "Not yet approved",
+  current: "Current",
+  updated: "Updated",
   draft: "Draft",
-  under_review: "Under review",
-  approved: "Approved, not yet published",
-  review_due: "Review due",
-  overdue: "Review overdue",
-  template: "Starter template",
+  review_due: "Due for Review",
+  overdue: "Review Overdue",
   archived: "Archived",
 };
 
-export const QUICK_LABELS: Record<QuickKey, string> = { due: "Due for review", overdue: "Overdue", recent: "Recently updated", awaiting: "Awaiting approval" };
+export const QUICK_LABELS: Record<QuickKey, string> = { due: "Due for review", overdue: "Overdue", recent: "Recently updated", drafts: "Drafts in progress" };
 export const SORT_LABELS: Record<SortKey, string> = { updated: "Last updated", title: "Title", ref: "Reference", review: "Next review" };
 export const DOC_TYPE_NAMES = new Map<string, string>(DOC_TYPES);
 
@@ -139,26 +137,26 @@ export function libraryHref(q: LibraryQuery, over: Partial<Record<keyof LibraryQ
 
 /** The facts a status is derived from. */
 export interface StatusInput {
-  currentPublishedVersion: { approved: boolean } | null;
-  /** The open revision; draftStatus is its draft version's status (APPROVED or SCHEDULED once approved). */
-  openRevision: { submittedAt: Date | null; draftStatus?: string | null } | null;
+  /** The live version: when it was published and whether it replaced an earlier one. */
+  currentPublishedVersion: { publishedAt: Date | null; replacedEarlier: boolean } | null;
   nextReviewDate: Date | null;
-  /** A CSB starter template as a provider sees it: never described as the provider's own approved policy. */
-  starterTemplate?: boolean;
   archived?: boolean;
 }
 
-/** One status per document, in priority order, so every part of the page says the same thing. */
+/**
+ * One status per document, in priority order, so every part of the page says the same thing. A draft being written
+ * never changes the status of the version staff are using: the published version stays Current until it is replaced.
+ */
 export function policyStatus(p: StatusInput, now: Date): StatusKey {
   if (p.archived) return "archived";
-  if (p.starterTemplate) return "template";
-  if (p.openRevision?.submittedAt) return p.openRevision.draftStatus === "APPROVED" || p.openRevision.draftStatus === "SCHEDULED" ? "approved" : "under_review";
-  if (p.nextReviewDate && p.currentPublishedVersion) {
+  const v = p.currentPublishedVersion;
+  if (!v) return "draft";
+  if (p.nextReviewDate) {
     if (p.nextReviewDate < now) return "overdue";
     if (p.nextReviewDate.getTime() - now.getTime() <= DUE_WINDOW_DAYS * DAY) return "review_due";
   }
-  if (!p.currentPublishedVersion) return "draft";
-  return p.currentPublishedVersion.approved ? "published" : "not_approved";
+  if (v.replacedEarlier && v.publishedAt && now.getTime() - v.publishedAt.getTime() <= RECENT_DAYS * DAY) return "updated";
+  return "current";
 }
 
 export interface LibraryRow {
@@ -177,35 +175,59 @@ export interface LibraryRow {
   ownerName: string | null;
   reviewerId: string | null;
   version: string | null;
-  approved: boolean;
   publishedAt: Date | null;
   updatedAt: Date;
   nextReviewDate: Date | null;
   openRevisionId: string | null;
-  submitted: boolean;
   adopted: boolean;
+  /** A CSB central document the organisation uses as published (it has no copy of its own). */
+  central: boolean;
   status: StatusKey;
 }
 
 const AREA_OF = new Map<string, { key: string; label: string }>(POLICY_AREAS.flatMap((a) => a.categories.map((c) => [c, { key: a.key, label: a.label }] as const)));
 
-/** The tenant boundary for each tab. Organisation documents only ever come from the session's organisation. */
-function tabWhere(ctx: Ctx, tab: LibraryTab): Prisma.PolicyWhereInput {
+/**
+ * The tenant boundary for each tab. Organisation documents only ever come from the session's organisation. The
+ * organisation's library also holds every published CSB central document that applies to its services and that it has
+ * no copy of: central content is available as soon as CSB publishes it, with no adoption step and no copies made.
+ */
+async function tabWhere(ctx: Ctx, tab: LibraryTab): Promise<Prisma.PolicyWhereInput> {
   if (tab === "templates") return { kind: "MASTER", organisationId: null, status: "ACTIVE" };
   if (!ctx.organisationId) return { id: { in: [] } };
-  return { kind: "CUSTOMER", organisationId: ctx.organisationId, status: tab === "archived" ? "ARCHIVED" : "ACTIVE" };
+  const own: Prisma.PolicyWhereInput = { kind: "CUSTOMER", organisationId: ctx.organisationId, status: tab === "archived" ? "ARCHIVED" : "ACTIVE" };
+  if (tab === "archived") return own;
+  return { OR: [own, await centralWhere(ctx.organisationId)] };
+}
+
+/** Published CSB central documents that apply to an organisation's services and that it has not made its own copy of. */
+export async function centralWhere(organisationId: string): Promise<Prisma.PolicyWhereInput> {
+  const [services, copies] = await Promise.all([
+    db.branchServiceType.findMany({ where: { branch: { organisationId } }, select: { serviceTypeCode: true }, distinct: ["serviceTypeCode"] }),
+    db.policy.findMany({ where: { organisationId, templateId: { not: null } }, select: { templateId: true } }),
+  ]);
+  const codes = services.map((s) => s.serviceTypeCode);
+  return {
+    kind: "MASTER",
+    organisationId: null,
+    status: "ACTIVE",
+    currentPublishedVersionId: { not: null },
+    id: { notIn: copies.map((c) => c.templateId!) },
+    // A central document with no service types applies to everyone; an organisation with no services set sees them all.
+    ...(codes.length ? { OR: [{ serviceTypes: { isEmpty: true } }, { serviceTypes: { hasSome: codes } }] } : {}),
+  };
 }
 
 /** Loads every document on a tab with the fields the workspace shows. */
 export async function loadLibraryRows(ctx: Ctx, tab: LibraryTab, now = new Date()): Promise<LibraryRow[]> {
   const [policies, categories] = await Promise.all([
     db.policy.findMany({
-      where: tabWhere(ctx, tab),
+      where: await tabWhere(ctx, tab),
       select: {
         id: true, ref: true, title: true, description: true, docType: true, categoryCode: true, serviceTypes: true, kind: true,
         ownerId: true, reviewerId: true, nextReviewDate: true, updatedAt: true, status: true,
-        currentPublishedVersion: { select: { label: true, publishedAt: true, approvals: { where: { decision: "APPROVE" }, select: { id: true }, take: 1 } } },
-        revisions: { where: { closedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, submittedAt: true, draftVersion: { select: { status: true } } } },
+        currentPublishedVersion: { select: { label: true, publishedAt: true, previousVersionId: true } },
+        revisions: { where: { closedAt: null }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true } },
       },
     }),
     db.policyCategory.findMany(),
@@ -219,15 +241,16 @@ export async function loadLibraryRows(ctx: Ctx, tab: LibraryTab, now = new Date(
   return policies.map((p) => {
     const v = p.currentPublishedVersion;
     const open = p.revisions[0] ?? null;
-    const approved = Boolean(v?.approvals.length);
+    const central = p.kind === "MASTER" && Boolean(ctx.organisationId);
     const area = AREA_OF.get(p.categoryCode) ?? null;
     return {
       id: p.id, ref: p.ref, title: p.title, description: p.description, docType: p.docType, categoryCode: p.categoryCode,
       categoryName: categoryName.get(p.categoryCode) ?? p.categoryCode, areaKey: area?.key ?? null, areaLabel: area?.label ?? null,
       serviceTypes: p.serviceTypes, kind: p.kind, ownerId: p.ownerId, ownerName: p.ownerId ? (name.get(p.ownerId) ?? null) : null, reviewerId: p.reviewerId,
-      version: v?.label ?? null, approved, publishedAt: v?.publishedAt ?? null, updatedAt: p.updatedAt, nextReviewDate: p.nextReviewDate,
-      openRevisionId: open?.id ?? null, submitted: Boolean(open?.submittedAt), adopted: adopted.has(p.id),
-      status: policyStatus({ currentPublishedVersion: v ? { approved } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion.status } : null, nextReviewDate: p.nextReviewDate, starterTemplate: p.kind === "MASTER" && Boolean(ctx.organisationId), archived: p.status === "ARCHIVED" }, now),
+      version: v?.label ?? null, publishedAt: v?.publishedAt ?? null, updatedAt: p.updatedAt, nextReviewDate: p.nextReviewDate,
+      // Organisations never see CSB's own drafts of central documents.
+      openRevisionId: central ? null : (open?.id ?? null), adopted: adopted.has(p.id), central,
+      status: policyStatus({ currentPublishedVersion: v ? { publishedAt: v.publishedAt, replacedEarlier: Boolean(v.previousVersionId) } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now),
     };
   });
 }
@@ -241,8 +264,8 @@ export function matchesQuick(r: LibraryRow, quick: QuickKey, now: Date): boolean
       return review !== undefined && review >= now.getTime() && review - now.getTime() <= DUE_WINDOW_DAYS * DAY;
     case "recent":
       return Boolean(r.publishedAt && now.getTime() - r.publishedAt.getTime() <= RECENT_DAYS * DAY);
-    case "awaiting":
-      return r.submitted;
+    case "drafts":
+      return Boolean(r.openRevisionId);
   }
 }
 
@@ -384,9 +407,9 @@ export function reviewCalendar(rows: LibraryRow[]): { month: string; rows: Libra
 
 async function countTabs(ctx: Ctx): Promise<Partial<Record<LibraryTab, number>>> {
   const [templates, policies, archived] = await Promise.all([
-    db.policy.count({ where: tabWhere(ctx, "templates") }),
-    ctx.organisationId ? db.policy.count({ where: tabWhere(ctx, "policies") }) : 0,
-    ctx.organisationId ? db.policy.count({ where: tabWhere(ctx, "archived") }) : 0,
+    db.policy.count({ where: await tabWhere(ctx, "templates") }),
+    ctx.organisationId ? db.policy.count({ where: await tabWhere(ctx, "policies") }) : 0,
+    ctx.organisationId ? db.policy.count({ where: await tabWhere(ctx, "archived") }) : 0,
   ]);
   return { policies, templates, archived };
 }
@@ -410,7 +433,10 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
   const v = p.currentPublishedVersion;
   const published = v ? p.versions.find((x) => x.id === v.id) : undefined;
   const approvals = published?.approvals.filter((a) => a.decision === "APPROVE") ?? [];
-  const open = p.revisions.find((r) => !r.closedAt) ?? null;
+  const central = p.kind === "MASTER" && Boolean(ctx.organisationId);
+  // Organisations never see CSB's drafts of central documents, only what CSB has published.
+  const open = central ? null : (p.revisions.find((r) => !r.closedAt) ?? null);
+  const orgCopy = central ? await db.policy.findFirst({ where: { organisationId: ctx.organisationId!, templateId: p.id }, select: { id: true, status: true } }) : null;
   const history = p.versions.filter((x) => x.status === "PUBLISHED" || x.status === "SUPERSEDED");
   // Staff acknowledge the latest material publication; a wording-only update keeps the earlier acknowledgements.
   const latestPub = p.publications.find((x) => x.status === "PUBLISHED" && x.materialRevision) ?? p.publications.find((x) => x.status === "PUBLISHED") ?? null;
@@ -423,7 +449,7 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
     ? await db.requirementPolicyLink.findMany({ where: { policyId: p.templateId! }, include: { requirement: true } })
     : p.requirementLinks;
   const relatedRefs = [...new Set([...(v?.sections.find((s) => s.key === "related")?.body.matchAll(/CSB-[A-Z]+-\d+/g) ?? [])].map((m) => m[0]))];
-  const peopleIds = [...approvals.map((a) => a.deciderId), ...history.flatMap((h) => h.approvals.filter((a) => a.decision === "APPROVE").map((a) => a.deciderId)), p.ownerId, p.reviewerId, p.approverId, ...acks.map((a) => a.userId)].filter((x): x is string => Boolean(x));
+  const peopleIds = [...(central ? [] : p.publications.map((x) => x.publishedById)), ...approvals.map((a) => a.deciderId), ...history.flatMap((h) => h.approvals.filter((a) => a.decision === "APPROVE").map((a) => a.deciderId)), p.ownerId, p.reviewerId, p.approverId, ...acks.map((a) => a.userId)].filter((x): x is string => Boolean(x));
   const [people, related, assessments, reviewers, services, template] = await Promise.all([
     db.user.findMany({ where: { id: { in: [...new Set(peopleIds)] } }, select: { id: true, name: true } }),
     db.policy.findMany({
@@ -449,7 +475,7 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
   ]);
   const person = new Map(people.map((u) => [u.id, u.name]));
   const area = AREA_OF.get(p.categoryCode) ?? null;
-  const status = policyStatus({ currentPublishedVersion: v ? { approved: approvals.length > 0 } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion?.status } : null, nextReviewDate: p.nextReviewDate, starterTemplate: p.kind === "MASTER" && Boolean(ctx.organisationId), archived: p.status === "ARCHIVED" }, now);
+  const status = policyStatus({ currentPublishedVersion: v ? { publishedAt: v.publishedAt, replacedEarlier: Boolean(v.previousVersionId) } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now);
   const signed = acks.filter((a) => ackBucket(a, now).bucket === "acknowledged").length;
   const overdueAcks = acks.filter((a) => ackBucket(a, now).overdue).length;
 
@@ -460,9 +486,12 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
     version: v ? { id: v.id, label: v.label, origin: v.origin, publishedAt: v.publishedAt, effectiveDate: v.effectiveDate, sections: v.sections.map((s) => ({ key: s.key, heading: s.heading })) } : null,
     approvals: approvals.map((a) => ({ id: a.id, name: person.get(a.deciderId) ?? "A former member", at: a.createdAt })),
     openRevision: open ? { id: open.id, title: open.title, submitted: Boolean(open.submittedAt) } : null,
+    central,
+    orgCopy,
     history: history.map((h) => ({
       id: h.id, label: h.label, status: h.status, origin: h.origin, publishedAt: h.publishedAt, changeSummary: h.changeSummary, reasonForChange: h.reasonForChange, isSimulated: h.isSimulated,
       approvers: h.approvals.filter((a) => a.decision === "APPROVE").map((a) => person.get(a.deciderId) ?? "A former member"),
+      publishedBy: h.origin === "MASTER_SYNC" && !h.createdById ? "CSB central update" : central ? "CSB" : publisherName(p.publications.find((x) => x.versionId === h.id)?.publishedById, person, p.kind),
     })),
     owner: p.ownerId ? (person.get(p.ownerId) ?? null) : null,
     reviewer: p.reviewerId ? (person.get(p.reviewerId) ?? null) : null,
@@ -499,6 +528,14 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
 }
 
 export type PolicyInspection = Awaited<ReturnType<typeof inspectPolicy>>;
+
+/** Who published a version, for history lists. Seeded and automatic central updates have no person behind them. */
+export function publisherName(id: string | undefined, person: Map<string, string>, kind: string): string | null {
+  if (!id) return null;
+  if (id === "seed") return "CSB (starter library)";
+  if (id === "system") return "CSB central update";
+  return person.get(id) ?? (kind === "MASTER" ? "CSB" : "A former member");
+}
 
 /** Members who can review policies, the only people a policy's reviewer can be set to. */
 export async function reviewerOptions(organisationId: string) {

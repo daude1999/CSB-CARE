@@ -21,7 +21,9 @@ export const ORG_PERMISSIONS = {
   "policy.read": ["ORG_ADMIN", "POLICY_AUTHOR", "POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD", "STAFF", "CARE_MANAGER", "CARE_COORDINATOR", "CARER", "FINANCE_OFFICER"],
   "policy.author": ["ORG_ADMIN", "POLICY_AUTHOR"],
   "policy.review": ["POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD"],
+  /** Optional second opinion on a draft (review is no longer required before publishing). */
   "policy.approve": ["POLICY_APPROVER"],
+  /** Publish the organisation's own documents directly: no second-person approval is required. */
   "policy.publish": ["POLICY_APPROVER", "ORG_ADMIN"],
   "impact.review": ["COMPLIANCE_LEAD", "POLICY_REVIEWER", "POLICY_APPROVER"],
   "implementation.confirm": ["COMPLIANCE_LEAD", "ORG_ADMIN"],
@@ -140,7 +142,8 @@ export const PLATFORM_PERMISSIONS = {
   "master.author": ["CONTENT_EDITOR"],
   "master.review": ["REGULATORY_REVIEWER", "CONTENT_EDITOR"],
   "master.approve": ["REGULATORY_REVIEWER"],
-  "master.publish": ["REGULATORY_REVIEWER", "PLATFORM_ADMIN"],
+  /** CSB central content administrators publish central documents, which reach every eligible organisation automatically. */
+  "master.publish": ["REGULATORY_REVIEWER", "CONTENT_EDITOR", "PLATFORM_ADMIN"],
 } as const satisfies Record<string, readonly PlatformRole[]>;
 
 export type OrgPermission = keyof typeof ORG_PERMISSIONS;

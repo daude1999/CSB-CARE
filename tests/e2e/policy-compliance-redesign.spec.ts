@@ -73,7 +73,7 @@ test.describe("Policy & Compliance redesign", () => {
     await page.goto("/policies");
     await page.getByRole("button", { name: "Upload policy" }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText("never approved or published automatically");
+    await expect(dialog).toContainText("never published automatically");
     const buffer = Buffer.from(await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph({ text: "Purpose", heading: HeadingLevel.HEADING_1 }), new Paragraph("Keeping lone workers safe.")] }] })));
     await dialog.locator('input[type="file"]').setInputFiles({ name: "E2E lone working.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer });
     await expect(dialog.getByRole("list", { name: "Chosen files" })).toContainText("E2E lone working.docx");
@@ -81,7 +81,7 @@ test.describe("Policy & Compliance redesign", () => {
     await dialog.getByRole("button", { name: "Upload policy" }).click();
     await expect(page).toHaveURL(/\/revisions\//);
     await expect(page.getByRole("status")).toContainText("Draft v1");
-    await expect(page.getByRole("status")).toContainText("Nothing has been approved or published");
+    await expect(page.getByRole("status")).toContainText("Nothing has been published yet");
   });
 
   test("Compliance Reports: cards, filters and an export that carries them", async ({ page }) => {

@@ -45,7 +45,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
       <CompliancePageHeader
         tabs={<ComplianceTabs ctx={ctx} ws="library" active="coverage" />}
         title="Branch Coverage"
-        subtitle="How each branch is covered for every policy: by the company policy, by a branch appendix or by its own branch policy, and whether that is approved, in draft, awaiting approval or missing local arrangements."
+        subtitle="How each branch is covered for every policy: by the company policy, by a branch appendix or by its own branch policy, and whether that is published, in draft, ready to publish or missing local arrangements."
         actions={canSeeCrossBoundary ? <Link href="/policies/cross-boundary" className="pc-btn-secondary">Cross-boundary safeguarding</Link> : null}
       />
       <Flash searchParams={sp} />
@@ -53,7 +53,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
         <div className="pc-panel-head">
           <p className="text-[14px] leading-6 text-[#344054]" data-testid="coverage-summary">
             <strong>{summary.national}</strong> national · <strong>{summary.shared}</strong> shared with branch appendices · <strong>{summary.branchPolicies}</strong> branch policies.{" "}
-            Across the branches shown: <strong>{summary.approved}</strong> approved, <strong>{summary.drafts}</strong> in draft, <strong>{summary.awaiting}</strong> awaiting approval,{" "}
+            Across the branches shown: <strong>{summary.approved}</strong> published, <strong>{summary.drafts}</strong> in draft, <strong>{summary.awaiting}</strong> ready to publish,{" "}
             <strong className={summary.missingLocal ? "text-[#b42318]" : ""}>{summary.missingLocal}</strong> missing local arrangements, <strong className={summary.needsReview ? "text-[#b54708]" : ""}>{summary.needsReview}</strong> needing review.{" "}
             <Link href="/changes?group=all" className="pc-link">{summary.localChanges} local source change{summary.localChanges === 1 ? "" : "s"} open</Link> · <Link href="/staff" className="pc-link">{summary.staffOutstanding} staff acknowledgements outstanding</Link>
           </p>

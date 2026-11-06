@@ -64,7 +64,7 @@ export function reportFormats(kind: ComplianceReportKind): ("csv" | "xlsx" | "pd
 
 /** The Status filter's choices for each report, or none where status does not apply. */
 export const REPORT_STATUS_OPTIONS: Partial<Record<ComplianceReportKind, [string, string][]>> = {
-  policies: [["published", "Published"], ["not_approved", "Not yet approved"], ["draft", "Draft"], ["under_review", "Under review"], ["approved", "Approved, not yet published"], ["review_due", "Review due"], ["overdue", "Overdue"], ["archived", "Archived"]],
+  policies: [["current", "Current"], ["updated", "Updated"], ["draft", "Draft"], ["review_due", "Due for Review"], ["overdue", "Review Overdue"], ["archived", "Archived"]],
   overdue: [["overdue", "Overdue"], ["due", "Due within 60 days"]],
   signoff: [["acknowledged", "Acknowledged"], ["outstanding", "Outstanding"], ["overdue", "Overdue"], ["exempted", "Exempted"]],
   audits: [["IN_PROGRESS", "In progress"], ["COMPLETED", "Completed"]],
@@ -129,13 +129,14 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
       const ps = await db.policy.findMany({
         where: { organisationId: s.orgId, kind: "CUSTOMER" },
         orderBy: { ref: "asc" },
-        include: { category: true, currentPublishedVersion: { select: { label: true, publishedAt: true, approvals: { where: { decision: "APPROVE" }, select: { id: true }, take: 1 } } }, revisions: { where: { closedAt: null }, take: 1, orderBy: { createdAt: "desc" }, select: { submittedAt: true, draftVersion: { select: { status: true } } } } },
+        include: { category: true, currentPublishedVersion: { select: { label: true, publishedAt: true, previousVersionId: true } }, revisions: { where: { closedAt: null }, take: 1, orderBy: { createdAt: "desc" }, select: { submittedAt: true } } },
       });
       const owners = new Map((await db.user.findMany({ where: { id: { in: ps.map((p) => p.ownerId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
       const wantStatus = statusFor(kind, f);
       const rows = ps.map((p) => {
         const open = p.revisions[0];
-        const status = policyStatus({ currentPublishedVersion: p.currentPublishedVersion ? { approved: p.currentPublishedVersion.approvals.length > 0 } : null, openRevision: open ? { submittedAt: open.submittedAt, draftStatus: open.draftVersion.status } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now);
+        const v = p.currentPublishedVersion;
+        const status = policyStatus({ currentPublishedVersion: v ? { publishedAt: v.publishedAt, replacedEarlier: Boolean(v.previousVersionId) } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now);
         return { p, status, open };
       }).filter((r) => (!wantStatus || r.status === wantStatus) && (!f.category || r.p.categoryCode === f.category));
       const active = rows.filter((r) => r.p.status === "ACTIVE");
@@ -143,13 +144,13 @@ export async function complianceReport(ctx: Ctx, kind: string, f: ReportFilters,
         periodBasis: null,
         summary: [
           ["Active policies", active.length],
-          ["Published and approved", active.filter((r) => r.p.currentPublishedVersion?.approvals.length).length],
-          ["Drafts in progress", active.filter((r) => r.open && !r.open.submittedAt).length],
-          ["Awaiting approval", active.filter((r) => r.status === "under_review").length],
+          ["Published", active.filter((r) => r.p.currentPublishedVersion).length],
+          ["Updated in the last 30 days", active.filter((r) => r.status === "updated").length],
+          ["Drafts in progress", active.filter((r) => r.open).length],
           ["Reviews overdue", active.filter((r) => r.p.nextReviewDate && r.p.nextReviewDate < now).length],
           ["Archived", rows.length - active.length],
         ],
-        notes: [...(wantStatus || f.category ? ["Only policies matching the chosen status and category are counted."] : []), "Active policies: your organisation's policies that are not archived (CSB starter templates are not counted).", "Published and approved: the live version carries at least one recorded approval.", "Reviews overdue: active policies whose next review date has passed."],
+        notes: [...(wantStatus || f.category ? ["Only policies matching the chosen status and category are counted."] : []), "Active policies: your organisation's own policies and customised CSB policies that are not archived (CSB central documents used as published are not counted).", "Published: the document has a live version staff can read. Authorised people publish directly; a separate approval is not required.", "Reviews overdue: active policies whose next review date has passed."],
         columns: ["Reference", "Title", "Category", "Status", "Live version", "Published", "Next review", "Owner"],
         rows: rows.map(({ p, status }) => [p.ref, p.title, p.category.name, STATUS_LABELS[status], p.currentPublishedVersion?.label ?? "", d(p.currentPublishedVersion?.publishedAt), d(p.nextReviewDate), p.ownerId ? (owners.get(p.ownerId) ?? "") : ""]),
         widths: [1, 3, 2, 1.4, 1, 1, 1, 1.4],

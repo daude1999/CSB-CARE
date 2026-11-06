@@ -27,10 +27,11 @@ async function eligibleApprovers(policy: Policy): Promise<string[]> {
   return usersWithOrgRoles(policy.organisationId!, ["POLICY_APPROVER"]);
 }
 
-function requiredApprovals(policy: Policy, orgSettings: unknown): number {
-  const s = (orgSettings ?? {}) as { requiredApprovals?: number };
-  return policy.kind === "MASTER" ? 1 : Math.max(1, s.requiredApprovals ?? 1);
-}
+/**
+ * Review is optional since direct publishing (owner's brief, 5 Nov 2026). A draft someone chooses to send for review
+ * (or one sent under the old process) is marked approved by one approval from someone other than its author.
+ */
+const OPTIONAL_REVIEW_APPROVALS = 1;
 
 export async function createManualRevision(ctx: Ctx, policyId: string, reason: string) {
   const policy = await db.policy.findUnique({ where: { id: policyId }, include: { currentPublishedVersion: { include: { sections: true } } } });
@@ -57,7 +58,7 @@ export async function createManualRevision(ctx: Ctx, policyId: string, reason: s
   });
 }
 
-/** Rollback never rewrites history: it drafts a new version from an earlier one, which must be approved. */
+/** Rollback never rewrites history: it drafts a new version from an earlier one, which is then published as a new version. */
 export async function createRollbackRevision(ctx: Ctx, policyId: string, targetVersionId: string, reason: string) {
   const policy = await db.policy.findUnique({ where: { id: policyId } });
   if (!policy) throw new NotFoundError("Policy");
@@ -142,7 +143,7 @@ export async function submitForReview(ctx: Ctx, revisionId: string, input: { app
     userIds: [...approvers, ...reviewers],
     type: "revision.awaiting_review",
     title: `${r.isSimulated ? "[SIMULATED] " : ""}Draft awaiting your review: ${r.policy.ref} ${r.policy.title}`,
-    body: `${r.title}. ${r.urgency === "URGENT" || r.urgency === "HIGH" ? `Urgency: ${r.urgency}. ` : ""}Approval is required before anything is published.`,
+    body: `${r.title}. ${r.urgency === "URGENT" || r.urgency === "HIGH" ? `Urgency: ${r.urgency}. ` : ""}You have been asked for a second opinion. Review is optional: an authorised publisher can still publish the draft.`,
     reason: "You are assigned as a reviewer or approver for this policy revision.",
     links: [{ label: "Review draft", url: `/revisions/${r.id}` }],
     actionUrl: `/revisions/${r.id}`,
@@ -161,7 +162,6 @@ export async function decide(ctx: Ctx, revisionId: string, input: { decision: "A
   if (!isApprover && !isReviewer) throw new ForbiddenError("You are not a reviewer or approver for this policy");
   if (input.decision === "APPROVE" && !isApprover && !isReviewer) throw new ForbiddenError();
   const role = isApprover ? "APPROVER" : "REVIEWER";
-  const org = r.organisationId ? await db.organisation.findUnique({ where: { id: r.organisationId } }) : null;
 
   return db.$transaction(async (tx) => {
     await tx.approvalDecision.create({ data: { revisionId: r.id, versionId: r.draftVersionId, deciderId: ctx.userId, role, decision: input.decision, comment: input.comment } });
@@ -174,7 +174,7 @@ export async function decide(ctx: Ctx, revisionId: string, input: { decision: "A
         where: { revisionId: r.id, versionId: r.draftVersionId, role: "APPROVER", decision: "APPROVE", createdAt: { gte: r.submittedAt ?? new Date(0) } },
         distinct: ["deciderId"],
       });
-      if (approvals.length >= requiredApprovals(r.policy, org?.settings)) newStatus = "APPROVED";
+      if (approvals.length >= OPTIONAL_REVIEW_APPROVALS) newStatus = "APPROVED";
     }
     if (newStatus !== "UNDER_REVIEW") {
       await tx.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: newStatus, approvedAt: newStatus === "APPROVED" ? new Date() : undefined } });
@@ -198,15 +198,70 @@ export async function decide(ctx: Ctx, revisionId: string, input: { decision: "A
   });
 }
 
-/** Publishes now, or schedules publication for a future date. Only approved versions can be published. */
-export async function publishRevision(
-  ctx: Ctx,
-  revisionId: string,
-  input: { effectiveDate?: Date; scheduleFor?: Date | null; requireAcknowledgement?: boolean; acknowledgementDueDays?: number; materialRevision?: boolean; governance?: Partial<Record<GovernanceKey, boolean>>; assignBranchStaff?: boolean } = {},
-) {
+/** Version states a publisher can take straight to publication. UNDER_REVIEW and APPROVED are legacy states. */
+export const PUBLISHABLE_STATES = ["DRAFT", "CHANGES_REQUESTED", "UNDER_REVIEW", "APPROVED"] as const;
+const EDITABLE_STATES = ["DRAFT", "CHANGES_REQUESTED"];
+
+export type PublishInput = {
+  effectiveDate?: Date;
+  scheduleFor?: Date | null;
+  requireAcknowledgement?: boolean;
+  acknowledgementDueDays?: number;
+  materialRevision?: boolean;
+  governance?: Partial<Record<GovernanceKey, boolean>>;
+  assignBranchStaff?: boolean;
+  /** What changed, shown in version history and the monthly updates register. Required when replacing a published version. */
+  changeSummary?: string;
+};
+
+/**
+ * Checks a draft is fit to publish: it has content, its stored fingerprint matches its sections, it differs from the
+ * version it replaces, generated drafts have no "review required" markers left, and automatic revisions have not
+ * changed any of the organisation's local sections.
+ */
+async function validateForPublication(r: RevisionFull) {
+  const sections = await db.policySection.findMany({ where: { versionId: r.draftVersionId }, orderBy: { position: "asc" } });
+  if (!sections.length) throw new ValidationError("Add at least one section before publishing");
+  const empty = sections.filter((s) => !s.body.trim() || !s.heading.trim());
+  if (empty.length) throw new ValidationError(`Complete these sections before publishing: ${empty.map((s) => s.heading || s.key).join(", ")}`);
+  const inputs = toSectionInputs(sections);
+  if (r.draftVersion.contentHash && r.draftVersion.contentHash !== sectionsHash(inputs)) throw new ConflictError("The draft changed while it was being published. Reload it and try again.");
+  if (await db.policyGenerationRun.findUnique({ where: { revisionId: r.id }, select: { id: true } })) {
+    const marked = sections.filter((s) => s.body.includes(REVIEW_MARKER));
+    if (marked.length) throw new ValidationError(`Complete the sections marked "${REVIEW_MARKER}" before publishing: ${marked.map((m) => m.heading).join(", ")}.`);
+  }
+  if (!r.baseVersionId) return;
+  const base = await db.policyVersion.findUniqueOrThrow({ where: { id: r.baseVersionId }, include: { sections: true } });
+  if (base.contentHash === sectionsHash(inputs)) throw new ValidationError("The draft is identical to the current published version; there is nothing to publish");
+  // An automatic revision (regulatory or central update) must never change customer-owned local sections by accident.
+  if (r.kind === "REGULATORY" || r.kind === "MASTER_SYNC") {
+    const draftByKey = new Map(inputs.map((s) => [s.key, s]));
+    const touched = base.sections.filter((b) => b.isLocal && draftByKey.get(b.key)?.body !== b.body);
+    if (touched.length) throw new ConflictError(`This automatic revision changes your local section(s) ${touched.map((t) => t.heading).join(", ")}. Restore your wording before publishing.`);
+  }
+}
+
+/**
+ * Publishes now, or schedules publication for a future date. An authorised publisher (policy.publish for organisation
+ * documents, master.publish for CSB central content) publishes directly: no review or second-person approval is needed.
+ * Drafts that were sent for review under the old process can be published too; their review is closed, never deleted.
+ */
+export async function publishRevision(ctx: Ctx, revisionId: string, input: PublishInput = {}) {
   const r = await loadRevision(revisionId);
   requireOnPolicy(ctx, r.policy, "publish");
-  if (r.draftVersion.status !== "APPROVED") throw new ConflictError("Only an approved version can be published. Human approval is mandatory.");
+  if (r.policy.status !== "ACTIVE") throw new ConflictError("This policy is archived. Restore it before publishing.");
+  if (r.closedAt) throw new ConflictError("This draft is closed and can no longer be published");
+  if (!(PUBLISHABLE_STATES as readonly string[]).includes(r.draftVersion.status)) {
+    throw new ConflictError(r.draftVersion.status === "SCHEDULED" ? "This draft is already scheduled for publication" : `A ${r.draftVersion.status.toLowerCase().replace(/_/g, " ")} version cannot be published`);
+  }
+  // Fail fast on a stale draft; performPublication re-checks under a row lock.
+  if ((r.baseVersionId ?? null) !== (r.policy.currentPublishedVersionId ?? null)) {
+    throw new ConflictError("The policy was republished after this draft was created. Start a new revision from the current version.");
+  }
+  await validateForPublication(r);
+  const summary = input.changeSummary?.trim() || r.draftVersion.changeSummary?.trim() || "";
+  if (r.baseVersionId && !summary && !r.draftVersion.reasonForChange?.trim()) throw new ValidationError("Describe what changed in this version");
+  if (summary.length > 2000) throw new ValidationError("Keep the summary of changes under 2,000 characters");
   // Generated (branch-specific) drafts also need the manager's pre-publication confirmations and no open critical gaps.
   const governanceChecks = await generatedPublicationCheck(r.id, r.draftVersionId, input.governance, ctx.userId);
   const now = new Date();
@@ -214,14 +269,25 @@ export async function publishRevision(
   const effectiveDate = input.effectiveDate ?? scheduleFor ?? now;
   const requireAck = input.requireAcknowledgement ?? r.policy.kind === "CUSTOMER";
   const ackDue = new Date((scheduleFor ?? now).getTime() + (input.acknowledgementDueDays ?? 14) * 86400_000);
+  const legacyStatus = r.draftVersion.status;
+  const approvalsRecorded = await db.approvalDecision.count({ where: { versionId: r.draftVersionId, decision: "APPROVE" } });
 
-  const publication = await db.policyPublication.create({
-    data: {
-      policyId: r.policyId,
-      organisationId: r.organisationId,
-      versionId: r.draftVersionId,
-      status: scheduleFor ? "SCHEDULED" : "PUBLISHED",
+  const publication = await db.$transaction(async (tx) => {
+    // Only moves from the state we checked, so two publishers acting at once cannot both succeed.
+    if (legacyStatus === "UNDER_REVIEW") {
+      const moved = await tx.policyVersion.updateMany({ where: { id: r.draftVersionId, status: "UNDER_REVIEW" }, data: { status: "DRAFT" } });
+      if (!moved.count) throw new ConflictError("This draft changed while it was being published. Reload it and try again.");
+    }
+    const editable = legacyStatus === "UNDER_REVIEW" || EDITABLE_STATES.includes(legacyStatus);
+    if (editable && summary && summary !== r.draftVersion.changeSummary) await tx.policyVersion.update({ where: { id: r.draftVersionId }, data: { changeSummary: summary } });
+    // Reviews requested under the old process are closed, not deleted: they stay on the revision as history.
+    await tx.reviewAssignment.updateMany({ where: { revisionId: r.id, status: "PENDING" }, data: { status: "CLOSED" } });
+    const existing = await tx.policyPublication.findUnique({ where: { versionId: r.draftVersionId } });
+    if (existing && existing.status !== "CANCELLED") throw new ConflictError("This draft has already been published or scheduled");
+    const data = {
+      status: scheduleFor ? ("SCHEDULED" as const) : ("PUBLISHED" as const),
       scheduledFor: scheduleFor,
+      publishedAt: null,
       effectiveDate,
       publishedById: ctx.userId,
       requiresAcknowledgement: requireAck,
@@ -229,17 +295,74 @@ export async function publishRevision(
       materialRevision: input.materialRevision ?? true,
       acknowledgementDueAt: requireAck ? ackDue : null,
       governanceChecks: governanceChecks ?? undefined,
-    },
+    };
+    // A cancelled schedule keeps its row (one publication per version); publishing again reuses it.
+    const pub = existing
+      ? await tx.policyPublication.update({ where: { id: existing.id }, data })
+      : await tx.policyPublication.create({ data: { ...data, policyId: r.policyId, organisationId: r.organisationId, versionId: r.draftVersionId } });
+    if (scheduleFor) await tx.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: "SCHEDULED", effectiveDate } });
+    await audit(
+      {
+        organisationId: r.organisationId,
+        actorId: ctx.userId,
+        action: scheduleFor ? "revision.scheduled" : "revision.publish_requested",
+        entityType: "PolicyRevision",
+        entityId: r.id,
+        data: { directPublication: true, previousStatus: legacyStatus, approvalsRecorded, scheduleFor: scheduleFor?.toISOString() ?? null, changeSummary: summary || null },
+      },
+      tx,
+    );
+    return pub;
   });
   if (governanceChecks && input.assignBranchStaff !== false) await db.$transaction((tx) => ensureBranchAssignmentRules(tx, r.id, ctx.userId));
   if (scheduleFor) {
-    await db.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: "SCHEDULED", effectiveDate } });
-    await enqueue("publication.publish", { publicationId: publication.id }, { idempotencyKey: `publish:${publication.id}`, runAfter: scheduleFor, maxAttempts: 3 });
-    await audit({ organisationId: r.organisationId, actorId: ctx.userId, action: "revision.scheduled", entityType: "PolicyRevision", entityId: r.id, data: { scheduleFor: scheduleFor.toISOString() } });
+    await enqueue("publication.publish", { publicationId: publication.id }, { idempotencyKey: `publish:${publication.id}:${scheduleFor.getTime()}`, runAfter: scheduleFor, maxAttempts: 3 });
     return { publicationId: publication.id, scheduled: true };
   }
   await performPublication(publication.id);
   return { publicationId: publication.id, scheduled: false };
+}
+
+/** Cancels a scheduled publication. The version returns to draft so it can be edited or published again. */
+export async function cancelScheduledPublication(ctx: Ctx, revisionId: string) {
+  const r = await loadRevision(revisionId);
+  requireOnPolicy(ctx, r.policy, "publish");
+  if (r.draftVersion.status !== "SCHEDULED") throw new ConflictError("This draft is not scheduled");
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.policyPublication.updateMany({ where: { versionId: r.draftVersionId, status: "SCHEDULED" }, data: { status: "CANCELLED" } });
+    if (!count) throw new ConflictError("This publication has already gone ahead or been cancelled");
+    await tx.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: "DRAFT" } });
+    await audit({ organisationId: r.organisationId, actorId: ctx.userId, action: "revision.schedule_cancelled", entityType: "PolicyRevision", entityId: r.id }, tx);
+  });
+}
+
+/** Brings a draft that was sent for review under the old process back to draft, so it can be edited. Its review history is kept. */
+export async function returnToDraft(ctx: Ctx, revisionId: string) {
+  const r = await loadRevision(revisionId);
+  requireOnPolicy(ctx, r.policy, "author");
+  if (r.closedAt) throw new ConflictError("This draft is closed");
+  if (r.draftVersion.status !== "UNDER_REVIEW") throw new ConflictError("Only a draft waiting for review can be returned to draft");
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.policyVersion.updateMany({ where: { id: r.draftVersionId, status: "UNDER_REVIEW" }, data: { status: "DRAFT" } });
+    if (!count) throw new ConflictError("This draft changed. Reload it and try again.");
+    await tx.reviewAssignment.updateMany({ where: { revisionId: r.id, status: "PENDING" }, data: { status: "CLOSED" } });
+    await audit({ organisationId: r.organisationId, actorId: ctx.userId, action: "revision.returned_to_draft", entityType: "PolicyRevision", entityId: r.id }, tx);
+  });
+}
+
+/** Withdraws a draft that will not be published. The version is kept (marked rejected) for the record. */
+export async function discardDraft(ctx: Ctx, revisionId: string, reason: string) {
+  const r = await loadRevision(revisionId);
+  requireOnPolicy(ctx, r.policy, "author");
+  if (r.closedAt) throw new ConflictError("This draft is already closed");
+  if (!EDITABLE_STATES.includes(r.draftVersion.status) && r.draftVersion.status !== "UNDER_REVIEW") throw new ConflictError(`A ${r.draftVersion.status.toLowerCase()} draft cannot be discarded`);
+  if (reason.trim().length < 3) throw new ValidationError("Give a reason for discarding the draft");
+  await db.$transaction(async (tx) => {
+    await tx.policyVersion.update({ where: { id: r.draftVersionId }, data: { status: "REJECTED" } });
+    await tx.policyRevision.update({ where: { id: r.id }, data: { closedAt: new Date() } });
+    await tx.reviewAssignment.updateMany({ where: { revisionId: r.id, status: "PENDING" }, data: { status: "CLOSED" } });
+    await audit({ organisationId: r.organisationId, actorId: ctx.userId, action: "revision.discarded", entityType: "PolicyRevision", entityId: r.id, data: { reason: reason.trim() } }, tx);
+  });
 }
 
 /**
@@ -251,6 +374,8 @@ export async function performPublication(publicationId: string) {
   const pub = await db.policyPublication.findUniqueOrThrow({ where: { id: publicationId }, include: { version: { include: { revisionAsDraft: true } }, policy: true } });
   if (pub.status === "PUBLISHED" && pub.publishedAt) return pub; // idempotent
   if (pub.status === "CANCELLED") throw new PermanentJobError("Publication was cancelled");
+  // A job left over from an earlier schedule must not publish before the current scheduled time.
+  if (pub.status === "SCHEDULED" && pub.scheduledFor && pub.scheduledFor.getTime() > Date.now() + 1000) return pub;
   const revision = pub.version.revisionAsDraft;
   try {
     await db.$transaction(
@@ -275,14 +400,15 @@ export async function performPublication(publicationId: string) {
         await tx.policyPublication.update({ where: { id: pub.id }, data: { status: "PUBLISHED", publishedAt: now } });
         if (revision) await tx.policyRevision.update({ where: { id: revision.id }, data: { closedAt: now } });
         if (pub.requiresAcknowledgement && pub.organisationId && pub.materialRevision) await assignPublication(tx, pub.id, { actorId: pub.publishedById });
-        await audit({ organisationId: pub.organisationId, actorId: pub.publishedById, action: "policy.published", entityType: "PolicyVersion", entityId: pub.versionId, data: { publicationId: pub.id, superseded: current } }, tx);
+        await audit({ organisationId: pub.organisationId, actorId: pub.publishedById, action: "policy.published", entityType: "PolicyVersion", entityId: pub.versionId, data: { publicationId: pub.id, superseded: current, changeSummary: pub.version.changeSummary, kind: pub.policy.kind } }, tx);
       },
       { isolationLevel: "Serializable" },
     );
   } catch (e) {
     if (e instanceof ConflictError) {
       await db.policyPublication.update({ where: { id: pub.id }, data: { status: "CANCELLED" } });
-      if (pub.version.status === "SCHEDULED") await db.policyVersion.update({ where: { id: pub.versionId }, data: { status: "APPROVED" } });
+      // The draft goes back to being a draft so it can be corrected; nothing is lost.
+      await db.policyVersion.updateMany({ where: { id: pub.versionId, status: "SCHEDULED" }, data: { status: "DRAFT" } });
     }
     throw e;
   }
@@ -352,7 +478,7 @@ export { sendAcknowledgementReminders } from "./assignment";
 
 export async function publishDueScheduled(now = new Date()) {
   const due = await db.policyPublication.findMany({ where: { status: "SCHEDULED", scheduledFor: { lte: now } } });
-  for (const p of due) await enqueue("publication.publish", { publicationId: p.id }, { idempotencyKey: `publish:${p.id}`, runAfter: now });
+  for (const p of due) await enqueue("publication.publish", { publicationId: p.id }, { idempotencyKey: `publish:${p.id}:${p.scheduledFor!.getTime()}`, runAfter: now });
   return due.length;
 }
 

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { ForbiddenError, ValidationError } from "@/lib/errors";
 import { bulkSignoff, createRule } from "@/server/policies/assignment";
 import { importPolicies, sectionsFromHtml, titleFromFilename } from "@/server/policies/import";
-import { libraryHref, libraryView, parseLibraryQuery } from "@/server/policies/library-view";
+import { centralWhere, libraryHref, libraryView, parseLibraryQuery } from "@/server/policies/library-view";
 import { complianceReport, complianceReportFile, parseReportFilters, reportFormats } from "@/server/compliance/reports";
 import { workspaceCounts } from "@/server/compliance/workspace-counts";
 import { requirementRegister } from "@/server/compliance/requirements";
@@ -185,11 +185,11 @@ describe("Compliance Reports", () => {
   it("applies the status and category filters, and the export holds exactly the rows on screen", async () => {
     const m = await manager();
     const all = await complianceReport(m, "policies", parseReportFilters({}));
-    const f = parseReportFilters({ status: "not_approved", category: "SAFEGUARDING" });
+    const f = parseReportFilters({ status: "current", category: "SAFEGUARDING" });
     const some = await complianceReport(m, "policies", f);
     expect(some.rows.length).toBeGreaterThan(0);
     expect(some.rows.length).toBeLessThan(all.rows.length);
-    expect(some.rows.every((r) => r.includes("Not yet approved"))).toBe(true);
+    expect(some.rows.every((r) => r.includes("Current"))).toBe(true);
     const csv = (await complianceReportFile(m, "policies", f, "csv")).body.toString();
     expect(csv.trim().split("\n").length - 1).toBe(some.rows.length);
   });
@@ -215,9 +215,12 @@ describe("workspace tab counts and the requirements register", () => {
   it("counts each tab from the caller's own records", async () => {
     const m = await manager();
     const lib = await workspaceCounts(m, "library");
-    expect(lib.policies).toBe(await db.policy.count({ where: { organisationId: orgId, kind: "CUSTOMER", status: "ACTIVE" } }));
+    // The Policies tab holds the organisation's own documents plus the CSB central documents it uses as published.
+    const own = (organisationId: string) => ({ organisationId, kind: "CUSTOMER" as const, status: "ACTIVE" as const });
+    expect(lib.policies).toBe(await db.policy.count({ where: { OR: [own(orgId), await centralWhere(orgId)] } }));
+    const oakId = (await db.organisation.findUniqueOrThrow({ where: { slug: OAKRIDGE } })).id;
     const oak = await workspaceCounts(await other(), "library");
-    expect(oak.policies).toBe(await db.policy.count({ where: { organisation: { slug: OAKRIDGE }, kind: "CUSTOMER", status: "ACTIVE" } }));
+    expect(oak.policies).toBe(await db.policy.count({ where: { OR: [own(oakId), await centralWhere(oakId)] } }));
   });
 
   it("counts linked policies from the caller's own library only", async () => {

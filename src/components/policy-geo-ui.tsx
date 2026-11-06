@@ -26,7 +26,7 @@ export function SeverityBadge({ severity }: { severity: string }) {
 }
 
 /** The six steps of the generator, with the current one marked. */
-export const GENERATOR_STEPS = ["Select policy", "Select branches", "Review requirements", "Generate draft", "Review & approve", "Publish"] as const;
+export const GENERATOR_STEPS = ["Select policy", "Select branches", "Review requirements", "Generate draft", "Check the draft", "Publish"] as const;
 export function GeneratorSteps({ current }: { current: number }) {
   return (
     <ol className="flex flex-wrap gap-x-1 gap-y-2 border-b border-[#eaecf0] px-5 py-3 text-[13px]" aria-label="Policy Generator steps" data-testid="generator-steps">
