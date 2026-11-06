@@ -34,18 +34,22 @@ export async function login(email: string, password: string, meta: { ip?: string
   if (ipKey && !ok) await db.loginAttempt.create({ data: { key: ipKey, success: false } });
   if (!user || !ok) throw new AppError("Invalid email or password", "INVALID_CREDENTIALS", 401);
   const token = randomBytes(32).toString("base64url");
+  // The start time comes from the same clock as the expiry checks, so the 7-day cap is measured consistently.
+  const now = Date.now();
   await db.session.create({
     data: {
       tokenHash: sha256(token),
       userId: user.id,
       activeOrgId: user.memberships[0]?.organisationId ?? null,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      createdAt: new Date(now),
+      lastSeenAt: new Date(now),
+      expiresAt: new Date(now + SESSION_TTL_MS),
       ip: meta.ip,
       userAgent: meta.userAgent?.slice(0, 200),
     },
   });
   await db.auditLog.create({ data: { actorId: user.id, action: "auth.login", entityType: "User", entityId: user.id } });
-  return { token, expiresAt: new Date(Date.now() + SESSION_TTL_MS) };
+  return { token, expiresAt: new Date(now + SESSION_TTL_MS) };
 }
 
 export async function logout(token: string) {
