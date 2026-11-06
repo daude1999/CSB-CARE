@@ -224,7 +224,9 @@ export async function readDocument(input: { bytes: Buffer; filename: string; cat
   const failed = results.filter((x): x is Extract<(typeof results)[number], { error: AiUnavailableError }> => "error" in x);
   const failedPages = failed.flatMap((x) => Array.from({ length: x.range.to - x.range.from + 1 }, (_, k) => x.range.from + k)).filter((p) => p <= Math.max(1, n));
   const reason = failed[0]?.error.reason ?? null;
-  const aiFailure = reason ? { reason, text: READ_FAILURE_TEXT[reason], pages: failedPages } : null;
+  // For a refused request the service's own reason is added, so the cause can be seen on the screen and fixed.
+  const detail = failed[0]?.error.reason === "rejected" ? failed[0].error.detail : null;
+  const aiFailure = reason ? { reason, text: detail ? `${READ_FAILURE_TEXT[reason]} (it said: "${detail}")` : READ_FAILURE_TEXT[reason], pages: failedPages } : null;
 
   let reading: Reading;
   let facts: OutcomeFact[];

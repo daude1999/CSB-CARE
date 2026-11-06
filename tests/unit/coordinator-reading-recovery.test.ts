@@ -77,7 +77,39 @@ describe("AnthropicProvider document reading (SDK replaced, nothing goes online)
     await expect(provider(async () => ({ stop_reason: "max_tokens", parsed_output: null })).extractCareDocument(input)).rejects.toMatchObject({ reason: "truncated" });
     await expect(provider(async () => ({ stop_reason: "end_turn", parsed_output: { document: {} } })).extractCareDocument(input)).rejects.toMatchObject({ reason: "invalid-output" });
     const bad = new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message: "Schema is too complex for compilation." } }, "Schema is too complex", new Headers());
-    await expect(provider(async () => { throw bad; }).extractCareDocument(input)).rejects.toMatchObject({ reason: "rejected" });
+    await expect(provider(async () => { throw bad; }).extractCareDocument(input)).rejects.toMatchObject({ reason: "rejected", detail: "Schema is too complex for compilation." });
+  });
+
+  it("sends a refused request once more in its plainest form, and keeps the service's reason if that fails too", async () => {
+    const seen: Body[] = [];
+    const answer = { document: { kind: "SUPPORT_PLAN", issuer: "", issuerKind: "COUNCIL", documentDate: "", pageCount: 2 }, person: [], references: [], contacts: [], carerPreferences: [], carePlan: [], risks: [], package: [], visits: [], medication: { arrangement: [], items: [], allergies: [] }, incidents: [], skin: [], flags: [], missing: [], unreadable: [], communications: [] };
+    const refused = (message: string) => new Anthropic.BadRequestError(400, { type: "error", error: { type: "invalid_request_error", message } }, message, new Headers());
+    const r = await provider(async (b) => {
+      seen.push(b);
+      if (seen.length === 1) throw refused("Schema is too complex for compilation.");
+      // The plain request has no output format, so the answer comes back as text.
+      return { stop_reason: "end_turn", content: [{ type: "text", text: `Here it is:\n${JSON.stringify(answer)}` }] };
+    }).extractCareDocument(input);
+    expect(r.document.pageCount).toBe(2);
+    expect(r.document.issuer).toBeNull();
+    const [first, second] = seen as unknown as Record<string, unknown>[];
+    expect(first).toHaveProperty("fallbacks");
+    expect((first!.output_config as { format?: unknown }).format).toBeTruthy();
+    expect(second).not.toHaveProperty("fallbacks");
+    expect(second).not.toHaveProperty("betas");
+    expect((second!.output_config as { format?: unknown }).format).toBeUndefined();
+    expect(JSON.stringify(second!.messages)).not.toMatch(/cache_control/);
+    expect(JSON.stringify(second!.messages)).toMatch(/JSON Schema/);
+    expect(JSON.stringify(second!.messages)).toMatch(/pages 9 to 16 only/);
+    expect(second!.max_tokens).toBeLessThanOrEqual(32000);
+
+    // An answer that is not the expected JSON is reported as such (and retried by the reader), never guessed at.
+    let calls = 0;
+    await expect(provider(async () => { if (++calls === 1) throw refused("x"); return { stop_reason: "end_turn", content: [{ type: "text", text: "I cannot do that." }] }; }).extractCareDocument(input)).rejects.toMatchObject({ reason: "invalid-output" });
+
+    const keyLike = "sk-" + "ant-api03-abcdefghijklmnop";
+    await expect(provider(async () => { throw refused(`messages.0.content.0: PDF could not be processed ${keyLike}`); }).extractCareDocument(input))
+      .rejects.toMatchObject({ reason: "rejected", detail: "messages.0.content.0: PDF could not be processed [key]" });
   });
 });
 
@@ -98,6 +130,15 @@ function fakeAi(extract: (i: CareDocumentExtractionInput) => Promise<CareDocumen
 const doc = (n: number) => ({ bytes: Buffer.from("%PDF-1.4 fictional"), filename: "plan.pdf", categoryLabel: "Council support plan", pages: pages(n), aiAllowed: true });
 
 describe("readDocument", () => {
+  it("shows the AI service's own reason when it refuses the request", async () => {
+    const ai = fakeAi(async () => { throw new AiUnavailableError("The AI service rejected the request.", "rejected", "messages.0.content.0.pdf: the PDF is password protected"); });
+    setAiProviderForTests(ai);
+    const out = await readDocument(doc(3));
+    expect(out.reader).toBe("basic-reader");
+    expect(out.aiFailure?.text).toMatch(/rejected the request \(it said: "messages\.0\.content\.0\.pdf: the PDF is password protected"\)/);
+    expect(out.reading.flags[0]!.text).toMatch(/password protected/);
+  });
+
   it("reads a short document in one request and a long one in parts of 8 pages", () => {
     expect(pageParts(6)).toEqual([{ from: 1, to: 6 }]);
     expect(pageParts(20)).toEqual([{ from: 1, to: 8 }, { from: 9, to: 16 }, { from: 17, to: 20 }]);
