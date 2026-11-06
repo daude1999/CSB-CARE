@@ -8,7 +8,11 @@ import { AppError } from "@/lib/errors";
 
 export const SESSION_COOKIE = "evx_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+/** However active a session is, it ends 7 days after sign-in and the person signs in again. */
+export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_FAILED = 5;
+/** Failed sign-ins from one network address across any email addresses, so one address cannot try many accounts. */
+const MAX_FAILED_PER_IP = 30;
 const WINDOW_MS = 15 * 60 * 1000;
 
 export async function isRateLimited(key: string): Promise<boolean> {
@@ -20,24 +24,33 @@ export async function isRateLimited(key: string): Promise<boolean> {
 /** Validates credentials and creates a server-side session. Returns the raw token for the cookie. */
 export async function login(email: string, password: string, meta: { ip?: string; userAgent?: string } = {}) {
   const key = email.trim().toLowerCase();
+  const ip = meta.ip?.split(",")[0]?.trim();
+  const ipKey = ip ? `ip:${ip.slice(0, 64)}` : null;
   if (await isRateLimited(key)) throw new AppError("Too many failed attempts. Try again in 15 minutes.", "RATE_LIMITED", 429);
+  if (ipKey && (await db.loginAttempt.count({ where: { key: ipKey, success: false, createdAt: { gte: new Date(Date.now() - WINDOW_MS) } } })) >= MAX_FAILED_PER_IP)
+    throw new AppError("Too many failed attempts. Try again in 15 minutes.", "RATE_LIMITED", 429);
   const user = await db.user.findUnique({ where: { email: key }, include: { memberships: { where: { deactivatedAt: null } } } });
   const ok = user && !user.deactivatedAt ? await verifyPassword(password, user.passwordHash) : await verifyPassword(password, null);
   await db.loginAttempt.create({ data: { key, success: Boolean(ok) } });
+  if (ipKey && !ok) await db.loginAttempt.create({ data: { key: ipKey, success: false } });
   if (!user || !ok) throw new AppError("Invalid email or password", "INVALID_CREDENTIALS", 401);
   const token = randomBytes(32).toString("base64url");
+  // The start time comes from the same clock as the expiry checks, so the 7-day cap is measured consistently.
+  const now = Date.now();
   await db.session.create({
     data: {
       tokenHash: sha256(token),
       userId: user.id,
       activeOrgId: user.memberships[0]?.organisationId ?? null,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      createdAt: new Date(now),
+      lastSeenAt: new Date(now),
+      expiresAt: new Date(now + SESSION_TTL_MS),
       ip: meta.ip,
       userAgent: meta.userAgent?.slice(0, 200),
     },
   });
   await db.auditLog.create({ data: { actorId: user.id, action: "auth.login", entityType: "User", entityId: user.id } });
-  return { token, expiresAt: new Date(Date.now() + SESSION_TTL_MS) };
+  return { token, expiresAt: new Date(now + SESSION_TTL_MS) };
 }
 
 export async function logout(token: string) {
@@ -55,11 +68,12 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
       include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } } },
     }),
   );
-  if (!session || session.expiresAt < new Date() || session.user.deactivatedAt) return null;
+  const hardEnd = session ? session.createdAt.getTime() + SESSION_MAX_AGE_MS : 0;
+  if (!session || session.expiresAt < new Date() || hardEnd <= Date.now() || session.user.deactivatedAt) return null;
   if (Date.now() - session.lastSeenAt.getTime() > 5 * 60 * 1000) {
     await db.session.update({
       where: { id: session.id },
-      data: { lastSeenAt: new Date(), expiresAt: new Date(Date.now() + SESSION_TTL_MS) },
+      data: { lastSeenAt: new Date(), expiresAt: new Date(Math.min(Date.now() + SESSION_TTL_MS, hardEnd)) },
     });
   }
   const membership =
