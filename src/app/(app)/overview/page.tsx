@@ -326,7 +326,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   return (
     <div className="ov-root">
-      <div className="space-y-2.5 px-4 pb-6 pt-4 md:px-[16px]">
+      <div className="space-y-2.5 px-4 pb-6 pt-2 md:px-[16px]">
         <Flash searchParams={sp} />
         <AutoRefresh seconds={60} />
         <ModuleGrid

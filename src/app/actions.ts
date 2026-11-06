@@ -33,6 +33,7 @@ import { handle, handleData, str } from "./action-kit";
 import { BookmarkKindSchema, toggleBookmark } from "@/server/policies/bookmarks";
 import { addResourceLink, withdrawResourceLink } from "@/server/forms/links";
 import { approveRecord, returnRecord, saveDraft, startForm, submitRecord, voidRecord } from "@/server/forms/records";
+import { linkRecord, parseLinkChoice, startFormAbout, unlinkRecord } from "@/server/forms/record-links";
 import { saveOverviewOrder } from "@/server/overview/layout";
 
 // ───────── auth
@@ -258,7 +259,23 @@ function postedAnswers(fd: FormData): Record<string, string | string[]> {
   return out;
 }
 export async function startFormAction(fd: FormData) {
-  await handle(fd, async (ctx) => `/policies/forms/records/${(await startForm(ctx, str(fd, "definitionId"))).id}`, "Form started. Save it as a draft at any time.");
+  await handle(fd, async (ctx) => {
+    // Started from a person's record: the new form is linked to them in the same step.
+    const about = parseLinkChoice(str(fd, "about"));
+    const rec = about ? await startFormAbout(ctx, str(fd, "definitionId"), about) : await startForm(ctx, str(fd, "definitionId"));
+    return `/policies/forms/records/${rec.id}`;
+  }, "Form started. Save it as a draft at any time.");
+}
+export async function linkFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => {
+    const about = parseLinkChoice(str(fd, "about"));
+    if (!about) throw new ValidationError("Choose who this form is about");
+    await linkRecord(ctx, str(fd, "recordId"), about);
+    return { ok: "Linked. The form now shows on that person's record." };
+  }, "Linked");
+}
+export async function unlinkFormAction(fd: FormData) {
+  await handle(fd, async (ctx) => void (await unlinkRecord(ctx, str(fd, "recordId"), str(fd, "linkId"), str(fd, "reason"))), "Link removed. It stays in the form's history.");
 }
 export async function saveFormAction(fd: FormData) {
   await handle(fd, async (ctx) => {

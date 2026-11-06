@@ -40,6 +40,8 @@ import { BodyMapSection } from "@/components/body-map";
 import { CallNotesSection } from "@/components/call-notes";
 import { ServiceUserReferenceNumbers } from "@/components/su-reference-numbers";
 
+import { PersonForms } from "@/components/forms/person-forms";
+import { formsForServiceUser } from "@/server/forms/record-links";
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
@@ -119,6 +121,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
     tab === "notes" ? serviceUserVisitNotes(ctx, su.id, { category: sp.category, days: Number(sp.days) || undefined, q: sp.q?.trim().slice(0, 100) || undefined }) : Promise.resolve(null),
   ]);
   // Visits -> Template and Rota read the same template and visit records as Daily Templates and the Daily Rota.
+  // On-screen forms linked to this person, only those the viewer may open (Forms PR 4).
+  const suForms = tab === "documents" && sp.section === "forms" ? await formsForServiceUser(ctx, su.id) : null;
   const cycleLength = tab === "template" ? (await rotaSettings(db, su.organisationId)).cycleLength : 4;
   const tplWeeks = parseList(sp.weeks, cycleLength);
   const tplDays = parseList(sp.days, 7);
@@ -570,12 +574,14 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "documents" ? (
         <>
           <nav aria-label="Document sections" className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
-            {([["council", "Council Documents"], ["other", "Other Documents"]] as const).map(([k, label]) => {
-              const on = (sp.section === "other" ? "other" : "council") === k;
+            {([["council", "Council Documents"], ["other", "Other Documents"], ["forms", "Forms"]] as const).map(([k, label]) => {
+              const on = (sp.section === "other" || sp.section === "forms" ? sp.section : "council") === k;
               return <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={on ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${on ? "bg-[#1d4f91] font-medium text-white hover:text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{label}</Link>;
             })}
           </nav>
-          <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />
+          {suForms ? (
+            <PersonForms rows={suForms.rows} startable={suForms.startable} about={`SERVICE_USER:${su.id}`} back={`${base}?tab=documents&section=forms`} personName={suName(su)} testId="service-user-forms" />
+          ) : <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />}
         </>
       ) : null}
 

@@ -144,7 +144,7 @@ export function ModuleGrid({ items, arranging, saveAction, after }: { items: Arr
           </div>
         </div>
       ) : (
-        <div className="-mb-1 flex justify-end">
+        <div className="-mb-0.5 flex justify-end">
           <a href="/overview?arrange=1" className="flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-[12px] font-medium text-[#3a4658] hover:bg-black/5" data-testid="arrange-modules">
             <ArrowsOutCardinal size={14} aria-hidden="true" />Rearrange modules
           </a>
