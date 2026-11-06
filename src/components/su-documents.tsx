@@ -4,9 +4,12 @@ import { AppError } from "@/lib/errors";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { memberNames } from "@/server/rota/queries";
 import { ACCEPT_DOCUMENTS, DOCUMENT_SECTIONS, MAX_DOCUMENT_BYTES, REQUIRED_COUNCIL_CATEGORIES, categoriesFor, categoryLabel, getDocument, listDocuments, previewable, type DocumentRow } from "@/server/care/su-documents";
-import { archiveSuDocumentAction, replaceSuDocumentAction, updateSuDocumentAction, uploadSuDocumentAction } from "@/app/su-record-actions";
+import { archiveSuDocumentAction, decideSuDocumentVersionAction, replaceSuDocumentAction, updateSuDocumentAction, uploadSuDocumentAction } from "@/app/su-record-actions";
 import { PrivateFileInput } from "@/components/private-file-input";
 import { Badge, Empty, fmtDate } from "@/components/ui";
+import { compareWithPrevious, documentHistory, versionInForce, VERSION_STATUS, type VersionStatus } from "@/server/care/document-versions";
+
+const VERSION_TONE: Record<VersionStatus, "teal" | "amber" | "slate" | "rose"> = { CURRENT: "teal", PENDING_REVIEW: "amber", SUPERSEDED: "slate", WITHDRAWN: "rose", REJECTED: "rose" };
 
 const SECTION_PARAM: Record<ServiceUserDocumentSection, string> = { COUNCIL: "council", OTHER: "other" };
 
@@ -57,7 +60,7 @@ function StatusBadges({ d }: { d: Pick<DocumentRow, "archivedAt" | "expired" | "
  * (current, then historical), and the selected document with its preview, versions and history. The two sections are
  * separate screens; only the storage and this component are shared.
  */
-export async function ServiceUserDocuments({ ctx, serviceUserId, section, selectedId, base }: { ctx: Ctx; serviceUserId: string; section: ServiceUserDocumentSection; selectedId?: string; base: string }) {
+export async function ServiceUserDocuments({ ctx, serviceUserId, section, selectedId, base, inForce, compare }: { ctx: Ctx; serviceUserId: string; section: ServiceUserDocumentSection; selectedId?: string; base: string; inForce?: string; compare?: string }) {
   const canManage = hasOrgPermission(ctx, "serviceUser.documents");
   const canSensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
   const rows = await listDocuments(ctx, serviceUserId, section);
@@ -75,7 +78,12 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
       detailError = e.message;
     }
   }
-  const names = await memberNames(ctx, [...rows.map((r) => r.latest?.uploadedById), ...(detail?.versions.map((v) => v.uploadedById) ?? []), ...(detail?.history.map((h) => h.actorId) ?? [])]);
+  const versionHistory = detail ? await documentHistory(ctx, detail.doc.id) : null;
+  const inForceDate = inForce && /^\d{4}-\d{2}-\d{2}$/.test(inForce) ? inForce : null;
+  const inForceVersion = detail && inForceDate ? await versionInForce(ctx, detail.doc.id, inForceDate) : null;
+  const compareN = compare && /^\d+$/.test(compare) ? Number(compare) : null;
+  const comparison = detail && compareN && versionHistory?.versions.some((v) => v.version === compareN) ? await compareWithPrevious(ctx, detail.doc.id, compareN) : null;
+  const names = await memberNames(ctx, [...rows.map((r) => r.latest?.uploadedById), ...(detail?.versions.map((v) => v.uploadedById) ?? []), ...(detail?.history.map((h) => h.actorId) ?? []), ...(versionHistory?.versions.flatMap((v) => [v.approvedById, ...v.history.map((x) => x.actorId)]) ?? [])]);
   const back = selectedRow ? `${here}&doc=${selectedRow.id}` : here;
   const required = section === "COUNCIL" ? REQUIRED_COUNCIL_CATEGORIES.map((k) => ({ key: k, label: categoryLabel("COUNCIL", k), held: current.some((r) => r.category === k) })) : [];
 
@@ -161,7 +169,8 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                 <p className="text-slate-600">{detail.doc.categoryLabel}{detail.doc.issuingAuthority ? ` · ${detail.doc.issuingAuthority}` : ""}</p>
               </div>
               {(() => {
-                const v = detail.versions[0];
+                // The version in force, never one still waiting for review.
+                const v = detail.versions.find((x) => x.version === detail!.doc.currentVersion) ?? detail.versions[0];
                 if (!v) return null;
                 return (
                   <div>
@@ -188,17 +197,58 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                 {detail.doc.archivedAt ? <div className="col-span-2"><dt className="label">Archived</dt><dd>{fmtDate(detail.doc.archivedAt, true)}{detail.doc.archiveReason ? `: ${detail.doc.archiveReason}` : ""}</dd></div> : null}
               </dl>
 
-              <div>
-                <h4 className="mb-1 text-[14px] font-semibold">Versions</h4>
-                <ul className="rows" data-testid="document-versions">
-                  {detail.versions.map((v) => (
-                    <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13.5px]">
-                      <span><span className="font-medium">Version {v.version}</span>{v.version === detail!.doc.currentVersion ? <> <Badge tone="teal">Current</Badge></> : null}<span className="block text-[12.5px] text-slate-600">{fmtDate(v.uploadedAt, true)} · {names.get(v.uploadedById) ?? "Former member"}{v.changeNote ? ` · ${v.changeNote}` : ""}</span></span>
-                      <span className="flex gap-2">{previewable(v.contentType) ? <a href={fileUrl(detail!.doc.id, { v: v.version, preview: true })} target="_blank" rel="noopener" className="text-[13px]">Preview</a> : null}<a href={fileUrl(detail!.doc.id, { v: v.version })} className="text-[13px]">Download</a></span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {versionHistory ? (
+                <div>
+                  <h4 className="mb-1 text-[14px] font-semibold">Document history</h4>
+                  <ul className="rows" data-testid="document-versions">
+                    {versionHistory.versions.map((v) => (
+                      <li key={v.id} className="py-2 text-[13.5px]">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{v.label}</span><Badge tone={VERSION_TONE[v.status]}>{VERSION_STATUS[v.status]}</Badge></span>
+                          <span className="flex gap-3">{previewable(detail!.versions.find((x) => x.version === v.version)?.contentType ?? "") ? <a href={fileUrl(detail!.doc.id, { v: v.version, preview: true })} target="_blank" rel="noopener" className="text-[13px]">Preview</a> : null}<a href={fileUrl(detail!.doc.id, { v: v.version })} className="text-[13px]">Download</a>{v.version > 1 ? <Link href={`${back}&compare=${v.version}#compare`} className="text-[13px]">Compare previous version</Link> : null}</span>
+                        </div>
+                        <dl className="mt-1 grid grid-cols-2 gap-x-4 text-[12.5px] text-slate-600 sm:grid-cols-3">
+                          <div><dt className="inline">On the document: </dt><dd className="inline">{v.documentDate ? fmtDate(v.documentDate) : "Not given"}</dd></div>
+                          <div><dt className="inline">Received: </dt><dd className="inline">{v.receivedOn ? fmtDate(v.receivedOn) : "Not given"}</dd></div>
+                          <div><dt className="inline">Uploaded: </dt><dd className="inline">{fmtDate(v.uploadedAt, true)} · {names.get(v.uploadedById) ?? "Former member"}</dd></div>
+                          <div><dt className="inline">Effective from: </dt><dd className="inline">{v.effectiveFrom ? fmtDate(v.effectiveFrom) : "Not given"}</dd></div>
+                          <div><dt className="inline">Approved: </dt><dd className="inline">{v.approvedAt ? `${fmtDate(v.approvedAt, true)}${v.approvedById ? ` · ${names.get(v.approvedById) ?? "Former member"}` : ""}` : "Not yet"}</dd></div>
+                          {v.intakeId ? <div><dt className="inline">From: </dt><dd className="inline"><Link href={`/rota/coordinator/${v.intakeId}?step=review`}>Care Coordinator intake</Link></dd></div> : null}
+                        </dl>
+                        {v.changeNote ? <p className="mt-1 text-[12.5px] text-slate-600">{v.changeNote}</p> : null}
+                        {canManage && !detail!.doc.archivedAt && (v.status === "PENDING_REVIEW" || v.status === "CURRENT") ? (
+                          <form action={decideSuDocumentVersionAction} className="mt-2 flex flex-wrap items-center gap-2">
+                            <input type="hidden" name="back" value={back} />
+                            <input type="hidden" name="documentId" value={detail!.doc.id} />
+                            <input type="hidden" name="version" value={v.version} />
+                            <input name="note" className="input w-auto min-w-[220px] flex-1 py-1 text-[13px]" placeholder={v.status === "PENDING_REVIEW" ? "Note (required to reject)" : "Why it is withdrawn"} aria-label={`Note for ${v.label}`} />
+                            {v.status === "PENDING_REVIEW" ? <><button name="decision" value="APPROVE" className="btn-primary py-1">Approve {v.label}</button><button name="decision" value="REJECT" className="btn-secondary py-1">Reject</button></> : null}
+                            <button name="decision" value="WITHDRAW" className="btn-secondary py-1">Withdraw</button>
+                          </form>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <form method="get" className="mt-2 flex flex-wrap items-end gap-2" aria-label="Version in force on a date">
+                    <input type="hidden" name="tab" value="documents" />
+                    <input type="hidden" name="section" value={SECTION_PARAM[section]} />
+                    <input type="hidden" name="doc" value={detail!.doc.id} />
+                    <label><span className="label">Which version was in force on</span><input type="date" name="inforce" defaultValue={inForceDate ?? ""} className="input py-1" /></label>
+                    <button className="btn-secondary py-1">Check</button>
+                  </form>
+                  {inForceDate ? <p className="mt-1 text-[13.5px]" role="status">{inForceVersion ? <>On {fmtDate(inForceVersion.effectiveFrom ?? inForceDate)}{" "}the version in force was <strong>{inForceVersion.label}</strong> ({VERSION_STATUS[inForceVersion.status].toLowerCase()} now).</> : <>No approved version was in force on {fmtDate(inForceDate)}.</>}</p> : null}
+                  {comparison ? (
+                    <div id="compare" className="mt-3 rounded-[4px] border border-slate-200 p-3">
+                      <h5 className="text-[14px] font-semibold">{comparison.version.label} compared with {comparison.previous ? comparison.previous.label : "nothing (first version)"}</h5>
+                      {comparison.fields.length ? (
+                        <table className="mt-1 w-full text-left text-[13px]"><thead className="text-slate-500"><tr><th className="py-1 pr-2">Detail</th><th className="py-1 pr-2">{comparison.previous?.label}</th><th className="py-1">{comparison.version.label}</th></tr></thead>
+                          <tbody>{comparison.fields.map((f) => <tr key={f.label} className={`border-t border-slate-200 ${f.changed ? "font-medium" : "text-slate-600"}`}><td className="py-1 pr-2">{f.label}{f.changed ? " (changed)" : ""}</td><td className="py-1 pr-2">{f.previous ?? "Not given"}</td><td className="py-1">{f.this ?? "Not given"}</td></tr>)}</tbody></table>
+                      ) : null}
+                      {comparison.version.intakeId ? <p className="mt-1 text-[13px]">The content was compared detail by detail in its <Link href={`/rota/coordinator/${comparison.version.intakeId}?step=review`}>Care Coordinator intake</Link> (What the revised plan changes).</p> : <p className="mt-1 text-[13px] text-slate-600">This version was uploaded by hand, so its content was not compared automatically. Open both files to compare them.</p>}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {canManage ? (
                 <div className="space-y-2 border-t border-slate-200 pt-3">

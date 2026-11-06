@@ -198,7 +198,8 @@ export async function uploadDocument(ctx: Ctx, serviceUserId: string, section: S
   const stored = await storePrivateFile(su.organisationId, "su-documents", file);
   return db.$transaction(async (tx) => {
     const doc = await tx.serviceUserDocument.create({ data: { organisationId: su.organisationId, serviceUserId: su.id, section, ...d, createdById: ctx.userId } });
-    await tx.serviceUserDocumentVersion.create({ data: { organisationId: su.organisationId, documentId: doc.id, version: 1, ...stored, uploadedById: ctx.userId } });
+    const v1 = await tx.serviceUserDocumentVersion.create({ data: { organisationId: su.organisationId, documentId: doc.id, version: 1, ...stored, uploadedById: ctx.userId, receivedOn: d.receivedOn ?? null, effectiveFrom: d.effectiveFrom ?? null } });
+    await tx.serviceUserDocumentVersionStatus.create({ data: { organisationId: su.organisationId, documentId: doc.id, versionId: v1.id, status: "CURRENT", actorId: ctx.userId } });
     await audit({ organisationId: su.organisationId, actorId: ctx.userId, action: "suDocument.uploaded", entityType: "ServiceUserDocument", entityId: doc.id, data: { serviceUserId: su.id, section, category: d.category, filename: stored.filename, sizeBytes: stored.sizeBytes, sensitive: d.sensitive } }, tx);
     if (section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN") await promptCarePlanReview(tx, su.organisationId, ctx.userId, su, doc.id, 1);
     return doc;
@@ -226,7 +227,14 @@ export async function replaceDocument(ctx: Ctx, documentId: string, lockVersion:
     const next = doc.currentVersion + 1;
     const moved = await tx.serviceUserDocument.updateMany({ where: { id: doc.id, lockVersion }, data: { currentVersion: next, lockVersion: { increment: 1 } } });
     if (moved.count !== 1) throw new ConflictError("Someone else changed this document. Reload the page and try again.");
-    await tx.serviceUserDocumentVersion.create({ data: { organisationId: doc.organisationId, documentId: doc.id, version: next, ...stored, changeNote: note, uploadedById: ctx.userId } });
+    const row = await tx.serviceUserDocumentVersion.create({ data: { organisationId: doc.organisationId, documentId: doc.id, version: next, ...stored, changeNote: note, uploadedById: ctx.userId } });
+    // Replacing by hand puts the new file in force straight away; whatever was current is superseded (version control).
+    const earlier = await tx.serviceUserDocumentVersion.findMany({ where: { documentId: doc.id, version: { lt: next } }, select: { id: true, version: true, statuses: { orderBy: { at: "desc" }, take: 1, select: { status: true } } } });
+    for (const e of earlier) {
+      const st = e.statuses[0]?.status ?? (e.version === doc.currentVersion ? "CURRENT" : "SUPERSEDED");
+      if (st === "CURRENT" || st === "PENDING_REVIEW") await tx.serviceUserDocumentVersionStatus.create({ data: { organisationId: doc.organisationId, documentId: doc.id, versionId: e.id, status: "SUPERSEDED", note: `Replaced by version ${next}`, actorId: ctx.userId } });
+    }
+    await tx.serviceUserDocumentVersionStatus.create({ data: { organisationId: doc.organisationId, documentId: doc.id, versionId: row.id, status: "CURRENT", note, actorId: ctx.userId } });
     await audit({ organisationId: doc.organisationId, actorId: ctx.userId, action: "suDocument.replaced", entityType: "ServiceUserDocument", entityId: doc.id, data: { serviceUserId: doc.serviceUserId, version: next, filename: stored.filename, changeNote: note } }, tx);
     if (doc.section === "COUNCIL" && doc.category === "COUNCIL_SUPPORT_PLAN") {
       const su = await tx.serviceUser.findUniqueOrThrow({ where: { id: doc.serviceUserId }, select: { id: true, firstName: true, lastName: true } });

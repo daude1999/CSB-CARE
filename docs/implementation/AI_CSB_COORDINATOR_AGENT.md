@@ -217,3 +217,23 @@ For an "Updated or revised plan" intake (B), the Check facts step opens with **W
 The comparison itself writes nothing. Package and visit changes still go to a manager, and completed visits are never rewritten.
 
 **Limitation.** A removed or superseded visit is shown, but it is not ended automatically. The coordinator changes or ends it on the Templates screen once the council confirms.
+
+## Support plan version control (phase 8)
+
+`src/server/care/document-versions.ts` and migration `20261106210000_su_document_version_control` (additive) add version control to a person's documents.
+
+**Dates.** Each version (V1, V2, V3…) carries its own dates, set once when the file is added: on the document, received, uploaded, effective from, plus the approval date and who approved it. Versions stay immutable.
+
+**Status.** Each version is Pending review, Current, Superseded, Withdrawn or Rejected. The status is kept in an append-only log (`ServiceUserDocumentVersionStatus`, protected by a database trigger), so every decision stays in the history. Versions from before version control read as Current (the document's current version) or Superseded.
+
+**How versions change:**
+- A hand upload is Current.
+- A hand replacement makes the new file Current and the earlier one Superseded.
+- A revised support plan filed by the Care Coordinator for someone who already has one (options B and C) becomes the next version of the existing plan as **Pending review**. The plan in force stays Current until someone with document permission approves the new one.
+- Approving a pending version makes it Current and supersedes the one before. It also prompts a care plan review, as before.
+- Rejecting a pending version needs a reason.
+- Withdrawing a version needs a reason. Withdrawing the current version puts the previous approved version back in force.
+
+**On the person's Documents tab**, a document's "Document history" shows each version with its dates, status and actions. "Compare previous version" lays out the dates, file and status side by side. When the version came from an intake, it links to that intake's detail-by-detail comparison. "Which version was in force on" answers for any date.
+
+**Limitation.** A hand-uploaded version is not compared detail by detail. Only versions that came through the Care Coordinator are.

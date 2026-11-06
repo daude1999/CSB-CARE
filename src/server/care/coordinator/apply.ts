@@ -12,6 +12,7 @@ import { audit } from "@/server/audit-log";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { durationCheck, visitTasks } from "./visit-tasks";
+import { addPendingVersion, currentSupportPlan, recordVersionStatus } from "../document-versions";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
@@ -572,9 +573,20 @@ export async function fileDocuments(ctx: Ctx, intakeId: string) {
     let filed = 0;
     for (const d of docs) {
       if (!categoriesFor(d.section).some((c) => c.key === d.category)) throw new ValidationError(`Choose a valid category for ${d.name}`);
+      // A revised support plan for someone who already has one becomes its next version, waiting for review; the
+      // plan in force stays current until a person approves the new one (version control, phase 8).
+      const existingPlan = intake.mode !== "NEW" && d.section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN" ? await currentSupportPlan(tx, su.id) : null;
+      if (existingPlan) {
+        const pending = await addPendingVersion(tx, { organisationId: scope.organisationId, documentId: existingPlan.id, actorId: ctx.userId, file: { filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus }, documentDate: d.documentDate, receivedOn: dbDate(londonDate()), effectiveFrom: d.documentDate, intakeId: intake.id, note: `Revised plan from Care Coordinator intake ${intake.reference}. Waiting for review; the earlier version stays in force until it is approved.` });
+        await tx.careIntakeDocument.update({ where: { id: d.id }, data: { filedDocumentId: existingPlan.id } });
+        await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "suDocument.version.pending", entityType: "ServiceUserDocument", entityId: existingPlan.id, data: { serviceUserId: su.id, version: pending.version, intakeId } }, tx);
+        filed++;
+        continue;
+      }
       const details = parseDetails(d.section, { name: d.name, category: d.category, issuingAuthority: d.issuer ?? undefined, receivedOn: londonDate(), effectiveFrom: d.documentDate ? fromDbDate(d.documentDate) : undefined, notes: `Filed from Care Coordinator intake ${intake.reference}. Original file, unchanged (SHA-256 ${d.sha256.slice(0, 16)}…).`, markSensitive: d.sensitive });
       const row = await tx.serviceUserDocument.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, section: d.section, ...details, sensitive: d.sensitive || details.sensitive, createdById: ctx.userId } });
-      await tx.serviceUserDocumentVersion.create({ data: { organisationId: scope.organisationId, documentId: row.id, version: 1, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus, uploadedById: d.createdById } });
+      const v1 = await tx.serviceUserDocumentVersion.create({ data: { organisationId: scope.organisationId, documentId: row.id, version: 1, filename: d.filename, contentType: d.contentType, sizeBytes: d.sizeBytes, sha256: d.sha256, storageKey: d.storageKey, scanStatus: d.scanStatus, uploadedById: d.createdById, documentDate: d.documentDate, receivedOn: details.receivedOn, effectiveFrom: details.effectiveFrom, intakeId: intake.id } });
+      await recordVersionStatus(tx, { organisationId: scope.organisationId, documentId: row.id, versionId: v1.id, status: "CURRENT", actorId: ctx.userId, note: `Filed from Care Coordinator intake ${intake.reference}` });
       await tx.careIntakeDocument.update({ where: { id: d.id }, data: { filedDocumentId: row.id } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "suDocument.uploaded", entityType: "ServiceUserDocument", entityId: row.id, data: { serviceUserId: su.id, section: d.section, category: d.category, filename: d.filename, sizeBytes: d.sizeBytes, sensitive: row.sensitive, via: "care-coordinator", intakeId } }, tx);
       if (d.section === "COUNCIL" && d.category === "COUNCIL_SUPPORT_PLAN") await promptCarePlanReview(tx, scope.organisationId, ctx.userId, su, row.id, 1);

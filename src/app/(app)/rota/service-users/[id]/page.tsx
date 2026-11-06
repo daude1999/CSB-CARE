@@ -581,7 +581,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           </nav>
           {suForms ? (
             <PersonForms rows={suForms.rows} startable={suForms.startable} about={`SERVICE_USER:${su.id}`} back={`${base}?tab=documents&section=forms`} personName={suName(su)} testId="service-user-forms" />
-          ) : <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} />}
+          ) : <ServiceUserDocuments ctx={ctx} serviceUserId={su.id} section={sp.section === "other" ? "OTHER" : "COUNCIL"} selectedId={sp.doc} base={base} inForce={sp.inforce} compare={sp.compare} />}
         </>
       ) : null}
 
