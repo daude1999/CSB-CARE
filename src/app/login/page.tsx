@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const showDemo = process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false");
+  // The demo sign-ins are shown only while a demo organisation exists (the hosted site stopped being a demo on 6 Nov 2026).
+  const showDemo = (process.env.SHOW_DEMO_LOGINS === "true" || (process.env.NODE_ENV !== "production" && process.env.SHOW_DEMO_LOGINS !== "false")) && (await db.organisation.count({ where: { isDemo: true } })) > 0;
   // Databases seeded before the move to Care Solution Bureau keep their original demo addresses.
   const d = showDemo && !(await db.organisation.findUnique({ where: { slug: "csb-demo" }, select: { id: true } })) ? "brookfield.demo" : "care-solution.demo";
   return (
