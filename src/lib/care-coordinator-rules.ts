@@ -42,7 +42,7 @@ export const ACCEPTED = new Set<string>(["APPROVED", "EDITED"]);
 /** Facts that still need the coordinator before the intake can go to a manager. */
 export const OPEN_DECISIONS = new Set<string>(["PENDING", "CLARIFY"]);
 
-export const SECTION_STATUS = { OPEN: "Waiting for manager", APPROVED: "Approved", RETURNED: "Returned for correction", REJECTED: "Rejected", INFO_REQUESTED: "More information requested" } as const;
+export const SECTION_STATUS = { OPEN: "Waiting for manager", APPROVED: "Approved", RETURNED: "Returned for correction", REJECTED: "Rejected", INFO_REQUESTED: "More information requested", DRAFTED: "Saved as drafts by the AI CSB Coordinator" } as const;
 export const APPLY_STATUS = { NOT_STARTED: "Not saved yet", DONE: "Saved to record", FAILED: "Failed, can be retried", BLOCKED: "Blocked" } as const;
 export const INTAKE_STATUS = { DRAFT: "Coordinator review", SUBMITTED: "Waiting for manager", APPROVED: "Approved, ready to save", APPLYING: "Saving to record", COMPLETED: "Completed", CANCELLED: "Cancelled" } as const;
 

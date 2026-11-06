@@ -1,13 +1,14 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
-import { ValidationError } from "@/lib/errors";
+import { AppError, ValidationError } from "@/lib/errors";
 import { fmtLondonDate, londonDate } from "@/lib/london";
 import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
 import { addDocuments, coordinatorAccess, createIntake, getIntake, listIntakes, MAX_INTAKE_DOCUMENTS } from "./intake";
 import { digestText, intakeDigest } from "./intake-digest";
 import { readOnce } from "./agent-tools";
 import { READ_FAILURE_TEXT } from "./reader";
+import { prepareDrafts, prepareReportText, type PrepareReport } from "./prepare";
 import type { UploadedFile } from "../su-documents";
 
 /**
@@ -61,7 +62,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
       const view = await getIntake(ctx, elsewhere.intake.id);
       return {
         intakeId: elsewhere.intake.id, reference: elsewhere.intake.reference, created: false, added: [] as string[], duplicates: input.files.map((f) => f.name), alreadyOnIntake: true,
-        failed: [] as { name: string; error: string }[], fallback: [] as { name: string; reason: string; partly: boolean }[], summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
+        failed: [] as { name: string; error: string }[], fallback: [] as { name: string; reason: string; partly: boolean }[], prepared: null as PrepareReport | null, summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
       };
     }
     const intake = await createIntake(ctx, {
@@ -96,9 +97,18 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
     ? (await db.careIntakeDocument.findMany({ where: { intakeId, organisationId, readFailure: { not: null }, sha256: { in: fresh.map((f) => hashes[input.files.indexOf(f)]!) } }, select: { name: true, readFailure: true, readMethod: true } }))
         .map((d) => ({ name: d.name, reason: READ_FAILURE_TEXT[d.readFailure as keyof typeof READ_FAILURE_TEXT] ?? "the AI service could not read it", partly: d.readMethod === "ai-and-basic" }))
     : [];
+  // The coordinator's data entry: the person's records as drafts and a proposed rota (never live, never published).
+  let prepared: PrepareReport | null = null;
+  if (fresh.length) {
+    try {
+      prepared = await prepareDrafts(ctx, intakeId);
+    } catch (e) {
+      if (!(e instanceof AppError)) throw e;
+    }
+  }
   const view = await getIntake(ctx, intakeId);
   return {
-    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback,
-    summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${intakeId}?step=facts`, ...counts(view),
+    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback, prepared,
+    summary: [prepared ? prepareReportText(prepared) : null, digestText(intakeDigest(view))].filter(Boolean).join("\n\n"), href: `/rota/coordinator/${intakeId}?step=facts`, ...counts(view),
   };
 }

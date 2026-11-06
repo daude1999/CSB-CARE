@@ -9,10 +9,10 @@ once its tests pass.
 |---|---|---|
 | 1 | Fix document reading: root cause, retries, fallback, Read again | Merged (#108) |
 | 2 | Complete structured extraction (personal, contacts, package, care plan detail, risks, medication, all visits) | Not started |
-| 3 | CRM population orchestration through existing services (drafts, provenance) | Not started |
-| 4 | Draft rota separated from activation | Not started |
-| 5 | Chat actions on the orchestration service | Not started |
-| 6 | Resumable jobs, dedupe, security regression, end-to-end tests | Not started |
+| 3 | CRM population orchestration through existing services (drafts, provenance) | PR (with 4-6) |
+| 4 | Draft rota separated from activation | PR (with 3, 5, 6) |
+| 5 | Chat actions on the orchestration service | PR (with 3, 4, 6) |
+| 6 | Resumable jobs, dedupe, security regression, end-to-end tests | Partly, see limits |
 
 ## Phase 1: document reading
 
@@ -90,3 +90,52 @@ readings still load.
 
 Fixed on the way: reader notes (such as the temporary-visit warning) were overwritten when facts were compared; the
 comparison now adds that warning itself.
+
+## Phases 3 to 6: one upload fills the CRM as drafts (built together at the owner's request, 6 Nov 2026 15:58)
+
+**Prepare records and draft rota** (`src/server/care/coordinator/prepare.ts`, `prepareDrafts`). It runs automatically
+after an upload (intake screen and chat paperclip) and from a button on Check facts, and it can be run again:
+
+1. Facts whose words were found on the page, with no warning, are accepted for drafting and marked with who ran it.
+   **Scanned council plans** (Tower Hamlets and most councils send page images with no text layer) cannot be checked
+   word for word, so facts the AI read from a scanned page are also accepted for drafting, with the decision note
+   "from a scanned page ... compare with the original before relying on it", and they stay marked unverified. A quote
+   missing from a page that does have text is never accepted (that is a misreading). Contradicted, historical or
+   restricted facts stay for a person.
+2. Identity first. A new person is created only with a first and last name, and not when someone with the same name
+   (and date of birth or postcode) is on record, unless the coordinator confirms it is a different person. Until then
+   nothing is written and the intake stays a prospective intake.
+3. The draft-safe sections are saved through the same `applySection` code a manager-approved section uses, with
+   `prepare: true`: the person at **Assessment**, contacts, carer preferences, the care package, the care plan as a
+   **DRAFT**, risks as **DRAFTs** (a risk with no stated level is saved with a clearly labelled placeholder; the
+   assessor must set it), visit templates and call notes. The section is marked `DRAFTED`. Medication, incident history
+   and skin findings always go to a manager. For someone already receiving care, package and visit changes also go to a
+   manager.
+4. **Proposed rota.** `createProposedRota` (in `src/server/rota/build.ts`) builds the next two weeks for that person
+   with the normal Build Rota rules, also while the person is at Assessment. The visits are unpublished.
+   Publishing is refused for anyone whose care is not active (`publishBuild` and the visit Publish action), so carers
+   are never told, and nothing is delivered, paid or invoiced. Whole-organisation builds still skip people who are not
+   active. Activation keeps every existing check (care plan approved by a different person, risks reviewed).
+5. The report gives the counts read back from the database.
+
+**Chat actions** (`agent-tools.ts`): `prepare_records` (only when the employee asked; "different person" only when the
+employee said so), `get_prepared_records` (person, contacts, package, care plan, risks, templates with ids, proposed
+visits, open facts) and `correct_draft_visit` (a template's start time or length for someone not yet active, only with
+the time the employee typed; its proposed visits move through Template + Future Rota).
+
+**Duplicates and resuming.** The same PDF uploaded twice to an intake is kept once (SHA-256). Every step records what
+each fact became, so running Prepare again carries on from where it stopped and never creates anything twice; a failed
+section is retried on the next run.
+
+### Limits still open
+
+- Reading and preparing still run inside the request (the page allows up to 5 minutes). A background, resumable job
+  with live progress is not built yet.
+- No separate DRAFT status for the care package: the package is saved for a person at Assessment, and it only matters
+  operationally once care is activated.
+- No browser (Playwright) test for the whole flow yet; it is covered by integration tests and screenshots.
+- No OCR. A scanned plan is read only by the AI (Rota Settings switch on, `AI_PROVIDER=anthropic`). With the AI off,
+  CSB's own reader finds nothing on a scanned plan and the pages are listed for a person to read. Adding OCR (for
+  example Tesseract) would be a new dependency and needs the owner's approval.
+- Tested with a real Tower Hamlets "One Off Service Request" layout only locally, never committed; the tests and
+  screenshots use fictional people. The real AI reading of it is still to be checked on the live site.

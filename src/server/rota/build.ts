@@ -87,7 +87,7 @@ export function parseCycleWeek(v: number | undefined) {
   return v;
 }
 
-async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number, opts: { allowPast?: boolean; serviceUserId?: string } = {}): Promise<BuildPlan> {
+async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[], cycleWeekOverride?: number, opts: { allowPast?: boolean; serviceUserId?: string; proposal?: boolean } = {}): Promise<BuildPlan> {
   const org = scope.organisationId;
   const settings = await rotaSettings(tx, org);
   const cycleWeek = cycleWeekOverride ?? cycleWeekOf(weekStart, fromDbDate(settings.anchorMonday), settings.cycleLength);
@@ -140,7 +140,9 @@ async function plan(tx: Tx, scope: Scope, weekStart: string, areaIdsIn: string[]
         alreadyBuilt++;
         continue;
       }
-      if (t.serviceUser.status !== "ACTIVE") {
+      // A proposed rota (AI CSB Coordinator) also covers a person still at Enquiry or Assessment. Those visits stay
+      // unpublished: publishing is refused until care is activated.
+      if (t.serviceUser.status !== "ACTIVE" && !(opts.proposal && (t.serviceUser.status === "ASSESSMENT" || t.serviceUser.status === "ENQUIRY"))) {
         skipped.push({ templateId: t.id, serviceUserName: suName, date, reason: `Care is ${t.serviceUser.status.toLowerCase()}` });
         continue;
       }
@@ -404,8 +406,10 @@ export async function publishBuild(ctx: Ctx, buildId: string) {
     const now = new Date();
     // A branch-limited member publishes only the visits in their own areas; another branch's part of a shared build
     // stays unpublished for that branch to check and publish.
-    const visits = await tx.visit.findMany({ where: { ...visitWhere(scope), rotaBuildId: b.id, publishedAt: null, status: { not: "CANCELLED" } }, select: { id: true } });
-    if (!visits.length) throw new ValidationError("Everything in this build that you look after is already published.");
+    const all = await tx.visit.findMany({ where: { ...visitWhere(scope), rotaBuildId: b.id, publishedAt: null, status: { not: "CANCELLED" } }, select: { id: true, serviceUser: { select: { status: true } } } });
+    // A proposed visit for someone whose care is not active yet is never sent to carers.
+    const visits = all.filter((v) => v.serviceUser.status === "ACTIVE");
+    if (!visits.length) throw new ValidationError(all.length ? "These visits are a proposed rota for someone whose care is not active yet. Activate care first; then publish." : "Everything in this build that you look after is already published.");
     // Re-validate every carer on the week before it goes out: anything that changed since the build (an expired
     // certificate, a new restriction, an absence) flags the visit for review. Nobody is reassigned automatically.
     const staffOnBuild = [...new Set((await tx.visitAssignment.findMany({ where: { visitId: { in: visits.map((v) => v.id) }, removedAt: null }, select: { staffId: true } })).map((a) => a.staffId))];
@@ -584,4 +588,30 @@ export async function confirmServiceUserRota(ctx: Ctx, serviceUserId: string, in
     }
   }
   return { ...result, published, carersNotified };
+}
+
+/**
+ * A proposed rota for one person (AI CSB Coordinator, brief of 6 Nov 2026): the same planning rules as Create Future
+ * Rota, but also for someone still at Enquiry or Assessment. Visits are created unpublished and cannot be published until
+ * care is activated, so carers are never told, nothing is delivered, paid or invoiced. One transaction under the same
+ * week locks as Build Rota, so nothing is ever created twice.
+ */
+export async function createProposedRota(ctx: Ctx, serviceUserId: string, input: { weekStart: string; weeks: number }) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const { weekStart, weeks } = parseFutureInput(input);
+  return db.$transaction(
+    async (tx) => {
+      const su = await loadServiceUser(tx, scope, serviceUserId);
+      if (su.status === "ENDED" || su.status === "PAUSED") throw new ValidationError(`Care is ${su.status.toLowerCase()}, so no rota is proposed`);
+      for (let i = 0; i < weeks; i++) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rota-build:${scope.organisationId}:${addDays(weekStart, i * 7)}`}))`;
+      const plans: BuildPlan[] = [];
+      for (let i = 0; i < weeks; i++) plans.push(await plan(tx, scope, addDays(weekStart, i * 7), [], undefined, { serviceUserId: su.id, proposal: true }));
+      const builds: string[] = [];
+      for (const p of plans.filter((x) => x.visits.length)) builds.push((await writeBuild(tx, ctx, scope, p.weekStart, p, su.id)).id);
+      const visits = plans.reduce((n, p) => n + p.visits.length, 0);
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "rota.proposed.created", entityType: "ServiceUser", entityId: su.id, data: { weekStart, weeks, builds, visits, status: su.status } }, tx);
+      return { builds, visits, unassignedSlots: plans.reduce((n, p) => n + p.unassignedSlots, 0), alreadyBuilt: plans.reduce((n, p) => n + p.alreadyBuilt, 0), skipped: plans.flatMap((p) => p.skipped) };
+    },
+    { timeout: 120_000 },
+  );
 }

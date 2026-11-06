@@ -48,16 +48,31 @@ const docLabel = async (tx: Tx, id: string | null, page: number | null) => {
   return `${d?.name ?? "document"}${page ? `, page ${page}` : ""}`;
 };
 
-export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSection) {
+/**
+ * Sections the AI CSB Coordinator may save as drafts without a manager's section approval (brief of 6 Nov 2026): the
+ * person is created at Assessment, the care plan and risks are DRAFTs for their own approvals, visit templates only
+ * reach the rota once care is activated. Restricted sections (medication, incident history, skin) always go to a
+ * manager.
+ */
+export const DRAFT_SECTIONS = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "VISITS", "CALL_NOTES"] as const satisfies readonly IntakeSection[];
+export const isDraftSection = (s: string) => (DRAFT_SECTIONS as readonly string[]).includes(s);
+
+export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSection, opts: { prepare?: boolean } = {}) {
   const access = coordinatorAccess(ctx);
   const scope = await rotaScope(ctx, "serviceUser.edit");
+  const prepare = !!opts.prepare && isDraftSection(section);
   // Claim the section so two people pressing Save at once cannot both run it.
   const claim = await db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
-    if (intake.status === "CANCELLED" || intake.status === "DRAFT") throw new ConflictError("This intake is not approved");
+    if (intake.status === "CANCELLED" || (intake.status === "DRAFT" && !prepare)) throw new ConflictError("This intake is not approved");
+    if (prepare && intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing the intake");
+    if (prepare && intake.mode === "EXISTING" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
     const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
-    if (s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved by a manager`);
-    if (s.applyStatus === "DONE") return null;
+    if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved by a manager`);
+    if (prepare && !(s.status === "OPEN" || s.status === "DRAFTED")) throw new ConflictError(`${sectionLabel(section)} is with a manager`);
+    const unapplied = await tx.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null } });
+    if (s.applyStatus === "DONE" && !(prepare && unapplied)) return null;
+    if (prepare && !unapplied) return null;
     if (section !== "PERSONAL" && !intake.serviceUserId) throw new ConflictError("Save Personal details first: the person does not exist yet");
     if ((section === "MEDICATION" || section === "INCIDENTS" || section === "BODY_MAP") && !access.sensitive) throw new ForbiddenError("A registered manager or administrator saves restricted sections");
     await tx.careIntakeSection.update({ where: { id: s.id }, data: { attempts: { increment: 1 } } });
@@ -68,9 +83,10 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
   try {
     const result = await run(ctx, scope, claim.id, section);
     await db.$transaction(async (tx) => {
-      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "DONE", applyResult: result as unknown as Prisma.InputJsonValue, applyError: null, appliedById: ctx.userId, appliedAt: new Date() } });
-      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.applied", entityType: "CareIntake", entityId: intakeId, data: { section, created: result.created.length, skipped: result.skipped.length, verified: result.verified } }, tx);
-      await settleStatus(tx, intakeId);
+      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "DONE", applyResult: result as unknown as Prisma.InputJsonValue, applyError: null, appliedById: ctx.userId, appliedAt: new Date(), ...(prepare ? { status: "DRAFTED", decidedById: null, decidedAt: null } : {}) } });
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: prepare ? "coordinator.section.drafted" : "coordinator.section.applied", entityType: "CareIntake", entityId: intakeId, data: { section, created: result.created.length, skipped: result.skipped.length, verified: result.verified } }, tx);
+      if (prepare) await tx.careIntake.update({ where: { id: intakeId }, data: { status: "DRAFT" } });
+      else await settleStatus(tx, intakeId);
     });
     if (section === "PERSONAL") {
       // The originals go into Council or Other Documents as soon as the person exists. If filing fails, the person is
@@ -89,8 +105,9 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
     const message = e instanceof AppError ? e.message : "Saving failed unexpectedly. The error has been logged; try again.";
     await db.$transaction(async (tx) => {
       await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "FAILED", applyError: message.slice(0, 1000) } });
-      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.failed", entityType: "CareIntake", entityId: intakeId, data: { section, error: message.slice(0, 300) } }, tx);
-      await settleStatus(tx, intakeId);
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.failed", entityType: "CareIntake", entityId: intakeId, data: { section, error: message.slice(0, 300), prepare } }, tx);
+      if (prepare) await tx.careIntake.update({ where: { id: intakeId }, data: { status: "DRAFT" } });
+      else await settleStatus(tx, intakeId);
     });
     if (!(e instanceof AppError)) throw e;
     return { section, status: "FAILED" as const, error: message };
@@ -121,7 +138,7 @@ async function settleStatus(tx: Tx, intakeId: string) {
   const sections = await tx.careIntakeSection.findMany({ where: { intakeId } });
   const withFacts = new Set((await tx.careIntakeFact.findMany({ where: { intakeId, decision: { in: [...ACCEPTED] } }, select: { section: true } })).map((f) => f.section));
   const relevant = sections.filter((s) => withFacts.has(s.section) && s.status !== "REJECTED");
-  const done = relevant.every((s) => s.status === "APPROVED" && s.applyStatus === "DONE");
+  const done = relevant.every((s) => (s.status === "APPROVED" || s.status === "DRAFTED") && s.applyStatus === "DONE");
   const status = done && relevant.length ? "COMPLETED" : relevant.some((s) => s.status === "OPEN") ? "SUBMITTED" : "APPROVED";
   if (status !== intake.status) await tx.careIntake.update({ where: { id: intakeId }, data: { status } });
 }
@@ -301,7 +318,8 @@ async function applyPackage(ctx: Ctx, scope: Scope, intakeId: string): Promise<S
 async function applyCarePlan(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   const { su, intake } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
   const section = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section: "CARE_PLAN" } } });
-  const prior = (section.applyResult as { planId?: string } | null)?.planId;
+  // The draft this intake started (kept while the section runs; afterwards found through the saved facts).
+  const prior = (section.applyResult as { planId?: string } | null)?.planId ?? (await db.careIntakeFact.findFirst({ where: { intakeId, section: "CARE_PLAN", appliedRef: { startsWith: "CarePlan:" } }, select: { appliedRef: true } }))?.appliedRef?.slice("CarePlan:".length);
   let plan = prior ? await db.carePlan.findFirst({ where: { id: prior, serviceUserId: su.id, status: "DRAFT" }, include: { sections: true } }) : null;
   if (!plan) {
     const open = await db.carePlan.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "IN_REVIEW"] } } });
@@ -313,7 +331,8 @@ async function applyCarePlan(ctx: Ctx, scope: Scope, intakeId: string): Promise<
   const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "CARE_PLAN", decision: { in: [...ACCEPTED] } }, orderBy: { position: "asc" } });
   const sections: Record<string, { body: string; outcomes?: string }> = {};
   for (const key of PLAN_SECTION_KEYS) {
-    const mine = fs.filter((f) => f.destination === `careplan.${key}`);
+    // Facts saved by an earlier run are already in the draft's text; only new ones are added.
+    const mine = fs.filter((f) => f.destination === `careplan.${key}` && !f.appliedAt);
     const existing = plan.sections.find((s) => s.key === key);
     if (!mine.length) { sections[key] = { body: existing?.body || "Not documented in the source documents. To be completed at assessment.", outcomes: existing?.outcomes ?? undefined }; continue; }
     const parts: string[] = existing?.body ? [existing.body, ""] : [];
@@ -351,7 +370,7 @@ async function applyRisks(ctx: Ctx, scope: Scope, intakeId: string): Promise<Sec
     if (dup) { await db.$transaction((tx) => markApplied(tx, f, `existing:RiskAssessment:${dup.id}`)); out.skipped.push(`${r.title} already exists`); continue; }
     const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
     const reviewDue = r.reviewDue && r.reviewDue > londonDate() ? r.reviewDue : addDays(londonDate(), 14);
-    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, r.levelIsProvisional ? `Level ${r.level} is PROVISIONAL (set by the coordinator, not stated in the documents). The assessor must confirm or change it.` : null].filter(Boolean).join("\n").slice(0, 4000);
+    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, !r.level ? "NO RISK LEVEL IS STATED in the documents. The level shown is only a placeholder so the draft can be saved; the assessor must set it." : r.levelIsProvisional ? `Level ${r.level} is PROVISIONAL (set by the coordinator, not stated in the documents). The assessor must confirm or change it.` : null].filter(Boolean).join("\n").slice(0, 4000);
     const controls = (r.existingControls ? `Documented controls: ${r.existingControls}` : "No controls are documented. The assessor must set the controls before approving.").slice(0, 4000);
     const created = await createRiskDraft(ctx, su.id, { type: r.type, title: r.title, hazards, controls, level: r.level ?? "MEDIUM", reviewDue, requiredActions: r.recommendedActions ? `For review: ${r.recommendedActions}` : undefined, responsiblePerson: r.recommendedActions ? (r.responsiblePerson ?? "Registered manager") : (r.responsiblePerson ?? undefined) });
     await db.$transaction((tx) => markApplied(tx, f, `RiskAssessment:${created.id}`));
