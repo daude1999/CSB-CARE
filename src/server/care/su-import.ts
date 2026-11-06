@@ -1,6 +1,7 @@
 import type { Prisma, ServiceUserDocumentSection } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, hhmm, isIsoDate, londonDate, parseHhmm } from "@/lib/london";
 import { FUNDED_BY, guessCallType, hoursToMinutes, weeklyTotals, type FundedBy } from "@/lib/su-import-rules";
@@ -184,6 +185,8 @@ export interface ReadResult {
   providerName: string | null;
   simulated: boolean;
   duplicates: DuplicateMatch[];
+  /** Why the form opened empty when the AI could not read the plan, in plain words (never the document's text). */
+  notice?: string | null;
 }
 
 export interface DuplicateMatch { id: string; reference: string; name: string; status: string; reason: string }
@@ -209,8 +212,11 @@ export async function readSupportPlan(ctx: Ctx, files: UploadedFile[]): Promise<
   try {
     extracted = await provider.extractSupportPlan({ pdfBase64: plan.bytes.toString("base64"), filename: plan.name });
   } catch (e) {
-    if (e instanceof AiUnavailableError) throw e;
-    throw new AiUnavailableError("The document could not be read just now. Type the details in, or try again in a few minutes.");
+    // The reading failed: open the form to type in rather than stopping, and say why in plain words.
+    const why = e instanceof AiUnavailableError ? `${e.message}${e.reason === "rejected" && e.detail ? ` (it said: "${e.detail}")` : ""}` : "The document could not be read just now.";
+    logger.warn({ reason: e instanceof AiUnavailableError ? e.reason : "unknown", err: e instanceof Error ? e.name : "unknown" }, "support plan import reading failed");
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.import.read-failed", entityType: "Organisation", entityId: scope.organisationId, data: { provider: provider.name, reason: e instanceof AiUnavailableError ? e.reason : "unknown" } });
+    return { draft: emptyDraft(names), source: "manual", providerName: provider.name, simulated: provider.isSimulated, duplicates: [], notice: `The plan could not be read automatically. ${why} Type the details in below, or use AI CSB Coordinator, which stores the plan and keeps trying in the background.` };
   }
   const draft = draftFromExtraction(extracted, callTypes, names);
   await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.import.read", entityType: "Organisation", entityId: scope.organisationId, data: { provider: provider.name, file: plan.name.slice(0, 140), visits: draft.visits.length, contacts: draft.contacts.length, flags: draft.flags?.length ?? 0 } });

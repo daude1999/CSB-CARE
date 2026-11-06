@@ -321,6 +321,8 @@ ${input.records.map((r) => `<record id="${r.sid}" kind="${xmlEscape(r.kind)}" da
         },
       ],
       IMPORT_SYSTEM,
+      // Streamed, as the Coordinator's reading is, so a long plan is never cut off by an HTTP timeout.
+      { stream: true },
     );
   }
 
