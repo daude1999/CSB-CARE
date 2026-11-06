@@ -182,7 +182,7 @@ describe("AI CSB Coordinator attachment workflow", () => {
     return fd;
   };
 
-  it("uploads a fictional PDF from chat, creates only a draft, and reuses the same intake on duplicate upload", async () => {
+  it("uploads a fictional PDF from chat, prepares only drafts, and reuses the same intake on duplicate upload", async () => {
     authMock.ctx = await manager();
     const pdf = new Uint8Array(await supportPlanPdf());
     const response = await uploadCsbCoordinatorDocument(formFor(pdf));
@@ -194,7 +194,11 @@ describe("AI CSB Coordinator attachment workflow", () => {
 
     const draft = await db.careIntake.findUniqueOrThrow({ where: { id: response.intakeId } });
     expect(draft.status).toBe("DRAFT");
-    expect(draft.serviceUserId).toBeNull();
+    // The coordinator's data entry is done as drafts (brief of 6 Nov 2026): the person at Assessment, nothing published.
+    expect(draft.serviceUserId).toBeTruthy();
+    expect((await db.serviceUser.findUniqueOrThrow({ where: { id: draft.serviceUserId! } })).status).toBe("ASSESSMENT");
+    expect(await db.visit.count({ where: { serviceUserId: draft.serviceUserId!, publishedAt: { not: null } } })).toBe(0);
+    expect(response.summary).toMatch(/Records prepared for/);
     const count = await db.careIntakeDocument.count({ where: { intakeId: response.intakeId } });
     const again = await uploadCsbCoordinatorDocument(formFor(pdf, response.intakeId));
     expect(again.duplicate).toBe(true);

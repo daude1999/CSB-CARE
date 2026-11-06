@@ -202,10 +202,11 @@ describe("support plan attached in the chat (fictional four-visit council plan)"
     expect(JSON.stringify(d.person)).toMatch(/1088676/);
     expect(d.risks.some((x) => /fall/i.test(x.title))).toBe(true);
     expect(d.risks.every((x) => x.levelFromDocument === null)).toBe(true); // no risk level is manufactured
-    expect(d.nothingSavedYet).toBe(true);
-    // Drafts only: no person, no visit template and no live visit exists yet.
-    expect(await db.visitTemplate.count({ where: { organisationId: orgId, serviceUser: { lastName: "Example", firstName: "Bea" } } })).toBe(0);
-    expect(await db.serviceUser.count({ where: { organisationId: orgId, lastName: "Example", firstName: "Bea" } })).toBe(0);
+    // The upload prepared drafts: the person at Assessment, templates, and only unpublished proposed visits.
+    const people = await db.serviceUser.findMany({ where: { organisationId: orgId, lastName: "Example", firstName: "Bea" }, select: { id: true, status: true } });
+    expect(people.map((p) => p.status)).toEqual(["ASSESSMENT"]);
+    expect(await db.visitTemplate.count({ where: { organisationId: orgId, serviceUserId: people[0]!.id } })).toBe(4);
+    expect(await db.visit.count({ where: { serviceUserId: people[0]!.id, publishedAt: { not: null } } })).toBe(0);
   });
 
   it("runs the owner's end-to-end request through the chat and returns the actual CRM results and review link", async () => {
