@@ -11,6 +11,7 @@ import {
   rereadIntakeDocumentAction, resolveFollowUpAction, submitIntakeAction, updateIntakeDocumentAction, uploadIntakeDocumentsAction,
 } from "@/app/coordinator-actions";
 import { FactRow } from "./fact-row";
+import { ReadProgress } from "./read-progress";
 import { ValueFields } from "./value-fields";
 
 type View = IntakeView;
@@ -23,6 +24,9 @@ function readMethodBadge(d: { readMethod: string | null; readFailure: string | n
   if (d.readMethod === "basic-reader") return <Badge tone="slate">Basic reader (no AI)</Badge>;
   return null;
 }
+/** Where a background reading is (read-jobs.ts). DONE shows nothing extra: the read status says it. */
+const READ_STAGE = { QUEUED: ["Waiting to be read", "slate"], READING: ["Reading now", "teal"], PREPARING: ["Preparing drafts", "teal"], RETRYING: ["Waiting to try again", "amber"], FAILED: ["Reading stopped", "rose"] } as const;
+const STAGE_BUSY = new Set(["QUEUED", "READING", "PREPARING", "RETRYING"]);
 const SECTION_TONE = { DRAFTED: "teal", OPEN: "amber", APPROVED: "green", RETURNED: "rose", REJECTED: "rose", INFO_REQUESTED: "amber" } as const;
 const APPLY_TONE = { NOT_STARTED: "slate", DONE: "green", FAILED: "rose", BLOCKED: "amber" } as const;
 const closed = (v: View) => v.intake.status === "COMPLETED" || v.intake.status === "CANCELLED";
@@ -35,11 +39,14 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
   const { intake } = view;
   return (
     <div className="space-y-4">
+      {view.documents.some((d) => d.readStage && STAGE_BUSY.has(d.readStage)) ? <ReadProgress intakeId={intake.id} /> : null}
       <p className="text-[14px] text-slate-700">The original files are kept exactly as uploaded (each has a fingerprint) and filed in the person&apos;s Council or Other Documents once they are saved. Restricted documents, such as hospital letters, are shown only to managers.</p>
       {view.documents.length ? (
         <ul className="space-y-3" aria-label="Uploaded documents">
           {view.documents.map((d) => {
             const [statusLabel, tone] = READ_STATUS[d.readStatus as keyof typeof READ_STATUS] ?? ["Unknown", "slate"];
+            const stage = d.readStage ? READ_STAGE[d.readStage as keyof typeof READ_STAGE] : undefined;
+            const busy = !!d.readStage && STAGE_BUSY.has(d.readStage);
             return (
               <li key={d.id} className="rounded-[3px] border border-slate-200 p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -49,13 +56,15 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
                     <p className="text-[13px] text-slate-700">Filed under: {d.section === "COUNCIL" ? "Council Documents" : "Other Documents"} → {d.categoryLabel}{d.issuer ? ` · from ${d.issuer}` : ""}{d.documentDate ? ` · dated ${fmtLondonDate(d.documentDate.toISOString().slice(0, 10))}` : ""}</p>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    <Badge tone={tone}>{statusLabel}</Badge>
-                    {readMethodBadge(d)}
+                    {busy ? null : <Badge tone={tone}>{statusLabel}</Badge>}
+                    {stage ? <Badge tone={stage[1]}>{stage[0]}</Badge> : null}
+                    {busy ? null : readMethodBadge(d)}
                     {d.sensitive ? <Badge tone="violet">Restricted</Badge> : null}
                     {d.filedDocumentId ? <Badge tone="navy">Filed in profile</Badge> : null}
                   </div>
                 </div>
-                {d.readNote ? <p className="mt-1 text-[13px] text-slate-600">{d.readNote}</p> : null}
+                {d.readStageNote && (busy || d.readStage === "FAILED" || d.readStage === "DONE") ? <p className={`mt-1 text-[13px] ${d.readStage === "FAILED" ? "text-rose-700" : "text-slate-700"}`}>{d.readStageNote}</p> : null}
+                {d.readNote && !busy ? <p className="mt-1 text-[13px] text-slate-600">{d.readNote}</p> : null}
                 {d.findings.length ? (
                   <ul className="mt-2 space-y-1 text-[13.5px]" aria-label={`Points to check in ${d.name}`}>
                     {d.findings.map((f, i) => <li key={i} className="rounded bg-[#fff8e8] px-2 py-1 text-[#6b4a00]">{f.text}{f.page ? ` (page ${f.page})` : ""}</li>)}
@@ -64,7 +73,7 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
                 <div className="mt-2 flex flex-wrap items-start gap-2">
                   {d.canOpen ? <a className="btn-secondary" href={`/api/care-coordinator/documents/${d.id}`} target="_blank" rel="noopener">Open original<span className="sr-only"> {d.name} (opens in a new tab)</span></a> : <span className="text-[13px] text-slate-600">A manager opens this document.</span>}
                   {d.canOpen && intake.status === "DRAFT" ? (
-                    <form action={rereadIntakeDocumentAction}><Hidden back={back} intakeId={intake.id} /><input type="hidden" name="documentId" value={d.id} /><button className={d.readStatus === "FAILED" || d.readFailure ? "btn-primary" : "btn-secondary"}>Read again<span className="sr-only"> {d.name}</span></button></form>
+                    <form action={rereadIntakeDocumentAction}><Hidden back={back} intakeId={intake.id} /><input type="hidden" name="documentId" value={d.id} /><button className={d.readStatus === "FAILED" || d.readFailure || d.readStage === "FAILED" ? "btn-primary" : "btn-secondary"} disabled={busy} aria-disabled={busy}>{busy ? "Being read" : "Read again"}<span className="sr-only"> {d.name}</span></button></form>
                   ) : null}
                   {d.canOpen && !d.filedDocumentId && !closed(view) ? (
                     <details className="w-full sm:w-auto [&[open]]:w-full">
@@ -97,6 +106,7 @@ export function DocumentsStep({ view, back }: { view: View; back: string }) {
           <Hidden back={back} intakeId={intake.id} />
           <label className="block"><span className="label">Add documents (PDF or photos: 4 MB each, 11 MB in total)</span><input type="file" name="files" multiple required accept="application/pdf,image/jpeg,image/png" className="input" /></label>
           <button className="btn-primary">Upload and read</button>
+          <p className="text-[13px] text-slate-600">The upload finishes as soon as the files are stored; reading then carries on in the background, and you can leave this page.</p>
         </form>
       ) : null}
     </div>

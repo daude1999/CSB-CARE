@@ -1,13 +1,15 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
-import { AppError, ValidationError } from "@/lib/errors";
+import { ValidationError } from "@/lib/errors";
 import { valueFromForm } from "@/lib/care-coordinator-forms";
 import { handle, str } from "./action-kit";
-import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, readIntakeDocument, resolveFollowUp, setCoordinatorAi, submitIntake, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
+import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, resolveFollowUp, setCoordinatorAi, submitIntake, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
 import { applyApproved, applySection, fileDocuments } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
 import { prepareDrafts, prepareReportText } from "@/server/care/coordinator/prepare";
+import { queueDocumentRead, queueIntakeReads, runQueuedReads } from "@/server/care/coordinator/read-jobs";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
 import { SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 
@@ -41,31 +43,37 @@ async function filesFrom(fd: FormData): Promise<UploadedFile[]> {
   return Promise.all(files.map(async (f) => ({ name: f.name, type: f.type, bytes: Buffer.from(await f.arrayBuffer()) })));
 }
 
+/**
+ * Starts reading straight after the response is sent. The job is already saved, so if this run is cut off the intake
+ * page (or the worker) carries it on; this only saves waiting for the page to ask.
+ */
+function startReadingSoon() {
+  after(() => runQueuedReads(`after:${process.pid}`, 1).then(() => undefined, () => undefined));
+}
+
+const READING_NOTE = "It is being read now: you can watch each stage on this page or leave it, and the person's draft records and a proposed rota are prepared when the reading finishes.";
+
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
     const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length) {
-      const r = await addDocuments(ctx, intake.id, await filesFrom(fd));
-      const failed = r.results.filter((x) => "error" in x).length;
-      if (failed) return { to: page(intake.id, "?step=documents"), ok: `${intake.reference} started. ${failed} document${failed === 1 ? "" : "s"} could not be read just now: press Read again, or add the facts by hand.` };
-      // The coordinator's data entry, done for them: drafts in the person's records and a proposed rota.
-      const prepared = await prepareDrafts(ctx, intake.id).catch((e: unknown) => {
-        if (e instanceof AppError) return null;
-        throw e;
-      });
-      if (prepared) return { to: page(intake.id), ok: `${intake.reference} started and read. ${prepareReportText(prepared).replace(/\n/g, " ")}` };
+      const r = await addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" });
+      await queueIntakeReads(ctx, r.toRead, { prepare: true });
+      if (r.toRead.length) startReadingSoon();
+      return { to: page(intake.id, "?step=documents"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
     }
-    return { to: page(intake.id), ok: files.length ? `${intake.reference} started and ${files.length} document${files.length === 1 ? "" : "s"} read. Check each fact below.` : `${intake.reference} started. Upload the documents next.` };
+    return { to: page(intake.id), ok: `${intake.reference} started. Upload the documents next.` };
   }, "Started");
 }
 
 export async function uploadIntakeDocumentsAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const r = await addDocuments(ctx, intakeId(fd), await filesFrom(fd));
-    const failed = r.results.filter((x) => "error" in x);
+    const r = await addDocuments(ctx, intakeId(fd), await filesFrom(fd), { read: "later" });
     if (!r.documents && r.duplicates.length) return { ok: `${r.duplicates.join(", ")} ${r.duplicates.length === 1 ? "is" : "are"} already on this intake, so nothing was uploaded again.` };
-    return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded.${failed.length ? ` ${failed.length} could not be read just now (${"error" in failed[0]! ? failed[0].error : ""}); press Read again on it, or add its facts by hand.` : " Check each fact under Check facts."}` };
+    await queueIntakeReads(ctx, r.toRead, { prepare: true });
+    if (r.toRead.length) startReadingSoon();
+    return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded and stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
   }, "Uploaded");
 }
 
@@ -76,16 +84,13 @@ export async function prepareDraftsAction(fd: FormData) {
   }, "Prepared");
 }
 
+/** Reads a stored document again, from the original already kept: never a new upload. Joins a reading in progress. */
 export async function rereadIntakeDocumentAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const r = await readIntakeDocument(ctx, str(fd, "documentId"));
-    const found = `${r.facts} fact${r.facts === 1 ? "" : "s"} found`;
-    // An object, not a string: a returned string would be taken as the page to go to.
-    if (r.aiFailure) return { ok: r.reader === "ai-and-basic"
-      ? `Document read again (${found}). Some pages could not be read by the AI because ${r.aiFailure.text}; CSB's basic reader read those pages. Decisions you had already made are kept.`
-      : `Document read again by CSB's basic reader (${found}) because ${r.aiFailure.text}. Try Read again later for the AI reading. Decisions you had already made are kept.` };
-    return { ok: `Document read again (${found}). Decisions you had already made are kept.` };
-  }, "Document read again. Decisions you had already made are kept.");
+    const r = await queueDocumentRead(ctx, str(fd, "documentId"), { prepare: true });
+    startReadingSoon();
+    return { ok: r.joined ? "This document is already being read. Its progress is shown below." : `Reading again from the stored original. ${READING_NOTE} Decisions you had already made are kept.` };
+  }, "Reading again");
 }
 
 export async function updateIntakeDocumentAction(fd: FormData) {

@@ -52,6 +52,10 @@ export const handlers: Record<string, JobHandler> = {
   },
   // One evidence run for a missed call (and, the first time, the carer requests). Runs apart from detection.
   "missed.investigate": async (p, job) => investigateJob(p, job.id),
+  // AI CSB Coordinator: read an uploaded document, then prepare the person's drafts and a proposed rota.
+  // Imported when needed: it pulls in server-only modules, which a worker loads only with the react-server condition
+  // (see the worker script in package.json).
+  "coordinator.read": async (p, job) => (await import("@/server/care/coordinator/read-jobs")).runDocumentReadJob(p, job),
   "maintenance.tick": async () => {
     const scheduled = await scheduleDueSources();
     const publications = await publishDueScheduled();

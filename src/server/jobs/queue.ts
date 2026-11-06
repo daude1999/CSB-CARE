@@ -46,18 +46,21 @@ export async function enqueue(
   }
 }
 
-export async function claimNext(workerId: string, types?: string[]): Promise<BackgroundJob | null> {
+export async function claimNext(workerId: string, types?: string[], opts: { lockMs?: number; excludeTypes?: string[] } = {}): Promise<BackgroundJob | null> {
   const typeFilter = types?.length ? types : null;
+  const excluded = opts.excludeTypes?.length ? opts.excludeTypes : null;
+  const lockMs = opts.lockMs ?? LOCK_MS;
   const rows = await db.$queryRaw<BackgroundJob[]>`
     UPDATE "BackgroundJob" SET
       status = 'RUNNING', "lockedBy" = ${workerId},
-      "lockedUntil" = now() + (${LOCK_MS}::int * interval '1 millisecond'),
+      "lockedUntil" = now() + (${lockMs}::int * interval '1 millisecond'),
       attempts = attempts + 1, "startedAt" = now(), "updatedAt" = now()
     WHERE id = (
       SELECT id FROM "BackgroundJob"
       WHERE ((status IN ('QUEUED', 'FAILED') AND "runAfter" <= now())
           OR (status = 'RUNNING' AND "lockedUntil" < now()))
         AND (${typeFilter}::text[] IS NULL OR type = ANY(${typeFilter}::text[]))
+        AND (${excluded}::text[] IS NULL OR NOT (type = ANY(${excluded}::text[])))
       ORDER BY "runAfter" ASC
       FOR UPDATE SKIP LOCKED
       LIMIT 1
@@ -123,10 +126,10 @@ export async function runClaimed(job: BackgroundJob, handlers: Record<string, Jo
 }
 
 /** Drains currently runnable jobs (used by the worker loop, CLI and tests). */
-export async function drain(workerId: string, handlers: Record<string, JobHandler>, opts: { max?: number; types?: string[] } = {}) {
+export async function drain(workerId: string, handlers: Record<string, JobHandler>, opts: { max?: number; types?: string[]; excludeTypes?: string[]; lockMs?: number } = {}) {
   const outcomes: { id: string; type: string; outcome: string }[] = [];
   for (let i = 0; i < (opts.max ?? 100); i++) {
-    const job = await claimNext(workerId, opts.types);
+    const job = await claimNext(workerId, opts.types, { lockMs: opts.lockMs, excludeTypes: opts.excludeTypes });
     if (!job) break;
     const outcome = await runClaimed(job, handlers);
     outcomes.push({ id: job.id, type: job.type, outcome });

@@ -45,6 +45,7 @@ export function SuImportWizard({ areas, callTypes, councilCategories, otherCateg
   const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [source, setSource] = useState<"ai" | "manual" | null>(null);
   const [simulated, setSimulated] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
 
   const set = <K extends keyof ImportDraft>(key: K, value: ImportDraft[K]) => setDraft((d) => (d ? { ...d, [key]: value } : d));
@@ -70,6 +71,7 @@ export function SuImportWizard({ areas, callTypes, councilCategories, otherCateg
     setDraft(r.data.draft);
     setSource(r.data.source);
     setSimulated(r.data.simulated);
+    setNotice(r.data.notice ?? null);
     setDuplicates(r.data.duplicates);
     setStep(2);
   }
@@ -142,6 +144,7 @@ export function SuImportWizard({ areas, callTypes, councilCategories, otherCateg
             <p className="text-[14px] text-slate-600">
               {source === "ai" ? <>Read from <strong>{fileNames[0]}</strong>. Page numbers show where each value came from. Check every field against the plan and correct anything wrong. {simulated ? <SimulatedBadge /> : null}</> : <>Type the details in from <strong>{fileNames[0] ?? "the plan"}</strong>. Nothing is saved until you confirm.</>}
             </p>
+            {notice ? <p role="alert" className="rounded-[3px] border border-[#f1d9a6] bg-[#fff8e8] px-3 py-2 text-[13.5px] text-[#6b4a00]">{notice}</p> : null}
             {draft.flags?.length ? (
               <div className="rounded-[3px] border border-[#f1d9a6] bg-[#fff8e8] px-3 py-2 text-[13.5px] text-[#6b4a00]">
                 <strong>Things to decide before the visits run</strong>

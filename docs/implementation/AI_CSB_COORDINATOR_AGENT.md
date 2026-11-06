@@ -139,3 +139,41 @@ section is retried on the next run.
   example Tesseract) would be a new dependency and needs the owner's approval.
 - Tested with a real Tower Hamlets "One Off Service Request" layout only locally, never committed; the tests and
   screenshots use fictional people. The real AI reading of it is still to be checked on the live site.
+
+## Live reading failure and background reading (6 Nov 2026, evening)
+
+**What failed on live.** The owner's Tower Hamlets plan (12 scanned pages) was stored, but every AI reading
+returned HTTP 400 ("the AI service rejected the request"). The basic reader was used instead, and it finds nothing on
+scanned pages. So the failing stage was the Anthropic request itself, refused before any reading. It was not a
+timeout, a storage problem or a database problem. The service's own reason was never kept, and Vercel's runtime logs
+cannot be reached from the build environment, so the exact refused field is not confirmed.
+
+**PR #111.**
+- A refused request is sent once more in its plainest form: no beta features, no caching marks, no structured-output
+  grammar (the JSON shape is asked for in words and validated against the same zod schema), and a 32k answer limit.
+- If that is refused too, the service's own short reason is stored and shown on the document in brackets. It is
+  cleaned to one line, key-like strings removed, at most 200 characters.
+
+**Background reading** (`src/server/care/coordinator/read-jobs.ts`). An upload, a chat attachment or "Read again"
+stores the original and records a `coordinator.read` job in the Postgres queue, then returns at once. The job does
+three things:
+1. Reads the document.
+2. Saves the facts.
+3. Prepares the drafts and the proposed rota (`prepareDrafts`).
+
+Its stage is kept on the document (`readStage`: QUEUED, READING, PREPARING, RETRYING, DONE or FAILED, with
+`readStageNote` and `readJobId`) and shown on the Documents step. The page refreshes itself while a reading is in
+progress.
+
+- **Who runs it.** The worker runs it where there is one. On Vercel it is started straight after the response
+  (`after()`), and the intake page asks `/api/care-coordinator/reads/run` (5 minutes allowed) while a document waits.
+  The general page ping (`/api/jobs/kick`, 60 seconds) never claims a reading job.
+- **Resume.** A run that is cut off is picked up again once its lock lapses (5.5 minutes). A reading that already
+  finished is not repeated when only the preparation failed, and preparation never creates anything twice.
+- **Failures.** A failure is retried up to 3 times with a growing wait, then shown as "Reading stopped" with the reason
+  in plain words. Pressing "Read again" again joins the job in progress instead of starting a second one.
+
+Still open:
+- Within one reading, the AI's page parts are not saved separately. A cut-off reading starts that document's AI
+  reading again from the first part.
+- There is no OCR, so a scanned plan still needs the AI.

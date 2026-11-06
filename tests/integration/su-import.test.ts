@@ -5,7 +5,7 @@ import { ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { addDays, londonDate, mondayOf } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
-import type { LlmProvider } from "@/server/ai/provider";
+import { AiUnavailableError, type LlmProvider } from "@/server/ai/provider";
 import type { SupportPlanExtraction } from "@/server/ai/schemas";
 import { confirmImport, emptyDraft, readSupportPlan, type ImportDraft } from "@/server/care/su-import";
 import { previewBuild } from "@/server/rota/build";
@@ -101,6 +101,25 @@ describe("reading the plan", () => {
     expect(r.duplicates).toEqual([]);
     expect(await db.serviceUser.count({ where: { organisationId: orgId } })).toBe(before);
     expect(await db.auditLog.count({ where: { organisationId: orgId, action: "serviceUser.import.read" } })).toBe(1);
+    setAiProviderForTests(undefined);
+  });
+
+  it("opens the form to type in, with the reason in plain words, when the AI refuses the plan", async () => {
+    const refusing: LlmProvider = Object.assign(new SimulatedProvider(), {
+      name: "test-reader",
+      isSimulated: false,
+      async extractSupportPlan(): Promise<SupportPlanExtraction> {
+        throw new AiUnavailableError("The AI service did not accept the request.", "rejected", "example reason from the service");
+      },
+    });
+    setAiProviderForTests(refusing);
+    const r = await readSupportPlan(await coordinator(), files());
+    expect(r.source).toBe("manual");
+    expect(r.draft.person.firstName).toBe("");
+    expect(r.notice).toMatch(/could not be read automatically/);
+    expect(r.notice).toContain('it said: "example reason from the service"');
+    expect(r.notice).toMatch(/AI CSB Coordinator/);
+    expect(await db.auditLog.count({ where: { organisationId: orgId, action: "serviceUser.import.read-failed" } })).toBe(1);
     setAiProviderForTests(undefined);
   });
 });

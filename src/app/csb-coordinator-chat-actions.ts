@@ -1,11 +1,13 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { requirePortal } from "@/server/auth/portals";
 import { requireOrgPermission } from "@/server/auth/rbac";
 import type { CrmLink, CrmPage } from "@/server/care/coordinator/crm-assistant";
 import { coordinatorChat, type ChatMode } from "@/server/care/coordinator/agent";
 import { chatDraftIntakes, uploadFromChat } from "@/server/care/coordinator/chat-upload";
+import { runQueuedReads } from "@/server/care/coordinator/read-jobs";
 import { ValidationError } from "@/lib/errors";
 import { MAX_DOCUMENT_BYTES } from "@/server/care/su-documents";
 
@@ -100,7 +102,10 @@ export async function uploadCsbCoordinatorDocument(form: FormData): Promise<Coor
     target: selected ? "intake" : "new", intakeId: selected, serviceUserId,
     title: `Referral — ${file.name.replace(/\.[^.]+$/, "").slice(0, 95)}`,
     files: [{ name: file.name, type: file.type, bytes }],
+    background: true,
   });
+  // The reading is a saved job; starting it after the response only saves waiting for the intake page to ask.
+  if (r.reading) after(() => runQueuedReads(`after:${process.pid}`, 1).then(() => undefined, () => undefined));
   return {
     intakeId: r.intakeId, reference: r.reference, filename: file.name, documents: r.documents, facts: r.facts, remainingToCheck: r.remainingToCheck,
     duplicate: r.duplicates.length > 0, alreadyOnIntake: r.alreadyOnIntake, extractionFailures: r.failed.length, aiFallback: r.fallback[0] ? { reason: r.fallback[0].reason, partly: r.fallback[0].partly } : null, reviewHref: `/rota/coordinator/${encodeURIComponent(r.intakeId)}`, summary: r.summary,

@@ -4111,6 +4111,14 @@ model CareIntakeDocument {
   /// Why the AI could not read it (or some of its pages) last time, as a safe category such as busy or timeout.
   readFailure     String?
   readAt          DateTime?
+  /// Background reading (6 Nov 2026): QUEUED | READING | PREPARING | RETRYING | DONE | FAILED, null for documents
+  /// read before reading moved to the job queue.
+  readStage       String?
+  readStageAt     DateTime?
+  /// The BackgroundJob reading it, so a second "Read again" joins the job in progress instead of starting another.
+  readJobId       String?
+  /// What the last stage said in plain words (the preparation report, or why it is waiting or failed).
+  readStageNote   String?
   /// What the reading found that is not a fact: [{ kind: "FLAG" | "MISSING" | "UNREADABLE", text, page }].
   findings        Json                       @default("[]")
   /// The Council/Other Documents record this was filed as, once applied.

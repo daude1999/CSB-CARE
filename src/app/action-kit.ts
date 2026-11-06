@@ -62,6 +62,6 @@ export async function handleData<T>(fn: (ctx: Ctx) => Promise<T>, opts: { revali
   } catch (e) {
     if (isRedirectError(e)) throw e;
     if (!(e instanceof AppError)) logger.error({ err: (e as Error).message, stack: (e as Error).stack }, "action failed");
-    return { ok: false, error: e instanceof AppError ? e.message : "Something went wrong. The error has been logged." };
+    return { ok: false, error: e instanceof AppError || e instanceof AiUnavailableError ? e.message : "Something went wrong. The error has been logged." };
   }
 }

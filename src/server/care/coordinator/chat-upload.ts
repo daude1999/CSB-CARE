@@ -9,6 +9,7 @@ import { digestText, intakeDigest } from "./intake-digest";
 import { readOnce } from "./agent-tools";
 import { READ_FAILURE_TEXT } from "./reader";
 import { prepareDrafts, prepareReportText, type PrepareReport } from "./prepare";
+import { queueIntakeReads } from "./read-jobs";
 import type { UploadedFile } from "../su-documents";
 
 /**
@@ -35,7 +36,11 @@ export async function chatDraftIntakes(ctx: Parameters<typeof coordinatorAccess>
 
 export async function uploadFromChat(
   ctx: Parameters<typeof coordinatorAccess>[0],
-  input: { target: "intake" | "new"; intakeId: string | null; serviceUserId: string | null; title: string | null; files: UploadedFile[] },
+  input: {
+    target: "intake" | "new"; intakeId: string | null; serviceUserId: string | null; title: string | null; files: UploadedFile[];
+    /** Store now and read in a background job (the screens), instead of reading inside this call (tests, scripts). */
+    background?: boolean;
+  },
 ) {
   coordinatorAccess(ctx);
   if (!input.files.length) throw new ValidationError("Choose a document to attach");
@@ -62,7 +67,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
       const view = await getIntake(ctx, elsewhere.intake.id);
       return {
         intakeId: elsewhere.intake.id, reference: elsewhere.intake.reference, created: false, added: [] as string[], duplicates: input.files.map((f) => f.name), alreadyOnIntake: true,
-        failed: [] as { name: string; error: string }[], fallback: [] as { name: string; reason: string; partly: boolean }[], prepared: null as PrepareReport | null, summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
+        failed: [] as { name: string; error: string }[], fallback: [] as { name: string; reason: string; partly: boolean }[], prepared: null as PrepareReport | null, reading: false, summary: digestText(intakeDigest(view)), href: `/rota/coordinator/${elsewhere.intake.id}?step=facts`, ...counts(view),
       };
     }
     const intake = await createIntake(ctx, {
@@ -87,6 +92,18 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
   });
   if (existing.length + fresh.length > MAX_INTAKE_DOCUMENTS) throw new ValidationError(`An intake can hold at most ${MAX_INTAKE_DOCUMENTS} documents`);
   const failed: { name: string; error: string }[] = [];
+  if (fresh.length && input.background) {
+    const r = await addDocuments(ctx, intakeId, fresh, { read: "later" });
+    await queueIntakeReads(ctx, r.toRead, { prepare: true });
+    const view = await getIntake(ctx, intakeId);
+    return {
+      intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback: [] as { name: string; reason: string; partly: boolean }[], prepared: null as PrepareReport | null, reading: r.toRead.length > 0,
+      summary: r.toRead.length
+        ? `Stored safely on ${view.intake.reference}. It is being read now; a long or scanned plan can take a few minutes. When the reading finishes, the person's draft records and a proposed rota are prepared. Open the intake to watch each stage.`
+        : `Stored safely on ${view.intake.reference}. Only PDFs are read, so add this document's facts by hand.`,
+      href: `/rota/coordinator/${intakeId}?step=documents`, ...counts(view),
+    };
+  }
   if (fresh.length) {
     const r = await addDocuments(ctx, intakeId, fresh);
     const docs = await db.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, name: true } });
@@ -108,7 +125,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
   }
   const view = await getIntake(ctx, intakeId);
   return {
-    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback, prepared,
+    intakeId, reference: view.intake.reference, created, added: fresh.map((f) => f.name), duplicates, alreadyOnIntake: false, failed, fallback, prepared, reading: false,
     summary: [prepared ? prepareReportText(prepared) : null, digestText(intakeDigest(view))].filter(Boolean).join("\n\n"), href: `/rota/coordinator/${intakeId}?step=facts`, ...counts(view),
   };
 }
