@@ -75,7 +75,10 @@ describe("upload, queue and read in the background", () => {
     const doc = await db.careIntakeDocument.findUniqueOrThrow({ where: { id: docId } });
     expect(doc.readStage).toBe("DONE");
     expect(doc.readStatus).toBe("READ");
-    expect(doc.readStageNote).toMatch(/Records prepared for/);
+    expect(doc.readStageNote).toMatch(/Read and set up\. Personal details populated/);
+    // Automatic setup (7 Nov 2026): CSB AI decided the routine facts, never as the person who uploaded.
+    expect(await db.careIntakeFact.count({ where: { intakeId, decisionSource: "AUTOMATION", decision: "APPROVED" } })).toBeGreaterThan(5);
+    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).setupStage).toBe("VERIFIED");
     expect(await db.careIntakeFact.count({ where: { intakeId } })).toBeGreaterThan(10);
     const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
     const su = await db.serviceUser.findUniqueOrThrow({ where: { id: intake.serviceUserId! } });

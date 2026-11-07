@@ -4,21 +4,25 @@ import { getIntake } from "@/server/care/coordinator/intake";
 import { revisionSummary } from "@/server/care/coordinator/compare";
 import { RevisionPanel } from "@/components/coordinator/revision";
 import { previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
-import { INTAKE_STATUS, inReview } from "@/lib/care-coordinator-rules";
+import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
 import { addDays, londonDate, mondayOf } from "@/lib/london";
 import { cancelIntakeAction } from "@/app/coordinator-actions";
 import { AppError } from "@/lib/errors";
 import { Badge, Flash, PageHeader, SegmentNav } from "@/components/ui";
 import { RotaTabs } from "@/components/rota-nav";
+import { SetupPanel } from "@/components/coordinator/setup-panel";
+import { reportOf } from "@/server/care/coordinator/auto-setup";
+import { countOpenExceptions, identityChoices, listExceptions } from "@/server/care/coordinator/exceptions";
 import { DocumentsStep, HistoryStep, ReviewStep, RotaStep, SaveStep } from "@/components/coordinator/steps";
 
 export const dynamic = "force-dynamic";
 
 const STEPS = [
-  ["documents", "1. Documents"],
-  ["review", "2. Check facts"],
-  ["save", "3. Confirm & set up"],
-  ["rota", "4. Draft rota and carers"],
+  ["setup", "Setup summary"],
+  ["documents", "Documents"],
+  ["review", "Detailed fact review (advanced)"],
+  ["save", "Confirm & set up by hand"],
+  ["rota", "Draft rota and carers"],
   ["history", "History"],
 ] as const;
 type Step = (typeof STEPS)[number][0];
@@ -30,13 +34,16 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
   const view = await orNotFound(getIntake(ctx, id));
   const { intake } = view;
   const open = view.facts.filter((f) => f.decision === "PENDING" || f.decision === "CLARIFY").length;
-  const defaultStep: Step = !view.documents.length ? "documents" : intake.status === "APPLYING" ? "save" : inReview(intake.status) ? (open ? "review" : "save") : "rota";
+  // Automatic setup (7 Nov 2026): the summary is the first screen; the fact review is a troubleshooting tool.
+  const defaultStep: Step = !view.documents.length ? "documents" : "setup";
   // Old links to the retired manager approval step open Confirm & set up.
   const asked = sp.step === "approval" ? "save" : sp.step;
   const step = (STEPS.some(([k]) => k === asked) ? asked : defaultStep) as Step;
   const base = `/rota/coordinator/${intake.id}`;
   const back = `${base}?step=${step}${sp.section ? `&section=${sp.section}` : ""}${sp.show ? `&show=${sp.show}` : ""}`;
   const failed = view.sections.filter((s) => s.applyStatus === "FAILED").length;
+  const setup = step === "setup" ? { report: reportOf(intake.setupReport), ex: await listExceptions(ctx, { intakeId: intake.id }), identity: await identityChoices(ctx, intake.id) } : null;
+  const attention = await countOpenExceptions(ctx, intake.id);
 
   const revision = step === "review" && intake.mode === "EXISTING" ? await revisionSummary(ctx, intake.id) : null;
   let rota: { readiness: Awaited<ReturnType<typeof rotaReadiness>>; preview: Awaited<ReturnType<typeof previewIntakeRota>> | null; previewError: string | null; proposals: Awaited<ReturnType<typeof staffingProposals>> } | null = null;
@@ -80,9 +87,11 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
       <SegmentNav
         label="Intake steps"
         alert
-        items={STEPS.map(([k, l]) => ({ href: `${base}?step=${k}`, label: k === "documents" ? `${l} (${view.documents.length})` : l, active: step === k, count: k === "review" ? open : k === "save" ? failed : undefined }))}
+        items={STEPS.map(([k, l]) => ({ href: `${base}?step=${k}`, label: k === "documents" ? `${l} (${view.documents.length})` : l, active: step === k, count: k === "setup" ? attention : k === "save" ? failed : undefined }))}
       />
       <div className="rounded-b-[3px] rounded-tr-[3px] bg-white px-[15px] pb-4 pt-3">
+        {step === "setup" && setup ? <SetupPanel view={view} report={setup.report} exceptions={setup.ex.items} hidden={setup.ex.hidden} identity={setup.identity} back={back} /> : null}
+        {step === "review" ? <p className="mb-2 text-[13.5px] text-slate-600">Advanced: every fact CSB AI read, with what it decided and why. Use it to troubleshoot or correct a reading; routine uploads never need it. {open ? `${open} fact${open === 1 ? " is" : "s are"} waiting, each listed as an exception on the Setup summary.` : ""}</p> : null}
         {step === "documents" ? <DocumentsStep view={view} back={back} /> : null}
         {step === "review" && revision ? <RevisionPanel intakeId={intake.id} summary={revision} back={back} open={intake.status === "DRAFT"} /> : null}
         {step === "review" ? <ReviewStep view={view} back={back} section={sp.section} show={sp.show} add={sp.add} /> : null}

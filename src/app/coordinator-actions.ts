@@ -10,6 +10,8 @@ import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntak
 import { approveSaveFailed, applySection, fileDocuments } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
 import { confirmAndSetUp, confirmReportText, proposeIntakeRota } from "@/server/care/coordinator/prepare";
+import { chooseIdentityValue, confirmNewPerson, resolveException } from "@/server/care/coordinator/exceptions";
+import { runAutomaticSetup, setupSummaryLines } from "@/server/care/coordinator/auto-setup";
 import { queueDocumentRead, queueIntakeReads, runQueuedReads } from "@/server/care/coordinator/read-jobs";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
 import { SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
@@ -52,7 +54,7 @@ function startReadingSoon() {
   after(() => runQueuedReads(`after:${process.pid}`, 1).then(() => undefined, () => undefined));
 }
 
-const READING_NOTE = "It is being read now: you can watch each stage on this page or leave it, and the person's draft records and a proposed rota are prepared when the reading finishes.";
+const READING_NOTE = "It is being read now. When reading finishes, CSB AI sets up the person's records, drafts and a proposed rota by itself and lists only what needs attention. You can leave this page.";
 
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
@@ -62,7 +64,7 @@ export async function createIntakeAction(fd: FormData) {
       const r = await addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" });
       await queueIntakeReads(ctx, r.toRead, { prepare: true });
       if (r.toRead.length) startReadingSoon();
-      return { to: page(intake.id, "?step=documents"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
+      return { to: page(intake.id, "?step=setup"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
     }
     return { to: page(intake.id), ok: `${intake.reference} started. Upload the documents next.` };
   }, "Started");
@@ -196,4 +198,54 @@ export async function coordinatorAiSwitchAction(fd: FormData) {
 
 export async function resolveFollowUpAction(fd: FormData) {
   return handle(fd, (ctx) => resolveFollowUp(ctx, str(fd, "itemId"), str(fd, "resolution")), "Follow-up closed");
+}
+
+// ── Automatic setup by CSB AI (7 Nov 2026) ─────────────────────────────────
+
+const itemIdOf = (fd: FormData) => {
+  const id = str(fd, "itemId");
+  if (!/^[a-z0-9]{10,40}$/i.test(id)) throw new ValidationError("This exception could not be found");
+  return id;
+};
+
+/** Runs, carries on or retries the automatic setup (also how an intake from before automatic setup is resumed). */
+export async function runAutomaticSetupAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const id = intakeId(fd);
+    const r = await runAutomaticSetup(ctx, id);
+    if (r.status === "FAILED") throw new ValidationError(`Setup did not finish: ${r.failures.join(" ") || r.sections.filter((s) => s.status === "FAILED").map((s) => `${s.label}: ${s.error}`).join(" ")} Everything saved so far is kept; run it again once the cause is corrected.`);
+    if (r.blocked) return { to: page(id, "?step=setup"), ok: r.blocked.message };
+    return { to: page(id, "?step=setup"), ok: `Setup finished. ${setupSummaryLines(r, str(fd, "mode") || "NEW").join(". ")}.` };
+  }, "Setup finished");
+}
+
+/** A person settles one exception: closes it, chooses the right value, leaves it out or names a reference type. */
+export async function resolveExceptionAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const action = str(fd, "action");
+    const id = itemIdOf(fd);
+    if (action === "USE_FACT") await resolveException(ctx, id, { action, factId: str(fd, "factId"), note: str(fd, "note") || undefined });
+    else if (action === "LEAVE_OUT") await resolveException(ctx, id, { action, note: str(fd, "note") });
+    else if (action === "REFERENCE_TYPE") {
+      const type = str(fd, "type");
+      if (type !== "COUNCIL_CLIENT" && type !== "COUNCIL_PACKAGE" && type !== "COUNCIL_FRAMEWORK") throw new ValidationError("Choose what the number is");
+      await resolveException(ctx, id, { action, type });
+    } else await resolveException(ctx, id, { action: "RESOLVE", note: str(fd, "note") });
+  }, "Exception resolved");
+}
+
+export async function chooseIdentityAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const id = intakeId(fd);
+    const r = await chooseIdentityValue(ctx, id, str(fd, "factId"));
+    return { to: page(id, "?step=setup"), ok: r.blocked ? `Saved your choice. ${r.blocked.message}` : "Saved your choice. CSB AI carried on with the setup." };
+  }, "Saved");
+}
+
+export async function confirmNewPersonAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const id = intakeId(fd);
+    const r = await confirmNewPerson(ctx, id);
+    return { to: page(id, "?step=setup"), ok: r.blocked ? r.blocked.message : "Confirmed as a new person. CSB AI created the record and carried on with the setup." };
+  }, "Confirmed");
 }

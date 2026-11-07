@@ -8,7 +8,7 @@ import {
 } from "@/lib/care-coordinator-rules";
 import { guessCallType, type FundedBy } from "@/lib/su-import-rules";
 import { z } from "zod";
-import { audit } from "@/server/audit-log";
+import { audit, currentAutomation } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { durationCheck, visitTasks } from "./visit-tasks";
@@ -66,10 +66,17 @@ const docLabel = async (tx: Tx, id: string | null, page: number | null) => {
 export const DRAFT_SECTIONS = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "VISITS", "CALL_NOTES"] as const satisfies readonly IntakeSection[];
 export const isDraftSection = (s: string) => (DRAFT_SECTIONS as readonly string[]).includes(s);
 
-export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSection, opts: { prepare?: boolean } = {}) {
+/**
+ * opts.automated (automatic setup by CSB AI, 7 Nov 2026): also routes the restricted sections. Medication, incident
+ * history and skin findings then become restricted review items only (medication reconciliation, history to check):
+ * no draft medicine, nothing on the MAR, no incident or body map record, and nothing the person who started the setup
+ * may not see is shown to them.
+ */
+export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSection, opts: { prepare?: boolean; automated?: boolean } = {}) {
   const access = coordinatorAccess(ctx);
   const scope = await rotaScope(ctx, "serviceUser.edit");
-  const prepare = !!opts.prepare && isDraftSection(section);
+  const automated = !!opts.automated && !!opts.prepare;
+  const prepare = !!opts.prepare && (isDraftSection(section) || automated);
   // Claim the section so two people pressing Save at once cannot both run it.
   const claim = await db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
@@ -79,19 +86,19 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
     if (s.status === "REJECTED") throw new ConflictError(`${sectionLabel(section)} was rejected, so nothing from it is saved`);
     if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved yet. Press Approve & Save to CRM.`);
     if (s.applyStatus === "SAVING" && s.claimedAt && Date.now() - s.claimedAt.getTime() < SAVE_CLAIM_MS) throw new ConflictError(`${sectionLabel(section)} is being saved right now. Wait a moment, then reload.`);
-    const unapplied = await tx.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null } });
+    const unapplied = await tx.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null, id: { notIn: await handedFactIds(tx, intakeId) } } });
     if (!unapplied && s.applyStatus === "DONE") return null;
     if (prepare && !unapplied) return null;
     if (intake.status === "CANCELLED" || intake.status === "COMPLETED") throw new ConflictError("This intake is closed");
     if (section !== "PERSONAL" && !intake.serviceUserId) throw new ConflictError("Save Personal details first: the person does not exist yet");
-    if (RESTRICTED_SECTIONS.has(section) && !access.sensitive) throw new ForbiddenError("Only someone allowed to see restricted records (a registered manager or administrator) saves this section");
+    if (RESTRICTED_SECTIONS.has(section) && !access.sensitive && !automated) throw new ForbiddenError("Only someone allowed to see restricted records (a registered manager or administrator) saves this section");
     await tx.careIntakeSection.update({ where: { id: s.id }, data: { attempts: { increment: 1 }, applyStatus: "SAVING", claimedAt: new Date() } });
     await tx.careIntake.update({ where: { id: intake.id }, data: { status: "APPLYING" } });
     return { intake, sectionStatus: s.status };
   });
   if (!claim) return { section, status: "DONE" as const, result: null };
   try {
-    const result = await run(ctx, scope, claim.intake.id, section);
+    const result = await run(ctx, scope, claim.intake.id, section, automated);
     await db.$transaction(async (tx) => {
       // A section the coordinator already approved keeps that approval when the AI drafts more facts into it.
       await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "DONE", applyResult: result as unknown as Prisma.InputJsonValue, applyError: null, claimedAt: null, appliedById: ctx.userId, appliedAt: new Date(), ...(prepare && claim.sectionStatus !== "APPROVED" ? { status: "DRAFTED", decidedById: null, decidedAt: null } : {}) } });
@@ -192,7 +199,8 @@ export async function approveAndSave(ctx: Ctx, intakeId: string, input: z.input<
     // The sections this coordinator approves now: everything with approved facts that is theirs to approve.
     const withFacts = new Set(accepted.map((f) => f.section));
     // A section already approved is approved again (with this coordinator's name) when it has newly approved facts.
-    const fresh = new Set(accepted.filter((f) => !f.appliedAt).map((f) => f.section));
+    const handed = new Set(await handedFactIds(tx, intakeId));
+    const fresh = new Set(accepted.filter((f) => !f.appliedAt && !handed.has(f.id)).map((f) => f.section));
     const approve = sections.filter((s) => withFacts.has(s.section) && s.status !== "REJECTED" && (s.status !== "APPROVED" || fresh.has(s.section)) && (!RESTRICTED_SECTIONS.has(s.section) || access.sensitive));
 
     let areaId = intake.areaId;
@@ -294,11 +302,13 @@ async function settleStatus(tx: Tx, intakeId: string) {
   const intake = await tx.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
   if (intake.status === "CANCELLED") return;
   const sections = await tx.careIntakeSection.findMany({ where: { intakeId } });
-  const facts = await tx.careIntakeFact.findMany({ where: { intakeId }, select: { section: true, decision: true, appliedAt: true } });
+  const facts = await tx.careIntakeFact.findMany({ where: { intakeId }, select: { id: true, section: true, decision: true, appliedAt: true } });
   const rejected = new Set(sections.filter((s) => s.status === "REJECTED").map((s) => s.section));
   const withFacts = new Set(facts.filter((f) => ACCEPTED.has(f.decision)).map((f) => f.section));
   const relevant = sections.filter((s) => withFacts.has(s.section) && s.status !== "REJECTED");
-  const unsaved = facts.some((f) => ACCEPTED.has(f.decision) && !f.appliedAt && !rejected.has(f.section));
+  // A fact handed to a person as an exception (a date of birth only a manager may save) is accounted for.
+  const handed = new Set(await handedFactIds(tx, intakeId));
+  const unsaved = facts.some((f) => ACCEPTED.has(f.decision) && !f.appliedAt && !rejected.has(f.section) && !handed.has(f.id));
   const open = facts.some((f) => OPEN_DECISIONS.has(f.decision) && !f.appliedAt);
   const saving = sections.some((s) => s.applyStatus === "SAVING");
   const done = relevant.length > 0 && relevant.every((s) => s.status === "APPROVED" && s.applyStatus === "DONE") && !unsaved && !open;
@@ -306,7 +316,7 @@ async function settleStatus(tx: Tx, intakeId: string) {
   if (status !== intake.status) await tx.careIntake.update({ where: { id: intakeId }, data: { status } });
 }
 
-async function run(ctx: Ctx, scope: Scope, intakeId: string, section: IntakeSection): Promise<SectionResult> {
+async function run(ctx: Ctx, scope: Scope, intakeId: string, section: IntakeSection, automated = false): Promise<SectionResult> {
   switch (section) {
     case "PERSONAL": return applyPersonal(ctx, scope, intakeId);
     case "CONTACTS": return applyContacts(ctx, scope, intakeId);
@@ -314,7 +324,7 @@ async function run(ctx: Ctx, scope: Scope, intakeId: string, section: IntakeSect
     case "PACKAGE": return applyPackage(ctx, scope, intakeId);
     case "CARE_PLAN": return applyCarePlan(ctx, scope, intakeId);
     case "RISKS": return applyRisks(ctx, scope, intakeId);
-    case "MEDICATION": return applyMedication(ctx, scope, intakeId);
+    case "MEDICATION": return applyMedication(ctx, scope, intakeId, automated);
     case "INCIDENTS": return applyHistory(ctx, scope, intakeId, "INCIDENTS");
     case "BODY_MAP": return applyHistory(ctx, scope, intakeId, "BODY_MAP");
     case "VISITS": return applyVisits(ctx, scope, intakeId);
@@ -341,7 +351,8 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
     for (const f of fs) values[f.destination.slice(7)] = String(f.value);
     const sensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
     const skipped: string[] = [];
-    if (!sensitive) for (const k of ["dateOfBirth", "nhsNumber"]) if (values[k]) { skipped.push(`${k === "dateOfBirth" ? "Date of birth" : "NHS number"} needs a registered manager to save`); delete values[k]; }
+    const forManager: CareIntakeFact[] = [];
+    if (!sensitive) for (const k of ["dateOfBirth", "nhsNumber"]) if (values[k]) { skipped.push(`${k === "dateOfBirth" ? "Date of birth" : "NHS number"} needs a registered manager to save. It is listed for a manager under Audit & Exceptions.`); delete values[k]; forManager.push(...fs.filter((f) => f.destination === `person.${k}`)); }
     if (intake.mode === "NEW" && !intake.serviceUserId) {
       const parsed = detailsSchema.safeParse({ ...values, carerGenderPreference: "ANY", areaId: intake.areaId ?? undefined });
       if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Check the personal details");
@@ -350,7 +361,9 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
       const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, csbReference: reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, parsed.data) } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.created", entityType: "ServiceUser", entityId: su.id, data: { via: "care-coordinator", intakeId, reference: intake.reference } }, tx);
       await tx.careIntake.update({ where: { id: intakeId }, data: { serviceUserId: su.id } });
-      for (const f of fs) await markApplied(tx, f, `ServiceUser:${su.id}`);
+      // Only what was really written is marked saved: a date of birth or NHS number left for a manager stays open.
+      for (const f of fs) if (values[f.destination.slice(7)] !== undefined) await markApplied(tx, f, `ServiceUser:${su.id}`);
+      await handToManager(tx, ctx, scope, intake, su.id, forManager);
       const linked = await applyReferences(tx, ctx, scope, su.id, refs, sensitive);
       const back = await tx.serviceUser.findUniqueOrThrow({ where: { id: su.id } });
       const verified = back.firstName === parsed.data.firstName && back.lastName === parsed.data.lastName;
@@ -367,9 +380,26 @@ async function applyPersonal(ctx: Ctx, scope: Scope, intakeId: string): Promise<
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "serviceUser.updated", entityType: "ServiceUser", entityId: su.id, data: { via: "care-coordinator", intakeId, fields: changed } }, tx);
     }
     for (const f of fs) if (values[f.destination.slice(7)] !== undefined) await markApplied(tx, f, `ServiceUser:${su.id}`);
+    await handToManager(tx, ctx, scope, intake, su.id, forManager);
     const linked = await applyReferences(tx, ctx, scope, su.id, refs, sensitive);
     return { created: [...(changed.length ? [`Updated ${changed.length} personal detail${changed.length === 1 ? "" : "s"}`] : []), ...linked.created], skipped: [...skipped, ...(changed.length || linked.created.length ? [] : ["The record already matched"]), ...linked.skipped], notes: [], verified: true };
   });
+}
+
+/** Facts handed to a person as an exception instead of being saved (for example a date of birth only a manager may save). */
+export async function handedFactIds(tx: Tx | typeof db, intakeId: string): Promise<string[]> {
+  return (await tx.careIntakeReviewItem.findMany({ where: { intakeId, factId: { not: null } }, select: { factId: true } })).map((r) => r.factId!);
+}
+
+/** A date of birth or NHS number the saver may not write stays unsaved and becomes a follow-up for a registered manager,
+ *  so it is never shown as saved and never lost. Raised once per fact. */
+async function handToManager(tx: Tx, ctx: Ctx, scope: Scope, intake: { id: string; reference: string }, serviceUserId: string, fs: CareIntakeFact[]) {
+  for (const f of fs) {
+    if (await tx.careIntakeReviewItem.findUnique({ where: { factId: f.id } })) continue;
+    const what = f.destination === "person.dateOfBirth" ? "date of birth" : "NHS number";
+    const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId, intakeId: intake.id, factId: f.id, category: "MANAGER_FIELD", severity: "FOLLOW_UP", title: `Save the ${what}`, recordTab: "personal", description: `The documents give a ${what} (${String(f.value)}), but only a registered manager may save it, so it was left for one. Check it against the original and save it on the Personal details tab.`, sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, automated: !!currentAutomation(), createdById: ctx.userId } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.exception.raised", entityType: "CareIntake", entityId: intake.id, data: { itemId: item.id, category: "MANAGER_FIELD", severity: "FOLLOW_UP" } }, tx);
+  }
 }
 
 /** External references (council client, package, framework, NHS) go to the encrypted register, unverified. A manager
@@ -557,14 +587,15 @@ function timeRanges(times: string[], frequency: string | null) {
 }
 const ROUTES: Record<string, string> = { oral: "ORAL", mouth: "ORAL", tablet: "ORAL", topical: "TOPICAL", cream: "TOPICAL", skin: "TOPICAL", inhal: "INHALED", eye: "EYE", ear: "EAR", nasal: "NASAL", nose: "NASAL", patch: "TRANSDERMAL" };
 
-async function applyMedication(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
+async function applyMedication(ctx: Ctx, scope: Scope, intakeId: string, automated = false): Promise<SectionResult> {
   const { su, intake } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
   const out: SectionResult = { created: [], skipped: [], notes: [], verified: true };
   const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "MEDICATION", decision: { in: [...ACCEPTED] } }, orderBy: { position: "asc" } });
   const docs = await db.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, category: true, name: true } });
   const arrangement = fs.find((f) => f.destination === "medication.arrangement")?.value as z.output<typeof medArrangementValue> | undefined;
   const enabled = await medicationEnabled(scope.organisationId);
-  const canDraft = enabled && hasOrgPermission(ctx, "medication.manage");
+  // CSB AI never prepares a medicine: from an unverified support plan everything goes to reconciliation.
+  const canDraft = enabled && hasOrgPermission(ctx, "medication.manage") && !automated;
   for (const f of fs) {
     if (f.appliedAt) continue;
     const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
@@ -589,6 +620,7 @@ async function applyMedication(ctx: Ctx, scope: Scope, intakeId: string): Promis
       const ranges = timeRanges(m.times, m.frequency);
       if (!m.asRequired && !ranges.length) why.push("when it is due is not clear");
       if (!enabled) why.push("medication records are switched off for this organisation");
+      else if (automated) why.push("CSB AI read it from a support plan, which is not a verified prescription");
       else if (!canDraft) why.push("only someone who manages medication can prepare a draft medicine");
       if (!why.length && canDraft) {
         const route = Object.entries(ROUTES).find(([k]) => (m.route ?? m.name).toLowerCase().includes(k))?.[1] ?? "ORAL";
@@ -675,7 +707,7 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const v = f.value as z.output<typeof visitValue>;
       const start = parseHhmm(v.startTime)!;
       if (v.fundedBy !== "COUNCIL") {
-        const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MISSING_INFO", description: `${v.label} ${v.startTime} (${dayList(v.weekdays)}) is informal or family support in the documents. It was not scheduled. If the agency is commissioned for it, edit the row to "Council" in a new intake or add a template by hand.`, sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MISSING_INFO", severity: "INFO", title: "Family or informal visit not scheduled", recordTab: "template", description: `${v.label} ${v.startTime} (${dayList(v.weekdays)}) is informal or family support in the documents. It was not scheduled. If the agency is commissioned for it, edit the row to "Council" in a new intake or add a template by hand.`, sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
         await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
         out.skipped.push(`${v.label} ${v.startTime}: informal support, not scheduled`);
         continue;

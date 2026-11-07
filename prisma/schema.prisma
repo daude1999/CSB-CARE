@@ -4065,6 +4065,15 @@ model CareIntakeReviewItem {
   resolvedById   String?
   resolvedAt     DateTime?
   resolution     String?
+  /// Automatic setup (7 Nov 2026): INFO | FOLLOW_UP | REVIEW | URGENT. Null for items made before it, which take their
+  /// category's usual severity (exceptionSeverity in coordinator-triage.ts).
+  severity       String?
+  /// A short heading, e.g. "Two dates of birth". Null for older items (the category label is shown instead).
+  title          String?
+  /// The profile tab where the record to correct lives (details, people, package, care-plans, risks, template...).
+  recordTab      String?
+  /// True when CSB AI raised it during automatic setup (the person who started the intake is createdById).
+  automated      Boolean     @default(false)
 
   @@unique([factId])
   @@index([organisationId, serviceUserId, status])
@@ -4098,6 +4107,16 @@ model CareIntake {
   cancelReason     String?
   /// Who confirmed that a possible match already on record is a different person (null = not confirmed).
   notDuplicateById String?
+  /// Automatic setup by CSB AI (7 Nov 2026): PROCESSING | READY | NEEDS_ATTENTION | FAILED, null when it never ran.
+  setupStatus      String?
+  /// The last stage that finished (TRIAGE, IDENTITY, RECORDS, ROTA, EXCEPTIONS, VERIFIED), so a retry carries on.
+  setupStage       String?
+  setupStartedAt   DateTime?
+  setupFinishedAt  DateTime?
+  /// Who started the automatic setup (the person whose upload or "Run automatic setup" began it).
+  setupById        String?
+  /// The read-back summary: counts from the database, the sections, the rota, identity questions and failures.
+  setupReport      Json?
   lockVersion      Int                  @default(1)
   documents        CareIntakeDocument[]
   facts            CareIntakeFact[]
@@ -4192,6 +4211,9 @@ model CareIntakeFact {
   assignedToId     String?
   decidedById      String?
   decidedAt        DateTime?
+  /// HUMAN: decidedById made the decision. AUTOMATION: CSB AI decided it during automatic setup that decidedById
+  /// started; it is never shown as that person's review.
+  decisionSource   String     @default("HUMAN")
   editedById       String?
   editedAt         DateTime?
   appliedAt        DateTime?
