@@ -61,7 +61,10 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
       ];
     case "people":
       return [
-        { key: "directory", label: "Service Users", href: "/rota/service-users", perm: "serviceUser.view" },
+        // Service User Management is the workspace's home (Add New, Update Existing, View All and the directory);
+        // All Service Users keeps its own address for bookmarks and links.
+        { key: "manage", label: "Service User Management", href: "/rota/service-users/manage", perm: "serviceUser.view" },
+        { key: "directory", label: "All Service Users", href: "/rota/service-users", perm: "serviceUser.view" },
         { key: "coordinator", label: "Care Coordinator", href: "/rota/coordinator", perm: "serviceUser.documents" },
         // Care plans and risk assessments live in each service user's profile. The incident register stays here for
         // the organisation-wide view; each profile also lists that person's incidents.

@@ -218,7 +218,7 @@ test.describe("Sidebar", () => {
     await expect(page).toHaveURL(/\/rota\/routes$/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
     await page.goto("/rota/care-plans");
-    for (const name of ["Service Users", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
+    for (const name of ["Service User Management", "All Service Users", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
     // Care plans and risk assessments now open inside each service user's profile.
     await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name: "Care Plans", exact: true })).toHaveCount(0);
     await page.goto("/rota/finance");
