@@ -9,8 +9,9 @@ it reuses the same intake, fact, section and review-item models and the same sec
 1. **Upload Support Plan → Upload and process.** The document is read in the background (as before). When reading
    finishes, CSB AI now carries on by itself and sets up the person. Nobody approves facts one by one.
 2. **Setup summary** (`/rota/coordinator/<id>?step=setup`, the default step). It shows what was created, with links to
-   the profile, care package, draft care plan, draft rota, exceptions and history. The fact-by-fact review stays as
-   "Detailed fact review (advanced)", and "Confirm & set up by hand" stays for people who prefer it.
+   the profile, care package, care plan, draft rota, exceptions and history. The fact list is now **Source facts**, a
+   read-only reference (see "No routine approval" below). Old links (`?step=review`, `?step=save`, `?step=approval`)
+   redirect.
 3. **Care Coordinator dashboard queues:** Needs attention, Processing, Ready, Failed, History. The columns are intake,
    service user, document, status, records, open exceptions and started/finished.
 4. **New profile tab "Audit & Exceptions"** (service user profile, before History). It shows the AI setup summary, the
@@ -77,6 +78,42 @@ Intake modes: **NEW** sets up a new person. **EXISTING** (revised plan) applies 
 and visit changes as review items without saving them. **DOCUMENT** (supporting document) files the document and raises
 only safety items.
 
+## No routine approval (owner's brief "Remove redundant approval workflows", 7 Nov 2026)
+
+* **Removed from the upload journey:** Approve buttons, "Approve checked facts", "Approved by" badges, "Waiting for
+  approval", the Confirm & Set Up step, "N/159 still to check" counters, and saving section by section. The server
+  actions behind them (`decideFactAction`, `approveVerifiedAction`, `confirmAndSetUpAction`, `applySectionAction`,
+  `addManualFactAction`, `acceptRoutineChangesAction`, `fileIntakeDocumentsAction`) are gone. Facts and their provenance
+  are kept, and are shown read-only under **Source facts** with what CSB AI did with each one.
+* **Workflow:** Upload → CSB AI processing → CRM populated → Profile → edit later on each record's own tab. A failed
+  section keeps the sections already saved. If the name cannot be read, a short form on the setup summary asks for it
+  and setup carries on.
+* **Care plans:** an authorised council plan is imported and put **in use** straight away (`putPlanInUse`,
+  `origin = DOCUMENT`, `sourceIntakeId`, `sourceNote` with the intake reference and pages). No approver is recorded,
+  because nobody approved it inside CSB; the audit action is `careplan.imported`. CSB AI's questions are written as
+  "(CSB AI's question, not a council instruction)". Later edits are new versions (the old one is superseded, never
+  rewritten) by anyone with `care.plan.edit`, using **Save and put in use**. "Send for review" is optional.
+* **Risk assessments:** saved and in use automatically. A risk with a stated level and stated controls is
+  `origin = DOCUMENT` ("From the council support plan"). Otherwise it is `AI_INFERRED`, shown with an **AI-generated**
+  badge and "AI-generated assessment information (not a completed clinical assessment)", and one follow-up exception
+  ("Set the risk levels the plan does not state") is raised. Editing is a new version through `reviewRisk`.
+* **Still controlled (not removed):** activating care for a person (manager), restricted items (DNACPR,
+  safeguarding, DOB and NHS number) shown only to a registered manager, medication (never activated from a plan:
+  items go to reconciliation), rota visits created unpublished, and genuine disagreements raised as exceptions.
+
+### Who can do what (`src/server/auth/rbac.ts`)
+
+| Action | Roles |
+|---|---|
+| Upload a plan and let CSB AI set up records (`rota.build`) | Org admin, care manager, care coordinator |
+| Edit a care plan or risk and put it in use (`care.plan.edit`) | Org admin, care manager, care coordinator |
+| Optional review and approve (`care.plan.approve`) | Org admin, care manager |
+| See restricted details (`serviceUser.sensitive`) | Org admin, care manager |
+| Carers | Read the care plan in use on their visits; cannot edit |
+
+Migration `20261107210000_imported_care_records` (additive) adds `origin`, `sourceIntakeId` and `sourceNote` to
+`CarePlan` and `RiskAssessment`.
+
 ## Database (migration `20261107180000_coordinator_automatic_setup`, additive)
 
 * `CareIntake`: `setupStatus`, `setupStage`, `setupStartedAt`, `setupFinishedAt`, `setupById`, `setupReport` (JSON).
@@ -99,6 +136,12 @@ saved value, the current value and who changed it.
   the right severity, honest provenance, completion summary, idempotent rerun, settling and correcting, organisation
   isolation, identity conflict, possible duplicate, failed section and retry, stale-claim takeover, an old intake
   resumed, revised plan, supporting document.
+* `tests/integration/coordinator-scanned-plan.test.ts`: a fictional **scanned** (image-only, 6-page) support plan
+  with 108 facts (`tests/support/scanned-support-plan.ts`, PDF built by `tests/support/make-scanned-plan.ts`). No human
+  decision, no approval audit entries, every record populated, original kept byte for byte, DNACPR restricted,
+  carer and other organisation refused, staff corrections versioned, rerun idempotent.
+* `tests/e2e/care-coordinator.spec.ts`: the browser journey has no Approve buttons or counters, and the imported care
+  plan shows as in use.
 * The existing coordinator suites were updated for the new wording ("Read and set up").
 
 ## Known limitations
@@ -107,4 +150,8 @@ saved value, the current value and who changed it.
 * Corrections are shown for personal details and contacts. Other sections link to their own tab and history.
 * Safety detection is by wording (for example "safeguarding", "financial abuse", "DNACPR"), with stated absences ignored.
   It flags for a person and never decides.
+* Scanned pages are not OCR'd by CSB; the AI reader reads the images. Quotes from a scanned page cannot be matched
+  to text automatically, which is said on each fact.
+* The old server functions `approveAndSave`, `prepareDrafts` and `decideFact` remain for tests and internal use; no
+  screen calls the approval path.
 * The live AI reader still needs `AI_PROVIDER=anthropic` and a key. Without it, reading falls back as before.
