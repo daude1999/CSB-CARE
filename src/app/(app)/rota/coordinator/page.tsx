@@ -33,6 +33,12 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
   const filter = FILTERS.some(([k]) => k === sp.status) ? (sp.status as (typeof FILTERS)[number][0]) : "";
   const count = (q: string) => rows.filter((r) => r.queue === q).length;
   const shown = filter === "history" ? rows : rows.filter((r) => r.queue === QUEUE_OF[filter]);
+  // Arriving from "Update Existing Service User": the person is already chosen. A hospital discharge is an update to
+  // that person; the letter is recognised when it is read (or set under Documents) and filing it opens the
+  // post-discharge review. Nothing about the intake itself changes.
+  const personLabel = person ? opts.people.find((p) => p.id === person)!.label : null;
+  const discharge = sp.doc === "discharge" && mode === "EXISTING" && !!person;
+  const suggestedTitle = personLabel ? `${discharge ? "Hospital discharge" : mode === "EXISTING" ? "Revised support plan" : "Supporting document"}: ${personLabel.replace(/ \([^)]*\)$/, "")}` : "";
   return (
     <>
       <PageHeader
@@ -78,7 +84,13 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
         <Card title="Upload Support Plan">
           <form id="start" action={createIntakeAction} className="space-y-3">
             <input type="hidden" name="back" value="/rota/coordinator" />
-            <label className="block"><span className="label">Name for this intake</span><input name="title" required minLength={3} maxLength={120} className="input" placeholder="e.g. New referral from the council, Stepney" /></label>
+            {personLabel ? (
+              <p className="rounded-[4px] border-l-4 border-[#5b2bb5] bg-[#f8f5fe] px-3 py-2 text-[13.5px] text-slate-800" data-testid="intake-person-chosen">
+                Updating <strong>{personLabel}</strong>. Their existing profile, plans and history are kept; no new person is created.
+                {discharge ? " Upload the hospital discharge summary or new medical document. When it is filed, a post-discharge review is opened for mobility, personal care, medicines, skin, equipment, follow-up, risks and visits. Medicines are reconciled with the GP or pharmacy, never changed from the letter." : null}
+              </p>
+            ) : null}
+            <label className="block"><span className="label">Name for this intake</span><input name="title" required minLength={3} maxLength={120} className="input" defaultValue={suggestedTitle} placeholder="e.g. New referral from the council, Stepney" /></label>
             <fieldset>
               <legend className="label">What these documents are</legend>
               {START_MODES.map((m) => (

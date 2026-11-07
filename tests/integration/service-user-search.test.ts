@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { addExternalReference } from "@/server/care/external-references";
 import { REFERENCE_KEY_MISSING, REFERENCE_REGISTER_FAILED } from "@/server/care/service-user-search";
-import { listServiceUsers, serviceUserDirectory } from "@/server/care/service-users";
+import { DIRECTORY_PAGE_SIZE, findServiceUsersToUpdate, listServiceUsers, serviceUserActionPerms, serviceUserDirectory } from "@/server/care/service-users";
 import { rotaSearch } from "@/server/rota/search";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
@@ -223,5 +223,62 @@ describe("permissions and isolation", () => {
       await both(q, await manager());
     }
     expect(await snap()).toBe(before);
+  });
+});
+
+describe("All Service Users: count, pages and the Update Existing picker", () => {
+  it("the count is every matching person the member may see, and pages never repeat or skip anyone", async () => {
+    const ctx = await coordinator();
+    const all = await listServiceUsers(ctx, {});
+    const extra = Math.max(0, DIRECTORY_PAGE_SIZE + 3 - all.length);
+    const tmpl = await db.serviceUser.findUniqueOrThrow({ where: { id: all[0]!.id } });
+    for (let i = 0; i < extra; i++) {
+      await db.serviceUser.create({ data: { organisationId: tmpl.organisationId, branchId: tmpl.branchId, areaId: tmpl.areaId, reference: `SU-PG${i}`, csbReference: `CSB-PG${String(i).padStart(4, "0")}`, firstName: `Pagetest${i}`, lastName: "Fictional", status: "ACTIVE" } });
+    }
+    const first = await serviceUserDirectory(ctx, { page: 1 });
+    expect(first.total).toBe(all.length + extra);
+    expect(first.rows).toHaveLength(DIRECTORY_PAGE_SIZE);
+    expect(first.pages).toBe(Math.ceil(first.total / DIRECTORY_PAGE_SIZE));
+    const seen = new Set<string>();
+    for (let p = 1; p <= first.pages; p++) for (const r of (await serviceUserDirectory(ctx, { page: p })).rows) seen.add(r.id);
+    expect(seen.size).toBe(first.total);
+    // A page beyond the last shows the last page, not an empty list.
+    expect((await serviceUserDirectory(ctx, { page: 999 })).page).toBe(first.pages);
+    // The count follows the search and filters.
+    const one = await serviceUserDirectory(ctx, { q: "Fatuma Alibhai", page: 1 });
+    expect(one.total).toBe(1);
+    // Without a page every row is returned as before (other callers are unchanged).
+    expect((await listServiceUsers(ctx, {})).length).toBe(first.total);
+  });
+
+  it("finds a person by name, CSB number, legacy SU number and exact Frameworki number, with every status", async () => {
+    const ctx = await coordinator();
+    for (const q of ["Fatuma", "Fatuma Alibhai", fa.csb, fa.legacy, "1088676"]) {
+      const r = await findServiceUsersToUpdate(ctx, q);
+      expect(r.people.map((p) => p.id), q).toContain(fa.id);
+    }
+    const hit = (await findServiceUsersToUpdate(ctx, "1088676")).people.find((p) => p.id === fa.id)!;
+    expect(hit.matchedReference).toMatch(/Frameworki/);
+    expect(hit.name).toBe("Tuma Alibhai");
+    expect((await findServiceUsersToUpdate(ctx, "Quillfeather")).people.map((p) => p.id)).toEqual([ended.id]);
+    expect((await findServiceUsersToUpdate(ctx, "a")).people).toEqual([]);
+  });
+
+  it("NHS numbers only find the person for restricted access", async () => {
+    expect((await findServiceUsersToUpdate(await coordinator(), "9990000035")).people.map((p) => p.id)).not.toContain(fa.id);
+    expect((await findServiceUsersToUpdate(await manager(), "9990000035")).people.map((p) => p.id)).toContain(fa.id);
+  });
+
+  it("is refused to members who may only view service users, and finds nothing in another organisation", async () => {
+    const viewer = { ...(await manager()), orgRoles: ["COMPLIANCE_LEAD" as const] };
+    await expect(findServiceUsersToUpdate(viewer, "Fatuma")).rejects.toThrow();
+    expect(serviceUserActionPerms(viewer)).toEqual({ create: false, edit: false, upload: false });
+    expect((await findServiceUsersToUpdate(await otherOrg(), "Fatuma")).people).toEqual([]);
+    expect((await findServiceUsersToUpdate(await otherOrg(), "1088676")).people).toEqual([]);
+  });
+
+  it("coordinators and managers are offered every choice", async () => {
+    expect(serviceUserActionPerms(await coordinator())).toEqual({ create: true, edit: true, upload: true });
+    expect(serviceUserActionPerms(await manager())).toEqual({ create: true, edit: true, upload: true });
   });
 });
