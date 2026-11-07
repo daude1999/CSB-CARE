@@ -15,9 +15,9 @@ import { durationCheck, visitTasks } from "./visit-tasks";
 import { DISCHARGE_CATEGORIES, openDischargeReview } from "../discharge-review";
 import { addPendingVersion, currentSupportPlan, recordVersionStatus } from "../document-versions";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
-import { draftFingerprint, saveDraft, startDraft } from "../care-plans";
+import { draftFingerprint, putPlanInUse, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
-import { createRiskDraft } from "../risks";
+import { createRisk } from "../risks";
 import { linkExternalReferenceInTx, referenceKeyConfigured } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
@@ -508,71 +508,109 @@ async function applyPackage(ctx: Ctx, scope: Scope, intakeId: string): Promise<S
   });
 }
 
-// ── Care plan (draft) ──────────────────────────────────────────────────────
+// ── Care plan (imported and in use) ────────────────────────────────────────
 
+/** "Support plan.pdf pages 2, 3 and 5; Discharge letter.pdf page 1": where a set of facts came from. */
+async function sourcesOf(fs: CareIntakeFact[]) {
+  const docs = await db.careIntakeDocument.findMany({ where: { id: { in: [...new Set(fs.map((f) => f.sourceDocumentId).filter((x): x is string => !!x))] } }, select: { id: true, name: true } });
+  return docs.map((d) => {
+    const pages = [...new Set(fs.filter((f) => f.sourceDocumentId === d.id && f.sourcePage).map((f) => f.sourcePage!))].sort((x, y) => x - y);
+    return `${d.name}${pages.length ? ` page${pages.length === 1 ? "" : "s"} ${pages.join(", ")}` : ""}`;
+  }).join("; ") || "facts added by hand";
+}
+
+/**
+ * The care plan from a council support plan is imported and put in use (owner's brief of 7 Nov 2026, "Remove
+ * redundant approval workflows"): the council's responsible professional already issued it, so no CSB approval is
+ * needed to store it. It is a new version (any earlier one is kept as superseded), marked as imported with its source
+ * documents and pages, and nobody in CSB is named as its approver. Staff change it later by starting a new version.
+ */
 async function applyCarePlan(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   const { su, intake } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
   const section = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section: "CARE_PLAN" } } });
-  // The draft this intake started (kept while the section runs; afterwards found through the saved facts).
+  const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "CARE_PLAN", decision: { in: [...ACCEPTED] } }, orderBy: { position: "asc" } });
+  const fresh = fs.filter((f) => !f.appliedAt);
+  if (!fresh.length) return { created: [], skipped: ["Care plan already imported"], notes: [], verified: true };
+  // The version this intake started (kept while the section runs; afterwards found through the saved facts).
   const prior = (section.applyResult as { planId?: string } | null)?.planId ?? (await db.careIntakeFact.findFirst({ where: { intakeId, section: "CARE_PLAN", appliedRef: { startsWith: "CarePlan:" } }, select: { appliedRef: true } }))?.appliedRef?.slice("CarePlan:".length);
-  let plan = prior ? await db.carePlan.findFirst({ where: { id: prior, serviceUserId: su.id, status: "DRAFT" }, include: { sections: true } }) : null;
+  const priorPlan = prior ? await db.carePlan.findFirst({ where: { id: prior, serviceUserId: su.id }, include: { sections: true } }) : null;
+  // A run cut off after the plan was put in use: the facts are already in it, so they are only marked as saved.
+  if (priorPlan && priorPlan.status !== "DRAFT" && priorPlan.sourceIntakeId === intakeId && fresh.every((f) => f.createdAt <= (priorPlan.approvedAt ?? priorPlan.createdAt))) {
+    await db.$transaction(async (tx) => { for (const f of fresh) await markApplied(tx, f, `CarePlan:${priorPlan.id}`); });
+    return { created: [], skipped: [`Care plan version ${priorPlan.version} already imported`], notes: [], verified: true };
+  }
+  let plan = priorPlan?.status === "DRAFT" ? priorPlan : null;
   if (!plan) {
     const open = await db.carePlan.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "IN_REVIEW"] } } });
-    if (open) throw new ConflictError(`Care plan version ${open.version} is already ${open.status === "DRAFT" ? "being drafted" : "in review"}. Finish or discard it first; it was not overwritten.`);
+    if (open) throw new ConflictError(`Care plan version ${open.version} is already ${open.status === "DRAFT" ? "being drafted" : "in review"} by staff. Put it in use or discard it, then run the setup again; it was not overwritten.`);
     const started = await startDraft(ctx, su.id);
     await db.careIntakeSection.update({ where: { id: section.id }, data: { applyResult: { planId: started.id } } });
     plan = await db.carePlan.findUniqueOrThrow({ where: { id: started.id }, include: { sections: true } });
   }
-  const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "CARE_PLAN", decision: { in: [...ACCEPTED] } }, orderBy: { position: "asc" } });
   const sections: Record<string, { body: string; outcomes?: string }> = {};
   for (const key of PLAN_SECTION_KEYS) {
-    // Facts saved by an earlier run are already in the draft's text; only new ones are added.
-    const mine = fs.filter((f) => f.destination === `careplan.${key}` && !f.appliedAt);
+    // Text already in the version (copied from the plan in use, or from an earlier run) is kept; new facts are added.
+    const mine = fresh.filter((f) => f.destination === `careplan.${key}`);
     const existing = plan.sections.find((s) => s.key === key);
-    if (!mine.length) { sections[key] = { body: existing?.body || "Not documented in the source documents. To be completed at assessment.", outcomes: existing?.outcomes ?? undefined }; continue; }
+    if (!mine.length) { sections[key] = { body: existing?.body || "Not documented in the council support plan. To be completed at assessment.", outcomes: existing?.outcomes ?? undefined }; continue; }
     const parts: string[] = existing?.body ? [existing.body, ""] : [];
     const outcomes: string[] = existing?.outcomes ? [existing.outcomes] : [];
     for (const f of mine) {
       const v = f.value as z.output<typeof planValue>;
       const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
       const topic = v.topic ? CARE_PLAN_TOPICS[v.topic].label : null;
-      parts.push([topic ? `${topic}` : null, v.canDo ? `What I can do myself: ${v.canDo}` : null, v.support ? `Support I need: ${v.support}` : null, v.how ? `How staff should support me: ${v.how}` : null, v.preferences ? `My preferences: ${v.preferences}` : null, v.clarify ? `To clarify with a professional: ${v.clarify}` : null, `(Source: ${src})`].filter(Boolean).join("\n"));
+      parts.push([topic ? `${topic}` : null, v.canDo ? `What I can do myself: ${v.canDo}` : null, v.support ? `Support I need: ${v.support}` : null, v.how ? `How staff should support me: ${v.how}` : null, v.preferences ? `My preferences: ${v.preferences}` : null, v.clarify ? `To clarify (CSB AI's question, not a council instruction): ${v.clarify}` : null, `(Source: ${src})`].filter(Boolean).join("\n"));
       if (v.outcome) outcomes.push(v.outcome);
     }
     sections[key] = { body: parts.join("\n\n").slice(0, 10000), outcomes: outcomes.join("\n").slice(0, 4000) || undefined };
   }
-  const summaryFact = fs.find((f) => f.destination === "careplan.summary");
-  const summary = (summaryFact ? String(summaryFact.value) : `Draft prepared from the documents in Care Coordinator intake ${intake.reference}. Not approved: a different manager must check and approve it before carers use it.`).slice(0, 2000);
-  const fresh = await db.carePlan.findUniqueOrThrow({ where: { id: plan.id }, include: { sections: true } });
-  await saveDraft(ctx, plan.id, { fingerprint: draftFingerprint(fresh, fresh.sections), summary, reviewDue: fresh.reviewDue ? fromDbDate(fresh.reviewDue) : addDays(londonDate(), 182), sections });
+  const summaryFact = fresh.find((f) => f.destination === "careplan.summary");
+  const summary = (summaryFact ? String(summaryFact.value) : plan.summary || `Care plan imported from the council support plan (${intake.reference}). Read each section for the support the council set out.`).slice(0, 2000);
+  const current = await db.carePlan.findUniqueOrThrow({ where: { id: plan.id }, include: { sections: true } });
+  await saveDraft(ctx, plan.id, { fingerprint: draftFingerprint(current, current.sections), summary, reviewDue: current.reviewDue ? fromDbDate(current.reviewDue) : addDays(londonDate(), 182), sections });
+  const note = `${intake.reference}: ${await sourcesOf(fs)}`;
+  await putPlanInUse(ctx, plan.id, { imported: { intakeId, note } });
   await db.$transaction(async (tx) => {
-    for (const f of fs) if (!f.appliedAt) await markApplied(tx, f, `CarePlan:${plan!.id}`);
+    for (const f of fresh) await markApplied(tx, f, `CarePlan:${plan!.id}`);
   });
   const back = await db.carePlan.findUniqueOrThrow({ where: { id: plan.id }, include: { sections: true } });
-  const filled = back.sections.filter((s) => fs.some((f) => f.destination === `careplan.${s.key}`)).length;
-  return { created: [`Care plan version ${back.version} saved as a DRAFT (${filled} of 9 sections filled from documents)`], skipped: [], notes: ["Submit the draft from the Care tab. A different manager approves it; until then carers keep any earlier approved plan.", ...PLAN_SECTION_KEYS.filter((k) => !fs.some((f) => f.destination === `careplan.${k}`)).map((k) => `${PLAN_SECTION_LABEL[k]}: not documented, needs assessment`)], verified: back.status === "DRAFT" && filled === new Set(fs.filter((f) => f.destination !== "careplan.summary").map((f) => f.destination)).size };
+  const filled = new Set(fs.filter((f) => f.destination !== "careplan.summary").map((f) => f.destination)).size;
+  return { created: [`Care plan version ${back.version} imported and in use (${filled} of 9 sections from the documents)`], skipped: [], notes: ["Imported from the council support plan with its source pages. Staff change it by starting a new version on the Care Plan tab.", ...PLAN_SECTION_KEYS.filter((k) => !fs.some((f) => f.destination === `careplan.${k}`)).map((k) => `${PLAN_SECTION_LABEL[k]}: not documented, to be completed at assessment`)], verified: back.status === "ACTIVE" && back.origin === "DOCUMENT" };
 }
 
-// ── Risk assessments (drafts) ──────────────────────────────────────────────
+// ── Risk assessments (saved and active, with their source) ─────────────────
 
+/** Marker in the hazards text of an assessment whose level the documents do not state. */
+export const RISK_LEVEL_NOT_STATED = "THE RISK LEVEL IS NOT STATED in the support plan.";
+
+/**
+ * Risk information in the support plan is saved as active assessments (owner's brief of 7 Nov 2026). When the plan
+ * contains a completed assessment (a stated level and controls), it is saved as the council's assessment (DOCUMENT).
+ * Otherwise CSB AI wrote it from the plan's narrative, and it is saved and labelled as AI-generated assessment
+ * information (AI_INFERRED), never as a completed clinical assessment. Nothing waits for an approval.
+ */
 async function applyRisks(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
-  const { su } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
+  const { su, intake } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
   const out: SectionResult = { created: [], skipped: [], notes: [], verified: true };
   const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "RISKS", decision: { in: [...ACCEPTED] }, appliedAt: null }, orderBy: { position: "asc" } });
+  const ids: string[] = [];
   for (const f of fs) {
     const r = f.value as z.output<typeof riskValue>;
     const dup = await db.riskAssessment.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "ACTIVE"] }, type: r.type, title: { equals: r.title, mode: "insensitive" } } });
     if (dup) { await db.$transaction((tx) => markApplied(tx, f, `existing:RiskAssessment:${dup.id}`)); out.skipped.push(`${r.title} already exists`); continue; }
     const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
-    const reviewDue = r.reviewDue && r.reviewDue > londonDate() ? r.reviewDue : addDays(londonDate(), 14);
-    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, !r.level ? "NO RISK LEVEL IS STATED in the documents. The level shown is only a placeholder so the draft can be saved; the assessor must set it." : r.levelIsProvisional ? `Level ${r.level} is PROVISIONAL (set by the coordinator, not stated in the documents). The assessor must confirm or change it.` : null].filter(Boolean).join("\n").slice(0, 4000);
-    const controls = (r.existingControls ? `Documented controls: ${r.existingControls}` : "No controls are documented. The assessor must set the controls before approving.").slice(0, 4000);
-    const created = await createRiskDraft(ctx, su.id, { type: r.type, title: r.title, hazards, controls, level: r.level ?? "MEDIUM", reviewDue, requiredActions: r.recommendedActions ? `For review: ${r.recommendedActions}` : undefined, responsiblePerson: r.recommendedActions ? (r.responsiblePerson ?? "Registered manager") : (r.responsiblePerson ?? undefined) });
+    const completed = !!r.level && !r.levelIsProvisional && !!r.existingControls;
+    const origin = completed ? "DOCUMENT" as const : "AI_INFERRED" as const;
+    const reviewDue = r.reviewDue && r.reviewDue > londonDate() ? r.reviewDue : addDays(londonDate(), 28);
+    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, !r.level ? `${RISK_LEVEL_NOT_STATED} Medium is shown until someone sets it.` : r.levelIsProvisional ? `Level ${r.level} was suggested by CSB AI; the support plan does not state it.` : null].filter(Boolean).join("\n").slice(0, 4000);
+    const controls = (r.existingControls ? r.existingControls : "The support plan does not set out controls for this risk. Follow the care plan and report any change to the office.").slice(0, 4000);
+    const created = await createRisk(ctx, su.id, { type: r.type, title: r.title, hazards, controls, level: r.level ?? "MEDIUM", reviewDue, requiredActions: r.recommendedActions ?? undefined, responsiblePerson: r.recommendedActions ? (r.responsiblePerson ?? "Registered manager") : (r.responsiblePerson ?? undefined) }, { origin, intakeId, note: `${intake.reference}: ${src}` });
     await db.$transaction((tx) => markApplied(tx, f, `RiskAssessment:${created.id}`));
-    out.created.push(`${r.title} (DRAFT, review by ${reviewDue})`);
+    ids.push(created.id);
+    out.created.push(`${r.title} (${origin === "DOCUMENT" ? "from the council's assessment" : "AI-generated from the plan"}, review by ${reviewDue})`);
   }
-  out.verified = (await db.riskAssessment.count({ where: { serviceUserId: su.id, status: "DRAFT" } })) >= out.created.length;
-  out.notes.push("Draft risk assessments are not active and not shown to carers. A different manager reviews each one on the Risk Assessments tab.");
+  out.verified = (await db.riskAssessment.count({ where: { id: { in: ids }, status: "ACTIVE" } })) === ids.length;
+  if (ids.length) out.notes.push("Saved as active assessments with their source. Edit them with Review on the Risk Assessments tab.");
   return out;
 }
 

@@ -102,9 +102,9 @@ export async function shiftCheck(ctx: Ctx, dateIn?: string, now = new Date()) {
     ...open.filter((o) => o.priority === "URGENT").map((o) => ({ kind: "FACT" as const, text: `${o.time} ${o.person} (${o.callType}) has ${o.missing} open place${o.missing === 1 ? "" : "s"}: ${o.why.toLowerCase()}.`, href: `/rota/visits/${o.visitId}` })),
     ...clashes.filter((c) => c.kind === "OVERLAP").map((c) => ({ kind: "FACT" as const, text: c.text, href: `/rota/visits/${c.visitIds[0]}` })),
     ...(unpublished ? [{ kind: "FACT" as const, text: `${unpublished} visit${unpublished === 1 ? " is" : "s are"} not published, so carers cannot see ${unpublished === 1 ? "it" : "them"}. A coordinator publishes after checking.`, href: `/rota/visits?date=${date}` }] : []),
-    ...(intakesWaiting ? [{ kind: "FACT" as const, text: `${intakesWaiting} Care Coordinator intake${intakesWaiting === 1 ? " has" : "s have"} a section that was approved but not saved. Open ${intakesWaiting === 1 ? "it" : "them"} and press Approve & Save to CRM again.`, href: "/rota/coordinator" }] : []),
-    ...(plansInReview ? [{ kind: "FACT" as const, text: `${plansInReview} care plan${plansInReview === 1 ? " is" : "s are"} waiting for approval.`, href: "/rota/care-plans?filter=review" }] : []),
-    ...(riskDrafts ? [{ kind: "FACT" as const, text: `${riskDrafts} draft risk assessment${riskDrafts === 1 ? " needs" : "s need"} an independent review.` }] : []),
+    ...(intakesWaiting ? [{ kind: "FACT" as const, text: `${intakesWaiting} Care Coordinator intake${intakesWaiting === 1 ? " has" : "s have"} a section that was not saved. Open ${intakesWaiting === 1 ? "it" : "them"} and press Run setup again.`, href: "/rota/coordinator" }] : []),
+    ...(plansInReview ? [{ kind: "FACT" as const, text: `${plansInReview} care plan${plansInReview === 1 ? " was" : "s were"} sent for review.`, href: "/rota/care-plans?filter=review" }] : []),
+    ...(riskDrafts ? [{ kind: "FACT" as const, text: `${riskDrafts} older draft risk assessment${riskDrafts === 1 ? " is" : "s are"} not in use yet.` }] : []),
     ...(medDrafts ? [{ kind: "FACT" as const, text: `${medDrafts} draft medicine${medDrafts === 1 ? " needs" : "s need"} a second person's approval.` }] : []),
     ...(reconciliation ? [{ kind: "FACT" as const, text: `${reconciliation} medication reconciliation item${reconciliation === 1 ? " is" : "s are"} open.` }] : []),
   ];

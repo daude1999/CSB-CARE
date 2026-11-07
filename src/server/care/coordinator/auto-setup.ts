@@ -8,7 +8,7 @@ import { audit, runAsAutomation } from "@/server/audit-log";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { findPossibleDuplicates } from "../su-import";
-import { applySection, fileDocuments, handedFactIds } from "./apply";
+import { RISK_LEVEL_NOT_STATED, applySection, fileDocuments, handedFactIds } from "./apply";
 import { compareFacts, coordinatorAccess, intakeInScope } from "./intake";
 import { proposeRotaFor } from "./prepare";
 
@@ -22,9 +22,11 @@ import { proposeRotaFor } from "./prepare";
  *               consolidated, historical or superseded values are kept for reference only, the rest wait.
  *   IDENTITY    a new person is created only when the name is clear, nothing about identity disagrees and nobody similar
  *               is on record (or a person confirmed it is someone different).
- *   RECORDS     the existing section savers, as drafts: profile at Assessment, contacts, preferences, care package, care
- *               plan DRAFT, risk DRAFTs, visit templates, call notes; medication, incident history and skin findings
- *               only as restricted review items. Original documents are filed.
+ *   RECORDS     the existing section savers: profile at Assessment, contacts, preferences, care package, the care plan
+ *               imported and in use, risk assessments saved and active (each labelled with its source, and as
+ *               AI-generated when CSB AI wrote it from the narrative), visit templates, call notes; medication,
+ *               incident history and skin findings only as restricted review items. Original documents are filed.
+ *               Nothing waits for an approval (owner's brief of 7 Nov 2026, "Remove redundant approval workflows").
  *   ROTA        a proposed, unpublished rota from the templates. Carers are not told.
  *   EXCEPTIONS  the waiting facts and safety findings become review items with a severity; urgent ones reach managers
  *               at once (in-app only, nothing is sent outside).
@@ -33,7 +35,8 @@ import { proposeRotaFor } from "./prepare";
  * Provenance: every decision CSB AI takes is stored as decisionSource AUTOMATION, and every audit entry written during
  * the run carries { automation: { by: "CSB AI", initiatedById } }. Nothing is recorded as a person's review.
  * Idempotent and resumable: each stage only touches what is not done yet, so a retry carries on where it stopped.
- * It never approves a care plan or risk, never activates care, never publishes visits and never sends anything out.
+ * It never activates care, never publishes visits, never records medication or a DNACPR status, and never sends
+ * anything out.
  */
 
 export const SETUP_STATUS = { PROCESSING: "Processing", READY: "Ready", NEEDS_ATTENTION: "Needs attention", FAILED: "Failed" } as const;
@@ -55,7 +58,7 @@ export interface SetupReport {
   triage: { routine: number; duplicates: number; notUsed: number; waiting: number };
   sections: { section: IntakeSection; label: string; status: "SAVED" | "FAILED" | "SKIPPED"; created: string[]; error?: string }[];
   rota: { visits: number; unassignedSlots: number; alreadyBuilt: number; weekStart: string; weeks: number; error?: string } | null;
-  records: { personal: boolean; contacts: number; package: boolean; carePlan: boolean; risks: number; templates: number; callNotes: number; references: number; reviewItems: number; documentsFiled: number; existingMatched: number; duplicatesConsolidated: number };
+  records: { personal: boolean; contacts: number; package: boolean; carePlan: boolean; risks: number; risksAiGenerated?: number; templates: number; callNotes: number; references: number; reviewItems: number; documentsFiled: number; existingMatched: number; duplicatesConsolidated: number };
   exceptions: Record<Severity, number>;
   failures: string[];
   /** Exceptions found before the person existed, raised once they do. */
@@ -219,6 +222,9 @@ async function setUp(ctx: Ctx, scope: Scope, intakeId: string, opts: { rotaWeeks
       report.failures.push(`The original documents were not filed: ${e.message}`);
     }
   }
+  // Risk levels the support plan does not state: saved as Medium so the assessment is in use, and listed once to set.
+  const unstated = intake.serviceUserId ? await db.riskAssessment.findMany({ where: { sourceIntakeId: intakeId, status: "ACTIVE", hazards: { contains: RISK_LEVEL_NOT_STATED } }, select: { title: true } }) : [];
+  if (unstated.length) report.pending!.push({ severity: "FOLLOW_UP", category: "RISK_LEVEL", title: "Set the risk levels the plan does not state", description: `The support plan does not give a risk level for ${unstated.map((u) => u.title).join(", ")}. They are saved as Medium and in use. Review each one on the Risk Assessments tab and set the level.`, recordTab: "risks", restricted: false, factId: null, sourceRef: intake.reference });
   await stage(intakeId, "RECORDS");
 
   // ── ROTA ──
@@ -337,7 +343,7 @@ async function verify(scope: Scope, intakeId: string, report: SetupReport) {
     db.careIntakeDocument.count({ where: { intakeId, filedDocumentId: { not: null } } }),
   ]);
   report.records = {
-    personal: !!su, contacts, package: pkgs > 0, carePlan: plans > 0, risks, templates, callNotes: notes, references: refs("ServiceUserExternalReference:"), reviewItems: items, documentsFiled: filed,
+    personal: !!su, contacts, package: pkgs > 0, carePlan: plans > 0, risks, risksAiGenerated: await db.riskAssessment.count({ where: { sourceIntakeId: intakeId, origin: "AI_INFERRED" } }), templates, callNotes: notes, references: refs("ServiceUserExternalReference:"), reviewItems: items, documentsFiled: filed,
     existingMatched: refs("existing:"), duplicatesConsolidated: await db.careIntakeFact.count({ where: { intakeId, decision: "DUPLICATE" } }),
   };
   // Every fact CSB AI or a person accepted must be saved, except the sections deliberately left (reported above).
@@ -366,8 +372,8 @@ export function setupSummaryLines(r: SetupReport, mode: string): string[] {
   if (rec.contacts) lines.push(`${n(rec.contacts, "contact", "contacts")} added`);
   if (rec.package) lines.push("Care package created");
   if (rec.templates) lines.push(`${n(rec.templates, "repeating visit template", "repeating visit templates")} created`);
-  if (rec.carePlan) lines.push("Draft care plan generated (Draft – requires appropriate review)");
-  if (rec.risks) lines.push(`${n(rec.risks, "draft risk assessment", "draft risk assessments")} generated`);
+  if (rec.carePlan) lines.push("Care plan imported from the council support plan and in use");
+  if (rec.risks) lines.push(`${n(rec.risks, "risk assessment", "risk assessments")} saved${rec.risksAiGenerated ? ` (${rec.risksAiGenerated} AI-generated from the plan's narrative, labelled as such)` : ""}`);
   if (rec.callNotes) lines.push(`${n(rec.callNotes, "call note", "call notes")} recorded`);
   if (r.rota?.visits) lines.push(`Proposed rota created: ${n(r.rota.visits, "visit", "visits")}, unpublished, ${n(r.rota.unassignedSlots, "carer place", "carer places")} to fill`);
   else if (r.rota && !r.rota.error && r.rota.alreadyBuilt) lines.push(`Proposed rota already in place (${n(r.rota.alreadyBuilt, "visit", "visits")})`);

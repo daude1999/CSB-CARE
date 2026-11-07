@@ -1819,6 +1819,11 @@ model CarePlan {
   supersededAt     DateTime?
   /// The Care Summary a manager started this review from, if any. The summary text is never copied into the plan.
   sourceSummaryId  String?
+  /// MANUAL (written in CSB) or DOCUMENT (imported from a council support plan by CSB AI).
+  origin           String                    @default("MANUAL")
+  /// The Care Coordinator intake it was imported from, and which documents and pages.
+  sourceIntakeId   String?
+  sourceNote       String?
   sections         CarePlanSection[]
   acknowledgements CarePlanAcknowledgement[]
 
@@ -1889,6 +1894,11 @@ model RiskAssessment {
   /// What still has to be done to reduce the risk (not the standing controls), and who is responsible for it.
   requiredActions   String?
   responsiblePerson String?
+  /// MANUAL, DOCUMENT (a completed assessment in a source document) or AI_INFERRED (CSB AI wrote it from the
+  /// document's narrative: assessment information, not a completed clinical assessment).
+  origin            String                  @default("MANUAL")
+  sourceIntakeId    String?
+  sourceNote        String?
   versions          RiskAssessmentVersion[]
 
   @@index([organisationId, serviceUserId])

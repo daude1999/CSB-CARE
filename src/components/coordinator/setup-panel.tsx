@@ -1,6 +1,6 @@
 import Link from "@/components/link";
 import { Badge, Card, fmtDate } from "@/components/ui";
-import { chooseIdentityAction, confirmNewPersonAction, runAutomaticSetupAction } from "@/app/coordinator-actions";
+import { chooseIdentityAction, confirmNewPersonAction, provideNameAction, runAutomaticSetupAction } from "@/app/coordinator-actions";
 import { SETUP_STATUS, setupSummaryLines, type SetupReport } from "@/server/care/coordinator/auto-setup";
 import type { ExceptionView, identityChoices } from "@/server/care/coordinator/exceptions";
 import type { IntakeView } from "@/server/care/coordinator/intake";
@@ -41,7 +41,7 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
       >
         {!report ? (
           <div className="space-y-2 text-[14px]">
-            <p>This intake was started before CSB AI set records up by itself{view.documents.length ? "" : ", or has no documents yet"}. Running the automatic setup now keeps every document, fact and decision already made: CSB AI only sorts the facts still waiting, saves the routine ones as drafts, skips anything already saved and lists what needs a person.</p>
+            <p>This intake was started before CSB AI set records up by itself{view.documents.length ? "" : ", or has no documents yet"}. Running the automatic setup now keeps every document, fact and decision already made: CSB AI only sorts the facts still waiting, saves them into the person&apos;s records, skips anything already saved and lists only what needs a person.</p>
             {open && view.documents.length && !busy ? runForm("Run automatic setup", true) : !view.documents.length ? <p className="text-slate-600">Upload the documents under Documents first.</p> : null}
           </div>
         ) : (
@@ -55,14 +55,14 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
               {report.failures.map((f) => <p key={f} className="text-[#a3242c]">{f}</p>)}
               {report.rota?.error ? <p className="text-[#a3242c]">Proposed rota not built: {report.rota.error}</p> : null}
               <p className="text-[13px] text-slate-600">
-                {report.finishedAt ? `Finished ${fmtDate(report.finishedAt, true)}.` : `Started ${fmtDate(report.startedAt, true)}.`} {intake.setupStage ? `Last stage: ${STAGE_LABEL[intake.setupStage] ?? intake.setupStage}.` : ""} CSB AI sorted {report.triage.routine} routine fact{report.triage.routine === 1 ? "" : "s"}, consolidated {report.triage.duplicates} repeat{report.triage.duplicates === 1 ? "" : "s"} and kept {report.triage.notUsed} historical or superseded value{report.triage.notUsed === 1 ? "" : "s"} for reference only. Care plans and risk assessments stay drafts until they are approved; nothing was published or sent to carers.
+                {report.finishedAt ? `Finished ${fmtDate(report.finishedAt, true)}.` : `Started ${fmtDate(report.startedAt, true)}.`} {intake.setupStage ? `Last stage: ${STAGE_LABEL[intake.setupStage] ?? intake.setupStage}.` : ""} CSB AI sorted {report.triage.routine} routine fact{report.triage.routine === 1 ? "" : "s"}, consolidated {report.triage.duplicates} repeat{report.triage.duplicates === 1 ? "" : "s"} and kept {report.triage.notUsed} historical or superseded value{report.triage.notUsed === 1 ? "" : "s"} for reference only. The care plan and risk assessments were saved straight into the record with their source; nothing needed approving. Visits were not published and nothing was sent to carers.
               </p>
             </div>
             {profile ? (
               <nav aria-label="Open the person's records" className="flex flex-col gap-1.5">
                 <Link href={profile} className="btn-primary text-center">Open service user profile</Link>
                 <Link href={`${profile}?tab=package`} className="btn-secondary text-center">View care package</Link>
-                <Link href={`${profile}?tab=care-plans`} className="btn-secondary text-center">View draft care plan</Link>
+                <Link href={`${profile}?tab=care-plans`} className="btn-secondary text-center">View care plan</Link>
                 <Link href={`${profile}?tab=rota`} className="btn-secondary text-center">View draft rota</Link>
                 <Link href={`${profile}?tab=ai-audit`} className="btn-secondary text-center">Review exceptions{attention ? ` (${attention})` : ""}</Link>
                 <Link href={`${profile}?tab=ai-audit#audit-trail`} className="btn-secondary text-center">View audit history</Link>
@@ -107,7 +107,13 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
 
       {report?.blocked?.kind === "NAME_MISSING" ? (
         <Card title="The person's name is needed">
-          <p className="text-[14px]">Add the first and last name in the <Link href={`/rota/coordinator/${intake.id}?step=review&section=PERSONAL&add=1`}>detailed fact review</Link>, then press Check again.</p>
+          <form action={provideNameAction} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="back" value={back} /><input type="hidden" name="intakeId" value={intake.id} />
+            <p className="w-full text-[14px]">CSB AI could not read the person&apos;s name clearly. Type it as the document gives it and setup carries on.</p>
+            <label className="block"><span className="label">First name</span><input name="firstName" required maxLength={100} className="input" /></label>
+            <label className="block"><span className="label">Last name</span><input name="lastName" required maxLength={100} className="input" /></label>
+            <button className="btn-primary">Save name and continue</button>
+          </form>
         </Card>
       ) : null}
 

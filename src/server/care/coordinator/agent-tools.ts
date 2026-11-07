@@ -247,7 +247,7 @@ const tools = {
   } satisfies Tool<z.ZodObject<{ intakeId: typeof id; section: z.ZodEnum<typeof SECTION_KEYS> }>>,
 
   get_review_steps: {
-    spec: { name: "get_review_steps", description: "What still has to happen on an intake before anything reaches the person's record or the rota: open facts, the coordinator's Approve & Save to CRM, what was saved per section, follow-ups and the rota readiness checks (care package, visits, care plan approved by a different person, risks reviewed).", inputSchema: obj({ intakeId: { type: "string" } }) },
+    spec: { name: "get_review_steps", description: "Where an intake is: documents still being read, what CSB AI's automatic setup saved per section, the exceptions that need a person and the rota readiness checks (care package, visits, care plan in use, risk assessments in use).", inputSchema: obj({ intakeId: { type: "string" } }) },
     schema: z.object({ intakeId: id }),
     async run(ctx, { intakeId }, state) {
       const view = await getIntake(ctx, intakeId);
@@ -257,10 +257,10 @@ const tools = {
       const ready = view.intake.serviceUserId ? await rotaReadiness(ctx, intakeId).catch(() => null) : null;
       const next =
         inReview(status)
-          ? !view.documents.length ? "Upload the support plan." : unread ? `${unread} document(s) still to read.` : open ? `${open} fact(s) still need the coordinator's check, then the coordinator presses Approve & Save to CRM.` : "The coordinator presses Approve & Save to CRM (one approval; no manager approval is needed)."
+          ? !view.documents.length ? "Upload the support plan." : unread ? `${unread} document(s) still to read.` : open ? `${open} fact(s) are listed as exceptions on the Setup summary; nothing needs approving.` : "Setup is done or runs by itself; see the Setup summary (no approval is needed)."
           : status === "APPLYING" ? "Saving is in progress; check any section that failed."
           : "The intake is closed.";
-      link(state, { label: `Open ${view.intake.reference}`, href: intakeHref(intakeId, inReview(status) ? (open ? "review" : "save") : undefined) });
+      link(state, { label: `Open ${view.intake.reference}`, href: intakeHref(intakeId, inReview(status) ? "setup" : undefined) });
       if (ready?.serviceUser) link(state, { label: "Rota and carers step", href: intakeHref(intakeId, "rota") });
       return {
         status: INTAKE_STATUS[status] ?? status, nextStep: next, openFacts: open, unreadDocuments: unread,

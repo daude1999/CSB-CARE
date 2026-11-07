@@ -1,20 +1,15 @@
 "use server";
 
-import { acceptRoutineChanges } from "@/server/care/coordinator/compare";
 import { after } from "next/server";
-import { z } from "zod";
 import { ValidationError } from "@/lib/errors";
-import { valueFromForm } from "@/lib/care-coordinator-forms";
 import { handle, step, str } from "./action-kit";
-import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, resolveFollowUp, setCoordinatorAi, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
-import { approveSaveFailed, applySection, fileDocuments } from "@/server/care/coordinator/apply";
+import { addDocuments, addManualFact, cancelIntake, createIntake, resolveFollowUp, setCoordinatorAi, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
-import { confirmAndSetUp, confirmReportText, proposeIntakeRota } from "@/server/care/coordinator/prepare";
+import { proposeIntakeRota } from "@/server/care/coordinator/prepare";
 import { chooseIdentityValue, confirmNewPerson, resolveException } from "@/server/care/coordinator/exceptions";
 import { runAutomaticSetup, setupSummaryLines } from "@/server/care/coordinator/auto-setup";
 import { queueDocumentRead, queueIntakeReads, runQueuedReads } from "@/server/care/coordinator/read-jobs";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
-import { SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 
 /**
  * Server actions for the AI Care Coordinator. Each reads plain form fields, calls the coordinator service with the
@@ -28,16 +23,6 @@ const intakeId = (fd: FormData) => {
   if (!/^[a-z0-9]{10,40}$/i.test(id)) throw new ValidationError("This intake could not be found");
   return id;
 };
-const sectionOf = (fd: FormData): IntakeSection => {
-  const s = z.enum(SECTION_KEYS).safeParse(str(fd, "section"));
-  if (!s.success) throw new ValidationError("Choose a section");
-  return s.data;
-};
-const lockOf = (fd: FormData) => {
-  const v = str(fd, "lockVersion");
-  return /^\d+$/.test(v) ? Number(v) : null;
-};
-
 async function filesFrom(fd: FormData): Promise<UploadedFile[]> {
   const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) throw new ValidationError("Choose at least one document to upload");
@@ -54,7 +39,7 @@ function startReadingSoon() {
   after(() => runQueuedReads(`after:${process.pid}`, 1).then(() => undefined, () => undefined));
 }
 
-const READING_NOTE = "It is being read now. When reading finishes, CSB AI sets up the person's records, drafts and a proposed rota by itself and lists only what needs attention. You can leave this page.";
+const READING_NOTE = "It is being read now. When reading finishes, CSB AI sets up the person's records and a proposed rota by itself and lists only what needs attention. Nothing needs approving. You can leave this page.";
 
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
@@ -64,7 +49,7 @@ export async function createIntakeAction(fd: FormData) {
       const r = await step("store-documents", `${intake.reference} was started, but the documents could not be stored. Open ${intake.reference} and upload them again; nothing else needs redoing.`, async () => addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" }));
       await step("queue-reading", `${intake.reference} was started and the documents were stored, but reading could not be started. Open ${intake.reference} and press Read again; nothing needs uploading again.`, () => queueIntakeReads(ctx, r.toRead, { prepare: true }));
       if (r.toRead.length) startReadingSoon();
-      return { to: page(intake.id, "?step=setup"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
+      return { to: page(intake.id, "?step=setup"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "None of them has text CSB AI can read, so add the details on the person's record."}` };
     }
     return { to: page(intake.id), ok: `${intake.reference} started. Upload the documents next.` };
   }, "Started");
@@ -77,21 +62,8 @@ export async function uploadIntakeDocumentsAction(fd: FormData) {
     if (!r.documents && r.duplicates.length) return { ok: `${r.duplicates.join(", ")} ${r.duplicates.length === 1 ? "is" : "are"} already on this intake, so nothing was uploaded again.` };
     await step("queue-reading", "The documents were stored, but reading could not be started. Press Read again on each document; nothing needs uploading again.", () => queueIntakeReads(ctx, r.toRead, { prepare: true }));
     if (r.toRead.length) startReadingSoon();
-    return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded and stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
+    return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded and stored. ${r.toRead.length ? READING_NOTE : "None of them has text CSB AI can read, so add the details on the person's record."}` };
   }, "Uploaded");
-}
-
-/**
- * Confirm & Set Up Records: the authorised coordinator's one confirmation (no separate manager approval). Saves every
- * section that is ready and says exactly which section, if any, was not saved; saved sections are never repeated.
- */
-export async function confirmAndSetUpAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const id = intakeId(fd);
-    const r = await confirmAndSetUp(ctx, id, { notADuplicate: fd.get("notADuplicate") === "on", areaId: str(fd, "areaId") || undefined, lockVersion: lockOf(fd) });
-    if (approveSaveFailed(r.save)) throw new ValidationError(confirmReportText(r));
-    return { to: page(id, "?step=save"), ok: confirmReportText(r) };
-  }, "Set up");
 }
 
 /** Prepares the draft rota again from the saved repeating visits (unpublished; nothing is added twice). */
@@ -117,56 +89,6 @@ export async function updateIntakeDocumentAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     await updateIntakeDocument(ctx, str(fd, "documentId"), { name: str(fd, "name"), section: str(fd, "docSection") === "COUNCIL" ? "COUNCIL" : "OTHER", category: str(fd, "category"), issuer: str(fd, "issuer"), documentDate: str(fd, "documentDate"), sensitive: fd.get("sensitive") === "on" });
   }, "Filing details saved");
-}
-
-/** Approve, edit, reject, clarify, duplicate or reopen one fact. An edit sends the plain form fields, never JSON. */
-export async function decideFactAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const decision = str(fd, "decision");
-    const destination = str(fd, "destination");
-    const value = decision === "EDITED" ? valueFromForm(destination, fd) : undefined;
-    await decideFact(ctx, str(fd, "factId"), lockOf(fd), { decision: decision as "APPROVED", note: str(fd, "note"), question: str(fd, "question"), assignedToId: str(fd, "assignedToId"), value });
-  }, "Saved");
-}
-
-/** Revised plan: approves only unchanged values and verified new non-clinical details (compare.ts). */
-export async function acceptRoutineChangesAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const r = await acceptRoutineChanges(ctx, intakeId(fd));
-    return { ok: r.accepted ? `${r.accepted} routine change${r.accepted === 1 ? "" : "s"} accepted. Check the rest one by one.` : "Nothing routine was left to accept." };
-  }, "Accepted");
-}
-
-export async function approveVerifiedAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const section = sectionOf(fd);
-    const n = await approveVerified(ctx, intakeId(fd), section);
-    return { ok: n ? `${n} checked fact${n === 1 ? "" : "s"} approved in ${sectionLabel(section)}. Facts with a warning are left for you.` : "Nothing to approve: every remaining fact has a warning or needs a person to decide." };
-  }, "Approved");
-}
-
-export async function addManualFactAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const destination = str(fd, "destination");
-    const page = str(fd, "sourcePage");
-    await addManualFact(ctx, intakeId(fd), { destination, label: str(fd, "label") || undefined, value: valueFromForm(destination, fd), sourceDocumentId: str(fd, "sourceDocumentId"), sourcePage: /^\d+$/.test(page) ? Number(page) : null });
-  }, "Fact added and approved under your name");
-}
-
-export async function applySectionAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const section = sectionOf(fd);
-    const r = await applySection(ctx, intakeId(fd), section);
-    if (r.status === "FAILED") throw new ValidationError(`${sectionLabel(section)} was not saved: ${r.error}. Sections already saved are kept.`);
-    return { ok: `${sectionLabel(section)} saved to the CRM and read back` };
-  }, "Saved");
-}
-
-export async function fileIntakeDocumentsAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const n = await fileDocuments(ctx, intakeId(fd));
-    return { ok: n ? `${n} original document${n === 1 ? "" : "s"} filed in the person's documents` : "Every document is already filed" };
-  }, "Filed");
 }
 
 export async function cancelIntakeAction(fd: FormData) {
@@ -218,6 +140,20 @@ export async function runAutomaticSetupAction(fd: FormData) {
     if (r.blocked) return { to: page(id, "?step=setup"), ok: r.blocked.message };
     return { to: page(id, "?step=setup"), ok: `Setup finished. ${setupSummaryLines(r, str(fd, "mode") || "NEW").join(". ")}.` };
   }, "Setup finished");
+}
+
+/** The documents did not give the name clearly: a person types it from the document, and setup carries on. */
+export async function provideNameAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const id = intakeId(fd);
+    const first = str(fd, "firstName").trim(), last = str(fd, "lastName").trim();
+    if (!first || !last) throw new ValidationError("Enter the first and last name as the document gives them");
+    await addManualFact(ctx, id, { destination: "person.firstName", value: first });
+    await addManualFact(ctx, id, { destination: "person.lastName", value: last });
+    const r = await runAutomaticSetup(ctx, id);
+    if (r.blocked) return { to: page(id, "?step=setup"), ok: r.blocked.message };
+    return { to: page(id, "?step=setup"), ok: `Name saved and setup finished. ${setupSummaryLines(r, "NEW").join(". ")}.` };
+  }, "Name saved");
 }
 
 /** A person settles one exception: closes it, chooses the right value, leaves it out or names a reference type. */

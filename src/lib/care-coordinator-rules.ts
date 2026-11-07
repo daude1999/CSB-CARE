@@ -35,7 +35,7 @@ export const RESTRICTED_PERSON_FIELDS = new Set(["dateOfBirth", "nhsNumber"]);
 /** The order sections are applied in: the person first, then everything that hangs off them, the rota last. */
 export const APPLY_ORDER: IntakeSection[] = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "MEDICATION", "INCIDENTS", "BODY_MAP", "VISITS", "CALL_NOTES"];
 
-export const DECISIONS = { PENDING: "To review", APPROVED: "Approved", EDITED: "Edited and approved", REJECTED: "Rejected", CLARIFY: "Needs clarification", DUPLICATE: "Duplicate" } as const;
+export const DECISIONS = { PENDING: "Listed as an exception", APPROVED: "Accepted", EDITED: "Corrected", REJECTED: "Not used", CLARIFY: "Question open", DUPLICATE: "Repeat, kept once" } as const;
 export type Decision = keyof typeof DECISIONS;
 /** Facts that will be saved when their section is applied. */
 export const ACCEPTED = new Set<string>(["APPROVED", "EDITED"]);

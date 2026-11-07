@@ -332,7 +332,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   {plans.map((plan) => (
                     <tr key={plan.id}>
                       <td className="font-medium">Version {plan.version}</td>
-                      <td><Badge tone={plan.status === "ACTIVE" ? "green" : plan.status === "IN_REVIEW" ? "amber" : "slate"}>{plan.status === "ACTIVE" ? "In use" : plan.status === "IN_REVIEW" ? "Awaiting approval" : plan.status === "DRAFT" ? "Draft" : plan.status.toLowerCase().replaceAll("_", " ")}</Badge></td>
+                      <td><Badge tone={plan.status === "ACTIVE" ? "green" : plan.status === "IN_REVIEW" ? "amber" : "slate"}>{plan.status === "ACTIVE" ? "In use" : plan.status === "IN_REVIEW" ? "In review" : plan.status === "DRAFT" ? "Draft" : plan.status.toLowerCase().replaceAll("_", " ")}</Badge></td>
                       <td>{plan.reviewDue ? <span className={plan.reviewDue < todayDb && plan.status === "ACTIVE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(plan.reviewDue))}</span> : "—"}</td>
                       <td>{plan.approvedAt ? fmtDate(plan.approvedAt) : "—"}</td>
                       <td><Link href={`/rota/care-plans/${su.id}?v=${plan.version}`}>Open plan</Link></td>

@@ -301,7 +301,7 @@ export function exceptionSeverity(item: { severity: string | null; category: str
 export const CATEGORY_LABEL: Record<string, string> = {
   FUNDING: "Funding to verify", PACKAGE_HOURS: "Commissioned hours", MEDICATION: "Medication reconciliation", INCIDENT_HISTORY: "Incident history", BODY_MAP: "Skin finding to check",
   MISSING_INFO: "Missing information", VISIT_TASKS: "Visit tasks", SAFEGUARDING: "Safeguarding", DNACPR: "Resuscitation wishes", IDENTITY: "Identity", CONFLICT: "Conflicting information",
-  SOURCE_CHECK: "Check against the original", REFERENCE: "Reference number", PROPOSED_CHANGE: "Proposed change", SCHEDULE: "Visit schedule", QUESTION: "Question", SETUP: "Setup problem", MANAGER_FIELD: "Needs a registered manager",
+  SOURCE_CHECK: "Check against the original", REFERENCE: "Reference number", PROPOSED_CHANGE: "Proposed change", SCHEDULE: "Visit schedule", QUESTION: "Question", SETUP: "Setup problem", MANAGER_FIELD: "Needs a registered manager", RISK_LEVEL: "Risk level to set",
 };
 
 /** Safety flags the reader raised on a page (not tied to a fact). */

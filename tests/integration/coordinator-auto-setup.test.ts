@@ -85,13 +85,19 @@ describe("1. A long council support plan, processed without a fact-by-fact appro
     const pkg = await db.carePackage.findFirstOrThrow({ where: { serviceUserId: suId } });
     expect([pkg.commissionedMinutesPerWeek, pkg.startDate.toISOString().slice(0, 10), pkg.endDate?.toISOString().slice(0, 10)]).toEqual([1488, "2026-11-10", "2027-05-10"]);
     expect(pkg.requirements).toBe("Two carers for the morning visit; all other visits single handed.");
-    // The care plan is a DRAFT; the repeated declutter need is in it once.
+    // The care plan is imported and in use (no approval), marked with its source; the repeated declutter need is in it once.
     const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-    expect(plan.status).toBe("DRAFT");
+    expect([plan.status, plan.origin, plan.approvedById, plan.sourceIntakeId]).toEqual(["ACTIVE", "DOCUMENT", null, intakeId]);
+    expect(plan.sourceNote).toMatch(/^CI-\d{4}: Long plan pages? \d/);
     const home = plan.sections.find((s) => s.key === "home")!;
     expect(home.body.match(/declutter and organise/g)).toHaveLength(1);
-    expect(await db.riskAssessment.count({ where: { serviceUserId: suId, status: "DRAFT" } })).toBe(6);
-    expect(await db.riskAssessment.count({ where: { serviceUserId: suId, status: { not: "DRAFT" } } })).toBe(0);
+    // Risk information is saved and active, labelled with its source; none waits as a draft for an approval.
+    const risks = await db.riskAssessment.findMany({ where: { serviceUserId: suId } });
+    expect(risks).toHaveLength(6);
+    expect(risks.every((r) => r.status === "ACTIVE" && r.origin !== "MANUAL" && r.sourceIntakeId === intakeId && /Long plan, page \d/.test(r.sourceNote ?? ""))).toBe(true);
+    // The plan states no levels or controls for these, so they are labelled as AI-generated, never as completed assessments.
+    expect(risks.every((r) => r.origin === "AI_INFERRED")).toBe(true);
+    expect((await db.serviceUser.findUniqueOrThrow({ where: { id: suId } })).riskLevel).not.toBeNull();
     // Seven commissioned visits; the repeated morning row and the family shopping are not scheduled; the double-up kept.
     const templates = await db.visitTemplate.findMany({ where: { serviceUserId: suId } });
     expect(templates).toHaveLength(7);
@@ -120,14 +126,15 @@ describe("1. A long council support plan, processed without a fact-by-fact appro
     expect(by("SCHEDULE").map((x) => x.title)).toEqual(["Temporary visit without an end date"]);
     expect(by("FUNDING")).toHaveLength(1);
     // Nothing raised for routine information: no repeated contact, care need, visit row, name or date of birth.
-    const allowed = new Set(["SAFEGUARDING", "DNACPR", "PACKAGE_HOURS", "REFERENCE", "SCHEDULE", "FUNDING", "MEDICATION", "INCIDENT_HISTORY", "BODY_MAP", "MISSING_INFO", "MANAGER_FIELD"]);
+    const allowed = new Set(["SAFEGUARDING", "DNACPR", "PACKAGE_HOURS", "REFERENCE", "SCHEDULE", "FUNDING", "MEDICATION", "INCIDENT_HISTORY", "BODY_MAP", "MISSING_INFO", "MANAGER_FIELD", "RISK_LEVEL"]);
     expect(all.filter((x) => !allowed.has(x.category))).toEqual([]);
     expect(all.filter((x) => /duplicate|repeated|same as/i.test(x.title))).toEqual([]);
     // The coordinator sees the non-clinical ones; the restricted ones are counted, never shown.
     const c = await listExceptions(await coordinator(), { serviceUserId: suId });
     expect(c.items.every((x) => !x.restricted)).toBe(true);
-    // Six genuine items a person must act on, nothing more: no repeats, no routine information.
-    expect(c.items.filter((x) => x.severity !== "INFO").map((x) => x.category).sort()).toEqual(["FUNDING", "MANAGER_FIELD", "MANAGER_FIELD", "PACKAGE_HOURS", "REFERENCE", "SCHEDULE"]);
+    // Seven genuine items a person must act on, nothing more: no repeats, no routine information, no approvals.
+    expect(c.items.filter((x) => x.severity !== "INFO").map((x) => x.category).sort()).toEqual(["FUNDING", "MANAGER_FIELD", "MANAGER_FIELD", "PACKAGE_HOURS", "REFERENCE", "RISK_LEVEL", "SCHEDULE"]);
+    expect(c.items.find((x) => x.category === "RISK_LEVEL")?.severity).toBe("FOLLOW_UP");
     expect(c.items.find((x) => x.category === "MISSING_INFO")?.severity).toBe("INFO");
     expect(c.hidden).toBeGreaterThan(0);
     // Urgent: every manager is told in the app at once (nothing sent outside).
@@ -158,8 +165,9 @@ describe("1. A long council support plan, processed without a fact-by-fact appro
   it("gives a completion summary from the read-back counts", async () => {
     const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
     const lines = setupSummaryLines(intake.setupReport as never, "NEW");
-    expect(lines).toEqual(expect.arrayContaining(["Personal details populated", "5 contacts added", "Care package created", "7 repeating visit templates created", "6 draft risk assessments generated", "1 original document filed"]));
-    expect(lines.join(" ")).toMatch(/Draft care plan generated/);
+    expect(lines).toEqual(expect.arrayContaining(["Personal details populated", "5 contacts added", "Care package created", "7 repeating visit templates created", "Care plan imported from the council support plan and in use", "1 original document filed"]));
+    expect(lines.join(" ")).toMatch(/6 risk assessments saved \(6 AI-generated/);
+    expect(lines.join(" ")).not.toMatch(/draft|approv/i);
     expect(lines.join(" ")).toMatch(/consolidated/);
   });
 
