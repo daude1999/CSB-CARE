@@ -8,6 +8,7 @@ import type { Ctx } from "@/server/auth/rbac";
 import { drain, enqueue, PermanentJobError } from "@/server/jobs/queue";
 import { rotaScope } from "@/server/rota/scope";
 import { coordinatorAccess, intakeInScope, readIntakeDocument } from "./intake";
+import { inReview } from "@/lib/care-coordinator-rules";
 import { databaseRefusal, prepareDrafts, prepareReportText } from "./prepare";
 
 /**
@@ -52,7 +53,7 @@ export async function queueDocumentRead(ctx: Ctx, documentId: string, opts: { pr
   const doc = await db.careIntakeDocument.findFirst({ where: { id: documentId, organisationId } });
   if (!doc) throw new NotFoundError("Document");
   const intake = await intakeInScope(db, scope, doc.intakeId);
-  if (intake.status !== "DRAFT") throw new ConflictError("Documents can only be read while the coordinator is reviewing");
+  if (!inReview(intake.status)) throw new ConflictError("Documents can only be read while the coordinator is reviewing");
   if (doc.contentType !== "application/pdf") throw new ValidationError("Only PDFs can be read. Add this document's facts by hand.");
   if (doc.readJobId) {
     const current = await db.backgroundJob.findUnique({ where: { id: doc.readJobId } });
@@ -106,7 +107,7 @@ export async function runDocumentReadJob(raw: Record<string, unknown>, job: Back
     let report: string | null = null;
     if (p.prepare) {
       const intake = await db.careIntake.findUnique({ where: { id: doc.intakeId }, select: { status: true } });
-      if (intake?.status === "DRAFT") {
+      if (intake && inReview(intake.status)) {
         await setStage(doc.id, "PREPARING", "Read. Preparing the person's draft records and a proposed rota.");
         try {
           report = prepareReportText(await prepareDrafts(ctx, doc.intakeId)).replace(/\n/g, " ");

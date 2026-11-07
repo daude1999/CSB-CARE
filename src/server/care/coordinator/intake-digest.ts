@@ -78,7 +78,7 @@ export function intakeDigest(view: IntakeView) {
       authorisedMinutesPerWeek: hours.authorised, matches: hours.matches, message: hours.message,
     },
     conflicts, findings: findings.slice(0, 25),
-    sections: view.sections.filter((s) => s.total > 0).map((s) => ({ section: sectionLabel(s.key as IntakeSection), facts: s.total, open: s.open, accepted: s.accepted, managerDecision: s.status, savedToRecord: s.applyStatus })),
+    sections: view.sections.filter((s) => s.total > 0).map((s) => ({ section: sectionLabel(s.key as IntakeSection), facts: s.total, open: s.open, accepted: s.accepted, approval: s.status, savedToRecord: s.applyStatus })),
     nothingSavedYet: !view.sections.some((s) => s.applyStatus === "DONE"),
   };
 }
@@ -101,7 +101,7 @@ export function digestText(d: IntakeDigest): string {
     d.risks.length ? `Risk drafts: ${d.risks.map((r) => r.title).join("; ")} (risk levels are set by a person, not read in).` : "No risk drafts were proposed.",
     d.conflicts.length ? `Conflicts to resolve: ${d.conflicts.slice(0, 4).map((c) => `${c.field}: ${c.conflict}`).join(" | ")}` : "",
     d.findings.filter((f) => f.kind !== "UNREADABLE").length ? `Flags and missing information: ${d.findings.filter((f) => f.kind !== "UNREADABLE").slice(0, 5).map((f) => f.text).join(" | ")}` : "",
-    "Nothing has been approved, saved to a service user's record or put on the rota. Check each fact against its page, then submit the intake to a manager.",
+    "Nothing has been approved, saved to a service user's record or put on the rota. Check each fact against its page, then press Approve & Save to CRM.",
   ];
   return lines.filter(Boolean).join("\n\n");
 }

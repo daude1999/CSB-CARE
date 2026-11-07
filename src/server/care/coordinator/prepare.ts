@@ -1,15 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, londonDate, mondayOf, parseHhmm } from "@/lib/london";
-import { ACCEPTED, APPLY_ORDER, OPEN_DECISIONS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
+import { ACCEPTED, APPLY_ORDER, OPEN_DECISIONS, inReview, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 import { audit } from "@/server/audit-log";
-import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
+import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { createProposedRota } from "@/server/rota/build";
 import { applyTemplateChanges, updateTemplate } from "@/server/rota/templates";
 import { rotaScope, serviceUserWhere } from "@/server/rota/scope";
 import { findPossibleDuplicates } from "../su-import";
-import { DRAFT_SECTIONS, applySection, fileDocuments, isDraftSection } from "./apply";
+import { DRAFT_SECTIONS, applySection, approveAndSave, approveSaveText, fileDocuments, isDraftSection, type ApproveSaveReport } from "./apply";
 import { checkAcceptable, coordinatorAccess, intakeInScope, isRestrictedFact } from "./intake";
 
 /**
@@ -21,9 +21,10 @@ import { checkAcceptable, coordinatorAccess, intakeInScope, isRestrictedFact } f
  *     anything contradicted, restricted or already on the record differently stays for the coordinator.
  *  2. Identity first: a new person is created only with a first and last name and when no one similar is on record
  *     (or the coordinator confirmed it is a different person). Otherwise the intake stays a prospective intake.
- *  3. The draft-safe sections are saved through the same code as a manager-approved section: the person at Assessment,
+ *  3. The draft-safe sections are saved through the same code as Approve & Save to CRM: the person at Assessment,
  *     contacts, preferences, the care package, the care plan as a DRAFT, risks as DRAFTs, visit templates, call notes.
- *     Medication, incident history and skin findings always go to a manager.
+ *     Medication, incident history and skin findings are never drafted automatically: the coordinator decides them and
+ *     only someone allowed to see restricted records saves them. The coordinator then approves the whole intake once.
  *  4. A proposed rota for the next weeks: unpublished visits that cannot be published until care is activated.
  *
  * Every step is idempotent (facts record what they became) and can be run again: it carries on from where it stopped.
@@ -38,7 +39,7 @@ export interface PrepareReport {
   blocked: string | null;
   duplicate: { name: string; reference: string; reason: string } | null;
   accepted: number;
-  sections: { section: IntakeSection; label: string; status: "DRAFTED" | "FAILED" | "NOTHING" | "WITH_MANAGER" | "SKIPPED"; created: string[]; error?: string }[];
+  sections: { section: IntakeSection; label: string; status: "DRAFTED" | "FAILED" | "NOTHING" | "REJECTED" | "SKIPPED"; created: string[]; error?: string }[];
   rota: { visits: number; unassignedSlots: number; alreadyBuilt: number; weekStart: string; weeks: number; error?: string } | null;
   attention: { facts: number; restricted: number; followUps: number };
   /** Option C (supporting document): documents filed in the person's records, or why they were not. */
@@ -71,12 +72,17 @@ export function databaseRefusal(e: unknown): string | null {
   return [e.code, typeof meta.modelName === "string" ? meta.modelName : null, fields].filter(Boolean).join(" ").slice(0, 200);
 }
 
-async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; rotaWeeks?: number }): Promise<PrepareReport> {
+/**
+ * Step 1 of preparing (and of Confirm & Set Up Records): accepts the safe facts for drafting and settles identity. A
+ * new person needs a first and last name and no possible duplicate on record, unless the coordinator confirmed it is a
+ * different person. Returns why it stopped (blocked) instead of throwing, so the caller decides how to say it.
+ */
+export async function acceptSafeFacts(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean }) {
   const access = coordinatorAccess(ctx);
   const scope = await rotaScope(ctx, "serviceUser.edit");
-  const step1 = await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
-    if (intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing. This intake is with a manager or finished.");
+    if (!inReview(intake.status)) throw new ConflictError(intake.status === "APPLYING" ? "This intake is being saved to the CRM right now. Wait a moment, then reload." : "Drafts are prepared while the coordinator is reviewing. This intake is finished or cancelled.");
     // A supporting document (option C) changes no records by itself: it is filed, and its facts wait for a person.
     const allowed = intake.mode === "DOCUMENT" ? [] : DRAFT_SECTIONS.filter((s) => !(intake.mode === "EXISTING" && (s === "PACKAGE" || s === "VISITS")));
     const docs = await tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true } });
@@ -100,7 +106,7 @@ async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boole
         const f = all.find((x) => x.destination === k && ACCEPTED.has(x.decision)) ?? ok.find((x) => x.destination === k);
         return f ? String(f.value) : "";
       };
-      if (!value("person.firstName") || !value("person.lastName")) return { intake, blocked: "The documents do not give the person's first and last name clearly enough. Check Personal details, then prepare the drafts again.", duplicate: null, accepted: 0 };
+      if (!value("person.firstName") || !value("person.lastName")) return { intake, blocked: "The documents do not give the person's first and last name clearly enough. Check Personal details, then try again.", duplicate: null, accepted: 0 };
       const dupes = await findPossibleDuplicates(scope, { firstName: value("person.firstName"), lastName: value("person.lastName"), dateOfBirth: value("person.dateOfBirth") || undefined, postcode: value("person.postcode") || undefined }, tx);
       if (dupes.length && !opts.notADuplicate && !intake.notDuplicateById) {
         const d = dupes[0]!;
@@ -117,6 +123,11 @@ async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boole
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.drafts.accepted", entityType: "CareIntake", entityId: intake.id, data: { accepted: ok.length, sections: [...new Set(ok.map((f) => f.section))] } }, tx);
     return { intake, blocked: null, duplicate: null, accepted: ok.length };
   });
+}
+
+async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; rotaWeeks?: number }): Promise<PrepareReport> {
+  const step1 = await acceptSafeFacts(ctx, intakeId, opts);
+  const scope = await rotaScope(ctx, "serviceUser.edit");
 
   const report: PrepareReport = { intakeId, reference: step1.intake.reference, serviceUserId: step1.intake.serviceUserId, serviceUserReference: null, blocked: step1.blocked, duplicate: step1.duplicate, accepted: step1.accepted, sections: [], rota: null, attention: { facts: 0, restricted: 0, followUps: 0 } };
   if (!step1.blocked && step1.intake.mode === "DOCUMENT") {
@@ -133,8 +144,8 @@ async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boole
       const s = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
       const pending = await db.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null } });
       if (!pending) continue;
-      if (!(s.status === "OPEN" || s.status === "DRAFTED")) { report.sections.push({ section, label: sectionLabel(section), status: "WITH_MANAGER", created: [] }); continue; }
-      if (step1.intake.mode === "EXISTING" && (section === "PACKAGE" || section === "VISITS")) { report.sections.push({ section, label: sectionLabel(section), status: "SKIPPED", created: [], error: "Changes for someone already receiving care go to a manager" }); continue; }
+      if (s.status === "REJECTED") { report.sections.push({ section, label: sectionLabel(section), status: "REJECTED", created: [] }); continue; }
+      if (step1.intake.mode === "EXISTING" && (section === "PACKAGE" || section === "VISITS")) { report.sections.push({ section, label: sectionLabel(section), status: "SKIPPED", created: [], error: "Changes for someone already receiving care are saved only when you approve them with Approve & Save to CRM" }); continue; }
       try {
         const r = await applySection(ctx, intakeId, section, { prepare: true });
         if (r.status === "DONE") report.sections.push({ section, label: sectionLabel(section), status: "DRAFTED", created: r.result?.created ?? [] });
@@ -163,6 +174,89 @@ async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boole
   report.attention = { facts: open, restricted, followUps };
   await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.drafts.prepared", entityType: "CareIntake", entityId: intakeId, data: { blocked: !!report.blocked, sections: report.sections.map((s) => [s.section, s.status]), rotaVisits: report.rota?.visits ?? 0, open } });
   return report;
+}
+
+export interface ConfirmReport {
+  save: ApproveSaveReport;
+  /** Safe facts accepted for the coordinator by this confirmation (words found on the page, nothing contradicts). */
+  accepted: number;
+  rota: PrepareReport["rota"];
+  attention: { facts: number; restricted: number; followUps: number };
+  confirmedAt: string;
+}
+
+/**
+ * Confirm & Set Up Records (owner's brief, 7 Nov 2026): the authorised Care Coordinator's one confirmation. There is no
+ * separate manager approval.
+ *
+ *  1. Safe facts still waiting are accepted on the coordinator's behalf (the same rule as preparing: words found on the
+ *     page, nothing contradicts them, not restricted, not clinical-only), labelled so on each fact.
+ *  2. Identity is checked: a new person needs a name and no possible duplicate, unless the coordinator confirmed it.
+ *  3. Every section with approved facts is approved under the coordinator's name and saved to the CRM (approveAndSave):
+ *     profile, contacts, package, care plan and risk DRAFTS, medicines as drafts or reconciliation items, visit
+ *     templates, call notes (urgent ones wait for the Call Notes review). Clinical records keep their own reviews.
+ *  4. For a new person, the proposed rota: unpublished visits that carers cannot see until care is activated.
+ *  5. Anything not settled (questions, warnings, restricted facts) is listed for attention and does not block the
+ *     ordinary records. The intake is Completed only when nothing is left.
+ * Every step is audited with the coordinator's id and the time; running it again repeats nothing already saved.
+ */
+export async function confirmAndSetUp(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; areaId?: string; lockVersion?: number | null; rotaWeeks?: number } = {}): Promise<ConfirmReport> {
+  coordinatorAccess(ctx);
+  requireOrgPermission(ctx, "careIntake.approve");
+  const scope = await rotaScope(ctx, "serviceUser.edit");
+  const before = await intakeInScope(db, scope, intakeId);
+  if (opts.lockVersion != null && before.lockVersion !== opts.lockVersion) throw new ConflictError("The intake changed since you opened this page (for example a document finished reading). Reload and check it before confirming.");
+  const reading = await db.careIntakeDocument.findMany({ where: { intakeId, readStatus: "PENDING" }, select: { name: true } });
+  if (reading.length) throw new ConflictError(`${reading.map((d) => d.name).join(", ")} ${reading.length === 1 ? "is" : "are"} still being read. Wait until reading finishes, check the new facts, then confirm.`);
+  let accepted = 0;
+  if (before.mode !== "DOCUMENT" && inReview(before.status)) {
+    const s1 = await acceptSafeFacts(ctx, intakeId, { notADuplicate: opts.notADuplicate });
+    if (s1.blocked) throw s1.duplicate ? new ConflictError(s1.blocked) : new ValidationError(s1.blocked);
+    accepted = s1.accepted;
+  }
+  const save = await approveAndSave(ctx, intakeId, { notADuplicate: opts.notADuplicate ?? false, areaId: opts.areaId, lockVersion: null });
+  const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
+  let rota: PrepareReport["rota"] = null;
+  if (intake.mode === "NEW" && intake.serviceUserId && hasOrgPermission(ctx, "rota.build") && save.sections.some((x) => x.section === "VISITS" && (x.status === "SAVED" || x.status === "ALREADY_SAVED"))) {
+    rota = await proposeRotaFor(ctx, intake.serviceUserId, opts.rotaWeeks ?? 2);
+  }
+  const [open, restricted, followUps] = await Promise.all([
+    db.careIntakeFact.count({ where: { intakeId, decision: { in: [...OPEN_DECISIONS] }, appliedAt: null } }),
+    db.careIntakeFact.count({ where: { intakeId, decision: { in: [...OPEN_DECISIONS] }, appliedAt: null, section: { in: ["MEDICATION", "INCIDENTS", "BODY_MAP"] } } }),
+    intake.serviceUserId ? db.careIntakeReviewItem.count({ where: { serviceUserId: intake.serviceUserId, intakeId, status: "OPEN" } }) : Promise.resolve(0),
+  ]);
+  const confirmedAt = new Date();
+  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.intake.confirmed", entityType: "CareIntake", entityId: intakeId, data: { at: confirmedAt.toISOString(), autoAccepted: accepted, sections: save.sections.map((x) => [x.section, x.status]), filed: save.filed, rotaVisits: rota?.visits ?? 0, openFacts: open, restrictedOpen: restricted, followUps, completed: save.completed } });
+  return { save, accepted, rota, attention: { facts: open, restricted, followUps }, confirmedAt: confirmedAt.toISOString() };
+}
+
+/** The confirmation's result in plain words for the screen. */
+export function confirmReportText(r: ConfirmReport) {
+  const parts = [approveSaveText(r.save)];
+  if (r.accepted) parts.push(`${r.accepted} checked fact${r.accepted === 1 ? " was" : "s were"} accepted on your confirmation.`);
+  if (r.rota?.error) parts.push(`The draft rota was not prepared: ${r.rota.error}`);
+  else if (r.rota) parts.push(`Draft rota: ${r.rota.visits} unpublished visit${r.rota.visits === 1 ? "" : "s"}${r.rota.alreadyBuilt ? ` (${r.rota.alreadyBuilt} already there)` : ""}, ${r.rota.unassignedSlots} place${r.rota.unassignedSlots === 1 ? "" : "s"} still need a carer. Carers are not told until care is activated and the rota is published.`);
+  if (r.attention.followUps) parts.push(`${r.attention.followUps} follow-up${r.attention.followUps === 1 ? " needs" : "s need"} attention (for example medication to reconcile).`);
+  return parts.join(" ");
+}
+
+/**
+ * After Confirm & Set Up Records the coordinator can prepare the draft rota again (owner's brief, 7 Nov 2026, step 8): unpublished
+ * proposed visits from the saved visit templates, through Build Rota's own checks. Carers see nothing: the visits cannot
+ * be published until care is activated after the care plan's own approval. Running it again adds nothing twice.
+ */
+export async function proposeIntakeRota(ctx: Ctx, intakeId: string, weeks = 2) {
+  coordinatorAccess(ctx);
+  if (!hasOrgPermission(ctx, "rota.build")) throw new ForbiddenError("You cannot build rotas");
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 8) throw new ValidationError("Choose between 1 and 8 weeks");
+  const scope = await rotaScope(ctx, "serviceUser.edit");
+  const intake = await intakeInScope(db, scope, intakeId);
+  if (!intake.serviceUserId) throw new ConflictError("Approve and save the intake first: the person is not on record yet");
+  const r = await proposeRotaFor(ctx, intake.serviceUserId, weeks);
+  if (!r) throw new ConflictError("There are no saved repeating visits for this person yet. Approve and save the Visits section first.");
+  if (r.error) throw new ConflictError(r.error);
+  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.rota.proposed", entityType: "CareIntake", entityId: intakeId, data: { visits: r.visits, unassignedSlots: r.unassignedSlots, alreadyBuilt: r.alreadyBuilt, weekStart: r.weekStart, weeks } });
+  return r;
 }
 
 /** Unpublished proposed visits from this week (or next, late on Sunday) for the person's visit templates. */
@@ -222,7 +316,7 @@ export function prepareReportText(r: PrepareReport) {
   for (const s of r.sections.filter((x) => x.status === "FAILED" || x.status === "SKIPPED")) lines.push(`${s.label}: not saved (${s.error ?? "see the intake"}).`);
   if (r.rota) lines.push(r.rota.error ? `Draft rota: not created (${r.rota.error}).` : r.rota.visits ? `Draft rota: ${r.rota.visits} proposed visit${r.rota.visits === 1 ? "" : "s"} over ${r.rota.weeks} weeks from ${r.rota.weekStart}, unpublished, ${r.rota.unassignedSlots} carer place${r.rota.unassignedSlots === 1 ? "" : "s"} still open. Carers are not told.` : `Draft rota: no new visits (${r.rota.alreadyBuilt} already proposed).`);
   const a = r.attention;
-  if (a.facts || a.followUps) lines.push(`Still needs attention: ${[a.facts ? `${a.facts} fact${a.facts === 1 ? "" : "s"} to check${a.restricted ? ` (${a.restricted} for a manager)` : ""}` : null, a.followUps ? `${a.followUps} follow-up${a.followUps === 1 ? "" : "s"}` : null].filter(Boolean).join(", ")}.`);
+  if (a.facts || a.followUps) lines.push(`Still needs attention: ${[a.facts ? `${a.facts} fact${a.facts === 1 ? "" : "s"} to check${a.restricted ? ` (${a.restricted} restricted)` : ""}` : null, a.followUps ? `${a.followUps} follow-up${a.followUps === 1 ? "" : "s"}` : null].filter(Boolean).join(", ")}.`);
   if (!drafted.length && !r.rota?.visits && r.filed === undefined && !r.filedError) lines.push("Nothing new could be drafted: every remaining fact needs a person to check it.");
   return lines.join("\n");
 }

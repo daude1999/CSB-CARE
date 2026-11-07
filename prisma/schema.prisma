@@ -4090,6 +4090,7 @@ model CareIntake {
   createdById      String
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+  /// Since 7 Nov 2026: the coordinator who last pressed Approve & Save to CRM. Before: who sent it to a manager.
   submittedById    String?
   submittedAt      DateTime?
   cancelledById    String?
@@ -4203,9 +4204,10 @@ model CareIntakeFact {
   @@index([intakeId, section])
 }
 
-/// The manager's decision on one profile section of an intake, and whether it has been applied.
-/// status: OPEN | APPROVED | RETURNED | REJECTED | INFO_REQUESTED
-/// applyStatus: NOT_STARTED | DONE | FAILED | BLOCKED
+/// The coordinator's approval of one profile section of an intake, and whether it has been saved to the CRM.
+/// status: OPEN | APPROVED | DRAFTED | REJECTED (RETURNED / INFO_REQUESTED only from the retired manager step)
+/// decidedById: the coordinator who approved the section (Approve & Save to CRM, 7 Nov 2026).
+/// applyStatus: NOT_STARTED | SAVING | DONE | FAILED | BLOCKED; claimedAt is when the current save started.
 model CareIntakeSection {
   id             String     @id @default(cuid())
   organisationId String
@@ -4222,6 +4224,7 @@ model CareIntakeSection {
   appliedById    String?
   appliedAt      DateTime?
   attempts       Int        @default(0)
+  claimedAt      DateTime?
   lockVersion    Int        @default(1)
 
   @@unique([intakeId, section])

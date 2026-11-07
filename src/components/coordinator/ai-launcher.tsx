@@ -284,7 +284,7 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
                     </select>
                   </label>
                 ) : <p>Attach to {intakeId ? "the intake on this page" : "the draft intake in this conversation"}.</p>}
-                <p className="text-[11px]">If your organisation has AI document reading enabled, the PDF may be processed by its configured AI provider. Human review and manager approval remain required.</p>
+                <p className="text-[11px]">If your organisation has AI document reading enabled, the PDF may be processed by its configured AI provider. A Care Coordinator still reviews and confirms everything.</p>
                 <button data-testid="ai-upload-confirm" type="button" disabled={uploading || sending} onClick={() => void uploadAttachment()} className="rounded-lg bg-[#0b6b74] px-3 py-1.5 font-semibold text-white disabled:opacity-40">
                   {uploading ? "Saving and reading…" : "Upload to intake for review"}
                 </button>

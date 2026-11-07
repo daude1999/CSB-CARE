@@ -6,7 +6,7 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError
 import { fromDbDate, isIsoDate } from "@/lib/london";
 import {
   ACCEPTED, APPLY_ORDER, DECISIONS, OPEN_DECISIONS, RESTRICTED_PERSON_FIELDS, RESTRICTED_SECTIONS, SECTION_KEYS,
-  TEMPORARY_WITHOUT_END, UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, parseValue, reconcileHours, sectionLabel, type IntakeSection,
+  TEMPORARY_WITHOUT_END, UNCLEAR_REFERENCE, destinationSchema, displayValue, filingFor, inReview, parseValue, reconcileHours, sectionLabel, type IntakeSection,
 } from "@/lib/care-coordinator-rules";
 import { registerCheckInTx } from "../external-references";
 
@@ -18,7 +18,6 @@ import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { rotaSettings } from "@/server/rota/settings";
 import { storage } from "@/server/storage";
 import { categoriesFor, categoryLabel, storePrivateFile, type UploadedFile } from "../su-documents";
-import { findPossibleDuplicates } from "../su-import";
 import { pdfPages, readDocument } from "./reader";
 import { getAiProvider } from "@/server/ai";
 
@@ -27,16 +26,18 @@ type Tx = Prisma.TransactionClient;
 /**
  * AI Care Coordinator intake (4 Nov 2026).
  *
- * READ → EXTRACT → CLASSIFY → MAP → COMPARE → FLAG → COORDINATOR REVIEW → MANAGER APPROVAL → APPLY (apply.ts).
+ * READ → EXTRACT → CLASSIFY → MAP → COMPARE → FLAG → COORDINATOR REVIEW → APPROVE & SAVE TO CRM (apply.ts).
  *
  *  - An intake is saved as it goes: documents, every fact with its source page, and every decision. Nothing reaches the
- *    service user's record until a manager has approved the section and someone presses Save to record.
+ *    service user's record until the coordinator presses Approve & Save to CRM (or the AI CSB Coordinator prepares
+ *    clearly labelled drafts from checked facts, prepare.ts).
  *  - Who may see what: office staff (serviceUser.edit, rota.edit, serviceUser.documents) run intakes. Facts from
  *    restricted documents, medication, incident and skin findings, and date of birth / NHS number are shown only to
  *    people with serviceUser.sensitive; everyone else sees that a restricted fact exists, never its content.
- *  - Managers (care.plan.approve) decide each profile section. The person who submitted the intake, or who decided or
- *    edited a fact in that section, cannot approve it (separation of duties). Every decision is audited with the
- *    signed-in person's id; a typed name is never accepted as an approval.
+ *  - One authorised Care Coordinator (careIntake.approve) reviews the facts and approves every section with one action
+ *    (owner's brief, 7 Nov 2026: no separate manager approval). Clinical records it creates stay inactive for their own
+ *    reviews: the care plan and risk assessments are DRAFTs, medicines are drafts or reconciliation items, safeguarding
+ *    call notes wait for the Call Notes review. Every decision is audited with the signed-in person's id.
  */
 
 export const MAX_INTAKE_DOCUMENTS = 12;
@@ -47,7 +48,7 @@ export function coordinatorAccess(ctx: Ctx) {
   requireOrgPermission(ctx, "serviceUser.documents");
   return {
     sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"),
-    approve: hasOrgPermission(ctx, "care.plan.approve"),
+    approve: hasOrgPermission(ctx, "careIntake.approve"),
     medication: hasOrgPermission(ctx, "medication.manage"),
     build: hasOrgPermission(ctx, "rota.build"),
   };
@@ -121,7 +122,7 @@ export async function addDocuments(ctx: Ctx, intakeId: string, files: UploadedFi
   const { scope } = await scopeFor(ctx);
   if (!files.length) throw new ValidationError("Choose at least one document");
   const intake = await intakeInScope(db, scope, intakeId);
-  if (intake.status !== "DRAFT") throw new ConflictError("Documents can only be added while the coordinator is reviewing");
+  if (!inReview(intake.status)) throw new ConflictError("Documents can only be added while the coordinator is reviewing");
   const existing = await db.careIntakeDocument.count({ where: { intakeId } });
   if (existing + files.length > MAX_INTAKE_DOCUMENTS) throw new ValidationError(`An intake can hold at most ${MAX_INTAKE_DOCUMENTS} documents`);
   const created: string[] = [];
@@ -180,7 +181,7 @@ export async function readIntakeDocument(ctx: Ctx, documentId: string) {
   const doc = await db.careIntakeDocument.findFirst({ where: { id: documentId, organisationId: scope.organisationId } });
   if (!doc) throw new NotFoundError("Document");
   const intake = await intakeInScope(db, scope, doc.intakeId);
-  if (intake.status !== "DRAFT") throw new ConflictError("Documents can only be read while the coordinator is reviewing");
+  if (!inReview(intake.status)) throw new ConflictError("Documents can only be read while the coordinator is reviewing");
   if (doc.contentType !== "application/pdf") throw new ValidationError("Only PDFs can be read. Add this document's facts by hand.");
   const settings = await rotaSettings(db, scope.organisationId);
   const bytes = await storage().get(doc.storageKey);
@@ -388,8 +389,7 @@ async function factForWrite(tx: Tx, scope: Scope, access: CoordinatorAccess, fac
   if (isRestrictedFact(f, !!doc?.sensitive) && !access.sensitive) throw new ForbiddenError("A registered manager or administrator reviews restricted facts");
   if (f.appliedAt) throw new ConflictError("This fact has already been saved to the record");
   const section = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId: intake.id, section: f.section } } });
-  const editable = intake.status === "DRAFT" || ((intake.status === "SUBMITTED" || intake.status === "APPROVED") && (section.status === "RETURNED" || section.status === "INFO_REQUESTED"));
-  if (!editable) throw new ConflictError(intake.status === "DRAFT" ? "This intake is closed" : `${sectionLabel(f.section)} is with the manager. Ask them to return it for correction first.`);
+  await assertSectionOpen(intake, section);
   if (lockVersion !== null && f.lockVersion !== lockVersion) throw new ConflictError("Someone else changed this fact since you opened it. Reload to see the latest.");
   return { f, intake };
 }
@@ -408,7 +408,7 @@ export async function decideFact(ctx: Ctx, factId: string, lockVersion: number |
       value = parsed.value;
     }
     if (d.decision === "CLARIFY" && !d.question) throw new ValidationError("Write the question that needs answering");
-    if ((d.decision === "REJECTED" || d.decision === "DUPLICATE") && !d.note) throw new ValidationError("Say why, so the manager can see your reasoning");
+    if ((d.decision === "REJECTED" || d.decision === "DUPLICATE") && !d.note) throw new ValidationError("Say why, so the record shows your reasoning");
     if (d.decision === "APPROVED" || d.decision === "EDITED") checkAcceptable(f.destination, value, f.temporal);
     if (d.assignedToId) {
       const m = await tx.membership.findFirst({ where: { organisationId: scope.organisationId, userId: d.assignedToId, deactivatedAt: null } });
@@ -427,7 +427,7 @@ export async function decideFact(ctx: Ctx, factId: string, lockVersion: number |
     if (changedValue || d.decision === "REJECTED" || d.decision === "DUPLICATE") await compareFacts(tx, scope, intake.id);
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.fact.decided", entityType: "CareIntake", entityId: intake.id, data: { factId: f.id, section: f.section, destination: f.destination, decision: d.decision, edited: changedValue, assignedToId: d.assignedToId } }, tx);
     if (d.decision === "CLARIFY" && d.assignedToId && d.assignedToId !== ctx.userId) {
-      await tx.notification.createMany({ data: [{ organisationId: scope.organisationId, userId: d.assignedToId, type: "coordinator.question", title: `Question on intake ${intake.reference}`, body: `A question about ${sectionLabel(f.section).toLowerCase()} needs your answer before the intake can go to a manager.`, reason: "You were asked a question on a Care Coordinator intake.", actionUrl: `/rota/coordinator/${intake.id}?section=${f.section}#fact-${f.id}`, dedupeKey: `coordinator-q:${f.id}:${d.assignedToId}` }], skipDuplicates: true });
+      await tx.notification.createMany({ data: [{ organisationId: scope.organisationId, userId: d.assignedToId, type: "coordinator.question", title: `Question on intake ${intake.reference}`, body: `A question about ${sectionLabel(f.section).toLowerCase()} needs your answer before the intake can be approved and saved.`, reason: "You were asked a question on a Care Coordinator intake.", actionUrl: `/rota/coordinator/${intake.id}?section=${f.section}#fact-${f.id}`, dedupeKey: `coordinator-q:${f.id}:${d.assignedToId}` }], skipDuplicates: true });
     }
   });
 }
@@ -448,7 +448,7 @@ export async function approveVerified(ctx: Ctx, intakeId: string, section: strin
   if (!(SECTION_KEYS as readonly string[]).includes(section)) throw new ValidationError("Unknown section");
   return db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
-    if (intake.status !== "DRAFT") throw new ConflictError("Only an intake in coordinator review can be changed this way");
+    if (!inReview(intake.status)) throw new ConflictError("Only an intake in coordinator review can be changed this way");
     const facts = await tx.careIntakeFact.findMany({ where: { intakeId, section, decision: "PENDING", verification: "VERIFIED", conflict: null } });
     const docs = await tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true } });
     let n = 0;
@@ -481,7 +481,7 @@ export async function addManualFact(ctx: Ctx, intakeId: string, input: z.input<t
   return db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
     const section = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section: dest.section } } });
-    if (!(intake.status === "DRAFT" || section.status === "RETURNED" || section.status === "INFO_REQUESTED")) throw new ConflictError("Facts can only be added while the coordinator is reviewing this section");
+    await assertSectionOpen(intake, section);
     let docSensitive = false;
     if (p.data.sourceDocumentId) {
       const doc = await tx.careIntakeDocument.findFirst({ where: { id: p.data.sourceDocumentId, intakeId } });
@@ -500,85 +500,15 @@ export async function addManualFact(ctx: Ctx, intakeId: string, input: z.input<t
   });
 }
 
-// ── Submitting to a manager ────────────────────────────────────────────────
-
-export async function submitIntake(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boolean; areaId?: string } = {}) {
-  const { scope } = await scopeFor(ctx);
-  return db.$transaction(async (tx) => {
-    const intake = await intakeInScope(tx, scope, intakeId, true);
-    const facts = await tx.careIntakeFact.findMany({ where: { intakeId } });
-    const sections = await tx.careIntakeSection.findMany({ where: { intakeId } });
-    const resubmitting = intake.status === "SUBMITTED" || intake.status === "APPROVED";
-    const reopen = sections.filter((s) => s.status === "RETURNED" || s.status === "INFO_REQUESTED").map((s) => s.section);
-    if (intake.status !== "DRAFT" && !(resubmitting && reopen.length)) throw new ConflictError("This intake is not waiting for the coordinator");
-    const scopeFacts = resubmitting ? facts.filter((f) => reopen.includes(f.section)) : facts;
-    const open = scopeFacts.filter((f) => OPEN_DECISIONS.has(f.decision) && !f.appliedAt);
-    if (open.length) throw new ValidationError(`${open.length} fact${open.length === 1 ? " still needs" : "s still need"} a decision (approve, edit, reject or mark duplicate) or an answer to a question`);
-    if (!facts.some((f) => ACCEPTED.has(f.decision))) throw new ValidationError("Nothing has been approved, so there is nothing for a manager to check");
-    if (!resubmitting && !facts.some((f) => ACCEPTED.has(f.decision) && !f.appliedAt)) throw new ValidationError("Everything approved is already saved as drafts, so nothing is waiting for a manager");
-    let areaId = intake.areaId;
-    if (intake.mode === "NEW" && !resubmitting) {
-      for (const k of ["person.firstName", "person.lastName"]) if (!facts.some((f) => f.destination === k && ACCEPTED.has(f.decision))) throw new ValidationError(`Approve the person's ${k === "person.firstName" ? "first" : "last"} name before sending to a manager`);
-      if (opts.areaId) {
-        const area = await tx.area.findFirst({ where: { id: opts.areaId, organisationId: scope.organisationId, active: true } });
-        if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose one of your areas");
-        areaId = area.id;
-      }
-      if (scope.areaIds && !areaId) throw new ValidationError("Choose the area the person lives in");
-      const name = (k: string) => String(facts.find((f) => f.destination === k && ACCEPTED.has(f.decision))?.value ?? "");
-      const dupes = await findPossibleDuplicates(scope, { firstName: name("person.firstName"), lastName: name("person.lastName"), dateOfBirth: name("person.dateOfBirth") || undefined, postcode: name("person.postcode") || undefined }, tx);
-      if (dupes.length && !opts.notADuplicate) throw new ConflictError(`${dupes[0]!.name} (${dupes[0]!.reference}) is already on record: ${dupes[0]!.reason.toLowerCase()}. Start an intake for that person instead, or tick "This is a different person".`);
-      if (dupes.length) await tx.careIntake.update({ where: { id: intake.id }, data: { notDuplicateById: ctx.userId } });
-    }
-    for (const s of sections) {
-      const accepted = facts.some((f) => f.section === s.section && ACCEPTED.has(f.decision) && !f.appliedAt);
-      if (s.status === "DRAFTED") continue; // already saved as drafts by the AI CSB Coordinator
-      if (!resubmitting || reopen.includes(s.section)) await tx.careIntakeSection.update({ where: { id: s.id }, data: { status: accepted ? "OPEN" : "OPEN", reason: resubmitting ? s.reason : null, decidedById: null, decidedAt: null, lockVersion: { increment: 1 } } });
-    }
-    await tx.careIntake.update({ where: { id: intake.id }, data: { status: "SUBMITTED", submittedById: ctx.userId, submittedAt: new Date(), areaId, lockVersion: { increment: 1 } } });
-    const managers = await tx.membership.findMany({ where: { organisationId: scope.organisationId, deactivatedAt: null, roles: { hasSome: ["ORG_ADMIN", "CARE_MANAGER"] } }, select: { userId: true } });
-    const to = [...new Set(managers.map((m) => m.userId))].filter((u) => u !== ctx.userId);
-    if (to.length) await tx.notification.createMany({ data: to.map((userId) => ({ organisationId: scope.organisationId, userId, type: "coordinator.submitted", title: `Intake ${intake.reference} is ready for approval`, body: `${intake.title}: ${resubmitting ? "corrected sections are" : "the coordinator's review is"} ready for a manager to approve section by section.`, reason: "You approve care plans for this organisation.", actionUrl: `/rota/coordinator/${intake.id}`, dedupeKey: `coordinator-submitted:${intake.id}:${intake.lockVersion}:${userId}` })), skipDuplicates: true });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: resubmitting ? "coordinator.intake.resubmitted" : "coordinator.intake.submitted", entityType: "CareIntake", entityId: intake.id, data: { accepted: facts.filter((f) => ACCEPTED.has(f.decision)).length, rejected: facts.filter((f) => f.decision === "REJECTED").length, duplicates: facts.filter((f) => f.decision === "DUPLICATE").length, sections: resubmitting ? reopen : undefined, notADuplicate: !!opts.notADuplicate } }, tx);
-  });
-}
-
-// ── Manager decisions ──────────────────────────────────────────────────────
-
-const sectionDecisionSchema = z.object({ decision: z.enum(["APPROVED", "RETURNED", "REJECTED", "INFO_REQUESTED"]), reason: z.string().trim().max(2000).optional().transform((v) => v || null) });
-
-export async function decideSection(ctx: Ctx, intakeId: string, section: string, input: z.input<typeof sectionDecisionSchema>) {
-  const { scope, access } = await scopeFor(ctx);
-  if (!access.approve) throw new ForbiddenError("Only a care manager or administrator can approve intake sections");
-  if (!(SECTION_KEYS as readonly string[]).includes(section)) throw new ValidationError("Unknown section");
-  if (RESTRICTED_SECTIONS.has(section) && !access.sensitive) throw new ForbiddenError("This section holds restricted information");
-  const p = sectionDecisionSchema.safeParse(input);
-  if (!p.success) throw new ValidationError("Choose a decision");
-  const d = p.data;
-  if (d.decision !== "APPROVED" && (!d.reason || d.reason.length < 5)) throw new ValidationError("Give a reason so the coordinator knows what to do");
-  return db.$transaction(async (tx) => {
-    const intake = await intakeInScope(tx, scope, intakeId, true);
-    if (intake.status !== "SUBMITTED" && intake.status !== "APPROVED" && intake.status !== "APPLYING") throw new ConflictError("This intake is not waiting for a manager");
-    const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
-    if (s.applyStatus === "DONE" || s.status === "DRAFTED") throw new ConflictError("This section has already been saved to the record");
-    if (s.status === "RETURNED" || s.status === "INFO_REQUESTED") throw new ConflictError("This section is back with the coordinator");
-    const facts = await tx.careIntakeFact.findMany({ where: { intakeId, section } });
-    const accepted = facts.filter((f) => ACCEPTED.has(f.decision));
-    if (!accepted.length && d.decision === "APPROVED") throw new ValidationError("There is nothing approved by the coordinator in this section");
-    if (d.decision === "APPROVED") {
-      if (intake.submittedById === ctx.userId) throw new ForbiddenError("You sent this intake for approval, so another manager must approve it");
-      if (facts.some((f) => f.decidedById === ctx.userId || f.editedById === ctx.userId)) throw new ForbiddenError("You reviewed facts in this section, so another manager must approve it");
-    }
-    await tx.careIntakeSection.update({ where: { id: s.id }, data: { status: d.decision, reason: d.reason, decidedById: ctx.userId, decidedAt: new Date(), applyStatus: d.decision === "APPROVED" ? s.applyStatus : "NOT_STARTED", lockVersion: { increment: 1 } } });
-    const all = await tx.careIntakeSection.findMany({ where: { intakeId } });
-    const withFacts = new Set((await tx.careIntakeFact.findMany({ where: { intakeId, decision: { in: [...ACCEPTED] } }, select: { section: true } })).map((f) => f.section));
-    const waiting = all.filter((x) => withFacts.has(x.section) && x.status === "OPEN");
-    if (!waiting.length && intake.status === "SUBMITTED" && all.some((x) => x.status === "APPROVED")) await tx.careIntake.update({ where: { id: intake.id }, data: { status: "APPROVED", lockVersion: { increment: 1 } } });
-    if ((d.decision === "RETURNED" || d.decision === "INFO_REQUESTED") && intake.submittedById && intake.submittedById !== ctx.userId) {
-      await tx.notification.createMany({ data: [{ organisationId: scope.organisationId, userId: intake.submittedById, type: "coordinator.returned", title: `${sectionLabel(section)} returned on ${intake.reference}`, body: d.reason ?? "", reason: "You sent this intake for approval.", actionUrl: `/rota/coordinator/${intake.id}?section=${section}`, dedupeKey: `coordinator-returned:${s.id}:${s.lockVersion}` }], skipDuplicates: true });
-    }
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.decided", entityType: "CareIntake", entityId: intake.id, data: { section, decision: d.decision, reason: d.reason, facts: accepted.length } }, tx);
-  });
+/**
+ * Whether the coordinator may still change facts in a section. The intake must be in review (not being saved, finished
+ * or cancelled) and the section must not be saving right now. Facts already saved are refused by the caller and by the
+ * database (intake_fact_guard).
+ */
+async function assertSectionOpen(intake: { status: string }, section: { section: string; status: string; applyStatus: string }) {
+  if (intake.status === "APPLYING" || section.applyStatus === "SAVING") throw new ConflictError("This intake is being saved to the CRM right now. Wait a moment, then reload.");
+  if (!inReview(intake.status)) throw new ConflictError("This intake is closed");
+  if (section.status === "REJECTED") throw new ConflictError(`${sectionLabel(section.section)} was rejected, so nothing from it is saved`);
 }
 
 export async function cancelIntake(ctx: Ctx, intakeId: string, reason: string) {
@@ -612,7 +542,7 @@ export async function listIntakes(ctx: Ctx, f: { status?: string } = {}) {
     .filter((r) => !r.serviceUserId || sus.some((s) => s.id === r.serviceUserId))
     .map((r) => {
       const su = sus.find((s) => s.id === r.serviceUserId);
-      return { ...r, person: su ? { id: su.id, reference: su.reference, name: `${su.preferredName ?? su.firstName} ${su.lastName}` } : null, openFacts: open.find((o) => o.intakeId === r.id)?._count ?? 0, createdBy: users.get(r.createdById) ?? "Unknown", submittedBy: r.submittedById ? (users.get(r.submittedById) ?? "Unknown") : null };
+      return { ...r, person: su ? { id: su.id, reference: su.reference, name: `${su.preferredName ?? su.firstName} ${su.lastName}` } : null, openFacts: open.find((o) => o.intakeId === r.id)?._count ?? 0, createdBy: users.get(r.createdById) ?? "Unknown", approvedBy: r.submittedById ? (users.get(r.submittedById) ?? "Unknown") : null };
     });
 }
 
@@ -671,7 +601,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
     members: members.map((m) => ({ id: m.userId, name: m.user.name, manager: m.roles.some((r) => r === "ORG_ADMIN" || r === "CARE_MANAGER") })),
     followUps: followUps.map((f) => ({ id: f.id, category: f.category, description: f.description, sourceRef: f.sourceRef, restricted: f.restricted, status: f.status, resolution: f.resolution, resolvedAt: f.resolvedAt })),
     hiddenFollowUps: access.sensitive ? 0 : await db.careIntakeReviewItem.count({ where: { organisationId: scope.organisationId, intakeId, restricted: true } }),
-    areas, callTypes, createdBy: names.get(intake.createdById) ?? "Unknown", submittedBy: intake.submittedById ? (names.get(intake.submittedById) ?? "Unknown") : null,
+    areas, callTypes, createdBy: names.get(intake.createdById) ?? "Unknown", approvedBy: intake.submittedById ? (names.get(intake.submittedById) ?? "Unknown") : null,
   };
 }
 export type IntakeView = Awaited<ReturnType<typeof getIntake>>;

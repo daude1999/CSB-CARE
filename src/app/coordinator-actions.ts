@@ -6,10 +6,10 @@ import { z } from "zod";
 import { ValidationError } from "@/lib/errors";
 import { valueFromForm } from "@/lib/care-coordinator-forms";
 import { handle, str } from "./action-kit";
-import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, resolveFollowUp, setCoordinatorAi, submitIntake, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
-import { applyApproved, applySection, fileDocuments } from "@/server/care/coordinator/apply";
+import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, resolveFollowUp, setCoordinatorAi, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
+import { approveSaveFailed, applySection, fileDocuments } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
-import { prepareDrafts, prepareReportText } from "@/server/care/coordinator/prepare";
+import { confirmAndSetUp, confirmReportText, proposeIntakeRota } from "@/server/care/coordinator/prepare";
 import { queueDocumentRead, queueIntakeReads, runQueuedReads } from "@/server/care/coordinator/read-jobs";
 import { MAX_DOCUMENT_BYTES, type UploadedFile } from "@/server/care/su-documents";
 import { SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
@@ -78,10 +78,26 @@ export async function uploadIntakeDocumentsAction(fd: FormData) {
   }, "Uploaded");
 }
 
-export async function prepareDraftsAction(fd: FormData) {
+/**
+ * Confirm & Set Up Records: the authorised coordinator's one confirmation (no separate manager approval). Saves every
+ * section that is ready and says exactly which section, if any, was not saved; saved sections are never repeated.
+ */
+export async function confirmAndSetUpAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const r = await prepareDrafts(ctx, intakeId(fd), { notADuplicate: fd.get("notADuplicate") === "on" });
-    return { ok: prepareReportText(r).replace(/\n/g, " ") };
+    const id = intakeId(fd);
+    const r = await confirmAndSetUp(ctx, id, { notADuplicate: fd.get("notADuplicate") === "on", areaId: str(fd, "areaId") || undefined, lockVersion: lockOf(fd) });
+    if (approveSaveFailed(r.save)) throw new ValidationError(confirmReportText(r));
+    return { to: page(id, "?step=save"), ok: confirmReportText(r) };
+  }, "Set up");
+}
+
+/** Prepares the draft rota again from the saved repeating visits (unpublished; nothing is added twice). */
+export async function proposeIntakeRotaAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const id = intakeId(fd);
+    const weeks = Number(str(fd, "weeks") || "2");
+    const r = await proposeIntakeRota(ctx, id, weeks);
+    return { to: page(id, "?step=rota"), ok: `Draft rota prepared: ${r.visits} new unpublished visit${r.visits === 1 ? "" : "s"}${r.alreadyBuilt ? `, ${r.alreadyBuilt} already there` : ""}. ${r.unassignedSlots} place${r.unassignedSlots === 1 ? "" : "s"} still need a carer. Carers see nothing until care is active and the rota is published.` };
   }, "Prepared");
 }
 
@@ -134,37 +150,12 @@ export async function addManualFactAction(fd: FormData) {
   }, "Fact added and approved under your name");
 }
 
-export async function submitIntakeAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    await submitIntake(ctx, intakeId(fd), { notADuplicate: fd.get("notADuplicate") === "on", areaId: str(fd, "areaId") || undefined });
-  }, "Sent to a manager for approval. Managers have been told.");
-}
-
-export async function decideSectionAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const decision = str(fd, "decision");
-    await decideSection(ctx, intakeId(fd), sectionOf(fd), { decision: decision as "APPROVED", reason: str(fd, "reason") });
-    return { ok: decision === "APPROVED" ? "Section approved" : decision === "REJECTED" ? "Section rejected. Nothing from it will be saved." : "Sent back to the coordinator" };
-  }, "Saved");
-}
-
 export async function applySectionAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const section = sectionOf(fd);
     const r = await applySection(ctx, intakeId(fd), section);
-    if (r.status === "FAILED") throw new ValidationError(`${sectionLabel(section)} was not saved: ${r.error}`);
-    return { ok: `${sectionLabel(section)} saved to the record and read back` };
-  }, "Saved");
-}
-
-export async function applyApprovedAction(fd: FormData) {
-  return handle(fd, async (ctx) => {
-    const r = await applyApproved(ctx, intakeId(fd));
-    const done = r.filter((x) => x.status === "DONE").length;
-    const failed = r.filter((x) => x.status !== "DONE");
-    if (!r.length) return { ok: "Every approved section is already saved" };
-    if (failed.length) throw new ValidationError(`${done} section${done === 1 ? "" : "s"} saved. Not saved: ${failed.map((f) => `${sectionLabel(f.section)} (${f.error ?? f.status.toLowerCase()})`).join("; ")}. Fix the cause and press Save again; saved sections are not repeated.`);
-    return { ok: `${done} section${done === 1 ? "" : "s"} saved to the record and read back` };
+    if (r.status === "FAILED") throw new ValidationError(`${sectionLabel(section)} was not saved: ${r.error}. Sections already saved are kept.`);
+    return { ok: `${sectionLabel(section)} saved to the CRM and read back` };
   }, "Saved");
 }
 

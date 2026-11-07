@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays, dbDate, fmtLondonDate, fromDbDate, londonDate } from "@/lib/london";
-import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
+import { INTAKE_STATUS, inReview } from "@/lib/care-coordinator-rules";
 import { hasOrgPermission, visiblePolicyWhere, type Ctx } from "@/server/auth/rbac";
 import { memberScope, serviceUserWhere, staffDirectoryWhere, visitWhere, type Scope } from "@/server/rota/scope";
 import { eligibilityFor } from "@/server/workforce/eligibility";
@@ -68,7 +68,7 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
     case "upload": {
       if (!(can("serviceUser.documents") && can("serviceUser.edit") && can("rota.edit"))) return noAccess;
       return done(
-        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (up to 12 per intake). The originals are kept unchanged. PDFs with typed text are read on CSB's own server; scanned pages, Word files and images are kept but their facts are added by hand.\n3. Check each fact against the page it came from, then submit to a manager.\n4. The manager approves each section, and the approved facts are saved to the person's record.\nNothing is saved or sent to carers without a person deciding.",
+        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (up to 12 per intake). The originals are kept unchanged. PDFs with typed text are read on CSB's own server; scanned pages, Word files and images are kept but their facts are added by hand.\n3. Check each fact against the page it came from: approve, correct or reject it.\n4. Press Approve & Save to CRM. The approved facts are saved to the person's record and the screen shows what was saved. Care plans and risk assessments are saved as drafts for their own approval.\n5. Prepare the draft rota.\nNothing is saved or sent to carers without a person deciding.",
         [{ label: "Open Care Coordinator", href: page.kind === "intake" && page.id ? `/rota/coordinator/${page.id}` : "/rota/coordinator" }],
       );
     }
@@ -81,14 +81,13 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
       const unread = view.documents.filter((d) => d.readStatus === "PENDING" || d.readStatus === "FAILED").length;
       const followUps = (view.followUps ?? []).filter((f) => f.status !== "RESOLVED").length;
       const next =
-        status === "DRAFT"
+        inReview(status)
           ? !view.documents.length ? "Upload the support plan and any other referral documents."
             : unread ? `Read ${plural(unread, "document")} that ${unread === 1 ? "hasn't" : "haven't"} been read yet.`
-            : open ? `Check ${plural(open, "fact")} still waiting for a decision, then submit to a manager.`
-            : "Every fact has a decision. Submit the intake to a manager."
-          : status === "SUBMITTED" ? `A manager needs to approve ${plural(waiting, "section")}. The person who submitted it can't approve it.`
-          : status === "APPROVED" ? "Save the approved sections to the person's record (Save to record step)."
-          : status === "APPLYING" ? "Saving is in progress. Check the Save to record step for any section that failed."
+            : open ? `Check ${plural(open, "fact")} still waiting for a decision, then press Approve & Save to CRM.`
+            : waiting ? `Every fact has a decision. Press Approve & Save to CRM to save ${plural(waiting, "section")}.`
+            : "Every fact has a decision. Press Approve & Save to CRM to finish any section that was not saved."
+          : status === "APPLYING" ? "Saving is in progress. Check the Approve & save step for any section that failed."
           : "This intake is closed. Nothing more to do here.";
       return done(
         `Intake ${view.intake.reference} (${view.intake.title}) is at: ${INTAKE_STATUS[status] ?? status}.\n${plural(view.documents.length, "document")}, ${plural(open, "fact")} still open${followUps ? `, ${plural(followUps, "follow-up")} to close` : ""}.\n\nNext step: ${next}`,
@@ -176,7 +175,7 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
     }
     case "new-su": {
       if (!can("serviceUser.edit")) return noAccess;
-      return done("You can set up a new service user by hand, or from their support plan. Using the support plan reads the facts for you, and a manager approves them.", [{ label: "Add service user", href: "/rota/service-users/new" }, ...(can("serviceUser.documents") ? [{ label: "Set up from a support plan", href: "/rota/coordinator" }] : [])]);
+      return done("You can set up a new service user by hand, or from their support plan. Using the support plan reads the facts for you, and you check and approve them.", [{ label: "Add service user", href: "/rota/service-users/new" }, ...(can("serviceUser.documents") ? [{ label: "Set up from a support plan", href: "/rota/coordinator" }] : [])]);
     }
     case "policy": {
       const term = question.toLowerCase().replace(/[?.!,]/g, " ").replace(/\b(what|is|our|the|a|on|for|about|policy|policies|procedure|do|we|have|find|show|me)\b/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);

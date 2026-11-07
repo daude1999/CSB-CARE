@@ -17,11 +17,10 @@ vi.mock("@/lib/db", () => {
   return { db };
 });
 
-import { db } from "@/lib/db";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
-import { addDocuments, createIntake, decideSection, submitIntake } from "@/server/care/coordinator/intake";
-import { applyApproved } from "@/server/care/coordinator/apply";
+import { addDocuments, createIntake } from "@/server/care/coordinator/intake";
+import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { draftSummary, prepareDrafts } from "@/server/care/coordinator/prepare";
 import { rotaReadiness } from "@/server/care/coordinator/rota";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
@@ -71,18 +70,9 @@ describe("coordinator steps on a one-connection database pool, as on the live si
     expect(r.blocked).toMatch(/already on record/);
   }, 120_000);
 
-  it("sends the intake to a manager once every fact is decided", async () => {
+  it("lets the coordinator confirm and set up the records in one action", async () => {
     const c = await coordinator();
-    await db.careIntakeFact.updateMany({ where: { intakeId, decision: { in: ["PENDING", "NEEDS_INFO"] } }, data: { decision: "APPROVED" } });
-    await submitIntake(c, intakeId, { notADuplicate: true });
-    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("SUBMITTED");
-  }, 120_000);
-
-  it("lets a manager approve the sections and save them to the record", async () => {
-    const m = await manager();
-    const waiting = await db.careIntakeSection.findMany({ where: { intakeId, status: "SUBMITTED" }, select: { section: true } });
-    for (const { section } of waiting) await decideSection(m, intakeId, section, { decision: "APPROVED" });
-    const results = await applyApproved(m, intakeId);
-    expect(results.filter((r) => r.status !== "DONE")).toEqual([]);
+    const r = await confirmAndSetUp(c, intakeId, { notADuplicate: true });
+    expect(r.save.sections.filter((s) => s.status === "FAILED" || s.status === "NOT_RUN")).toEqual([]);
   }, 120_000);
 });

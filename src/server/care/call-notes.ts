@@ -382,8 +382,10 @@ export async function withdrawDraft(ctx: Ctx, noteId: string) {
 // ── From the AI Care Coordinator ───────────────────────────────────────────
 
 /**
- * Saves one approved Call Notes fact from a Care Coordinator intake. The manager has already approved the section (and
- * the intake's separation of duties applies), so the note is saved as approved, linked to the intake and its source.
+ * Saves one approved Call Notes fact from a Care Coordinator intake. The coordinator approved the section with the
+ * intake (Approve & Save to CRM), so a routine note is saved as approved, linked to the intake and its source. A note
+ * that raises an urgent concern (safeguarding, a fall, a medication error...) is NOT approved with the intake: it waits
+ * for the Call Notes review by a reviewer, who are told in the app, so the intake never stands in for that decision.
  * The date is the one written in the document; when there is none, the document's own date (or the date it was read)
  * is used and the note says so. Idempotent: one note per fact.
  */
@@ -396,15 +398,26 @@ export async function createIntakeCallNote(tx: Tx, ctx: Ctx, input: {
   const v = input.value;
   const when = v.date ? new Date(`${v.date}T12:00:00Z`) : input.documentDate ?? input.intake.createdAt;
   const urgentKinds = urgentKindsIn(v.summary, input.fact.quote);
+  const needsReview = urgentKinds.length > 0;
   const reference = await nextCallNoteReference(tx, input.organisationId, Number(londonDate().slice(0, 4)));
   const note = await tx.callNote.create({
     data: {
       organisationId: input.organisationId, serviceUserId: input.serviceUserId, reference, submissionKey: `intake-fact:${input.fact.id}`, communicationAt: when, method: (METHOD_KEYS as readonly string[]).includes(v.method) ? v.method : "OTHER",
       contactName: v.contactName ?? "Not stated in the document", summary: v.summary, originalText: input.fact.quote ?? v.summary, sourceLabel: input.sourceLabel.slice(0, 300), intakeId: input.intake.id, intakeFactId: input.fact.id,
       clarification: v.date ? null : "The document does not give the date of this communication; the date shown is the document's date or when it was read.",
-      origin: "INTAKE", status: "APPROVED", urgentKinds, restricted: urgentKinds.includes("SAFEGUARDING"), createdById: ctx.userId, submittedAt: new Date(), reviewedById: input.approvedById, reviewedAt: new Date(), reviewNote: `Approved as part of Care Coordinator intake ${input.intake.reference}.`,
+      origin: "INTAKE", urgentKinds, restricted: urgentKinds.includes("SAFEGUARDING"), createdById: ctx.userId, submittedAt: new Date(),
+      ...(needsReview
+        ? { status: "AWAITING_REVIEW" }
+        : { status: "APPROVED", reviewedById: input.approvedById, reviewedAt: new Date(), reviewNote: `Approved as part of Care Coordinator intake ${input.intake.reference}.` }),
     },
   });
+  if (needsReview) {
+    const roles = ORG_PERMISSIONS["callNote.review"] as readonly string[];
+    const reviewers = await tx.membership.findMany({ where: { organisationId: input.organisationId, deactivatedAt: null, roles: { hasSome: [...roles] as never } }, select: { userId: true } });
+    const to = [...new Set(reviewers.map((m) => m.userId))].filter((id) => id !== ctx.userId);
+    const what = urgentKinds.map((k) => URGENT_KINDS[k as UrgentKind] ?? k).join(", ").toLowerCase();
+    if (to.length) await tx.notification.createMany({ data: to.map((userId) => ({ organisationId: input.organisationId, userId, type: "callNote.review", title: `${reference} from intake ${input.intake.reference} needs review`, body: `A Call Note from a care document mentions a possible ${what}. It was not approved with the intake: review it and use the incident and safeguarding workflow if needed.`, reason: "You review Call Notes for your organisation.", actionUrl: noteUrl(note), dedupeKey: `call-note-intake-review:${note.id}:${userId}` })), skipDuplicates: true });
+  }
   await tx.callNoteLink.create({ data: { organisationId: input.organisationId, callNoteId: note.id, targetType: "INTAKE", targetId: input.intake.id, label: `Care Coordinator intake ${input.intake.reference}`, createdById: ctx.userId } });
   await audit({ organisationId: input.organisationId, actorId: ctx.userId, action: "callNote.createdFromIntake", entityType: "CallNote", entityId: note.id, data: { reference, intakeId: input.intake.id, intakeReference: input.intake.reference, factId: input.fact.id, source: input.sourceLabel.slice(0, 300), urgentKinds } }, tx);
   return note;
