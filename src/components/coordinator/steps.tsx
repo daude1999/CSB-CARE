@@ -25,7 +25,7 @@ function readMethodBadge(d: { readMethod: string | null; readFailure: string | n
   return null;
 }
 /** Where a background reading is (read-jobs.ts). DONE shows nothing extra: the read status says it. */
-const READ_STAGE = { QUEUED: ["Waiting to be read", "slate"], READING: ["Reading now", "teal"], PREPARING: ["Preparing drafts", "teal"], RETRYING: ["Waiting to try again", "amber"], FAILED: ["Reading stopped", "rose"] } as const;
+const READ_STAGE = { QUEUED: ["Waiting to be read", "slate"], READING: ["Reading now", "teal"], PREPARING: ["CSB AI setting up records", "teal"], RETRYING: ["Waiting to try again", "amber"], FAILED: ["Reading stopped", "rose"] } as const;
 const STAGE_BUSY = new Set(["QUEUED", "READING", "PREPARING", "RETRYING"]);
 const SECTION_TONE = { DRAFTED: "teal", OPEN: "amber", APPROVED: "green", RETURNED: "rose", REJECTED: "rose", INFO_REQUESTED: "amber" } as const;
 const APPLY_TONE = { NOT_STARTED: "slate", SAVING: "teal", DONE: "green", FAILED: "rose", BLOCKED: "amber" } as const;
@@ -454,6 +454,8 @@ export function RotaStep({ view, back, rota, week, weeks, lastWeek }: { view: Vi
 // ── History ───────────────────────────────────────────────────────────────
 
 const ACTION_LABEL: Record<string, string> = {
+  "coordinator.setup.triaged": "CSB AI sorted the facts", "coordinator.setup.finished": "Automatic setup finished", "coordinator.setup.failed": "Automatic setup stopped", "coordinator.setup.identity-question": "CSB AI asked an identity question",
+  "coordinator.identity.chosen": "Identity value chosen", "coordinator.identity.new-person-confirmed": "Confirmed as a new person", "coordinator.exception.raised": "Exception raised", "coordinator.exception.resolved": "Exception resolved",
   "coordinator.intake.created": "Intake started", "coordinator.document.uploaded": "Document uploaded", "coordinator.document.read": "Document read", "coordinator.document.opened": "Original document opened", "coordinator.document.classified": "Filing details changed",
   "coordinator.fact.decided": "Fact decided", "coordinator.fact.added": "Fact added by hand", "coordinator.fact.bulk-approved": "Checked facts approved", "coordinator.intake.submitted": "Sent for approval (earlier process)", "coordinator.intake.resubmitted": "Corrected sections sent back (earlier process)", "coordinator.section.decided": "Section decided by a manager (earlier process)",
   "coordinator.intake.confirmed": "Confirmed and set up by the coordinator", "coordinator.intake.approved": "Approved by the coordinator", "coordinator.section.approved": "Section approved by the coordinator", "coordinator.intake.saved": "Save to the CRM finished", "coordinator.drafts.accepted": "Checked facts accepted for drafting", "coordinator.drafts.prepared": "Draft records prepared", "coordinator.section.drafted": "Section saved as drafts", "coordinator.rota.proposed": "Draft rota prepared (unpublished)",

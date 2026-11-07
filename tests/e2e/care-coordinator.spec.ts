@@ -30,10 +30,18 @@ test("a coordinator uploads the documents and sees each fact with its page, with
     { name: "Support plan.pdf", mimeType: "application/pdf", buffer: await supportPlanPdf() },
     { name: "Discharge summary.pdf", mimeType: "application/pdf", buffer: await dischargeLetterPdf() },
   ]);
-  await page.getByRole("button", { name: "Start and read the documents" }).click();
+  await page.getByRole("button", { name: "Upload and process" }).click();
   await expect(page).toHaveURL(/\/rota\/coordinator\/[a-z0-9]+/);
   intakeUrl = page.url().split("?")[0]!;
-  await expect(page.getByRole("status").or(page.getByText(/started and 2 documents read/))).toBeVisible();
+  await expect(page.getByRole("status").or(page.getByText(/started and 2 documents read/)).first()).toBeVisible();
+
+  // Automatic setup: the setup summary is the first thing the coordinator sees, with links to what CSB AI created.
+  await page.goto(`${intakeUrl}?step=setup`);
+  await expect(page.getByText("Service user created successfully")).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("link", { name: "Open service user profile" }).click();
+  await page.getByRole("link", { name: "Audit & Exceptions" }).first().click();
+  await expect(page.getByText("AI setup summary")).toBeVisible();
+  await expect(page.getByText(/CSB AI \(started by Casey/).first()).toBeVisible();
 
   // Timetable continued on page 4 is read, and family rows are kept apart.
   await page.goto(`${intakeUrl}?step=review&section=VISITS`);
@@ -49,19 +57,17 @@ test("a coordinator uploads the documents and sees each fact with its page, with
   await expect(page.getByText("Restricted: a registered manager reviews this").first()).toBeVisible();
   await expect(page.getByText("Paracetamol")).toHaveCount(0);
 
-  // Edit with plain fields: the end date of the package.
+  // Saved by CSB AI, not by a person: the fact says so, and it is corrected on the record's own tab afterwards.
   await page.goto(`${intakeUrl}?step=review&section=PACKAGE`);
   const end = page.locator("li[id^=fact-]").filter({ hasText: "Package end date" });
-  await end.getByText("Edit", { exact: true }).click();
-  await end.getByLabel(/Package end date/).fill("2026-12-30");
-  await end.getByRole("button", { name: "Save edit and approve" }).click();
-  await expect(page.locator("li[id^=fact-]").filter({ hasText: "Package end date" })).toContainText("Edited and approved");
+  await expect(end).toContainText("CSB AI");
+  await expect(end).not.toContainText("Approved by Casey");
 
-  // Keyboard: the section list and the first action are reachable.
-  await page.goto(`${intakeUrl}?step=review&section=PERSONAL`);
-  const approve = page.getByRole("button", { name: "Approve", exact: true }).first();
-  await approve.focus();
-  await expect(approve).toBeFocused();
+  // Keyboard: the setup summary's first link is reachable.
+  await page.goto(`${intakeUrl}?step=setup`);
+  const first = page.getByRole("link", { name: "Open service user profile" });
+  await first.focus();
+  await expect(first).toBeFocused();
 
   for (const [w, h, n] of [[1440, 900, "desktop"], [834, 1112, "tablet"], [390, 844, "phone"]] as const) {
     await page.setViewportSize({ width: w, height: h });

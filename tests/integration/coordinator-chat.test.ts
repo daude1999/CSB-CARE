@@ -200,7 +200,7 @@ describe("AI CSB Coordinator attachment workflow", () => {
     await runAfterTasks();
     const doc = await db.careIntakeDocument.findFirstOrThrow({ where: { intakeId: response.intakeId } });
     expect(doc.readStage).toBe("DONE");
-    expect(doc.readStageNote).toMatch(/Records prepared for/);
+    expect(doc.readStageNote).toMatch(/Read and set up\. Personal details populated/);
     expect(await db.careIntakeFact.count({ where: { intakeId: response.intakeId } })).toBeGreaterThan(0);
 
     const draft = await db.careIntake.findUniqueOrThrow({ where: { id: response.intakeId } });

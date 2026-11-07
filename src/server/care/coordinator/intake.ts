@@ -12,7 +12,7 @@ import { registerCheckInTx } from "../external-references";
 
 const REFERENCE_UNCHECKED = "The reference register is not set up on this system yet (its key is missing), so this number could not be checked against other profiles. Check it by hand.";
 import type { FundedBy } from "@/lib/su-import-rules";
-import { audit } from "@/server/audit-log";
+import { audit, automationOf } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { rotaSettings } from "@/server/rota/settings";
@@ -532,18 +532,32 @@ export async function listIntakes(ctx: Ctx, f: { status?: string } = {}) {
     where: { organisationId: scope.organisationId, ...(f.status && f.status in { DRAFT: 1, SUBMITTED: 1, APPROVED: 1, APPLYING: 1, COMPLETED: 1, CANCELLED: 1 } ? { status: f.status } : {}) },
     orderBy: { updatedAt: "desc" },
     take: 200,
-    include: { _count: { select: { documents: true, facts: true } } },
+    include: { _count: { select: { documents: true, facts: true } }, documents: { orderBy: { position: "asc" }, select: { name: true, readStage: true, readStatus: true } } },
   });
   const suIds = rows.map((r) => r.serviceUserId).filter((x): x is string => !!x);
   const sus = suIds.length ? await db.serviceUser.findMany({ where: { ...serviceUserWhere(scope), id: { in: suIds } }, select: { id: true, reference: true, firstName: true, lastName: true, preferredName: true } }) : [];
   const open = await db.careIntakeFact.groupBy({ by: ["intakeId"], where: { intakeId: { in: rows.map((r) => r.id) }, decision: { in: [...OPEN_DECISIONS] } }, _count: true });
   const users = await namesFor([...new Set(rows.flatMap((r) => [r.createdById, r.submittedById].filter((x): x is string => !!x)))]);
+  const exceptions = await db.careIntakeReviewItem.groupBy({ by: ["intakeId"], where: { intakeId: { in: rows.map((r) => r.id) }, status: "OPEN" }, _count: true });
   return rows
     .filter((r) => !r.serviceUserId || sus.some((s) => s.id === r.serviceUserId))
     .map((r) => {
       const su = sus.find((s) => s.id === r.serviceUserId);
-      return { ...r, person: su ? { id: su.id, reference: su.reference, name: `${su.preferredName ?? su.firstName} ${su.lastName}` } : null, openFacts: open.find((o) => o.intakeId === r.id)?._count ?? 0, createdBy: users.get(r.createdById) ?? "Unknown", approvedBy: r.submittedById ? (users.get(r.submittedById) ?? "Unknown") : null };
+      return { ...r, person: su ? { id: su.id, reference: su.reference, name: `${su.preferredName ?? su.firstName} ${su.lastName}` } : null, openFacts: open.find((o) => o.intakeId === r.id)?._count ?? 0, createdBy: users.get(r.createdById) ?? "Unknown", approvedBy: r.submittedById ? (users.get(r.submittedById) ?? "Unknown") : null, openExceptions: exceptions.find((o) => o.intakeId === r.id)?._count ?? 0, queue: intakeQueue(r) };
     });
+}
+
+/**
+ * Where an intake sits on the Care Coordinator dashboard (7 Nov 2026): Processing, Ready, Needs attention or Failed.
+ * An intake from before automatic setup that still has documents to set up needs attention (Run automatic setup).
+ */
+export function intakeQueue(r: { status: string; setupStatus: string | null; documents: { readStage: string | null }[] }): "PROCESSING" | "READY" | "NEEDS_ATTENTION" | "FAILED" | "CLOSED" {
+  if (r.status === "CANCELLED") return "CLOSED";
+  if (r.documents.some((d) => d.readStage === "FAILED") || r.setupStatus === "FAILED") return "FAILED";
+  if (r.documents.some((d) => d.readStage && ["QUEUED", "READING", "PREPARING", "RETRYING"].includes(d.readStage)) || r.setupStatus === "PROCESSING") return "PROCESSING";
+  if (r.setupStatus === "READY") return "READY";
+  if (r.setupStatus === "NEEDS_ATTENTION") return "NEEDS_ATTENTION";
+  return r.status === "COMPLETED" ? "CLOSED" : "NEEDS_ATTENTION";
 }
 
 export async function namesFor(ids: string[]) {
@@ -577,7 +591,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
       sourceDocumentId: f.sourceDocumentId, sourcePage: f.sourcePage, quote: hidden ? null : f.quote, verification: f.verification, temporal: f.temporal, origin: f.origin,
       existing: hidden || f.existingValue === null ? null : displayValue(f.destination, f.existingValue), conflict: hidden ? null : f.conflict,
       decision: f.decision, decisionLabel: DECISIONS[f.decision as keyof typeof DECISIONS] ?? f.decision, decisionNote: hidden ? null : f.decisionNote, question: hidden ? null : f.question,
-      assignedTo: f.assignedToId ? (names.get(f.assignedToId) ?? "Unknown") : null, decidedBy: f.decidedById ? (names.get(f.decidedById) ?? "Unknown") : null, decidedAt: f.decidedAt, editedBy: f.editedById ? (names.get(f.editedById) ?? "Unknown") : null,
+      assignedTo: f.assignedToId ? (names.get(f.assignedToId) ?? "Unknown") : null, decidedBy: f.decidedById ? (f.decisionSource === "AUTOMATION" ? `CSB AI (started by ${names.get(f.decidedById) ?? "Unknown"})` : (names.get(f.decidedById) ?? "Unknown")) : null, decisionSource: f.decisionSource, decidedAt: f.decidedAt, editedBy: f.editedById ? (names.get(f.editedById) ?? "Unknown") : null,
       appliedAt: f.appliedAt, appliedRef: f.appliedRef, lockVersion: f.lockVersion, restricted, hidden,
     };
   });
@@ -597,7 +611,7 @@ export async function getIntake(ctx: Ctx, intakeId: string) {
   return {
     intake, access, person: su ? { ...su, name: `${su.preferredName ?? su.firstName} ${su.lastName}` } : null,
     documents: shownDocs, facts: shownFacts, sections: sectionRows, reconciliation,
-    history: history.map((h) => ({ id: h.id, at: h.createdAt, action: h.action, actor: h.actorId ? (names.get(h.actorId) ?? "Unknown") : "System", data: h.data as Record<string, unknown> })),
+    history: history.map((h) => ({ id: h.id, at: h.createdAt, action: h.action, actor: automationOf(h.data) ? `CSB AI (started by ${h.actorId ? (names.get(h.actorId) ?? "Unknown") : "Unknown"})` : h.actorId ? (names.get(h.actorId) ?? "Unknown") : "System", automated: !!automationOf(h.data), data: h.data as Record<string, unknown> })),
     members: members.map((m) => ({ id: m.userId, name: m.user.name, manager: m.roles.some((r) => r === "ORG_ADMIN" || r === "CARE_MANAGER") })),
     followUps: followUps.map((f) => ({ id: f.id, category: f.category, description: f.description, sourceRef: f.sourceRef, restricted: f.restricted, status: f.status, resolution: f.resolution, resolvedAt: f.resolvedAt })),
     hiddenFollowUps: access.sensitive ? 0 : await db.careIntakeReviewItem.count({ where: { organisationId: scope.organisationId, intakeId, restricted: true } }),
