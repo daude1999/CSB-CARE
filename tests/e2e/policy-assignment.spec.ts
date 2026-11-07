@@ -39,6 +39,6 @@ test.describe("Policy assignment", () => {
 
     await form.getByRole("button", { name: "Add assignment" }).click();
     await expect(page.getByRole("status")).toContainText("Assignment added");
-    await expect(page.getByText(`Named people: ${staffName}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`Named person: ${staffName}`, { exact: true })).toBeVisible();
   });
 });
