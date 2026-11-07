@@ -21,6 +21,16 @@ export const BACKUP_SCHEMA = "backup_20261107_test_person";
 export const TEST_INTAKE_TITLE = "TEST ONLY - fictional scanned plan (Claude check, delete)";
 const ORG_SLUG = "csb-demo";
 
+export interface CleanupTarget { id: string; backupSchema: string; title: string }
+const FIRST: CleanupTarget = { id: CLEANUP_ID, backupSchema: BACKUP_SCHEMA, title: TEST_INTAKE_TITLE };
+/**
+ * Second run, same rules: the live check of the upload fix (PR #121, 7 Nov 2026 ~19:00) uploaded the same fictional
+ * plan as intake CI-0007 with this title, which created "Ada Fictional" again. The owner chose "Remove the test person"
+ * in the project thread at 19:42.
+ */
+export const SECOND: CleanupTarget = { id: "2026-11-07-remove-test-person-2", backupSchema: "backup_20261107_test_person_2", title: "TEST ONLY - fictional plan (Claude upload check, cancel)" };
+export const TARGETS = [FIRST, SECOND];
+
 type Q = Client;
 const ident = (t: string) => `"${t.replace(/"/g, '""')}"`;
 
@@ -90,7 +100,8 @@ async function deleteAll(c: Q, rows: Map<string, Set<string>>) {
   return counts;
 }
 
-export async function cleanUpTestPerson(c: Q) {
+export async function cleanUpTestPerson(c: Q, target: CleanupTarget = FIRST) {
+  const { id: CLEANUP_ID, backupSchema: BACKUP_SCHEMA, title: TEST_INTAKE_TITLE } = target;
   const org = (await c.query<{ id: string }>(`SELECT id FROM "Organisation" WHERE slug = $1`, [ORG_SLUG])).rows[0];
   if (!org) return { skipped: "no Care Solution Bureau organisation" };
   const done = (await c.query(`SELECT 1 FROM "AuditLog" WHERE action = 'test-person.cleanup' AND "entityId" = $1`, [CLEANUP_ID])).rowCount;
@@ -136,14 +147,19 @@ async function main() {
   const client = new Client({ connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL });
   await client.connect();
   try {
-    await client.query("BEGIN");
-    const result = await cleanUpTestPerson(client);
-    await client.query("COMMIT");
-    console.log("test person clean-up:", JSON.stringify(result));
-  } catch (e) {
-    await client.query("ROLLBACK").catch(() => {});
-    // Never fail the deployment over this: nothing was changed, and the next build tries again.
-    console.error("test person clean-up: failed, nothing was changed", e);
+    // Each run in its own transaction: one that fails changes nothing and does not stop the other.
+    for (const target of TARGETS) {
+      try {
+        await client.query("BEGIN");
+        const result = await cleanUpTestPerson(client, target);
+        await client.query("COMMIT");
+        console.log(`test person clean-up ${target.id}:`, JSON.stringify(result));
+      } catch (e) {
+        await client.query("ROLLBACK").catch(() => {});
+        // Never fail the deployment over this: nothing was changed, and the next build tries again.
+        console.error(`test person clean-up ${target.id}: failed, nothing was changed`, e);
+      }
+    }
   } finally {
     await client.end();
   }
