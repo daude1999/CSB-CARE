@@ -2,7 +2,8 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
-import { AppError } from "@/lib/errors";
+import { randomBytes } from "node:crypto";
+import { AppError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { requireCtx } from "@/server/auth/current";
 import type { Ctx } from "@/server/auth/rbac";
@@ -30,6 +31,32 @@ export function withParam(url: string, key: string, value: string) {
   return `${path}?${q}${hash}`;
 }
 
+/** A short reference shown to the user and written to the server log with the error, so the two can be matched. */
+export function errorReference() {
+  return `ERR-${randomBytes(4).toString("hex").toUpperCase()}`;
+}
+
+/** Logs an unexpected error with its reference: the error's kind, message and database code only, never form data. */
+function logUnexpected(e: unknown, ref: string, step?: string) {
+  const err = e as { message?: string; stack?: string; code?: unknown; name?: string };
+  logger.error({ ref, step, kind: err?.name, code: typeof err?.code === "string" ? err.code : undefined, err: err?.message, stack: err?.stack }, "action failed");
+}
+
+/**
+ * Runs one step of an action. Our own errors pass through as they are; anything unexpected is logged with a reference
+ * and replaced by `failure` (what did and did not happen, in plain words) plus that reference.
+ */
+export async function step<T>(name: string, failure: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (isRedirectError(e) || e instanceof AppError || e instanceof AiUnavailableError) throw e;
+    const ref = errorReference();
+    logUnexpected(e, ref, name);
+    throw new ValidationError(`${failure} Error reference: ${ref}.`);
+  }
+}
+
 /** `fn` may return where to go next, or `{ to, ok }` when the confirmation depends on what happened (e.g. bulk results). */
 export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void | { to?: string; ok: string }>, ok: string) {
   const back = safeBack(fd.get("back"));
@@ -40,8 +67,14 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
     target = typeof next === "object" ? withParam(next.to ?? back, "ok", next.ok) : withParam(next ?? back, "ok", ok);
   } catch (e) {
     if (isRedirectError(e)) throw e;
-    const msg = e instanceof AppError || e instanceof AiUnavailableError ? e.message : "Something went wrong. The error has been logged.";
-    if (!(e instanceof AppError)) logger.error({ err: (e as Error).message, stack: (e as Error).stack }, "action failed");
+    let msg: string;
+    if (e instanceof AppError || e instanceof AiUnavailableError) msg = e.message;
+    else {
+      const ref = errorReference();
+      logUnexpected(e, ref);
+      msg = `Something went wrong. The error has been logged. Error reference: ${ref}.`;
+    }
+    if (e instanceof AiUnavailableError) logger.error({ err: e.message }, "action failed");
     target = withParam(back, "error", msg);
   }
   revalidatePath("/", "layout");
@@ -61,7 +94,9 @@ export async function handleData<T>(fn: (ctx: Ctx) => Promise<T>, opts: { revali
     return { ok: true, data };
   } catch (e) {
     if (isRedirectError(e)) throw e;
-    if (!(e instanceof AppError)) logger.error({ err: (e as Error).message, stack: (e as Error).stack }, "action failed");
-    return { ok: false, error: e instanceof AppError || e instanceof AiUnavailableError ? e.message : "Something went wrong. The error has been logged." };
+    if (e instanceof AppError || e instanceof AiUnavailableError) return { ok: false, error: e.message };
+    const ref = errorReference();
+    logUnexpected(e, ref);
+    return { ok: false, error: `Something went wrong. The error has been logged. Error reference: ${ref}.` };
   }
 }
