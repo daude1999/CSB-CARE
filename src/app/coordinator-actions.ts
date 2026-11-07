@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { ValidationError } from "@/lib/errors";
 import { valueFromForm } from "@/lib/care-coordinator-forms";
-import { handle, str } from "./action-kit";
+import { handle, step, str } from "./action-kit";
 import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, resolveFollowUp, setCoordinatorAi, updateIntakeDocument, MAX_INTAKE_DOCUMENTS } from "@/server/care/coordinator/intake";
 import { approveSaveFailed, applySection, fileDocuments } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota } from "@/server/care/coordinator/rota";
@@ -56,11 +56,11 @@ const READING_NOTE = "It is being read now: you can watch each stage on this pag
 
 export async function createIntakeAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const intake = await createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : str(fd, "mode") === "DOCUMENT" ? "DOCUMENT" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") });
+    const intake = await step("create-intake", "The intake could not be started. Nothing was saved and no document was stored.", () => createIntake(ctx, { title: str(fd, "title"), mode: str(fd, "mode") === "EXISTING" ? "EXISTING" : str(fd, "mode") === "DOCUMENT" ? "DOCUMENT" : "NEW", serviceUserId: str(fd, "serviceUserId"), areaId: str(fd, "areaId") }));
     const files = fd.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length) {
-      const r = await addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" });
-      await queueIntakeReads(ctx, r.toRead, { prepare: true });
+      const r = await step("store-documents", `${intake.reference} was started, but the documents could not be stored. Open ${intake.reference} and upload them again; nothing else needs redoing.`, async () => addDocuments(ctx, intake.id, await filesFrom(fd), { read: "later" }));
+      await step("queue-reading", `${intake.reference} was started and the documents were stored, but reading could not be started. Open ${intake.reference} and press Read again; nothing needs uploading again.`, () => queueIntakeReads(ctx, r.toRead, { prepare: true }));
       if (r.toRead.length) startReadingSoon();
       return { to: page(intake.id, "?step=documents"), ok: `${intake.reference} started and ${r.documents} document${r.documents === 1 ? "" : "s"} stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
     }
@@ -70,9 +70,10 @@ export async function createIntakeAction(fd: FormData) {
 
 export async function uploadIntakeDocumentsAction(fd: FormData) {
   return handle(fd, async (ctx) => {
-    const r = await addDocuments(ctx, intakeId(fd), await filesFrom(fd), { read: "later" });
+    const id = intakeId(fd);
+    const r = await step("store-documents", "The documents could not be stored. Nothing was uploaded; try again.", async () => addDocuments(ctx, id, await filesFrom(fd), { read: "later" }));
     if (!r.documents && r.duplicates.length) return { ok: `${r.duplicates.join(", ")} ${r.duplicates.length === 1 ? "is" : "are"} already on this intake, so nothing was uploaded again.` };
-    await queueIntakeReads(ctx, r.toRead, { prepare: true });
+    await step("queue-reading", "The documents were stored, but reading could not be started. Press Read again on each document; nothing needs uploading again.", () => queueIntakeReads(ctx, r.toRead, { prepare: true }));
     if (r.toRead.length) startReadingSoon();
     return { ok: `${r.documents} document${r.documents === 1 ? "" : "s"} uploaded and stored. ${r.toRead.length ? READING_NOTE : "Add the facts by hand under Check facts."}` };
   }, "Uploaded");
