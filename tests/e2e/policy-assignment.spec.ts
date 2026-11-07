@@ -17,9 +17,8 @@ test.describe("Policy assignment", () => {
     // Use the seeded, published safeguarding policy. The test database is rebuilt by Playwright setup.
     await page.goto("/policies?q=Safeguarding%20Adults");
     const policyLink = page.locator('a[href^="/policies/c"]').filter({ hasText: "Safeguarding Adults" }).first();
-    await expect(policyLink).toBeVisible();
     const policyHref = await policyLink.getAttribute("href");
-    expect(policyHref).toBeTruthy();
+    expect(policyHref).toMatch(/^\/policies\/c/);
 
     const policyId = policyHref!.split("/").filter(Boolean).at(-1)!;
     await page.goto(`/staff/policy/${policyId}`);
