@@ -281,7 +281,7 @@ export function triage(input: { mode: string; facts: TriageFact[]; docs: TriageD
     const note = RESTRICTED.has(f.section)
       ? `Routed by CSB AI to the ${f.section === "MEDICATION" ? "medication reconciliation list" : "history to check"}: nothing is given to carers or recorded as current until an authorised person checks it.`
       : SCANNED.test(conflict)
-        ? "Saved as a draft by CSB AI from a scanned page: the words could not be checked automatically. Compare with the original before relying on it."
+        ? "Saved by CSB AI from a scanned page: the words could not be matched to text automatically. The original is filed with the record."
         : "Saved by CSB AI: the words were found on the page and nothing contradicts them.";
     out.push({ factId: f.id, kind: "ROUTINE", note, exception: safety ?? follow });
   }
