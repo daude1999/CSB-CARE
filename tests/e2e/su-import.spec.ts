@@ -148,7 +148,7 @@ test.describe("Set up from support plan", () => {
     await expect(page.getByText("Nadia Synthetic").first()).toBeVisible();
     await expect(page.getByText("Sam Synthetic").first()).toBeVisible();
     await page.goto(`${base}?tab=package`);
-    await expect(page.getByText("22.75 hours/week", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("package-details").getByText("22.75 hours/week", { exact: true })).toBeVisible();
     await page.goto(`${base}?tab=documents`);
     await expect(page.getByText("Example Council support plan", { exact: false }).first()).toBeVisible();
     await page.goto("/rota/templates?q=Synthetic");
