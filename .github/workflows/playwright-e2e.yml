@@ -1,0 +1,91 @@
+name: CSB-CARE Playwright workflows
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - ".github/workflows/playwright-e2e.yml"
+      - "playwright.config.ts"
+      - "tests/e2e/**"
+      - "src/**"
+      - "prisma/**"
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+    paths:
+      - ".github/workflows/playwright-e2e.yml"
+      - "playwright.config.ts"
+      - "tests/e2e/**"
+      - "src/**"
+      - "prisma/**"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  care-workflows:
+    name: Service user, policy and rota browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d csb_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_e2e?schema=public
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_e2e?schema=public
+      E2E_PORT: "3100"
+      APP_URL: http://localhost:3100
+      AI_PROVIDER: simulated
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_DIR: .data/e2e-storage
+      EMAIL_PROVIDER: log
+      COOKIE_SECURE: "false"
+      SHOW_DEMO_LOGINS: "true"
+      LOG_LEVEL: warn
+      CSB_REFERENCE_SECRET: E2E-ONLY-REFERENCE-KEY
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+      - name: Build application
+        run: npm run build
+      - name: Test support-plan service-user creation
+        run: npx playwright test tests/e2e/su-import.spec.ts
+      - name: Test named policy assignment
+        run: npx playwright test tests/e2e/policy-assignment.spec.ts
+      - name: Test service-user to published rota journey
+        run: npx playwright test tests/e2e/v1-scenario.spec.ts
+      - name: Upload browser traces and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csb-care-playwright-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
