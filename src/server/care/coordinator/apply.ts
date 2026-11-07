@@ -714,7 +714,7 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
     const rec = reconcileHours(fs.map((f) => f.value as z.output<typeof visitValue>).map((x) => ({ weekdays: x.weekdays, durationMin: x.durationMin, carers: x.carers, fundedBy: x.fundedBy as FundedBy })), pkg?.commissionedMinutesPerWeek ?? null);
     out.notes.push(rec.message);
     if (createdTasks) out.notes.push(`${createdTasks} new care task${createdTasks === 1 ? " was" : "s were"} added to the organisation's task list.`);
-    out.notes.push("No carers were assigned and no visits were created. Create the draft rota from this intake once the care plan is approved.");
+    out.notes.push("No carers were assigned. Any draft rota from these visits is unpublished, so carers see nothing until care is made Active and the rota is published.");
     out.verified = (await tx.careIntakeFact.count({ where: { intakeId, section: "VISITS", decision: { in: [...ACCEPTED] }, appliedAt: null } })) === 0;
     return out;
   });

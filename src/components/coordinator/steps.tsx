@@ -263,6 +263,7 @@ export function ConfirmPanel({ view, back }: { view: View; back: string }) {
   const { intake, access } = view;
   const reading = view.documents.some((d) => d.readStatus === "PENDING");
   const saved = view.sections.filter((s) => s.applyStatus === "DONE");
+  const confirmed = Boolean(view.approvedBy);
   return (
     <form action={confirmAndSetUpAction} className="space-y-2 rounded-[3px] border border-teal-700/30 bg-[#f1f8f7] p-3" aria-labelledby="confirm-h">
       <Hidden back={back} intakeId={intake.id} />
@@ -272,14 +273,14 @@ export function ConfirmPanel({ view, back }: { view: View; back: string }) {
         You review and approve this intake; no manager approval is needed. Confirming accepts the checked facts with no warning, then saves everything you have approved into the person&apos;s records: the person (at Assessment), contacts, carer preferences, the care package, the visit templates and call notes, plus the care plan and risk assessments as drafts and medicines as drafts or reconciliation items. Clinical records keep their own reviews. For a new person a draft rota is proposed: its visits are not published, so carers are not told. Your name and the time are recorded on each section.
       </p>
       <Unresolved view={view} />
-      {saved.length ? <p className="text-[13.5px] text-slate-700">Already saved: {saved.map((s) => sectionLabel(s.key)).join(", ")}. Confirming again saves only what is new; nothing is repeated.</p> : null}
+      {saved.length ? <p className="text-[13.5px] text-slate-700">{confirmed ? "Already saved" : "Already saved as drafts by the AI CSB Coordinator"}: {saved.map((s) => sectionLabel(s.key)).join(", ")}. Confirming {confirmed ? "again " : ""}approves them and saves only what is new; nothing is repeated.</p> : null}
       {intake.mode === "NEW" && !intake.serviceUserId && !intake.areaId && view.areas.length ? (
         <label className="block max-w-sm"><span className="label">Area for the new person</span><select name="areaId" className="input" defaultValue=""><option value="">Choose later</option>{view.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
       ) : null}
       {intake.mode === "NEW" && !intake.serviceUserId ? <label className="flex items-start gap-2 text-[14px]"><input type="checkbox" name="notADuplicate" className="mt-1" /> If a similar person is found, I have checked and this is a different person</label> : null}
       {reading ? <p role="note" className="text-[13.5px] text-slate-700">A document is still being read. Wait for it to finish and check its facts, then confirm.</p> : null}
       {!access.approve ? <p role="note" className="text-[13.5px] text-slate-700">Your role cannot confirm intakes. A Care Coordinator, care manager or administrator confirms it.</p> : null}
-      <button className="btn-primary" disabled={reading || !access.approve}>{saved.length ? "Confirm & Set Up Records again" : "Confirm & Set Up Records"}</button>
+      <button className="btn-primary" disabled={reading || !access.approve}>{confirmed ? "Confirm & Set Up Records again" : "Confirm & Set Up Records"}</button>
     </form>
   );
 }
@@ -343,7 +344,7 @@ function FollowUps({ view, back }: { view: View; back: string }) {
   return (
     <section aria-labelledby="fu-h" className="space-y-2">
       <h3 id="fu-h" className="mt-3 text-[15px] font-semibold">Follow-ups left by this intake</h3>
-      {view.hiddenFollowUps ? <p className="text-[13px] text-slate-600">{view.hiddenFollowUps} restricted follow-up{view.hiddenFollowUps === 1 ? "" : "s"} for a manager.</p> : null}
+      {view.hiddenFollowUps ? <p className="text-[13px] text-slate-600">{view.hiddenFollowUps} restricted follow-up{view.hiddenFollowUps === 1 ? "" : "s"} for someone allowed to see restricted records.</p> : null}
       <ul className="space-y-2">
         {view.followUps.map((f) => (
           <li key={f.id} className="rounded-[3px] border border-slate-200 p-3 text-[14px]">
