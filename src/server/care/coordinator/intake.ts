@@ -103,9 +103,12 @@ export async function createIntake(ctx: Ctx, input: z.input<typeof createSchema>
       if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose one of your areas");
     }
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`care-intake-ref:${org}`}))`;
-    const count = await tx.careIntake.count({ where: { organisationId: org } });
+    // The next number follows the highest one used, not the number of intakes: once an intake has been deleted, a
+    // count gives a number that is already taken and every new intake failed (7 Nov 2026, live).
+    const refs = await tx.careIntake.findMany({ where: { organisationId: org }, select: { reference: true } });
+    const next = refs.reduce((max, r) => Math.max(max, Number(/^CI-(\d+)$/.exec(r.reference)?.[1] ?? 0)), 0) + 1;
     const intake = await tx.careIntake.create({
-      data: { organisationId: org, reference: `CI-${String(count + 1).padStart(4, "0")}`, title: d.title, mode: d.mode, serviceUserId: d.mode !== "NEW" ? d.serviceUserId! : null, areaId: d.areaId ?? null, createdById: ctx.userId },
+      data: { organisationId: org, reference: `CI-${String(next).padStart(4, "0")}`, title: d.title, mode: d.mode, serviceUserId: d.mode !== "NEW" ? d.serviceUserId! : null, areaId: d.areaId ?? null, createdById: ctx.userId },
     });
     await tx.careIntakeSection.createMany({ data: SECTION_KEYS.map((section) => ({ organisationId: org, intakeId: intake.id, section })) });
     await audit({ organisationId: org, actorId: ctx.userId, action: "coordinator.intake.created", entityType: "CareIntake", entityId: intake.id, data: { reference: intake.reference, mode: d.mode, serviceUserId: intake.serviceUserId } }, tx);
