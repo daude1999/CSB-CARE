@@ -526,7 +526,7 @@ export async function submitIntake(ctx: Ctx, intakeId: string, opts: { notADupli
       }
       if (scope.areaIds && !areaId) throw new ValidationError("Choose the area the person lives in");
       const name = (k: string) => String(facts.find((f) => f.destination === k && ACCEPTED.has(f.decision))?.value ?? "");
-      const dupes = await findPossibleDuplicates(scope, { firstName: name("person.firstName"), lastName: name("person.lastName"), dateOfBirth: name("person.dateOfBirth") || undefined, postcode: name("person.postcode") || undefined });
+      const dupes = await findPossibleDuplicates(scope, { firstName: name("person.firstName"), lastName: name("person.lastName"), dateOfBirth: name("person.dateOfBirth") || undefined, postcode: name("person.postcode") || undefined }, tx);
       if (dupes.length && !opts.notADuplicate) throw new ConflictError(`${dupes[0]!.name} (${dupes[0]!.reference}) is already on record: ${dupes[0]!.reason.toLowerCase()}. Start an intake for that person instead, or tick "This is a different person".`);
       if (dupes.length) await tx.careIntake.update({ where: { id: intake.id }, data: { notDuplicateById: ctx.userId } });
     }
