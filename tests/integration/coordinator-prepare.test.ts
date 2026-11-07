@@ -5,7 +5,8 @@ import { isMedicationTask } from "@/server/care/coordinator/visit-tasks";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
-import { addDocuments, createIntake, decideSection, submitIntake } from "@/server/care/coordinator/intake";
+import { addDocuments, createIntake } from "@/server/care/coordinator/intake";
+import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { correctDraftVisit, draftSummary, prepareDrafts, prepareReportText } from "@/server/care/coordinator/prepare";
 import { activateCare, rotaReadiness } from "@/server/care/coordinator/rota";
 import { executeTool, type ToolState } from "@/server/care/coordinator/agent-tools";
@@ -172,11 +173,18 @@ describe("2. Corrections, identity and access", () => {
     await expect(correctDraftVisit(await otherOrg(), t.id, { startTime: "10:00" })).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("a manager still approves restricted sections; drafted sections are not approved again", async () => {
+  it("the coordinator confirms the drafted intake once; open restricted facts stay listed and nothing is repeated", async () => {
     const c = await coordinator();
-    await expect(decideSection(await manager(), intakeId, "VISITS", { decision: "APPROVED" })).rejects.toBeInstanceOf(ConflictError);
-    // Medication and other restricted facts are still open, so the intake cannot be sent until a person decides them.
-    await expect(submitIntake(c, intakeId)).rejects.toBeInstanceOf(ValidationError);
+    const before = await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } })]);
+    const r = await confirmAndSetUp(c, intakeId);
+    // The drafted sections are now approved under the coordinator's name; nothing was saved twice.
+    expect(r.save.approved).toEqual(expect.arrayContaining(["PERSONAL", "VISITS"]));
+    expect(r.save.sections.filter((s) => s.status === "FAILED")).toEqual([]);
+    expect(await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } })])).toEqual(before);
+    // Medication and other restricted facts are still open: listed, not saved, and the intake is not Completed.
+    expect(r.attention.facts).toBeGreaterThan(0);
+    expect(r.save.completed).toBe(false);
+    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("DRAFT");
   });
 
   it("refuses a time correction once care is active", async () => {

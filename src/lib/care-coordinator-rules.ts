@@ -39,12 +39,23 @@ export const DECISIONS = { PENDING: "To review", APPROVED: "Approved", EDITED: "
 export type Decision = keyof typeof DECISIONS;
 /** Facts that will be saved when their section is applied. */
 export const ACCEPTED = new Set<string>(["APPROVED", "EDITED"]);
-/** Facts that still need the coordinator before the intake can go to a manager. */
+/** Facts that still need the coordinator before the intake can be approved and saved. */
 export const OPEN_DECISIONS = new Set<string>(["PENDING", "CLARIFY"]);
 
-export const SECTION_STATUS = { OPEN: "Waiting for manager", APPROVED: "Approved", RETURNED: "Returned for correction", REJECTED: "Rejected", INFO_REQUESTED: "More information requested", DRAFTED: "Saved as drafts by the AI CSB Coordinator" } as const;
-export const APPLY_STATUS = { NOT_STARTED: "Not saved yet", DONE: "Saved to record", FAILED: "Failed, can be retried", BLOCKED: "Blocked" } as const;
-export const INTAKE_STATUS = { DRAFT: "Coordinator review", SUBMITTED: "Waiting for manager", APPROVED: "Approved, ready to save", APPLYING: "Saving to record", COMPLETED: "Completed", CANCELLED: "Cancelled" } as const;
+/**
+ * Section statuses. Since 7 Nov 2026 the authorised Care Coordinator approves every section with one "Approve & Save to
+ * CRM" action; there is no separate manager approval. RETURNED and INFO_REQUESTED come only from the retired manager
+ * step and are treated as "not approved yet" (a data migration moved them back to OPEN).
+ */
+export const SECTION_STATUS = { OPEN: "Not approved yet", APPROVED: "Approved by the coordinator", RETURNED: "Not approved yet", REJECTED: "Rejected, nothing saved", INFO_REQUESTED: "Not approved yet", DRAFTED: "Saved as drafts by the AI CSB Coordinator" } as const;
+export const APPLY_STATUS = { NOT_STARTED: "Not saved yet", SAVING: "Saving now", DONE: "Saved to the CRM", FAILED: "Not saved, can be retried", BLOCKED: "Blocked" } as const;
+/** SUBMITTED ("waiting for manager") and APPROVED are retired statuses: older intakes in them resume as coordinator review. */
+export const INTAKE_STATUS = { DRAFT: "Coordinator review", SUBMITTED: "Coordinator review", APPROVED: "Coordinator review", APPLYING: "Saving to the CRM", COMPLETED: "Completed", CANCELLED: "Cancelled" } as const;
+/** Intake statuses in which the coordinator can still read, review, approve and save. */
+export const REVIEW_STATUSES: readonly string[] = ["DRAFT", "SUBMITTED", "APPROVED"];
+export const inReview = (status: string) => REVIEW_STATUSES.includes(status);
+/** A section that is saving and was claimed less than this long ago cannot be claimed again (two people pressing Save). */
+export const SAVE_CLAIM_MS = 5 * 60_000;
 
 // ── Values per destination ────────────────────────────────────────────────
 

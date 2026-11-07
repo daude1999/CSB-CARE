@@ -1,11 +1,10 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
-import { ForbiddenError } from "@/lib/errors";
 import { addDays, londonDate, mondayOf } from "@/lib/london";
 import { setAiProviderForTests } from "@/server/ai";
-import { addDocuments, approveVerified, createIntake, decideFact, decideSection, getIntake, readingMode, submitIntake } from "@/server/care/coordinator/intake";
-import { applyApproved } from "@/server/care/coordinator/apply";
+import { addDocuments, approveVerified, createIntake, decideFact, getIntake, readingMode } from "@/server/care/coordinator/intake";
+import { approveAndSave } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota, previewIntakeRota, rotaReadiness } from "@/server/care/coordinator/rota";
 import { approvePlan, submitPlan } from "@/server/care/care-plans";
 import { approveRiskDraft } from "@/server/care/risks";
@@ -71,7 +70,7 @@ describe("No-API Care Coordinator: card-layout council support plan", () => {
     expect(view.reconciliation.authorised).toBeNull();
   });
 
-  it("needs a coordinator check, a manager per section, and a level set by a person for the risk", async () => {
+  it("needs a coordinator check and a level set by a person for the risk; no manager approval", async () => {
     const c = await coordinator();
     for (const s of ["PERSONAL", "CARE_PLAN", "PACKAGE", "VISITS", "RISKS"]) await approveVerified(c, intakeId, s);
     const risk = (await facts("risk"))[0]!;
@@ -79,17 +78,15 @@ describe("No-API Care Coordinator: card-layout council support plan", () => {
     await decideFact(c, risk.id, null, { decision: "EDITED", value: { ...(risk.value as object), level: "MEDIUM", levelIsProvisional: true } });
     // Restricted facts (date of birth) are decided by a manager with sensitive-records access.
     for (const f of await db.careIntakeFact.findMany({ where: { intakeId, decision: "PENDING" } })) await decideFact(await secondManager(), f.id, null, { decision: "APPROVED", note: "Checked against the original" });
-    await submitIntake(c, intakeId);
-    await expect(decideSection(c, intakeId, "VISITS", { decision: "APPROVED" })).rejects.toBeInstanceOf(ForbiddenError);
     const withFacts = new Set((await db.careIntakeFact.findMany({ where: { intakeId, decision: { in: ["APPROVED", "EDITED"] } }, select: { section: true } })).map((f) => f.section));
     expect([...withFacts].sort()).toEqual(["CARE_PLAN", "PACKAGE", "PERSONAL", "RISKS", "VISITS"]);
-    for (const s of withFacts) await decideSection(await manager(), intakeId, s, { decision: "APPROVED" });
-    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("APPROVED");
+    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("DRAFT");
   });
 
   it("saves four templates, the package and drafts; the family visit is not scheduled; a retry creates nothing", async () => {
-    const results = await applyApproved(await manager(), intakeId);
-    expect(results.every((r) => r.status === "DONE")).toBe(true);
+    const results = (await approveAndSave(await coordinator(), intakeId)).sections;
+    expect(results.every((r) => r.status === "SAVED")).toBe(true);
+    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("COMPLETED");
     suId = (await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).serviceUserId!;
     const templates = await db.visitTemplate.findMany({ where: { serviceUserId: suId }, orderBy: { startMinute: "asc" } });
     expect(templates.map((t) => [t.startMinute, t.durationMin, t.carersRequired, t.weekdays.length])).toEqual([[540, 60, 1, 7], [720, 45, 1, 7], [990, 30, 1, 7], [1200, 60, 1, 7]]);
@@ -106,7 +103,7 @@ describe("No-API Care Coordinator: card-layout council support plan", () => {
     const counts = () => Promise.all([db.serviceUser.count({ where: { firstName: "Bea", lastName: "Example" } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } }), db.serviceUserDocument.count({ where: { serviceUserId: suId } }), db.serviceUserExternalReference.count({ where: { serviceUserId: suId } })]);
     const before = await counts();
     expect(before).toEqual([1, 4, 1, 1, 1]);
-    expect(await applyApproved(await manager(), intakeId)).toEqual([]);
+    expect((await approveAndSave(await coordinator(), intakeId)).sections.every((r) => r.status === "ALREADY_SAVED")).toBe(true);
     expect(await counts()).toEqual(before);
   });
 

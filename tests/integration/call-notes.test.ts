@@ -14,7 +14,8 @@ import {
 } from "@/server/care/call-notes";
 import { activeReminders } from "@/server/rota/dashboard";
 import { serviceUserVisitNotes } from "@/server/care/su-records";
-import { addManualFact, createIntake, decideSection, getIntake, submitIntake } from "@/server/care/coordinator/intake";
+import { addManualFact, createIntake, getIntake } from "@/server/care/coordinator/intake";
+import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { applySection } from "@/server/care/coordinator/apply";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
@@ -354,16 +355,15 @@ describe("8. Isolation and permissions", () => {
 });
 
 describe("9. Care Coordinator integration and existing records", () => {
-  it("a meeting note added to an intake becomes an approved Call Note, linked to the intake, only after a manager approves the section", async () => {
+  it("a meeting note added to an intake becomes an approved Call Note, linked to the intake, only when the coordinator confirms the intake", async () => {
     const c = await coordinator();
     const intake = await createIntake(c, { title: "Synthetic review meeting", mode: "EXISTING", serviceUserId: suId });
     await addManualFact(c, intake.id, { destination: "callnote", value: { summary: "Review meeting: family asked for the same carers each week.", contactName: "Family", method: "MEETING", date: today } });
-    await submitIntake(c, intake.id);
     const view = await getIntake(await manager(), intake.id);
     expect(view.facts.some((f) => f.section === "CALL_NOTES")).toBe(true);
-    await expect(applySection(c, intake.id, "CALL_NOTES")).rejects.toThrow(/not been approved|not approved/);
-    await decideSection(await manager(), intake.id, "CALL_NOTES", { decision: "APPROVED" });
-    await applySection(c, intake.id, "CALL_NOTES");
+    await expect(applySection(c, intake.id, "CALL_NOTES")).rejects.toThrow(/not been approved/);
+    // One confirmation by the coordinator; no manager approval.
+    await confirmAndSetUp(c, intake.id);
     const note = await db.callNote.findFirstOrThrow({ where: { intakeId: intake.id } });
     expect(note).toMatchObject({ status: "APPROVED", origin: "INTAKE", serviceUserId: suId });
     expect(await db.callNoteLink.count({ where: { callNoteId: note.id, targetType: "INTAKE", targetId: intake.id } })).toBe(1);

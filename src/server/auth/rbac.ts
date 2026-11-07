@@ -88,6 +88,10 @@ export const ORG_PERMISSIONS = {
   "callNote.review": ["ORG_ADMIN", "CARE_MANAGER"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Care Coordinator intake (7 Nov 2026): the authorised coordinator reviews, approves and saves a support-plan intake
+   *  into the CRM in one action. No separate manager approval; clinical records it creates stay drafts for their own
+   *  reviews (care plan, risks, medication). */
+  "careIntake.approve": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],
   "incident.manage": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
   /** The carer's own visits on the carer mobile page. */

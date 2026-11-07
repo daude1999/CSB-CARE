@@ -20,7 +20,7 @@ export function RevisionPanel({ intakeId, summary, back, open }: { intakeId: str
   const rows = [...summary.rows].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   return (
     <Card title="What the revised plan changes">
-      <p className="text-[14px] text-slate-600">Each detail read from the new documents is set against the person&apos;s current record. Nothing changes until it is accepted here and approved by a manager. Completed visits are never rewritten.</p>
+      <p className="text-[14px] text-slate-600">Each detail read from the new documents is set against the person&apos;s current record. Nothing changes until it is accepted here and you confirm the intake. Completed visits are never rewritten.</p>
       <ul className="mt-2 flex flex-wrap gap-2 text-[13px]" aria-label="Changes by kind">
         {ORDER.map((k) => <li key={k} className={`rounded-full px-2.5 py-0.5 font-medium ${TONE[k]}`}>{CHANGE_STATUS[k]}: {summary.counts[k]}</li>)}
       </ul>

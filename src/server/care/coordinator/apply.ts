@@ -3,13 +3,13 @@ import { db } from "@/lib/db";
 import { AppError, ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, fromDbDate, hhmm, londonDate, parseHhmm } from "@/lib/london";
 import {
-  ACCEPTED, APPLY_ORDER, CARE_PLAN_TOPICS, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
+  ACCEPTED, APPLY_ORDER, OPEN_DECISIONS, RESTRICTED_SECTIONS, SAVE_CLAIM_MS, inReview, CARE_PLAN_TOPICS, CONTACT_KIND_LABEL, MED_SUPPORT, PLAN_SECTION_KEYS, PLAN_SECTION_LABEL, dayList, displayValue, externalReferenceValue, reconcileHours, sectionLabel,
   type IntakeSection, type callNoteValue, type contactValue, type incidentValue, type medArrangementValue, type medItemValue, type planValue, type riskValue, type skinValue, type visitValue,
 } from "@/lib/care-coordinator-rules";
 import { guessCallType, type FundedBy } from "@/lib/su-import-rules";
-import type { z } from "zod";
+import { z } from "zod";
 import { audit } from "@/server/audit-log";
-import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
+import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { durationCheck, visitTasks } from "./visit-tasks";
 import { DISCHARGE_CATEGORIES, openDischargeReview } from "../discharge-review";
@@ -21,21 +21,27 @@ import { createRiskDraft } from "../risks";
 import { linkExternalReferenceInTx, referenceKeyConfigured } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
-import { coordinatorAccess, intakeInScope } from "./intake";
+import { coordinatorAccess, intakeInScope, isRestrictedFact } from "./intake";
+import { findPossibleDuplicates } from "../su-import";
 import { createIntakeCallNote } from "../call-notes";
 import { rotaScope } from "@/server/rota/scope";
 
 type Tx = Prisma.TransactionClient;
 
 /**
- * Saving an approved intake into the existing Service User profile, one section at a time.
+ * Approve & Save to CRM: the authorised Care Coordinator approves the reviewed intake and it is saved into the Service
+ * User profile, one section at a time (owner's brief, 7 Nov 2026: one coordinator, one review, one approval; there is
+ * no separate manager approval).
  *
- *  - A section is saved only after a manager approved it, by someone allowed to edit records. Everything goes through
- *    the existing domain services or the same rules they use (scope, permissions, audit), never arbitrary SQL.
+ *  - A section is saved only after the coordinator approved it (approveAndSave records who, per section). Everything
+ *    goes through the existing domain services or the same rules they use (scope, permissions, audit), never arbitrary SQL.
  *  - Idempotent: every fact records what it became (appliedRef) in the same transaction that created it, so retrying a
  *    failed section skips what is already saved. Contacts, visits and medicines already on the record are not repeated.
- *  - A failure marks the section FAILED with the reason; nothing is presented as set up when it is not. Each section is
- *    read back after saving and the result is recorded (applyResult) with what was created.
+ *  - A failure marks the section FAILED with the reason; nothing is presented as set up when it is not, and sections
+ *    already saved stay saved. Each section is read back after saving and the result is recorded (applyResult). The
+ *    intake is Completed only when every approved section is saved and nothing is left to decide.
+ *  - Concurrency: the intake row is locked while it is approved, and each section is claimed (applyStatus SAVING with
+ *    claimedAt) so two people pressing the button at once cannot both save the same section.
  *  - Clinical content stays inactive: the care plan is a DRAFT for a different person to approve; risks are DRAFT for an
  *    independent assessor; medicines become DRAFT only from current, complete, non-discharge sources and otherwise go to
  *    the reconciliation queue; historical incidents and skin findings become review items, never live records.
@@ -52,10 +58,10 @@ const docLabel = async (tx: Tx, id: string | null, page: number | null) => {
 };
 
 /**
- * Sections the AI CSB Coordinator may save as drafts without a manager's section approval (brief of 6 Nov 2026): the
- * person is created at Assessment, the care plan and risks are DRAFTs for their own approvals, visit templates only
- * reach the rota once care is activated. Restricted sections (medication, incident history, skin) always go to a
- * manager.
+ * Sections the AI CSB Coordinator may save as drafts before the coordinator approves the intake (brief of 6 Nov 2026):
+ * the person is created at Assessment, the care plan and risks are DRAFTs for their own approvals, visit templates only
+ * reach the rota once care is activated. Restricted sections (medication, incident history, skin) are never drafted
+ * automatically: they are approved with the intake, and only by someone allowed to see restricted records.
  */
 export const DRAFT_SECTIONS = ["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "VISITS", "CALL_NOTES"] as const satisfies readonly IntakeSection[];
 export const isDraftSection = (s: string) => (DRAFT_SECTIONS as readonly string[]).includes(s);
@@ -67,26 +73,28 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
   // Claim the section so two people pressing Save at once cannot both run it.
   const claim = await db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
-    if (intake.status === "CANCELLED" || (intake.status === "DRAFT" && !prepare)) throw new ConflictError("This intake is not approved");
-    if (prepare && intake.status !== "DRAFT") throw new ConflictError("Drafts are prepared while the coordinator is reviewing the intake");
-    if (prepare && intake.mode !== "NEW" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care need a manager's approval`);
+    if (prepare && !inReview(intake.status)) throw new ConflictError("Drafts are prepared while the coordinator is reviewing the intake");
+    if (prepare && intake.mode !== "NEW" && (section === "PACKAGE" || section === "VISITS")) throw new ConflictError(`${sectionLabel(section)} changes for someone already receiving care are saved only when you approve them (Approve & Save to CRM)`);
     const s = await tx.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section } } });
-    if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved by a manager`);
-    if (prepare && !(s.status === "OPEN" || s.status === "DRAFTED")) throw new ConflictError(`${sectionLabel(section)} is with a manager`);
+    if (s.status === "REJECTED") throw new ConflictError(`${sectionLabel(section)} was rejected, so nothing from it is saved`);
+    if (!prepare && s.status !== "APPROVED") throw new ConflictError(`${sectionLabel(section)} has not been approved yet. Press Approve & Save to CRM.`);
+    if (s.applyStatus === "SAVING" && s.claimedAt && Date.now() - s.claimedAt.getTime() < SAVE_CLAIM_MS) throw new ConflictError(`${sectionLabel(section)} is being saved right now. Wait a moment, then reload.`);
     const unapplied = await tx.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null } });
-    if (s.applyStatus === "DONE" && !(prepare && unapplied)) return null;
+    if (!unapplied && s.applyStatus === "DONE") return null;
     if (prepare && !unapplied) return null;
+    if (intake.status === "CANCELLED" || intake.status === "COMPLETED") throw new ConflictError("This intake is closed");
     if (section !== "PERSONAL" && !intake.serviceUserId) throw new ConflictError("Save Personal details first: the person does not exist yet");
-    if ((section === "MEDICATION" || section === "INCIDENTS" || section === "BODY_MAP") && !access.sensitive) throw new ForbiddenError("A registered manager or administrator saves restricted sections");
-    await tx.careIntakeSection.update({ where: { id: s.id }, data: { attempts: { increment: 1 } } });
+    if (RESTRICTED_SECTIONS.has(section) && !access.sensitive) throw new ForbiddenError("Only someone allowed to see restricted records (a registered manager or administrator) saves this section");
+    await tx.careIntakeSection.update({ where: { id: s.id }, data: { attempts: { increment: 1 }, applyStatus: "SAVING", claimedAt: new Date() } });
     await tx.careIntake.update({ where: { id: intake.id }, data: { status: "APPLYING" } });
-    return intake;
+    return { intake, sectionStatus: s.status };
   });
   if (!claim) return { section, status: "DONE" as const, result: null };
   try {
-    const result = await run(ctx, scope, claim.id, section);
+    const result = await run(ctx, scope, claim.intake.id, section);
     await db.$transaction(async (tx) => {
-      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "DONE", applyResult: result as unknown as Prisma.InputJsonValue, applyError: null, appliedById: ctx.userId, appliedAt: new Date(), ...(prepare ? { status: "DRAFTED", decidedById: null, decidedAt: null } : {}) } });
+      // A section the coordinator already approved keeps that approval when the AI drafts more facts into it.
+      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "DONE", applyResult: result as unknown as Prisma.InputJsonValue, applyError: null, claimedAt: null, appliedById: ctx.userId, appliedAt: new Date(), ...(prepare && claim.sectionStatus !== "APPROVED" ? { status: "DRAFTED", decidedById: null, decidedAt: null } : {}) } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: prepare ? "coordinator.section.drafted" : "coordinator.section.applied", entityType: "CareIntake", entityId: intakeId, data: { section, created: result.created.length, skipped: result.skipped.length, verified: result.verified } }, tx);
       if (prepare) await tx.careIntake.update({ where: { id: intakeId }, data: { status: "DRAFT" } });
       else await settleStatus(tx, intakeId);
@@ -107,7 +115,7 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
   } catch (e) {
     const message = e instanceof AppError ? e.message : "Saving failed unexpectedly. The error has been logged; try again.";
     await db.$transaction(async (tx) => {
-      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "FAILED", applyError: message.slice(0, 1000) } });
+      await tx.careIntakeSection.update({ where: { intakeId_section: { intakeId, section } }, data: { applyStatus: "FAILED", applyError: message.slice(0, 1000), claimedAt: null } });
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.failed", entityType: "CareIntake", entityId: intakeId, data: { section, error: message.slice(0, 300), prepare } }, tx);
       if (prepare) await tx.careIntake.update({ where: { id: intakeId }, data: { status: "DRAFT" } });
       else await settleStatus(tx, intakeId);
@@ -117,32 +125,184 @@ export async function applySection(ctx: Ctx, intakeId: string, section: IntakeSe
   }
 }
 
-/** Saves every approved section that is not saved yet, in order. A failed Personal details stops the rest. */
-export async function applyApproved(ctx: Ctx, intakeId: string) {
-  coordinatorAccess(ctx);
-  const scope = await rotaScope(ctx, "serviceUser.edit");
-  await intakeInScope(db, scope, intakeId);
-  const sections = await db.careIntakeSection.findMany({ where: { intakeId } });
-  const out: { section: string; status: string; error?: string }[] = [];
-  const sensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
-  for (const key of APPLY_ORDER) {
-    const s = sections.find((x) => x.section === key);
-    if (!s || s.status !== "APPROVED" || s.applyStatus === "DONE") continue;
-    if ((key === "MEDICATION" || key === "INCIDENTS" || key === "BODY_MAP") && !sensitive) { out.push({ section: key, status: "BLOCKED", error: "A registered manager saves this section" }); continue; }
-    const r = await applySection(ctx, intakeId, key);
-    out.push({ section: key, status: r.status, error: "error" in r ? r.error : undefined });
-    if (key === "PERSONAL" && r.status === "FAILED") break;
-  }
-  return out;
+export interface ApproveSaveReport {
+  intakeId: string;
+  reference: string;
+  serviceUserId: string | null;
+  /** Sections the coordinator approved in this action. */
+  approved: IntakeSection[];
+  /** Every section with something approved, in save order, with what happened to it now. */
+  sections: { section: IntakeSection; label: string; status: "SAVED" | "ALREADY_SAVED" | "FAILED" | "NOT_RUN" | "RESTRICTED"; created: string[]; error?: string }[];
+  filed: number;
+  filedError?: string;
+  completed: boolean;
+  /** Facts still to decide after saving (questions, warnings, restricted facts). */
+  openFacts: number;
 }
 
+const approveSchema = z.object({
+  notADuplicate: z.boolean().default(false),
+  areaId: z.string().trim().max(40).optional().transform((v) => v || undefined),
+  lockVersion: z.number().int().nonnegative().nullable().default(null),
+});
+
+/**
+ * The single approval (owner's brief, 7 Nov 2026). The authorised coordinator has checked every fact; this approves
+ * every section that has approved facts, records their name on each section, then saves each section into the CRM in
+ * order (Personal details first, visits last) and reports what was actually saved.
+ *
+ *  - Allowed with careIntake.approve and the coordinator's ordinary record permissions; no second person is needed.
+ *  - Refused while documents are still being read, when the page is out of date (lockVersion) or when someone else is
+ *    saving it right now. Undecided facts do not block what is ready; they stay listed and the intake is not Completed.
+ *  - Identity first: a new person needs an approved first and last name, an area when the coordinator works in areas,
+ *    and no possible duplicate on record unless the coordinator confirmed it is a different person.
+ *  - Restricted sections (medication, incident history, skin) are approved and saved only by someone allowed to see
+ *    restricted records. Clinical content stays inactive whoever presses the button (see the file comment above).
+ *  - A failed section is explained by name and can be retried with the same button: saved sections are never repeated
+ *    and facts record what they became, so contacts, packages and visits are not duplicated.
+ */
+export async function approveAndSave(ctx: Ctx, intakeId: string, input: z.input<typeof approveSchema> = {}): Promise<ApproveSaveReport> {
+  const access = coordinatorAccess(ctx);
+  requireOrgPermission(ctx, "careIntake.approve");
+  const scope = await rotaScope(ctx, "serviceUser.edit");
+  const p = approveSchema.safeParse(input);
+  if (!p.success) throw new ValidationError("Check the approval details");
+  const opts = p.data;
+
+  const step = await db.$transaction(async (tx) => {
+    const intake = await intakeInScope(tx, scope, intakeId, true);
+    if (intake.status === "CANCELLED") throw new ConflictError("This intake was cancelled. Nothing more is saved from it.");
+    if (intake.status === "APPLYING" && Date.now() - intake.updatedAt.getTime() < SAVE_CLAIM_MS) throw new ConflictError("This intake is being saved right now. Wait a moment, then reload.");
+    if (opts.lockVersion !== null && intake.lockVersion !== opts.lockVersion) throw new ConflictError("The intake changed since you opened this page (for example a document finished reading). Reload and check it before approving.");
+    const docs = await tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true, readStatus: true, name: true } });
+    const reading = docs.filter((d) => d.readStatus === "PENDING");
+    if (reading.length) throw new ConflictError(`${reading.map((d) => d.name).join(", ")} ${reading.length === 1 ? "is" : "are"} still being read. Wait until reading finishes, check the new facts, then approve.`);
+    const facts = await tx.careIntakeFact.findMany({ where: { intakeId } });
+    const sections = await tx.careIntakeSection.findMany({ where: { intakeId } });
+    const sensitiveDoc = new Map(docs.map((d) => [d.id, d.sensitive]));
+    const hiddenFromMe = (f: (typeof facts)[number]) => !access.sensitive && isRestrictedFact(f, !!(f.sourceDocumentId && sensitiveDoc.get(f.sourceDocumentId)));
+    const open = facts.filter((f) => OPEN_DECISIONS.has(f.decision) && !f.appliedAt);
+    // Facts still undecided (or with a question) do not block the records that are ready: they stay on the intake,
+    // listed for attention, and the intake is not Completed until they are settled (brief of 7 Nov 2026, point 9).
+    const openMine = open.filter((f) => !hiddenFromMe(f));
+    const accepted = facts.filter((f) => ACCEPTED.has(f.decision));
+    const unfiled = intake.serviceUserId ? docs.length - (await tx.careIntakeDocument.count({ where: { intakeId, filedDocumentId: { not: null } } })) : 0;
+    if (!accepted.length && !unfiled) throw new ValidationError("Nothing has been approved under Check facts, so there is nothing to set up yet");
+
+    // The sections this coordinator approves now: everything with approved facts that is theirs to approve.
+    const withFacts = new Set(accepted.map((f) => f.section));
+    // A section already approved is approved again (with this coordinator's name) when it has newly approved facts.
+    const fresh = new Set(accepted.filter((f) => !f.appliedAt).map((f) => f.section));
+    const approve = sections.filter((s) => withFacts.has(s.section) && s.status !== "REJECTED" && (s.status !== "APPROVED" || fresh.has(s.section)) && (!RESTRICTED_SECTIONS.has(s.section) || access.sensitive));
+
+    let areaId = intake.areaId;
+    if (intake.mode === "NEW" && !intake.serviceUserId) {
+      for (const k of ["person.firstName", "person.lastName"]) if (!accepted.some((f) => f.destination === k)) throw new ValidationError(`Approve the person's ${k === "person.firstName" ? "first" : "last"} name under Personal details before saving`);
+      if (opts.areaId) {
+        const area = await tx.area.findFirst({ where: { id: opts.areaId, organisationId: scope.organisationId, active: true } });
+        if (!area || (scope.areaIds && !scope.areaIds.includes(area.id))) throw new ValidationError("Choose one of your areas");
+        areaId = area.id;
+      }
+      if (scope.areaIds && !areaId) throw new ValidationError("Choose the area the person lives in");
+      const name = (k: string) => String(accepted.find((f) => f.destination === k)?.value ?? "");
+      const dupes = await findPossibleDuplicates(scope, { firstName: name("person.firstName"), lastName: name("person.lastName"), dateOfBirth: name("person.dateOfBirth") || undefined, postcode: name("person.postcode") || undefined }, tx);
+      if (dupes.length && !opts.notADuplicate && !intake.notDuplicateById) throw new ConflictError(`${dupes[0]!.name} (${dupes[0]!.reference}) is already on record: ${dupes[0]!.reason.toLowerCase()}. Nothing was saved. Start an intake for that person instead, or tick "This is a different person".`);
+      if (dupes.length && !intake.notDuplicateById) await tx.careIntake.update({ where: { id: intake.id }, data: { notDuplicateById: ctx.userId } });
+    }
+
+    const now = new Date();
+    for (const s of approve) {
+      const n = accepted.filter((f) => f.section === s.section).length;
+      await tx.careIntakeSection.update({ where: { id: s.id }, data: { status: "APPROVED", decidedById: ctx.userId, decidedAt: now, lockVersion: { increment: 1 } } });
+      await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.section.approved", entityType: "CareIntake", entityId: intake.id, data: { section: s.section, facts: n, wasDrafted: s.status === "DRAFTED" } }, tx);
+    }
+    await tx.careIntake.update({ where: { id: intake.id }, data: { status: "APPLYING", submittedById: ctx.userId, submittedAt: now, areaId, lockVersion: { increment: 1 } } });
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.intake.approved", entityType: "CareIntake", entityId: intake.id, data: { sections: approve.map((s) => s.section), accepted: accepted.length, rejected: facts.filter((f) => f.decision === "REJECTED").length, duplicates: facts.filter((f) => f.decision === "DUPLICATE").length, openFacts: openMine.length, restrictedOpen: open.length - openMine.length, notADuplicate: opts.notADuplicate } }, tx);
+    return { intake, approved: approve.map((s) => s.section as IntakeSection), withFacts };
+  });
+
+  // Save each approved section in order. A section that fails is explained and the rest carry on, except that nothing
+  // can be saved for a new person until Personal details are saved.
+  const report: ApproveSaveReport = { intakeId, reference: step.intake.reference, serviceUserId: null, approved: step.approved, sections: [], filed: 0, completed: false, openFacts: 0 };
+  let personalFailed = false;
+  try {
+    for (const key of APPLY_ORDER) {
+      if (!step.withFacts.has(key)) continue;
+      const s = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId, section: key } } });
+      if (s.status === "REJECTED") continue;
+      const label = sectionLabel(key);
+      if (s.status !== "APPROVED") { report.sections.push({ section: key, label, status: "RESTRICTED", created: [], error: "Only someone allowed to see restricted records (a registered manager or administrator) approves and saves this section" }); continue; }
+      if (personalFailed) { report.sections.push({ section: key, label, status: "NOT_RUN", created: [], error: "not saved yet, because Personal details must be saved first" }); continue; }
+      try {
+        const r = await applySection(ctx, intakeId, key);
+        if (r.status === "DONE") report.sections.push({ section: key, label, status: r.result ? "SAVED" : "ALREADY_SAVED", created: r.result?.created ?? [] });
+        else report.sections.push({ section: key, label, status: "FAILED", created: [], error: r.error });
+        if (key === "PERSONAL" && r.status !== "DONE") personalFailed = true;
+      } catch (e) {
+        if (!(e instanceof AppError)) throw e;
+        report.sections.push({ section: key, label, status: "FAILED", created: [], error: e.message });
+        if (key === "PERSONAL") personalFailed = true;
+      }
+    }
+    // The originals are filed in the person's documents once the person exists (an updated plan for someone already
+    // on record has no Personal details to save, so it is filed here).
+    const fresh = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
+    if (fresh.serviceUserId && (await db.careIntakeDocument.count({ where: { intakeId, filedDocumentId: null } }))) {
+      try {
+        report.filed = await fileDocuments(ctx, intakeId);
+      } catch (e) {
+        if (!(e instanceof AppError)) throw e;
+        report.filedError = e.message;
+      }
+    }
+  } finally {
+    // Never left "Saving": the status is worked out again from what is actually saved.
+    await db.$transaction((tx) => settleStatus(tx, intakeId));
+  }
+  const after = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
+  report.serviceUserId = after.serviceUserId;
+  report.completed = after.status === "COMPLETED";
+  report.openFacts = await db.careIntakeFact.count({ where: { intakeId, decision: { in: [...OPEN_DECISIONS] }, appliedAt: null } });
+  await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.intake.saved", entityType: "CareIntake", entityId: intakeId, data: { sections: report.sections.map((x) => [x.section, x.status]), filed: report.filed, completed: report.completed } });
+  return report;
+}
+
+/** Whether any section was not saved: the screen then shows the message as an error that names each one. */
+export const approveSaveFailed = (r: ApproveSaveReport) => r.sections.some((s) => s.status === "FAILED" || s.status === "NOT_RUN");
+
+/** What the screen says after Approve & Save to CRM, in plain words. Names exactly which sections were not saved. */
+export function approveSaveText(r: ApproveSaveReport) {
+  const saved = r.sections.filter((s) => s.status === "SAVED" || s.status === "ALREADY_SAVED");
+  const failed = r.sections.filter((s) => s.status === "FAILED" || s.status === "NOT_RUN");
+  const restricted = r.sections.filter((s) => s.status === "RESTRICTED");
+  const parts = [`${r.reference} approved by you. ${saved.length} section${saved.length === 1 ? "" : "s"} saved to the CRM and read back${saved.length ? ` (${saved.map((s) => s.label).join(", ")})` : ""}.`];
+  if (failed.length) parts.push(`Not saved: ${failed.map((s) => `${s.label} (${s.error ?? "failed"})`).join("; ")}. Fix the cause and press Approve & Save to CRM again; saved sections are not repeated.`);
+  if (restricted.length) parts.push(`${restricted.map((s) => s.label).join(", ")} ${restricted.length === 1 ? "waits" : "wait"} for someone allowed to see restricted records.`);
+  if (r.filed) parts.push(`${r.filed} original document${r.filed === 1 ? "" : "s"} filed in the person's documents.`);
+  if (r.filedError) parts.push(`The original documents were not filed: ${r.filedError}`);
+  if (r.completed) parts.push("The intake is complete. You can now prepare the draft rota.");
+  else if (r.openFacts) parts.push(`${r.openFacts} fact${r.openFacts === 1 ? " still needs" : "s still need"} attention under Check facts; ${r.openFacts === 1 ? "it was" : "they were"} not saved. The intake is complete once ${r.openFacts === 1 ? "it is" : "they are"} settled.`);
+  return parts.join(" ");
+}
+
+/**
+ * The intake's status, worked out from what is saved. Completed only when every section with approved facts was
+ * approved by the coordinator and saved, no approved fact is unsaved and nothing is left to decide. Otherwise it is
+ * back in coordinator review, where failed sections show their reason and can be saved again.
+ */
 async function settleStatus(tx: Tx, intakeId: string) {
   const intake = await tx.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
+  if (intake.status === "CANCELLED") return;
   const sections = await tx.careIntakeSection.findMany({ where: { intakeId } });
-  const withFacts = new Set((await tx.careIntakeFact.findMany({ where: { intakeId, decision: { in: [...ACCEPTED] } }, select: { section: true } })).map((f) => f.section));
+  const facts = await tx.careIntakeFact.findMany({ where: { intakeId }, select: { section: true, decision: true, appliedAt: true } });
+  const rejected = new Set(sections.filter((s) => s.status === "REJECTED").map((s) => s.section));
+  const withFacts = new Set(facts.filter((f) => ACCEPTED.has(f.decision)).map((f) => f.section));
   const relevant = sections.filter((s) => withFacts.has(s.section) && s.status !== "REJECTED");
-  const done = relevant.every((s) => (s.status === "APPROVED" || s.status === "DRAFTED") && s.applyStatus === "DONE");
-  const status = done && relevant.length ? "COMPLETED" : relevant.some((s) => s.status === "OPEN") ? "SUBMITTED" : "APPROVED";
+  const unsaved = facts.some((f) => ACCEPTED.has(f.decision) && !f.appliedAt && !rejected.has(f.section));
+  const open = facts.some((f) => OPEN_DECISIONS.has(f.decision) && !f.appliedAt);
+  const saving = sections.some((s) => s.applyStatus === "SAVING");
+  const done = relevant.length > 0 && relevant.every((s) => s.status === "APPROVED" && s.applyStatus === "DONE") && !unsaved && !open;
+  const status = done ? "COMPLETED" : saving ? "APPLYING" : "DRAFT";
   if (status !== intake.status) await tx.careIntake.update({ where: { id: intakeId }, data: { status } });
 }
 
@@ -263,7 +423,8 @@ async function applyContacts(ctx: Ctx, scope: Scope, intakeId: string): Promise<
 async function applyPreferences(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   return db.$transaction(async (tx) => {
     const { su } = await suFor(tx, scope, intakeId);
-    const fs = await facts(tx, intakeId, "CARER_PREFERENCES");
+    // Only facts not saved yet, so saving again never repeats a preference note.
+    const fs = (await facts(tx, intakeId, "CARER_PREFERENCES")).filter((f) => !f.appliedAt);
     const gender = fs.find((f) => f.destination === "preference.gender");
     const notes = fs.filter((f) => f.destination === "preference.note").map((f) => String(f.value));
     const prefs = [su.carePreferences, notes.length ? `Carer preferences from documents (not staffing decisions): ${notes.join("; ")}` : null].filter(Boolean).join("\n").slice(0, 2000) || null;

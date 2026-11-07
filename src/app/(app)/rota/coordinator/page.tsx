@@ -10,14 +10,14 @@ import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_TONE = { DRAFT: "teal", SUBMITTED: "amber", APPROVED: "green", APPLYING: "amber", COMPLETED: "slate", CANCELLED: "slate" } as const;
+const STATUS_TONE = { DRAFT: "teal", SUBMITTED: "teal", APPROVED: "teal", APPLYING: "amber", COMPLETED: "slate", CANCELLED: "slate" } as const;
 /** The three ways in (owner's brief, 6 Nov 2026): every upload of care documents starts here. */
 const START_MODES = [
   { value: "NEW", label: "A. New service user", hint: "A referral or support plan for someone not yet on the system. Their records are drafted for you to check." },
-  { value: "EXISTING", label: "B. Updated or revised plan", hint: "New or revised documents for someone already on the system. Changes are shown for you to accept; package and visit changes go to a manager." },
+  { value: "EXISTING", label: "B. Updated or revised plan", hint: "New or revised documents for someone already on the system. Changes are shown for you to accept; package and visit changes are saved when you confirm them." },
   { value: "DOCUMENT", label: "C. Supporting document", hint: "A letter, assessment or report for someone already on the system. It is filed in their documents and changes no records." },
 ] as const;
-const FILTERS = [["", "Open"], ["SUBMITTED", "Waiting for manager"], ["COMPLETED", "Completed"], ["CANCELLED", "Cancelled"]] as const;
+const FILTERS = [["", "Open"], ["COMPLETED", "Completed"], ["CANCELLED", "Cancelled"]] as const;
 
 /** AI Care Coordinator: start an intake from a referral's documents, and every intake with where it has got to. */
 export default async function CoordinatorPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -33,7 +33,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
         tabs={<RotaTabs ctx={ctx} ws="people" active="coordinator" />}
         title="Care Coordinator"
         back="/rota/service-users"
-        subtitle="Upload a referral's documents. Each fact is read with its page, checked by a coordinator, approved section by section by a manager, then saved into the person's profile. Nothing is saved, published or sent to carers without a person deciding."
+        subtitle="Upload a referral's documents. Each fact is read with its page and checked by the Care Coordinator, who reviews and approves the intake and sets up the person's records with one confirmation. Nothing is saved, published or sent to carers without a person deciding."
         actions={hasOrgPermission(ctx,"rota.edit")?<Link href="/rota/coordinator/shift" className="btn-secondary">Tomorrow&apos;s shift check</Link>:null}
       />
       <Flash searchParams={sp} />
