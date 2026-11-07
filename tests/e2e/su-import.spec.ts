@@ -41,7 +41,8 @@ test.describe("Set up from support plan", () => {
     await signIn(page);
     // Uploads now start in the Care Coordinator; the quick form is still reachable for typing a plan in.
     await page.goto("/rota/service-users");
-    await expect(page.getByRole("link", { name: "Upload support plan" })).toHaveAttribute("href", /\/rota\/coordinator\?mode=NEW/);
+    await page.getByTestId("add-service-user").click();
+    await expect(page.getByTestId("add-dialog").getByRole("link", { name: /Upload Support Plan/ })).toHaveAttribute("href", /\/rota\/coordinator\?mode=NEW/);
     await page.goto("/rota/service-users/import");
     await expect(page.getByRole("heading", { name: "Set up from support plan" })).toBeVisible();
     await page.screenshot({ path: `${OUT}/1-upload-1672.png` });
