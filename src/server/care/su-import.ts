@@ -1,6 +1,6 @@
 import type { Prisma, ServiceUserDocumentSection } from "@prisma/client";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { ConflictError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, hhmm, isIsoDate, londonDate, parseHhmm } from "@/lib/london";
@@ -225,11 +225,12 @@ export async function readSupportPlan(ctx: Ctx, files: UploadedFile[]): Promise<
 }
 
 /** People already on record who could be the same person: same name and date of birth, or same name and postcode. */
-export async function findPossibleDuplicates(scope: Scope, person: { firstName?: string; lastName?: string; dateOfBirth?: string; postcode?: string }): Promise<DuplicateMatch[]> {
+/** `client` is the open transaction when called inside one: a second connection may not be free (the live pool has one). */
+export async function findPossibleDuplicates(scope: Scope, person: { firstName?: string; lastName?: string; dateOfBirth?: string; postcode?: string }, client: Tx = db): Promise<DuplicateMatch[]> {
   const first = person.firstName?.trim();
   const last = person.lastName?.trim();
   if (!first || !last) return [];
-  const rows = await db.serviceUser.findMany({
+  const rows = await client.serviceUser.findMany({
     where: { ...serviceUserWhere(scope), firstName: { equals: first, mode: "insensitive" }, lastName: { equals: last, mode: "insensitive" } },
     select: { id: true, reference: true, firstName: true, lastName: true, status: true, dateOfBirth: true, postcode: true },
     take: 10,

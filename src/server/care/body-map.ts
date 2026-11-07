@@ -1,6 +1,6 @@
 import type { BodyMapView } from "@prisma/client";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { dbDate, isIsoDate, londonDate, londonToUtc, parseHhmm } from "@/lib/london";
 import { audit } from "@/server/audit-log";
@@ -113,8 +113,8 @@ const observationSchema = z.object({
 });
 export type ObservationInput = z.input<typeof observationSchema>;
 
-async function managerIds(organisationId: string, except: string) {
-  const ms = await db.membership.findMany({ where: { organisationId, roles: { hasSome: ["ORG_ADMIN", "CARE_MANAGER"] } }, select: { userId: true } });
+async function managerIds(organisationId: string, except: string, client: Tx = db) {
+  const ms = await client.membership.findMany({ where: { organisationId, roles: { hasSome: ["ORG_ADMIN", "CARE_MANAGER"] } }, select: { userId: true } });
   return [...new Set(ms.map((m) => m.userId))].filter((u) => u !== except);
 }
 
@@ -156,7 +156,7 @@ export async function recordObservation(ctx: Ctx, serviceUserId: string, input: 
     for (const ph of stored) await tx.bodyMapPhoto.create({ data: { organisationId: su.organisationId, observationId: o.id, ...ph, uploadedById: ctx.userId } });
     await audit({ organisationId: su.organisationId, actorId: ctx.userId, action: "bodyMap.recorded", entityType: "BodyMapObservation", entityId: o.id, data: { serviceUserId: su.id, view: d.view, region, category: d.category, followUpOn: d.followUpOn ?? null, photo: stored.length > 0, photos: stored.length, reviewerId: d.reviewerId ?? null } }, tx);
     // Managers decide whether an incident is needed; the observation itself is not one.
-    const users = await managerIds(su.organisationId, ctx.userId);
+    const users = await managerIds(su.organisationId, ctx.userId, tx);
     if (users.length) {
       await tx.notification.createMany({
         data: users.map((userId) => ({

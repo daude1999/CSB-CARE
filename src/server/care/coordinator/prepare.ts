@@ -101,7 +101,7 @@ async function prepare(ctx: Ctx, intakeId: string, opts: { notADuplicate?: boole
         return f ? String(f.value) : "";
       };
       if (!value("person.firstName") || !value("person.lastName")) return { intake, blocked: "The documents do not give the person's first and last name clearly enough. Check Personal details, then prepare the drafts again.", duplicate: null, accepted: 0 };
-      const dupes = await findPossibleDuplicates(scope, { firstName: value("person.firstName"), lastName: value("person.lastName"), dateOfBirth: value("person.dateOfBirth") || undefined, postcode: value("person.postcode") || undefined });
+      const dupes = await findPossibleDuplicates(scope, { firstName: value("person.firstName"), lastName: value("person.lastName"), dateOfBirth: value("person.dateOfBirth") || undefined, postcode: value("person.postcode") || undefined }, tx);
       if (dupes.length && !opts.notADuplicate && !intake.notDuplicateById) {
         const d = dupes[0]!;
         return { intake, blocked: `${d.name} (${d.reference}) is already on record: ${d.reason.toLowerCase()}. Nothing was created. Start an intake for that person instead, or confirm this is a different person.`, duplicate: { name: d.name, reference: d.reference, reason: d.reason }, accepted: 0 };
