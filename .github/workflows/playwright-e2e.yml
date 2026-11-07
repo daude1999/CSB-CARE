@@ -75,12 +75,29 @@ jobs:
         run: npx prisma migrate deploy
       - name: Build application
         run: npm run build
-      - name: Test support-plan service-user creation
+      - id: support_plan
+        name: Test support-plan service-user creation
+        continue-on-error: true
         run: npx playwright test tests/e2e/su-import.spec.ts
-      - name: Test named policy assignment
+      - id: policy_assignment
+        name: Test named policy assignment
+        continue-on-error: true
         run: npx playwright test tests/e2e/policy-assignment.spec.ts
-      - name: Test service-user to published rota journey
+      - id: rota_journey
+        name: Test service-user to published rota journey
+        continue-on-error: true
         run: npx playwright test tests/e2e/v1-scenario.spec.ts
+      - name: Check all browser test outcomes
+        if: always()
+        env:
+          SUPPORT_PLAN: ${{ steps.support_plan.outcome }}
+          POLICY_ASSIGNMENT: ${{ steps.policy_assignment.outcome }}
+          ROTA_JOURNEY: ${{ steps.rota_journey.outcome }}
+        run: |
+          echo "Support-plan service-user flow: $SUPPORT_PLAN"
+          echo "Named policy assignment: $POLICY_ASSIGNMENT"
+          echo "Service-user to rota flow: $ROTA_JOURNEY"
+          test "$SUPPORT_PLAN" = "success" && test "$POLICY_ASSIGNMENT" = "success" && test "$ROTA_JOURNEY" = "success"
       - name: Upload browser traces and screenshots
         if: always()
         uses: actions/upload-artifact@v4
