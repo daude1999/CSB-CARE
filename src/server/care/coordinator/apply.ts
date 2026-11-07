@@ -492,13 +492,13 @@ async function applyPackage(ctx: Ctx, scope: Scope, intakeId: string): Promise<S
     const questions: string[] = [];
     for (const f of fs) {
       if (f.destination === "package.funder") {
-        const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "FUNDING", description: `The documents name "${String(f.value)}" as the commissioning authority. It is not linked to a finance funder yet: finance checks it and links the funder on the Care Package tab.`.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        const item = await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "FUNDING", description: `The documents name "${String(f.value)}" as the commissioning authority. It is not linked to a finance funder yet: finance checks it and links the funder on the Care Package tab.`.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
         await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
         questions.push("Funding to verify");
         continue;
       }
       if (f.destination === "package.minutesPerWeek" && !rec.matches) {
-        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "PACKAGE_HOURS", description: rec.message.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "PACKAGE_HOURS", description: rec.message.slice(0, 2000), sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
         questions.push("Commissioned hours to check");
       }
       await markApplied(tx, f, `CarePackage:${row.id}`);
@@ -636,7 +636,7 @@ async function applyMedication(ctx: Ctx, scope: Scope, intakeId: string, automat
       if (!draftId) description = `${displayValue("medication.item", m)}: not added to the MAR because ${why.join("; ")}. Reconcile with the current GP or pharmacy list.`;
     }
     await db.$transaction(async (tx) => {
-      const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MEDICATION", description: description.slice(0, 2000), sourceRef: src.slice(0, 300), restricted: true, createdById: ctx.userId } });
+      const item = await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MEDICATION", description: description.slice(0, 2000), sourceRef: src.slice(0, 300), restricted: true, createdById: ctx.userId } });
       await markApplied(tx, f, draftId ? `Medication:${draftId}` : `CareIntakeReviewItem:${item.id}`);
       await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.medication.reconciliation", entityType: "ServiceUser", entityId: su.id, data: { intakeId, reference: intake.reference, factId: f.id, reviewItemId: item.id, draftMedicationId: draftId } }, tx);
     });
@@ -658,7 +658,7 @@ async function applyHistory(ctx: Ctx, scope: Scope, intakeId: string, section: "
       ? (() => { const v = f.value as z.output<typeof incidentValue>; return `HISTORICAL incident from documents (${v.date ?? "date not given"}): ${v.type}. ${v.description}${v.consequences ? ` Consequences: ${v.consequences}.` : ""}${v.actions ? ` Actions documented: ${v.actions}.` : ""} This is history, not a new incident. Report a new incident only if it happened in your service.`; })()
       : (() => { const v = f.value as z.output<typeof skinValue>; return `Skin finding in documents (${v.date ?? "date not given"}${v.area ? `, ${v.area}` : ""}): ${v.finding}. ${v.description} Not a current observation. A competent person checks the skin at the first visit and records any current finding on the body map.`; })();
     await db.$transaction(async (tx) => {
-      const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: section === "INCIDENTS" ? "INCIDENT_HISTORY" : "BODY_MAP", description: text.slice(0, 2000), sourceRef: src.slice(0, 300), restricted: true, createdById: ctx.userId } });
+      const item = await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: section === "INCIDENTS" ? "INCIDENT_HISTORY" : "BODY_MAP", description: text.slice(0, 2000), sourceRef: src.slice(0, 300), restricted: true, createdById: ctx.userId } });
       await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
     });
     out.created.push(`${f.label}: ${section === "INCIDENTS" ? "kept as incident history to check" : "kept as a skin finding to check at the first visit"}`);
@@ -707,7 +707,7 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const v = f.value as z.output<typeof visitValue>;
       const start = parseHhmm(v.startTime)!;
       if (v.fundedBy !== "COUNCIL") {
-        const item = await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MISSING_INFO", severity: "INFO", title: "Family or informal visit not scheduled", recordTab: "template", description: `${v.label} ${v.startTime} (${dayList(v.weekdays)}) is informal or family support in the documents. It was not scheduled. If the agency is commissioned for it, edit the row to "Council" in a new intake or add a template by hand.`, sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
+        const item = await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, factId: f.id, category: "MISSING_INFO", severity: "INFO", title: "Family or informal visit not scheduled", recordTab: "template", description: `${v.label} ${v.startTime} (${dayList(v.weekdays)}) is informal or family support in the documents. It was not scheduled. If the agency is commissioned for it, edit the row to "Council" in a new intake or add a template by hand.`, sourceRef: (await docLabel(tx, f.sourceDocumentId, f.sourcePage)).slice(0, 300), restricted: false, createdById: ctx.userId } });
         await markApplied(tx, f, `CareIntakeReviewItem:${item.id}`);
         out.skipped.push(`${v.label} ${v.startTime}: informal support, not scheduled`);
         continue;
@@ -720,12 +720,12 @@ async function applyVisits(ctx: Ctx, scope: Scope, intakeId: string): Promise<Se
       const when = `${v.label} ${v.startTime} (${dayList(v.weekdays)})`;
       if (heldMedication.length) {
         // Never a carer task from a document: medication waits for an authorised medication record.
-        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "MEDICATION", description: `${when}: medication task${heldMedication.length === 1 ? "" : "s"} not given to carers until the medication record is authorised: ${heldMedication.join("; ")}.`.slice(0, 2000), sourceRef: src, restricted: true, createdById: ctx.userId } });
+        await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "MEDICATION", description: `${when}: medication task${heldMedication.length === 1 ? "" : "s"} not given to carers until the medication record is authorised: ${heldMedication.join("; ")}.`.slice(0, 2000), sourceRef: src, restricted: true, createdById: ctx.userId } });
         out.notes.push(`${when}: ${heldMedication.length} medication task${heldMedication.length === 1 ? " was" : "s were"} held back until medication is authorised.`);
       }
       const fit = durationCheck(carerTasks, v.durationMin);
       if (!fit.fits) {
-        await tx.careIntakeReviewItem.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "VISIT_TASKS", description: `${when}: ${carerTasks.length} tasks look like about ${fit.needed} minutes of care in a ${v.durationMin}-minute visit. Check the tasks or the visit length with the council. Nothing was changed.`, sourceRef: src, restricted: false, createdById: ctx.userId } });
+        await tx.careIntakeReviewItem.create({ data: { automated: !!currentAutomation(), organisationId: scope.organisationId, serviceUserId: su.id, intakeId, category: "VISIT_TASKS", description: `${when}: ${carerTasks.length} tasks look like about ${fit.needed} minutes of care in a ${v.durationMin}-minute visit. Check the tasks or the visit length with the council. Nothing was changed.`, sourceRef: src, restricted: false, createdById: ctx.userId } });
         out.notes.push(`${when}: the tasks may not fit in ${v.durationMin} minutes. Flagged for you to check.`);
       }
       for (const clean of carerTasks) {

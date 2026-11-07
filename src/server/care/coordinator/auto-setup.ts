@@ -374,7 +374,8 @@ export function setupSummaryLines(r: SetupReport, mode: string): string[] {
   if (rec.documentsFiled) lines.push(`${n(rec.documentsFiled, "original document", "original documents")} filed`);
   if (rec.duplicatesConsolidated) lines.push(`${n(rec.duplicatesConsolidated, "repeated entry", "repeated entries")} consolidated`);
   const attention = r.exceptions.URGENT + r.exceptions.REVIEW + r.exceptions.FOLLOW_UP;
-  lines.push(attention ? `${n(attention, "matter needs", "matters need")} attention` : "Nothing needs attention");
+  const info = r.exceptions.INFO ? ` (and ${r.exceptions.INFO} for information only)` : "";
+  lines.push(attention ? `${n(attention, "matter needs", "matters need")} attention${info}` : `Nothing needs attention${info}`);
   return lines;
 }
 

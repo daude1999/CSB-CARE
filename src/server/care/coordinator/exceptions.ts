@@ -257,12 +257,13 @@ export async function serviceUserAiAudit(ctx: Ctx, serviceUserId: string, f: { s
     serviceUser: { id: su.id, reference: su.reference, name: `${su.preferredName ?? su.firstName} ${su.lastName}` },
     setups: intakes.map((i) => {
       const r = reportOf(i.setupReport);
-      const mine = visible.filter((x) => x.intakeId === i.id);
+      // Counts cover every fact (numbers only, nothing restricted is shown), so they match the setup summary.
+      const all = facts.filter((x) => x.intakeId === i.id);
       return {
         id: i.id, reference: i.reference, title: i.title, mode: i.mode, status: i.status, setupStatus: i.setupStatus, setupLabel: i.setupStatus ? (SETUP_STATUS[i.setupStatus as keyof typeof SETUP_STATUS] ?? i.setupStatus) : "Set up by hand (before automatic setup)",
         startedBy: i.setupById ? (names.get(i.setupById) ?? "Unknown") : null, finishedAt: i.setupFinishedAt, documents: i.documents.map((d) => ({ id: d.id, name: d.name, filename: d.filename, uploadedAt: d.createdAt, filed: !!d.filedDocumentId, readBy: d.readMethod })),
         summary: r ? setupSummaryLines(r, i.mode) : [], failures: r?.failures ?? [], report: r as SetupReport | null,
-        counts: { automatic: mine.filter((x) => x.decisionSource === "AUTOMATION" && ACCEPTED.has(x.decision)).length, human: mine.filter((x) => x.decisionSource === "HUMAN" && x.decidedById).length, consolidated: mine.filter((x) => x.decision === "DUPLICATE").length, waiting: mine.filter((x) => OPEN_DECISIONS.has(x.decision) && !x.appliedAt).length },
+        counts: { automatic: all.filter((x) => x.decisionSource === "AUTOMATION" && ACCEPTED.has(x.decision)).length, human: all.filter((x) => x.decisionSource === "HUMAN" && x.decidedById).length, consolidated: all.filter((x) => x.decision === "DUPLICATE").length, waiting: all.filter((x) => OPEN_DECISIONS.has(x.decision) && !x.appliedAt).length },
       };
     }),
     saved, corrections, exceptions,

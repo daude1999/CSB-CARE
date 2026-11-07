@@ -112,7 +112,7 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
       ) : null}
 
       {report && (exceptions.length || hidden) ? (
-        <Card title={`Needs attention (${exceptions.length + hidden})`}>
+        <Card title={`Exceptions (${exceptions.length + hidden})`}>
           <ExceptionList items={exceptions} hidden={hidden} back={back} profileBase={profile} empty="Nothing needs attention." />
         </Card>
       ) : null}

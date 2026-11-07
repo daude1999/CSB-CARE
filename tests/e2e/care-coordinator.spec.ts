@@ -30,10 +30,21 @@ test("a coordinator uploads the documents and sees each fact with its page, with
     { name: "Support plan.pdf", mimeType: "application/pdf", buffer: await supportPlanPdf() },
     { name: "Discharge summary.pdf", mimeType: "application/pdf", buffer: await dischargeLetterPdf() },
   ]);
-  await page.getByRole("button", { name: "Start and read the documents" }).click();
+  await page.getByRole("button", { name: "Upload and process" }).click();
   await expect(page).toHaveURL(/\/rota\/coordinator\/[a-z0-9]+/);
   intakeUrl = page.url().split("?")[0]!;
   await expect(page.getByRole("status").or(page.getByText(/started and 2 documents read/))).toBeVisible();
+
+  // Automatic setup: the setup summary is the first thing the coordinator sees, with links to what CSB AI created.
+  await page.goto(`${intakeUrl}?step=setup`);
+  await expect(page.getByText(/Service user created successfully|Setup|CSB AI/).first()).toBeVisible();
+  const profile = page.getByRole("link", { name: "Open service user profile" });
+  if (await profile.count()) {
+    await profile.click();
+    await page.getByRole("link", { name: "Audit & Exceptions" }).first().click();
+    await expect(page.getByRole("heading", { name: "AI setup summary" })).toBeVisible();
+    await expect(page.getByText(/CSB AI \(started by/).first()).toBeVisible();
+  }
 
   // Timetable continued on page 4 is read, and family rows are kept apart.
   await page.goto(`${intakeUrl}?step=review&section=VISITS`);
