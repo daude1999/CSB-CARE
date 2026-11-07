@@ -1,47 +1,91 @@
-# Service User Management and All Service Users (add and update)
+# All Service Users: one central service-user workspace
 
-Owner's brief, 7 Nov 2026: "All Service Users page redesign: Add New Service User and Update Existing Service User".
+Owner's briefs:
+- 7 Nov 2026 16:12, "All Service Users page redesign: Add New Service User and Update Existing Service User" (PR #119, merged).
+- 7 Nov 2026 20:06, "Approved Visual Design – One Central Service User Management Workspace" (this design, built to the owner's approved screenshot).
 
-## What was built
+## The page
 
-| Screen | Address | What it has |
-| --- | --- | --- |
-| Service User Management (new workspace, first tab of Service Users) | `/rota/service-users/manage` | Three cards: Add New (Upload Support Plan, Add Manually), Update Existing (Upload Revised Support Plan, Hospital Discharge, Update Manually), View All. The full directory below. |
-| All Service Users (same address as before) | `/rota/service-users` | Title, real count on the right, **Add New Service User** and **Update Existing Service User** above the search, the existing filters and table, View and Update on every row, pages of 25. |
+There is one page, `/rota/service-users`. The separate Service User Management page and its three cards are gone. `/rota/service-users/manage` redirects here and keeps `q`, `status`, `area`, `branch` and `page`.
 
-The sidebar is unchanged ("Service Users" now opens the workspace and stays lit on every page under it).
+From top to bottom:
+
+1. **Tabs:** All Service Users | Care Coordinator | Incidents | Visit Notes.
+2. **Title and actions:** "All Service Users", with the description "Manage service users, add new referrals and update existing records." On the right are **+ Add New Service User ▾** (purple) and **✎ Update Existing Service User ▾** (white, purple border).
+3. **Toolbar:** Search | Branch | Area | Status | Apply | Clear. It is a GET form, so the filters live in the URL and work with pages and Back.
+   - The branch and area values are checked against the member's own lookups, and anything else is ignored.
+   - The branch filter is ANDed with `serviceUserWhere(scope)`, so it can only narrow what the member may already see.
+4. **Table columns:**
+   - Service User: initials, name, and date of birth only with `serviceUser.sensitive`.
+   - CSB Reference: the legacy reference sits underneath it.
+   - Council / Frameworki Ref
+   - Area
+   - Care Package: real commissioned hours a week.
+   - Status: a lifecycle pill.
+   - Next Visit: UK date and time.
+   - Actions: View, Update ▾ and ⋮ details.
+5. **Count and pages:** "Showing X to Y of N service users" from the real count, 20 a page, with Previous, page numbers and Next.
+
+Postcode, risk, repeating visits, carer preference and branch stay available in each row's ⋮ details panel. On narrower screens the table drops columns in this order:
+
+| Column | Hidden below |
+| --- | --- |
+| Council ref | 1536px |
+| Next Visit | 1420px |
+| Area and Care Package | 1280px |
+
+Name, reference, status and actions always stay. Every value remains in ⋮ details. The page never scrolls sideways (checked at 390, 834, 1024, 1280, 1366, 1440 and 1672 wide).
 
 ## One workflow per action (nothing duplicated)
 
 | Choice | Goes to | Existing workflow reused |
 | --- | --- | --- |
 | Upload Support Plan | `/rota/coordinator?mode=NEW#start` | Care Coordinator intake, new person |
-| Add Manually | `/rota/service-users/new` | `ServiceUserForm` + `createServiceUserAction` (redirects to the new profile) |
-| Upload Revised Support Plan | `/rota/coordinator?mode=EXISTING&person=<id>#start` | Care Coordinator intake, existing person (compare, version the plan, keep history) |
-| Hospital Discharge / New Medical Information | `/rota/coordinator?mode=EXISTING&person=<id>&doc=discharge#start` | Same intake for the same person. The letter is classified as a discharge letter when read (or set under Documents); filing it opens the post-discharge review (`discharge-review.ts`). Medicines are reconciled, never changed from the letter. |
+| Add Manually | `/rota/service-users/new` | `ServiceUserForm` + `createServiceUserAction` |
+| Upload Revised Support Plan | `/rota/coordinator?mode=EXISTING&person=<id>#start` | Care Coordinator intake, existing person |
+| Hospital Discharge / New Medical Information | `/rota/coordinator?mode=EXISTING&person=<id>&doc=discharge#start` | Same intake; filing the letter opens the post-discharge review |
 | Update Manually | `/rota/service-users/<id>?tab=details` | Profile, Personal details tab |
 
-The only change on the Care Coordinator page: when it is opened with a person chosen, it says who is being updated (no new person is created), suggests an intake name, and for `doc=discharge` explains the discharge review. Intake internals are untouched.
+How Update Existing chooses the person:
+- **From the header button:** it first shows a compact search (`GET /api/service-users/search`, the same matching as the directory). Once a person is picked, it offers the three choices, and every link carries that person's id.
+- **From a row's Update:** the person is already chosen.
 
-The shared choices live in `src/components/service-user-actions.tsx`; the directory in `src/components/service-user-directory.tsx` is used by both pages.
+How the dropdowns behave:
+- They open above the table and are never clipped by it.
+- They close on Escape, returning focus to the button, or on a click outside.
+- They follow the button when the page scrolls.
 
-## Search
+Shared code:
+- The choices live in `src/components/service-user-actions.tsx`.
+- The page body is `src/components/service-user-directory.tsx`.
 
-The Update Existing picker calls `GET /api/service-users/search?q=` → `findServiceUsersToUpdate()` (in `src/server/care/service-users.ts`), which uses the same `serviceUserMatchWhere` and `lookUpReferences` as the directory and top bar: names (each word, partial), full names, postcodes, CSB and legacy SU numbers, exact council/Frameworki/package references from the encrypted register, and NHS numbers only for `serviceUser.sensitive`. Every status is searched, at most 20 results, branch and area limits always apply.
+## Data (no per-row queries)
+
+`serviceUserDirectory(ctx, { q, status, areaId, branchId, page })` returns `total`, `page`, `pages` and 20 rows. For the page's rows only:
+
+- **Next visit:** one `visit.groupBy` with the earliest future SCHEDULED visit, limited by `visitWhere(scope)`.
+- **Council / Frameworki ref:** one query plus decryption through `councilReferencesFor()` in `external-references.ts`.
+  - It returns only active council client, council package and other external references.
+  - NHS numbers and shared framework IDs are never shown as a person's reference.
+  - Ranking: client, then package, then other. Verified comes first, then oldest.
+  - "Unverified" is labelled.
+  - "+N" shows when a person has more references.
+  - If `CSB_REFERENCE_SECRET` is missing, the column says so in an amber notice and the rest of the page works.
 
 ## Permissions (all checked on the server)
 
-- Directory and workspace: `serviceUser.view` (unchanged).
-- Add New / Add Manually / Update Manually / the picker API: `serviceUser.edit`.
-- Upload options: `serviceUser.edit` + `rota.edit` + `serviceUser.documents` (the Care Coordinator's own `coordinatorAccess`).
-- A choice the member may not use is not shown, and each destination checks again.
+| What | Needs |
+| --- | --- |
+| The page | `serviceUser.view` |
+| Add New, Add Manually, Update Manually and the picker API | `serviceUser.edit` |
+| Upload options | `serviceUser.edit` + `rota.edit` + `serviceUser.documents` |
+| Date of birth and NHS search | `serviceUser.sensitive` |
 
-## Count and pages
-
-`serviceUserDirectory(ctx, { page })` now returns `total`, `page`, `pages` and 25 rows a page; without `page` it returns every row as before. The count is the number of people the member may see who match the search and filters. The table was not reduced: name with CSB/legacy/matched reference, status, area (and branch), postcode, risk, commissioned hours, repeating visits, carer preference, plus Actions.
+A choice the member may not use is not shown, and each destination checks again. Branch and area limits always apply.
 
 ## Known limits
 
-- The Care Coordinator's person list leaves out people whose care has ended, so an ended person chosen in Update Existing must be picked again there (or restarted first).
-- Council/Frameworki numbers are not shown as a column: they are encrypted and are only found by exact search (unchanged rule).
-- No new sorting options were added (the directory still sorts by surname, then first name).
+- The default Status is "Current (not ended)", as before. The approved image shows "All Statuses", which is one click away. "Review Required" in the image is not a lifecycle status, so it is not shown as one.
+- The Care Coordinator's person list leaves out people whose care has ended, so an ended person chosen in Update Existing must be picked again there.
+- Council/Frameworki numbers are encrypted. They show in the column but are found by search only when the whole number is typed.
+- Sorting is unchanged: surname, then first name.

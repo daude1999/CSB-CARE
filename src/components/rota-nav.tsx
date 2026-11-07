@@ -61,9 +61,8 @@ function tabDefs(ws: RotaWorkspace): TabDef[] {
       ];
     case "people":
       return [
-        // Service User Management is the workspace's home (Add New, Update Existing, View All and the directory);
-        // All Service Users keeps its own address for bookmarks and links.
-        { key: "manage", label: "Service User Management", href: "/rota/service-users/manage", perm: "serviceUser.view" },
+        // All Service Users is the one service-user workspace (Add New, Update Existing and the directory). The old
+        // Service User Management address redirects to it.
         { key: "directory", label: "All Service Users", href: "/rota/service-users", perm: "serviceUser.view" },
         { key: "coordinator", label: "Care Coordinator", href: "/rota/coordinator", perm: "serviceUser.documents" },
         // Care plans and risk assessments live in each service user's profile. The incident register stays here for

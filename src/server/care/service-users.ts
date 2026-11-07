@@ -5,12 +5,13 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { dbDate, isIsoDate, londonDate, londonToUtc } from "@/lib/london";
 import { audit } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
-import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
+import { rotaScope, serviceUserWhere, visitWhere, type Scope } from "@/server/rota/scope";
 import { cancelVisitInTx } from "@/server/rota/visits";
 import { reviewStaffImpact } from "@/server/workforce/impact";
 import { decryptKeySafe, encryptKeySafe } from "./keysafe";
 import { cleanSearch } from "@/lib/service-user-search";
 import { lookUpReferences, matchedReferenceLabel, serviceUserMatchWhere } from "./service-user-search";
+import { councilReferencesFor } from "./external-references";
 
 /**
  * Service users: the people the organisation supports. Every read and write is scoped to the caller's organisation
@@ -25,11 +26,13 @@ export interface ServiceUserFilters {
   /** CURRENT (the default) hides ended people; ALL shows every status. */
   status?: ServiceUserStatus | "CURRENT" | "ALL";
   areaId?: string;
+  /** Only people in this branch. Always combined with the member's own branch limits, so it can only narrow. */
+  branchId?: string;
   /** 1-based page of DIRECTORY_PAGE_SIZE rows. Without it every row (up to 500) is returned, as before. */
   page?: number;
 }
 
-export const DIRECTORY_PAGE_SIZE = 25;
+export const DIRECTORY_PAGE_SIZE = 20;
 
 const CURRENT_STATUSES: ServiceUserStatus[] = ["ENQUIRY", "ASSESSMENT", "ACTIVE", "PAUSED"];
 
@@ -45,8 +48,8 @@ export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
   const refs = q ? await lookUpReferences(ctx, q) : { hits: [], problem: null };
   const match = q ? serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] }) : {};
   const status: Prisma.ServiceUserWhereInput = f.status === "ALL" ? {} : !f.status || f.status === "CURRENT" ? { status: { in: CURRENT_STATUSES } } : { status: f.status };
-  const where: Prisma.ServiceUserWhereInput = { AND: [serviceUserWhere(scope), status, f.areaId ? { areaId: f.areaId } : {}, match] };
-  const filtered = f.status !== "ALL" || !!f.areaId;
+  const where: Prisma.ServiceUserWhereInput = { AND: [serviceUserWhere(scope), status, f.areaId ? { areaId: f.areaId } : {}, f.branchId ? { branchId: f.branchId } : {}, match] };
+  const filtered = f.status !== "ALL" || !!f.areaId || !!f.branchId;
   const paged = f.page !== undefined;
   const [total, matching] = await Promise.all([
     db.serviceUser.count({ where }),
@@ -56,12 +59,22 @@ export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
   const page = paged ? Math.min(Math.max(1, Math.floor(f.page!) || 1), pages) : 1;
   const rows = await db.serviceUser.findMany({
     where,
-    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, branch: { select: { name: true } }, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
+    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, dateOfBirth: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, branch: { select: { name: true } }, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     skip: paged ? (page - 1) * DIRECTORY_PAGE_SIZE : 0,
     take: paged ? DIRECTORY_PAGE_SIZE : 500,
   });
   const shown = total;
+  const sensitive = hasOrgPermission(ctx, "serviceUser.sensitive");
+  // Only for a page of the table: the next visit (one grouped query) and the council number (one query, decrypted here).
+  const ids = rows.map((r) => r.id);
+  const [next, council] = paged
+    ? await Promise.all([
+        ids.length ? db.visit.groupBy({ by: ["serviceUserId"], where: { AND: [visitWhere(scope), { serviceUserId: { in: ids }, status: "SCHEDULED", scheduledStart: { gte: new Date() } }] }, _min: { scheduledStart: true } }) : Promise.resolve([]),
+        councilReferencesFor(scope.organisationId, ids),
+      ])
+    : [[], { byPerson: new Map(), problem: null }] as const;
+  const nextBy = new Map(next.map((n) => [n.serviceUserId, n._min.scheduledStart]));
   return {
     q,
     /** Every person the member may see who matches the search and filters (not only this page). */
@@ -69,8 +82,10 @@ export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
     page,
     pages,
     pageSize: paged ? DIRECTORY_PAGE_SIZE : rows.length,
-    rows: rows.map((r) => ({ ...r, matchedReference: matchedReferenceLabel(refs.hits, r.id) })),
-    /** Matches the member may see that the status or area filter hides. */
+    rows: rows.map(({ dateOfBirth, ...r }) => ({ ...r, dateOfBirth: sensitive ? dateOfBirth : null, matchedReference: matchedReferenceLabel(refs.hits, r.id), nextVisit: nextBy.get(r.id) ?? null, councilReference: council.byPerson.get(r.id) ?? null })),
+    /** Why council numbers could not be shown in the table (the rest of the page is unaffected). */
+    councilReferenceProblem: council.problem,
+    /** Matches the member may see that the status, area or branch filter hides. */
     hiddenByFilters: q && filtered ? Math.max(0, matching - shown) : 0,
     referenceProblem: refs.problem,
   };
