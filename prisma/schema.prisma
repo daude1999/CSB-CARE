@@ -1653,6 +1653,11 @@ model ServiceUser {
   fundingAuthority               String?
   safeguardingLocalAuthorityCode String?
   version                        Int               @default(1)
+  /// Archived: hidden from the active lists and read-only, every record kept. Reversible (Restore). Only a person whose
+  /// care ended or never started can be archived (src/server/care/service-user-archive.ts).
+  archivedAt                     DateTime?
+  archivedById                   String?
+  archiveReason                  String?
   createdById                    String?
   createdAt                      DateTime          @default(now())
   updatedAt                      DateTime          @updatedAt
@@ -1681,6 +1686,7 @@ model ServiceUser {
   @@unique([id, organisationId])
   @@index([organisationId, status])
   @@index([organisationId, lastName])
+  @@index([organisationId, archivedAt])
   dischargeReviews DischargeReview[]
 }
 

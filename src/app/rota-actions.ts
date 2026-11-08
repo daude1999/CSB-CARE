@@ -31,6 +31,7 @@ import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submit
 import { approveRun, prepareInvoiceRun, preparePayRun, voidRun } from "@/server/finance/runs";
 import { addIncidentNote, closeIncident, reopenIncident, reportIncident, triageIncident } from "@/server/care/incidents";
 import { createCallType, createCareTask, saveArea, setAreaActive, setCallTypeActive, setCareTaskActive, setMemberAreas } from "@/server/rota/reference";
+import { archiveServiceUser, deleteServiceUser, restoreServiceUser } from "@/server/care/service-user-archive";
 import { addAbsence, addContact, updateContact, cancelAbsence, createServiceUser, removeCarerPreference, removeContact, setCarerPreference, setKeySafe, setServiceUserStatus, updateServiceUser } from "@/server/care/service-users";
 import { applyTemplateChanges, bulkTemplates, createTemplate, duplicateTemplate, duplicateTemplates, nudgeTemplates, setTemplateCarer, setTemplatesEnabled, type TemplateBulkAction, type TemplateInput } from "@/server/rota/templates";
 import { previewTemplateEdit, previewTemplateImpact, saveTemplateEdit } from "@/server/rota/template-impact";
@@ -545,6 +546,21 @@ export async function serviceUserStatusAction(fd: FormData) {
     const r = await setServiceUserStatus(ctx, str(fd, "serviceUserId"), to, str(fd, "reason"), str(fd, "endDate") || undefined);
     return { ok: to === "ENDED" ? `Care ended. Templates switched off and ${r.cancelled} future visit${r.cancelled === 1 ? "" : "s"} cancelled.` : "Status changed" };
   }, "Status changed");
+}
+
+export async function archiveServiceUserAction(fd: FormData) {
+  return handle(fd, (ctx) => archiveServiceUser(ctx, str(fd, "serviceUserId"), str(fd, "reason")), "Archived. The person is hidden from the active lists and every record is kept.");
+}
+
+export async function restoreServiceUserAction(fd: FormData) {
+  return handle(fd, (ctx) => restoreServiceUser(ctx, str(fd, "serviceUserId"), str(fd, "reason")), "Restored to the active lists");
+}
+
+export async function deleteServiceUserAction(fd: FormData) {
+  return handle(fd, async (ctx) => {
+    const r = await deleteServiceUser(ctx, str(fd, "serviceUserId"), { confirm: str(fd, "confirm"), reason: str(fd, "reason") });
+    return { to: "/rota/service-users?status=ARCHIVED", ok: `${r.reference} was deleted permanently` };
+  }, "Deleted");
 }
 
 function contactInput(fd: FormData) {

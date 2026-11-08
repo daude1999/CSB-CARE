@@ -57,8 +57,9 @@ function parse(input: TemplateInput) {
 /** Every id in a template must belong to the caller's organisation (and areas). */
 export async function checkRefs(tx: Prisma.TransactionClient, scope: Scope, t: ReturnType<typeof parse>) {
   const org = scope.organisationId;
-  const su = await tx.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: t.serviceUserId }, select: { id: true, status: true, areaId: true, organisationId: true } });
+  const su = await tx.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: t.serviceUserId }, select: { id: true, status: true, areaId: true, organisationId: true, archivedAt: true } });
   if (!su) throw new NotFoundError("Service user");
+  if (su.archivedAt) throw new ValidationError("This person is archived. Restore them before adding repeating visits.");
   if (su.status === "ENDED") throw new ValidationError("This person's care has ended");
   const ct = await tx.callType.findFirst({ where: { id: t.callTypeId, organisationId: org, active: true } });
   if (!ct) throw new NotFoundError("Call type");
