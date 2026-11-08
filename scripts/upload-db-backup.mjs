@@ -17,7 +17,6 @@ if (!info.isFile() || info.size < 32) throw new Error("Encrypted backup is missi
 
 const service = BlobServiceClient.fromConnectionString(connectionString);
 const container = service.getContainerClient(containerName);
-await container.createIfNotExists(); // Private access is the Azure default.
 const properties = await container.getProperties();
 if (properties.blobPublicAccess) throw new Error("Refusing to upload backups: the Azure container allows anonymous public access");
 const blob = container.getBlockBlobClient(name);
