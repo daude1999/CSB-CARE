@@ -251,6 +251,29 @@ describe("All Service Users: count, pages and the Update Existing picker", () =>
     expect((await listServiceUsers(ctx, {})).length).toBe(first.total);
   });
 
+  it("each row carries the person's own council number (never NHS or a shared framework ID), next visit and DOB only for restricted access", async () => {
+    const page = async (ctx: Awaited<ReturnType<typeof coordinator>>) => (await serviceUserDirectory(ctx, { q: "Fatuma Alibhai", page: 1 })).rows[0]!;
+    const row = await page(await coordinator());
+    expect(row.councilReference?.value).toBe("1088676");
+    expect(row.councilReference?.title).toMatch(/Frameworki/);
+    expect(JSON.stringify(row)).not.toContain("9990000035");
+    expect(row.dateOfBirth).toBeNull();
+    const next = await db.visit.findFirst({ where: { serviceUserId: fa.id, status: "SCHEDULED", scheduledStart: { gte: new Date() } }, orderBy: { scheduledStart: "asc" }, select: { scheduledStart: true } });
+    expect(row.nextVisit?.toISOString() ?? null).toBe(next?.scheduledStart.toISOString() ?? null);
+    const asManager = await page(await manager());
+    const su = await db.serviceUser.findUniqueOrThrow({ where: { id: fa.id }, select: { dateOfBirth: true } });
+    expect(asManager.dateOfBirth?.toISOString() ?? null).toBe(su.dateOfBirth?.toISOString() ?? null);
+  });
+
+  it("the branch filter only narrows, and a branch outside the member's own scope finds nobody", async () => {
+    const ctx = await coordinator();
+    const inBranch = await serviceUserDirectory(ctx, { branchId: fa.branchId ?? undefined, page: 1, status: "ALL" });
+    expect(inBranch.rows.every((r) => r.branchId === fa.branchId)).toBe(true);
+    expect(inBranch.total).toBeGreaterThan(0);
+    const other = await db.branch.findFirst({ where: { organisation: { slug: OAKRIDGE } }, select: { id: true } });
+    expect((await serviceUserDirectory(ctx, { branchId: other!.id, page: 1, status: "ALL" })).total).toBe(0);
+  });
+
   it("finds a person by name, CSB number, legacy SU number and exact Frameworki number, with every status", async () => {
     const ctx = await coordinator();
     for (const q of ["Fatuma", "Fatuma Alibhai", fa.csb, fa.legacy, "1088676"]) {

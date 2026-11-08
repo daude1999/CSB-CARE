@@ -3,6 +3,7 @@ import {createCipheriv,createDecipheriv,createHash,createHmac,randomBytes} from 
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { REFERENCE_TYPES, isPersonSpecific, normaliseReference, referenceSearchValues, storedSpellings, type ReferenceType } from "@/lib/reference-numbers";
 import { audit } from "@/server/audit-log";
@@ -271,4 +272,37 @@ export async function searchReferenceHits(ctx:Ctx,query:string):Promise<Referenc
 }
 export async function searchReferenceIds(ctx:Ctx,query:string){
   return [...new Set((await searchReferenceHits(ctx,query)).map(h=>h.serviceUserId))];
+}
+
+export interface ListedReference { value:string; title:string; verified:boolean; others:number }
+
+/**
+ * The council reference shown in the All Service Users table, for people the caller has ALREADY loaded through their
+ * own scope (the ids come from a scoped query). Only active, person-specific council numbers are listed: a framework
+ * or contract ID can be shared by many people, so it never stands for a person here. NHS numbers are never listed.
+ * Client numbers come first, then package references; verified before unverified. A missing key is reported, not thrown.
+ */
+export async function councilReferencesFor(organisationId:string,serviceUserIds:string[]):Promise<{byPerson:Map<string,ListedReference>;problem:"KEY_MISSING"|"FAILED"|null}>{
+  const byPerson=new Map<string,ListedReference>();
+  if(!serviceUserIds.length) return {byPerson,problem:null};
+  const rank=(t:string)=>t==="COUNCIL_CLIENT"?0:t==="COUNCIL_PACKAGE"?1:2;
+  try{
+    const rows=await db.serviceUserExternalReference.findMany({where:{organisationId,serviceUserId:{in:serviceUserIds},status:"ACTIVE",type:{in:["COUNCIL_CLIENT","COUNCIL_PACKAGE","OTHER_EXTERNAL"]}},select:{serviceUserId:true,type:true,issuer:true,systemLabel:true,verified:true,valueCipher:true,createdAt:true}});
+    const groups=new Map<string,typeof rows>();
+    for(const r of rows){const g=groups.get(r.serviceUserId)??[];g.push(r);groups.set(r.serviceUserId,g);}
+    for(const [id,g] of groups){
+      g.sort((a,b)=>rank(a.type)-rank(b.type)||Number(b.verified)-Number(a.verified)||a.createdAt.getTime()-b.createdAt.getTime());
+      const top=g[0]!;
+      byPerson.set(id,{value:decrypt(top.valueCipher),title:referenceTitleOf(top),verified:top.verified,others:g.length-1});
+    }
+    return {byPerson,problem:null};
+  }catch(e){
+    if(e instanceof ReferenceKeyMissingError) return {byPerson:new Map(),problem:"KEY_MISSING"};
+    logger.error({event:"serviceUser.referenceList.failed",errorName:e instanceof Error?e.name:typeof e,organisationId},"Council references for the directory could not be read");
+    return {byPerson:new Map(),problem:"FAILED"};
+  }
+}
+function referenceTitleOf(r:{type:string;issuer:string;systemLabel:string|null}){
+  const short=r.issuer.replace(/\s+(london borough )?(borough )?council$/i,"").replace(/^london borough of\s+/i,"").trim()||r.issuer;
+  return r.systemLabel?`${short} ${r.systemLabel}`:r.type==="COUNCIL_PACKAGE"?`${short} package`:short;
 }

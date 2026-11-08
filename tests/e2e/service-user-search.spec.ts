@@ -15,7 +15,7 @@ async function demoPerson(page: Page) {
   await page.goto("/rota/service-users");
   const first = page.locator("table tbody tr").first();
   const name = (await first.locator("td").first().locator("a").innerText()).trim();
-  const csb = ((await first.locator("td").first().locator("div").innerText()).split("·")[0] ?? "").trim();
+  const csb = ((await first.locator("td").nth(1).innerText()).split("\n")[0] ?? "").trim();
   const href = (await first.locator("td").first().locator("a").getAttribute("href"))!;
   return { name, csb, href };
 }
@@ -27,8 +27,11 @@ test.describe("Service user search", () => {
     const p = await demoPerson(page);
     await page.goto("/rota");
     const search = page.getByRole("searchbox", { name: "Search rostering" });
-    await page.keyboard.press("Control+k");
-    await expect(search).toBeFocused();
+    // Ctrl+K works once the header has hydrated; retry the key press rather than racing it.
+    await expect(async () => {
+      await page.keyboard.press("Control+k");
+      await expect(search).toBeFocused({ timeout: 1000 });
+    }).toPass();
     await search.fill(`  ${p.name.toUpperCase()} `);
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=/);
