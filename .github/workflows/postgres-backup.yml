@@ -1,0 +1,57 @@
+name: CSB-CARE encrypted PostgreSQL backup
+
+on:
+  schedule:
+    - cron: "37 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: csb-care-postgres-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt and copy the database
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+      AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+      AZURE_STORAGE_CONTAINER: ${{ vars.AZURE_STORAGE_CONTAINER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install uploader dependencies
+        run: npm ci --ignore-scripts
+      - name: Install age encryption
+        run: sudo apt-get update && sudo apt-get install --yes age
+      - name: Create encrypted backup and upload to private Blob Storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${BACKUP_DATABASE_URL:?Add the direct Neon connection string as the BACKUP_DATABASE_URL Actions secret}"
+          : "${BACKUP_AGE_RECIPIENT:?Add the age public recipient as the BACKUP_AGE_RECIPIENT Actions variable}"
+          : "${AZURE_STORAGE_CONNECTION_STRING:?Add the Azure Blob connection string as the AZURE_STORAGE_CONNECTION_STRING Actions secret}"
+          : "${AZURE_STORAGE_CONTAINER:?Set the private backup container name in the AZURE_STORAGE_CONTAINER Actions variable}"
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          dump="$RUNNER_TEMP/csb-care-$stamp.dump"
+          encrypted="$dump.age"
+          cleanup() { rm -f "$dump" "$encrypted"; }
+          trap cleanup EXIT
+          docker run --rm \
+            -e BACKUP_DATABASE_URL \
+            -v "$RUNNER_TEMP:/backup" \
+            postgres:17-alpine \
+            sh -euc 'pg_dump --format=custom --no-owner --no-acl --file="/backup/csb-care.dump" "$BACKUP_DATABASE_URL"'
+          mv "$RUNNER_TEMP/csb-care.dump" "$dump"
+          docker run --rm -v "$RUNNER_TEMP:/backup" postgres:17-alpine pg_restore --list "/backup/$(basename "$dump")" >/dev/null
+          age --encrypt --recipient "$BACKUP_AGE_RECIPIENT" --output "$encrypted" "$dump"
+          rm -f "$dump"
+          node scripts/upload-db-backup.mjs "$encrypted" "postgres/$stamp/csb-care.dump.age"
