@@ -5,6 +5,7 @@ import { sha256 } from "@/lib/text";
 import { verifyPassword } from "./password";
 import type { Ctx } from "./rbac";
 import { AppError } from "@/lib/errors";
+import type { OrgRole } from "@prisma/client";
 
 export const SESSION_COOKIE = "evx_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -14,6 +15,37 @@ const MAX_FAILED = 5;
 /** Failed sign-ins from one network address across any email addresses, so one address cannot try many accounts. */
 const MAX_FAILED_PER_IP = 30;
 const WINDOW_MS = 15 * 60 * 1000;
+
+/** What a membership brings into the context: its branch grants, and the organisation's customer status and switched-off modules. */
+const MEMBERSHIP_SCOPE = {
+  branches: { select: { branchId: true } },
+  organisation: { select: { customerAccount: { select: { status: true } }, moduleEntitlements: { where: { enabled: false }, select: { moduleKey: true } } } },
+} as const;
+
+type ScopedMembership = {
+  organisationId: string;
+  branchId: string | null;
+  roles: OrgRole[];
+  hrUserId: string | null;
+  branches: { branchId: string }[];
+  organisation: { customerAccount: { status: string } | null; moduleEntitlements: { moduleKey: string }[] };
+};
+
+/** The organisation part of a context. A suspended or closed customer keeps its records but grants no permission. */
+function orgScope(m: ScopedMembership | undefined) {
+  const status = m?.organisation.customerAccount?.status;
+  const suspended = status === "SUSPENDED" || status === "CLOSED";
+  const disabledModules = m?.organisation.moduleEntitlements.map((e) => e.moduleKey) ?? [];
+  return {
+    organisationId: m?.organisationId ?? null,
+    branchId: m?.branchId ?? null,
+    branchIds: m?.branches.length ? m.branches.map((b) => b.branchId) : null,
+    orgRoles: m?.roles ?? [],
+    hrUserId: suspended || disabledModules.includes("HR") ? null : (m?.hrUserId ?? null),
+    suspended,
+    disabledModules,
+  };
+}
 
 export async function isRateLimited(key: string): Promise<boolean> {
   const since = new Date(Date.now() - WINDOW_MS);
@@ -34,6 +66,8 @@ export async function login(email: string, password: string, meta: { ip?: string
   await db.loginAttempt.create({ data: { key, success: Boolean(ok) } });
   if (ipKey && !ok) await db.loginAttempt.create({ data: { key: ipKey, success: false } });
   if (!user || !ok) throw new AppError("Invalid email or password", "INVALID_CREDENTIALS", 401);
+  // Set by an Evantix platform administrator: the person must choose a new password with their one-time link first.
+  if (user.passwordResetRequired) throw new AppError("Your password must be changed before you can sign in. Use the password reset link you were given, or ask your administrator for a new one.", "PASSWORD_RESET_REQUIRED", 403);
   const token = randomBytes(32).toString("base64url");
   // The start time comes from the same clock as the expiry checks, so the 7-day cap is measured consistently.
   const now = Date.now();
@@ -65,7 +99,7 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
   const session = await withDbRetry(() =>
     db.session.findUnique({
       where: { tokenHash: sha256(token) },
-      include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } } },
+      include: { user: { include: { memberships: { where: { deactivatedAt: null }, include: MEMBERSHIP_SCOPE } } } },
     }),
   );
   const hardEnd = session ? session.createdAt.getTime() + SESSION_MAX_AGE_MS : 0;
@@ -81,12 +115,8 @@ export async function ctxFromToken(token: string | undefined | null): Promise<Ct
   return {
     userId: session.user.id,
     userName: session.user.name,
-    organisationId: membership?.organisationId ?? null,
-    branchId: membership?.branchId ?? null,
-    branchIds: membership?.branches.length ? membership.branches.map((b) => b.branchId) : null,
-    orgRoles: membership?.roles ?? [],
+    ...orgScope(membership),
     platformRoles: session.user.platformRoles.filter((r) => r !== "NONE"),
-    hrUserId: membership?.hrUserId ?? null,
   };
 }
 
@@ -100,17 +130,13 @@ export async function switchOrganisation(token: string, organisationId: string) 
 
 /** Builds a context directly for a user (used by workers and tests). */
 export async function ctxForUser(userId: string, organisationId?: string | null): Promise<Ctx> {
-  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { memberships: { where: { deactivatedAt: null }, include: { branches: { select: { branchId: true } } } } } });
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { memberships: { where: { deactivatedAt: null }, include: MEMBERSHIP_SCOPE } } });
   const m = organisationId === null ? undefined : user.memberships.find((x) => x.organisationId === organisationId) ?? (organisationId ? undefined : user.memberships[0]);
   if (organisationId && !m) throw new AppError("Not a member of organisation", "FORBIDDEN", 403);
   return {
     userId: user.id,
     userName: user.name,
-    organisationId: m?.organisationId ?? null,
-    branchId: m?.branchId ?? null,
-    branchIds: m?.branches.length ? m.branches.map((b) => b.branchId) : null,
-    orgRoles: m?.roles ?? [],
+    ...orgScope(m),
     platformRoles: user.platformRoles.filter((r) => r !== "NONE"),
-    hrUserId: m?.hrUserId ?? null,
   };
 }

@@ -6,6 +6,7 @@ import { getAiProvider } from "@/server/ai";
 import { updateBusinessDetailsAction } from "../../actions";
 import { Card, Field, Flash } from "@/components/ui";
 import { SettingsDirectory } from "@/components/settings-directory";
+import { CustomerSupportPanel } from "@/components/platform/customer-support-panel";
 import { TitleBar } from "@/components/title-bar";
 import { BusinessForm } from "@/components/business-form";
 import { businessDetails } from "@/server/business";
@@ -27,6 +28,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <TitleBar title="Settings" back="/" />
       <div className="bg-[#f1f2f5] px-0 pb-6 pt-3">
       <Flash searchParams={sp} />
+      <CustomerSupportPanel ctx={ctx} />
       <SettingsDirectory ctx={ctx} />
       <section id="business" aria-labelledby="business-heading" className="mb-4 scroll-mt-24 rounded-[3px] bg-white px-5 pb-5 pt-4">
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 pb-3">
