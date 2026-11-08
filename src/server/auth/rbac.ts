@@ -88,9 +88,9 @@ export const ORG_PERMISSIONS = {
   "callNote.review": ["ORG_ADMIN", "CARE_MANAGER"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
-  /** Care Coordinator intake (7 Nov 2026): the authorised coordinator reviews, approves and saves a support-plan intake
-   *  into the CRM in one action. No separate manager approval; clinical records it creates stay drafts for their own
-   *  reviews (care plan, risks, medication). */
+  /** Care Coordinator intake (7 Nov 2026): CSB AI sets up the CRM from a support plan when an authorised person
+   *  uploads it. No fact or section approval; the imported care plan and risks go into use labelled with their source.
+   *  Medication still goes to reconciliation and is never activated automatically. */
   "careIntake.approve": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],
   "incident.manage": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
