@@ -96,7 +96,7 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
               {rules.map((r) => (
                 <li key={r.id} className="py-2 text-[14px]">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{SCOPE_LABEL[r.scope]}{r.scope === "BRANCH" ? `: ${branchName.get(r.branchId ?? "") ?? "another branch"}` : r.scope === "JOB_TITLE" ? `: ${r.jobTitle}` : r.scope === "ROLE" ? `: ${r.orgRole?.replace(/_/g, " ").toLowerCase()}` : r.scope === "STAFF" ? `: ${staffName.get(r.staffMemberId ?? "") ?? "a person"}` : ""}</span>
+                    <span className="font-medium">{SCOPE_LABEL[r.scope]}{r.scope === "BRANCH" || r.scope === "WORKS_IN_BRANCH" ? `: ${branchName.get(r.branchId ?? "") ?? "another branch"}` : r.scope === "JOB_TITLE" ? `: ${r.jobTitle}` : r.scope === "ROLE" ? `: ${r.orgRole?.replace(/_/g, " ").toLowerCase()}` : r.scope === "STAFF" ? `: ${staffName.get(r.staffMemberId ?? "") ?? "a person"}` : ""}</span>
                     {r.mandatory ? <Badge tone="rose">Mandatory</Badge> : <Badge>Optional</Badge>}
                     {r.priority === 1 ? <Badge tone="rose">High risk</Badge> : null}
                     {r.requiresAssessment ? <Badge tone="amber">Assessment</Badge> : null}
