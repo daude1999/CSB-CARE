@@ -45,7 +45,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
         tabs={<RotaTabs ctx={ctx} ws="people" active="coordinator" />}
         title="Care Coordinator"
         back="/rota/service-users"
-        subtitle="Upload a support plan. CSB AI reads it, creates or updates the person's profile, drafts the care plan and risk assessments, sets up the care package, visits and a proposed rota, files the documents and lists only what needs a person. Care plans and risks stay drafts until approved; nothing is published or sent to carers automatically."
+        subtitle="Upload a support plan. CSB AI reads it, creates or updates the person's profile, imports the care plan and risk assessments (labelled with where each came from), sets up the care package, visits and a proposed rota, files the documents and lists only what needs a person. Nothing needs approving. Visits stay unpublished and medication is never activated automatically."
         actions={hasOrgPermission(ctx,"rota.edit")?<Link href="/rota/coordinator/shift" className="btn-secondary">Tomorrow&apos;s shift check</Link>:null}
       />
       <Flash searchParams={sp} />
