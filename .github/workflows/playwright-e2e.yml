@@ -79,18 +79,50 @@ jobs:
         name: Test synthetic support-plan extraction and service-user setup
         continue-on-error: true
         run: npx playwright test tests/e2e/care-coordinator.spec.ts
+      - name: Save care-coordinator test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csb-care-care-coordinator-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - id: policy_assignment
         name: Test named policy assignment
         continue-on-error: true
         run: npx playwright test tests/e2e/policy-assignment.spec.ts
+      - name: Save policy-assignment test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csb-care-policy-assignment-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - id: rota_journey
         name: Test service-user to published rota journey
         continue-on-error: true
         run: npx playwright test tests/e2e/v1-scenario.spec.ts
+      - name: Save rota-journey test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csb-care-rota-journey-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - id: rota_regression
         name: Test rota permissions, changes, cover and finance controls
         continue-on-error: true
         run: npx playwright test tests/e2e/rota.spec.ts
+      - name: Save rota-regression test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csb-care-rota-regression-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Check all browser test outcomes
         if: always()
         env:
