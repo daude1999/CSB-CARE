@@ -26,6 +26,15 @@ test.describe("Policy assignment", () => {
 
     const form = page.locator('form:has(select[name="scope"])');
     await expect(form).toBeVisible();
+    const assignmentList = page.locator("ul.rows").last();
+    const addCurrentRule = async () => {
+      const before = await assignmentList.locator("li").count();
+      await form.getByRole("button", { name: "Add assignment" }).click();
+      await expect(page.getByRole("status")).toContainText("Assignment added");
+      // The success message can stay in the URL between actions. Wait for the server-rendered rule itself before
+      // changing the next field, so this test cannot submit a stale or still-pending form value.
+      await expect(assignmentList.locator("li")).toHaveCount(before + 1);
+    };
     const chooseFirst = async (name: string) => {
       const select = form.locator(`select[name="${name}"]`);
       const value = await select.locator('option:not([value=""])').first().getAttribute("value");
@@ -34,9 +43,9 @@ test.describe("Policy assignment", () => {
     };
     const add = async (scope: string, field?: string) => {
       await form.locator('select[name="scope"]').selectOption(scope);
+      await expect(form.locator('select[name="scope"]')).toHaveValue(scope);
       if (field) await chooseFirst(field);
-      await form.getByRole("button", { name: "Add assignment" }).click();
-      await expect(page.getByRole("status")).toContainText("Assignment added");
+      await addCurrentRule();
     };
 
     await add("ORG");
@@ -46,6 +55,7 @@ test.describe("Policy assignment", () => {
     await add("JOB_TITLE", "jobTitle");
 
     await form.locator('select[name="scope"]').selectOption("STAFF");
+    await expect(form.locator('select[name="scope"]')).toHaveValue("STAFF");
     const people = form.locator('select[name="staffMemberIds"]');
     const firstPerson = people.locator("option").first();
     const staffId = await firstPerson.getAttribute("value");
@@ -53,10 +63,7 @@ test.describe("Policy assignment", () => {
     expect(staffId).toBeTruthy();
     expect(staffName).toBeTruthy();
     await people.selectOption(staffId!);
-    await form.getByRole("button", { name: "Add assignment" }).click();
-    await expect(page.getByRole("status")).toContainText("Assignment added");
-
-    const assignmentList = page.locator("ul.rows").last();
+    await addCurrentRule();
     const renderedAssignments = await assignmentList.innerText();
     console.log("Rendered policy assignments:", renderedAssignments);
     for (const label of [
