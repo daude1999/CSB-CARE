@@ -11,7 +11,7 @@ async function signIn(page: Page) {
 }
 
 test.describe("Policy assignment", () => {
-  test("a manager assigns a published policy to named staff and sees the rule", async ({ page }) => {
+  test("a manager can target a published policy by organisation, branch, work location, role, job title and person", async ({ page }) => {
     await signIn(page);
 
     // Use the seeded, published safeguarding policy. The test database is rebuilt by Playwright setup.
@@ -26,19 +26,43 @@ test.describe("Policy assignment", () => {
 
     const form = page.locator('form:has(select[name="scope"])');
     await expect(form).toBeVisible();
-    await form.locator('select[name="scope"]').selectOption("STAFF");
+    const chooseFirst = async (name: string) => {
+      const select = form.locator(`select[name="${name}"]`);
+      const value = await select.locator('option:not([value=""])').first().getAttribute("value");
+      expect(value).toBeTruthy();
+      await select.selectOption(value!);
+    };
+    const add = async (scope: string, field?: string) => {
+      await form.locator('select[name="scope"]').selectOption(scope);
+      if (field) await chooseFirst(field);
+      await form.getByRole("button", { name: "Add assignment" }).click();
+      await expect(page.getByRole("status")).toContainText("Assignment added");
+    };
 
+    await add("ORG");
+    await add("BRANCH", "branchId");
+    await add("WORKS_IN_BRANCH", "branchId");
+    await add("ROLE", "orgRole");
+    await add("JOB_TITLE", "jobTitle");
+
+    await form.locator('select[name="scope"]').selectOption("STAFF");
     const people = form.locator('select[name="staffMemberIds"]');
     const firstPerson = people.locator("option").first();
-    await expect(firstPerson).toHaveCount(1);
     const staffId = await firstPerson.getAttribute("value");
     const staffName = (await firstPerson.textContent())?.split(" · ")[0]?.trim();
     expect(staffId).toBeTruthy();
     expect(staffName).toBeTruthy();
     await people.selectOption(staffId!);
-
     await form.getByRole("button", { name: "Add assignment" }).click();
     await expect(page.getByRole("status")).toContainText("Assignment added");
-    await expect(page.getByText(`Named person: ${staffName}`, { exact: true })).toBeVisible();
+
+    for (const label of [
+      "Everyone in the organisation",
+      "Branch:",
+      "Works in branch (incl. cross-branch staff):",
+      "Platform role:",
+      "Job title:",
+      `Named person: ${staffName}`,
+    ]) await expect(page.getByText(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).first()).toBeVisible();
   });
 });
