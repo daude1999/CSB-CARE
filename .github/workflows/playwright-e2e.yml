@@ -75,10 +75,10 @@ jobs:
         run: npx prisma migrate deploy
       - name: Build application
         run: npm run build
-      - id: support_plan
-        name: Test support-plan service-user creation
+      - id: care_coordinator
+        name: Test synthetic support-plan extraction and service-user setup
         continue-on-error: true
-        run: npx playwright test tests/e2e/su-import.spec.ts
+        run: npx playwright test tests/e2e/care-coordinator.spec.ts
       - id: policy_assignment
         name: Test named policy assignment
         continue-on-error: true
@@ -87,17 +87,23 @@ jobs:
         name: Test service-user to published rota journey
         continue-on-error: true
         run: npx playwright test tests/e2e/v1-scenario.spec.ts
+      - id: rota_regression
+        name: Test rota permissions, changes, cover and finance controls
+        continue-on-error: true
+        run: npx playwright test tests/e2e/rota.spec.ts
       - name: Check all browser test outcomes
         if: always()
         env:
-          SUPPORT_PLAN: ${{ steps.support_plan.outcome }}
+          CARE_COORDINATOR: ${{ steps.care_coordinator.outcome }}
           POLICY_ASSIGNMENT: ${{ steps.policy_assignment.outcome }}
           ROTA_JOURNEY: ${{ steps.rota_journey.outcome }}
+          ROTA_REGRESSION: ${{ steps.rota_regression.outcome }}
         run: |
-          echo "Support-plan service-user flow: $SUPPORT_PLAN"
+          echo "Synthetic support-plan extraction and setup: $CARE_COORDINATOR"
           echo "Named policy assignment: $POLICY_ASSIGNMENT"
           echo "Service-user to rota flow: $ROTA_JOURNEY"
-          test "$SUPPORT_PLAN" = "success" && test "$POLICY_ASSIGNMENT" = "success" && test "$ROTA_JOURNEY" = "success"
+          echo "Rota regression suite: $ROTA_REGRESSION"
+          test "$CARE_COORDINATOR" = "success" && test "$POLICY_ASSIGNMENT" = "success" && test "$ROTA_JOURNEY" = "success" && test "$ROTA_REGRESSION" = "success"
       - name: Upload browser traces and screenshots
         if: always()
         uses: actions/upload-artifact@v4
