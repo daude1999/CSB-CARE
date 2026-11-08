@@ -82,7 +82,7 @@ export function NotConfigured({ children = "Not configured" }: { children?: Reac
 }
 
 /** One indicator in the dashboard's summary grid: label, value and a short note on where it comes from. */
-export function Indicator({ label, value, note, href, alert }: { label: string; value: ReactNode; note?: ReactNode; href?: string; alert?: boolean }) {
+export function Indicator({ label, value, note, href, alert, className = "" }: { label: string; value: ReactNode; note?: ReactNode; href?: string; alert?: boolean; className?: string }) {
   const body = (
     <>
       <span className="block text-[12.5px] text-[#5b6478]">{label}</span>
@@ -91,9 +91,9 @@ export function Indicator({ label, value, note, href, alert }: { label: string; 
     </>
   );
   return href ? (
-    <Link href={href} className="block min-w-0 px-4 py-3 no-underline hover:bg-[#f7f5ff] focus-visible:bg-[#f7f5ff]">{body}</Link>
+    <Link href={href} className={`block min-w-0 bg-white px-4 py-3 no-underline hover:bg-[#f7f5ff] focus-visible:bg-[#f7f5ff] ${className}`}>{body}</Link>
   ) : (
-    <div className="min-w-0 px-4 py-3">{body}</div>
+    <div className={`min-w-0 bg-white px-4 py-3 ${className}`}>{body}</div>
   );
 }
 

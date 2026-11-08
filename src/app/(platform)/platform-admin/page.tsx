@@ -19,7 +19,7 @@ export default async function PlatformDashboard() {
         description="Every customer organisation on the platform, how they are licensed and how the platform is running. Figures are counted from live records."
         actions={<Link href="/platform-admin/clients/new" className={pxPrimary}>Add new client</Link>}
       />
-      <section aria-label="Summary indicators" className="mb-5 grid grid-cols-2 divide-x divide-y divide-[#eef0f5] overflow-hidden rounded-[8px] border border-[#e4e7ef] bg-white sm:grid-cols-3 xl:grid-cols-5 [&>*]:border-[#eef0f5]">
+      <section aria-label="Summary indicators" className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-[8px] border border-[#e4e7ef] bg-[#eef0f5] sm:grid-cols-3 xl:grid-cols-5">
         <Indicator label="Client organisations" value={fmtNumber(d.clients.total)} note={`${d.clients.closed} closed`} href="/platform-admin/clients" />
         <Indicator label="Active clients" value={fmtNumber(d.clients.active)} href="/platform-admin/clients?status=ACTIVE" />
         <Indicator label="On trial" value={fmtNumber(d.clients.trial)} href="/platform-admin/renewals" />
@@ -32,7 +32,7 @@ export default async function PlatformDashboard() {
         <Indicator label="Document storage" value={fmtBytes(d.storage.bytes)} note={`${fmtNumber(d.storage.files)} files`} href="/platform-admin/storage" />
         <Indicator label="Failed background jobs" value={fmtNumber(d.jobs.failed24h)} note={`Last 24 hours · ${d.jobs.dead} given up`} alert={d.jobs.dead > 0} href="/platform-admin/jobs" />
         <Indicator label="Support access" value={fmtNumber(d.support.requested + d.support.active)} note={`${d.support.requested} waiting · ${d.support.active} active`} href="/platform-admin/support" />
-        <Indicator label="Platform health" value={<span className={d.health === "Healthy" ? "text-[#17663a]" : "text-[#a11d2b]"}>{d.health}</span>} note="Database and job queue" href="/platform-admin/health" />
+        <Indicator label="Platform health" value={<span className={d.health === "Healthy" ? "text-[#17663a]" : "text-[#a11d2b]"}>{d.health}</span>} note="Database and job queue" href="/platform-admin/health" className="col-span-2 sm:col-span-3" />
       </section>
       <PxPanel title="Recent activity" description="Clients, subscriptions, invitations, password resets, suspensions, permissions and configuration." actions={<Link href="/platform-admin/activity" className="text-[13px]">All activity</Link>}>
         {d.activity.length ? (

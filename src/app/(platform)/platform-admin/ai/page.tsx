@@ -18,7 +18,7 @@ export default async function AiPage() {
   return (
     <>
       <PxHeader title="AI Management" description={`Usage since ${fmtDate(u.since)}. Every AI request is recorded with its client, feature, outcome, tokens and duration only. Allowances per client are set on each client's Modules tab.`} />
-      <section aria-label="AI indicators" className="mb-4 grid grid-cols-2 divide-x divide-y divide-[#eef0f5] overflow-hidden rounded-[8px] border border-[#e4e7ef] bg-white md:grid-cols-4 [&>*]:border-[#eef0f5]">
+      <section aria-label="AI indicators" className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-[8px] border border-[#e4e7ef] bg-[#eef0f5] md:grid-cols-4">
         <Indicator label="AI requests" value={fmtNumber(u.requests)} note={ceiling ? `Platform ceiling ${fmtNumber(ceiling)}` : "No platform ceiling"} />
         <Indicator label="Failed requests" value={fmtNumber(u.failed)} alert={u.failed > 0} />
         <Indicator label="Support plans processed" value={fmtNumber(u.supportPlansProcessed)} note={`${fmtNumber(u.documentsProcessed)} documents`} />
