@@ -56,6 +56,9 @@ test.describe("Policy assignment", () => {
     await form.getByRole("button", { name: "Add assignment" }).click();
     await expect(page.getByRole("status")).toContainText("Assignment added");
 
+    const assignmentList = page.locator("ul.rows").last();
+    const renderedAssignments = await assignmentList.innerText();
+    console.log("Rendered policy assignments:", renderedAssignments);
     for (const label of [
       "Everyone in the organisation",
       "Branch:",
@@ -63,6 +66,6 @@ test.describe("Policy assignment", () => {
       "Platform role:",
       "Job title:",
       `Named person: ${staffName}`,
-    ]) await expect(page.getByText(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))).first()).toBeVisible();
+    ]) expect(renderedAssignments).toContain(label);
   });
 });
