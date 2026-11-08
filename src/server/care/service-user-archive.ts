@@ -54,32 +54,32 @@ async function archiveBlockers(tx: Tx | typeof db, su: { id: string; organisatio
  * Care records that must be kept, so a person who has any of them can only be archived, never deleted. Each entry
  * counts rows for this person; the labels are what the admin sees.
  */
-const DELETE_BLOCKERS: { label: string; count: (tx: Tx | typeof db, id: string) => Promise<number> }[] = [
-  { label: "visits (booked or delivered)", count: (tx, id) => tx.visit.count({ where: { serviceUserId: id } }) },
-  { label: "incidents", count: (tx, id) => tx.incident.count({ where: { serviceUserId: id } }) },
-  { label: "medicines", count: (tx, id) => tx.medication.count({ where: { serviceUserId: id } }) },
-  { label: "medicine application sites", count: (tx, id) => tx.medicationApplicationSite.count({ where: { serviceUserId: id } }) },
-  { label: "body map records", count: (tx, id) => tx.bodyMapObservation.count({ where: { serviceUserId: id } }) },
-  { label: "body map tasks", count: (tx, id) => tx.bodyMapTask.count({ where: { serviceUserId: id } }) },
-  { label: "call notes", count: (tx, id) => tx.callNote.count({ where: { serviceUserId: id } }) },
-  { label: "call note tasks", count: (tx, id) => tx.callNoteTask.count({ where: { serviceUserId: id } }) },
-  { label: "completed forms", count: (tx, id) => tx.formRecordLink.count({ where: { serviceUserId: id } }) },
-  { label: "documents", count: (tx, id) => tx.serviceUserDocument.count({ where: { serviceUserId: id } }) },
-  { label: "care plans past draft", count: (tx, id) => tx.carePlan.count({ where: { serviceUserId: id, status: { not: "DRAFT" } } }) },
-  { label: "approved risk assessments", count: (tx, id) => tx.riskAssessment.count({ where: { serviceUserId: id, OR: [{ status: { not: "DRAFT" } }, { versions: { some: {} } }] } }) },
-  { label: "safeguarding decisions", count: (tx, id) => tx.safeguardingAuthorityDecision.count({ where: { serviceUserId: id } }) },
-  { label: "discharge reviews", count: (tx, id) => tx.dischargeReview.count({ where: { serviceUserId: id } }) },
-  { label: "carer instructions", count: (tx, id) => tx.careInstructionVersion.count({ where: { serviceUserId: id } }) },
-  { label: "missed call cases", count: (tx, id) => tx.missedCallCase.count({ where: { serviceUserId: id } }) },
-  { label: "root cause investigations", count: (tx, id) => tx.rcaInvestigation.count({ where: { serviceUserId: id } }) },
-  { label: "invoice lines", count: (tx, id) => tx.invoiceLine.count({ where: { serviceUserId: id } }) },
-  { label: "carer restrictions", count: (tx, id) => tx.staffRestriction.count({ where: { serviceUserId: id } }) },
-  { label: "readiness rules", count: (tx, id) => tx.readinessScope.count({ where: { serviceUserId: id } }) },
+const DELETE_BLOCKERS: { label: string; one: string; count: (tx: Tx | typeof db, id: string) => Promise<number> }[] = [
+  { label: "visits (booked or delivered)", one: "visit (booked or delivered)", count: (tx, id) => tx.visit.count({ where: { serviceUserId: id } }) },
+  { label: "incidents", one: "incident", count: (tx, id) => tx.incident.count({ where: { serviceUserId: id } }) },
+  { label: "medicines", one: "medicine", count: (tx, id) => tx.medication.count({ where: { serviceUserId: id } }) },
+  { label: "medicine application sites", one: "medicine application site", count: (tx, id) => tx.medicationApplicationSite.count({ where: { serviceUserId: id } }) },
+  { label: "body map records", one: "body map record", count: (tx, id) => tx.bodyMapObservation.count({ where: { serviceUserId: id } }) },
+  { label: "body map tasks", one: "body map task", count: (tx, id) => tx.bodyMapTask.count({ where: { serviceUserId: id } }) },
+  { label: "call notes", one: "call note", count: (tx, id) => tx.callNote.count({ where: { serviceUserId: id } }) },
+  { label: "call note tasks", one: "call note task", count: (tx, id) => tx.callNoteTask.count({ where: { serviceUserId: id } }) },
+  { label: "completed forms", one: "completed form", count: (tx, id) => tx.formRecordLink.count({ where: { serviceUserId: id } }) },
+  { label: "documents", one: "document", count: (tx, id) => tx.serviceUserDocument.count({ where: { serviceUserId: id } }) },
+  { label: "care plans past draft", one: "care plan past draft", count: (tx, id) => tx.carePlan.count({ where: { serviceUserId: id, status: { not: "DRAFT" } } }) },
+  { label: "approved risk assessments", one: "approved risk assessment", count: (tx, id) => tx.riskAssessment.count({ where: { serviceUserId: id, OR: [{ status: { not: "DRAFT" } }, { versions: { some: {} } }] } }) },
+  { label: "safeguarding decisions", one: "safeguarding decision", count: (tx, id) => tx.safeguardingAuthorityDecision.count({ where: { serviceUserId: id } }) },
+  { label: "discharge reviews", one: "discharge review", count: (tx, id) => tx.dischargeReview.count({ where: { serviceUserId: id } }) },
+  { label: "carer instructions", one: "carer instruction", count: (tx, id) => tx.careInstructionVersion.count({ where: { serviceUserId: id } }) },
+  { label: "missed call cases", one: "missed call case", count: (tx, id) => tx.missedCallCase.count({ where: { serviceUserId: id } }) },
+  { label: "root cause investigations", one: "root cause investigation", count: (tx, id) => tx.rcaInvestigation.count({ where: { serviceUserId: id } }) },
+  { label: "invoice lines", one: "invoice line", count: (tx, id) => tx.invoiceLine.count({ where: { serviceUserId: id } }) },
+  { label: "carer restrictions", one: "carer restriction", count: (tx, id) => tx.staffRestriction.count({ where: { serviceUserId: id } }) },
+  { label: "readiness rules", one: "readiness rule", count: (tx, id) => tx.readinessScope.count({ where: { serviceUserId: id } }) },
 ];
 
 async function deleteBlockers(tx: Tx | typeof db, id: string) {
   const counts = await Promise.all(DELETE_BLOCKERS.map((b) => b.count(tx, id)));
-  return DELETE_BLOCKERS.map((b, i) => ({ label: b.label, count: counts[i]! })).filter((b) => b.count > 0);
+  return DELETE_BLOCKERS.map((b, i) => ({ label: b.label, count: counts[i]!, text: `${counts[i]} ${counts[i] === 1 ? b.one : b.label}` })).filter((b) => b.count > 0);
 }
 
 const referenceOf = (su: { csbReference: string | null; reference: string }) => su.csbReference ?? su.reference;
@@ -158,7 +158,7 @@ export async function deleteServiceUser(ctx: Ctx, id: string, input: { confirm: 
       if (!su.archivedAt) throw new ValidationError("Archive this person first. Only an archived record can be deleted.");
       if (input.confirm.trim().toUpperCase() !== reference.toUpperCase()) throw new ValidationError(`To confirm, type the CSB reference exactly: ${reference}`);
       const blockers = await deleteBlockers(tx, id);
-      if (blockers.length) throw new ValidationError(`This person has care records that must be kept (${blockers.map((b) => `${b.count} ${b.label}`).join(", ")}), so they can't be deleted. Keep them archived.`);
+      if (blockers.length) throw new ValidationError(`This person has care records that must be kept (${blockers.map((b) => b.text).join(", ")}), so they can't be deleted. Keep them archived.`);
       // Keep the documents a Care Coordinator intake was built from: the intake stays, without the link to the person.
       const intakes = await tx.careIntake.updateMany({ where: { organisationId: scope.organisationId, serviceUserId: id }, data: { serviceUserId: null } });
       await tx.rotaBuild.updateMany({ where: { organisationId: scope.organisationId, serviceUserId: id }, data: { serviceUserId: null } });

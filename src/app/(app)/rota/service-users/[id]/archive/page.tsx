@@ -85,7 +85,7 @@ export default async function ArchiveServiceUserPage({ params, searchParams }: {
           ) : st.deleteBlockers.length ? (
             <div role="status" className="mt-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-3 text-[14px] text-slate-800" data-testid="delete-blockers">
               <p className="font-semibold">{name} has care records that must be kept, so they can&apos;t be deleted:</p>
-              <ul className="mt-1 list-disc pl-5">{st.deleteBlockers.map((b) => <li key={b.label}>{b.count} {b.label}</li>)}</ul>
+              <ul className="mt-1 list-disc pl-5">{st.deleteBlockers.map((b) => <li key={b.label}>{b.text}</li>)}</ul>
               <p className="mt-2">Keep them archived. The record stays hidden from the active lists.</p>
             </div>
           ) : (
