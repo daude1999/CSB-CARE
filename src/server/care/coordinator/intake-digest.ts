@@ -98,10 +98,10 @@ export function digestText(d: IntakeDigest): string {
     other.length ? `Kept separate (not council-funded): ${other.map((v) => `${v.startTime} ${v.durationMin} min, ${v.fundedBy === "CARERS_SERVICE" ? "carers service / family" : "other funding"}`).join("; ")}.` : "",
     `Council visits add up to ${mins(d.hours.councilMinutesPerWeek)} a week. ${d.hours.message}`,
     `Care plan sections with content: ${d.carePlan.filter((c) => c.entries).map((c) => c.section).join(", ") || "none"}.${d.missingCarePlanSections.length ? ` Nothing found yet for: ${d.missingCarePlanSections.join(", ")}.` : ""}`,
-    d.risks.length ? `Risk drafts: ${d.risks.map((r) => r.title).join("; ")} (risk levels are set by a person, not read in).` : "No risk drafts were proposed.",
+    d.risks.length ? `Risks found: ${d.risks.map((r) => r.title).join("; ")} (saved with their source; a level the plan does not state is listed to set).` : "No risks were found.",
     d.conflicts.length ? `Conflicts to resolve: ${d.conflicts.slice(0, 4).map((c) => `${c.field}: ${c.conflict}`).join(" | ")}` : "",
     d.findings.filter((f) => f.kind !== "UNREADABLE").length ? `Flags and missing information: ${d.findings.filter((f) => f.kind !== "UNREADABLE").slice(0, 5).map((f) => f.text).join(" | ")}` : "",
-    "Nothing has been approved, saved to a service user's record or put on the rota. Check each fact against its page, then press Approve & Save to CRM.",
+    "CSB AI sets up the records from these facts by itself; the Setup summary shows what was saved and anything that needs a person.",
   ];
   return lines.filter(Boolean).join("\n\n");
 }

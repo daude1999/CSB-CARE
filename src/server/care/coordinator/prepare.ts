@@ -260,7 +260,7 @@ export async function proposeIntakeRota(ctx: Ctx, intakeId: string, weeks = 2) {
 }
 
 /** Unpublished proposed visits from this week (or next, late on Sunday) for the person's visit templates. */
-async function proposeRotaFor(ctx: Ctx, serviceUserId: string, weeks: number): Promise<PrepareReport["rota"]> {
+export async function proposeRotaFor(ctx: Ctx, serviceUserId: string, weeks: number): Promise<PrepareReport["rota"]> {
   const weekStart = mondayOf(londonDate());
   const templates = await db.visitTemplate.count({ where: { serviceUserId, enabled: true } });
   if (!templates) return null;

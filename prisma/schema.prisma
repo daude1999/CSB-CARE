@@ -1819,6 +1819,11 @@ model CarePlan {
   supersededAt     DateTime?
   /// The Care Summary a manager started this review from, if any. The summary text is never copied into the plan.
   sourceSummaryId  String?
+  /// MANUAL (written in CSB) or DOCUMENT (imported from a council support plan by CSB AI).
+  origin           String                    @default("MANUAL")
+  /// The Care Coordinator intake it was imported from, and which documents and pages.
+  sourceIntakeId   String?
+  sourceNote       String?
   sections         CarePlanSection[]
   acknowledgements CarePlanAcknowledgement[]
 
@@ -1889,6 +1894,11 @@ model RiskAssessment {
   /// What still has to be done to reduce the risk (not the standing controls), and who is responsible for it.
   requiredActions   String?
   responsiblePerson String?
+  /// MANUAL, DOCUMENT (a completed assessment in a source document) or AI_INFERRED (CSB AI wrote it from the
+  /// document's narrative: assessment information, not a completed clinical assessment).
+  origin            String                  @default("MANUAL")
+  sourceIntakeId    String?
+  sourceNote        String?
   versions          RiskAssessmentVersion[]
 
   @@index([organisationId, serviceUserId])
@@ -4065,6 +4075,15 @@ model CareIntakeReviewItem {
   resolvedById   String?
   resolvedAt     DateTime?
   resolution     String?
+  /// Automatic setup (7 Nov 2026): INFO | FOLLOW_UP | REVIEW | URGENT. Null for items made before it, which take their
+  /// category's usual severity (exceptionSeverity in coordinator-triage.ts).
+  severity       String?
+  /// A short heading, e.g. "Two dates of birth". Null for older items (the category label is shown instead).
+  title          String?
+  /// The profile tab where the record to correct lives (details, people, package, care-plans, risks, template...).
+  recordTab      String?
+  /// True when CSB AI raised it during automatic setup (the person who started the intake is createdById).
+  automated      Boolean     @default(false)
 
   @@unique([factId])
   @@index([organisationId, serviceUserId, status])
@@ -4098,6 +4117,16 @@ model CareIntake {
   cancelReason     String?
   /// Who confirmed that a possible match already on record is a different person (null = not confirmed).
   notDuplicateById String?
+  /// Automatic setup by CSB AI (7 Nov 2026): PROCESSING | READY | NEEDS_ATTENTION | FAILED, null when it never ran.
+  setupStatus      String?
+  /// The last stage that finished (TRIAGE, IDENTITY, RECORDS, ROTA, EXCEPTIONS, VERIFIED), so a retry carries on.
+  setupStage       String?
+  setupStartedAt   DateTime?
+  setupFinishedAt  DateTime?
+  /// Who started the automatic setup (the person whose upload or "Run automatic setup" began it).
+  setupById        String?
+  /// The read-back summary: counts from the database, the sections, the rota, identity questions and failures.
+  setupReport      Json?
   lockVersion      Int                  @default(1)
   documents        CareIntakeDocument[]
   facts            CareIntakeFact[]
@@ -4192,6 +4221,9 @@ model CareIntakeFact {
   assignedToId     String?
   decidedById      String?
   decidedAt        DateTime?
+  /// HUMAN: decidedById made the decision. AUTOMATION: CSB AI decided it during automatic setup that decidedById
+  /// started; it is never shown as that person's review.
+  decisionSource   String     @default("HUMAN")
   editedById       String?
   editedAt         DateTime?
   appliedAt        DateTime?

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
   DRAFT: { label: "Draft", tone: "slate" },
-  IN_REVIEW: { label: "Awaiting approval", tone: "amber" },
+  IN_REVIEW: { label: "In review", tone: "amber" },
   ACTIVE: { label: "In use", tone: "green" },
   SUPERSEDED: { label: "Replaced", tone: "slate" },
 };
@@ -42,7 +42,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
       <PageHeader
         title={`Care plan · ${suName(su)}`}
         back="/rota/care-plans"
-        subtitle="The plan carers follow on every visit. Changes are made in a new draft and only reach carers once a second person approves them."
+        subtitle="The plan carers follow on every visit. Changes are made in a new version and reach carers when it is put in use. Every earlier version is kept."
         actions={<><Link href={`/rota/service-users/${su.id}`} className="btn-secondary">Person’s record</Link><Link href={`/rota/risks?su=${su.id}`} className="btn-secondary">Risk assessments ({riskCount})</Link></>}
         tabs={<SegmentNav label="Care plan views" items={[{ href: base, label: "Care plan", active: sp.view !== "summary" }, { href: `${base}?view=summary`, label: "Care Summary and recent records", active: sp.view === "summary" }]} />}
       />
@@ -72,10 +72,11 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 </Card>
               ))}
               <div className="panel sticky bottom-0 flex flex-wrap items-center gap-2">
-                <button className="btn-primary" name="then" value="save">Save draft</button>
-                <button className="btn-secondary" name="then" value="submit">Save and send for approval</button>
+                <button className="btn-primary" name="then" value="use">Save and put in use</button>
+                <button className="btn-secondary" name="then" value="save">Save draft</button>
+                <button className="btn-secondary" name="then" value="submit">Send for review (optional)</button>
                 <Link href={base} className="btn-secondary">Stop editing</Link>
-                <span className="text-[12.5px] text-slate-500">Every section must be filled in before it can be sent for approval.</span>
+                <span className="text-[12.5px] text-slate-500">Every section must be filled in before the plan is put in use. No second approval is needed.</span>
               </div>
             </form>
           ) : (
@@ -84,10 +85,11 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 {shown.summary ? <p className="whitespace-pre-line text-[14.5px]">{shown.summary}</p> : <p className="text-[14px] text-slate-500">No summary yet.</p>}
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[13px] text-slate-600 md:grid-cols-4">
                   <div><dt className="font-medium text-slate-700">Written by</dt><dd>{who(shown.createdById)}</dd></div>
-                  <div><dt className="font-medium text-slate-700">Sent for approval</dt><dd>{shown.submittedAt ? `${who(shown.submittedById)}, ${fmtDate(shown.submittedAt)}` : "—"}</dd></div>
-                  <div><dt className="font-medium text-slate-700">Approved</dt><dd>{shown.approvedAt ? `${who(shown.approvedById)}, ${fmtDate(shown.approvedAt)}` : "—"}</dd></div>
+                  <div><dt className="font-medium text-slate-700">{shown.origin === "DOCUMENT" ? "Imported" : "Saved by"}</dt><dd>{shown.origin === "DOCUMENT" ? `CSB AI (started by ${who(shown.createdById)})` : shown.submittedAt ? `${who(shown.submittedById)}, ${fmtDate(shown.submittedAt)}` : "—"}</dd></div>
+                  <div><dt className="font-medium text-slate-700">In use from</dt><dd>{shown.approvedAt ? `${fmtDate(shown.approvedAt)}${shown.approvedById && shown.approvedById !== shown.submittedById ? `, approved by ${who(shown.approvedById)}` : ""}` : "—"}</dd></div>
                   <div><dt className="font-medium text-slate-700">Review by</dt><dd>{shown.reviewDue ? fmtLondonDate(fromDbDate(shown.reviewDue)) : "—"}</dd></div>
                 </dl>
+                {shown.origin === "DOCUMENT" ? <p className="mt-2 rounded border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12.5px] text-slate-700"><span className="font-medium">Imported from a council support plan.</span> {shown.sourceNote ?? ""} The wording is CSB AI&apos;s summary of the council&apos;s plan, and each part names the page it came from. Anything marked &ldquo;To clarify&rdquo; is not a council instruction. Staff can change it by starting a new version.</p> : null}
                 {shown.sourceSummaryId ? <p className="mt-2 text-[12.5px] text-slate-600">This version was started from a <Link href={`${base}?view=summary&summary=${shown.sourceSummaryId}`}>Care Summary</Link>. Its text was written by staff, not copied from the summary.</p> : null}
               </Card>
               {shown.sections.map((s) => (
@@ -116,6 +118,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 {canEdit ? (
                   <div className="flex flex-wrap gap-2">
                     {!editing ? <Link href={`${base}?edit=1`} className="btn-primary">Continue editing</Link> : null}
+                    {!editing ? <form action={saveDraftAction}><input type="hidden" name="back" value={base} /><input type="hidden" name="done" value={base} /><input type="hidden" name="planId" value={open.id} /><input type="hidden" name="fingerprint" value={draftFingerprint(open, open.sections)} /><input type="hidden" name="summary" value={open.summary ?? ""} /><input type="hidden" name="reviewDue" value={open.reviewDue ? fromDbDate(open.reviewDue) : ""} /><button className="btn-secondary" name="then" value="use">Put in use</button></form> : null}
                     <form action={discardDraftAction}><input type="hidden" name="back" value={base} /><input type="hidden" name="planId" value={open.id} /><button className="btn-secondary">Discard draft</button></form>
                   </div>
                 ) : null}
@@ -123,14 +126,14 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
             ) : null}
             {open?.status === "IN_REVIEW" ? (
               <div className="space-y-3 text-[14px]">
-                <p>Version {open.version} was sent for approval by {who(open.submittedById)}{open.submittedAt ? ` on ${fmtDate(open.submittedAt)}` : ""}.{shown?.id !== open.id ? <> <Link href={`${base}?v=${open.version}`}>Read it</Link>.</> : null}</p>
+                <p>Version {open.version} was sent for review by {who(open.submittedById)}{open.submittedAt ? ` on ${fmtDate(open.submittedAt)}` : ""}.{shown?.id !== open.id ? <> <Link href={`${base}?v=${open.version}`}>Read it</Link>.</> : null}</p>
                 {canApprove && open.createdById !== ctx.userId && open.submittedById !== ctx.userId ? (
                   <form action={approvePlanAction}>
                     <input type="hidden" name="back" value={base} />
                     <input type="hidden" name="planId" value={open.id} />
                     <button className="btn-primary">Approve and put in use</button>
                   </form>
-                ) : <p className="text-[13px] text-slate-600">{canApprove ? "You wrote or sent this version, so another manager must approve it." : "A care manager approves care plans."}</p>}
+                ) : <p className="text-[13px] text-slate-600">{canApprove ? "You wrote or sent this version for review, so another manager reviews it." : "A care manager reviews it."}</p>}
                 {canEdit ? (
                   <form action={returnPlanAction} className="space-y-1.5">
                     <input type="hidden" name="back" value={base} />
@@ -165,7 +168,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 ))}
               </ul>
             ) : <Empty>No versions yet.</Empty>}
-            <p className="mt-2 text-[12.5px] text-slate-500">Approved and replaced versions cannot be changed or deleted.</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">Versions in use or replaced cannot be changed or deleted.</p>
           </Card>
         </aside>
       </div>

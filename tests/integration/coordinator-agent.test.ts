@@ -168,7 +168,7 @@ describe("support plan attached in the chat (fictional four-visit council plan)"
     expect(r.summary).toMatch(/20:00 for 60 min/);
     expect(r.summary).toMatch(/1365 minutes \(22 h 45 min\) a week/);
     expect(r.summary).toMatch(/Kept separate \(not council-funded\): 11:00 60 min, carers service/);
-    expect(r.summary).toMatch(/Nothing has been approved/);
+    expect(r.summary).toMatch(/Care plan version 1 imported and in use/);
     const upload = await db.auditLog.findFirstOrThrow({ where: { organisationId: orgId, action: "coordinator.document.uploaded", entityId: intakeId } });
     expect(upload.actorId).toBe(c.userId);
   });
@@ -222,7 +222,7 @@ describe("support plan attached in the chat (fictional four-visit council plan)"
     const r = await askCsbCoordinator({ question: "I've uploaded this council support plan. Please process everything and prepare the service user, care plan, risks, care package and rota for review.", intakeId, path: `/rota/coordinator/${intakeId}`, history: [], attached: ["Council support plan.pdf"] });
     expect(r.mode).toBe("ai");
     expect(r.answer).toMatch(/1365 minutes a week/);
-    expect(r.answer).toMatch(/fact\(s\) still need the coordinator's check/);
+    expect(r.answer).toMatch(/nothing needs approving/);
     expect(r.links.some((l) => l.href.startsWith(`/rota/coordinator/${intakeId}`))).toBe(true);
     expect(seen[0]!.message).toMatch(/just attached 1 document/);
     // Nothing was read again (already READ), approved or published.

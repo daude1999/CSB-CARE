@@ -213,7 +213,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                           <div><dt className="inline">Uploaded: </dt><dd className="inline">{fmtDate(v.uploadedAt, true)} · {names.get(v.uploadedById) ?? "Former member"}</dd></div>
                           <div><dt className="inline">Effective from: </dt><dd className="inline">{v.effectiveFrom ? fmtDate(v.effectiveFrom) : "Not given"}</dd></div>
                           <div><dt className="inline">Approved: </dt><dd className="inline">{v.approvedAt ? `${fmtDate(v.approvedAt, true)}${v.approvedById ? ` · ${names.get(v.approvedById) ?? "Former member"}` : ""}` : "Not yet"}</dd></div>
-                          {v.intakeId ? <div><dt className="inline">From: </dt><dd className="inline"><Link href={`/rota/coordinator/${v.intakeId}?step=review`}>Care Coordinator intake</Link></dd></div> : null}
+                          {v.intakeId ? <div><dt className="inline">From: </dt><dd className="inline"><Link href={`/rota/coordinator/${v.intakeId}?step=facts`}>Care Coordinator intake</Link></dd></div> : null}
                         </dl>
                         {v.changeNote ? <p className="mt-1 text-[12.5px] text-slate-600">{v.changeNote}</p> : null}
                         {canManage && !detail!.doc.archivedAt && (v.status === "PENDING_REVIEW" || v.status === "CURRENT") ? (
@@ -244,7 +244,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                         <table className="mt-1 w-full text-left text-[13px]"><thead className="text-slate-500"><tr><th className="py-1 pr-2">Detail</th><th className="py-1 pr-2">{comparison.previous?.label}</th><th className="py-1">{comparison.version.label}</th></tr></thead>
                           <tbody>{comparison.fields.map((f) => <tr key={f.label} className={`border-t border-slate-200 ${f.changed ? "font-medium" : "text-slate-600"}`}><td className="py-1 pr-2">{f.label}{f.changed ? " (changed)" : ""}</td><td className="py-1 pr-2">{f.previous ?? "Not given"}</td><td className="py-1">{f.this ?? "Not given"}</td></tr>)}</tbody></table>
                       ) : null}
-                      {comparison.version.intakeId ? <p className="mt-1 text-[13px]">The content was compared detail by detail in its <Link href={`/rota/coordinator/${comparison.version.intakeId}?step=review`}>Care Coordinator intake</Link> (What the revised plan changes).</p> : <p className="mt-1 text-[13px] text-slate-600">This version was uploaded by hand, so its content was not compared automatically. Open both files to compare them.</p>}
+                      {comparison.version.intakeId ? <p className="mt-1 text-[13px]">The content was compared detail by detail in its <Link href={`/rota/coordinator/${comparison.version.intakeId}?step=facts`}>Care Coordinator intake</Link> (What the revised plan changes).</p> : <p className="mt-1 text-[13px] text-slate-600">This version was uploaded by hand, so its content was not compared automatically. Open both files to compare them.</p>}
                     </div>
                   ) : null}
                 </div>

@@ -2,7 +2,7 @@ import Link from "@/components/link";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { orNotFound } from "@/server/auth/page-guard";
-import { RISK_TYPE_LABEL, REVIEW_STATE_LABEL, getRisk, reviewState } from "@/server/care/risks";
+import { RISK_ORIGIN_LABEL, RISK_TYPE_LABEL, REVIEW_STATE_LABEL, getRisk, reviewState } from "@/server/care/risks";
 import { memberNames, suName } from "@/server/rota/queries";
 import { fmtLondonDate, fromDbDate } from "@/lib/london";
 import { approveRiskDraftAction, archiveRiskAction, reviewRiskAction } from "@/app/rota-actions";
@@ -29,7 +29,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
   const shown = old ?? r;
   const state = r.status === "ACTIVE" ? reviewState(r.reviewDue) : null;
   const draft = r.status === "DRAFT";
-  const canApproveDraft = draft && hasOrgPermission(ctx, "care.plan.approve");
+  const canApproveDraft = draft && hasOrgPermission(ctx, "care.plan.edit");
 
   return (
     <>
@@ -39,7 +39,12 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
         <div className="min-w-0 space-y-3">
           {draft ? (
             <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
-              This is a draft written from the person&apos;s documents. Carers do not see it and it is not part of the live risk register. A manager other than the person who drafted it checks every field against the documents and approves it.
+              This is a draft written from the person&apos;s documents before drafts were retired. Carers do not see it yet. Check the fields against the documents and put it in use; no second person is needed.
+            </p>
+          ) : null}
+          {r.origin !== "MANUAL" && !old ? (
+            <p role="note" className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[14px] text-slate-700">
+              <span className="font-medium">{RISK_ORIGIN_LABEL[r.origin] ?? r.origin}.</span> Saved by CSB AI from {r.sourceNote ?? "the person's documents"}.{r.origin === "AI_INFERRED" ? " CSB AI wrote it from what the support plan says; the plan did not contain a completed assessment for it. Check the level and controls at the next review." : " The council's own assessment, saved as written."} Edit it with Review this assessment.
             </p>
           ) : null}
           {old ? (
@@ -47,7 +52,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
               You are reading version {old.version}, saved {fmtDate(old.changedAt, true)}. It is kept for the record and cannot be changed. <Link href={back}>Back to the current version</Link>
             </p>
           ) : null}
-          <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "DRAFT" ? <Badge tone="amber">Draft, not approved</Badge> : shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
+          <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "DRAFT" ? <Badge tone="amber">Draft, not in use</Badge> : !old && r.origin === "AI_INFERRED" ? <Badge tone="slate">AI-generated</Badge> : shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
             {old && old.title !== r.title ? <p className="mb-2 text-[14px]"><span className="font-medium">Title then:</span> {old.title}</p> : null}
             <h3 className="text-[13.5px] font-semibold">Hazards</h3>
             <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.hazards}</p>
@@ -62,14 +67,14 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
             </p>
           </Card>
           {canApproveDraft && !old ? (
-            <Card title="Check and approve this draft">
-              <p className="mb-2 text-[13px] text-slate-600">Correct anything that does not match the documents or your own assessment, then approve. You take responsibility for the controls and the risk level. The person who drafted it cannot approve it.</p>
+            <Card title="Check and put in use">
+              <p className="mb-2 text-[13px] text-slate-600">Correct anything that does not match the documents or your own assessment, then put it in use. Your name is recorded on the version.</p>
               <form action={approveRiskDraftAction} className="space-y-3">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="riskId" value={r.id} />
                 <input type="hidden" name="version" value={r.version} />
                 <RiskFields risk={r} />
-                <button className="btn-primary">Approve and make live</button>
+                <button className="btn-primary">Put in use</button>
               </form>
             </Card>
           ) : null}

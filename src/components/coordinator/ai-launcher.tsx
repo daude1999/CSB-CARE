@@ -167,10 +167,10 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
       }
       setMessages((m) => [...m,
         { role: "user", content: "Attached: " + result.filename },
-        { role: "assistant", content: head + (fresh || result.alreadyOnIntake ? "\n\n" + result.summary : "\n\nNothing has been approved, applied to the service-user record or published to the rota."), links: [review] },
+        { role: "assistant", content: head + (fresh || result.alreadyOnIntake ? "\n\n" + result.summary : "\n\nNothing was published to the rota or sent to carers."), links: [review] },
       ]);
     } catch (e) {
-      setError(e instanceof Error ? e.message.slice(0, 250) : "The document could not be saved. Nothing has been approved.");
+      setError(e instanceof Error ? e.message.slice(0, 250) : "The document could not be saved. Nothing was changed.");
     } finally {
       setUploading(false);
     }
@@ -255,7 +255,7 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Shortcuts open existing screens. Attachments create draft intakes; nothing is approved or published automatically.</p>
+                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Shortcuts open existing screens. Attachments are read and set up by CSB AI; visits are never published automatically.</p>
               </nav>
             ) : null}
             {sending ? (
@@ -315,7 +315,7 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
                 <PaperPlaneRight size={18} weight="fill" aria-hidden="true" />
               </button>
             </div>
-            <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send; attach documents with the paperclip. A person approves every change.</p>
+            <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send; attach documents with the paperclip. Nothing is published or sent to carers automatically.</p>
           </form>
         </section>
       ) : (

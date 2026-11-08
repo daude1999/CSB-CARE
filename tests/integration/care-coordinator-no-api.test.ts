@@ -6,8 +6,6 @@ import { setAiProviderForTests } from "@/server/ai";
 import { addDocuments, approveVerified, createIntake, decideFact, getIntake, readingMode } from "@/server/care/coordinator/intake";
 import { approveAndSave } from "@/server/care/coordinator/apply";
 import { activateCare, createIntakeRota, previewIntakeRota, rotaReadiness } from "@/server/care/coordinator/rota";
-import { approvePlan, submitPlan } from "@/server/care/care-plans";
-import { approveRiskDraft } from "@/server/care/risks";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 import { supportPlanCardsPdf } from "../support/coordinator-fixture";
 
@@ -95,9 +93,9 @@ describe("No-API Care Coordinator: card-layout council support plan", () => {
     expect(await db.careIntakeReviewItem.count({ where: { serviceUserId: suId, category: "PACKAGE_HOURS" } })).toBe(0);
     expect(await db.careIntakeReviewItem.count({ where: { serviceUserId: suId, category: "MISSING_INFO" } })).toBe(1); // the family shopping visit
     const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-    expect([plan.status, plan.sections.length]).toEqual(["DRAFT", 9]);
+    expect([plan.status, plan.origin, plan.sections.length]).toEqual(["ACTIVE", "DOCUMENT", 9]);
     expect(plan.sections.every((s) => !/Not documented/.test(s.body))).toBe(true);
-    expect((await db.riskAssessment.findMany({ where: { serviceUserId: suId } })).map((r) => r.status)).toEqual(["DRAFT"]);
+    expect((await db.riskAssessment.findMany({ where: { serviceUserId: suId } })).map((r) => r.status)).toEqual(["ACTIVE"]);
     expect(await db.visit.count({ where: { serviceUserId: suId } })).toBe(0); // nothing on the rota yet
 
     const counts = () => Promise.all([db.serviceUser.count({ where: { firstName: "Bea", lastName: "Example" } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } }), db.serviceUserDocument.count({ where: { serviceUserId: suId } }), db.serviceUserExternalReference.count({ where: { serviceUserId: suId } })]);
@@ -107,14 +105,8 @@ describe("No-API Care Coordinator: card-layout council support plan", () => {
     expect(await counts()).toEqual(before);
   });
 
-  it("prepares an unpublished rota only after a different person approves the plan and the risk", async () => {
+  it("prepares an unpublished rota with no second approver: the imported plan and risk are already in use", async () => {
     const m = await manager();
-    expect((await rotaReadiness(m, intakeId)).ready).toBe(false);
-    const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    await submitPlan(await coordinator(), plan.id);
-    await approvePlan(await secondManager(), plan.id);
-    const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    await approveRiskDraft(await secondManager(), risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: "Frame within reach.", level: "MEDIUM", reviewDue: addDays(londonDate(), 30) });
     expect((await rotaReadiness(m, intakeId)).ready).toBe(true);
     await activateCare(m, intakeId);
     const week = addDays(mondayOf(londonDate()), 14);

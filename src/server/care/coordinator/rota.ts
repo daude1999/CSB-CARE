@@ -29,7 +29,7 @@ export async function rotaReadiness(ctx: Ctx, intakeId: string) {
   const done = (k: string) => sections.find((s) => s.section === k)?.applyStatus === "DONE";
   const [activePlan, planInReview, draftRisks, activeRisks, templates, pkg] = su
     ? await Promise.all([
-        db.carePlan.findFirst({ where: { serviceUserId: su.id, status: "ACTIVE" }, select: { id: true, version: true } }),
+        db.carePlan.findFirst({ where: { serviceUserId: su.id, status: "ACTIVE" }, select: { id: true, version: true, origin: true } }),
         db.carePlan.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "IN_REVIEW"] } }, select: { id: true, status: true, version: true } }),
         db.riskAssessment.count({ where: { serviceUserId: su.id, status: "DRAFT" } }),
         db.riskAssessment.count({ where: { serviceUserId: su.id, status: "ACTIVE" } }),
@@ -41,8 +41,8 @@ export async function rotaReadiness(ctx: Ctx, intakeId: string) {
     { key: "person", label: "Person on record", ok: !!su && su.status !== "ENDED", detail: su ? `Status: ${su.status.toLowerCase()}` : "Save Personal details first" },
     { key: "package", label: "Care package saved", ok: !!pkg && (done("PACKAGE") || intake.mode !== "NEW"), detail: pkg ? "Active package on record" : "Save the approved care package" },
     { key: "visits", label: "Repeating visits saved", ok: templates > 0 && (done("VISITS") || intake.mode !== "NEW"), detail: `${templates} active template${templates === 1 ? "" : "s"}` },
-    { key: "careplan", label: "Care plan approved by a different person", ok: !!activePlan, detail: activePlan ? `Version ${activePlan.version} is approved` : planInReview ? `Version ${planInReview.version} is ${planInReview.status === "DRAFT" ? "a draft: submit it on the Care tab" : "waiting for approval"}` : "No approved care plan" },
-    { key: "risks", label: "Risk drafts reviewed by an assessor", ok: draftRisks === 0 && activeRisks > 0, detail: draftRisks ? `${draftRisks} draft${draftRisks === 1 ? "" : "s"} still waiting for review` : activeRisks ? `${activeRisks} active assessment${activeRisks === 1 ? "" : "s"}` : "No active risk assessment" },
+    { key: "careplan", label: "Care plan in use", ok: !!activePlan, detail: activePlan ? `Version ${activePlan.version} is in use${activePlan.origin === "DOCUMENT" ? " (imported from the council support plan)" : ""}` : planInReview ? `Version ${planInReview.version} is ${planInReview.status === "DRAFT" ? "a draft: put it in use on the Care Plan tab" : "in review"}` : "No care plan in use" },
+    { key: "risks", label: "Risk assessments in use", ok: draftRisks === 0 && activeRisks > 0, detail: draftRisks ? `${draftRisks} older draft${draftRisks === 1 ? "" : "s"} not in use yet` : activeRisks ? `${activeRisks} active assessment${activeRisks === 1 ? "" : "s"}` : "No active risk assessment" },
   ];
   const riskDraftList = su ? await db.riskAssessment.findMany({ where: { serviceUserId: su.id, status: "DRAFT" }, select: { id: true, title: true, level: true, assessedById: true }, orderBy: { title: "asc" } }) : [];
   return { intake, serviceUser: su, gates, riskDrafts: riskDraftList.map((r) => ({ ...r, mine: r.assessedById === ctx.userId })), carePlanId: (planInReview ?? activePlan)?.id ?? null, ready: gates.every((g) => g.ok), active: su?.status === "ACTIVE", canBuild: hasOrgPermission(ctx, "care.plan.approve") && hasOrgPermission(ctx, "rota.build") };
@@ -60,7 +60,7 @@ export async function activateCare(ctx: Ctx, intakeId: string) {
   const r = await requireReady(ctx, intakeId);
   if (r.active) return { already: true };
   if (r.serviceUser!.status !== "ASSESSMENT" && r.serviceUser!.status !== "ENQUIRY") throw new ConflictError(`Care is ${r.serviceUser!.status.toLowerCase()}; change it on the person's profile`);
-  await setServiceUserStatus(ctx, r.serviceUser!.id, "ACTIVE", `Care Coordinator intake ${r.intake.reference}: care plan approved and risks reviewed`);
+  await setServiceUserStatus(ctx, r.serviceUser!.id, "ACTIVE", `Care Coordinator intake ${r.intake.reference}: care plan and risk assessments in use`);
   const scope = await rotaScope(ctx, "serviceUser.edit");
   await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "coordinator.care.activated", entityType: "CareIntake", entityId: intakeId, data: { serviceUserId: r.serviceUser!.id } });
   return { already: false };
