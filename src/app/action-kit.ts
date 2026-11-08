@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { requireCtx } from "@/server/auth/current";
 import type { Ctx } from "@/server/auth/rbac";
 import { AiUnavailableError } from "@/server/ai/provider";
+import { runForTenant } from "@/server/ai/metering";
 
 /** Shared plumbing for Server Action files: read FormData, run one domain call with the session's ctx, redirect with ?ok= or ?error=. */
 export function str(fd: FormData, k: string) {
@@ -63,7 +64,7 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
   let target: string;
   try {
     const ctx = await requireCtx();
-    const next = await fn(ctx);
+    const next = await runForTenant(ctx.organisationId, () => fn(ctx));
     target = typeof next === "object" ? withParam(next.to ?? back, "ok", next.ok) : withParam(next ?? back, "ok", ok);
   } catch (e) {
     if (isRedirectError(e)) throw e;
@@ -89,7 +90,7 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
 export async function handleData<T>(fn: (ctx: Ctx) => Promise<T>, opts: { revalidate?: boolean } = {}): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   try {
     const ctx = await requireCtx();
-    const data = await fn(ctx);
+    const data = await runForTenant(ctx.organisationId, () => fn(ctx));
     if (opts.revalidate) revalidatePath("/", "layout");
     return { ok: true, data };
   } catch (e) {

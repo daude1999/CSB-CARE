@@ -1,3 +1,4 @@
+import { runForTenant } from "@/server/ai/metering";
 import type { BackgroundJob, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -116,7 +117,9 @@ export async function runClaimed(job: BackgroundJob, handlers: Record<string, Jo
     return "dead";
   }
   try {
-    const result = await handler(job.payload as Record<string, unknown>, job);
+    // AI requests made by the job are metered against the job's organisation (src/server/ai/metering.ts).
+    const payload = job.payload as Record<string, unknown>;
+    const result = await runForTenant(typeof payload.organisationId === "string" ? payload.organisationId : null, () => handler(payload, job));
     await completeJob(job.id, result);
     return "succeeded";
   } catch (e) {

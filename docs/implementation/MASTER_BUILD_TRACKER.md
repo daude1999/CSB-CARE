@@ -180,3 +180,7 @@ Tracked separately in `FORMS_POLICY_LINKS_PROGRESS.md` (PR 0 register fix and PR
 ## AI CSB Coordinator agent (brief of 6 Nov 2026)
 
 Tracked in `AI_CSB_COORDINATOR_AGENT.md` (Phase 1, document reading fix, in a draft PR; Phases 2 to 6 not started).
+
+## Evantix Platform Admin Centre (brief of 8 Nov 2026)
+
+Tracked in `PLATFORM_ADMIN_CENTRE.md`. Built at `/platform-admin` on branch `claude/project-thread-8z4axw` in a draft PR. Not merged.

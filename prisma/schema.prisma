@@ -48,6 +48,9 @@ model User {
   isDemo        Boolean        @default(false)
   createdAt     DateTime       @default(now())
   deactivatedAt DateTime?
+  /// Set by an Evantix platform administrator ("Require a password reset"): the person cannot sign in until they use a
+  /// one-time reset link, which clears it.
+  passwordResetRequired Boolean @default(false)
 
   sessions         Session[]
   memberships      Membership[]
@@ -111,6 +114,11 @@ model Organisation {
   areas                 Area[]
   visits                Visit[]
   accountTokens         AccountToken[]
+  /// Evantix Platform Admin Centre: the organisation as a SaaS customer (one row per organisation).
+  customerAccount       CustomerAccount?
+  subscriptions         CustomerSubscription[]
+  moduleEntitlements    TenantModuleEntitlement[]
+  supportAccessGrants   SupportAccessGrant[]
 }
 
 model ServiceType {
@@ -3114,9 +3122,10 @@ model AcknowledgementEvent {
 /// One-time link for joining an organisation (INVITE) or choosing a new password (RESET). Only the hash is stored;
 /// the administrator gives the link to the person. Nothing is emailed.
 model AccountToken {
-  id             String       @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  /// Empty only for a platform-level account recovery link created by an Evantix platform administrator.
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   /// INVITE | RESET
   kind           String
   email          String
@@ -5302,4 +5311,186 @@ model CareInstructionAck {
   at             DateTime               @default(now())
 
   @@unique([versionId, staffId])
+}
+
+// ── Evantix Platform Admin Centre (8 Nov 2026) ──────────────────────────────
+// The Organisation id stays the tenant identity. These tables describe each organisation as a SaaS customer of
+// Evantix: its commercial profile, subscription history, licensed modules, AI usage metadata and support access.
+// None of them holds care content.
+
+enum CustomerStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+/// The organisation as an Evantix customer. Suspending or closing a customer never deletes its records.
+model CustomerAccount {
+  organisationId  String         @id
+  organisation    Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  /// Permanent customer reference, e.g. EVX-0001. Never reused.
+  reference       String         @unique
+  status          CustomerStatus @default(ACTIVE)
+  statusReason    String?
+  statusChangedAt DateTime?
+  legalName       String
+  tradingName     String?
+  companyNumber   String?
+  address         String?
+  contactEmail    String?
+  contactPhone    String?
+  country         String         @default("England")
+  mainContactName String?
+  serviceTypes    String[]       @default([])
+  /// As given by the customer. Not proof of registration: cqcCheckedAt is only set when someone has checked it.
+  cqcProviderId   String?
+  cqcLocationIds  String[]       @default([])
+  cqcCheckedAt    DateTime?
+  cqcCheckedById  String?
+  /// Idempotency key of the onboarding form that created this customer, so a retried submission never duplicates it.
+  onboardingKey   String?        @unique
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+}
+
+enum BillingPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+/// A configurable plan. Prices are optional: a plan without a price is shown as "price not set", never invented.
+model SubscriptionPlan {
+  id                 String                 @id @default(cuid())
+  code               String                 @unique
+  name               String
+  description        String?
+  currency           String                 @default("GBP")
+  monthlyPricePence  Int?
+  annualPricePence   Int?
+  includedUsers      Int?
+  includedBranches   Int?
+  storageMb          Int?
+  aiRequestsPerMonth Int?
+  modules            String[]               @default([])
+  supportLevel       String?
+  addOns             String[]               @default([])
+  active             Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  subscriptions      CustomerSubscription[]
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+/// One row per subscription period. A change ends the current row (isCurrent false, endedAt set) and starts a new one,
+/// so the history of entitlements and their effective dates is kept in full.
+model CustomerSubscription {
+  id                 String             @id @default(cuid())
+  organisationId     String
+  organisation       Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus
+  billingPeriod      BillingPeriod      @default(MONTHLY)
+  isCurrent          Boolean            @default(true)
+  startsAt           DateTime           @default(now())
+  trialEndsAt        DateTime?
+  renewsAt           DateTime?
+  endedAt            DateTime?
+  userAllowance      Int?
+  branchAllowance    Int?
+  storageMb          Int?
+  aiRequestsPerMonth Int?
+  /// The billing provider's own reference, once a provider is connected.
+  providerRef        String?
+  changeReason       String?
+  createdById        String?
+  createdAt          DateTime           @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([isCurrent, status])
+}
+
+/// Whether an organisation is licensed for a module. No row means the module is on (every existing customer keeps
+/// what it has today). Disabling a module never deletes its records.
+model TenantModuleEntitlement {
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  moduleKey      String
+  enabled        Boolean      @default(true)
+  /// Module limits, e.g. AI_COORDINATOR: { monthlyRequests, monthlySpendPence }.
+  limits         Json         @default("{}")
+  updatedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@id([organisationId, moduleKey])
+}
+
+/// Metadata of one AI request: never the prompt, the document or the answer.
+model AiUsageEvent {
+  id             String   @id @default(cuid())
+  organisationId String?
+  feature        String
+  provider       String
+  model          String?
+  success        Boolean
+  errorReason    String?
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  durationMs     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([createdAt])
+}
+
+/// Platform-wide settings, each with a documented effect (src/server/platform/settings.ts). Never holds secrets:
+/// API keys and passwords stay in the hosting environment.
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+enum SupportAccessStatus {
+  REQUESTED
+  ACTIVE
+  DECLINED
+  REVOKED
+}
+
+/// Time-limited, purpose-bound access for Evantix support to a customer's configuration and activity log. Never
+/// impersonation and never service-user records.
+model SupportAccessGrant {
+  id             String              @id @default(cuid())
+  organisationId String
+  organisation   Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  requestedById  String
+  purpose        String
+  scopes         String[]
+  durationHours  Int
+  /// CUSTOMER (approved by one of the customer's administrators) or EMERGENCY (platform admin, reason recorded).
+  authorisation  String              @default("CUSTOMER")
+  status         SupportAccessStatus @default(REQUESTED)
+  decidedById    String?
+  decidedAt      DateTime?
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  revokedById    String?
+  revokedAt      DateTime?
+  revokeReason   String?
+  createdAt      DateTime            @default(now())
+
+  @@index([organisationId, status])
 }
