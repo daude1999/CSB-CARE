@@ -13,8 +13,8 @@ import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { referencesFor } from "@/server/care/external-references";
 import { activateCare, createIntakeRota, previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
 import { shiftCheck } from "@/server/care/coordinator/shift";
-import { approvePlan, submitPlan } from "@/server/care/care-plans";
-import { approveRiskDraft } from "@/server/care/risks";
+import { draftFingerprint, putPlanInUse, saveDraft, startDraft } from "@/server/care/care-plans";
+import { reviewRisk } from "@/server/care/risks";
 import { storage } from "@/server/storage";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 import { dischargeLetterPdf, supportPlanPdf, topicsPlanPdf } from "../support/coordinator-fixture";
@@ -297,12 +297,12 @@ describe("4. Saving into the existing profile", () => {
     expect(src?.intakeReference).toBe(intake.reference);
     expect(src?.documents.map((d) => d.name)).toContain("Support plan");
     const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-    expect(plan.status).toBe("DRAFT");
+    expect([plan.status, plan.origin]).toEqual(["ACTIVE", "DOCUMENT"]);
     expect(plan.sections).toHaveLength(9);
     expect(plan.sections.find((s) => s.key === "mobility")!.body).toMatch(/frame[\s\S]*Source: Support plan, page 2/);
     expect(plan.sections.find((s) => s.key === "about_me")!.body).toMatch(/Not documented/);
     const risks = await db.riskAssessment.findMany({ where: { serviceUserId: suId } });
-    expect(risks.map((r) => r.status)).toEqual(["DRAFT"]);
+    expect(risks.map((r) => [r.status, r.origin])).toEqual([["ACTIVE", "AI_INFERRED"]]);
     const templates = await db.visitTemplate.findMany({ where: { serviceUserId: suId }, include: { tasks: { include: { careTask: true } } }, orderBy: { startMinute: "asc" } });
     expect(templates.map((t) => [t.startMinute, t.durationMin])).toEqual([[540, 60], [720, 45], [990, 30], [1200, 60]]);
     expect(templates[0]!.tasks.map((t) => t.careTask.name)).toEqual(expect.arrayContaining(["Assist with full wash", "Prepare breakfast"]));
@@ -361,23 +361,34 @@ describe("4. Saving into the existing profile", () => {
 });
 
 describe("5. Care plan, risks and the draft rota", () => {
-  it("blocks the rota until a different person approves the care plan and the risk drafts", async () => {
+  it("needs no second approver: the imported care plan and risk assessment are in use, and staff edit them later as new versions", async () => {
     const m = await manager();
     const c = await coordinator();
     const ready = await rotaReadiness(m, intakeId);
-    expect(ready.ready).toBe(false);
-    expect(ready.gates.filter((g) => !g.ok).map((g) => g.key).sort()).toEqual(["careplan", "risks"]);
-    await expect(previewIntakeRota(m, intakeId, mondayOf(londonDate()), 1)).rejects.toThrow(/Not ready/);
+    expect(ready.gates.filter((g) => !g.ok).map((g) => g.key)).toEqual([]);
+    expect(ready.ready).toBe(true);
     const suId = ready.serviceUser!.id;
-    const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    // Confirming the intake did not approve the care plan: it is a draft for its own review by a manager.
-    await submitPlan(c, plan.id);
-    await expect(approvePlan(c, plan.id)).rejects.toBeInstanceOf(ForbiddenError);
-    await approvePlan(m, plan.id);
-    const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    await expect(approveRiskDraft(c, risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: risk.controls, level: "MEDIUM", reviewDue: addDays(londonDate(), 30) })).rejects.toBeInstanceOf(ForbiddenError);
-    await approveRiskDraft(m, risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: "Frame within reach. One carer nearby when standing.", level: "MEDIUM", reviewDue: addDays(londonDate(), 30) });
-    expect((await rotaReadiness(m, intakeId)).ready).toBe(true);
+    const imported = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId, status: "ACTIVE" }, include: { sections: true } });
+    expect([imported.origin, imported.approvedById]).toEqual(["DOCUMENT", null]);
+    expect(await db.auditLog.count({ where: { action: "careplan.imported", entityId: suId } })).toBe(1);
+    // A coordinator corrects the plan: a new version, put in use by them alone; the imported version is kept.
+    const draft = await startDraft(c, suId);
+    const fresh = await db.carePlan.findUniqueOrThrow({ where: { id: draft.id }, include: { sections: true } });
+    expect(fresh.sections.find((x) => x.key === "mobility")!.body).toMatch(/frame/);
+    await saveDraft(c, draft.id, { fingerprint: draftFingerprint(fresh, fresh.sections), summary: fresh.summary ?? "Summary", reviewDue: addDays(londonDate(), 90), sections: { mobility: { body: "Walks with a frame indoors. Corrected by the coordinator after a home visit." } } });
+    await putPlanInUse(c, draft.id);
+    const versions = await db.carePlan.findMany({ where: { serviceUserId: suId }, orderBy: { version: "asc" } });
+    expect(versions.map((v) => [v.version, v.status, v.origin])).toEqual([[imported.version, "SUPERSEDED", "DOCUMENT"], [imported.version + 1, "ACTIVE", "MANUAL"]]);
+    expect(versions[1]!.approvedById).toBe(c.userId);
+    expect(await db.auditLog.count({ where: { action: "careplan.put-in-use", entityId: suId, actorId: c.userId } })).toBe(1);
+    // The superseded imported version cannot be changed.
+    await expect(db.carePlan.update({ where: { id: imported.id }, data: { summary: "changed" } })).rejects.toThrow(/immutable/);
+    // A risk assessment is reviewed by the coordinator with no second person; the earlier version is kept.
+    const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId, status: "ACTIVE" } });
+    await reviewRisk(c, risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: "Frame within reach. One carer nearby when standing.", level: "MEDIUM", reviewDue: addDays(londonDate(), 30) });
+    expect(await db.riskAssessmentVersion.count({ where: { riskAssessmentId: risk.id } })).toBe(2);
+    // A carer cannot edit either.
+    await expect(startDraft(await ctxFor("carer@care-solution.demo", BROOKFIELD), suId)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("only a manager activates care and creates unpublished visits through Build Rota, never twice", async () => {
@@ -492,12 +503,12 @@ describe("7. Structured extraction (phase 2): care plan topics, risk mitigation 
       expect(results.every((r) => r.status === "SAVED")).toBe(true);
       const suId = (await db.careIntake.findUniqueOrThrow({ where: { id: tmp.id } })).serviceUserId!;
       const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-      expect(plan.status).toBe("DRAFT");
+      expect(plan.status).toBe("ACTIVE");
       const body = plan.sections.find((s) => s.key === "personal_care")!.body;
       expect(body).toMatch(/^Toileting and continence\n[\s\S]*How staff should support me: Leave the commode within reach[\s\S]*My preferences: Prefers a female carer/);
       expect(body).toMatch(/Washing and dressing\n[\s\S]*My preferences: Chooses her own clothes/);
       const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId } });
-      expect(risk.status).toBe("DRAFT");
+      expect(risk.status).toBe("ACTIVE");
       expect(JSON.stringify(risk)).toContain("A sensor light on the landing");
       expect(JSON.stringify(risk)).toContain("For a qualified assessor: No falls assessment date");
       const t = await db.visitTemplate.findFirstOrThrow({ where: { serviceUserId: suId } });

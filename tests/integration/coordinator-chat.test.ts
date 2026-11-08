@@ -103,7 +103,7 @@ describe("askCsbCoordinator (built-in CRM search)", () => {
   it("answers counts for care plans and unassigned visits, with links to the screens", async () => {
     authMock.ctx = await manager();
     const plans = await ask("Which care plans are awaiting approval?");
-    expect(plans.answer).toMatch(/awaiting approval/);
+    expect(plans.answer).toMatch(/sent for review/);
     expect(plans.links[0]?.href).toBe("/rota/care-plans?show=review");
     const visits = await ask("How many visits need a carer?");
     expect(visits.links.map((l) => l.href)).toContain("/rota/unassigned");
@@ -200,7 +200,7 @@ describe("AI CSB Coordinator attachment workflow", () => {
     await runAfterTasks();
     const doc = await db.careIntakeDocument.findFirstOrThrow({ where: { intakeId: response.intakeId } });
     expect(doc.readStage).toBe("DONE");
-    expect(doc.readStageNote).toMatch(/Records prepared for/);
+    expect(doc.readStageNote).toMatch(/Read and set up\. Personal details populated/);
     expect(await db.careIntakeFact.count({ where: { intakeId: response.intakeId } })).toBeGreaterThan(0);
 
     const draft = await db.careIntake.findUniqueOrThrow({ where: { id: response.intakeId } });

@@ -11,6 +11,7 @@ import { packageCoverage, packageHistory, packageReviewItems, packageSources } f
 import { carePackageSummary } from "@/server/care/package-view";
 import { CarePackageSummaryCard } from "@/components/su-care-package-summary";
 import { CarePackageTab } from "@/components/su-care-package-tab";
+import { ServiceUserAiAudit } from "@/components/coordinator/su-ai-audit";
 import { listMedications, medicationEnabled } from "@/server/care/medication";
 import { recentIncidentsFor } from "@/server/care/incidents";
 import { IncidentStatusBadge, SeverityBadge } from "@/components/incident-ui";
@@ -47,7 +48,7 @@ import { formsForServiceUser } from "@/server/forms/record-links";
 export const dynamic = "force-dynamic";
 
 const CONTACT_LABEL: Record<string, string> = { NEXT_OF_KIN: "Next of kin", FAMILY: "Family", LPA_HEALTH: "LPA (health and welfare)", LPA_FINANCE: "LPA (property and finance)", GP: "GP", PHARMACY: "Pharmacy", SOCIAL_WORKER: "Social worker", DISTRICT_NURSE: "District nurse", OTHER: "Other" };
-const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["references", "Reference Numbers"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["call-notes", "Call Notes"], ["history", "History"]] as const;
+const TABS = [["overview", "Overview"], ["care-plans", "Care plans"], ["risks", "Risk assessments"], ["incidents", "Incidents"], ["visits", "Visits"], ["template", "Template"], ["rota", "Rota"], ["notes", "Visit notes"], ["package", "Care package"], ["medication", "Medication"], ["people", "Contacts & carers"], ["details", "Personal details"], ["references", "Reference Numbers"], ["missed", "Missed calls"], ["documents", "Documents"], ["bodymap", "Body map"], ["call-notes", "Call Notes"], ["ai-audit", "Audit & Exceptions"], ["history", "History"]] as const;
 type TabKey = (typeof TABS)[number][0];
 /**
  * The profile's sections, grouped so the bar stays short: each group opens its first section, and a group with more
@@ -64,6 +65,7 @@ const GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Documents", tabs: ["documents"] },
   { label: "Contacts & carers", tabs: ["people"] },
   { label: "Call Notes", tabs: ["call-notes"] },
+  { label: "Audit & Exceptions", tabs: ["ai-audit"] },
   { label: "History", tabs: ["history"] },
 ];
 const REVIEW_TONE = { OVERDUE: "rose", DUE_SOON: "amber", IN_DATE: "green" } as const;
@@ -75,7 +77,9 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const canReportIncident = hasOrgPermission(ctx, "incident.report");
   const canNotes = hasOrgPermission(ctx, "rota.view");
   const canCallNotes = hasOrgPermission(ctx, "callNote.view");
-  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes) && ((key !== "template" && key !== "rota") || canNotes) && (key !== "call-notes" || canCallNotes));
+  // Audit & Exceptions shows what CSB AI did with documents; the same people who run intakes see it.
+  const canAiAudit = hasOrgPermission(ctx, "serviceUser.edit") && hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents");
+  const availableTabs = TABS.filter(([key]) => (key !== "incidents" || canReportIncident) && (key !== "notes" || canNotes) && ((key !== "template" && key !== "rota") || canNotes) && (key !== "call-notes" || canCallNotes) && (key !== "ai-audit" || canAiAudit));
   const tab: TabKey = availableTabs.find(([k]) => k === sp.tab)?.[0] ?? "overview";
   const tabLabel = new Map<string, string>(availableTabs);
   const groups = GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => tabLabel.has(t)) })).filter((g) => g.tabs.length);
@@ -328,7 +332,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   {plans.map((plan) => (
                     <tr key={plan.id}>
                       <td className="font-medium">Version {plan.version}</td>
-                      <td><Badge tone={plan.status === "ACTIVE" ? "green" : plan.status === "IN_REVIEW" ? "amber" : "slate"}>{plan.status === "ACTIVE" ? "In use" : plan.status === "IN_REVIEW" ? "Awaiting approval" : plan.status === "DRAFT" ? "Draft" : plan.status.toLowerCase().replaceAll("_", " ")}</Badge></td>
+                      <td><Badge tone={plan.status === "ACTIVE" ? "green" : plan.status === "IN_REVIEW" ? "amber" : "slate"}>{plan.status === "ACTIVE" ? "In use" : plan.status === "IN_REVIEW" ? "In review" : plan.status === "DRAFT" ? "Draft" : plan.status.toLowerCase().replaceAll("_", " ")}</Badge></td>
                       <td>{plan.reviewDue ? <span className={plan.reviewDue < todayDb && plan.status === "ACTIVE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(plan.reviewDue))}</span> : "—"}</td>
                       <td>{plan.approvedAt ? fmtDate(plan.approvedAt) : "—"}</td>
                       <td><Link href={`/rota/care-plans/${su.id}?v=${plan.version}`}>Open plan</Link></td>
@@ -592,6 +596,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "call-notes" ? <CallNotesSection ctx={ctx} serviceUserId={su.id} personName={suName(su)} base={base} sp={sp} /> : null}
 
       {tab === "bodymap" ? <BodyMapSection ctx={ctx} serviceUserId={su.id} personName={`${su.firstName} ${su.lastName}`} base={base} sp={sp} /> : null}
+
+      {tab === "ai-audit" && canAiAudit ? <ServiceUserAiAudit ctx={ctx} serviceUserId={su.id} base={base} sp={sp} /> : null}
 
       {tab === "history" ? (
         <Card title="Record history">

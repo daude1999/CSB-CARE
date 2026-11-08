@@ -68,7 +68,7 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
     case "upload": {
       if (!(can("serviceUser.documents") && can("serviceUser.edit") && can("rota.edit"))) return noAccess;
       return done(
-        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (up to 12 per intake). The originals are kept unchanged. PDFs with typed text are read on CSB's own server; scanned pages, Word files and images are kept but their facts are added by hand.\n3. Check each fact against the page it came from: approve, correct or reject it.\n4. Press Approve & Save to CRM. The approved facts are saved to the person's record and the screen shows what was saved. Care plans and risk assessments are saved as drafts for their own approval.\n5. Prepare the draft rota.\nNothing is saved or sent to carers without a person deciding.",
+        "To process a council support plan, hospital discharge letter or referral:\n1. Open Care Coordinator and start an intake (new person, or an existing service user).\n2. Upload the documents (up to 12 per intake) and press Upload and process. The originals are kept unchanged.\n3. CSB AI reads them and sets the person up by itself: personal details, contacts, references, the care package, the care plan and risk assessments (with their source pages), visit templates and an unpublished draft rota. Nothing needs approving.\n4. Open the Setup summary or the person's Audit & Exceptions tab for the few things that need a person, and correct any record on its own tab.\nVisits are not published and nothing is sent to carers until the office does it.",
         [{ label: "Open Care Coordinator", href: page.kind === "intake" && page.id ? `/rota/coordinator/${page.id}` : "/rota/coordinator" }],
       );
     }
@@ -84,10 +84,9 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
         inReview(status)
           ? !view.documents.length ? "Upload the support plan and any other referral documents."
             : unread ? `Read ${plural(unread, "document")} that ${unread === 1 ? "hasn't" : "haven't"} been read yet.`
-            : open ? `Check ${plural(open, "fact")} still waiting for a decision, then press Approve & Save to CRM.`
-            : waiting ? `Every fact has a decision. Press Approve & Save to CRM to save ${plural(waiting, "section")}.`
-            : "Every fact has a decision. Press Approve & Save to CRM to finish any section that was not saved."
-          : status === "APPLYING" ? "Saving is in progress. Check the Approve & save step for any section that failed."
+            : open || waiting ? "Open the Setup summary: it lists what CSB AI set up and the exceptions that need a person. Press Run setup again if a section was not saved."
+            : "Everything is set up. Check the Setup summary for anything left."
+          : status === "APPLYING" ? "Setup is in progress. The Setup summary shows any section that failed."
           : "This intake is closed. Nothing more to do here.";
       return done(
         `Intake ${view.intake.reference} (${view.intake.title}) is at: ${INTAKE_STATUS[status] ?? status}.\n${plural(view.documents.length, "document")}, ${plural(open, "fact")} still open${followUps ? `, ${plural(followUps, "follow-up")} to close` : ""}.\n\nNext step: ${next}`,
@@ -120,13 +119,13 @@ export async function answerFromCrm(ctx: Ctx, question: string, page: CrmPage, n
         const plans = su.carePlans as { version: number; status: string; reviewDue: string | null }[];
         const active = plans.find((p) => p.status === "ACTIVE");
         const pending = plans.find((p) => p.status !== "ACTIVE");
-        const gaps = [!active ? "There is no approved care plan in use." : null, active?.reviewDue && active.reviewDue < today ? `The plan in use was due for review on ${fmtLondonDate(active.reviewDue)}.` : null, pending ? `Version ${pending.version} is ${pending.status === "IN_REVIEW" ? "waiting for approval by a second person" : "a draft still being written"}.` : null].filter(Boolean);
+        const gaps = [!active ? "There is no care plan in use." : null, active?.reviewDue && active.reviewDue < today ? `The plan in use was due for review on ${fmtLondonDate(active.reviewDue)}.` : null, pending ? `Version ${pending.version} is ${pending.status === "IN_REVIEW" ? "sent for review" : "a draft still being written"}.` : null].filter(Boolean);
         return done(`${(su.serviceUser as { name: string }).name}: ${active ? `care plan version ${active.version} is in use${active.reviewDue ? `, review due ${fmtLondonDate(active.reviewDue)}` : ""}.` : "no care plan in use."}${gaps.length ? `\n\n${gaps.join("\n")}` : "\n\nNothing is missing from the plan's status. Check the sections themselves on the care plan page."}`, [{ label: "Open their care plans", href: `/rota/care-plans/${suPage}` }]);
       }
       const { totals } = await carePlanRegister(ctx, {});
       return done(
-        `Across the people you can see:\n• ${plural(totals.none, "person", "people")} with no care plan in use\n• ${plural(totals.review, "plan")} awaiting approval\n• ${plural(totals.overdue, "plan")} overdue for review\n• ${plural(totals.draft, "draft")} still open`,
-        [{ label: "Awaiting approval", href: "/rota/care-plans?show=review" }, { label: "No plan in use", href: "/rota/care-plans?show=none" }, { label: "Review overdue", href: "/rota/care-plans?show=overdue" }],
+        `Across the people you can see:\n• ${plural(totals.none, "person", "people")} with no care plan in use\n• ${plural(totals.review, "plan")} sent for review\n• ${plural(totals.overdue, "plan")} overdue for review\n• ${plural(totals.draft, "draft")} still open`,
+        [{ label: "In review", href: "/rota/care-plans?show=review" }, { label: "No plan in use", href: "/rota/care-plans?show=none" }, { label: "Review overdue", href: "/rota/care-plans?show=overdue" }],
       );
     }
     case "unassigned": {

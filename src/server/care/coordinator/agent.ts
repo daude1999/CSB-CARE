@@ -137,7 +137,7 @@ const PAGE_LABEL: Record<CrmPage["kind"], string> = { intake: "a care intake", "
 export async function answerWithoutAi(ctx: Ctx, question: string, page: CrmPage): Promise<{ answer: string; links: CrmLink[]; topic: string; wrote: number }> {
   if (coordinatorIntent(question) === "process-plan") {
     if (page.kind !== "intake" || !page.id) {
-      return { topic: "process-plan", wrote: 0, links: [{ label: "Open Care Coordinator", href: "/rota/coordinator" }], answer: "I can prepare a care intake for review. Attach the council support plan with the paperclip below (or open an intake and upload it there), then ask me to process it. Nothing is approved or added to a record without the CRM's review steps." };
+      return { topic: "process-plan", wrote: 0, links: [{ label: "Open Care Coordinator", href: "/rota/coordinator" }], answer: "I can set up a person from their council support plan. Attach it with the paperclip below (or open an intake and upload it there), then ask me to process it. CSB AI saves the records and lists anything that needs a person; nothing is published or sent to carers." };
     }
     const before = await getIntake(ctx, page.id);
     let wrote = 0;

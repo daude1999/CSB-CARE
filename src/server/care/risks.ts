@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { addDays, dbDate, isIsoDate, londonDate } from "@/lib/london";
 import { audit } from "@/server/audit-log";
-import { requireOrgPermission, type Ctx } from "@/server/auth/rbac";
+import type { Ctx } from "@/server/auth/rbac";
 import { rotaScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 
 type Tx = Prisma.TransactionClient;
@@ -106,17 +106,26 @@ export async function getRisk(ctx: Ctx, id: string) {
   return { risk: r, history, versions };
 }
 
-export async function createRisk(ctx: Ctx, serviceUserId: string, input: RiskInput | Record<string, unknown>) {
+/** Where an assessment came from (owner's brief of 7 Nov 2026): never shown as staff-written or as a completed
+ * clinical assessment when CSB AI inferred it from a document's narrative. */
+export type RiskSource = { origin: "DOCUMENT" | "AI_INFERRED"; intakeId: string; note: string };
+export const RISK_ORIGIN_LABEL: Record<string, string> = {
+  MANUAL: "Written in CSB",
+  DOCUMENT: "From the council support plan",
+  AI_INFERRED: "AI-generated assessment information (not a completed clinical assessment)",
+};
+
+export async function createRisk(ctx: Ctx, serviceUserId: string, input: RiskInput | Record<string, unknown>, source?: RiskSource) {
   const scope = await rotaScope(ctx, "care.plan.edit");
   const d = parse(input);
   return db.$transaction(async (tx) => {
     const su = await tx.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: serviceUserId }, select: { id: true } });
     if (!su) throw new NotFoundError("Service user");
     const snap = { type: d.type, title: d.title, hazards: d.hazards, controls: d.controls, level: d.level, reviewDue: dbDate(d.reviewDue), requiredActions: d.requiredActions, responsiblePerson: d.responsiblePerson };
-    const r = await tx.riskAssessment.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, ...snap, assessedById: ctx.userId } });
-    await saveVersion(tx, r, { ...snap, status: "ACTIVE" }, "CREATED", ctx.userId);
+    const r = await tx.riskAssessment.create({ data: { organisationId: scope.organisationId, serviceUserId: su.id, ...snap, assessedById: ctx.userId, ...(source ? { origin: source.origin, sourceIntakeId: source.intakeId, sourceNote: source.note.slice(0, 1000) } : {}) } });
+    await saveVersion(tx, r, { ...snap, status: "ACTIVE" }, "CREATED", ctx.userId, source ? RISK_ORIGIN_LABEL[source.origin] : undefined);
     await syncRiskLevel(tx, su.id);
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "risk.created", entityType: "RiskAssessment", entityId: r.id, data: { serviceUserId: su.id, type: d.type, level: d.level } }, tx);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: source ? "risk.imported" : "risk.created", entityType: "RiskAssessment", entityId: r.id, data: { serviceUserId: su.id, type: d.type, level: d.level, ...(source ? { origin: source.origin, intakeId: source.intakeId } : {}) } }, tx);
     return r;
   });
 }
@@ -151,47 +160,23 @@ export async function archiveRisk(ctx: Ctx, id: string, reason: string) {
 }
 
 /**
- * AI-assisted proposed assessments: saved as DRAFT, excluded from live risk
- * registers and service-user headline risk. A second manager must check and
- * explicitly approve the actual controls and risk level. Source documents
- * remain in the service user's restricted document library.
+ * Drafts saved by the Care Coordinator before 7 Nov 2026 (no new ones are made: assessments from a support plan are
+ * saved as active, with their source). Anyone allowed to edit risk assessments checks the fields and puts it in use;
+ * no second person is needed (owner's brief of 7 Nov 2026).
  */
-export async function createRiskDraft(ctx: Ctx, serviceUserId: string, input: RiskInput | Record<string, unknown>) {
+export async function approveRiskDraft(ctx: Ctx, id: string, version: number, input: RiskInput | Record<string, unknown>) {
   const scope = await rotaScope(ctx, "care.plan.edit");
   const d = parse(input);
-  return db.$transaction(async tx => {
-    const su = await tx.serviceUser.findFirst({where:{...serviceUserWhere(scope),id:serviceUserId},select:{id:true}});
-    if(!su) throw new NotFoundError("Service user");
-    const snap={type:d.type,title:d.title,hazards:d.hazards,controls:d.controls,level:d.level,
-      reviewDue:dbDate(d.reviewDue),requiredActions:d.requiredActions,responsiblePerson:d.responsiblePerson};
-    const r=await tx.riskAssessment.create({data:{organisationId:scope.organisationId,serviceUserId:su.id,
-      ...snap,status:"DRAFT",assessedById:ctx.userId}});
-    await saveVersion(tx,r,{...snap,status:"DRAFT"},"CREATED",ctx.userId);
-    await audit({organisationId:scope.organisationId,actorId:ctx.userId,action:"risk.draft.created",
-      entityType:"RiskAssessment",entityId:r.id,data:{serviceUserId:su.id,type:d.type}},tx);
-    return r;
-  });
-}
-
-/** Independent authorised manager reviews source evidence and accepts responsibility. */
-export async function approveRiskDraft(ctx: Ctx, id: string, version: number, input: RiskInput | Record<string, unknown>) {
-  requireOrgPermission(ctx,"care.plan.approve");
-  const scope=await rotaScope(ctx,"serviceUser.view");
-  const d=parse(input);
-  return db.$transaction(async tx=>{
-    const r=await riskInScope(tx,scope,id);
-    if(r.status!=="DRAFT") throw new ValidationError("Only a draft risk assessment can be approved");
-    if(r.version!==version) throw new ConflictError("This risk draft has changed. Reload before approval.");
-    if(r.assessedById===ctx.userId) throw new ValidationError("A different manager must approve the proposed risk assessment");
-    const snap={type:d.type,title:d.title,hazards:d.hazards,controls:d.controls,level:d.level,
-      reviewDue:dbDate(d.reviewDue),requiredActions:d.requiredActions,responsiblePerson:d.responsiblePerson};
-    const result=await tx.riskAssessment.updateMany({where:{id:r.id,version:r.version,status:"DRAFT"},data:{
-      ...snap,status:"ACTIVE",assessedById:ctx.userId,assessedAt:new Date(),version:{increment:1}}});
-    if(!result.count) throw new ConflictError("This risk draft has changed. Reload before approval.");
-    await saveVersion(tx,{...r,version:r.version+1},{...snap,status:"ACTIVE"},"REVIEWED",ctx.userId,"Independent risk review and activation");
-    await syncRiskLevel(tx,r.serviceUserId);
-    await audit({organisationId:scope.organisationId,actorId:ctx.userId,action:"risk.draft.approved",
-      entityType:"RiskAssessment",entityId:r.id,data:{serviceUserId:r.serviceUserId,version:r.version+1}},tx);
-    return {id:r.id,serviceUserId:r.serviceUserId};
+  return db.$transaction(async (tx) => {
+    const r = await riskInScope(tx, scope, id);
+    if (r.status !== "DRAFT") throw new ValidationError("Only a draft risk assessment can be put in use");
+    if (r.version !== version) throw new ConflictError("This risk draft has changed. Reload before saving.");
+    const snap = { type: d.type, title: d.title, hazards: d.hazards, controls: d.controls, level: d.level, reviewDue: dbDate(d.reviewDue), requiredActions: d.requiredActions, responsiblePerson: d.responsiblePerson };
+    const result = await tx.riskAssessment.updateMany({ where: { id: r.id, version: r.version, status: "DRAFT" }, data: { ...snap, status: "ACTIVE", assessedById: ctx.userId, assessedAt: new Date(), version: { increment: 1 } } });
+    if (!result.count) throw new ConflictError("This risk draft has changed. Reload before saving.");
+    await saveVersion(tx, { ...r, version: r.version + 1 }, { ...snap, status: "ACTIVE" }, "REVIEWED", ctx.userId, "Checked and put in use");
+    await syncRiskLevel(tx, r.serviceUserId);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "risk.draft.approved", entityType: "RiskAssessment", entityId: r.id, data: { serviceUserId: r.serviceUserId, version: r.version + 1 } }, tx);
+    return { id: r.id, serviceUserId: r.serviceUserId };
   });
 }

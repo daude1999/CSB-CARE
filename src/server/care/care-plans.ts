@@ -13,8 +13,10 @@ import { myStaff } from "@/server/workforce/link";
 type Tx = Prisma.TransactionClient;
 
 /**
- * Person-centred care plans. A plan is versioned: a draft is written and edited, submitted for review, and approved
- * by a second person (never its author or submitter), at which point it replaces the previous active version.
+ * Person-centred care plans. A plan is versioned: a draft is written and edited, then put in use by someone allowed to
+ * edit care plans (putPlanInUse), or, optionally, sent for review and approved by a second person (never its author or
+ * submitter). Either way it replaces the previous active version, which is kept as superseded. A plan imported from a
+ * council support plan records its source (origin DOCUMENT) and has no CSB approver.
  * Approved and superseded versions are frozen by database trigger. Carers booked to visit the person are told in
  * the app and confirm they have read the new version. Medication content is a prompt to the paper MAR only.
  */
@@ -180,9 +182,29 @@ export async function returnPlan(ctx: Ctx, planId: string, reason: string) {
   });
 }
 
+/** Puts a version in use: the previous active version is superseded and carers visiting soon are asked to read it. */
+async function activate(tx: Tx, scope: Scope, plan: { id: string; serviceUserId: string; version: number }, approvedById: string | null) {
+  const previous = await tx.carePlan.findFirst({ where: { serviceUserId: plan.serviceUserId, status: "ACTIVE" } });
+  if (previous) await tx.carePlan.update({ where: { id: previous.id }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
+  await tx.carePlan.update({ where: { id: plan.id }, data: { status: "ACTIVE", approvedById, approvedAt: new Date() } });
+  const today = londonDate();
+  const carers = await tx.visitAssignment.findMany({
+    where: { organisationId: scope.organisationId, removedAt: null, staff: { userId: { not: null } }, visit: { serviceUserId: plan.serviceUserId, status: "SCHEDULED", publishedAt: { not: null }, date: { gte: dbDate(today), lte: dbDate(addDays(today, 14)) } } },
+    select: { staff: { select: { userId: true } } },
+    distinct: ["staffId"],
+  });
+  const su = await tx.serviceUser.findUniqueOrThrow({ where: { id: plan.serviceUserId }, select: { firstName: true, lastName: true, preferredName: true } });
+  const name = `${su.preferredName ?? su.firstName} ${su.lastName}`;
+  await tx.notification.createMany({
+    data: carers.map((c) => ({ organisationId: scope.organisationId, userId: c.staff.userId as string, type: "careplan.updated", title: `Updated care plan for ${name}`, body: `Version ${plan.version} of ${name}'s care plan is now in use. Please read it before your next visit.`, reason: "You are booked to visit this person.", actionUrl: `/carer/care-plan/${plan.serviceUserId}`, dedupeKey: `careplan:${plan.id}:${c.staff.userId}` })),
+    skipDuplicates: true,
+  });
+  return { superseded: previous?.version ?? null, notified: carers.length };
+}
+
 /**
- * Approves a plan in review. The approver must be a different person from whoever wrote or submitted it. The
- * previous active version is superseded in the same transaction, and carers visiting soon are asked to read it.
+ * Approves a plan someone sent for review (the optional review route). The approver must be a different person from
+ * whoever wrote or submitted it.
  */
 export async function approvePlan(ctx: Ctx, planId: string) {
   const scope = await rotaScope(ctx, "care.plan.approve");
@@ -190,23 +212,35 @@ export async function approvePlan(ctx: Ctx, planId: string) {
     const plan = await planInScope(tx, scope, planId, true);
     if (plan.status !== "IN_REVIEW") throw new ValidationError("Only a plan in review can be approved");
     if (plan.createdById === ctx.userId || plan.submittedById === ctx.userId) throw new ForbiddenError("You wrote or submitted this version, so someone else must approve it");
-    const previous = await tx.carePlan.findFirst({ where: { serviceUserId: plan.serviceUserId, status: "ACTIVE" } });
-    if (previous) await tx.carePlan.update({ where: { id: previous.id }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
-    await tx.carePlan.update({ where: { id: plan.id }, data: { status: "ACTIVE", approvedById: ctx.userId, approvedAt: new Date() } });
-    const today = londonDate();
-    const carers = await tx.visitAssignment.findMany({
-      where: { organisationId: scope.organisationId, removedAt: null, staff: { userId: { not: null } }, visit: { serviceUserId: plan.serviceUserId, status: "SCHEDULED", publishedAt: { not: null }, date: { gte: dbDate(today), lte: dbDate(addDays(today, 14)) } } },
-      select: { staff: { select: { userId: true } } },
-      distinct: ["staffId"],
-    });
-    const su = await tx.serviceUser.findUniqueOrThrow({ where: { id: plan.serviceUserId }, select: { firstName: true, lastName: true, preferredName: true } });
-    const name = `${su.preferredName ?? su.firstName} ${su.lastName}`;
-    await tx.notification.createMany({
-      data: carers.map((c) => ({ organisationId: scope.organisationId, userId: c.staff.userId as string, type: "careplan.updated", title: `Updated care plan for ${name}`, body: `Version ${plan.version} of ${name}'s care plan is now in use. Please read it before your next visit.`, reason: "You are booked to visit this person.", actionUrl: `/carer/care-plan/${plan.serviceUserId}`, dedupeKey: `careplan:${plan.id}:${c.staff.userId}` })),
-      skipDuplicates: true,
-    });
-    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "careplan.approved", entityType: "ServiceUser", entityId: plan.serviceUserId, data: { carePlanId: plan.id, version: plan.version, superseded: previous?.version ?? null, carersNotified: carers.length } }, tx);
-    return { notified: carers.length };
+    const r = await activate(tx, scope, plan, ctx.userId);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "careplan.approved", entityType: "ServiceUser", entityId: plan.serviceUserId, data: { carePlanId: plan.id, version: plan.version, superseded: r.superseded, carersNotified: r.notified } }, tx);
+    return { notified: r.notified };
+  });
+}
+
+/**
+ * Saves a draft and puts it in use straight away (owner's brief of 7 Nov 2026, "Remove redundant approval
+ * workflows"): someone allowed to edit care plans does not need a second person for an ordinary update. The version
+ * is kept for good, the previous one is superseded (not deleted) and the change is in the audit log. Sending a draft
+ * for review first stays available for anyone who wants a second pair of eyes.
+ *
+ * `imported` is used when CSB AI imports a council support plan: the version records its source and nobody is named
+ * as its approver, because nobody in CSB approved it; it was issued by the council.
+ */
+export async function putPlanInUse(ctx: Ctx, planId: string, opts: { imported?: { intakeId: string; note: string } } = {}) {
+  const scope = await rotaScope(ctx, "care.plan.edit");
+  return db.$transaction(async (tx) => {
+    const plan = await planInScope(tx, scope, planId, true);
+    if (plan.status !== "DRAFT") throw new ValidationError("Only a draft can be put in use");
+    const empty = plan.sections.filter((s) => s.body.trim().length < 3).map((s) => s.title);
+    if (!plan.summary?.trim()) throw new ValidationError("Add a summary before putting the plan in use");
+    if (empty.length) throw new ValidationError(`Complete every section before putting the plan in use. Still empty: ${empty.join(", ")}`);
+    if (opts.imported) await tx.carePlan.update({ where: { id: plan.id }, data: { origin: "DOCUMENT", sourceIntakeId: opts.imported.intakeId, sourceNote: opts.imported.note.slice(0, 1000) } });
+    // The database allows a version into use only through IN_REVIEW; both steps happen here, in one transaction.
+    await tx.carePlan.update({ where: { id: plan.id }, data: { status: "IN_REVIEW", submittedById: ctx.userId, submittedAt: new Date() } });
+    const r = await activate(tx, scope, plan, opts.imported ? null : ctx.userId);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: opts.imported ? "careplan.imported" : "careplan.put-in-use", entityType: "ServiceUser", entityId: plan.serviceUserId, data: { carePlanId: plan.id, version: plan.version, superseded: r.superseded, carersNotified: r.notified, ...(opts.imported ? { intakeId: opts.imported.intakeId, source: opts.imported.note.slice(0, 300) } : {}) } }, tx);
+    return { notified: r.notified, superseded: r.superseded };
   });
 }
 
