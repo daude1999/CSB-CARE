@@ -1,0 +1,93 @@
+name: CSB-CARE backup scripts check
+
+# Exercises the real backup and restore scripts end to end with SYNTHETIC demo data only:
+# a throwaway PostgreSQL service, the Azurite storage emulator and a throwaway age key.
+# No production secret is used here and no backup leaves the job.
+
+on:
+  pull_request:
+    paths:
+      - "scripts/backup/**"
+      - ".github/workflows/postgres-backup.yml"
+      - ".github/workflows/postgres-restore-check.yml"
+      - ".github/workflows/backup-scripts-check.yml"
+      - "tests/unit/backup-scripts.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-backup-restore:
+    name: Synthetic backup, encrypt, upload and restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_synthetic_source
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_synthetic_source?schema=public
+      AI_PROVIDER: simulated
+      STORAGE_PROVIDER: local
+      EMAIL_PROVIDER: log
+      BACKUP_DOCKER_NETWORK: host
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Unit tests for the backup rules
+        run: npx vitest run tests/unit/backup-scripts.test.ts
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
+      - name: Synthetic source database
+        run: |
+          npx prisma migrate deploy
+          npm run db:seed
+          psql "postgresql://postgres:postgres@localhost:5432/csb_synthetic_source" -c \
+            "insert into \"StoredObject\"(key, \"contentType\", \"sizeBytes\", bytes) values ('synthetic/plan.pdf', 'application/pdf', 15, 'synthetic bytes'::bytea)"
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c "create database csb_restore_check"
+      - name: Start the Azurite storage emulator
+        run: |
+          npx --yes azurite@3 azurite-blob --blobHost 127.0.0.1 --location "$RUNNER_TEMP/azurite" --skipApiVersionCheck --loose > "$RUNNER_TEMP/azurite.log" 2>&1 &
+          for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/10000) 2>/dev/null && exit 0; sleep 1; done
+          exit 1
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install --yes age
+      - name: Back up, then restore twice into a separate database
+        run: |
+          set -euo pipefail
+          mapfile -t urls < <(node scripts/backup/ci/azurite-container.mjs)
+          age-keygen -o "$RUNNER_TEMP/ci-key.txt" 2>/dev/null
+          export AZURE_BACKUP_CONTAINER_SAS_URL="${urls[0]}" AZURE_RESTORE_CONTAINER_SAS_URL="${urls[1]}"
+          export BACKUP_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/csb_synthetic_source?schema=public"
+          export BACKUP_AGE_RECIPIENT="$(age-keygen -y "$RUNNER_TEMP/ci-key.txt")"
+          export BACKUP_AGE_IDENTITY="$(grep AGE-SECRET-KEY "$RUNNER_TEMP/ci-key.txt")"
+          export RESTORE_TARGET_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/csb_restore_check"
+          export PRODUCTION_DATABASE_HOSTS="ep-synthetic-prod-000000.eu-west-2.aws.neon.tech"
+          export BACKUP_WORK_DIR="$RUNNER_TEMP/csb-backup-work"
+          bash scripts/backup/create-backup.sh
+          test ! -e "$BACKUP_WORK_DIR"
+          bash scripts/backup/restore-to-staging.sh
+          bash scripts/backup/restore-to-staging.sh
+          test ! -e "$BACKUP_WORK_DIR"
+          # The guard must refuse a target whose name does not say restore/staging.
+          if RESTORE_TARGET_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/csb_synthetic_source" bash scripts/backup/restore-to-staging.sh; then
+            echo "::error::The restore guard accepted a non-staging database"; exit 1
+          fi
+          rm -f "$RUNNER_TEMP/ci-key.txt"

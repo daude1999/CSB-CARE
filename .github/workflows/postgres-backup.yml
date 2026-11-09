@@ -1,8 +1,12 @@
 name: CSB-CARE encrypted PostgreSQL backup
 
+# Nightly off-site backup of the Neon database (records and uploaded documents held in PostgreSQL).
+# Dump (custom format) -> validate -> encrypt with age -> upload to a pre-created private Azure container.
+# Setup, retention and restore steps: docs/BACKUPS.md.
+
 on:
   schedule:
-    - cron: "37 2 * * *"
+    - cron: "37 2 * * *" # 02:37 UTC every night
   workflow_dispatch:
 
 permissions:
@@ -15,45 +19,37 @@ concurrency:
 jobs:
   backup:
     name: Dump, encrypt and copy the database
+    # Stays off until the owner sets the BACKUP_ENABLED Actions variable to "true".
     if: ${{ vars.BACKUP_ENABLED == 'true' }}
-    # Do not process care records on a GitHub-hosted runner. Register an organisation-controlled UK runner with this label.
+    # Care records must never pass through a GitHub-hosted runner. Only an organisation-controlled
+    # UK runner registered with the csb-approved-uk label can pick this job up.
     runs-on: [self-hosted, linux, x64, csb-approved-uk]
     timeout-minutes: 30
+    env:
+      BACKUP_WORK_DIR: ${{ runner.temp }}/csb-care-backup
     steps:
+      - name: Confirm this is the approved self-hosted runner
+        run: |
+          if [[ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]]; then
+            echo "::error::Refusing to run: backups only run on the organisation's self-hosted UK runner."
+            exit 1
+          fi
+          rm -rf "$BACKUP_WORK_DIR"
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-      - name: Install uploader dependencies
-        run: npm ci --ignore-scripts
-      - name: Install age encryption
-        run: sudo apt-get update && sudo apt-get install --yes age
       - name: Create encrypted backup and upload to private Blob Storage
-        shell: bash
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AZURE_BACKUP_CONTAINER_SAS_URL: ${{ secrets.AZURE_BACKUP_CONTAINER_SAS_URL }}
           BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
-          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
-          AZURE_STORAGE_CONTAINER: ${{ vars.AZURE_STORAGE_CONTAINER }}
-        run: |
-          set -euo pipefail
-          : "${BACKUP_DATABASE_URL:?Add the direct Neon connection string as the BACKUP_DATABASE_URL Actions secret}"
-          : "${BACKUP_AGE_RECIPIENT:?Add the age public recipient as the BACKUP_AGE_RECIPIENT Actions variable}"
-          : "${AZURE_STORAGE_CONNECTION_STRING:?Add the Azure Blob connection string as the AZURE_STORAGE_CONNECTION_STRING Actions secret}"
-          : "${AZURE_STORAGE_CONTAINER:?Set the private backup container name in the AZURE_STORAGE_CONTAINER Actions variable}"
-          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          dump="$RUNNER_TEMP/csb-care-$stamp.dump"
-          encrypted="$dump.age"
-          cleanup() { rm -f "$dump" "$encrypted"; }
-          trap cleanup EXIT
-          docker run --rm \
-            -e BACKUP_DATABASE_URL \
-            -v "$RUNNER_TEMP:/backup" \
-            postgres:17-alpine \
-            sh -euc 'pg_dump --format=custom --no-owner --no-acl --file="/backup/csb-care.dump" "$BACKUP_DATABASE_URL"'
-          mv "$RUNNER_TEMP/csb-care.dump" "$dump"
-          docker run --rm -v "$RUNNER_TEMP:/backup" postgres:17-alpine pg_restore --list "/backup/$(basename "$dump")" >/dev/null
-          age --encrypt --recipient "$BACKUP_AGE_RECIPIENT" --output "$encrypted" "$dump"
-          rm -f "$dump"
-          node scripts/upload-db-backup.mjs "$encrypted" "postgres/$stamp/csb-care.dump.age"
+          BACKUP_PG_IMAGE: ${{ vars.BACKUP_PG_IMAGE }}
+        run: bash scripts/backup/create-backup.sh
+      # Belt and braces: nothing from the backup survives on the runner, whatever happened above.
+      # Backups are never uploaded as GitHub artifacts.
+      - name: Remove temporary backup files
+        if: always()
+        run: rm -rf "$BACKUP_WORK_DIR"
