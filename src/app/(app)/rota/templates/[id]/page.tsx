@@ -9,6 +9,7 @@ import { memberNames, rotaLookups, suName } from "@/server/rota/queries";
 import { rotaSettings } from "@/server/rota/settings";
 import { templateScopeWhere } from "@/server/rota/scope";
 import { previewTemplateChanges } from "@/server/rota/templates";
+import { templateRotaGap } from "@/server/rota/build";
 import { instructionHistory } from "@/server/care/instructions";
 import { applyTemplateChangesAction, duplicateTemplateAction, templateBulkAction, updateTemplateAction } from "@/app/rota-actions";
 import { Badge, Card, Empty, Flash, fmtDate, PageHeader } from "@/components/ui";
@@ -29,6 +30,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
   );
   const settings = await rotaSettings(db, lk.scope.organisationId);
   const preview = canEdit ? await previewTemplateChanges(ctx, t.id) : null;
+  const gap = hasOrgPermission(ctx, "rota.build") ? await templateRotaGap(ctx, t.id) : null;
   const instructions = await instructionHistory(ctx, t.id);
   const history = await db.auditLog.findMany({ where: { organisationId: lk.scope.organisationId, entityType: "VisitTemplate", entityId: t.id }, orderBy: { createdAt: "desc" }, take: 20 });
   const names = await memberNames(ctx, history.map((h) => h.actorId));
@@ -59,6 +61,13 @@ export default async function TemplatePage({ params, searchParams }: { params: P
           )}
         </Card>
         <div className="space-y-3">
+          {gap ? (
+            <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-[14px] text-slate-800" data-testid="template-rota-gap" aria-labelledby="gap-title">
+              <h2 id="gap-title" className="text-[15px] font-medium text-navy-900">Not on the rota yet</h2>
+              <p className="mt-1">{gap.missing} visit{gap.missing === 1 ? "" : "s"} from this template {gap.missing === 1 ? "is" : "are"} missing from weeks that were already built (up to {fmtLondonDate(gap.builtThrough)}). Build Rota only builds new weeks, so add {gap.missing === 1 ? "it" : "them"} for {suName(t.serviceUser)} now.</p>
+              <Link href={`/rota/service-users/${gap.serviceUserId}?tab=rota&future=1&from=${gap.from}&nweeks=${gap.weeks}`} className="btn-primary mt-2 inline-flex">Add to the built weeks</Link>
+            </section>
+          ) : null}
           {preview ? (
             <Card title="Built visits">
               {toApply.length ? (
@@ -76,7 +85,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
                   <p className="mt-2 text-[12.5px] text-slate-500">Every carer is re-checked at the new time. Visits a carer cannot do are listed as refused and left unchanged.</p>
                 </>
               ) : (
-                <Empty>All future built visits match this template.</Empty>
+                <Empty>{gap ? "The visits already on the rota match this template." : "All future built visits match this template."}</Empty>
               )}
               {kept.length ? (
                 <details className="mt-3">

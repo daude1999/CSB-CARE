@@ -98,7 +98,9 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const openRevision = p.revisions.find((r) => !r.closedAt);
   const starter = v?.origin === "SEED";
   const level = impact ? (impact.urgency === "URGENT" || impact.urgency === "HIGH" ? 3 : impact.urgency === "MEDIUM" ? 2 : 1) : 0;
-  const canAssign = Boolean(p.organisationId && hasOrgPermission(ctx, "signoff.manage"));
+  // A CSB central document shown in the organisation's library can be assigned too: the sign-off page explains that
+  // staff sign the organisation's own copy and offers to create it.
+  const canAssign = Boolean(ctx.organisationId && (p.organisationId === ctx.organisationId || (p.kind === "MASTER" && !p.organisationId)) && hasOrgPermission(ctx, "signoff.manage"));
   const canCompare = p.versions.length > 1;
 
   // Record views of the same policy. The reader is the default; older links (?view=procedure) open it at that section.
