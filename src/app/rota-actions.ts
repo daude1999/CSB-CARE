@@ -24,7 +24,7 @@ import { decideClockCorrection, requestClockCorrection } from "@/server/rota/cor
 import { addToRoute, createLiveRoute, createTemplateRoute, moveStop, moveToRoute, orderRouteDayByTime, removeFromRoute, removeRoute, type RouteInput } from "@/server/rota/routes";
 import { decideMileage, submitMyMileage } from "@/server/finance/mileage";
 import { sweepNow } from "@/server/rota/monitor";
-import { acknowledgePlan, approvePlan, discardDraft, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
+import { acknowledgePlan, approvePlan, discardDraft, putPlanInUse, returnPlan, saveDraft, startDraft, submitPlan } from "@/server/care/care-plans";
 import { approveRiskDraft, archiveRisk, createRisk, reviewRisk } from "@/server/care/risks";
 import { addBand, addBankHoliday, createRateCard, removeBand, removeBankHoliday, saveFunder, setPackageFunder, setStaffPayCard, updateFinanceSettings } from "@/server/finance/rates";
 import { adjustLine, bulkTimesheets, decideTimesheet, generateTimesheets, submitTimesheet, verifyLines } from "@/server/finance/timesheets";
@@ -728,7 +728,11 @@ export async function saveDraftAction(fd: FormData) {
     await saveDraft(ctx, str(fd, "planId"), { fingerprint: str(fd, "fingerprint"), summary: str(fd, "summary"), reviewDue: str(fd, "reviewDue"), sections });
     if (str(fd, "then") === "submit") {
       await submitPlan(ctx, str(fd, "planId"));
-      return { to: str(fd, "done"), ok: "Saved and sent for approval" };
+      return { to: str(fd, "done"), ok: "Saved and sent for review" };
+    }
+    if (str(fd, "then") === "use") {
+      const r = await putPlanInUse(ctx, str(fd, "planId"));
+      return { to: str(fd, "done"), ok: `Saved and now in use.${r.notified ? ` ${r.notified} carer${r.notified === 1 ? "" : "s"} asked to read it.` : ""}` };
     }
   }, "Draft saved");
 }
@@ -766,9 +770,9 @@ export async function reviewRiskAction(fd: FormData) {
   return handle(fd, (ctx) => reviewRisk(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)), "Review saved");
 }
 
-/** A different manager checks a draft from the Care Coordinator and makes it the live assessment. */
+/** Someone allowed to edit risk assessments checks an older Care Coordinator draft and puts it in use. */
 export async function approveRiskDraftAction(fd: FormData) {
-  return handle(fd, (ctx) => approveRiskDraft(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)).then(() => undefined), "Risk assessment approved and now live");
+  return handle(fd, (ctx) => approveRiskDraft(ctx, str(fd, "riskId"), int(fd, "version", "Version"), Object.fromEntries(fd)).then(() => undefined), "Risk assessment checked and now in use");
 }
 
 export async function archiveRiskAction(fd: FormData) {

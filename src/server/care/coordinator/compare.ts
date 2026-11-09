@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ConflictError } from "@/lib/errors";
-import { displayValue, sectionLabel } from "@/lib/care-coordinator-rules";
+import { displayValue, inReview, sectionLabel } from "@/lib/care-coordinator-rules";
 import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { rotaScope } from "@/server/rota/scope";
@@ -124,7 +124,7 @@ export async function acceptRoutineChanges(ctx: Ctx, intakeId: string) {
   return db.$transaction(async (tx) => {
     const intake = await intakeInScope(tx, scope, intakeId, true);
     if (intake.mode !== "EXISTING" || !intake.serviceUserId) throw new ConflictError("Routine changes apply to an updated plan for someone already on the system");
-    if (intake.status !== "DRAFT") throw new ConflictError("This intake is with a manager or finished");
+    if (!inReview(intake.status)) throw new ConflictError("This intake is being saved, finished or cancelled");
     const [facts, docs, templates, contacts] = await Promise.all([
       tx.careIntakeFact.findMany({ where: { intakeId, decision: "PENDING", appliedAt: null } }),
       tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, sensitive: true } }),

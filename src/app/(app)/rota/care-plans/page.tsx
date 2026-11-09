@@ -9,7 +9,7 @@ import { RotaTabs } from "@/components/rota-nav";
 
 export const dynamic = "force-dynamic";
 
-const FILTERS = [["", "Everyone"], ["none", "No plan in use"], ["overdue", "Review overdue"], ["review", "Awaiting approval"], ["draft", "Draft open"]] as const;
+const FILTERS = [["", "Everyone"], ["none", "No plan in use"], ["overdue", "Review overdue"], ["review", "In review"], ["draft", "Draft open"]] as const;
 
 export default async function CarePlansPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;

@@ -9,7 +9,7 @@ type Case={id:string;reference:string;title:string;status:string;documents:numbe
 type Msg={role:"user"|"assistant";content:string};
 const prompts=[
   {title:"What needs attention?",text:"Review this intake and explain which facts, source discrepancies or actions need a coordinator's attention."},
-  {title:"Prepare my next steps",text:"Give me a practical, prioritised checklist to get this intake ready for manager review."},
+  {title:"Prepare my next steps",text:"Give me a practical, prioritised checklist to get this intake ready to confirm and set up."},
   {title:"Review rota readiness",text:"What still needs checking before this intake can safely generate a rota? Distinguish confirmed facts from missing information."},
   {title:"Summarise source findings",text:"Summarise the verified facts from this intake and identify anything historical, unverified or conflicting."},
 ];
@@ -23,8 +23,9 @@ export function CsbCoordinatorWorkspace({cases,initialId,aiEnabled}:{cases:Case[
   const end=useRef<HTMLDivElement>(null);
   const current=useMemo(()=>cases.find(c=>c.id===selected)||null,[selected,cases]);
   const caseUrl=current?`/rota/coordinator/${current.id}`:null;
-  const approved=cases.filter(c=>c.status==="APPROVED"||c.status==="APPLYING").length;
-  const pending=cases.filter(c=>c.status==="SUBMITTED").length;
+  // No manager approval since 7 Nov 2026: an intake in review with nothing left to check is ready to confirm.
+  const ready=cases.filter(c=>["DRAFT","SUBMITTED","APPROVED"].includes(c.status)&&c.open===0).length;
+  const saving=cases.filter(c=>c.status==="APPLYING").length;
   const totalOpen=cases.reduce((n,c)=>n+c.open,0);
   function chooseCase(id:string|null){
     setSelected(id);setMessages([opening]);setError(null);
@@ -58,8 +59,8 @@ export function CsbCoordinatorWorkspace({cases,initialId,aiEnabled}:{cases:Case[
       </div>
       <div className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
-          {n:pending,label:"Awaiting manager",icon:<LockKey size={17}/>},
-          {n:approved,label:"Ready to save",icon:<CheckCircle size={17}/>},
+          {n:ready,label:"Ready to confirm",icon:<CheckCircle size={17}/>},
+          {n:saving,label:"Being saved",icon:<LockKey size={17}/>},
           {n:totalOpen,label:"Facts to review",icon:<FileText size={17}/>},
         ].map(x=><div key={x.label} className="rounded-xl border border-white/80 bg-white/80 p-3 shadow-sm"><div className="mb-2 flex items-center gap-2 text-[#557284]">{x.icon}<span className="text-xs">{x.label}</span></div><div className="text-2xl font-semibold tracking-tight text-[#18384b]">{x.n}</div></div>)}
       </div>

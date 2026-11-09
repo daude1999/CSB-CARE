@@ -30,13 +30,33 @@ test("a coordinator uploads the documents and sees each fact with its page, with
     { name: "Support plan.pdf", mimeType: "application/pdf", buffer: await supportPlanPdf() },
     { name: "Discharge summary.pdf", mimeType: "application/pdf", buffer: await dischargeLetterPdf() },
   ]);
-  await page.getByRole("button", { name: "Start and read the documents" }).click();
+  await page.getByRole("button", { name: "Upload and process" }).click();
   await expect(page).toHaveURL(/\/rota\/coordinator\/[a-z0-9]+/);
   intakeUrl = page.url().split("?")[0]!;
-  await expect(page.getByRole("status").or(page.getByText(/started and 2 documents read/))).toBeVisible();
+  await expect(page.getByRole("status").or(page.getByText(/started and 2 documents read/)).first()).toBeVisible();
+
+  // Automatic setup: the setup summary is the first thing the coordinator sees, with links to what CSB AI created.
+  await page.goto(`${intakeUrl}?step=setup`);
+  await expect(page.getByText("Service user created successfully")).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("link", { name: "Open service user profile" }).click();
+  await page.getByRole("link", { name: "Audit & Exceptions" }).first().click();
+  await expect(page.getByText("AI setup summary")).toBeVisible();
+  await expect(page.getByText(/CSB AI \(started by Casey/).first()).toBeVisible();
+
+  // No approval anywhere in the journey (owner's brief of 7 Nov 2026): no Confirm step, no Approve buttons, no counters.
+  await page.goto(`${intakeUrl}?step=setup`);
+  await expect(page.getByRole("link", { name: /Confirm & set up/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Source facts" })).toBeVisible();
+  await page.goto(`${intakeUrl}?step=facts`);
+  await expect(page.getByRole("button", { name: /^Approve/ })).toHaveCount(0);
+  await expect(page.getByText(/still to check|to check$/)).toHaveCount(0);
+  await expect(page.getByText(/nothing here needs approving/)).toBeVisible();
+  // An old link to the retired Confirm step opens the setup summary.
+  await page.goto(`${intakeUrl}?step=save`);
+  await expect(page.getByText("Service user created successfully")).toBeVisible();
 
   // Timetable continued on page 4 is read, and family rows are kept apart.
-  await page.goto(`${intakeUrl}?step=review&section=VISITS`);
+  await page.goto(`${intakeUrl}?step=facts&section=VISITS`);
   const evening = page.locator("li[id^=fact-]").filter({ hasText: "Evening" });
   await expect(evening).toContainText("20:00–21:00");
   await expect(evening).toContainText("page 4");
@@ -45,28 +65,36 @@ test("a coordinator uploads the documents and sees each fact with its page, with
   await expect(page.getByText(/\{"/)).toHaveCount(0);
 
   // Restricted facts (from the hospital letter) are hidden from a coordinator.
-  await page.goto(`${intakeUrl}?step=review&section=MEDICATION`);
+  await page.goto(`${intakeUrl}?step=facts&section=MEDICATION`);
   await expect(page.getByText("Restricted: a registered manager reviews this").first()).toBeVisible();
   await expect(page.getByText("Paracetamol")).toHaveCount(0);
 
-  // Edit with plain fields: the end date of the package.
-  await page.goto(`${intakeUrl}?step=review&section=PACKAGE`);
+  // Saved by CSB AI, not by a person: the fact says so, and it is corrected on the record's own tab afterwards.
+  await page.goto(`${intakeUrl}?step=facts&section=PACKAGE`);
   const end = page.locator("li[id^=fact-]").filter({ hasText: "Package end date" });
-  await end.getByText("Edit", { exact: true }).click();
-  await end.getByLabel(/Package end date/).fill("2026-12-30");
-  await end.getByRole("button", { name: "Save edit and approve" }).click();
-  await expect(page.locator("li[id^=fact-]").filter({ hasText: "Package end date" })).toContainText("Edited and approved");
+  await expect(end).toContainText("CSB AI");
+  await expect(end).not.toContainText("Approved by Casey");
 
-  // Keyboard: the section list and the first action are reachable.
-  await page.goto(`${intakeUrl}?step=review&section=PERSONAL`);
-  const approve = page.getByRole("button", { name: "Approve", exact: true }).first();
-  await approve.focus();
-  await expect(approve).toBeFocused();
+  // The care plan is in use straight away, marked as imported from the council plan; staff can start a new version.
+  await page.goto(`${intakeUrl}?step=setup`);
+  const profileHref = (await page.getByRole("link", { name: "Open service user profile" }).getAttribute("href"))!;
+  await page.goto(profileHref.replace("/rota/service-users/", "/rota/care-plans/"));
+  await expect(page.getByText("Imported from a council support plan.")).toBeVisible();
+  await expect(page.getByText("In use", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Approve/ })).toHaveCount(0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: `${SHOTS}/coordinator-care-plan-imported-desktop.png` });
+
+  // Keyboard: the setup summary's first link is reachable.
+  await page.goto(`${intakeUrl}?step=setup`);
+  const first = page.getByRole("link", { name: "Open service user profile" });
+  await first.focus();
+  await expect(first).toBeFocused();
 
   for (const [w, h, n] of [[1440, 900, "desktop"], [834, 1112, "tablet"], [390, 844, "phone"]] as const) {
     await page.setViewportSize({ width: w, height: h });
-    await page.goto(`${intakeUrl}?step=review&section=VISITS`);
-    await page.screenshot({ path: `${SHOTS}/coordinator-review-${n}.png` });
+    await page.goto(`${intakeUrl}?step=facts&section=VISITS`);
+    await page.screenshot({ path: `${SHOTS}/coordinator-facts-${n}.png` });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   }

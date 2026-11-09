@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { AppError, ValidationError } from "@/lib/errors";
 import { fmtLondonDate, londonDate } from "@/lib/london";
-import { INTAKE_STATUS } from "@/lib/care-coordinator-rules";
+import { INTAKE_STATUS, inReview } from "@/lib/care-coordinator-rules";
 import { addDocuments, coordinatorAccess, createIntake, getIntake, listIntakes, MAX_INTAKE_DOCUMENTS } from "./intake";
 import { digestText, intakeDigest } from "./intake-digest";
 import { readOnce } from "./agent-tools";
@@ -57,7 +57,7 @@ async function upload(ctx: Parameters<typeof coordinatorAccess>[0], input: Param
   if (input.target === "intake") {
     if (!input.intakeId) throw new ValidationError("Choose the intake for this document");
     const view = await getIntake(ctx, input.intakeId); // scoped: another organisation's or area's intake is "not found"
-    if (view.intake.status !== "DRAFT") throw new ValidationError(`${view.intake.reference} is ${INTAKE_STATUS[view.intake.status as keyof typeof INTAKE_STATUS]?.toLowerCase() ?? "closed"}, so documents can't be added. Start a new intake instead.`);
+    if (!inReview(view.intake.status)) throw new ValidationError(`${view.intake.reference} is ${INTAKE_STATUS[view.intake.status as keyof typeof INTAKE_STATUS]?.toLowerCase() ?? "closed"}, so documents can't be added. Start a new intake instead.`);
     intakeId = view.intake.id;
   } else {
     // The same file already on an open intake this employee can see: point there instead of starting another.

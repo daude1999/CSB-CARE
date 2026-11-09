@@ -1,5 +1,6 @@
 import type { OrgRole, PlatformRole } from "@prisma/client";
 import { ForbiddenError } from "@/lib/errors";
+import { moduleOfPermission } from "@/lib/platform-modules";
 
 /** The authenticated actor for a request, scoped to one active organisation. */
 export interface Ctx {
@@ -14,6 +15,10 @@ export interface Ctx {
   platformRoles: PlatformRole[];
   /** The HR Hub account used in HR & Workforce, when the member has HR access. */
   hrUserId?: string | null;
+  /** The organisation's customer account is suspended or closed by Evantix: no organisation permission is granted. */
+  suspended?: boolean;
+  /** Modules switched off for the organisation (Platform Admin Centre → Modules & Features). */
+  disabledModules?: readonly string[];
 }
 
 export const ORG_PERMISSIONS = {
@@ -88,6 +93,10 @@ export const ORG_PERMISSIONS = {
   "callNote.review": ["ORG_ADMIN", "CARE_MANAGER"],
   "care.plan.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "care.plan.approve": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Care Coordinator intake (7 Nov 2026): CSB AI sets up the CRM from a support plan when an authorised person
+   *  uploads it. No fact or section approval; the imported care plan and risks go into use labelled with their source.
+   *  Medication still goes to reconciliation and is never activated automatically. */
+  "careIntake.approve": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
   "incident.report": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "CARER"],
   "incident.manage": ["ORG_ADMIN", "CARE_MANAGER", "COMPLIANCE_LEAD"],
   /** The carer's own visits on the carer mobile page. */
@@ -144,13 +153,30 @@ export const PLATFORM_PERMISSIONS = {
   "master.approve": ["REGULATORY_REVIEWER"],
   /** CSB central content administrators publish central documents, which reach every eligible organisation automatically. */
   "master.publish": ["REGULATORY_REVIEWER", "CONTENT_EDITOR", "PLATFORM_ADMIN"],
+
+  // Evantix Platform Admin Centre (/platform-admin). Separate keys so narrower platform roles can be added later
+  // without changing any check. None of them grants access to a customer's service user or care records.
+  /** Open the Admin Centre: dashboard, client directory, usage and health. */
+  "platform.view": ["PLATFORM_ADMIN"],
+  /** Add customers, edit company details, branches, status (trial, active, suspended, closed). */
+  "platform.customers": ["PLATFORM_ADMIN"],
+  /** Customer users: invitations, password resets, sessions, roles, branch access, deactivation, platform roles. */
+  "platform.accounts": ["PLATFORM_ADMIN"],
+  /** Plans, subscriptions, trials, renewals and module entitlements. */
+  "platform.commercial": ["PLATFORM_ADMIN"],
+  /** Platform settings. */
+  "platform.settings": ["PLATFORM_ADMIN"],
+  /** Request and use time-limited support access to a customer's configuration and activity log. */
+  "platform.support": ["PLATFORM_ADMIN"],
 } as const satisfies Record<string, readonly PlatformRole[]>;
 
 export type OrgPermission = keyof typeof ORG_PERMISSIONS;
 export type PlatformPermission = keyof typeof PLATFORM_PERMISSIONS;
 
 export function hasOrgPermission(ctx: Ctx, perm: OrgPermission): boolean {
-  if (!ctx.organisationId) return false;
+  if (!ctx.organisationId || ctx.suspended) return false;
+  const mod = moduleOfPermission(perm);
+  if (mod && ctx.disabledModules?.includes(mod)) return false;
   const allowed = ORG_PERMISSIONS[perm] as readonly OrgRole[];
   return ctx.orgRoles.some((r) => allowed.includes(r));
 }

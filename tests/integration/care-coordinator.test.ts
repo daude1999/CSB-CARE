@@ -7,13 +7,14 @@ import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
 import { AiUnavailableError, type LlmProvider } from "@/server/ai/provider";
 import type { CareDocumentExtraction } from "@/server/ai/schemas";
-import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, decideSection, getIntake, listIntakes, openIntakeDocument, readIntakeDocument, submitIntake } from "@/server/care/coordinator/intake";
-import { applyApproved, applySection } from "@/server/care/coordinator/apply";
+import { addDocuments, addManualFact, approveVerified, cancelIntake, createIntake, decideFact, getIntake, listIntakes, openIntakeDocument, readIntakeDocument } from "@/server/care/coordinator/intake";
+import { applySection, approveAndSave } from "@/server/care/coordinator/apply";
+import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { referencesFor } from "@/server/care/external-references";
 import { activateCare, createIntakeRota, previewIntakeRota, rotaReadiness, staffingProposals } from "@/server/care/coordinator/rota";
 import { shiftCheck } from "@/server/care/coordinator/shift";
-import { approvePlan, submitPlan } from "@/server/care/care-plans";
-import { approveRiskDraft } from "@/server/care/risks";
+import { draftFingerprint, putPlanInUse, saveDraft, startDraft } from "@/server/care/care-plans";
+import { reviewRisk } from "@/server/care/risks";
 import { storage } from "@/server/storage";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 import { dischargeLetterPdf, supportPlanPdf, topicsPlanPdf } from "../support/coordinator-fixture";
@@ -21,12 +22,11 @@ import { packageSources } from "@/server/care/packages";
 
 /**
  * AI Care Coordinator, end to end against a real database, with synthetic documents only:
- * upload → read (page-referenced) → map → coordinator review → manager section approval → save into the existing
- * profile → care plan / risk drafts approved by someone else → templates → unpublished rota → proposals → shift check.
+ * upload → read (page-referenced) → map → coordinator review → Confirm & Set Up Records (one coordinator, no manager
+ * approval) → save into the existing profile → care plan / risk drafts approved by someone else → templates → unpublished rota → proposals → shift check.
  */
 const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
 const manager = () => ctxFor("manager@care-solution.demo", BROOKFIELD);
-const secondManager = () => ctxFor("reviewer@care-solution.demo", BROOKFIELD);
 const carer = () => ctxFor("carer@care-solution.demo", BROOKFIELD);
 const otherOrg = () => ctxFor("manager@oakridge.demo", OAKRIDGE);
 
@@ -197,7 +197,6 @@ describe("2. Coordinator review", () => {
     const mgr = await db.user.findUniqueOrThrow({ where: { email: "manager@care-solution.demo" } });
     await decideFact(c, comm.id, null, { decision: "CLARIFY", question: "Which ear is the hearing aid in now?", assignedToId: mgr.id });
     expect(await db.notification.count({ where: { userId: mgr.id, type: "coordinator.question" } })).toBe(1);
-    await expect(submitIntake(c, intakeId)).rejects.toThrow(/still need/);
     await decideFact(c, comm.id, null, { decision: "APPROVED", note: "Left ear, confirmed by phone with daughter" });
     const n = await approveVerified(c, intakeId, "PERSONAL");
     expect(n).toBeGreaterThan(5);
@@ -215,57 +214,69 @@ describe("2. Coordinator review", () => {
     expect(view.facts.find((f) => f.id === pc.id)!.decisionNote).toBe("Same as first name");
   });
 
-  it("restricted sections are reviewed by a manager; then the intake is sent for approval and managers are told", async () => {
-    const m = await manager();
-    for (const f of await db.careIntakeFact.findMany({ where: { intakeId, decision: "PENDING" } })) await decideFact(m, f.id, null, { decision: f.destination === "person.firstName" || f.destination === "person.lastName" || f.destination === "person.dateOfBirth" ? "DUPLICATE" : "APPROVED", note: "Same as the support plan" });
-    await expect(submitIntake(await carer(), intakeId)).rejects.toBeInstanceOf(ForbiddenError);
-    await submitIntake(await coordinator(), intakeId);
-    const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
-    expect(intake.status).toBe("SUBMITTED");
-    expect(await db.notification.count({ where: { organisationId: orgId, type: "coordinator.submitted" } })).toBeGreaterThanOrEqual(2);
-    const town = (await factsOf("person.town"))[0]!;
-    await expect(decideFact(await coordinator(), town.id, null, { decision: "APPROVED" })).rejects.toThrow(/with the manager/);
+  it("only someone allowed to confirm intakes can confirm, and not while the page is out of date", async () => {
+    await expect(confirmAndSetUp(await carer(), intakeId)).rejects.toBeInstanceOf(ForbiddenError);
+    const lock = (await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).lockVersion;
+    await expect(confirmAndSetUp(await coordinator(), intakeId, { lockVersion: lock - 1 })).rejects.toThrow(/changed since you opened/);
+    expect(await db.careIntakeSection.count({ where: { intakeId, status: "APPROVED" } })).toBe(0);
   });
 });
 
-describe("3. Manager approval, section by section", () => {
-  it("enforces roles and separation of duties, and lets sections progress independently", async () => {
-    await expect(decideSection(await coordinator(), intakeId, "PERSONAL", { decision: "APPROVED" })).rejects.toBeInstanceOf(ForbiddenError);
-    // The manager reviewed the restricted facts (medication, history, date of birth), so cannot approve those sections; the second manager can.
-    await expect(decideSection(await manager(), intakeId, "MEDICATION", { decision: "APPROVED" })).rejects.toThrow(/another manager/);
-    await expect(decideSection(await manager(), intakeId, "PERSONAL", { decision: "APPROVED" })).rejects.toThrow(/another manager/);
-    await expect(decideSection(await manager(), intakeId, "PACKAGE", { decision: "RETURNED" })).rejects.toThrow(/reason/);
-    for (const s of ["CONTACTS", "CARER_PREFERENCES", "CARE_PLAN", "RISKS", "VISITS"]) await decideSection(await manager(), intakeId, s, { decision: "APPROVED" });
-    await decideSection(await manager(), intakeId, "PACKAGE", { decision: "INFO_REQUESTED", reason: "Confirm the package end date with the commissioner" });
-    for (const s of ["PERSONAL", "MEDICATION", "INCIDENTS", "BODY_MAP"]) await decideSection(await secondManager(), intakeId, s, { decision: "APPROVED", reason: "Checked against the original letter" });
-    const audit = await db.auditLog.findMany({ where: { entityType: "CareIntake", entityId: intakeId, action: "coordinator.section.decided" } });
-    expect(audit.length).toBe(10);
-    expect(new Set(audit.map((a) => a.actorId)).size).toBe(2);
+describe("3. Confirm & Set Up Records: one coordinator, no manager approval", () => {
+  it("the coordinator confirms once: ordinary records are set up under their name while restricted facts stay listed", async () => {
+    const c = await coordinator();
+    const coordinatorUser = await db.user.findUniqueOrThrow({ where: { email: "coordinator@care-solution.demo" } });
+    const end = (await factsOf("package.endDate"))[0]!;
+    await decideFact(c, end.id, null, { decision: "EDITED", value: "2026-12-30" });
+    const restrictedLeft = await db.careIntakeFact.count({ where: { intakeId, decision: "PENDING" } });
+    expect(restrictedLeft).toBeGreaterThan(0); // medication, history, date of birth: the coordinator cannot see them
+    const r = await confirmAndSetUp(c, intakeId, { lockVersion: (await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).lockVersion });
+    // No manager was asked: every ordinary section is approved by the coordinator and saved.
+    expect(r.save.sections.filter((s) => s.status !== "SAVED").map((s) => s.section)).toEqual([]);
+    expect(r.save.sections.map((s) => s.section)).toEqual(expect.arrayContaining(["PERSONAL", "CONTACTS", "CARER_PREFERENCES", "PACKAGE", "CARE_PLAN", "RISKS", "VISITS"]));
+    const approved = await db.careIntakeSection.findMany({ where: { intakeId, status: "APPROVED" } });
+    expect(approved.length).toBeGreaterThanOrEqual(7);
+    expect(approved.every((s) => s.decidedById === coordinatorUser.id && s.applyStatus === "DONE")).toBe(true);
+    expect(await db.notification.count({ where: { organisationId: orgId, type: "coordinator.submitted" } })).toBe(0);
+    // Unresolved restricted facts do not block the ordinary records, but the intake is not Completed.
+    expect(r.attention.facts).toBe(restrictedLeft);
+    expect(r.save.completed).toBe(false);
+    const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
+    expect(intake.status).toBe("DRAFT");
+    expect(intake.submittedById).toBe(coordinatorUser.id);
+    expect(intake.serviceUserId).toBeTruthy();
+    // Restricted personal details are not saved by someone who cannot see them.
+    expect((await db.serviceUser.findUniqueOrThrow({ where: { id: intake.serviceUserId! } })).dateOfBirth).toBeNull();
+    // Audit: the coordinator's confirmation, with the time, and each section's approval.
+    const audit = await db.auditLog.findMany({ where: { entityType: "CareIntake", entityId: intakeId, action: { in: ["coordinator.intake.confirmed", "coordinator.section.approved", "coordinator.intake.approved"] } } });
+    expect(audit.every((a) => a.actorId === coordinatorUser.id)).toBe(true);
+    expect(audit.filter((a) => a.action === "coordinator.section.approved").length).toBe(approved.length);
+    expect((audit.find((a) => a.action === "coordinator.intake.confirmed")!.data as { at: string }).at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // Facts saved can no longer be changed; facts still open in review can.
+    const town = (await factsOf("person.town"))[0]!;
+    await expect(decideFact(c, town.id, null, { decision: "REJECTED", note: "Changed my mind" })).rejects.toThrow(/already been saved/);
   });
 
-  it("a returned section goes back to the coordinator and comes back without touching approved sections", async () => {
-    const end = (await factsOf("package.endDate"))[0]!;
-    await decideFact(await coordinator(), end.id, null, { decision: "EDITED", value: "2026-12-30" });
-    await submitIntake(await coordinator(), intakeId);
-    const sections = await db.careIntakeSection.findMany({ where: { intakeId } });
-    expect(sections.find((s) => s.section === "PACKAGE")!.status).toBe("OPEN");
-    expect(sections.find((s) => s.section === "PERSONAL")!.status).toBe("APPROVED");
-    await decideSection(await manager(), intakeId, "PACKAGE", { decision: "APPROVED" });
-    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("APPROVED");
+  it("someone allowed to see restricted records decides the restricted facts and the same action finishes the intake", async () => {
+    const m = await manager();
+    for (const f of await db.careIntakeFact.findMany({ where: { intakeId, decision: "PENDING" } })) await decideFact(m, f.id, null, { decision: f.destination === "person.firstName" || f.destination === "person.lastName" || f.destination === "person.dateOfBirth" ? "DUPLICATE" : "APPROVED", note: "Same as the support plan" });
+    const r = await confirmAndSetUp(m, intakeId);
+    expect(r.save.sections.filter((s) => s.status === "FAILED")).toEqual([]);
+    expect(r.save.sections.filter((s) => s.status === "SAVED").map((s) => s.section)).toEqual(expect.arrayContaining(["MEDICATION", "INCIDENTS", "BODY_MAP"]));
+    // Sections already saved by the coordinator are not repeated.
+    expect(r.save.sections.find((s) => s.section === "CONTACTS")?.status).toBe("ALREADY_SAVED");
+    expect(r.save.completed).toBe(true);
   });
 });
 
 describe("4. Saving into the existing profile", () => {
   let suId = "";
   it("creates the person, contacts, preferences, package, drafts and templates, files the originals, and reads them back", async () => {
-    // A conflicting package makes that section fail; the others still save and the failure is retryable.
-    const results = await applyApproved(await manager(), intakeId);
-    expect(results.find((r) => r.section === "PERSONAL")!.status).toBe("DONE");
     const intake = await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } });
     suId = intake.serviceUserId!;
     const su = await db.serviceUser.findUniqueOrThrow({ where: { id: suId } });
     expect([su.firstName, su.lastName, su.town, su.status, su.carerGenderPreference, su.nhsNumber]).toEqual(["Ada", "Fictional", "London Borough of Example", "ASSESSMENT", "FEMALE", "9990000001"]);
-    expect(results.every((r) => r.status === "DONE")).toBe(true);
+    expect((await db.careIntakeSection.findMany({ where: { intakeId, status: "APPROVED" } })).every((s) => s.applyStatus === "DONE")).toBe(true);
     // The council client number goes to the encrypted register: unverified, leading zeroes kept, never in plain text.
     const refs = await db.serviceUserExternalReference.findMany({ where: { serviceUserId: suId } });
     expect(refs.map((r) => [r.type, r.verified, r.valueCipher.includes("007001")])).toEqual([["COUNCIL_CLIENT", false, false]]);
@@ -286,12 +297,12 @@ describe("4. Saving into the existing profile", () => {
     expect(src?.intakeReference).toBe(intake.reference);
     expect(src?.documents.map((d) => d.name)).toContain("Support plan");
     const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-    expect(plan.status).toBe("DRAFT");
+    expect([plan.status, plan.origin]).toEqual(["ACTIVE", "DOCUMENT"]);
     expect(plan.sections).toHaveLength(9);
     expect(plan.sections.find((s) => s.key === "mobility")!.body).toMatch(/frame[\s\S]*Source: Support plan, page 2/);
     expect(plan.sections.find((s) => s.key === "about_me")!.body).toMatch(/Not documented/);
     const risks = await db.riskAssessment.findMany({ where: { serviceUserId: suId } });
-    expect(risks.map((r) => r.status)).toEqual(["DRAFT"]);
+    expect(risks.map((r) => [r.status, r.origin])).toEqual([["ACTIVE", "AI_INFERRED"]]);
     const templates = await db.visitTemplate.findMany({ where: { serviceUserId: suId }, include: { tasks: { include: { careTask: true } } }, orderBy: { startMinute: "asc" } });
     expect(templates.map((t) => [t.startMinute, t.durationMin])).toEqual([[540, 60], [720, 45], [990, 30], [1200, 60]]);
     expect(templates[0]!.tasks.map((t) => t.careTask.name)).toEqual(expect.arrayContaining(["Assist with full wash", "Prepare breakfast"]));
@@ -314,26 +325,26 @@ describe("4. Saving into the existing profile", () => {
 
   it("is idempotent: saving again creates nothing new", async () => {
     const before = await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.serviceUserDocument.count({ where: { serviceUserId: suId } })]);
-    expect(await applyApproved(await manager(), intakeId)).toEqual([]);
+    const again1 = await confirmAndSetUp(await manager(), intakeId);
+    expect(again1.save.sections.every((x) => x.status === "ALREADY_SAVED")).toBe(true);
+    expect(again1.save.completed).toBe(true);
     const again = await applySection(await manager(), intakeId, "VISITS");
     expect(again.status).toBe("DONE");
     expect(await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.serviceUserDocument.count({ where: { serviceUserId: suId } })])).toEqual(before);
   });
 
   it("recovers from a failed section: an existing intake with a clashing package fails, then succeeds once cleared", async () => {
-    const m = await manager();
     const c = await coordinator();
     const upd = await createIntake(c, { title: "Package update", mode: "EXISTING", serviceUserId: suId });
     await addManualFact(c, upd.id, { destination: "package.startDate", value: addDays(londonDate(), 2) });
     await addManualFact(c, upd.id, { destination: "person.phone", value: "0200 000 0999" });
     const phone = await db.careIntakeFact.findFirstOrThrow({ where: { intakeId: upd.id, destination: "person.phone" } });
     expect(phone.conflict).toMatch(/record already says "0200 000 0101"/);
-    await submitIntake(c, upd.id);
-    await decideSection(m, upd.id, "PACKAGE", { decision: "APPROVED" });
-    await decideSection(m, upd.id, "PERSONAL", { decision: "APPROVED" });
-    const r = await applyApproved(c, upd.id);
+    // An updated plan: package changes are saved on the coordinator's own confirmation (no manager approval).
+    const r = (await approveAndSave(c, upd.id)).sections;
     expect(r.find((x) => x.section === "PACKAGE")).toMatchObject({ status: "FAILED" });
-    expect(r.find((x) => x.section === "PERSONAL")).toMatchObject({ status: "DONE" });
+    expect(r.find((x) => x.section === "PACKAGE")!.error).toMatch(/already has an active package/);
+    expect(r.find((x) => x.section === "PERSONAL")).toMatchObject({ status: "SAVED" });
     expect((await db.serviceUser.findUniqueOrThrow({ where: { id: suId } })).phone).toBe("0200 000 0999");
     const failed = await db.careIntakeSection.findUniqueOrThrow({ where: { intakeId_section: { intakeId: upd.id, section: "PACKAGE" } } });
     expect([failed.applyStatus, failed.attempts]).toEqual(["FAILED", 1]);
@@ -350,23 +361,34 @@ describe("4. Saving into the existing profile", () => {
 });
 
 describe("5. Care plan, risks and the draft rota", () => {
-  it("blocks the rota until a different person approves the care plan and the risk drafts", async () => {
+  it("needs no second approver: the imported care plan and risk assessment are in use, and staff edit them later as new versions", async () => {
     const m = await manager();
     const c = await coordinator();
     const ready = await rotaReadiness(m, intakeId);
-    expect(ready.ready).toBe(false);
-    expect(ready.gates.filter((g) => !g.ok).map((g) => g.key).sort()).toEqual(["careplan", "risks"]);
-    await expect(previewIntakeRota(m, intakeId, mondayOf(londonDate()), 1)).rejects.toThrow(/Not ready/);
+    expect(ready.gates.filter((g) => !g.ok).map((g) => g.key)).toEqual([]);
+    expect(ready.ready).toBe(true);
     const suId = ready.serviceUser!.id;
-    const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    // The manager saved the plan (applied the section), so the manager cannot approve it.
-    await submitPlan(c, plan.id);
-    await expect(approvePlan(m, plan.id)).rejects.toBeInstanceOf(ForbiddenError);
-    await approvePlan(await secondManager(), plan.id);
-    const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId, status: "DRAFT" } });
-    await expect(approveRiskDraft(m, risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: risk.controls, level: "MEDIUM", reviewDue: addDays(londonDate(), 30) })).rejects.toThrow(/different manager/);
-    await approveRiskDraft(await secondManager(), risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: "Frame within reach. One carer nearby when standing.", level: "MEDIUM", reviewDue: addDays(londonDate(), 30) });
-    expect((await rotaReadiness(m, intakeId)).ready).toBe(true);
+    const imported = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId, status: "ACTIVE" }, include: { sections: true } });
+    expect([imported.origin, imported.approvedById]).toEqual(["DOCUMENT", null]);
+    expect(await db.auditLog.count({ where: { action: "careplan.imported", entityId: suId } })).toBe(1);
+    // A coordinator corrects the plan: a new version, put in use by them alone; the imported version is kept.
+    const draft = await startDraft(c, suId);
+    const fresh = await db.carePlan.findUniqueOrThrow({ where: { id: draft.id }, include: { sections: true } });
+    expect(fresh.sections.find((x) => x.key === "mobility")!.body).toMatch(/frame/);
+    await saveDraft(c, draft.id, { fingerprint: draftFingerprint(fresh, fresh.sections), summary: fresh.summary ?? "Summary", reviewDue: addDays(londonDate(), 90), sections: { mobility: { body: "Walks with a frame indoors. Corrected by the coordinator after a home visit." } } });
+    await putPlanInUse(c, draft.id);
+    const versions = await db.carePlan.findMany({ where: { serviceUserId: suId }, orderBy: { version: "asc" } });
+    expect(versions.map((v) => [v.version, v.status, v.origin])).toEqual([[imported.version, "SUPERSEDED", "DOCUMENT"], [imported.version + 1, "ACTIVE", "MANUAL"]]);
+    expect(versions[1]!.approvedById).toBe(c.userId);
+    expect(await db.auditLog.count({ where: { action: "careplan.put-in-use", entityId: suId, actorId: c.userId } })).toBe(1);
+    // The superseded imported version cannot be changed.
+    await expect(db.carePlan.update({ where: { id: imported.id }, data: { summary: "changed" } })).rejects.toThrow(/immutable/);
+    // A risk assessment is reviewed by the coordinator with no second person; the earlier version is kept.
+    const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId, status: "ACTIVE" } });
+    await reviewRisk(c, risk.id, risk.version, { type: risk.type, title: risk.title, hazards: risk.hazards, controls: "Frame within reach. One carer nearby when standing.", level: "MEDIUM", reviewDue: addDays(londonDate(), 30) });
+    expect(await db.riskAssessmentVersion.count({ where: { riskAssessmentId: risk.id } })).toBe(2);
+    // A carer cannot edit either.
+    await expect(startDraft(await ctxFor("carer@care-solution.demo", BROOKFIELD), suId)).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("only a manager activates care and creates unpublished visits through Build Rota, never twice", async () => {
@@ -375,9 +397,11 @@ describe("5. Care plan, risks and the draft rota", () => {
     await activateCare(m, intakeId);
     const week = addDays(mondayOf(londonDate()), 7);
     const preview = await previewIntakeRota(m, intakeId, week, 2);
-    expect(preview.totals.create).toBe(56); // 4 visits x 7 days x 2 weeks
+    // 4 visits x 7 days x 2 weeks; Confirm & Set Up Records already proposed this week and next (unpublished).
+    expect(preview.totals.create + preview.totals.alreadyBuilt).toBe(56);
+    expect(preview.totals.alreadyBuilt).toBe(28);
     const made = await createIntakeRota(m, intakeId, { weekStart: week, weeks: 2, fingerprint: preview.fingerprint });
-    expect(made.visits).toBe(56);
+    expect(made.visits).toBe(28);
     expect(made.published).toBe(0);
     const suId = (await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).serviceUserId!;
     const visits = await db.visit.findMany({ where: { serviceUserId: suId }, include: { tasks: true } });
@@ -408,7 +432,7 @@ describe("6. Shift check, history, isolation and access", () => {
 
   it("records every step in the intake history with the signed-in person", async () => {
     const actions = (await db.auditLog.findMany({ where: { entityType: "CareIntake", entityId: intakeId } })).map((a) => a.action);
-    for (const a of ["coordinator.intake.created", "coordinator.document.uploaded", "coordinator.document.read", "coordinator.fact.decided", "coordinator.intake.submitted", "coordinator.section.decided", "coordinator.section.applied", "coordinator.documents.filed", "coordinator.care.activated", "coordinator.rota.created"]) expect(actions).toContain(a);
+    for (const a of ["coordinator.intake.created", "coordinator.document.uploaded", "coordinator.document.read", "coordinator.fact.decided", "coordinator.intake.confirmed", "coordinator.intake.approved", "coordinator.section.approved", "coordinator.section.applied", "coordinator.documents.filed", "coordinator.care.activated", "coordinator.rota.created"]) expect(actions).toContain(a);
     expect(await db.auditLog.count({ where: { entityType: "CareIntake", entityId: intakeId, actorId: null } })).toBe(0);
   });
 
@@ -421,7 +445,7 @@ describe("6. Shift check, history, isolation and access", () => {
     await expect(readIntakeDocument(await otherOrg(), doc.id)).rejects.toBeInstanceOf(NotFoundError);
     const f = await db.careIntakeFact.findFirstOrThrow({ where: { intakeId } });
     await expect(decideFact(await otherOrg(), f.id, null, { decision: "APPROVED" })).rejects.toBeInstanceOf(NotFoundError);
-    await expect(decideSection(await otherOrg(), intakeId, "PERSONAL", { decision: "APPROVED" })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(confirmAndSetUp(await otherOrg(), intakeId)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("stops a likely duplicate person unless the coordinator confirms they are someone else", async () => {
@@ -429,8 +453,9 @@ describe("6. Shift check, history, isolation and access", () => {
     const dup = await createIntake(c, { title: "Same person again" });
     await addManualFact(c, dup.id, { destination: "person.firstName", value: "Ada" });
     await addManualFact(c, dup.id, { destination: "person.lastName", value: "Fictional" });
-    await expect(submitIntake(c, dup.id)).rejects.toThrow(/already on record/);
-    await submitIntake(c, dup.id, { notADuplicate: true });
+    await expect(confirmAndSetUp(c, dup.id)).rejects.toThrow(/already on record/);
+    expect(await db.serviceUser.count({ where: { organisationId: orgId, firstName: "Ada", lastName: "Fictional" } })).toBe(1);
+    await confirmAndSetUp(c, dup.id, { notADuplicate: true });
     expect((await db.careIntake.findUniqueOrThrow({ where: { id: dup.id } })).notDuplicateById).toBeTruthy();
   });
 });
@@ -474,18 +499,16 @@ describe("7. Structured extraction (phase 2): care plan topics, risk mitigation 
       for (const s of ["PERSONAL", "CARE_PLAN", "RISKS", "VISITS"]) await approveVerified(c, tmp.id, s);
       expect((await db.careIntakeFact.findUniqueOrThrow({ where: { id: visit.id } })).decision).toBe("PENDING");
       await decideFact(c, visit.id, null, { decision: "APPROVED" });
-      await submitIntake(c, tmp.id);
-      for (const s of ["PERSONAL", "CARE_PLAN", "RISKS", "VISITS"]) await decideSection(await manager(), tmp.id, s, { decision: "APPROVED" });
-      const results = await applyApproved(await manager(), tmp.id);
-      expect(results.every((r) => r.status === "DONE")).toBe(true);
+      const results = (await confirmAndSetUp(c, tmp.id)).save.sections;
+      expect(results.every((r) => r.status === "SAVED")).toBe(true);
       const suId = (await db.careIntake.findUniqueOrThrow({ where: { id: tmp.id } })).serviceUserId!;
       const plan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId }, include: { sections: true } });
-      expect(plan.status).toBe("DRAFT");
+      expect(plan.status).toBe("ACTIVE");
       const body = plan.sections.find((s) => s.key === "personal_care")!.body;
       expect(body).toMatch(/^Toileting and continence\n[\s\S]*How staff should support me: Leave the commode within reach[\s\S]*My preferences: Prefers a female carer/);
       expect(body).toMatch(/Washing and dressing\n[\s\S]*My preferences: Chooses her own clothes/);
       const risk = await db.riskAssessment.findFirstOrThrow({ where: { serviceUserId: suId } });
-      expect(risk.status).toBe("DRAFT");
+      expect(risk.status).toBe("ACTIVE");
       expect(JSON.stringify(risk)).toContain("A sensor light on the landing");
       expect(JSON.stringify(risk)).toContain("For a qualified assessor: No falls assessment date");
       const t = await db.visitTemplate.findFirstOrThrow({ where: { serviceUserId: suId } });

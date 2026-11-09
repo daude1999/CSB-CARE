@@ -208,7 +208,7 @@ function OriginalRequirements({ pkg, source, intakeLinks }: { pkg: Pkg; source: 
     <section className="card" aria-labelledby="pkg-d-h" data-testid="package-requirements">
       <h2 id="pkg-d-h" className="text-[17px]">Original package requirements &amp; imported information</h2>
       <p className="mt-1 text-[13px] text-slate-600">
-        {source ? <>Saved from Care Coordinator intake {intakeLinks ? <Link href={`/rota/coordinator/${source.intakeId}`}>{source.intakeReference}</Link> : source.intakeReference} after a manager approved it. </> : "Source not recorded: entered on the package form or by an earlier import. "}
+        {source ? <>Saved from Care Coordinator intake {intakeLinks ? <Link href={`/rota/coordinator/${source.intakeId}`}>{source.intakeReference}</Link> : source.intakeReference} after the coordinator confirmed it. </> : "Source not recorded: entered on the package form or by an earlier import. "}
         Shown exactly as recorded. It is not checked against the commissioning documents.
       </p>
       {text ? (

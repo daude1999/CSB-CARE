@@ -48,6 +48,9 @@ model User {
   isDemo        Boolean        @default(false)
   createdAt     DateTime       @default(now())
   deactivatedAt DateTime?
+  /// Set by an Evantix platform administrator ("Require a password reset"): the person cannot sign in until they use a
+  /// one-time reset link, which clears it.
+  passwordResetRequired Boolean @default(false)
 
   sessions         Session[]
   memberships      Membership[]
@@ -111,6 +114,11 @@ model Organisation {
   areas                 Area[]
   visits                Visit[]
   accountTokens         AccountToken[]
+  /// Evantix Platform Admin Centre: the organisation as a SaaS customer (one row per organisation).
+  customerAccount       CustomerAccount?
+  subscriptions         CustomerSubscription[]
+  moduleEntitlements    TenantModuleEntitlement[]
+  supportAccessGrants   SupportAccessGrant[]
 }
 
 model ServiceType {
@@ -1819,6 +1827,11 @@ model CarePlan {
   supersededAt     DateTime?
   /// The Care Summary a manager started this review from, if any. The summary text is never copied into the plan.
   sourceSummaryId  String?
+  /// MANUAL (written in CSB) or DOCUMENT (imported from a council support plan by CSB AI).
+  origin           String                    @default("MANUAL")
+  /// The Care Coordinator intake it was imported from, and which documents and pages.
+  sourceIntakeId   String?
+  sourceNote       String?
   sections         CarePlanSection[]
   acknowledgements CarePlanAcknowledgement[]
 
@@ -1889,6 +1902,11 @@ model RiskAssessment {
   /// What still has to be done to reduce the risk (not the standing controls), and who is responsible for it.
   requiredActions   String?
   responsiblePerson String?
+  /// MANUAL, DOCUMENT (a completed assessment in a source document) or AI_INFERRED (CSB AI wrote it from the
+  /// document's narrative: assessment information, not a completed clinical assessment).
+  origin            String                  @default("MANUAL")
+  sourceIntakeId    String?
+  sourceNote        String?
   versions          RiskAssessmentVersion[]
 
   @@index([organisationId, serviceUserId])
@@ -3104,9 +3122,10 @@ model AcknowledgementEvent {
 /// One-time link for joining an organisation (INVITE) or choosing a new password (RESET). Only the hash is stored;
 /// the administrator gives the link to the person. Nothing is emailed.
 model AccountToken {
-  id             String       @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  /// Empty only for a platform-level account recovery link created by an Evantix platform administrator.
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   /// INVITE | RESET
   kind           String
   email          String
@@ -4065,6 +4084,15 @@ model CareIntakeReviewItem {
   resolvedById   String?
   resolvedAt     DateTime?
   resolution     String?
+  /// Automatic setup (7 Nov 2026): INFO | FOLLOW_UP | REVIEW | URGENT. Null for items made before it, which take their
+  /// category's usual severity (exceptionSeverity in coordinator-triage.ts).
+  severity       String?
+  /// A short heading, e.g. "Two dates of birth". Null for older items (the category label is shown instead).
+  title          String?
+  /// The profile tab where the record to correct lives (details, people, package, care-plans, risks, template...).
+  recordTab      String?
+  /// True when CSB AI raised it during automatic setup (the person who started the intake is createdById).
+  automated      Boolean     @default(false)
 
   @@unique([factId])
   @@index([organisationId, serviceUserId, status])
@@ -4090,6 +4118,7 @@ model CareIntake {
   createdById      String
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+  /// Since 7 Nov 2026: the coordinator who last pressed Approve & Save to CRM. Before: who sent it to a manager.
   submittedById    String?
   submittedAt      DateTime?
   cancelledById    String?
@@ -4097,6 +4126,16 @@ model CareIntake {
   cancelReason     String?
   /// Who confirmed that a possible match already on record is a different person (null = not confirmed).
   notDuplicateById String?
+  /// Automatic setup by CSB AI (7 Nov 2026): PROCESSING | READY | NEEDS_ATTENTION | FAILED, null when it never ran.
+  setupStatus      String?
+  /// The last stage that finished (TRIAGE, IDENTITY, RECORDS, ROTA, EXCEPTIONS, VERIFIED), so a retry carries on.
+  setupStage       String?
+  setupStartedAt   DateTime?
+  setupFinishedAt  DateTime?
+  /// Who started the automatic setup (the person whose upload or "Run automatic setup" began it).
+  setupById        String?
+  /// The read-back summary: counts from the database, the sections, the rota, identity questions and failures.
+  setupReport      Json?
   lockVersion      Int                  @default(1)
   documents        CareIntakeDocument[]
   facts            CareIntakeFact[]
@@ -4191,6 +4230,9 @@ model CareIntakeFact {
   assignedToId     String?
   decidedById      String?
   decidedAt        DateTime?
+  /// HUMAN: decidedById made the decision. AUTOMATION: CSB AI decided it during automatic setup that decidedById
+  /// started; it is never shown as that person's review.
+  decisionSource   String     @default("HUMAN")
   editedById       String?
   editedAt         DateTime?
   appliedAt        DateTime?
@@ -4203,9 +4245,10 @@ model CareIntakeFact {
   @@index([intakeId, section])
 }
 
-/// The manager's decision on one profile section of an intake, and whether it has been applied.
-/// status: OPEN | APPROVED | RETURNED | REJECTED | INFO_REQUESTED
-/// applyStatus: NOT_STARTED | DONE | FAILED | BLOCKED
+/// The coordinator's approval of one profile section of an intake, and whether it has been saved to the CRM.
+/// status: OPEN | APPROVED | DRAFTED | REJECTED (RETURNED / INFO_REQUESTED only from the retired manager step)
+/// decidedById: the coordinator who approved the section (Approve & Save to CRM, 7 Nov 2026).
+/// applyStatus: NOT_STARTED | SAVING | DONE | FAILED | BLOCKED; claimedAt is when the current save started.
 model CareIntakeSection {
   id             String     @id @default(cuid())
   organisationId String
@@ -4222,6 +4265,7 @@ model CareIntakeSection {
   appliedById    String?
   appliedAt      DateTime?
   attempts       Int        @default(0)
+  claimedAt      DateTime?
   lockVersion    Int        @default(1)
 
   @@unique([intakeId, section])
@@ -5267,4 +5311,186 @@ model CareInstructionAck {
   at             DateTime               @default(now())
 
   @@unique([versionId, staffId])
+}
+
+// ── Evantix Platform Admin Centre (8 Nov 2026) ──────────────────────────────
+// The Organisation id stays the tenant identity. These tables describe each organisation as a SaaS customer of
+// Evantix: its commercial profile, subscription history, licensed modules, AI usage metadata and support access.
+// None of them holds care content.
+
+enum CustomerStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+/// The organisation as an Evantix customer. Suspending or closing a customer never deletes its records.
+model CustomerAccount {
+  organisationId  String         @id
+  organisation    Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  /// Permanent customer reference, e.g. EVX-0001. Never reused.
+  reference       String         @unique
+  status          CustomerStatus @default(ACTIVE)
+  statusReason    String?
+  statusChangedAt DateTime?
+  legalName       String
+  tradingName     String?
+  companyNumber   String?
+  address         String?
+  contactEmail    String?
+  contactPhone    String?
+  country         String         @default("England")
+  mainContactName String?
+  serviceTypes    String[]       @default([])
+  /// As given by the customer. Not proof of registration: cqcCheckedAt is only set when someone has checked it.
+  cqcProviderId   String?
+  cqcLocationIds  String[]       @default([])
+  cqcCheckedAt    DateTime?
+  cqcCheckedById  String?
+  /// Idempotency key of the onboarding form that created this customer, so a retried submission never duplicates it.
+  onboardingKey   String?        @unique
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status])
+}
+
+enum BillingPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+/// A configurable plan. Prices are optional: a plan without a price is shown as "price not set", never invented.
+model SubscriptionPlan {
+  id                 String                 @id @default(cuid())
+  code               String                 @unique
+  name               String
+  description        String?
+  currency           String                 @default("GBP")
+  monthlyPricePence  Int?
+  annualPricePence   Int?
+  includedUsers      Int?
+  includedBranches   Int?
+  storageMb          Int?
+  aiRequestsPerMonth Int?
+  modules            String[]               @default([])
+  supportLevel       String?
+  addOns             String[]               @default([])
+  active             Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  subscriptions      CustomerSubscription[]
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+/// One row per subscription period. A change ends the current row (isCurrent false, endedAt set) and starts a new one,
+/// so the history of entitlements and their effective dates is kept in full.
+model CustomerSubscription {
+  id                 String             @id @default(cuid())
+  organisationId     String
+  organisation       Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus
+  billingPeriod      BillingPeriod      @default(MONTHLY)
+  isCurrent          Boolean            @default(true)
+  startsAt           DateTime           @default(now())
+  trialEndsAt        DateTime?
+  renewsAt           DateTime?
+  endedAt            DateTime?
+  userAllowance      Int?
+  branchAllowance    Int?
+  storageMb          Int?
+  aiRequestsPerMonth Int?
+  /// The billing provider's own reference, once a provider is connected.
+  providerRef        String?
+  changeReason       String?
+  createdById        String?
+  createdAt          DateTime           @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([isCurrent, status])
+}
+
+/// Whether an organisation is licensed for a module. No row means the module is on (every existing customer keeps
+/// what it has today). Disabling a module never deletes its records.
+model TenantModuleEntitlement {
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  moduleKey      String
+  enabled        Boolean      @default(true)
+  /// Module limits, e.g. AI_COORDINATOR: { monthlyRequests, monthlySpendPence }.
+  limits         Json         @default("{}")
+  updatedById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@id([organisationId, moduleKey])
+}
+
+/// Metadata of one AI request: never the prompt, the document or the answer.
+model AiUsageEvent {
+  id             String   @id @default(cuid())
+  organisationId String?
+  feature        String
+  provider       String
+  model          String?
+  success        Boolean
+  errorReason    String?
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  durationMs     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([createdAt])
+}
+
+/// Platform-wide settings, each with a documented effect (src/server/platform/settings.ts). Never holds secrets:
+/// API keys and passwords stay in the hosting environment.
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+enum SupportAccessStatus {
+  REQUESTED
+  ACTIVE
+  DECLINED
+  REVOKED
+}
+
+/// Time-limited, purpose-bound access for Evantix support to a customer's configuration and activity log. Never
+/// impersonation and never service-user records.
+model SupportAccessGrant {
+  id             String              @id @default(cuid())
+  organisationId String
+  organisation   Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  requestedById  String
+  purpose        String
+  scopes         String[]
+  durationHours  Int
+  /// CUSTOMER (approved by one of the customer's administrators) or EMERGENCY (platform admin, reason recorded).
+  authorisation  String              @default("CUSTOMER")
+  status         SupportAccessStatus @default(REQUESTED)
+  decidedById    String?
+  decidedAt      DateTime?
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  revokedById    String?
+  revokedAt      DateTime?
+  revokeReason   String?
+  createdAt      DateTime            @default(now())
+
+  @@index([organisationId, status])
 }

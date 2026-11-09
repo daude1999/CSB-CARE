@@ -1,14 +1,17 @@
+import { runForTenant } from "@/server/ai/metering";
 import type { BackgroundJob, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { audit } from "@/server/audit-log";
+import { audit, runAsAutomation } from "@/server/audit-log";
 import { ctxForUser } from "@/server/auth/session";
 import type { Ctx } from "@/server/auth/rbac";
 import { drain, enqueue, PermanentJobError } from "@/server/jobs/queue";
 import { rotaScope } from "@/server/rota/scope";
 import { coordinatorAccess, intakeInScope, readIntakeDocument } from "./intake";
-import { databaseRefusal, prepareDrafts, prepareReportText } from "./prepare";
+import { inReview } from "@/lib/care-coordinator-rules";
+import { databaseRefusal } from "./prepare";
+import { runAutomaticSetup, setupSummaryLines } from "./auto-setup";
 
 /**
  * Background reading of intake documents (owner's brief of 6 Nov 2026, 17:21).
@@ -52,7 +55,7 @@ export async function queueDocumentRead(ctx: Ctx, documentId: string, opts: { pr
   const doc = await db.careIntakeDocument.findFirst({ where: { id: documentId, organisationId } });
   if (!doc) throw new NotFoundError("Document");
   const intake = await intakeInScope(db, scope, doc.intakeId);
-  if (intake.status !== "DRAFT") throw new ConflictError("Documents can only be read while the coordinator is reviewing");
+  if (!inReview(intake.status)) throw new ConflictError("Documents can only be read while the coordinator is reviewing");
   if (doc.contentType !== "application/pdf") throw new ValidationError("Only PDFs can be read. Add this document's facts by hand.");
   if (doc.readJobId) {
     const current = await db.backgroundJob.findUnique({ where: { id: doc.readJobId } });
@@ -100,21 +103,25 @@ export async function runDocumentReadJob(raw: Record<string, unknown>, job: Back
     let read: { facts: number; status: string; reader: string } | null = null;
     if (!alreadyRead) {
       await setStage(doc.id, "READING", doc.pageCount && doc.pageCount > 10 ? `Reading ${doc.pageCount} pages in parts. This can take a few minutes.` : "Reading the document.");
-      const r = await readIntakeDocument(ctx, doc.id);
+      // The background reading is CSB AI's work, started by the person who uploaded: its audit entries say so.
+      const r = await runForTenant(p.organisationId, () => runAsAutomation({ initiatedById: p.actorId, run: `read:${doc.id}` }, () => readIntakeDocument(ctx, doc.id)));
       read = { facts: r.facts, status: r.status, reader: r.reader };
     }
     let report: string | null = null;
     if (p.prepare) {
       const intake = await db.careIntake.findUnique({ where: { id: doc.intakeId }, select: { status: true } });
-      if (intake?.status === "DRAFT") {
-        await setStage(doc.id, "PREPARING", "Read. Preparing the person's draft records and a proposed rota.");
+      if (intake && inReview(intake.status)) {
+        await setStage(doc.id, "PREPARING", "Read. CSB AI is setting up the person's records, drafts and a proposed rota.");
         try {
-          report = prepareReportText(await prepareDrafts(ctx, doc.intakeId)).replace(/\n/g, " ");
+          // Automatic setup (7 Nov 2026): CSB AI carries on to the records by itself. With several documents it waits
+          // until the last one is read, so it decides on the complete set of facts.
+          const r = await runAutomaticSetup(ctx, doc.intakeId);
+          const mode = (await db.careIntake.findUnique({ where: { id: doc.intakeId }, select: { mode: true } }))?.mode ?? "NEW";
+          report = r.blocked ? `Read. ${r.blocked.message}` : `Read and set up. ${setupSummaryLines(r, mode).join(". ")}.`;
         } catch (e) {
-          // Preparing is refused for reasons a person must settle (for example someone similar already on record):
-          // the reading stands, and the reason is shown.
+          // Setup is refused for reasons a person must settle: the reading stands, and the reason is shown.
           if (!(e instanceof AppError)) throw e;
-          report = `Read. Drafts were not prepared: ${e.message.slice(0, 300)}`;
+          report = `Read. Automatic setup stopped: ${e.message.slice(0, 300)}`;
         }
       }
     }

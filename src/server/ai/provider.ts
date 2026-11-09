@@ -144,7 +144,7 @@ export interface SupportPlanExtractionInput {
 
 /** Why AI could not be used, so callers can say it plainly: not set up, model not available, rejected key, busy or
  *  rate limited, declined, or a general outage. Messages never contain the key or any care text. */
-export type AiUnavailableReason = "not-configured" | "model-unavailable" | "auth" | "busy" | "refused" | "timeout" | "unavailable" | "rejected" | "invalid-output" | "truncated";
+export type AiUnavailableReason = "not-licensed" | "not-configured" | "model-unavailable" | "auth" | "busy" | "refused" | "timeout" | "unavailable" | "rejected" | "invalid-output" | "truncated";
 
 /** Failures worth trying again after a short wait. The others need a change (a setting, the document) first. */
 export const TRANSIENT_AI_REASONS: ReadonlySet<AiUnavailableReason> = new Set(["busy", "timeout", "unavailable", "invalid-output", "truncated"]);

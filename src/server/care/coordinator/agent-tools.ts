@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { INTAKE_STATUS, SECTION_KEYS, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
+import { INTAKE_STATUS, SECTION_KEYS, inReview, sectionLabel, type IntakeSection } from "@/lib/care-coordinator-rules";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { memberScope, serviceUserWhere, type Scope } from "@/server/rota/scope";
 import { suName, visitCandidates } from "@/server/rota/queries";
@@ -225,7 +225,7 @@ const tools = {
   get_section_drafts: {
     spec: {
       name: "get_section_drafts",
-      description: "The prepared drafts for one section of an intake, fact by fact, with value, the coordinator's decision, document, page and quote. Sections: PERSONAL, CONTACTS, CARER_PREFERENCES, PACKAGE, CARE_PLAN, RISKS, MEDICATION, INCIDENTS, BODY_MAP, VISITS, CALL_NOTES. Restricted sections need a manager's access.",
+      description: "The prepared drafts for one section of an intake, fact by fact, with value, the coordinator's decision, document, page and quote. Sections: PERSONAL, CONTACTS, CARER_PREFERENCES, PACKAGE, CARE_PLAN, RISKS, MEDICATION, INCIDENTS, BODY_MAP, VISITS, CALL_NOTES. Restricted sections need access to restricted records.",
       inputSchema: obj({ intakeId: { type: "string" }, section: { type: "string", enum: [...SECTION_KEYS] } }),
     },
     schema: z.object({ intakeId: id, section: z.enum(SECTION_KEYS) }),
@@ -247,7 +247,7 @@ const tools = {
   } satisfies Tool<z.ZodObject<{ intakeId: typeof id; section: z.ZodEnum<typeof SECTION_KEYS> }>>,
 
   get_review_steps: {
-    spec: { name: "get_review_steps", description: "What still has to happen on an intake before anything reaches the person's record or the rota: open facts, manager approval per section, save to record, follow-ups and the rota readiness checks (care package, visits, care plan approved by a different person, risks reviewed).", inputSchema: obj({ intakeId: { type: "string" } }) },
+    spec: { name: "get_review_steps", description: "Where an intake is: documents still being read, what CSB AI's automatic setup saved per section, the exceptions that need a person and the rota readiness checks (care package, visits, care plan in use, risk assessments in use).", inputSchema: obj({ intakeId: { type: "string" } }) },
     schema: z.object({ intakeId: id }),
     async run(ctx, { intakeId }, state) {
       const view = await getIntake(ctx, intakeId);
@@ -256,17 +256,15 @@ const tools = {
       const unread = view.documents.filter((d) => d.readStatus === "PENDING" || d.readStatus === "FAILED").length;
       const ready = view.intake.serviceUserId ? await rotaReadiness(ctx, intakeId).catch(() => null) : null;
       const next =
-        status === "DRAFT"
-          ? !view.documents.length ? "Upload the support plan." : unread ? `${unread} document(s) still to read.` : open ? `${open} fact(s) still need the coordinator's check, then submit to a manager.` : "Submit the intake to a manager."
-          : status === "SUBMITTED" ? "A manager approves each section. The person who submitted it cannot approve it."
-          : status === "APPROVED" ? "A person presses Save to record for the approved sections."
+        inReview(status)
+          ? !view.documents.length ? "Upload the support plan." : unread ? `${unread} document(s) still to read.` : open ? `${open} fact(s) are listed as exceptions on the Setup summary; nothing needs approving.` : "Setup is done or runs by itself; see the Setup summary (no approval is needed)."
           : status === "APPLYING" ? "Saving is in progress; check any section that failed."
           : "The intake is closed.";
-      link(state, { label: `Open ${view.intake.reference}`, href: intakeHref(intakeId, status === "DRAFT" ? "facts" : status === "SUBMITTED" ? "approval" : undefined) });
+      link(state, { label: `Open ${view.intake.reference}`, href: intakeHref(intakeId, inReview(status) ? "setup" : undefined) });
       if (ready?.serviceUser) link(state, { label: "Rota and carers step", href: intakeHref(intakeId, "rota") });
       return {
         status: INTAKE_STATUS[status] ?? status, nextStep: next, openFacts: open, unreadDocuments: unread,
-        sections: view.sections.filter((s) => s.total > 0).map((s) => ({ section: sectionLabel(s.key), open: s.open, managerDecision: s.status, decidedBy: s.decidedBy, savedToRecord: s.applyStatus })),
+        sections: view.sections.filter((s) => s.total > 0).map((s) => ({ section: sectionLabel(s.key), open: s.open, approval: s.status, approvedBy: s.decidedBy, savedToRecord: s.applyStatus })),
         followUpsOpen: view.followUps.filter((f) => f.status !== "RESOLVED").map((f) => ({ category: f.category, text: f.description.slice(0, 300) })),
         rotaReadiness: ready ? { ready: ready.ready, gates: ready.gates.map((g) => ({ check: g.label, ok: g.ok, detail: g.detail })) } : "Not yet: the person is created when the Personal details section is approved and saved.",
         approvalsRecorded: view.sections.filter((s) => s.status === "APPROVED").map((s) => ({ section: sectionLabel(s.key), by: s.decidedBy })),

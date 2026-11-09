@@ -24,6 +24,6 @@ export async function reviewCareSummaryAction(fd: FormData) {
 export async function startReviewFromSummaryAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const plan = await startReviewFromSummary(ctx, str(fd, "summaryId"));
-    return { to: `/rota/care-plans/${plan.serviceUserId}?edit=1`, ok: `Version ${plan.version} started as a draft. Nothing changes for carers until it is approved.` };
+    return { to: `/rota/care-plans/${plan.serviceUserId}?edit=1`, ok: `Version ${plan.version} started as a draft. Nothing changes for carers until it is put in use.` };
   }, "Draft started");
 }

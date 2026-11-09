@@ -6,7 +6,7 @@ import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
 import { addDocuments, createIntake } from "@/server/care/coordinator/intake";
 import { prepareDrafts } from "@/server/care/coordinator/prepare";
-import { BACKUP_SCHEMA, CLEANUP_ID, TEST_INTAKE_TITLE, cleanUpTestPerson } from "../../prisma/test-record-cleanup";
+import { BACKUP_SCHEMA, CLEANUP_ID, SECOND, TEST_INTAKE_TITLE, cleanUpTestPerson } from "../../prisma/test-record-cleanup";
 import { BROOKFIELD, ctxFor, resetDb, seedAll } from "../helpers";
 import { supportPlanPdf } from "../support/coordinator-fixture";
 
@@ -38,6 +38,7 @@ describe("test person clean-up", () => {
 
   beforeAll(async () => {
     await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${BACKUP_SCHEMA}" CASCADE`);
+    await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${SECOND.backupSchema}" CASCADE`);
     await resetDb();
     await seedAll({ simulatedChange: false, care: true });
     setAiProviderForTests(new SimulatedProvider());
@@ -72,4 +73,22 @@ describe("test person clean-up", () => {
   it("does nothing the second time", async () => {
     expect(await inTransaction(cleanUpTestPerson)).toEqual({ skipped: `${CLEANUP_ID} already applied` });
   });
+
+  it("removes the second test person (the upload-fix check) after the first clean-up has run, and keeps everything else", async () => {
+    const c = await ctxFor("coordinator@care-solution.demo", BROOKFIELD);
+    const intake = (await createIntake(c, { title: SECOND.title })).id;
+    await addDocuments(c, intake, [{ name: "fictional-plan.pdf", type: "application/pdf", bytes: await supportPlanPdf() }]);
+    const second = (await prepareDrafts(c, intake)).serviceUserId!;
+    expect(await db.serviceUser.count({ where: { id: second, firstName: "Ada", lastName: "Fictional" } })).toBe(1);
+    const out = await inTransaction((x) => cleanUpTestPerson(x, SECOND));
+    expect(out).toHaveProperty("deleted");
+    expect(await db.careIntake.count({ where: { id: intake } })).toBe(0);
+    expect(await db.serviceUser.count({ where: { id: second } })).toBe(0);
+    expect(await db.careIntake.count({ where: { id: otherIntake } })).toBe(1);
+    expect(await db.serviceUser.count({ where: { organisationId: orgId } })).toBe(before.serviceUsers);
+    expect(await db.staffMember.count({ where: { organisationId: orgId } })).toBe(before.staff);
+    const backup = await db.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM "${SECOND.backupSchema}"."ServiceUser"`);
+    expect(backup[0]!.n).toBe(1);
+    expect(await inTransaction((x) => cleanUpTestPerson(x, SECOND))).toEqual({ skipped: `${SECOND.id} already applied` });
+  }, 120_000);
 });

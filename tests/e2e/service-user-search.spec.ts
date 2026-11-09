@@ -15,7 +15,7 @@ async function demoPerson(page: Page) {
   await page.goto("/rota/service-users");
   const first = page.locator("table tbody tr").first();
   const name = (await first.locator("td").first().locator("a").innerText()).trim();
-  const csb = ((await first.locator("td").first().locator("div").innerText()).split("·")[0] ?? "").trim();
+  const csb = ((await first.locator("td").nth(1).innerText()).split("\n")[0] ?? "").trim();
   const href = (await first.locator("td").first().locator("a").getAttribute("href"))!;
   return { name, csb, href };
 }
@@ -27,18 +27,21 @@ test.describe("Service user search", () => {
     const p = await demoPerson(page);
     await page.goto("/rota");
     const search = page.getByRole("searchbox", { name: "Search rostering" });
-    await page.keyboard.press("Control+k");
-    await expect(search).toBeFocused();
+    // Ctrl+K works once the header has hydrated; retry the key press rather than racing it.
+    await expect(async () => {
+      await page.keyboard.press("Control+k");
+      await expect(search).toBeFocused({ timeout: 1000 });
+    }).toPass();
     await search.fill(`  ${p.name.toUpperCase()} `);
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=/);
     const results = page.getByRole("region", { name: "Service users" });
-    await expect(results.getByRole("link", { name: p.name })).toBeVisible();
+    await expect(results.getByRole("link", { name: p.name, exact: true })).toBeVisible();
     await expect(page.getByTestId("reference-search-problem")).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/search-1-header-full-name.png` });
 
     await page.goto(`/rota/search?q=${encodeURIComponent(p.csb)}`);
-    await results.getByRole("link", { name: p.name }).click();
+    await results.getByRole("link", { name: p.name, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${p.href}$`));
 
     // A number that is not on anyone's record says the whole number is needed, rather than guessing.
@@ -56,7 +59,7 @@ test.describe("Service user search", () => {
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page).toHaveURL(/q=/);
     await expect(page.locator("table tbody tr")).toHaveCount(1);
-    await expect(page.locator("table").getByRole("link", { name: p.name })).toBeVisible();
+    await expect(page.locator("table").getByRole("link", { name: p.name, exact: true })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/search-3-directory-full-name.png` });
 
     // Filtering to Ended hides the person and the page says a filter is hiding a match.
@@ -65,6 +68,6 @@ test.describe("Service user search", () => {
     await expect(page.getByTestId("hidden-by-filters")).toContainText("1 more person matches");
     await page.screenshot({ path: `${SHOTS}/search-4-directory-hidden-by-filter.png` });
     await page.getByRole("link", { name: "Show all matches" }).click();
-    await expect(page.locator("table").getByRole("link", { name: p.name })).toBeVisible();
+    await expect(page.locator("table").getByRole("link", { name: p.name, exact: true })).toBeVisible();
   });
 });

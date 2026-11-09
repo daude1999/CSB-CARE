@@ -7,10 +7,14 @@ import { hasOrgPermission, hasPlatformPermission, type Ctx, type OrgPermission }
 /** Who may open each portal. This is the only place the rule lives; menus and pages both ask it. */
 export function canUsePortal(ctx: Ctx, id: PortalId): boolean {
   const platformAdmin = hasPlatformPermission(ctx, "sources.manage");
+  // A suspended or closed customer keeps only the Overview, which explains the suspension.
+  if (ctx.suspended && id !== "overview") return false;
   switch (id) {
     case "overview":
-    case "policy":
       return true;
+    case "policy":
+      // Policy & Compliance can be switched off for an organisation (Platform Admin Centre → Modules).
+      return !ctx.organisationId || !ctx.disabledModules?.includes("POLICY");
     case "rota":
       return hasOrgPermission(ctx, "rota.view") || hasOrgPermission(ctx, "serviceUser.view") || hasOrgPermission(ctx, "finance.view") || hasOrgPermission(ctx, "visit.own");
     case "hr":

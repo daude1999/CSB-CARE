@@ -94,7 +94,7 @@ describe("the Rota side menu", () => {
       if (["/rota", "/rota/visits/new", "/rota/settings", "/rota/care-plans", "/rota/risks"].includes(href)) continue;
       expect(all, href).toContain(href);
     }
-    expect(rotaWorkspaceTabs(admin, "people").map((t) => t.label)).toEqual(["Service Users", "Care Coordinator", "Incidents", "Visit Notes"]);
+    expect(rotaWorkspaceTabs(admin, "people").map((t) => t.label)).toEqual(["All Service Users", "Care Coordinator", "Incidents", "Visit Notes"]);
     // Staff who only have incident reporting access must still be able to reach the register.
     expect(rotaWorkspaceTabs(ctx({ orgRoles: ["STAFF", "CARER"] }), "people").map((t) => t.label)).toEqual(["Incidents"]);
   });

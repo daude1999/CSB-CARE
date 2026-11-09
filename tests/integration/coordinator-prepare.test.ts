@@ -2,10 +2,11 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
 import { isMedicationTask } from "@/server/care/coordinator/visit-tasks";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
-import { addDocuments, createIntake, decideSection, submitIntake } from "@/server/care/coordinator/intake";
+import { addDocuments, createIntake } from "@/server/care/coordinator/intake";
+import { confirmAndSetUp } from "@/server/care/coordinator/prepare";
 import { correctDraftVisit, draftSummary, prepareDrafts, prepareReportText } from "@/server/care/coordinator/prepare";
 import { activateCare, rotaReadiness } from "@/server/care/coordinator/rota";
 import { executeTool, type ToolState } from "@/server/care/coordinator/agent-tools";
@@ -56,10 +57,10 @@ describe("1. One upload fills the CRM as drafts", () => {
     expect(await db.serviceUserContact.count({ where: { serviceUserId: suId } })).toBe(3);
     expect(await db.carePackage.count({ where: { serviceUserId: suId } })).toBe(1);
     const carePlan = await db.carePlan.findFirstOrThrow({ where: { serviceUserId: suId } });
-    expect(carePlan.status).toBe("DRAFT");
+    expect([carePlan.status, carePlan.origin]).toEqual(["ACTIVE", "DOCUMENT"]);
     const risks = await db.riskAssessment.findMany({ where: { serviceUserId: suId } });
-    expect(risks.map((x) => x.status)).toEqual(["DRAFT"]);
-    expect(risks[0]!.hazards).toMatch(/NO RISK LEVEL IS STATED/);
+    expect(risks.map((x) => [x.status, x.origin])).toEqual([["ACTIVE", "AI_INFERRED"]]);
+    expect(risks[0]!.hazards).toMatch(/RISK LEVEL IS NOT STATED/);
     // Four commissioned visits a day; the two family rows are never scheduled.
     expect(await db.visitTemplate.count({ where: { serviceUserId: suId } })).toBe(4);
     // Each visit has short carer tasks, and no medication task reaches carers from a document.
@@ -109,10 +110,10 @@ describe("1. One upload fills the CRM as drafts", () => {
     const bulk = await bulkVisits(m, [v.id], { kind: "publish" });
     expect(JSON.stringify(bulk)).toMatch(/proposal|Activate care/);
     expect(await db.visit.count({ where: { serviceUserId: suId, publishedAt: { not: null } } })).toBe(0);
-    const ready = await rotaReadiness(m, intakeId);
-    expect(ready.ready).toBe(false);
-    expect(ready.gates.find((g) => g.key === "careplan")!.ok).toBe(false);
-    await expect(activateCare(m, intakeId)).rejects.toBeInstanceOf(ValidationError);
+    // The records are in place, but care stays at Assessment until a manager activates it (a role check, not an approval).
+    expect((await rotaReadiness(m, intakeId)).gates.find((g) => g.key === "careplan")!.ok).toBe(true);
+    await expect(activateCare(await coordinator(), intakeId)).rejects.toBeInstanceOf(ForbiddenError);
+    expect((await db.serviceUser.findUniqueOrThrow({ where: { id: suId } })).status).toBe("ASSESSMENT");
   });
 
   it("shows what was prepared, read from the database", async () => {
@@ -172,11 +173,18 @@ describe("2. Corrections, identity and access", () => {
     await expect(correctDraftVisit(await otherOrg(), t.id, { startTime: "10:00" })).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it("a manager still approves restricted sections; drafted sections are not approved again", async () => {
+  it("the coordinator confirms the drafted intake once; open restricted facts stay listed and nothing is repeated", async () => {
     const c = await coordinator();
-    await expect(decideSection(await manager(), intakeId, "VISITS", { decision: "APPROVED" })).rejects.toBeInstanceOf(ConflictError);
-    // Medication and other restricted facts are still open, so the intake cannot be sent until a person decides them.
-    await expect(submitIntake(c, intakeId)).rejects.toBeInstanceOf(ValidationError);
+    const before = await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } })]);
+    const r = await confirmAndSetUp(c, intakeId);
+    // The drafted sections are now approved under the coordinator's name; nothing was saved twice.
+    expect(r.save.approved).toEqual(expect.arrayContaining(["PERSONAL", "VISITS"]));
+    expect(r.save.sections.filter((s) => s.status === "FAILED")).toEqual([]);
+    expect(await Promise.all([db.serviceUserContact.count({ where: { serviceUserId: suId } }), db.visitTemplate.count({ where: { serviceUserId: suId } }), db.carePackage.count({ where: { serviceUserId: suId } })])).toEqual(before);
+    // Medication and other restricted facts are still open: listed, not saved, and the intake is not Completed.
+    expect(r.attention.facts).toBeGreaterThan(0);
+    expect(r.save.completed).toBe(false);
+    expect((await db.careIntake.findUniqueOrThrow({ where: { id: intakeId } })).status).toBe("DRAFT");
   });
 
   it("refuses a time correction once care is active", async () => {
