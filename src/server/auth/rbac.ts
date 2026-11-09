@@ -70,6 +70,10 @@ export const ORG_PERMISSIONS = {
   "staff.directory": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD", "FINANCE_OFFICER"],
   "serviceUser.view": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR", "COMPLIANCE_LEAD"],
   "serviceUser.edit": ["ORG_ADMIN", "CARE_MANAGER", "CARE_COORDINATOR"],
+  /** Archiving and restoring a person whose care has ended (reversible; every record is kept). */
+  "serviceUser.archive": ["ORG_ADMIN", "CARE_MANAGER"],
+  /** Permanently deleting a person added by mistake. Only an archived person with no care records. */
+  "serviceUser.delete": ["ORG_ADMIN"],
   /** Date of birth, NHS number and other identifying details. */
   "serviceUser.sensitive": ["ORG_ADMIN", "CARE_MANAGER"],
   /** Revealing a key safe code. Every reveal is audited. */

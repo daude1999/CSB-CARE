@@ -84,7 +84,9 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const tabLabel = new Map<string, string>(availableTabs);
   const groups = GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => tabLabel.has(t)) })).filter((g) => g.tabs.length);
   const group = groups.find((g) => g.tabs.includes(tab)) ?? groups[0]!;
-  const canEdit = hasOrgPermission(ctx, "serviceUser.edit");
+  // An archived record is read-only: its edit controls are hidden (and the server refuses detail and status changes).
+  const canEdit = hasOrgPermission(ctx, "serviceUser.edit") && !su.archivedAt;
+  const canArchive = hasOrgPermission(ctx, "serviceUser.archive") || hasOrgPermission(ctx, "serviceUser.delete");
   const canKeySafe = hasOrgPermission(ctx, "serviceUser.keysafe");
   const base = `/rota/service-users/${su.id}`;
   const back = `${base}?tab=${tab}`;
@@ -161,9 +163,14 @@ export default async function ServiceUserPage({ params, searchParams }: { params
         title={suName(su)}
         back="/rota/service-users"
         subtitle={`${su.csbReference ?? su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
-        actions={<div className="flex flex-wrap items-center gap-2"><StatusBadge status={su.status} />{canEdit && hasOrgPermission(ctx, "serviceUser.documents") && su.status !== "ENDED" ? <Link href={`/rota/coordinator?mode=EXISTING&person=${su.id}#start`} className="btn-secondary py-1">Upload documents</Link> : null}</div>}
+        actions={<div className="flex flex-wrap items-center gap-2">{su.archivedAt ? <Badge tone="slate">Archived</Badge> : null}<StatusBadge status={su.status} />{canEdit && hasOrgPermission(ctx, "serviceUser.documents") && su.status !== "ENDED" && !su.archivedAt ? <Link href={`/rota/coordinator?mode=EXISTING&person=${su.id}#start`} className="btn-secondary py-1">Upload documents</Link> : null}{canArchive ? <Link href={`${base}/archive`} className="btn-secondary py-1" data-testid="open-archive">{su.archivedAt ? "Restore or delete" : "Archive or delete"}</Link> : null}</div>}
       />
       <Flash searchParams={sp} />
+      {su.archivedAt ? (
+        <p role="status" className="mb-3 rounded-[8px] border border-slate-300 bg-slate-50 px-4 py-2.5 text-[14px] text-slate-800" data-testid="archived-banner">
+          {suName(su)} was archived on {fmtDate(su.archivedAt)}. The record is read-only and hidden from the active lists; every record is kept.{canArchive ? <> <Link href={`${base}/archive`}>Restore</Link></> : null}
+        </p>
+      ) : null}
       <SegmentNav label="Service user sections" items={groups.map((g) => ({ href: `${base}?tab=${g.tabs[0]}`, label: g.label, active: g === group }))} />
       {group.tabs.length > 1 ? (
         <nav aria-label={`${group.label} sections`} className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">

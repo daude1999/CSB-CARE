@@ -25,7 +25,7 @@ export async function rotaSearch(ctx: Ctx, raw: string) {
   const match = serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] });
   const [serviceUsers, staff, visits] = await Promise.all([
     canSu
-      ? db.serviceUser.findMany({ where: { AND: [serviceUserWhere(scope), match] }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: LIMIT })
+      ? db.serviceUser.findMany({ where: { AND: [serviceUserWhere(scope), match] }, select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true, archivedAt: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: LIMIT })
       : Promise.resolve([]),
     hasOrgPermission(ctx, "staff.directory")
       ? db.staffMember.findMany({ where: { organisationId: scope.organisationId, ...staffDirectoryWhere(scope, { status: "all", q }) }, select: { id: true, displayName: true, jobTitle: true, employmentStatus: true }, orderBy: { displayName: "asc" }, take: LIMIT })
@@ -38,7 +38,7 @@ export async function rotaSearch(ctx: Ctx, raw: string) {
     serviceUsers: serviceUsers.map((s) => {
       const m = matchedReferenceLabel(refs.hits, s.id);
       const matched = m ? `matched ${m}` : null;
-      return { id: s.id, name: suName(s), detail: [s.csbReference ?? s.reference, s.csbReference && s.reference !== s.csbReference ? `legacy ${s.reference}` : null, s.postcode, s.status.toLowerCase(), matched].filter(Boolean).join(" · ") };
+      return { id: s.id, name: suName(s), detail: [s.csbReference ?? s.reference, s.csbReference && s.reference !== s.csbReference ? `legacy ${s.reference}` : null, s.postcode, s.archivedAt ? "archived" : s.status.toLowerCase(), matched].filter(Boolean).join(" · ") };
     }),
     staff: staff.map((s) => ({ id: s.id, name: s.displayName, detail: [s.jobTitle, s.employmentStatus === "ACTIVE" ? null : s.employmentStatus.toLowerCase()].filter(Boolean).join(" · ") })),
     visits: visits.map((v) => ({ id: v.id, reference: v.reference, detail: `${suName(v.serviceUser)} · ${fromDbDate(v.date)} ${londonTime(v.scheduledStart)} · ${v.status.toLowerCase().replace("_", " ")}` })),

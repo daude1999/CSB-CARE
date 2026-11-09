@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "@/components/link";
-import { ArrowLeft, CaretDown, FileArrowUp, FirstAidKit, MagnifyingGlass, NotePencil, PencilSimple, Plus } from "@phosphor-icons/react";
+import { Archive, ArrowLeft, CaretDown, FileArrowUp, FirstAidKit, MagnifyingGlass, NotePencil, PencilSimple, Plus } from "@phosphor-icons/react";
 
 /**
  * Add New Service User and Update Existing Service User on the All Service Users page: dropdowns whose every choice is
@@ -14,6 +14,7 @@ import { ArrowLeft, CaretDown, FileArrowUp, FirstAidKit, MagnifyingGlass, NotePe
  *  - Hospital Discharge           → the same intake for this person, labelled as a discharge letter; filing it opens
  *                                   the post-discharge review (discharge-review.ts)
  *  - Update Manually              → this person's profile, Personal details tab
+ *  - Archive or Delete            → this person's Archive or delete page (/rota/service-users/<id>/archive)
  *
  * Which choices appear depends on `perms`, worked out on the server from the member's roles; each destination checks
  * the same permissions again on the server, so hiding a choice is never the only protection.
@@ -26,11 +27,16 @@ export type ServiceUserActionPerms = {
   edit: boolean;
   /** May start Care Coordinator intakes with documents (serviceUser.edit, rota.edit and serviceUser.documents). */
   upload: boolean;
+  /** May archive and restore (serviceUser.archive). */
+  archive?: boolean;
+  /** May delete a record added by mistake (serviceUser.delete). */
+  delete?: boolean;
 };
 
 export type UpdateMethod = "revised" | "discharge" | "manual";
 export type PickedPerson = { id: string; name: string; reference?: string | null };
 
+export const archiveHref = (id: string) => `/rota/service-users/${encodeURIComponent(id)}/archive`;
 export const ADD_UPLOAD_HREF = "/rota/coordinator?mode=NEW#start";
 export const ADD_MANUAL_HREF = "/rota/service-users/new";
 export function updateHref(method: UpdateMethod, id: string): string {
@@ -149,6 +155,7 @@ export function UpdateChoices({ perms, person }: { perms: ServiceUserActionPerms
       {perms.upload ? <Choice href={updateHref("revised", person.id)} icon={<FileArrowUp size={20} />} title="Upload Revised Support Plan" text="A revised council plan or updated assessment, compared with this person's records." testId="update-revised" /> : null}
       {perms.upload ? <Choice href={updateHref("discharge", person.id)} icon={<FirstAidKit size={20} />} title="Hospital Discharge / New Medical Information" text="A discharge summary or medical letter. Changes go to the discharge review; medicines are reconciled, never changed from the letter." testId="update-discharge" /> : null}
       {perms.edit ? <Choice href={updateHref("manual", person.id)} icon={<NotePencil size={20} />} title="Update Manually" text="Open this person's profile to change their details." testId="update-manual" /> : null}
+      {perms.archive || perms.delete ? <Choice href={archiveHref(person.id)} icon={<Archive size={20} />} title="Archive or Delete" text="Archive someone whose care has ended (every record kept, can be restored). Admins can delete a record added by mistake." testId="update-archive" /> : null}
     </ul>
   );
 }
@@ -163,7 +170,7 @@ export function AddServiceUserButton({ perms }: { perms: ServiceUserActionPerms 
   );
 }
 
-type Found = { id: string; name: string; reference: string; legacyReference: string | null; postcode: string | null; area: string | null; status: string; matchedReference: string | null };
+type Found = { id: string; name: string; reference: string; legacyReference: string | null; postcode: string | null; area: string | null; status: string; archived?: boolean; matchedReference: string | null };
 
 /** Step 1 of Update Existing: search with the directory's own search (on the server) and choose the person. */
 function PersonPicker({ onPick }: { onPick: (p: PickedPerson) => void }) {
@@ -210,7 +217,7 @@ function PersonPicker({ onPick }: { onPick: (p: PickedPerson) => void }) {
                     <span className="block text-[14px] font-semibold">{p.name}</span>
                     <span className="block text-[12px] text-[#475467] [overflow-wrap:anywhere]">{[p.reference, p.legacyReference ? `legacy ${p.legacyReference}` : null, p.postcode, p.area, p.matchedReference ? `matched ${p.matchedReference}` : null].filter(Boolean).join(" · ")}</span>
                   </span>
-                  <span className="shrink-0 rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[11.5px] font-medium text-[#344054]">{p.status.charAt(0) + p.status.slice(1).toLowerCase()}</span>
+                  <span className="shrink-0 rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[11.5px] font-medium text-[#344054]">{p.archived ? "Archived" : p.status.charAt(0) + p.status.slice(1).toLowerCase()}</span>
                 </button>
               </li>
             ))}

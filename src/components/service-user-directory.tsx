@@ -33,6 +33,8 @@ const STATUS_PILL: Record<ServiceUserStatus, { label: string; cls: string }> = {
   ENDED: { label: "Ended", cls: "bg-[#f2f4f7] text-[#475467]" },
 };
 
+const ARCHIVED_PILL = { label: "Archived", cls: "bg-[#eaecf0] text-[#344054]" };
+
 const london = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(d);
 const nextVisitText = (d: Date) => `${london(d, { weekday: "short", day: "numeric", month: "short" }).replace(/^(\w+) /, "$1, ")} ${london(d, { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 const dobText = (d: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(d);
@@ -73,7 +75,7 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
   const first = dir.total ? (dir.page - 1) * dir.pageSize + 1 : 0;
   const last = Math.min(dir.total, first + rows.length - 1);
   const canUpdate = perms.edit || perms.upload;
-  const showing = dir.total ? <>Showing {first} to {last} of {dir.total.toLocaleString("en-GB")} service {dir.total === 1 ? "user" : "users"}{sp.status ? "" : " (not ended)"}</> : null;
+  const showing = dir.total ? <>Showing {first} to {last} of {dir.total.toLocaleString("en-GB")} service {dir.total === 1 ? "user" : "users"}{sp.status === "ARCHIVED" ? " (archived)" : sp.status ? "" : " (not ended)"}</> : null;
   return (
     <section aria-labelledby="all-service-users" className="rounded-b-[3px] bg-white px-4 pb-5 pt-5 sm:px-6" data-testid="su-directory">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -99,7 +101,7 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           </label>
           <label><span className="sr-only">Branch</span><select name="branch" defaultValue={sp.branch ?? ""} className={FIELD}><option value="">All Branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
           <label><span className="sr-only">Area</span><select name="area" defaultValue={sp.area ?? ""} className={FIELD}><option value="">All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-          <label><span className="sr-only">Status</span><select name="status" defaultValue={sp.status ?? ""} className={FIELD}><option value="">Current (not ended)</option><option value="ALL">All Statuses</option>{DIRECTORY_STATUSES.map((s) => <option key={s} value={s}>{STATUS_PILL[s].label}</option>)}</select></label>
+          <label><span className="sr-only">Status</span><select name="status" defaultValue={sp.status ?? ""} className={FIELD}><option value="">Current (not ended)</option><option value="ALL">All Statuses</option>{DIRECTORY_STATUSES.map((s) => <option key={s} value={s}>{STATUS_PILL[s].label}</option>)}<option value="ARCHIVED">Archived</option></select></label>
           <div className="flex gap-2.5 sm:col-span-2 lg:col-span-1">
             <button className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] bg-[#0f2547] px-6 text-[15px] font-semibold text-white hover:bg-[#1b3762] lg:flex-none ${FOCUS}`}>Apply</button>
             <Link href={basePath} className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] border border-[#344054] bg-white px-6 text-[15px] font-medium text-[#344054] no-underline hover:bg-[#f9fafb] hover:text-[#101828] lg:flex-none ${FOCUS}`}>Clear</Link>
@@ -113,6 +115,11 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
         {dir.hiddenByFilters ? (
           <p role="status" data-testid="hidden-by-filters" className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-2.5 text-[13.5px] text-sky-900">
             {dir.hiddenByFilters === 1 ? "1 more person matches" : `${dir.hiddenByFilters} more people match`} “{dir.q}” but {dir.hiddenByFilters === 1 ? "is" : "are"} hidden by the status, area or branch filter. <Link href={showAll}>Show all matches</Link>
+          </p>
+        ) : null}
+        {dir.archivedMatches ? (
+          <p role="status" data-testid="archived-matches" className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13.5px] text-slate-800">
+            {dir.archivedMatches === 1 ? "1 archived person also matches" : `${dir.archivedMatches} archived people also match`} “{dir.q}”. <Link href={`${basePath}?${new URLSearchParams({ q: dir.q, status: "ARCHIVED" })}`}>Show archived</Link>
           </p>
         ) : null}
       </div>
@@ -139,7 +146,7 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
                 const mins = s.packages.reduce((n, p) => n + (p.commissionedMinutesPerWeek ?? 0), 0);
                 const name = suName(s);
                 const reference = s.csbReference ?? s.reference;
-                const pill = STATUS_PILL[s.status];
+                const pill = s.archivedAt ? ARCHIVED_PILL : STATUS_PILL[s.status];
                 const council = s.councilReference;
                 return (
                   <tr key={s.id} data-testid="su-row" className="border-b border-[#eaecf0] last:border-b-0">

@@ -295,13 +295,14 @@ describe("All Service Users: count, pages and the Update Existing picker", () =>
   it("is refused to members who may only view service users, and finds nothing in another organisation", async () => {
     const viewer = { ...(await manager()), orgRoles: ["COMPLIANCE_LEAD" as const] };
     await expect(findServiceUsersToUpdate(viewer, "Fatuma")).rejects.toThrow();
-    expect(serviceUserActionPerms(viewer)).toEqual({ create: false, edit: false, upload: false });
+    expect(serviceUserActionPerms(viewer)).toEqual({ create: false, edit: false, upload: false, archive: false, delete: false });
     expect((await findServiceUsersToUpdate(await otherOrg(), "Fatuma")).people).toEqual([]);
     expect((await findServiceUsersToUpdate(await otherOrg(), "1088676")).people).toEqual([]);
   });
 
   it("coordinators and managers are offered every choice", async () => {
-    expect(serviceUserActionPerms(await coordinator())).toEqual({ create: true, edit: true, upload: true });
-    expect(serviceUserActionPerms(await manager())).toEqual({ create: true, edit: true, upload: true });
+    expect(serviceUserActionPerms(await coordinator())).toEqual({ create: true, edit: true, upload: true, archive: false, delete: false });
+    // The CEO login is an organisation admin, so may archive and delete.
+    expect(serviceUserActionPerms(await manager())).toEqual({ create: true, edit: true, upload: true, archive: true, delete: true });
   });
 });

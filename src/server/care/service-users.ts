@@ -12,6 +12,7 @@ import { decryptKeySafe, encryptKeySafe } from "./keysafe";
 import { cleanSearch } from "@/lib/service-user-search";
 import { lookUpReferences, matchedReferenceLabel, serviceUserMatchWhere } from "./service-user-search";
 import { councilReferencesFor } from "./external-references";
+import { assertNotArchived } from "./service-user-archive";
 
 /**
  * Service users: the people the organisation supports. Every read and write is scoped to the caller's organisation
@@ -23,8 +24,8 @@ type Tx = Prisma.TransactionClient;
 
 export interface ServiceUserFilters {
   q?: string;
-  /** CURRENT (the default) hides ended people; ALL shows every status. */
-  status?: ServiceUserStatus | "CURRENT" | "ALL";
+  /** CURRENT (the default) hides ended people; ALL shows every status. Both hide archived people; ARCHIVED shows only them. */
+  status?: ServiceUserStatus | "CURRENT" | "ALL" | "ARCHIVED";
   areaId?: string;
   /** Only people in this branch. Always combined with the member's own branch limits, so it can only narrow. */
   branchId?: string;
@@ -47,19 +48,22 @@ export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
   const q = cleanSearch(f.q);
   const refs = q ? await lookUpReferences(ctx, q) : { hits: [], problem: null };
   const match = q ? serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] }) : {};
-  const status: Prisma.ServiceUserWhereInput = f.status === "ALL" ? {} : !f.status || f.status === "CURRENT" ? { status: { in: CURRENT_STATUSES } } : { status: f.status };
+  // Archived people are hidden from every view except the Archived filter; a search says how many archived people match.
+  const archivedView = f.status === "ARCHIVED";
+  const status: Prisma.ServiceUserWhereInput = f.status === "ARCHIVED" ? { archivedAt: { not: null } } : { AND: [{ archivedAt: null }, f.status === "ALL" ? {} : !f.status || f.status === "CURRENT" ? { status: { in: CURRENT_STATUSES } } : { status: f.status }] };
   const where: Prisma.ServiceUserWhereInput = { AND: [serviceUserWhere(scope), status, f.areaId ? { areaId: f.areaId } : {}, f.branchId ? { branchId: f.branchId } : {}, match] };
   const filtered = f.status !== "ALL" || !!f.areaId || !!f.branchId;
   const paged = f.page !== undefined;
-  const [total, matching] = await Promise.all([
+  const [total, matching, archivedMatches] = await Promise.all([
     db.serviceUser.count({ where }),
-    q && filtered ? db.serviceUser.count({ where: { AND: [serviceUserWhere(scope), match] } }) : Promise.resolve(0),
+    q && filtered ? db.serviceUser.count({ where: { AND: [serviceUserWhere(scope), { archivedAt: archivedView ? { not: null } : null }, match] } }) : Promise.resolve(0),
+    q && !archivedView ? db.serviceUser.count({ where: { AND: [serviceUserWhere(scope), { archivedAt: { not: null } }, match] } }) : Promise.resolve(0),
   ]);
   const pages = Math.max(1, Math.ceil(total / DIRECTORY_PAGE_SIZE));
   const page = paged ? Math.min(Math.max(1, Math.floor(f.page!) || 1), pages) : 1;
   const rows = await db.serviceUser.findMany({
     where,
-    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, dateOfBirth: true, status: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, branch: { select: { name: true } }, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
+    select: { id: true, reference: true, csbReference: true, firstName: true, lastName: true, preferredName: true, dateOfBirth: true, status: true, archivedAt: true, postcode: true, town: true, riskLevel: true, carerGenderPreference: true, branchId: true, branch: { select: { name: true } }, area: { select: { name: true, colour: true } }, packages: { where: { status: "ACTIVE" }, select: { commissionedMinutesPerWeek: true } }, _count: { select: { templates: { where: { enabled: true } } } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     skip: paged ? (page - 1) * DIRECTORY_PAGE_SIZE : 0,
     take: paged ? DIRECTORY_PAGE_SIZE : 500,
@@ -87,6 +91,8 @@ export async function serviceUserDirectory(ctx: Ctx, f: ServiceUserFilters) {
     councilReferenceProblem: council.problem,
     /** Matches the member may see that the status, area or branch filter hides. */
     hiddenByFilters: q && filtered ? Math.max(0, matching - shown) : 0,
+    /** Archived people who match the search (only outside the Archived view). */
+    archivedMatches,
     referenceProblem: refs.problem,
   };
 }
@@ -105,7 +111,7 @@ export async function findServiceUsersToUpdate(ctx: Ctx, raw: string) {
   const match = serviceUserMatchWhere(q, { sensitive: hasOrgPermission(ctx, "serviceUser.sensitive"), referenceIds: [...new Set(refs.hits.map((h) => h.serviceUserId))] });
   const rows = await db.serviceUser.findMany({
     where: { AND: [serviceUserWhere(scope), match] },
-    select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true, area: { select: { name: true } } },
+    select: { id: true, firstName: true, lastName: true, preferredName: true, reference: true, csbReference: true, postcode: true, status: true, archivedAt: true, area: { select: { name: true } } },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
     take: 20,
   });
@@ -120,6 +126,7 @@ export async function findServiceUsersToUpdate(ctx: Ctx, raw: string) {
       postcode: r.postcode,
       area: r.area?.name ?? null,
       status: r.status,
+      archived: !!r.archivedAt,
       matchedReference: matchedReferenceLabel(refs.hits, r.id),
     })),
   };
@@ -280,6 +287,7 @@ export async function updateServiceUser(ctx: Ctx, id: string, version: number, i
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the details");
   return db.$transaction(async (tx) => {
     const before = await loadSu(tx, scope, id);
+    assertNotArchived(before);
     if (before.version !== version) throw new ConflictError("Someone else changed this record since you opened it. Reload and try again.");
     const area = await checkArea(tx, scope, r.data.areaId);
     const data = { ...detailData(ctx, r.data), areaId: area?.id ?? null, branchId: area?.branchId ?? before.branchId };
@@ -307,6 +315,7 @@ export async function setServiceUserStatus(ctx: Ctx, id: string, to: ServiceUser
   if (reason.trim().length < 3) throw new ValidationError("Give a reason");
   return db.$transaction(async (tx) => {
     const su = await loadSu(tx, scope, id);
+    assertNotArchived(su);
     if (!STATUS_FLOW[su.status].includes(to)) throw new ValidationError(`Cannot move from ${su.status.toLowerCase()} to ${to.toLowerCase()}`);
     let cancelled = 0;
     if (to === "ENDED") {
@@ -485,5 +494,5 @@ export async function revealKeySafe(ctx: Ctx, serviceUserId: string) {
  */
 export function serviceUserActionPerms(ctx: Ctx) {
   const edit = hasOrgPermission(ctx, "serviceUser.edit");
-  return { create: edit, edit, upload: edit && hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents") };
+  return { create: edit, edit, upload: edit && hasOrgPermission(ctx, "rota.edit") && hasOrgPermission(ctx, "serviceUser.documents"), archive: hasOrgPermission(ctx, "serviceUser.archive"), delete: hasOrgPermission(ctx, "serviceUser.delete") };
 }

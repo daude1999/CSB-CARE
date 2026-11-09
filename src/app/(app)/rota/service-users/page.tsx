@@ -17,7 +17,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const ctx = await requireRotaPage("serviceUser.view");
   const org = ctx.organisationId ? await db.organisation.findUnique({ where: { id: ctx.organisationId }, select: { isDemo: true } }) : null;
-  const status = sp.status === "ALL" ? "ALL" : DIRECTORY_STATUSES.find((s) => s === sp.status) ?? "CURRENT";
+  const status = sp.status === "ALL" || sp.status === "ARCHIVED" ? sp.status : DIRECTORY_STATUSES.find((s) => s === sp.status) ?? "CURRENT";
   const lk = await rotaLookups(ctx);
   // Only a branch or area the member may see is passed on; anything else is ignored rather than trusted.
   const branchId = sp.branch && lk.branches.some((b) => b.id === sp.branch) ? sp.branch : undefined;
