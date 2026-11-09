@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CompliancePageHeader } from "@/components/module-header";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
@@ -7,6 +7,7 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { ackTimeline, materialPublication, parseSignoffFilters, signoffCounts, signoffLookups, signoffRows } from "@/server/policies/assignment";
 import { memberNames } from "@/server/rota/queries";
 import { correctAckAction, exemptAckAction, recordAckAssessmentAction, withdrawRuleAction } from "@/app/signoff-actions";
+import { adoptTemplateAction } from "@/app/actions";
 import { AckBadge, AckTimeline, personKey, RuleForm, SCOPE_LABEL, SignoffFilterForm, SignoffSummary } from "@/components/signoff-ui";
 import { Badge, Card, Empty, Flash, fmtDate } from "@/components/ui";
 
@@ -19,7 +20,7 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
   const ctx = await requireCtx();
   if (!hasOrgPermission(ctx, "staff.view")) notFound();
   const policy = await db.policy.findFirst({ where: { id, organisationId: ctx.organisationId ?? "", kind: "CUSTOMER" }, select: { id: true, ref: true, title: true } });
-  if (!policy) notFound();
+  if (!policy) return <CentralDocumentSignoff id={id} />;
   const f = { ...parseSignoffFilters(sp), policy: policy.id };
   const canManage = hasOrgPermission(ctx, "signoff.manage");
   const [all, lookups, rules, pub, staff] = await Promise.all([
@@ -119,6 +120,48 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
           ) : null}
         </Card>
       </div>
+    </>
+  );
+}
+
+/**
+ * Assign to Staff on a CSB central document the organisation has not copied. Acknowledgements are recorded against the
+ * organisation's own published copy (so a later CSB update can ask staff to read again), so this page sends the manager
+ * to that copy, or explains how to create it, instead of a dead end.
+ */
+async function CentralDocumentSignoff({ id }: { id: string }) {
+  const ctx = await requireCtx();
+  if (!ctx.organisationId) notFound();
+  const central = await db.policy.findFirst({ where: { id, kind: "MASTER", organisationId: null, status: "ACTIVE", currentPublishedVersionId: { not: null } }, select: { id: true, ref: true, title: true } });
+  if (!central) notFound();
+  const copy = await db.policy.findFirst({ where: { organisationId: ctx.organisationId, templateId: central.id, kind: "CUSTOMER" }, select: { id: true, currentPublishedVersionId: true, revisions: { where: { closedAt: null }, select: { id: true }, take: 1, orderBy: { createdAt: "desc" } } } });
+  if (copy?.currentPublishedVersionId) redirect(`/staff/policy/${copy.id}`);
+  const canCopy = hasOrgPermission(ctx, "policy.author");
+  return (
+    <>
+      <CompliancePageHeader title={`${central.ref} ${central.title}`} back={`/policies/${central.id}`} subtitle="Assign to Staff" actions={<Link href={`/policies/${central.id}`} className="btn-secondary">Open the policy</Link>} />
+      <Card title="This is a CSB central document">
+        <div className="max-w-2xl space-y-3 text-[14.5px] text-slate-700" data-testid="central-signoff">
+          <p>Staff sign-off is recorded against your organisation&rsquo;s own copy of a policy, so that when CSB updates it your staff are asked to read the new version and their earlier signatures are kept as evidence.</p>
+          {copy ? (
+            <>
+              <p>Your organisation&rsquo;s copy has been created but is not published yet. Publish it, then come back here to choose who must read it.</p>
+              {copy.revisions[0] ? <Link href={`/revisions/${copy.revisions[0].id}`} className="btn-primary">Open the draft copy</Link> : <Link href={`/policies/${copy.id}`} className="btn-primary">Open your copy</Link>}
+            </>
+          ) : canCopy ? (
+            <>
+              <p>Create your copy first. It opens as a draft with CSB&rsquo;s text; complete any local sections and publish it. You can then assign it to staff from this page. CSB updates still reach your copy.</p>
+              <form action={adoptTemplateAction}>
+                <input type="hidden" name="back" value={`/staff/policy/${central.id}`} />
+                <input type="hidden" name="templateId" value={central.id} />
+                <button className="btn-primary">Create our copy</button>
+              </form>
+            </>
+          ) : (
+            <p>Ask a policy author or administrator in your organisation to create your copy. Once it is published you can assign it here.</p>
+          )}
+        </div>
+      </Card>
     </>
   );
 }

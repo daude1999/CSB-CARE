@@ -615,3 +615,23 @@ export async function createProposedRota(ctx: Ctx, serviceUserId: string, input:
     { timeout: 120_000 },
   );
 }
+
+/**
+ * Visits a switched-on template should have in weeks that are already built, but does not: typically a template added
+ * (or a person started) after Build Rota ran. Build Rota only opens on weeks that are not built yet, so without this the
+ * office was told nothing and the visits never reached the rota. Returns where Create Future Rota should start.
+ */
+export async function templateRotaGap(ctx: Ctx, templateId: string) {
+  const scope = await rotaScope(ctx, "rota.build");
+  const t = await db.visitTemplate.findFirst({ where: { ...templateScopeWhere(scope), organisationId: scope.organisationId, id: templateId }, select: { id: true, enabled: true, serviceUserId: true } });
+  if (!t?.enabled) return null;
+  const thisMonday = mondayOf(londonDate());
+  const last = await db.rotaBuild.findFirst({ where: { ...buildWhere(scope), status: "BUILT", weekStart: { gte: dbDate(thisMonday) } }, orderBy: { weekStart: "desc" }, select: { weekStart: true } });
+  if (!last) return null;
+  const weeks = Math.min(FUTURE_ROTA_MAX_WEEKS, Math.round((Date.parse(fromDbDate(last.weekStart)) - Date.parse(thisMonday)) / (7 * 86_400_000)) + 1);
+  const su = await db.serviceUser.findFirst({ where: { ...serviceUserWhere(scope), id: t.serviceUserId }, select: { id: true } });
+  if (!su) return null;
+  const plans = await planForServiceUser(db, scope, su.id, thisMonday, weeks);
+  const missing = plans.flatMap((p) => p.visits).filter((v) => v.templateId === t.id).length;
+  return missing ? { missing, serviceUserId: su.id, from: thisMonday, weeks, builtThrough: addDays(fromDbDate(last.weekStart), 6) } : null;
+}

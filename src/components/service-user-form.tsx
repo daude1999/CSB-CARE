@@ -1,4 +1,5 @@
-import { fromDbDate } from "@/lib/london";
+import { fromDbDate, londonDate } from "@/lib/london";
+import { KeepFormValues } from "@/components/keep-form-values";
 
 interface Su {
   id: string;
@@ -27,21 +28,23 @@ interface Su {
 }
 
 /** Personal details form for a service user. Sensitive identifiers are shown only to people allowed to edit them. */
-export function ServiceUserForm({ action, su, areas, back, sensitive, submit }: { action: (fd: FormData) => Promise<void>; su?: Su; areas: { id: string; name: string }[]; back: string; sensitive: boolean; submit: string }) {
+export function ServiceUserForm({ action, su, areas, back, sensitive, submit, allowDuplicate = false }: { action: (fd: FormData) => Promise<void>; su?: Su; areas: { id: string; name: string }[]; back: string; sensitive: boolean; submit: string; allowDuplicate?: boolean }) {
+  const formId = su ? `su-details-${su.id}` : "su-new";
   const t = (name: keyof Su, label: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label><span className="label">{label}</span><input name={name} defaultValue={su ? String(su[name] ?? "") : ""} className="input" {...extra} /></label>
   );
   return (
-    <form action={action} className="space-y-4">
+    <form id={formId} action={action} className="space-y-4">
+      <KeepFormValues formId={formId} exclude={["dateOfBirth", "nhsNumber"]} />
       <input type="hidden" name="back" value={back} />
       {su ? <><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="version" value={su.version} /></> : null}
       <fieldset className="grid gap-3 md:grid-cols-3">
         <legend className="mb-2 text-[15px] font-medium text-navy-900">Person</legend>
-        {t("firstName", "First name", { required: true })}
-        {t("lastName", "Last name", { required: true })}
+        {t("firstName", "First name", { required: true, maxLength: 100 })}
+        {t("lastName", "Last name", { required: true, maxLength: 100 })}
         {t("preferredName", "Known as")}
-        {sensitive ? <label><span className="label">Date of birth</span><input type="date" name="dateOfBirth" defaultValue={su?.dateOfBirth ? fromDbDate(su.dateOfBirth) : ""} className="input" /></label> : null}
-        {sensitive ? t("nhsNumber", "NHS number", { inputMode: "numeric" }) : null}
+        {sensitive ? <label><span className="label">Date of birth</span><input type="date" name="dateOfBirth" min="1900-01-01" max={londonDate()} defaultValue={su?.dateOfBirth ? fromDbDate(su.dateOfBirth) : ""} className="input" /></label> : null}
+        {sensitive ? t("nhsNumber", "NHS number", { inputMode: "numeric", pattern: "\\d{3} ?\\d{3} ?\\d{4}", title: "10 digits, for example 943 476 5919" }) : null}
         {t("gender", "Gender")}
         {t("firstLanguage", "First language")}
         <label><span className="label">Area</span><select name="areaId" defaultValue={su?.areaId ?? ""} className="input"><option value="">No area</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
@@ -52,7 +55,7 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit }: 
         {t("addressLine1", "Address")}
         {t("addressLine2", "Address line 2")}
         {t("town", "Town")}
-        {t("postcode", "Postcode")}
+        {t("postcode", "Postcode", { maxLength: 10 })}
         {t("phone", "Phone", { type: "tel" })}
         {t("altPhone", "Alternative phone", { type: "tel" })}
         <label><span className="label">Prefers to be contacted by</span><select name="preferredContactMethod" defaultValue={su?.preferredContactMethod ?? ""} className="input"><option value="">Not recorded</option><option value="PHONE">Telephone</option><option value="SMS">Text message</option><option value="EMAIL">Email</option><option value="OTHER">Other (see communication needs)</option></select></label>
@@ -65,6 +68,12 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit }: 
         <label className="md:col-span-3"><span className="label">Communication needs</span><textarea name="communicationNeeds" rows={2} defaultValue={su?.communicationNeeds ?? ""} className="input" /></label>
         <label className="md:col-span-3"><span className="label">What matters to them</span><textarea name="carePreferences" rows={2} defaultValue={su?.carePreferences ?? ""} className="input" /></label>
       </fieldset>
+      {allowDuplicate ? (
+        <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-[14px]">
+          <input type="checkbox" name="confirmNotDuplicate" className="mt-0.5 h-4 w-4" />
+          <span>I have checked: this is a different person who shares the same name and date of birth.</span>
+        </label>
+      ) : null}
       <button className="btn-primary">{submit}</button>
     </form>
   );

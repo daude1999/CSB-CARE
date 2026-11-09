@@ -168,7 +168,11 @@ export const detailsSchema = z.object({
   firstName: z.string().trim().min(1, "Enter a first name").max(100),
   lastName: z.string().trim().min(1, "Enter a last name").max(100),
   preferredName: opt,
-  dateOfBirth: z.string().refine((d) => !d || isIsoDate(d), "Enter a valid date of birth").optional(),
+  dateOfBirth: z
+    .string()
+    .refine((d) => !d || isIsoDate(d), "Enter a valid date of birth")
+    .refine((d) => !d || !isIsoDate(d) || (d >= "1900-01-01" && d <= londonDate()), "The date of birth cannot be in the future or before 1900")
+    .optional(),
   nhsNumber: z.string().trim().refine((s) => !s || /^\d{3} ?\d{3} ?\d{4}$/.test(s), "An NHS number has 10 digits").optional(),
   gender: opt,
   areaId: opt,
@@ -236,11 +240,32 @@ export async function nextServiceUserReference(tx: Tx, organisationId: string) {
   return "CSB-"+String(counter.nextNumber-1).padStart(6,"0");
 }
 
-export async function createServiceUser(ctx: Ctx, input: ServiceUserInput | Record<string, unknown>) {
+/**
+ * Stops the same person being added twice from the manual form: an NHS number already on another record is refused,
+ * and the same name and date of birth is refused until the person adding confirms it is someone else. Archived records
+ * count too, so a returning person is restored rather than duplicated.
+ */
+async function refuseDuplicate(tx: Tx, organisationId: string, d: z.output<typeof detailsSchema>, sensitive: boolean, confirmNotDuplicate: boolean) {
+  const nhs = sensitive ? d.nhsNumber?.replace(/\s/g, "") : undefined;
+  if (nhs) {
+    const same = await tx.serviceUser.findFirst({ where: { organisationId, nhsNumber: nhs }, select: { reference: true, firstName: true, lastName: true } });
+    if (same) throw new ConflictError(`${same.reference} ${same.firstName} ${same.lastName} already has this NHS number, so they were not added again. Open their record instead.`);
+  }
+  if (sensitive && d.dateOfBirth && !confirmNotDuplicate) {
+    const same = await tx.serviceUser.findFirst({
+      where: { organisationId, firstName: { equals: d.firstName, mode: "insensitive" }, lastName: { equals: d.lastName, mode: "insensitive" }, dateOfBirth: dbDate(d.dateOfBirth) },
+      select: { reference: true },
+    });
+    if (same) throw new ConflictError(`${same.reference} already has the same name and date of birth, so nothing was added. Open that record if it is the same person. If it is someone else, tick the confirmation box and add them again.`);
+  }
+}
+
+export async function createServiceUser(ctx: Ctx, input: ServiceUserInput | Record<string, unknown>, opts: { confirmNotDuplicate?: boolean } = {}) {
   const scope = await rotaScope(ctx, "serviceUser.edit");
   const r = detailsSchema.safeParse(input);
   if (!r.success) throw new ValidationError(r.error.issues[0]?.message ?? "Check the details");
   return db.$transaction(async (tx) => {
+    await refuseDuplicate(tx, scope.organisationId, r.data, hasOrgPermission(ctx, "serviceUser.sensitive"), opts.confirmNotDuplicate === true);
     const area = await checkArea(tx, scope, r.data.areaId);
     const reference = await nextServiceUserReference(tx, scope.organisationId);
     const su = await tx.serviceUser.create({ data: { organisationId: scope.organisationId, reference, csbReference:reference, status: "ASSESSMENT", areaId: area?.id ?? null, branchId: area?.branchId ?? null, createdById: ctx.userId, ...detailData(ctx, r.data) } });

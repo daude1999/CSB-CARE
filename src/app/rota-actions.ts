@@ -529,7 +529,7 @@ function serviceUserInput(fd: FormData) {
 }
 
 export async function createServiceUserAction(fd: FormData) {
-  return handle(fd, async (ctx) => `/rota/service-users/${(await createServiceUser(ctx, serviceUserInput(fd))).id}`, "Service user added. Their status is Assessment until care starts.");
+  return handle(fd, async (ctx) => `/rota/service-users/${(await createServiceUser(ctx, serviceUserInput(fd), { confirmNotDuplicate: bool(fd, "confirmNotDuplicate") })).id}`, "Service user added. Their status is Assessment until care starts.");
 }
 
 export async function updateServiceUserAction(fd: FormData) {

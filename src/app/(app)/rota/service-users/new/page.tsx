@@ -18,7 +18,7 @@ export default async function NewServiceUserPage({ searchParams }: { searchParam
     <>
       <PageHeader title="Add service user" back="/rota/service-users" subtitle={<>New people start at Assessment. Visits can be planned once their care is Active. Have a council support plan? <Link href="/rota/coordinator?mode=NEW#start">Upload it to the Care Coordinator</Link>, which reads it and drafts the person, contacts, package and visits for you to check.</>} />
       <Flash searchParams={sp} />
-      <Card><ServiceUserForm action={createServiceUserAction} areas={lk.areas} back="/rota/service-users/new" sensitive={hasOrgPermission(ctx, "serviceUser.sensitive")} submit="Add service user" /></Card>
+      <Card><ServiceUserForm action={createServiceUserAction} areas={lk.areas} back="/rota/service-users/new" sensitive={hasOrgPermission(ctx, "serviceUser.sensitive")} submit="Add service user" allowDuplicate={Boolean(sp.error?.includes("same name and date of birth"))} /></Card>
     </>
   );
 }
