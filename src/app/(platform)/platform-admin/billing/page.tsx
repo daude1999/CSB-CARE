@@ -4,11 +4,12 @@ import { billingStatus } from "@/server/platform/billing";
 import { subscriptionChanges } from "@/server/platform/subscriptions";
 import { requirePlatform } from "@/server/platform/access";
 import { fmtDate } from "@/components/ui";
-import { EmptyRow, Pill, PxHeader, PxPanel, Table } from "@/components/platform/ui";
+import { EmptyRow, EmptyState, Pill, PxHeader, PxPanel, Table } from "@/components/platform/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Billing & Invoices" };
+export const metadata = { title: "Invoices" };
 
+/** Billing provider connection, invoices (only once a provider is connected) and the internal subscription record. */
 export default async function BillingPage() {
   const ctx = await requireCtx();
   requirePlatform(ctx, "platform.view");
@@ -16,16 +17,25 @@ export default async function BillingPage() {
   const changes = await subscriptionChanges(ctx, 60);
   return (
     <>
-      <PxHeader title="Billing & Invoices" description="Billing provider connection and the internal record of subscription periods. Invoices appear here only once a billing provider is connected." />
-      <PxPanel title="Billing provider">
-        <p className="text-[13.5px]"><Pill value={status.connected ? "ACTIVE" : "REQUESTED"} label={status.connected ? "Connected" : "Not connected (not live)"} /> <span className="ml-2">{status.message}</span></p>
-        {!status.connected ? <p className="mt-2 text-[12.5px] text-[#5b6478]">Evantix has not chosen a billing provider yet. When it does, a developer adds the integration behind the platform&apos;s billing interface and sets BILLING_PROVIDER in the hosting settings. Until then nothing is charged and no payment is shown as successful.</p> : null}
+      <PxHeader title="Invoices" description="Invoices come from a billing provider. Until one is connected, nothing is charged and no invoice is issued or simulated." />
+      <div className="mb-4 flex flex-wrap items-start gap-3 rounded-[10px] border border-px-line bg-white px-4 py-3.5">
+        <Pill value={status.connected ? "ACTIVE" : "REQUESTED"} label={status.connected ? "Billing connected" : "Billing not connected"} />
+        <div className="min-w-0 flex-1 basis-[24rem] text-[13.5px]">
+          <p className="text-px-ink">{status.message}</p>
+          {!status.connected ? <p className="mt-0.5 text-[12.5px] text-px-muted">Next step: once Evantix chooses a provider, a developer connects it behind the platform&apos;s billing interface and sets BILLING_PROVIDER in the hosting settings.</p> : null}
+        </div>
+      </div>
+      <PxPanel title="Invoices" flush className="mb-4">
+        <EmptyState title={status.connected ? "No invoices yet" : "No invoices while billing is not connected"}>{status.connected ? "Invoices from the billing provider appear here." : "Subscriptions below are internal records only. They are not invoices or payments."}</EmptyState>
       </PxPanel>
-      <PxPanel title="Invoices" className="mt-4"><EmptyRow>No invoices: billing is not connected.</EmptyRow></PxPanel>
-      <PxPanel title="Subscription history (internal records)" className="mt-4" description="Each row is a subscription period. These are not invoices or payments.">
-        <Table head={["Starts", "Ended", "Client", "Plan", "Status", "Reason"]} empty={changes.length ? null : <EmptyRow>No subscription records yet.</EmptyRow>}>
-          {changes.map((c) => <tr key={c.id}><td className="whitespace-nowrap">{fmtDate(c.startsAt, true)}</td><td className="whitespace-nowrap">{c.endedAt ? fmtDate(c.endedAt, true) : "Current"}</td><td><Link href={`/platform-admin/clients/${c.organisation.id}?tab=subscription`}>{c.organisation.name}</Link></td><td>{c.plan.name}</td><td><Pill value={c.status} /></td><td className="text-[12.5px]">{c.changeReason ?? "—"}</td></tr>)}
-        </Table>
+      <PxPanel title="Subscription periods" description="Internal record of each subscription period, newest first. Not invoices or payments." flush>
+        {changes.length ? (
+          <div className="px-4">
+            <Table label="Subscription periods" minWidth={720} head={["Starts", "Ended", "Client", "Plan", "Status", "Reason"]}>
+              {changes.map((c) => <tr key={c.id}><td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(c.startsAt, true)}</td><td className="whitespace-nowrap text-[13px] tabular-nums">{c.endedAt ? fmtDate(c.endedAt, true) : <span className="text-px-ok">Current</span>}</td><td><Link href={`/platform-admin/clients/${c.organisation.id}?tab=subscription`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{c.organisation.name}</Link></td><td>{c.plan.name}</td><td><Pill value={c.status} /></td><td className="text-[12.5px] text-px-body">{c.changeReason ?? "—"}</td></tr>)}
+            </Table>
+          </div>
+        ) : <EmptyRow>No subscription periods yet.</EmptyRow>}
       </PxPanel>
     </>
   );

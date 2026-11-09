@@ -41,8 +41,9 @@ export async function loginAction(fd: FormData) {
   const h = await headers();
   let target = "/overview";
   try {
-    const { token, expiresAt } = await login(str(fd, "email"), str(fd, "password"), { ip: h.get("x-forwarded-for") ?? undefined, userAgent: h.get("user-agent") ?? undefined });
+    const { token, expiresAt, home } = await login(str(fd, "email"), str(fd, "password"), { ip: h.get("x-forwarded-for") ?? undefined, userAgent: h.get("user-agent") ?? undefined });
     (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production", path: "/", expires: expiresAt });
+    target = home;
   } catch (e) {
     target = `/login?error=${encodeURIComponent(e instanceof AppError ? e.message : "Sign-in failed")}`;
   }

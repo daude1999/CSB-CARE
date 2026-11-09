@@ -1,298 +1,248 @@
-import type { OrgRole } from "@prisma/client";
+import { Plus, Warning } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import type { Ctx } from "@/server/auth/rbac";
 import type { getClient } from "@/server/platform/customers";
 import { clientBranches } from "@/server/platform/customers";
-import { clientMembers, ORG_PERMISSIONS, ORG_ROLE_NAMES, tokenState } from "@/server/platform/accounts";
-import { listPlans, subscriptionHistory } from "@/server/platform/subscriptions";
+import { clientMembers, ORG_ROLE_NAMES, tokenState } from "@/server/platform/accounts";
+import { subscriptionHistory } from "@/server/platform/subscriptions";
 import { aiUsage, storageGrowth } from "@/server/platform/usage";
 import { clientAudit } from "@/server/platform/activity";
-import { activeSupportGrant, listSupportGrants, SUPPORT_SCOPES, supportConfigurationView } from "@/server/platform/support";
+import { activeSupportGrant, listSupportGrants, supportConfigurationView } from "@/server/platform/support";
 import { effectivePermissions } from "@/server/platform/permissions";
 import { MODULES } from "@/lib/platform-modules";
 import { fmtDate } from "@/components/ui";
-import { Back, Confirm, EmptyRow, fmtBytes, fmtMoney, fmtNumber, KeyValues, NotConfigured, PasswordField, Pill, PxPanel, pxDanger, pxPrimary, pxSecondary, ReasonField, Table, Tone } from "@/components/platform/ui";
-import { RoleEditor } from "@/components/platform/role-editor";
+import { Progress } from "@/components/platform/charts";
 import {
-  addClientBranchAction, changeSubscriptionAction, customerStatusAction, emergencySupportAction, extendTrialAction, markCqcCheckedAction, moduleLimitsAction, platformDeactivateMemberAction,
-  platformInviteAction, platformMemberAction, platformReactivateMemberAction, platformRevokeInviteAction, requestSupportAction, revokeSupportAction, setModuleAction, updateCompanyAction,
-} from "@/app/platform-actions";
+  Back, Confirm, DetailRows, EmptyRow, EmptyState, fmtBytes, fmtMoney, fmtNumber, KeyValues, NotConfigured, PasswordField, Pill, PxPanel, pxDanger, pxLink, pxPrimary, pxSecondary, pxSm,
+  ReasonField, Split, Table, Tone,
+} from "@/components/platform/ui";
+import { customerStatusAction, moduleLimitsAction, platformReactivateMemberAction, platformRevokeInviteAction, revokeSupportAction, setModuleAction } from "@/app/platform-actions";
+import type { DrawerKey } from "./drawers";
 
 type Client = Awaited<ReturnType<typeof getClient>>;
-interface P { ctx: Ctx; client: Client; back: string; sp: Record<string, string | undefined> }
+interface P { ctx: Ctx; client: Client; back: string; sp: Record<string, string | undefined>; drawerHref: (k: DrawerKey, extra?: string) => string }
 
 const Hidden = ({ id, back }: { id: string; back: string }) => (<><input type="hidden" name="organisationId" value={id} /><Back value={back} /></>);
-const SERVICE_TYPES = ["Domiciliary care", "Supported living", "Live-in care", "Extra care housing", "Residential care", "Nursing care", "Day services"];
-const dateInput = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
 
-export function OverviewTab({ client }: P) {
-  const { account: a, subscription: s, usage: u, modules, admins } = client;
-  const on = modules.filter((m) => m.enabled);
+/** Allowance use as "12 of 20" with a bar, or the plain figure when there is no allowance. */
+function Allowance({ used, limit, unit = "", fmt = fmtNumber }: { used: number; limit: number | null; unit?: string; fmt?: (n: number) => string }) {
+  if (limit === null) return <span className="tabular-nums">{fmt(used)}{unit}<span className="ml-1 text-px-subtle">no limit</span></span>;
+  const over = used > limit;
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-4">
-        <PxPanel title="Usage" description="Counted from records. Content is not shown.">
-          <KeyValues items={[
-            ["Active users", fmtNumber(u.users)],
-            ["Branches", fmtNumber(u.branches)],
-            ["Service user records", fmtNumber(u.serviceUsers)],
-            ["Visits", fmtNumber(u.visits)],
-            ["Stored files", `${fmtNumber(u.storage.files)} · ${fmtBytes(u.storage.bytes)}`],
-            ["AI requests this month", fmtNumber(u.aiThisMonth)],
-          ]} />
-        </PxPanel>
-        <PxPanel title="Modules" actions={<Link href="?tab=modules" className="text-[13px]">Manage modules</Link>}>
-          <p className="text-[13.5px]">{on.length} of {modules.length} on: {on.map((m) => m.name).join(", ") || "none"}.</p>
-        </PxPanel>
-      </div>
-      <div className="space-y-4">
-        <PxPanel title="Subscription" actions={<Link href="?tab=subscription" className="text-[13px]">Change</Link>}>
-          {s ? (
-            <KeyValues items={[["Plan", s.plan.name], ["Status", <Pill key="s" value={s.status} />], ["Billing period", s.billingPeriod === "ANNUAL" ? "Annual" : "Monthly"], [s.status === "TRIAL" ? "Trial ends" : "Renews", fmtDate(s.status === "TRIAL" ? s.trialEndsAt : s.renewsAt)]]} />
-          ) : <p className="text-[13.5px] text-[#5b6478]">No subscription yet. <Link href="?tab=subscription">Start one</Link>.</p>}
-        </PxPanel>
-        <PxPanel title="Organisation administrators" actions={<Link href="?tab=users" className="text-[13px]">Users</Link>}>
-          {admins.length ? <ul className="space-y-1 text-[13.5px]">{admins.map((m) => <li key={m.id}><Link href={`/platform-admin/users/${m.user.id}`}>{m.user.name}</Link> <span className="text-[#5b6478]">{m.user.email}</span></li>)}</ul> : <p className="text-[13.5px] text-[#a11d2b]">No active administrator{client.pendingAdminInvites ? ` (${client.pendingAdminInvites} invitation waiting)` : ""}.</p>}
-        </PxPanel>
-        <PxPanel title="Contact">
-          <KeyValues items={[["Main contact", a.mainContactName ?? "—"], ["Email", a.contactEmail ?? "—"], ["Telephone", a.contactPhone ?? "—"], ["Client since", fmtDate(a.createdAt)]]} />
-        </PxPanel>
-      </div>
-    </div>
+    <span className="block min-w-[140px]">
+      <span className={`tabular-nums ${over ? "font-medium text-px-danger" : ""}`}>{fmt(used)} of {fmt(limit)}{unit}</span>
+      <span className="mt-1 block"><Progress value={used} max={limit} label="Allowance used" tone={over ? "rose" : used / limit > 0.85 ? "amber" : "violet"} /></span>
+    </span>
   );
 }
 
-export function CompanyTab({ client, back }: P) {
-  const a = client.account;
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <PxPanel title="Company details">
-        <form action={updateCompanyAction} className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Hidden id={client.org.id} back={back} />
-          <label><span className="label">Legal company name</span><input name="legalName" required defaultValue={a.legalName} className="input" /></label>
-          <label><span className="label">Trading name</span><input name="tradingName" defaultValue={a.tradingName ?? ""} className="input" /></label>
-          <label><span className="label">Company registration number</span><input name="companyNumber" defaultValue={a.companyNumber ?? ""} className="input" /></label>
-          <label><span className="label">Country and jurisdiction</span><input name="country" defaultValue={a.country} className="input" /></label>
-          <label className="md:col-span-2"><span className="label">Main business address</span><textarea name="address" rows={2} defaultValue={a.address ?? ""} className="input" /></label>
-          <label><span className="label">Main contact person</span><input name="mainContactName" defaultValue={a.mainContactName ?? ""} className="input" /></label>
-          <label><span className="label">Contact email</span><input type="email" name="contactEmail" defaultValue={a.contactEmail ?? ""} className="input" /></label>
-          <label><span className="label">Contact telephone</span><input name="contactPhone" defaultValue={a.contactPhone ?? ""} className="input" /></label>
-          <label><span className="label">CQC provider ID</span><input name="cqcProviderId" defaultValue={a.cqcProviderId ?? ""} placeholder="1-123456789" className="input" /></label>
-          <label className="md:col-span-2"><span className="label">CQC location IDs (separate with commas)</span><input name="cqcLocationIds" defaultValue={a.cqcLocationIds.join(", ")} className="input" /></label>
-          <fieldset className="md:col-span-2"><legend className="label">Service types</legend>
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">{SERVICE_TYPES.map((t) => <label key={t} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="serviceTypes" value={t} defaultChecked={a.serviceTypes.includes(t)} />{t}</label>)}</div>
-          </fieldset>
-          <div className="md:col-span-2"><button className={pxPrimary}>Save company details</button></div>
-        </form>
-      </PxPanel>
-      <PxPanel title="CQC registration">
-        <p className="text-[13.5px]">{a.cqcProviderId ? <>Provider ID <span className="font-mono">{a.cqcProviderId}</span>.</> : "No CQC provider ID recorded."}</p>
-        <p className="mt-2 text-[13.5px]">{a.cqcCheckedAt ? <Tone tone="green">Checked against the CQC register on {fmtDate(a.cqcCheckedAt)}</Tone> : <Tone tone="amber">Not checked. An ID given by a customer is not proof of registration.</Tone>}</p>
-        {a.cqcProviderId && !a.cqcCheckedAt ? (
-          <form action={markCqcCheckedAction} className="mt-3"><Hidden id={client.org.id} back={back} /><p className="mb-2 text-[12.5px] text-[#5b6478]">Look the ID up on the CQC website first. The platform does not check it for you.</p><button className={pxSecondary}>I have checked it on the CQC register</button></form>
-        ) : null}
-      </PxPanel>
-    </div>
-  );
-}
-
-export async function BranchesTab({ ctx, client, back }: P) {
-  const branches = await clientBranches(ctx, client.org.id);
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <PxPanel title={`Branches (${branches.length})`} description="The customer's own administrators manage branches day to day in their Settings.">
-        <Table head={["Branch", "Address", "CQC location", "Services", "People limited to it", "Added"]} empty={branches.length ? null : <EmptyRow>No branches yet.</EmptyRow>}>
-          {branches.map((b) => (
-            <tr key={b.id}><td className="font-medium">{b.name}</td><td>{b.address ?? "—"}</td><td className="font-mono text-[12.5px]">{b.cqcLocationId ?? "—"}</td><td>{b.services.map((s) => s.serviceTypeCode.toLowerCase().replace(/_/g, " ")).join(", ") || "—"}</td><td className="tabular-nums">{b._count.grants}</td><td>{fmtDate(b.createdAt)}</td></tr>
-          ))}
-        </Table>
-      </PxPanel>
-      <PxPanel title="Add a branch">
-        <form action={addClientBranchAction} className="space-y-3">
-          <Hidden id={client.org.id} back={back} />
-          <label className="block"><span className="label">Branch name</span><input name="name" required minLength={2} className="input" /></label>
-          <label className="block"><span className="label">Address</span><input name="address" className="input" /></label>
-          <label className="block"><span className="label">CQC location ID</span><input name="cqcLocationId" className="input" /></label>
-          <button className={pxPrimary}>Add branch</button>
-        </form>
-      </PxPanel>
-    </div>
-  );
-}
-
-function rolePermissionMap() {
-  const out: Record<string, string[]> = {};
-  for (const [perm, roles] of Object.entries(ORG_PERMISSIONS)) for (const r of roles as readonly string[]) (out[r] ??= []).push(perm);
+function alertsFor(client: Client) {
+  const { account: a, subscription: s, usage: u, admins } = client;
+  const out: { tone: "danger" | "warn"; text: string; href?: string; action?: string }[] = [];
+  if (a.status === "SUSPENDED") out.push({ tone: "danger", text: `Suspended${a.statusReason ? `: ${a.statusReason}` : ""}. Staff cannot use the platform.`, href: "?tab=settings", action: "Reinstate" });
+  if (a.status === "CLOSED") out.push({ tone: "danger", text: "Closed. Records are kept but nobody can sign in.", href: "?tab=settings", action: "Reopen" });
+  if (!admins.length) out.push({ tone: "danger", text: `No active organisation administrator${client.pendingAdminInvites ? ` (${client.pendingAdminInvites} invitation waiting)` : ""}.`, href: "?tab=users", action: "Invite one" });
+  if (!s && a.status !== "CLOSED") out.push({ tone: "warn", text: "No subscription, so no allowances apply.", href: "?tab=subscription", action: "Start one" });
+  if (s?.status === "TRIAL" && s.trialEndsAt) {
+    const days = Math.ceil((s.trialEndsAt.getTime() - Date.now()) / 86_400_000);
+    if (days <= 14) out.push({ tone: days <= 3 ? "danger" : "warn", text: days < 0 ? `Trial ended on ${fmtDate(s.trialEndsAt)}.` : `Trial ends in ${days} day${days === 1 ? "" : "s"}.`, href: "?tab=subscription", action: "Review" });
+  }
+  const users = s?.userAllowance ?? s?.plan.includedUsers ?? null;
+  if (users !== null && u.users > users) out.push({ tone: "warn", text: `${u.users - users} more user${u.users - users === 1 ? "" : "s"} than the allowance of ${users}.`, href: "?tab=subscription", action: "Change plan" });
+  if (a.cqcProviderId && !a.cqcCheckedAt) out.push({ tone: "warn", text: "CQC provider ID not checked against the register." });
   return out;
 }
 
-export async function UsersTab({ ctx, client, back }: P) {
-  const { members, invites, branches } = await clientMembers(ctx, client.org.id);
-  const roles = Object.entries(ORG_ROLE_NAMES) as [OrgRole, string][];
-  const map = rolePermissionMap();
-  const branchName = new Map(branches.map((b) => [b.id, b.name]));
+export async function OverviewTab({ ctx, client, drawerHref }: P) {
+  const { account: a, subscription: s, usage: u, modules, admins } = client;
+  const branches = await clientBranches(ctx, client.org.id);
+  const alerts = alertsFor(client);
+  const on = modules.filter((m) => m.enabled).length;
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <PxPanel title={`Members of ${client.org.name} (${members.length})`} description="Changes here apply to this organisation only. A person's memberships of other organisations are never changed.">
-        {members.length ? (
-          <ul className="divide-y divide-[#f1f2f6]">
-            {members.map((m) => (
-              <li key={m.id} className="py-3 text-[13.5px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-[#0f1b3d]">{m.user.name}</Link>
-                  <span className="text-[#5b6478]">{m.user.email}</span>
-                  {m.deactivatedAt ? <Pill value="CLOSED" label="Deactivated here" /> : null}
-                  {m.user.deactivatedAt ? <Pill value="SUSPENDED" label="Account deactivated" /> : null}
-                  {m.user._count.memberships > 1 ? <Tone tone="violet">{m.user._count.memberships} organisations</Tone> : null}
-                </div>
-                <p className="mt-0.5 text-[#46505f]">{m.roles.length ? m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") : "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""} · {m.branches.length ? m.branches.map((b) => branchName.get(b.branchId) ?? "Branch").join(", ") : "all branches"}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {m.deactivatedAt ? (
-                    <form action={platformReactivateMemberAction}><Hidden id={client.org.id} back={back} /><input type="hidden" name="membershipId" value={m.id} /><button className={`${pxSecondary} !py-1 text-[13px]`}>Reactivate membership</button></form>
-                  ) : (
-                    <>
-                      <Confirm label="Roles & branch access">
-                        <form action={platformMemberAction} className="space-y-3">
-                          <Hidden id={client.org.id} back={back} /><input type="hidden" name="membershipId" value={m.id} />
-                          <RoleEditor idPrefix={m.id} roles={roles} branches={branches} selectedRoles={m.roles} selectedBranches={m.branches.map((b) => b.branchId)} jobTitle={m.jobTitle} rolePermissions={map} />
-                          <button className={pxPrimary}>Save for {client.org.name}</button>
-                        </form>
-                      </Confirm>
-                      <Confirm label="Deactivate here" tone="danger">
-                        <form action={platformDeactivateMemberAction} className="space-y-2">
-                          <Hidden id={client.org.id} back={back} /><input type="hidden" name="membershipId" value={m.id} />
-                          <p className="text-[12.5px] text-[#5b6478]">Ends their access to {client.org.name} only. Their roles are kept for reactivation.</p>
-                          <ReasonField />
-                          <button className={pxDanger}>Deactivate membership</button>
-                        </form>
-                      </Confirm>
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : <EmptyRow>No members yet.</EmptyRow>}
-      </PxPanel>
-      <div className="space-y-4">
-        <PxPanel title="Invite a person">
-          <form action={platformInviteAction} className="space-y-3">
-            <Hidden id={client.org.id} back={back} />
-            <label className="block"><span className="label">Name</span><input name="name" required className="input" /></label>
-            <label className="block"><span className="label">Email</span><input type="email" name="email" required className="input" /></label>
-            <fieldset><legend className="label">Roles</legend><div className="grid grid-cols-1 gap-1">{roles.map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="roles" value={v} defaultChecked={v === "ORG_ADMIN"} />{l}</label>)}</div></fieldset>
-            <label className="block"><span className="label">Job title</span><input name="jobTitle" className="input" /></label>
-            <button className={pxPrimary}>Create invitation link</button>
-            <p className="text-[12px] text-[#5b6478]">A single-use link is shown once. No password is set by Evantix.</p>
-          </form>
-        </PxPanel>
-        <PxPanel title={`Open invitations (${invites.length})`}>
-          {invites.length ? <ul className="space-y-2 text-[13.5px]">{invites.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
-              <span><span className="font-medium">{i.name ?? i.email}</span> <span className="text-[#5b6478]">{i.email} · {i.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ")} · until {fmtDate(i.expiresAt)}</span></span>
-              <form action={platformRevokeInviteAction}><Hidden id={client.org.id} back={back} /><input type="hidden" name="inviteId" value={i.id} /><button className="text-[13px] text-[#a11d2b] underline">Revoke</button></form>
+    <>
+      {alerts.length ? (
+        <ul aria-label="Alerts" className="mb-4 divide-y divide-px-row overflow-hidden rounded-[10px] border border-px-line bg-white">
+          {alerts.map((al) => (
+            <li key={al.text} className="flex items-center gap-3 px-4 py-2.5 text-[13.5px]">
+              <Warning size={16} weight="fill" className={`shrink-0 ${al.tone === "danger" ? "text-px-danger-strong" : "text-[#d48806]"}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-px-body">{al.text}</span>
+              {al.href ? <Link href={al.href} className={pxLink}>{al.action}</Link> : null}
             </li>
-          ))}</ul> : <p className="text-[13.5px] text-[#5b6478]">None.</p>}
+          ))}
+        </ul>
+      ) : null}
+      <Split asideWidth={340} aside={
+        <>
+          <PxPanel title="Subscription" actions={<Link href={drawerHref("subscription")} scroll={false} className={pxLink}>{s ? "Change" : "Start"}</Link>}>
+            {s ? (
+              <DetailRows items={[
+                ["Plan", s.plan.name], ["Status", <Pill key="s" value={s.status} />], ["Billing", s.billingPeriod === "ANNUAL" ? "Annual" : "Monthly"],
+                ["Price", fmtMoney(s.billingPeriod === "ANNUAL" ? s.plan.annualPricePence : s.plan.monthlyPricePence) ?? <NotConfigured key="p">Not set</NotConfigured>],
+                [s.status === "TRIAL" ? "Trial ends" : "Renews", fmtDate(s.status === "TRIAL" ? s.trialEndsAt : s.renewsAt)],
+              ]} />
+            ) : <p className="text-[13.5px] text-px-muted">No subscription yet.</p>}
+          </PxPanel>
+          <PxPanel title="Usage" actions={<Link href="?tab=usage" className={pxLink}>Details</Link>}>
+            <DetailRows items={[
+              ["Users", <Allowance key="u" used={u.users} limit={s?.userAllowance ?? s?.plan.includedUsers ?? null} />],
+              ["Branches", <Allowance key="b" used={u.branches} limit={s?.branchAllowance ?? s?.plan.includedBranches ?? null} />],
+              ["AI requests this month", <Allowance key="a" used={u.aiThisMonth} limit={s?.aiRequestsPerMonth ?? s?.plan.aiRequestsPerMonth ?? null} />],
+              ["Storage", <Allowance key="s" used={u.storage.bytes} limit={s?.storageMb ? s.storageMb * 1048576 : null} fmt={fmtBytes} />],
+              ["Modules on", <Link key="m" href="?tab=modules">{on} of {modules.length}</Link>],
+            ]} />
+          </PxPanel>
+          <PxPanel title="Administrators" actions={<Link href={drawerHref("invite")} scroll={false} className={pxLink}>Invite</Link>}>
+            {admins.length ? (
+              <ul className="-my-1 divide-y divide-px-row text-[13.5px]">{admins.map((m) => <li key={m.id} className="py-2"><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block truncate text-[12.5px] text-px-muted">{m.user.email}</span></li>)}</ul>
+            ) : <p className="text-[13.5px] text-px-danger">No active administrator.</p>}
+          </PxPanel>
+        </>
+      }>
+        <PxPanel title="Company" actions={<Link href={drawerHref("company")} scroll={false} className={pxLink}>Edit</Link>}>
+          <KeyValues cols={3} items={[
+            ["Legal name", a.legalName], ["Trading name", a.tradingName ?? "—"], ["Company number", a.companyNumber ? <span className="font-mono">{a.companyNumber}</span> : "—"],
+            ["Main contact", a.mainContactName ?? "—"], ["Email", a.contactEmail ? <a href={`mailto:${a.contactEmail}`}>{a.contactEmail}</a> : "—"], ["Telephone", a.contactPhone ?? "—"],
+            ["Address", a.address ?? "—"], ["Country", a.country], ["Client since", fmtDate(a.createdAt)],
+            ["CQC provider", a.cqcProviderId ? <span key="c" className="flex flex-wrap items-center gap-2"><span className="font-mono">{a.cqcProviderId}</span>{a.cqcCheckedAt ? <Tone tone="green">Checked</Tone> : <Tone tone="amber">Not checked</Tone>}</span> : "—"],
+            ["Service types", a.serviceTypes.join(", ") || "—"],
+          ]} />
         </PxPanel>
-        <PxPanel title="Effective permissions of administrators">
-          <ul className="space-y-1 text-[12.5px]">{effectivePermissions(["ORG_ADMIN"]).map((g) => <li key={g.group} className="flex justify-between gap-2"><span>{g.group}</span><span className="text-[#5b6478]">{g.level}</span></li>)}</ul>
+        <PxPanel id="branches" title="Branches" description={`${branches.length} branch${branches.length === 1 ? "" : "es"}. The customer manages branches day to day.`} actions={<Link href={drawerHref("branch")} scroll={false} className={`${pxSecondary} ${pxSm}`}><Plus size={13} aria-hidden="true" />Add branch</Link>} flush>
+          {branches.length ? (
+            <div className="px-4">
+              <Table label="Branches" minWidth={560} head={["Branch", "Address", "CQC location", "Limited staff", "Added"]} align={["left", "left", "left", "right", "left"]}>
+                {branches.map((b) => <tr key={b.id}><td className="font-medium">{b.name}</td><td className="text-px-body">{b.address ?? "—"}</td><td className="font-mono text-[12.5px]">{b.cqcLocationId ?? "—"}</td><td className="text-right tabular-nums">{b._count.grants}</td><td className="whitespace-nowrap">{fmtDate(b.createdAt)}</td></tr>)}
+              </Table>
+            </div>
+          ) : <EmptyState title="No branches yet">Add the first branch, or let the customer add branches in their own Settings.</EmptyState>}
+        </PxPanel>
+      </Split>
+    </>
+  );
+}
+
+export async function UsersTab({ ctx, client, back, drawerHref }: P) {
+  const { members, invites, branches } = await clientMembers(ctx, client.org.id);
+  const branchName = new Map(branches.map((b) => [b.id, b.name]));
+  const active = members.filter((m) => !m.deactivatedAt).length;
+  return (
+    <div className="space-y-4">
+      <PxPanel title="People" description={`${active} active of ${members.length}. Changes apply to ${client.org.name} only.`} actions={<Link href={drawerHref("invite")} scroll={false} className={`${pxPrimary} ${pxSm}`}><Plus size={13} aria-hidden="true" />Invite person</Link>} flush>
+        {members.length ? (
+          <div className="px-4">
+            <Table label="People" minWidth={760} head={["Person", "Roles", "Branch access", "Status", ""]} align={["left", "left", "left", "left", "right"]}>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block text-[12.5px] text-px-muted">{m.user.email}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</span></td>
+                  <td className="max-w-[260px] text-[13px]">{m.roles.length ? m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") : <span className="text-px-subtle">No roles</span>}</td>
+                  <td className="max-w-[200px] text-[13px] text-px-body">{m.branches.length ? m.branches.map((b) => branchName.get(b.branchId) ?? "Branch").join(", ") : "All branches"}</td>
+                  <td>
+                    {m.user.deactivatedAt ? <Pill value="SUSPENDED" label="Account deactivated" /> : m.deactivatedAt ? <Pill value="CLOSED" label="Removed here" /> : <Pill value="ACTIVE" />}
+                    {m.user._count.memberships > 1 ? <span className="mt-0.5 block text-[11.5px] text-px-subtle">{m.user._count.memberships} organisations</span> : null}
+                  </td>
+                  <td className="text-right">
+                    {m.deactivatedAt ? (
+                      <form action={platformReactivateMemberAction}><Hidden id={client.org.id} back={back} /><input type="hidden" name="membershipId" value={m.id} /><button className={`${pxSecondary} ${pxSm}`}>Reactivate</button></form>
+                    ) : <Link href={drawerHref("member", `&member=${m.id}`)} scroll={false} className={`${pxSecondary} ${pxSm}`} aria-label={`Edit access for ${m.user.name}`}>Edit access</Link>}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        ) : <EmptyState title="No one has access yet" action={<Link href={drawerHref("invite")} scroll={false} className={pxPrimary}>Invite the administrator</Link>}>Invite the client&apos;s administrator first; they can then invite their own staff.</EmptyState>}
+      </PxPanel>
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <PxPanel title="Open invitations" description={invites.length ? undefined : "Nobody is waiting to accept an invitation."} flush>
+          {invites.length ? (
+            <ul className="divide-y divide-px-row">{invites.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13.5px]">
+                <span className="min-w-0"><span className="block font-medium">{i.name ?? i.email}</span><span className="block text-[12.5px] text-px-muted">{i.email} · {i.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ")} · until {fmtDate(i.expiresAt)}</span></span>
+                <form action={platformRevokeInviteAction}><Hidden id={client.org.id} back={back} /><input type="hidden" name="inviteId" value={i.id} /><button className={`${pxSecondary} ${pxSm}`}>Revoke</button></form>
+              </li>
+            ))}</ul>
+          ) : null}
+        </PxPanel>
+        <PxPanel title="What an administrator can do" description="Effective access of the Organisation administrator role, from the permission registry the server enforces.">
+          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">{effectivePermissions(["ORG_ADMIN"]).map((g) => <li key={g.group} className="flex justify-between gap-2 border-b border-px-row pb-1.5"><span>{g.group}</span><span className={g.level === "No access" ? "text-px-subtle" : "font-medium text-px-ink"}>{g.level}</span></li>)}</ul>
         </PxPanel>
       </div>
     </div>
   );
 }
 
-export async function SubscriptionTab({ ctx, client, back }: P) {
-  const [plans, history] = await Promise.all([listPlans(ctx), subscriptionHistory(ctx, client.org.id)]);
+export async function SubscriptionTab({ ctx, client, drawerHref }: P) {
+  const history = await subscriptionHistory(ctx, client.org.id);
   const s = client.subscription;
-  const blocked = client.account.status === "SUSPENDED" || client.account.status === "CLOSED";
+  const u = client.usage;
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="space-y-4">
-        <PxPanel title="Current subscription">
-          {s ? (
-            <KeyValues items={[
-              ["Plan", s.plan.name], ["Status", <Pill key="s" value={s.status} />], ["Billing period", s.billingPeriod === "ANNUAL" ? "Annual" : "Monthly"],
+    <div className="space-y-4">
+      <PxPanel
+        title="Current subscription"
+        description="Internal record. No payment is taken: no billing provider is connected."
+        actions={<>{s?.status === "TRIAL" ? <Link href={drawerHref("trial")} scroll={false} className={`${pxSecondary} ${pxSm}`}>Extend trial</Link> : null}<Link href={drawerHref("subscription")} scroll={false} className={`${pxPrimary} ${pxSm}`}>{s ? "Change plan" : "Start subscription"}</Link></>}
+      >
+        {s ? (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <DetailRows items={[
+              ["Plan", <span key="p" className="font-medium">{s.plan.name}</span>], ["Status", <Pill key="s" value={s.status} />], ["Billing period", s.billingPeriod === "ANNUAL" ? "Annual" : "Monthly"],
               ["Price", fmtMoney(s.billingPeriod === "ANNUAL" ? s.plan.annualPricePence : s.plan.monthlyPricePence) ?? <NotConfigured key="p">Price not set</NotConfigured>],
-              ["Trial ends", fmtDate(s.trialEndsAt)], ["Renews", fmtDate(s.renewsAt)],
-              ["User allowance", s.userAllowance === null ? "Unlimited" : `${fmtNumber(client.usage.users)} of ${fmtNumber(s.userAllowance)}`],
-              ["Branch allowance", s.branchAllowance === null ? "Unlimited" : `${fmtNumber(client.usage.branches)} of ${fmtNumber(s.branchAllowance)}`],
-              ["Storage allowance", s.storageMb === null ? "Unlimited" : `${fmtBytes(client.usage.storage.bytes)} of ${fmtNumber(s.storageMb)} MB`],
-              ["AI requests per month", s.aiRequestsPerMonth === null ? "No allowance set" : `${fmtNumber(client.usage.aiThisMonth)} of ${fmtNumber(s.aiRequestsPerMonth)}`],
-              ["Effective from", fmtDate(s.startsAt, true)],
+              ["Trial ends", fmtDate(s.trialEndsAt)], ["Renews", fmtDate(s.renewsAt)], ["Effective from", fmtDate(s.startsAt, true)],
             ]} />
-          ) : <p className="text-[13.5px] text-[#5b6478]">No subscription yet.</p>}
-          <p className="mt-3 text-[12.5px] text-[#5b6478]">No billing provider is connected: these are internal records only. No payment is taken.</p>
-        </PxPanel>
-        <PxPanel title="History" description="Every period is kept with its dates, so entitlement changes can be traced.">
-          <Table head={["From", "Until", "Plan", "Status", "Allowances", "Reason"]} empty={history.length ? null : <EmptyRow>No history yet.</EmptyRow>}>
-            {history.map((h) => (
-              <tr key={h.id}><td className="whitespace-nowrap">{fmtDate(h.startsAt, true)}</td><td className="whitespace-nowrap">{h.endedAt ? fmtDate(h.endedAt, true) : <Tone tone="green">Current</Tone>}</td><td>{h.plan.name}</td><td><Pill value={h.status} /></td><td className="text-[12.5px]">{h.userAllowance ?? "∞"} users · {h.branchAllowance ?? "∞"} branches · {h.storageMb ?? "∞"} MB · {h.aiRequestsPerMonth ?? "—"} AI</td><td className="text-[12.5px]">{h.changeReason ?? "—"}</td></tr>
-            ))}
-          </Table>
-        </PxPanel>
-      </div>
-      <div className="space-y-4">
-        <PxPanel title={s ? "Change subscription" : "Start subscription"}>
-          {blocked ? <p className="text-[13.5px] text-[#a11d2b]">This client is {client.account.status.toLowerCase()}. Reinstate it under Settings first.</p> : plans.length ? (
-            <form action={changeSubscriptionAction} className="space-y-3">
-              <Hidden id={client.org.id} back={back} />
-              <label className="block"><span className="label">Plan</span><select name="planId" required defaultValue={s?.planId ?? ""} className="input"><option value="" disabled>Choose a plan</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-              <div className="grid grid-cols-2 gap-2">
-                <label><span className="label">Status</span><select name="status" defaultValue={s?.status === "TRIAL" ? "TRIAL" : "ACTIVE"} className="input"><option value="TRIAL">Trial</option><option value="ACTIVE">Paid (active)</option></select></label>
-                <label><span className="label">Billing period</span><select name="billingPeriod" defaultValue={s?.billingPeriod ?? "MONTHLY"} className="input"><option value="MONTHLY">Monthly</option><option value="ANNUAL">Annual</option></select></label>
-                <label><span className="label">Trial ends</span><input type="date" name="trialEndsAt" defaultValue={dateInput(s?.trialEndsAt)} className="input" /></label>
-                <label><span className="label">Renews</span><input type="date" name="renewsAt" defaultValue={dateInput(s?.renewsAt)} className="input" /></label>
-                <label><span className="label">Users</span><input type="number" min={0} name="userAllowance" defaultValue={s?.userAllowance ?? ""} placeholder="Plan" className="input" /></label>
-                <label><span className="label">Branches</span><input type="number" min={0} name="branchAllowance" defaultValue={s?.branchAllowance ?? ""} placeholder="Plan" className="input" /></label>
-                <label><span className="label">Storage (MB)</span><input type="number" min={0} name="storageMb" defaultValue={s?.storageMb ?? ""} placeholder="Plan" className="input" /></label>
-                <label><span className="label">AI requests / month</span><input type="number" min={0} name="aiRequestsPerMonth" defaultValue={s?.aiRequestsPerMonth ?? ""} placeholder="Plan" className="input" /></label>
-              </div>
-              <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="applyPlanModules" />Also switch modules to match the plan</label>
-              <ReasonField />
-              <button className={pxPrimary}>Save subscription</button>
-            </form>
-          ) : <p className="text-[13.5px]">No plans are set up yet. <Link href="/platform-admin/plans">Create a plan</Link> first.</p>}
-        </PxPanel>
-        {s?.status === "TRIAL" ? (
-          <PxPanel title="Extend trial">
-            <form action={extendTrialAction} className="space-y-3"><Hidden id={client.org.id} back={back} /><label className="block"><span className="label">New trial end</span><input type="date" name="trialEndsAt" required className="input" /></label><ReasonField /><button className={pxSecondary}>Extend trial</button></form>
-          </PxPanel>
-        ) : null}
-      </div>
+            <DetailRows items={[
+              ["Users", <Allowance key="u" used={u.users} limit={s.userAllowance} />],
+              ["Branches", <Allowance key="b" used={u.branches} limit={s.branchAllowance} />],
+              ["Storage", <Allowance key="s" used={u.storage.bytes} limit={s.storageMb === null ? null : s.storageMb * 1048576} fmt={fmtBytes} />],
+              ["AI requests this month", <Allowance key="a" used={u.aiThisMonth} limit={s.aiRequestsPerMonth} />],
+            ]} />
+          </div>
+        ) : <EmptyState title="No subscription" action={<Link href={drawerHref("subscription")} scroll={false} className={pxPrimary}>Start subscription</Link>}>Give this client a plan so its allowances and renewal date are tracked.</EmptyState>}
+      </PxPanel>
+      <PxPanel title="History" description="Every period is kept with its dates, so entitlement changes can be traced." flush>
+        {history.length ? (
+          <div className="px-4">
+            <Table label="Subscription history" minWidth={760} head={["From", "Until", "Plan", "Status", "Allowances", "Reason"]}>
+              {history.map((h) => (
+                <tr key={h.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(h.startsAt, true)}</td><td className="whitespace-nowrap tabular-nums">{h.endedAt ? fmtDate(h.endedAt, true) : <Tone tone="green">Current</Tone>}</td><td>{h.plan.name}</td><td><Pill value={h.status} /></td><td className="text-[12.5px] text-px-body">{h.userAllowance ?? "∞"} users · {h.branchAllowance ?? "∞"} branches · {h.storageMb ?? "∞"} MB · {h.aiRequestsPerMonth ?? "—"} AI</td><td className="text-[12.5px] text-px-body">{h.changeReason ?? "—"}</td></tr>
+              ))}
+            </Table>
+          </div>
+        ) : <EmptyRow>No subscription periods yet.</EmptyRow>}
+      </PxPanel>
     </div>
   );
 }
 
 export function ModulesTab({ client, back }: P) {
   return (
-    <PxPanel title="Modules" description="Switching a module off stops its permissions on the server at the person's next click. Nothing is deleted, and switching it back on restores access to the same records.">
-      <ul className="divide-y divide-[#f1f2f6]">
+    <PxPanel title="Modules" description="Switching a module off stops its permissions on the server at each person's next click. Nothing is deleted; switching it back on restores the same records." flush>
+      <ul className="divide-y divide-px-row">
         {client.modules.map((m) => (
-          <li key={m.key} className="flex flex-wrap items-start gap-3 py-3">
-            <div className="min-w-0 flex-1 basis-[20rem]">
-              <p className="flex flex-wrap items-center gap-2 text-[14px] font-medium">{m.name}{m.enabled ? <Pill value="ACTIVE" label="On" /> : <Pill value="CLOSED" label="Off" />}{m.critical ? <Tone tone="amber">Care-critical</Tone> : null}</p>
-              <p className="text-[13px] text-[#5b6478]">{m.summary}</p>
-              {m.updatedAt ? <p className="text-[12px] text-[#7a8294]">Last changed {fmtDate(m.updatedAt, true)}</p> : null}
-              {m.limits && m.key === "AI_COORDINATOR" ? (
-                <form action={moduleLimitsAction} className="mt-2 flex flex-wrap items-end gap-2">
+          <li key={m.key} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5">
+            <div className="min-w-0 flex-1 basis-[22rem]">
+              <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-px-ink">{m.name}{m.critical ? <Tone tone="amber">Care-critical</Tone> : null}</p>
+              <p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{m.summary}{m.updatedAt ? ` · Changed ${fmtDate(m.updatedAt, true)}` : ""}</p>
+              {m.enabled && m.limits && m.key === "AI_COORDINATOR" ? (
+                <form action={moduleLimitsAction} className="mt-2.5 flex flex-wrap items-end gap-2">
                   <Hidden id={client.org.id} back={back} /><input type="hidden" name="moduleKey" value={m.key} />
-                  <label><span className="label">Requests per month</span><input type="number" min={1} name="monthlyRequests" defaultValue={m.limits.monthlyRequests ?? ""} placeholder="Subscription" className="input w-40" /></label>
-                  <label><span className="label">Spend limit per month (£)</span><input name="monthlySpend" defaultValue={m.limits.monthlySpendPence ? (m.limits.monthlySpendPence / 100).toFixed(2) : ""} placeholder="None" className="input w-40" /></label>
-                  <button className={`${pxSecondary} !py-[7px]`}>Save limits</button>
+                  <label><span className="label">Requests per month</span><input type="number" min={1} name="monthlyRequests" defaultValue={m.limits.monthlyRequests ?? ""} placeholder="From subscription" className="input w-44" /></label>
+                  <label><span className="label">Spend limit per month (£)</span><input name="monthlySpend" defaultValue={m.limits.monthlySpendPence ? (m.limits.monthlySpendPence / 100).toFixed(2) : ""} placeholder="None" className="input w-44" /></label>
+                  <button className={pxSecondary}>Save limits</button>
                 </form>
               ) : null}
             </div>
-            <Confirm label={m.enabled ? "Switch off" : "Switch on"} tone={m.enabled ? "danger" : "default"}>
-              <form action={setModuleAction} className="w-[300px] max-w-full space-y-2">
-                <Hidden id={client.org.id} back={back} /><input type="hidden" name="moduleKey" value={m.key} /><input type="hidden" name="enabled" value={m.enabled ? "false" : "true"} />
-                {m.enabled ? <p className="text-[12.5px] text-[#a11d2b]">{m.consequence}</p> : null}
-                {m.enabled && m.critical ? <label className="block"><span className="label">Type <strong>{client.org.name}</strong> to confirm</span><input name="confirmName" required className="input" autoComplete="off" /></label> : null}
-                <ReasonField />
-                <button className={m.enabled ? pxDanger : pxPrimary}>{m.enabled ? `Switch off ${m.name}` : `Switch on ${m.name}`}</button>
-              </form>
-            </Confirm>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <Pill value={m.enabled ? "ACTIVE" : "CLOSED"} label={m.enabled ? "On" : "Off"} />
+              <Confirm small label={m.enabled ? "Switch off" : "Switch on"} tone={m.enabled ? "danger" : "default"}>
+                <form action={setModuleAction} className="w-[300px] max-w-full space-y-2">
+                  <Hidden id={client.org.id} back={back} /><input type="hidden" name="moduleKey" value={m.key} /><input type="hidden" name="enabled" value={m.enabled ? "false" : "true"} />
+                  {m.enabled ? <p className="text-[12.5px] text-px-danger">{m.consequence}</p> : null}
+                  {m.enabled && m.critical ? <label className="block"><span className="label">Type <strong>{client.org.name}</strong> to confirm</span><input name="confirmName" required className="input" autoComplete="off" /></label> : null}
+                  <ReasonField />
+                  <button className={m.enabled ? pxDanger : pxPrimary}>{m.enabled ? `Switch off ${m.name}` : `Switch on ${m.name}`}</button>
+                </form>
+              </Confirm>
+            </div>
           </li>
         ))}
       </ul>
@@ -300,105 +250,114 @@ export function ModulesTab({ client, back }: P) {
   );
 }
 
-export async function AiTab({ ctx, client }: P) {
-  const u = await aiUsage(ctx, { organisationId: client.org.id });
-  const ai = client.modules.find((m) => m.key === "AI_COORDINATOR");
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <PxPanel title="AI usage this month" description="Metadata only: no document, prompt or answer is shown.">
-        <KeyValues items={[
-          ["Requests", fmtNumber(u.requests)], ["Failed", fmtNumber(u.failed)], ["Support plans processed", fmtNumber(u.supportPlansProcessed)], ["Documents processed", fmtNumber(u.documentsProcessed)],
-          ["Tokens", u.tokensMetered ? fmtNumber(u.inputTokens + u.outputTokens) : <NotConfigured key="t">Not metered</NotConfigured>],
-          ["Estimated cost", u.estimatedCostPence === null ? <NotConfigured key="c">Token prices not set</NotConfigured> : fmtMoney(u.estimatedCostPence)],
-          ["Average duration", u.avgDurationMs === null ? "—" : `${(u.avgDurationMs / 1000).toFixed(1)} s`],
-          ["Background processing failures", fmtNumber(u.failedBackgroundJobs)],
-        ]} />
-        <h3 className="mt-4 text-[13.5px] font-semibold">By feature</h3>
-        <Table head={["Feature", "Requests", "Tokens", "Estimated cost"]} empty={u.byFeature.length ? null : <EmptyRow>No AI requests this month.</EmptyRow>}>
-          {u.byFeature.map((f) => <tr key={f.feature}><td>{f.feature}</td><td className="tabular-nums">{fmtNumber(f.requests)}</td><td className="tabular-nums">{fmtNumber(f.tokens)}</td><td>{fmtMoney(f.costPence) ?? "—"}</td></tr>)}
-        </Table>
-      </PxPanel>
-      <PxPanel title="Entitlement">
-        <p className="text-[13.5px]">AI Care Coordinator is <strong>{ai?.enabled ? "on" : "off"}</strong> for this client.</p>
-        <p className="mt-1 text-[13.5px]">Monthly allowance: {ai?.limits.monthlyRequests ?? client.subscription?.aiRequestsPerMonth ?? "none set"}.</p>
-        <p className="mt-1 text-[13.5px]">Spending limit: {fmtMoney(ai?.limits.monthlySpendPence ?? null) ?? "none set"}.</p>
-        <p className="mt-3 text-[12.5px] text-[#5b6478]">When a limit is reached, AI requests are refused and staff see a plain message; the rest of the platform keeps working. <Link href="?tab=modules">Change limits</Link></p>
-      </PxPanel>
-    </div>
-  );
-}
-
-export async function StorageTab({ client }: P) {
-  const growth = await storageGrowth(client.org.id);
+export async function UsageTab({ ctx, client }: P) {
+  const [ai, growth] = await Promise.all([aiUsage(ctx, { organisationId: client.org.id }), storageGrowth(client.org.id)]);
+  const aiModule = client.modules.find((m) => m.key === "AI_COORDINATOR");
   const max = Math.max(1, ...growth.map((g) => g.bytes));
   const s = client.subscription;
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <PxPanel title="Stored files" description="Measured from file records (documents, evidence, photos, intakes and HR files).">
-        <KeyValues items={[["Total", fmtBytes(client.usage.storage.bytes)], ["Files", fmtNumber(client.usage.storage.files)], ["Allowance", s?.storageMb ? `${fmtNumber(s.storageMb)} MB` : "None set"], ["Used", s?.storageMb ? `${Math.round((client.usage.storage.bytes / (s.storageMb * 1048576)) * 100)}%` : "—"]]} />
-        <h3 className="mt-4 text-[13.5px] font-semibold">Added per month</h3>
-        <ul className="mt-2 space-y-1.5">
-          {growth.map((g) => (
-            <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_72px] items-center gap-2 text-[12.5px]">
-              <span className="tabular-nums text-[#5b6478]">{g.month}</span>
-              <span className="h-2.5 rounded-full bg-[#f1f2f6]"><span className="block h-2.5 rounded-full bg-[#7c3aed]" style={{ width: `${(g.bytes / max) * 100}%` }} /></span>
-              <span className="text-right tabular-nums">{fmtBytes(g.bytes)}</span>
-            </li>
-          ))}
-        </ul>
-      </PxPanel>
-      <PxPanel title="Records">
-        <KeyValues items={[["Users", fmtNumber(client.usage.users)], ["Service user records", fmtNumber(client.usage.serviceUsers)], ["Visits", fmtNumber(client.usage.visits)], ["Branches", fmtNumber(client.usage.branches)]]} />
-      </PxPanel>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <PxPanel title="AI this month" description="Metadata only: no document, prompt or answer is shown.">
+          <DetailRows items={[
+            ["Requests", <Allowance key="r" used={ai.requests} limit={aiModule?.limits.monthlyRequests ?? s?.aiRequestsPerMonth ?? null} />],
+            ["Failed", <span key="f" className={ai.failed ? "font-medium text-px-danger" : ""}>{fmtNumber(ai.failed)}</span>],
+            ["Support plans processed", fmtNumber(ai.supportPlansProcessed)], ["Documents processed", fmtNumber(ai.documentsProcessed)],
+            ["Tokens", ai.tokensMetered ? fmtNumber(ai.inputTokens + ai.outputTokens) : <NotConfigured key="t">Not metered</NotConfigured>],
+            ["Estimated cost", ai.estimatedCostPence === null ? <NotConfigured key="c">Token prices not set</NotConfigured> : fmtMoney(ai.estimatedCostPence)],
+            ["Spend limit", fmtMoney(aiModule?.limits.monthlySpendPence ?? null) ?? "None set"],
+            ["AI Care Coordinator", aiModule?.enabled ? "On" : "Off"],
+          ]} />
+        </PxPanel>
+        <PxPanel title="Storage" description="Measured from file records: documents, evidence, photos, intakes and HR files.">
+          <DetailRows items={[
+            ["Stored", <Allowance key="s" used={client.usage.storage.bytes} limit={s?.storageMb ? s.storageMb * 1048576 : null} fmt={fmtBytes} />],
+            ["Files", fmtNumber(client.usage.storage.files)],
+          ]} />
+          <h3 className="mb-2 mt-4 text-[12.5px] font-medium text-px-muted">Added per month</h3>
+          <ul className="space-y-1.5">
+            {growth.map((g) => (
+              <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-2 text-[12.5px]">
+                <span className="tabular-nums text-px-muted">{g.month}</span>
+                <span className="h-2 rounded-full bg-px-row"><span className="block h-2 rounded-full bg-px-focus" style={{ width: `${(g.bytes / max) * 100}%` }} /></span>
+                <span className="text-right tabular-nums">{fmtBytes(g.bytes)}</span>
+              </li>
+            ))}
+          </ul>
+        </PxPanel>
+      </div>
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <PxPanel title="AI by feature" flush>
+          {ai.byFeature.length ? (
+            <div className="px-4"><Table label="AI by feature" minWidth={420} head={["Feature", "Requests", "Tokens", "Estimated cost"]} align={["left", "right", "right", "right"]}>
+              {ai.byFeature.map((f) => <tr key={f.feature}><td>{f.feature}</td><td className="text-right tabular-nums">{fmtNumber(f.requests)}</td><td className="text-right tabular-nums">{fmtNumber(f.tokens)}</td><td className="text-right">{fmtMoney(f.costPence) ?? "—"}</td></tr>)}
+            </Table></div>
+          ) : <EmptyRow>No AI requests this month.</EmptyRow>}
+        </PxPanel>
+        <PxPanel title="Records" description="Counted for metering only. Their content is never shown here.">
+          <DetailRows items={[["Users", fmtNumber(client.usage.users)], ["Service user records", fmtNumber(client.usage.serviceUsers)], ["Visits", fmtNumber(client.usage.visits)], ["Branches", fmtNumber(client.usage.branches)]]} />
+        </PxPanel>
+      </div>
     </div>
   );
 }
 
-export async function SecurityTab({ ctx, client, back }: P) {
-  const [grants, links, sessions] = await Promise.all([
+export async function SecurityTab({ ctx, client, back, sp, drawerHref }: P) {
+  const full = sp.full === "1" && Boolean(await activeSupportGrant(client.org.id, "ACTIVITY_LOG"));
+  const page = Number(sp.page ?? "1") || 1;
+  const [grants, links, sessions, audit, logGrant] = await Promise.all([
     listSupportGrants(ctx, client.org.id),
-    db.accountToken.findMany({ where: { organisationId: client.org.id, kind: "RESET" }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, email: true, createdAt: true, expiresAt: true, usedAt: true, revokedAt: true } }),
+    db.accountToken.findMany({ where: { organisationId: client.org.id, kind: "RESET" }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, email: true, createdAt: true, expiresAt: true, usedAt: true, revokedAt: true } }),
     db.session.count({ where: { activeOrgId: client.org.id, expiresAt: { gt: new Date() } } }),
+    clientAudit(ctx, client.org.id, { full, page }),
+    activeSupportGrant(client.org.id, "ACTIVITY_LOG"),
   ]);
-  const scopes = Object.entries(SUPPORT_SCOPES);
-  const supportForm = (emergency: boolean) => (
-    <form action={emergency ? emergencySupportAction : requestSupportAction} className="space-y-2">
-      <Hidden id={client.org.id} back={back} />
-      <label className="block"><span className="label">Purpose</span><textarea name="purpose" required minLength={10} rows={2} className="input" /></label>
-      <fieldset><legend className="label">What support needs to see</legend>{scopes.map(([k, v]) => <label key={k} className="flex items-center gap-2 text-[13px]"><input type="checkbox" name="scopes" value={k} />{v}</label>)}</fieldset>
-      <label className="block"><span className="label">For how many hours</span><input type="number" name="hours" min={1} max={emergency ? 4 : 72} defaultValue={emergency ? 2 : 24} className="input w-28" /></label>
-      {emergency ? <PasswordField /> : null}
-      <button className={emergency ? pxDanger : pxPrimary}>{emergency ? "Open emergency access" : "Ask the client for access"}</button>
-    </form>
-  );
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <div className="space-y-4">
-        <PxPanel title="Support access" description="Time-limited and purpose-bound. Covers configuration and the activity log only, never service user records or signing in as a customer user.">
-          <Table head={["Requested", "Purpose", "Scope", "Authorised", "State", ""]} empty={grants.length ? null : <EmptyRow>No support access has been requested.</EmptyRow>}>
-            {grants.map((g) => (
-              <tr key={g.id}>
-                <td className="whitespace-nowrap">{fmtDate(g.createdAt, true)}<span className="block text-[12px] text-[#5b6478]">{g.requestedBy}</span></td>
-                <td className="max-w-[260px]">{g.purpose}</td>
-                <td className="text-[12.5px]">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
-                <td className="text-[12.5px]">{g.authorisation === "EMERGENCY" ? "Emergency (Evantix)" : g.decidedBy ? `By ${g.decidedBy}` : "Waiting for the client"}</td>
-                <td><Pill value={g.state} />{g.state === "ACTIVE" && g.expiresAt ? <span className="block text-[12px] text-[#5b6478]">until {fmtDate(g.expiresAt, true)}</span> : null}</td>
-                <td>{g.state === "ACTIVE" || g.state === "REQUESTED" ? <Confirm label="Revoke"><form action={revokeSupportAction} className="space-y-2"><Back value={back} /><input type="hidden" name="grantId" value={g.id} /><ReasonField /><button className={pxDanger}>Revoke</button></form></Confirm> : null}</td>
-              </tr>
-            ))}
-          </Table>
+    <div className="space-y-4">
+      <PxPanel
+        title="Support access"
+        description="Time-limited and purpose-bound. Covers configuration and the activity log only, never care records or signing in as a customer."
+        actions={<><Link href={drawerHref("emergency")} scroll={false} className={`${pxSecondary} ${pxSm} !text-px-danger`}>Emergency access</Link><Link href={drawerHref("support")} scroll={false} className={`${pxPrimary} ${pxSm}`}>Ask for access</Link></>}
+        flush
+      >
+        {grants.length ? (
+          <div className="px-4">
+            <Table label="Support access" minWidth={780} head={["Requested", "Purpose", "Scope", "Authorised", "State", ""]} align={["left", "left", "left", "left", "left", "right"]}>
+              {grants.map((g) => (
+                <tr key={g.id}>
+                  <td className="whitespace-nowrap tabular-nums">{fmtDate(g.createdAt, true)}<span className="block text-[12px] text-px-muted">{g.requestedBy}</span></td>
+                  <td className="max-w-[260px]">{g.purpose}</td>
+                  <td className="text-[12.5px]">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
+                  <td className="text-[12.5px]">{g.authorisation === "EMERGENCY" ? "Emergency (Evantix)" : g.decidedBy ? `By ${g.decidedBy}` : "Waiting for the client"}</td>
+                  <td><Pill value={g.state} />{g.state === "ACTIVE" && g.expiresAt ? <span className="block text-[12px] text-px-muted">until {fmtDate(g.expiresAt, true)}</span> : null}</td>
+                  <td className="text-right">{g.state === "ACTIVE" || g.state === "REQUESTED" ? <Confirm small label="Revoke"><form action={revokeSupportAction} className="w-[260px] space-y-2 text-left"><Back value={back} /><input type="hidden" name="grantId" value={g.id} /><ReasonField /><button className={pxDanger}>Revoke access</button></form></Confirm> : null}</td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        ) : <EmptyRow>No support access has been requested for this client.</EmptyRow>}
+      </PxPanel>
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <PxPanel title={full ? "Full activity log" : "Account and security history"} description={full ? "Shown under the client's approved support access; each view is audited." : "Invitations, roles, password resets, status, subscription and module changes. Care activity is not shown."} actions={!full && logGrant ? <Link href="?tab=security&full=1" className={pxLink}>Open full log</Link> : null} flush>
+          {audit.entries.length ? (
+            <div className="px-4">
+              <Table label="History" minWidth={620} head={["When", "Event", "By", "Details"]}>
+                {audit.entries.map((e) => (
+                  <tr key={e.id}>
+                    <td className="whitespace-nowrap tabular-nums text-[12.5px]">{fmtDate(e.at, true)}</td>
+                    <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="mt-0.5 block text-[12.5px]"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
+                    <td className="text-[13px]">{e.actor}</td>
+                    <td className="max-w-[320px] text-[12.5px] text-px-body">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-[11.5px] text-px-muted">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}{e.outcome !== "Done" ? <span className="block text-px-danger">{e.outcome}</span> : null}</td>
+                  </tr>
+                ))}
+              </Table>
+            </div>
+          ) : <EmptyRow>No events yet.</EmptyRow>}
+          <p className="border-t border-px-divider px-4 py-2 text-[12.5px] text-px-muted">{audit.total} event{audit.total === 1 ? "" : "s"}</p>
         </PxPanel>
-        <PxPanel title="Password reset links for this client">
-          <Table head={["Created", "For", "Expires", "State"]} empty={links.length ? null : <EmptyRow>None.</EmptyRow>}>
-            {links.map((l) => <tr key={l.id}><td>{fmtDate(l.createdAt, true)}</td><td>{l.email}</td><td>{fmtDate(l.expiresAt, true)}</td><td><Pill value={tokenState(l)} /></td></tr>)}
-          </Table>
-          <p className="mt-2 text-[12.5px] text-[#5b6478]">{sessions} session(s) are signed in to this organisation now. Manage them from <Link href="/platform-admin/sessions">Login Sessions</Link>.</p>
-        </PxPanel>
-      </div>
-      <div className="space-y-4">
-        <PxPanel title="Ask for support access">{supportForm(false)}</PxPanel>
-        <PxPanel title="Emergency access" description="Only when the client cannot be reached and the issue cannot wait. At most 4 hours. The client's administrators and the other platform administrators are told.">
-          <Confirm label="Open emergency access" tone="danger">{supportForm(true)}</Confirm>
+        <PxPanel title="Sign-in" description={`${sessions} session${sessions === 1 ? " is" : "s are"} signed in to this organisation now.`} actions={<Link href="/platform-admin/sessions" className={pxLink}>Sessions</Link>}>
+          <h3 className="mb-1 text-[12.5px] font-medium text-px-muted">Recent password reset links</h3>
+          {links.length ? <ul className="-my-1 divide-y divide-px-row text-[13px]">{links.map((l) => <li key={l.id} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0"><span className="block truncate">{l.email}</span><span className="block text-[12px] text-px-muted">{fmtDate(l.createdAt, true)}</span></span><Pill value={tokenState(l)} /></li>)}</ul> : <p className="text-[13px] text-px-muted">None.</p>}
         </PxPanel>
       </div>
     </div>
@@ -410,59 +369,39 @@ export async function SettingsTab({ ctx, client, back }: P) {
   const grant = await activeSupportGrant(client.org.id, "CONFIGURATION");
   const config = grant ? await supportConfigurationView(ctx, client.org.id) : null;
   const statusForm = (action: "suspend" | "reinstate" | "close" | "reopen", label: string, danger: boolean, needsPassword: boolean, explain: string) => (
-    <Confirm label={label} tone={danger ? "danger" : "default"}>
-      <form action={customerStatusAction} className="w-[340px] max-w-full space-y-2">
-        <Hidden id={client.org.id} back={back} /><input type="hidden" name="statusAction" value={action} />
-        <p className="text-[12.5px] text-[#5b6478]">{explain}</p>
-        <ReasonField />
-        {needsPassword ? <PasswordField /> : null}
-        <button className={danger ? pxDanger : pxPrimary}>{label}</button>
-      </form>
-    </Confirm>
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-px-row py-4 last:border-0">
+      <div className="min-w-0 flex-1 basis-[18rem]"><p className="text-[13.5px] font-medium text-px-ink">{label}</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{explain}</p></div>
+      <Confirm label={label} tone={danger ? "danger" : "default"}>
+        <form action={customerStatusAction} className="w-[320px] max-w-full space-y-2">
+          <Hidden id={client.org.id} back={back} /><input type="hidden" name="statusAction" value={action} />
+          <ReasonField />
+          {needsPassword ? <PasswordField /> : null}
+          <button className={danger ? pxDanger : pxPrimary}>{label}</button>
+        </form>
+      </Confirm>
+    </div>
   );
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <PxPanel title="Account status" description="Suspending or closing never deletes the client's records. Its staff see a plain notice and can do nothing until it is reinstated.">
-        <p className="mb-3 text-[13.5px]">Status: <Pill value={status} />{client.account.statusReason ? <span className="ml-2 text-[#5b6478]">Reason: {client.account.statusReason}</span> : null}{client.account.statusChangedAt ? <span className="ml-2 text-[#5b6478]">({fmtDate(client.account.statusChangedAt, true)})</span> : null}</p>
-        <div className="flex flex-wrap items-start gap-2">
-          {status === "ACTIVE" || status === "TRIAL" ? statusForm("suspend", "Suspend client", true, true, "Every member of this organisation loses access at their next click. Their sessions stay, their data stays.") : null}
+    <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+      <PxPanel title="Account status" description="Suspending or closing never deletes records. The client's staff see a plain notice until it is reinstated.">
+        <p className="mb-1 flex flex-wrap items-center gap-2 text-[13.5px]">Currently <Pill value={status} />{client.account.statusChangedAt ? <span className="text-px-muted">since {fmtDate(client.account.statusChangedAt, true)}</span> : null}</p>
+        {client.account.statusReason ? <p className="text-[12.5px] text-px-muted">Reason: {client.account.statusReason}</p> : null}
+        <div className="mt-2">
+          {status === "ACTIVE" || status === "TRIAL" ? statusForm("suspend", "Suspend client", true, true, "Every member loses access at their next click. Sessions and data are kept. Needs your password.") : null}
           {status === "SUSPENDED" ? statusForm("reinstate", "Reinstate client", false, false, "Restores access with the same roles, modules and data.") : null}
-          {status !== "CLOSED" ? statusForm("close", "Close client", true, true, "Use when the client has left. Data is kept for retention; nobody can use the organisation.") : statusForm("reopen", "Reopen client", false, false, "Restores access to a closed client.")}
+          {status !== "CLOSED" ? statusForm("close", "Close client", true, true, "When the client has left. Data is kept for retention; nobody can use the organisation. Needs your password.") : statusForm("reopen", "Reopen client", false, false, "Restores access to a closed client.")}
         </div>
       </PxPanel>
       <PxPanel title="Organisation configuration" description="Visible only while the client has approved support access to its configuration.">
         {config ? (
           <div className="space-y-2 text-[13px]">
             <p><Tone tone="amber">Support access active until {fmtDate(grant!.expiresAt, true)}</Tone></p>
-            <p>Jurisdiction: {config.org.jurisdiction}</p>
-            <p>Branches: {config.branches.map((b) => `${b.name}${b.hrBranchKey ? " (HR linked)" : ""}`).join(", ") || "none"}</p>
-            <p>Rota settings: {config.rotaSettings ? "configured" : "not configured"}</p>
-            <pre className="max-h-64 overflow-auto rounded-[4px] bg-[#f5f6fa] p-2 text-[12px]">{JSON.stringify(config.org.settings, null, 2)}</pre>
+            <DetailRows items={[["Jurisdiction", config.org.jurisdiction], ["Branches", config.branches.map((b) => `${b.name}${b.hrBranchKey ? " (HR linked)" : ""}`).join(", ") || "None"], ["Rota settings", config.rotaSettings ? "Configured" : "Not configured"]]} />
+            <pre className="max-h-64 overflow-auto rounded-[6px] bg-px-field p-2 text-[12px]">{JSON.stringify(config.org.settings, null, 2)}</pre>
           </div>
-        ) : <p className="text-[13.5px] text-[#5b6478]">No active support access. <Link href="?tab=security">Ask the client for access</Link>.</p>}
+        ) : <EmptyState title="No active support access" action={<Link href="?tab=security" className={pxSecondary}>Ask the client for access</Link>}>The client&apos;s configuration stays private until one of its administrators approves a request.</EmptyState>}
       </PxPanel>
     </div>
-  );
-}
-
-export async function AuditTab({ ctx, client, sp }: P) {
-  const full = sp.full === "1" && Boolean(await activeSupportGrant(client.org.id, "ACTIVITY_LOG"));
-  const page = Number(sp.page ?? "1") || 1;
-  const { entries, total } = await clientAudit(ctx, client.org.id, { full, page });
-  return (
-    <PxPanel title={full ? "Full activity log (support access)" : "Account and security history"} description={full ? "Shown under the client's approved support access; each view is audited." : "Invitations, roles, password resets, status, subscription and module changes. Care activity is not shown."} actions={!full && (await activeSupportGrant(client.org.id, "ACTIVITY_LOG")) ? <Link href="?tab=audit&full=1" className="text-[13px]">Open full log</Link> : null}>
-      <Table head={["When", "Event", "By", "Details"]} empty={entries.length ? null : <EmptyRow>No events yet.</EmptyRow>}>
-        {entries.map((e) => (
-          <tr key={e.id}>
-            <td className="whitespace-nowrap tabular-nums">{fmtDate(e.at, true)}</td>
-            <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="block text-[12.5px]"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
-            <td>{e.actor}</td>
-            <td className="max-w-[360px] text-[12.5px] text-[#46505f]">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-[11.5px]">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}{e.outcome !== "Done" ? <span className="block text-[#a11d2b]">{e.outcome}</span> : null}</td>
-          </tr>
-        ))}
-      </Table>
-      <p className="mt-2 text-[12.5px] text-[#5b6478]">{total} event(s).</p>
-    </PxPanel>
   );
 }
 

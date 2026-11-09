@@ -3,27 +3,30 @@ import { moduleCatalogue } from "@/server/platform/modules";
 import { PxHeader, PxPanel, Table, Tone } from "@/components/platform/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Modules & Features" };
+export const metadata = { title: "Modules" };
 
+/** The licensed modules and how many clients use each. Switching happens per client, on its Modules tab. */
 export default async function ModulesPage() {
   const ctx = await requireCtx();
   const modules = await moduleCatalogue(ctx);
   return (
     <>
-      <PxHeader title="Modules & Features" description="The modules Evantix licenses. Switch a module on or off for one client from its profile (Modules tab). Access is enforced on the server, not only by hiding menus, and switching off never deletes records." />
-      <PxPanel>
-        <Table head={["Module", "What it covers", "Clients with it on", "Off for", "Usage limits", "If switched off"]}>
-          {modules.map((m) => (
-            <tr key={m.key}>
-              <td className="font-medium">{m.name}{m.critical ? <span className="mt-0.5 block"><Tone tone="amber">Care-critical</Tone></span> : null}</td>
-              <td className="max-w-[260px] text-[12.5px]">{m.summary}</td>
-              <td className="tabular-nums">{m.clientsOn}</td>
-              <td className="tabular-nums">{m.clientsOff}</td>
-              <td className="text-[12.5px]">{m.limits?.map((l) => l.label).join(", ") ?? "—"}</td>
-              <td className="max-w-[300px] text-[12.5px] text-[#46505f]">{m.consequence}</td>
-            </tr>
-          ))}
-        </Table>
+      <PxHeader title="Modules" description="Switch a module on or off for one client from that client's Modules tab. Access is enforced on the server, and switching off never deletes records." />
+      <PxPanel flush>
+        <div className="px-4">
+          <Table label="Modules" minWidth={980} head={["Module", "What it covers", "On", "Off", "Usage limits", "If switched off"]} align={["left", "left", "right", "right", "left", "left"]}>
+            {modules.map((m) => (
+              <tr key={m.key}>
+                <td className="font-medium text-px-ink">{m.name}{m.critical ? <span className="mt-1 block"><Tone tone="amber">Care-critical</Tone></span> : null}</td>
+                <td className="max-w-[260px] text-[13px] text-px-body">{m.summary}</td>
+                <td className="text-right tabular-nums">{m.clientsOn}</td>
+                <td className="text-right tabular-nums">{m.clientsOff}</td>
+                <td className="text-[13px]">{m.limits?.map((l) => l.label).join(", ") ?? <span className="text-px-subtle">—</span>}</td>
+                <td className="max-w-[300px] text-[13px] text-px-muted">{m.consequence}</td>
+              </tr>
+            ))}
+          </Table>
+        </div>
       </PxPanel>
     </>
   );

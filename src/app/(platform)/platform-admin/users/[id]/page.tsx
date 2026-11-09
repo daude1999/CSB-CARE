@@ -1,13 +1,14 @@
 import type { OrgRole } from "@prisma/client";
+import { Key } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
 import { getAccount, ORG_PERMISSIONS, ORG_ROLE_NAMES, PLATFORM_ROLE_NAMES } from "@/server/platform/accounts";
 import { actionLabel, actionTone } from "@/server/platform/activity";
-import { effectivePermissions } from "@/server/platform/permissions";
+import { effectivePermissions, permissionCatalogue } from "@/server/platform/permissions";
 import { emailProvider } from "@/server/notifications/email";
-import { Flash, fmtDate } from "@/components/ui";
-import { Back, Confirm, EmptyRow, KeyValues, PasswordField, Pill, PxHeader, PxPanel, pxDanger, pxPrimary, pxSecondary, ReasonField, Table, Tone } from "@/components/platform/ui";
+import { fmtDate } from "@/components/ui";
+import { Back, Confirm, DetailRows, EmptyRow, PasswordField, Pill, PxDrawer, PxFlash, PxHeader, PxPanel, pxDanger, pxLink, pxPrimary, pxSecondary, pxSm, ReasonField, returnTo, Table, Tone } from "@/components/platform/ui";
 import { OneTimeLink } from "@/components/platform/one-time-link";
 import { RoleEditor } from "@/components/platform/role-editor";
 import {
@@ -18,131 +19,184 @@ import {
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Account" };
 
-/** One person's account: memberships (changed one organisation at a time), password recovery, sessions and security history. */
+const SECTIONS = [["details", "Account details"], ["access", "Access"], ["security", "Security"], ["administration", "Administration"]] as const;
+
+/**
+ * One person's account workspace: details, access (each organisation changed on its own, in a side panel), security
+ * (password recovery, sessions, history) and administration (platform roles, deactivation).
+ */
 export default async function AccountPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const { id } = await params;
   const sp = await searchParams;
   const ctx = await requireCtx();
   const a = await orNotFound(getAccount(ctx, id));
-  const back = `/platform-admin/users/${id}`;
+  const listBack = returnTo(sp.back, "/platform-admin/users");
+  const keep = sp.back ? `?back=${encodeURIComponent(listBack)}` : "";
+  const here = `/platform-admin/users/${id}${keep}`;
+  const withEdit = (q: string) => `${here}${keep ? "&" : "?"}${q}`;
   const roles = Object.entries(ORG_ROLE_NAMES) as [OrgRole, string][];
   const map: Record<string, string[]> = {};
   for (const [perm, rs] of Object.entries(ORG_PERMISSIONS)) for (const r of rs as readonly string[]) (map[r] ??= []).push(perm);
   const self = a.id === ctx.userId;
   const canEmail = emailProvider().name === "smtp";
+  const canReset = !a.deactivatedAt && !a.isDemo;
   const uid = <input type="hidden" name="userId" value={a.id} />;
+  const resets = a.tokens.filter((t) => t.kind === "RESET");
+  const editing = sp.edit === "member" ? a.memberships.find((m) => m.id === sp.member) : undefined;
   return (
     <>
       <PxHeader
-        crumbs={[{ href: "/platform-admin/users", label: "All Users" }]}
-        title={<span className="flex flex-wrap items-center gap-3">{a.name}{a.deactivatedAt ? <Pill value="SUSPENDED" label="Deactivated" /> : a.passwordResetRequired ? <Pill value="REQUESTED" label="New password required" /> : <Pill value="ACTIVE" />}</span>}
-        description={<>{a.email}{a.multiOrg ? ` · member of ${a.memberships.length} organisations` : ""}{self ? " · this is you" : ""}</>}
+        crumbs={[{ href: listBack, label: "Users" }]}
+        title={<span className="flex flex-wrap items-center gap-2.5">{a.name}{a.deactivatedAt ? <Pill value="SUSPENDED" label="Deactivated" /> : a.passwordResetRequired ? <Pill value="REQUESTED" label="Password change due" /> : <Pill value="ACTIVE" />}{a.platformRoles.length ? <Tone tone="violet">Evantix staff</Tone> : null}</span>}
+        meta={<><span>{a.email}</span><span>{a.memberships.filter((m) => !m.deactivatedAt).length} organisation{a.memberships.length === 1 ? "" : "s"}</span><span>Last sign-in {a.lastSignIn ? fmtDate(a.lastSignIn, true) : "never"}</span>{self ? <span>This is you</span> : null}</>}
+        actions={canReset ? (
+          <form action={platformResetAction}><Back value={here} />{uid}<input type="hidden" name="delivery" value="show" /><button className={pxPrimary}><Key size={15} aria-hidden="true" />Create reset link</button></form>
+        ) : undefined}
       />
-      <Flash searchParams={sp} />
+      <PxFlash searchParams={sp} />
       <OneTimeLink />
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-4">
-          <PxPanel title="Account">
-            <KeyValues items={[
-              ["Created", fmtDate(a.createdAt)], ["Last sign-in", fmtDate(a.lastSignIn, true)], ["Password", a.hasPassword ? "Set by the person (never visible)" : "Not set yet"],
-              ["Multi-factor sign-in", "Not available on this platform yet"], ["Evantix platform roles", a.platformRoles.length ? a.platformRoles.map((r) => PLATFORM_ROLE_NAMES[r as keyof typeof PLATFORM_ROLE_NAMES]).join(", ") : "None"], ["Demo account", a.isDemo ? "Yes (keeps the shared demo password)" : "No"],
-            ]} />
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
+        <nav aria-label="Account sections" className="hidden lg:sticky lg:top-24 lg:block">
+          <ul className="space-y-0.5 border-l border-px-line">
+            {SECTIONS.map(([k, l]) => <li key={k}><a href={`#${k}`} className="-ml-px block border-l-2 border-transparent py-1.5 pl-3 text-[13.5px] text-px-muted no-underline hover:border-px-faint hover:text-px-ink">{l}</a></li>)}
+          </ul>
+        </nav>
+        <div className="min-w-0 space-y-5">
+          <PxPanel id="details" title="Account details">
+            <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
+              <DetailRows items={[["Name", a.name], ["Email", a.email], ["Created", fmtDate(a.createdAt)], ["Demo account", a.isDemo ? "Yes (keeps the shared demo password)" : "No"]]} />
+              <DetailRows items={[["Password", a.hasPassword ? "Set by the person, never visible" : "Not set yet"], ["Last sign-in", fmtDate(a.lastSignIn, true)], ["Signed in now", `${a.sessions.length} session${a.sessions.length === 1 ? "" : "s"}`], ["Multi-factor sign-in", <span key="m" className="text-px-muted">Not available yet</span>]]} />
+            </div>
           </PxPanel>
-          <PxPanel title={`Organisation memberships (${a.memberships.length})`} description="Each membership is changed on its own. Changing one never alters the person's access to another organisation.">
+
+          <PxPanel id="access" title="Access" description="Each organisation is changed on its own. Changing one never alters the person's access to another." flush>
             {a.memberships.length ? (
-              <ul className="divide-y divide-[#f1f2f6]">
+              <ul className="divide-y divide-px-row">
                 {a.memberships.map((m) => {
                   const branches = a.branches.filter((b) => b.organisationId === m.organisation.id);
-                  const mback = back;
+                  const chosen = branches.filter((b) => m.branches.some((x) => x.branchId === b.id)).map((b) => b.name);
                   return (
-                    <li key={m.id} className="py-3 text-[13.5px]">
-                      <p className="flex flex-wrap items-center gap-2"><Link href={`/platform-admin/clients/${m.organisation.id}`} className="font-medium">{m.organisation.name}</Link>{m.organisation.customerAccount ? <Pill value={m.organisation.customerAccount.status} /> : null}{m.deactivatedAt ? <Pill value="CLOSED" label="Membership deactivated" /> : null}</p>
-                      <p className="text-[#46505f]">{m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") || "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""} · {m.branches.length ? branches.filter((b) => m.branches.some((x) => x.branchId === b.id)).map((b) => b.name).join(", ") : "all branches"}</p>
-                      <details className="mt-1 text-[12.5px]"><summary className="cursor-pointer text-[#3b1a86]">Effective permissions here</summary>
-                        <ul className="mt-1 grid grid-cols-1 gap-x-4 sm:grid-cols-2">{effectivePermissions(m.roles).map((g) => <li key={g.group} className="flex justify-between gap-2"><span>{g.group}</span><span className={g.level === "No access" ? "text-[#7a8294]" : ""}>{g.level}</span></li>)}</ul>
-                      </details>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                    <li key={m.id} className="px-4 py-3.5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-center gap-2 text-[13.5px]"><Link href={`/platform-admin/clients/${m.organisation.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.organisation.name}</Link>{m.organisation.customerAccount ? <span className="font-mono text-[11.5px] text-px-subtle">{m.organisation.customerAccount.reference}</span> : null}{m.deactivatedAt ? <Pill value="CLOSED" label="Removed" /> : null}</p>
+                          <p className="mt-0.5 text-[13px] text-px-body">{m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") || "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</p>
+                          <p className="text-[12.5px] text-px-muted">Branches: {m.branches.length ? chosen.join(", ") : "all"}</p>
+                        </div>
                         {m.deactivatedAt ? (
-                          <form action={platformReactivateMemberAction}><Back value={mback} /><input type="hidden" name="organisationId" value={m.organisation.id} /><input type="hidden" name="membershipId" value={m.id} /><button className={`${pxSecondary} !py-1 text-[13px]`}>Reactivate membership</button></form>
-                        ) : (
-                          <>
-                            <Confirm label="Roles & branch access">
-                              <form action={platformMemberAction} className="space-y-3">
-                                <Back value={mback} /><input type="hidden" name="organisationId" value={m.organisation.id} /><input type="hidden" name="membershipId" value={m.id} />
-                                <RoleEditor idPrefix={m.id} roles={roles} branches={branches} selectedRoles={m.roles} selectedBranches={m.branches.map((b) => b.branchId)} jobTitle={m.jobTitle} rolePermissions={map} />
-                                <button className={pxPrimary}>Save for {m.organisation.name}</button>
-                              </form>
-                            </Confirm>
-                            <Confirm label="Deactivate in this organisation" tone="danger">
-                              <form action={platformDeactivateMemberAction} className="space-y-2"><Back value={mback} /><input type="hidden" name="organisationId" value={m.organisation.id} /><input type="hidden" name="membershipId" value={m.id} /><ReasonField /><button className={pxDanger}>Deactivate membership</button></form>
-                            </Confirm>
-                          </>
-                        )}
+                          <form action={platformReactivateMemberAction}><Back value={here} /><input type="hidden" name="organisationId" value={m.organisation.id} /><input type="hidden" name="membershipId" value={m.id} /><button className={`${pxSecondary} ${pxSm}`}>Reactivate</button></form>
+                        ) : <Link href={withEdit(`edit=member&member=${m.id}`)} scroll={false} className={`${pxSecondary} ${pxSm}`}>Change access</Link>}
                       </div>
+                      <details className="mt-2 text-[12.5px]">
+                        <summary className="cursor-pointer text-px-accent">Effective permissions in {m.organisation.name}</summary>
+                        <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">{effectivePermissions(m.roles).map((g) => <li key={g.group} className="flex justify-between gap-2 border-b border-px-row pb-1"><span>{g.group}</span><span className={g.level === "No access" ? "text-px-subtle" : "font-medium text-px-ink"}>{g.level}</span></li>)}</ul>
+                      </details>
                     </li>
                   );
                 })}
               </ul>
             ) : <EmptyRow>No organisation memberships.</EmptyRow>}
           </PxPanel>
-          <PxPanel title={`Sessions (${a.sessions.length})`}>
-            <Table head={["Signed in", "Last active", "Ends", "Organisation", "Device", ""]} empty={a.sessions.length ? null : <EmptyRow>Not signed in anywhere.</EmptyRow>}>
-              {a.sessions.map((s) => (
-                <tr key={s.id}><td>{fmtDate(s.createdAt, true)}</td><td>{fmtDate(s.lastSeenAt, true)}</td><td>{fmtDate(s.expiresAt, true)}</td><td>{a.memberships.find((m) => m.organisation.id === s.activeOrgId)?.organisation.name ?? "—"}</td><td className="text-[12px] text-[#5b6478]">{s.ip ?? "—"}<span className="block max-w-[200px] truncate">{s.userAgent ?? ""}</span></td><td><form action={revokeSessionAction}><Back value={back} /><input type="hidden" name="sessionId" value={s.id} /><button className="text-[13px] text-[#a11d2b] underline">End</button></form></td></tr>
-              ))}
-            </Table>
-          </PxPanel>
-          <PxPanel title="Security history">
-            <Table head={["When", "Event", "Details"]} empty={a.history.length ? null : <EmptyRow>Nothing recorded yet.</EmptyRow>}>
-              {a.history.map((h) => {
-                const d = (h.data && typeof h.data === "object" && !Array.isArray(h.data) ? h.data : {}) as Record<string, unknown>;
-                return <tr key={h.id}><td className="whitespace-nowrap">{fmtDate(h.createdAt, true)}</td><td><Tone tone={actionTone(h.action)}>{actionLabel(h.action)}</Tone></td><td className="text-[12.5px] text-[#46505f]">{typeof d.reason === "string" ? `Reason: ${d.reason}` : ""}{d.outcome === "blocked" ? " Blocked" : ""}</td></tr>;
-              })}
-            </Table>
-          </PxPanel>
-        </div>
-        <div className="space-y-4">
-          <PxPanel title="Password" description="Platform-level account recovery. It also works for people in several organisations, whose own administrators cannot reset them.">
-            {a.deactivatedAt ? <p className="text-[13.5px] text-[#5b6478]">Reactivate the account first.</p> : a.isDemo ? <p className="text-[13.5px] text-[#5b6478]">Demo accounts keep the shared demo password.</p> : (
-              <div className="space-y-3">
-                <form action={platformResetAction} className="flex flex-wrap gap-2"><Back value={back} />{uid}<input type="hidden" name="delivery" value="show" /><button className={pxPrimary}>Reset password (show link once)</button></form>
-                {canEmail ? <form action={platformResetAction}><Back value={back} />{uid}<input type="hidden" name="delivery" value="email" /><button className={pxSecondary}>Email reset link to {a.email}</button></form> : <p className="text-[12.5px] text-[#5b6478]">Email is not configured, so links are handed over in person.</p>}
-                {!self ? (
-                  <Confirm label="Require a new password" tone="danger">
-                    <form action={requireResetAction} className="space-y-2"><Back value={back} />{uid}<p className="text-[12.5px] text-[#5b6478]">Signs them out everywhere and blocks sign-in with the old password until they use the new link.</p><ReasonField /><button className={pxDanger}>Require new password</button></form>
-                  </Confirm>
-                ) : null}
+
+          <section id="security" aria-label="Security" className="scroll-mt-24 space-y-4">
+            <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+              <PxPanel title="Password" description="Platform-level recovery. Works for people in several organisations, whose own administrators cannot reset them.">
+                {a.deactivatedAt ? <p className="text-[13.5px] text-px-muted">Reactivate the account first.</p> : a.isDemo ? <p className="text-[13.5px] text-px-muted">Demo accounts keep the shared demo password.</p> : (
+                  <div className="flex flex-wrap gap-2">
+                    <form action={platformResetAction}><Back value={here} />{uid}<input type="hidden" name="delivery" value="show" /><button className={pxPrimary}>Create reset link</button></form>
+                    {canEmail ? <form action={platformResetAction}><Back value={here} />{uid}<input type="hidden" name="delivery" value="email" /><button className={pxSecondary}>Email the link</button></form> : null}
+                    {!self ? (
+                      <Confirm label="Require a new password" tone="danger">
+                        <form action={requireResetAction} className="space-y-2"><Back value={here} />{uid}<p className="text-[12.5px] text-px-muted">Signs them out everywhere and blocks the old password until they use a new link.</p><ReasonField /><button className={pxDanger}>Require new password</button></form>
+                      </Confirm>
+                    ) : null}
+                  </div>
+                )}
+                {!canEmail && canReset ? <p className="mt-2 text-[12.5px] text-px-muted">Email is not configured, so the link is shown once for you to hand over.</p> : null}
+                <h3 className="mb-1 mt-4 text-[12.5px] font-medium text-px-muted">Reset links</h3>
+                {resets.length ? <ul className="-my-1 divide-y divide-px-row text-[13px]">{resets.map((t) => <li key={t.id} className="flex items-center justify-between gap-2 py-1.5"><span className="tabular-nums">{fmtDate(t.createdAt, true)}</span><Pill value={t.state} /></li>)}</ul> : <p className="text-[13px] text-px-muted">None.</p>}
+                {resets.some((t) => t.state === "active") ? <form action={revokeResetLinksAction} className="mt-2"><Back value={here} />{uid}<button className={`${pxSecondary} ${pxSm}`}>Revoke unused links</button></form> : null}
+              </PxPanel>
+              <PxPanel title="Sessions" description={`${a.sessions.length} active`} actions={a.sessions.length ? <Confirm small label="Sign out everywhere"><form action={revokeSessionsAction} className="w-[260px] space-y-2"><Back value={here} />{uid}<ReasonField /><button className={pxDanger}>Sign out of {a.sessions.length}</button></form></Confirm> : null} flush>
+                {a.sessions.length ? (
+                  <ul className="divide-y divide-px-row">
+                    {a.sessions.map((s) => (
+                      <li key={s.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-[13px]">
+                        <span className="min-w-0">
+                          <span className="block text-px-ink">{a.memberships.find((m) => m.organisation.id === s.activeOrgId)?.organisation.name ?? "Admin Centre"}</span>
+                          <span className="block text-[12px] text-px-muted">Active {fmtDate(s.lastSeenAt, true)} · {s.ip ?? "unknown network"}</span>
+                          {s.userAgent ? <span className="block max-w-[320px] truncate text-[12px] text-px-subtle">{s.userAgent}</span> : null}
+                        </span>
+                        <form action={revokeSessionAction}><Back value={here} /><input type="hidden" name="sessionId" value={s.id} /><button className={`${pxSecondary} ${pxSm}`}>End</button></form>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <EmptyRow>Not signed in anywhere.</EmptyRow>}
+              </PxPanel>
+            </div>
+            <PxPanel title="Security history" flush>
+              {a.history.length ? (
+                <div className="px-4">
+                  <Table label="Security history" minWidth={520} head={["When", "Event", "Details"]}>
+                    {a.history.map((h) => {
+                      const d = (h.data && typeof h.data === "object" && !Array.isArray(h.data) ? h.data : {}) as Record<string, unknown>;
+                      return <tr key={h.id}><td className="whitespace-nowrap text-[12.5px] tabular-nums">{fmtDate(h.createdAt, true)}</td><td><Tone tone={actionTone(h.action)}>{actionLabel(h.action)}</Tone></td><td className="text-[12.5px] text-px-body">{typeof d.reason === "string" ? `Reason: ${d.reason}` : ""}{d.outcome === "blocked" ? " Blocked" : ""}</td></tr>;
+                    })}
+                  </Table>
+                </div>
+              ) : <EmptyRow>Nothing recorded yet.</EmptyRow>}
+            </PxPanel>
+          </section>
+
+          <PxPanel id="administration" title="Administration">
+            <div className="divide-y divide-px-row">
+              <div className="grid grid-cols-1 gap-3 pb-4 md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] md:gap-8">
+                <div><p className="text-[13.5px] font-medium text-px-ink">Evantix platform roles</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">Only platform administrators change these, with their password. At least one platform administrator always remains. Organisation administrators can never grant them.</p></div>
+                <form action={platformRolesAction} className="space-y-2">
+                  <Back value={here} />{uid}
+                  <div className="space-y-1.5">{Object.entries(PLATFORM_ROLE_NAMES).map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="platformRoles" value={v} defaultChecked={a.platformRoles.includes(v as never)} />{l}</label>)}</div>
+                  <ReasonField />
+                  <PasswordField />
+                  <button className={pxSecondary}>Save platform roles</button>
+                </form>
               </div>
-            )}
-            <h3 className="mb-1 mt-4 text-[13px] font-semibold">Reset links</h3>
-            {a.tokens.filter((t) => t.kind === "RESET").length ? (
-              <ul className="space-y-1 text-[12.5px]">{a.tokens.filter((t) => t.kind === "RESET").map((t) => <li key={t.id} className="flex justify-between gap-2"><span>{fmtDate(t.createdAt, true)}</span><Pill value={t.state} /></li>)}</ul>
-            ) : <p className="text-[12.5px] text-[#5b6478]">None.</p>}
-            {a.tokens.some((t) => t.kind === "RESET" && t.state === "active") ? <form action={revokeResetLinksAction} className="mt-2"><Back value={back} />{uid}<button className="text-[13px] text-[#a11d2b] underline">Revoke unused reset links</button></form> : null}
-          </PxPanel>
-          <PxPanel title="Sessions">
-            <Confirm label="Sign out everywhere"><form action={revokeSessionsAction} className="space-y-2"><Back value={back} />{uid}<ReasonField /><button className={pxDanger}>Sign out of {a.sessions.length} session(s)</button></form></Confirm>
-          </PxPanel>
-          <PxPanel title="Evantix platform roles" description="Only platform administrators can change these. Needs your password; at least one platform administrator always remains.">
-            <form action={platformRolesAction} className="space-y-2">
-              <Back value={back} />{uid}
-              {Object.entries(PLATFORM_ROLE_NAMES).map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="platformRoles" value={v} defaultChecked={a.platformRoles.includes(v as never)} />{l}</label>)}
-              <ReasonField />
-              <PasswordField />
-              <button className={pxSecondary}>Save platform roles</button>
-            </form>
-          </PxPanel>
-          <PxPanel title="Account status">
-            {a.deactivatedAt ? (
-              <form action={reactivateAccountAction} className="space-y-2"><Back value={back} />{uid}<p className="text-[13px]">Deactivated {fmtDate(a.deactivatedAt, true)}.</p><ReasonField /><button className={pxPrimary}>Reactivate account</button></form>
-            ) : self ? <p className="text-[13px] text-[#5b6478]">You cannot deactivate your own account.</p> : (
-              <Confirm label="Deactivate account" tone="danger">
-                <form action={deactivateAccountAction} className="space-y-2"><Back value={back} />{uid}<p className="text-[12.5px] text-[#5b6478]">Stops sign-in to every organisation and ends all sessions and links. Memberships and history are kept.</p><ReasonField /><PasswordField /><button className={pxDanger}>Deactivate account</button></form>
-              </Confirm>
-            )}
+              <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] md:gap-8">
+                <div><p className="text-[13.5px] font-medium text-px-ink">{a.deactivatedAt ? "Reactivate account" : "Deactivate account"}</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{a.deactivatedAt ? `Deactivated ${fmtDate(a.deactivatedAt, true)}. Reactivating restores sign-in with the same memberships.` : "Stops sign-in to every organisation and ends all sessions and links. Memberships and history are kept."}</p></div>
+                <div>
+                  {a.deactivatedAt ? (
+                    <form action={reactivateAccountAction} className="space-y-2"><Back value={here} />{uid}<ReasonField /><button className={pxPrimary}>Reactivate account</button></form>
+                  ) : self ? <p className="text-[13px] text-px-muted">You cannot deactivate your own account.</p> : (
+                    <Confirm label="Deactivate account" tone="danger">
+                      <form action={deactivateAccountAction} className="space-y-2"><Back value={here} />{uid}<ReasonField /><PasswordField /><button className={pxDanger}>Deactivate account</button></form>
+                    </Confirm>
+                  )}
+                </div>
+              </div>
+            </div>
           </PxPanel>
         </div>
       </div>
+      {editing ? (
+        <PxDrawer closeHref={here} title={`Access to ${editing.organisation.name}`} description={<>{a.name}. Changes apply to this organisation only and take effect at their next click.</>}>
+          {editing.deactivatedAt ? <p className="text-[13.5px] text-px-muted">This membership is removed. Reactivate it first.</p> : (
+            <>
+              <form action={platformMemberAction} className="space-y-3">
+                <Back value={here} /><input type="hidden" name="organisationId" value={editing.organisation.id} /><input type="hidden" name="membershipId" value={editing.id} />
+                <RoleEditor idPrefix={editing.id} roles={roles} branches={a.branches.filter((b) => b.organisationId === editing.organisation.id)} selectedRoles={editing.roles} selectedBranches={editing.branches.map((b) => b.branchId)} jobTitle={editing.jobTitle} rolePermissions={map} catalogue={permissionCatalogue()} />
+                <div className="sticky bottom-0 -mx-5 mt-5 flex justify-end gap-2 border-t border-px-line bg-white px-5 py-3"><Link href={here} scroll={false} className={pxSecondary}>Cancel</Link><button className={pxPrimary}>Save access</button></div>
+              </form>
+              <div className="mt-6 border-t border-px-line pt-4">
+                <h3 className="text-[13.5px] font-semibold text-px-ink">Remove from {editing.organisation.name}</h3>
+                <p className="mb-2 mt-0.5 text-[12.5px] text-px-muted">Their roles are kept so the membership can be reactivated.</p>
+                <Confirm label="Remove access" tone="danger">
+                  <form action={platformDeactivateMemberAction} className="space-y-2"><Back value={here} /><input type="hidden" name="organisationId" value={editing.organisation.id} /><input type="hidden" name="membershipId" value={editing.id} /><ReasonField /><button className={pxDanger}>Remove access</button></form>
+                </Confirm>
+              </div>
+              <p className="mt-4 text-[12.5px]"><Link href={`/platform-admin/clients/${editing.organisation.id}?tab=users`} className={pxLink}>Open {editing.organisation.name}&apos;s people</Link></p>
+            </>
+          )}
+        </PxDrawer>
+      ) : null}
     </>
   );
 }

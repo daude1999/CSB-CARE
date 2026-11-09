@@ -5,7 +5,7 @@ import { requirePlatform } from "@/server/platform/access";
 import { getSetting } from "@/server/platform/settings";
 import { emailProvider } from "@/server/notifications/email";
 import { fmtDate } from "@/components/ui";
-import { EmptyRow, KeyValues, PxHeader, PxPanel, Table } from "@/components/platform/ui";
+import { EmptyRow, PxHeader, PxPanel, pxSecondary, SettingsRow, Table } from "@/components/platform/ui";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Notifications" };
@@ -19,25 +19,28 @@ export default async function NotificationsPage() {
     db.notification.findMany({ where: { userId: ctx.userId, type: { in: ["PLATFORM_SECURITY"] } }, orderBy: { createdAt: "desc" }, take: 30 }),
   ]);
   const email = emailProvider().name === "smtp";
+  const sent: [string, string, string][] = [
+    ["Security alerts to platform administrators", alertsOn ? "On, in-app" : "Off", "Role changes, deactivations, suspensions and emergency support access."],
+    ["Support access requests", "Always, in-app", "Sent to the client's administrators."],
+    ["Emergency support access", "Always, in-app", "Sent to the client's administrators at once."],
+    ["Client onboarding invitation", "Shown once to Evantix", "Not emailed. Hand the single-use link over yourself."],
+    ["Password reset links", email ? "Shown once, or emailed" : "Shown once", email ? "You choose when you create the link." : "Email is not configured."],
+    ["Subscription messages to clients", "Not built yet", "No billing provider is connected."],
+    ["System incident notices", "Maintenance banner", "Set in Platform Settings, Maintenance."],
+  ];
   return (
     <>
-      <PxHeader title="Notifications" description="Who the platform tells about administration events. All notices go to the in-app bell; email is used only where it says so and only when email is configured." actions={<Link href="/platform-admin/settings#notifications" className="text-[13px]">Notification settings</Link>} />
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <PxPanel title="Your security alerts">
-          <Table head={["When", "Alert", ""]} empty={mine.length ? null : <EmptyRow>{alertsOn ? "No alerts yet." : "Security alerts are switched off."}</EmptyRow>}>
-            {mine.map((n) => <tr key={n.id}><td className="whitespace-nowrap">{fmtDate(n.createdAt, true)}</td><td><span className="font-medium">{n.title}</span><span className="block text-[12.5px] text-[#46505f]">{n.body}</span></td><td>{n.actionUrl ? <Link href={n.actionUrl} className="text-[13px]">Open</Link> : null}</td></tr>)}
-          </Table>
+      <PxHeader title="Notifications" description="Who the platform tells about administration events. Notices go to the in-app bell. Email is used only where it says so, and only when email is configured." actions={<Link href="/platform-admin/settings?section=notifications" className={pxSecondary}>Notification settings</Link>} />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <PxPanel title="Your security alerts" flush>
+          <div className="px-4">
+            <Table label="Your security alerts" minWidth={520} head={["When", "Alert", ""]} empty={mine.length ? null : <EmptyRow>{alertsOn ? "No alerts yet." : "Security alerts are switched off."}</EmptyRow>}>
+              {mine.map((n) => <tr key={n.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(n.createdAt, true)}</td><td><span className="font-medium text-px-ink">{n.title}</span><span className="block text-[12.5px] text-px-muted">{n.body}</span></td><td className="text-right">{n.actionUrl ? <Link href={n.actionUrl} className="text-[13px]">Open</Link> : null}</td></tr>)}
+            </Table>
+          </div>
         </PxPanel>
         <PxPanel title="What is sent">
-          <KeyValues items={[
-            ["Security alerts to platform administrators", alertsOn ? "On (in-app)" : "Off"],
-            ["Support access requests to the client's administrators", "Always (in-app)"],
-            ["Emergency support access to the client's administrators", "Always (in-app)"],
-            ["Customer onboarding invitation", "Single-use link shown once to Evantix; not emailed"],
-            ["Password reset links", email ? "Shown once, or emailed when you choose" : "Shown once; email not configured"],
-            ["Subscription messages to clients", "Not built yet: no billing provider is connected"],
-            ["System incident notices", "Use the maintenance notice in Platform Settings"],
-          ]} />
+          {sent.map(([label, value, help]) => <SettingsRow key={label} label={label} help={help}><p className="text-[13.5px] text-px-body md:text-right">{value}</p></SettingsRow>)}
         </PxPanel>
       </div>
     </>

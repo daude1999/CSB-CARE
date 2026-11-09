@@ -22,6 +22,7 @@ import { clientAudit, securityAudit } from "@/server/platform/activity";
 import { aiUsage } from "@/server/platform/usage";
 import { platformHealth } from "@/server/platform/health";
 import { recurringRevenue } from "@/server/platform/subscriptions";
+import { operationsOverview, platformSearch, platformStatus, setupChecklist } from "@/server/platform/command-centre";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
 
 /**
@@ -367,3 +368,43 @@ describe("settings, health and the security audit", () => {
   });
 });
 
+
+describe("Platform Overview, search and sign-in landing", () => {
+  it("lands a platform administrator on the Admin Centre after sign-in, and everyone else on the care platform", async () => {
+    expect((await login("admin@csb.demo", DEMO_PW)).home).toBe("/platform-admin");
+    expect((await login("manager@care-solution.demo", DEMO_PW)).home).toBe("/overview");
+  });
+
+  it("lists operational issues exceptions first, with counts that match the database and a reason for any degraded state", async () => {
+    const p = await platform();
+    const o = await operationsOverview(p);
+    expect(o.rows.map((r) => r.key).sort()).toEqual(["ai", "jobs", "security", "subscriptions", "support", "trials"]);
+    const counts = o.rows.map((r) => r.count);
+    const firstZero = counts.findIndex((c) => c === 0);
+    if (firstZero >= 0) expect(counts.slice(firstZero).every((c) => c === 0)).toBe(true);
+    const waiting = await db.supportAccessGrant.count({ where: { status: "REQUESTED" } });
+    expect(o.rows.find((r) => r.key === "support")!.count).toBe(waiting);
+    const status = await platformStatus();
+    if (status.state !== "Healthy") expect(status.reasons.length).toBeGreaterThan(0);
+    await expect(operationsOverview(await orgAdmin())).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("builds the setup checklist from real records and marks steps that need a developer", async () => {
+    const steps = await setupChecklist(await platform());
+    expect(steps.find((s) => s.key === "plans")!.done).toBe((await db.subscriptionPlan.count({ where: { active: true } })) > 0);
+    expect(steps.filter((s) => s.external).map((s) => s.key)).toEqual(expect.arrayContaining(["email", "ai", "billing"]));
+    await expect(setupChecklist(await orgAdmin())).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("searches clients by name or reference, people by email and plans, and never care records; refused to organisation staff", async () => {
+    const p = await platform();
+    const ref = (await db.customerAccount.findUniqueOrThrow({ where: { organisationId: oakId } })).reference;
+    expect((await platformSearch(p, ref)).some((h) => h.kind === "Client" && h.href.includes(oakId))).toBe(true);
+    expect((await platformSearch(p, "oakridge")).some((h) => h.kind === "Client")).toBe(true);
+    expect((await platformSearch(p, "manager@oakridge.demo")).some((h) => h.kind === "Person")).toBe(true);
+    expect(await platformSearch(p, "a")).toEqual([]);
+    const su = await db.serviceUser.findFirst({ select: { firstName: true, lastName: true } });
+    if (su) for (const h of await platformSearch(p, su.lastName)) expect(h.href.startsWith("/platform-admin/")).toBe(true);
+    await expect(platformSearch(await orgAdmin(), "oakridge")).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});

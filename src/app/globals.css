@@ -549,3 +549,14 @@
   :root[data-mode="dark"] img.csb-wordmark-ink { content: url("/csb-logo-light.svg"); }
 }
 @dark-mode inline-colours;
+
+/* Evantix Platform Admin Centre: denser, purple-accented form controls inside the Admin Centre shell only. */
+@layer components {
+  .px-scope .input { @apply h-9 rounded-[6px] border-px-line bg-white px-3 py-0 text-[13.5px] text-px-ink placeholder:text-px-faint focus:border-px-focus focus:ring-px-accent-soft; }
+  .px-scope textarea.input { @apply h-auto py-2 leading-5; }
+  .px-scope select.input { @apply pr-8; }
+  .px-scope .label { @apply mb-1 text-[12.5px] font-medium text-px-body; }
+  .px-scope .btn { @apply h-9 rounded-[6px] px-3.5 py-0 text-[13.5px] font-medium; }
+  .px-scope :focus-visible:not([tabindex="-1"]) { outline: 2px solid #7c3aed; outline-offset: 2px; }
+  .px-scope input[type="checkbox"], .px-scope input[type="radio"] { accent-color: #5b21b6; }
+}

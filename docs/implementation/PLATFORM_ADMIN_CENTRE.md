@@ -17,18 +17,24 @@ There are two levels of administration, and both use the same users, organisatio
 
 ## Routes
 
-The shell is `src/app/(platform)/layout.tsx`: a navy sidebar, a white workspace and purple accents. On phones the sidebar becomes a menu.
+The shell is `src/app/(platform)/layout.tsx`. It has a navy sidebar with six workspaces (an icon rail on tablets, a menu on phones), a white header with global search, a "New" menu and an account menu, and a tab bar for the open workspace's pages. A platform administrator lands on `/platform-admin` after signing in.
 
-| Group | Pages |
+Redesign of 9 Nov 2026 ("Complete enterprise redesign & upgrade", branch `claude/project-thread-mourwx`): every earlier URL still works, and the navigation is in `src/components/platform/nav-config.ts`.
+
+| Workspace | Pages |
 | --- | --- |
-| Overview | `/platform-admin` (dashboard) |
-| Customers | `/platform-admin/clients`, `/clients/new` (wizard) → `/clients/new/done`, `/clients/[id]?tab=` (11 tabs), `/onboarding`, `/administrators` |
-| Accounts & Security | `/users`, `/users/[id]`, `/passwords`, `/roles`, `/sessions`, `/security` |
-| Commercial | `/subscriptions`, `/plans`, `/billing`, `/renewals` |
-| Platform | `/modules`, `/ai`, `/storage`, `/jobs`, `/health` |
-| Administration | `/settings`, `/notifications`, `/support`, `/activity` |
+| Overview | `/platform-admin` (Platform Overview), `/search` |
+| Clients | `/clients`, `/clients/new` (wizard) → `/clients/new/done`, `/clients/[id]?tab=`, `/onboarding` |
+| Accounts & Access | `/users`, `/users/[id]`, `/administrators`, `/passwords`, `/roles`, `/sessions` |
+| Subscriptions & Billing | `/subscriptions`, `/plans` (`?new=1`, `?edit=<id>` side panels), `/billing` (Invoices), `/renewals` |
+| Platform Operations | `/health`, `/jobs`, `/ai`, `/modules`, `/storage` |
+| Settings & Security | `/settings?section=` (general, authentication, notifications, ai, customers, maintenance), `/security`, `/support`, `/notifications`, `/activity` |
 
-The client profile has these tabs: Overview, Company Details, Branches, Users & Permissions, Subscription, Modules, AI Usage, Storage, Security, Settings and Audit History.
+A client's workspace has seven tabs: Overview (company, branches, alerts), Users & Permissions, Subscription, Modules, Usage (AI and storage), Security (support access, audit, sessions) and Settings (suspend, reinstate, close). The earlier tab names `company`, `branches`, `ai`, `storage` and `audit` open the tab that now holds their content. Focused edits open in a side panel through `?edit=` (company, branch, invite, member, subscription, trial, support, emergency). Lists pass their filtered URL as `?back=`, which `returnTo()` accepts only for `/platform-admin` paths, so "Clients" or "Users" returns to the same filtered page.
+
+Global search (`GET /api/platform/search`, `platformSearch`) finds clients, people and plans, and never care records. The Overview's operations panel (`operationsOverview`) lists failed AI and jobs, pending support, trials ending, subscription gaps and security events, with exceptions first. Its setup checklist (`setupChecklist`) is built from real records. The activity chart appears only when at least three days have real activity.
+
+Design tokens are the `px-*` colours in `tailwind.config.ts` and the `.px-scope` form styles in `globals.css`. Shared pieces are in `src/components/platform/ui.tsx`: header, panel, metric strip, table, toolbar, tabs, settings row, side panel, pagination and flash.
 
 In the customer app there are four related changes:
 - A platform administrator sees "Evantix Admin Centre" in the admin menu.
@@ -40,7 +46,7 @@ In the customer app there are four related changes:
 
 - **Business logic** is in `src/server/platform/`:
   - `access`, `customers`, `onboarding`, `subscriptions`, `billing`, `modules`, `accounts`, `permissions`, `support`, `settings`
-  - `usage`, `activity`, `health`, `dashboard`, `alerts`, `reference`
+  - `usage`, `activity`, `health`, `dashboard`, `alerts`, `reference`, `command-centre` (status, operations, setup checklist, trends, search)
 - **Server actions** are in `src/app/platform-actions.ts`, through the existing `handle()` and `handleData()`.
 - **UI** is in `src/components/platform/`.
 - **AI metering** is in `src/server/ai/metering.ts`:
