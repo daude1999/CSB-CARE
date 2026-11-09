@@ -129,7 +129,8 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("button", { name: "Build New Rota" })).toBeVisible();
     await page.getByRole("link", { name: "No, cancel for now" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "All Rotas" })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "Yes", exact: true })).toBeVisible();
+    // Other suites in the same run (e.g. the support-plan setup) may add a rota for this week too.
+    await expect(page.getByRole("cell", { name: "Yes", exact: true }).first()).toBeVisible();
   });
 
   test("Roll Forward previews last week's carers against the new week, then saves drafts once", async ({ page }) => {
