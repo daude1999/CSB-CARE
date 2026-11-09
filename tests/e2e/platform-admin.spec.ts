@@ -34,8 +34,13 @@ test("a platform administrator adds a plan and a client, and every page and prof
   await page.setViewportSize({ width: 1672, height: 941 });
   await signIn(page, "admin@csb.demo");
 
+  // Lands on the Admin Centre straight after sign-in.
+  await expect(page).toHaveURL(/\/platform-admin$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Platform Overview");
+
   await page.goto("/platform-admin/plans");
-  const newPlan = page.locator("form", { has: page.getByRole("button", { name: "Create plan" }) });
+  await page.getByRole("link", { name: "New plan" }).first().click();
+  const newPlan = page.getByRole("dialog");
   await newPlan.getByLabel("Plan name").fill(`Domiciliary Standard ${RUN}`);
   await newPlan.getByLabel("Code").fill(`DOM-${RUN}`);
   await newPlan.getByLabel("Included users").fill("40");
@@ -60,7 +65,7 @@ test("a platform administrator adds a plan and a client, and every page and prof
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText(`Brightwater Homecare ${RUN} Ltd`).first()).toBeVisible();
   await shot(page, "04-add-client-review");
-  await page.getByRole("button", { name: "Provision client" }).click();
+  await page.getByRole("button", { name: "Create client" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("is set up");
   await expect(page.locator("text=/\\/account\\/[A-Za-z0-9_-]{20,}/").first()).toBeVisible();
   await shot(page, "05-client-created");
@@ -72,13 +77,35 @@ test("a platform administrator adds a plan and a client, and every page and prof
   await page.goto(`/platform-admin/clients?q=${RUN}`);
   await page.getByRole("link", { name: /Brightwater Homecare/ }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Brightwater");
+  // Back returns to the same filtered list.
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Clients" }).click();
+  await expect(page).toHaveURL(new RegExp(`q=${RUN}`));
+  await page.getByRole("link", { name: /Brightwater Homecare/ }).first().click();
+  await page.waitForURL(/\/platform-admin\/clients\/[^/?]+\?/);
   const profile = page.url().split("?")[0];
-  for (const tab of ["overview", "company", "branches", "users", "subscription", "modules", "ai", "storage", "security", "settings", "audit"]) {
+  for (const tab of ["overview", "users", "subscription", "modules", "usage", "security", "settings"]) {
     const res = await page.goto(`${profile}?tab=${tab}`);
     expect(res?.status(), tab).toBeLessThan(400);
     await expect(page.getByRole("heading", { level: 1 }), tab).toContainText("Brightwater");
+    await expect(page.getByRole("navigation", { name: "Client workspace" }).locator('[aria-current="page"]'), tab).toHaveCount(1);
     if (tab === "overview" || tab === "subscription" || tab === "modules") await shot(page, `06-client-${tab}`);
   }
+  // Tabs of the first Admin Centre still open the tab that now holds their content.
+  for (const [legacy, now] of [["company", "Overview"], ["branches", "Overview"], ["ai", "Usage"], ["storage", "Usage"], ["audit", "Security"]]) {
+    await page.goto(`${profile}?tab=${legacy}`);
+    await expect(page.getByRole("navigation", { name: "Client workspace" }).locator('[aria-current="page"]'), legacy).toHaveText(now);
+  }
+  // Company details open in a side panel over the tab.
+  await page.goto(`${profile}?tab=overview`);
+  await page.getByRole("link", { name: "Edit details" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // Global search finds the client by reference or name.
+  const search = page.getByRole("combobox", { name: /Search clients/ });
+  await search.fill(`Brightwater Homecare ${RUN}`);
+  await expect(page.getByRole("option", { name: /Brightwater/ }).first()).toBeVisible();
 
   for (const path of ["", "/clients", "/onboarding", "/administrators", "/users", "/passwords", "/roles", "/sessions", "/security", "/subscriptions", "/plans", "/billing", "/renewals", "/modules", "/ai", "/storage", "/jobs", "/health", "/settings", "/notifications", "/support", "/activity"]) {
     const res = await page.goto(`/platform-admin${path}`);
@@ -88,12 +115,16 @@ test("a platform administrator adds a plan and a client, and every page and prof
   }
 });
 
-test("the Admin Centre works on a phone", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await signIn(page, "admin@csb.demo");
-  await page.goto("/platform-admin/clients");
-  await expect(page.locator("h1").first()).toBeVisible();
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
-  await shot(page, "phone-clients");
-});
+for (const [name, width] of [["phone", 390], ["tablet", 834]] as const) {
+  test(`the Admin Centre works on a ${name} without sideways page scrolling`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await signIn(page, "admin@csb.demo");
+    for (const path of ["", "/clients", "/users", "/roles", "/settings", "/ai", "/subscriptions", "/health"]) {
+      await page.goto(`/platform-admin${path}`);
+      await expect(page.locator("h1").first(), path || "/").toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, path || "/").toBeLessThanOrEqual(1);
+    }
+    await shot(page, `${name}-health`);
+  });
+}

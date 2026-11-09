@@ -84,7 +84,9 @@ export async function login(email: string, password: string, meta: { ip?: string
     },
   });
   await db.auditLog.create({ data: { actorId: user.id, action: "auth.login", entityType: "User", entityId: user.id } });
-  return { token, expiresAt: new Date(now + SESSION_TTL_MS) };
+  // Evantix platform administrators start in the Admin Centre; everyone else starts in the care platform.
+  const home = user.platformRoles.includes("PLATFORM_ADMIN") ? "/platform-admin" : "/overview";
+  return { token, expiresAt: new Date(now + SESSION_TTL_MS), home };
 }
 
 export async function logout(token: string) {

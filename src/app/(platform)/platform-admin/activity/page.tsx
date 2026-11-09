@@ -1,7 +1,7 @@
+import Link from "@/components/link";
 import { requireCtx } from "@/server/auth/current";
 import { ACTIVITY_PAGE, securityAudit } from "@/server/platform/activity";
-import { Pagination } from "@/components/ui";
-import { PxHeader, PxPanel } from "@/components/platform/ui";
+import { PxHeader, PxPagination, PxPanel, pxSecondary } from "@/components/platform/ui";
 import { AuditTable } from "@/components/platform/audit-table";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,10 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const { entries, total } = await securityAudit(ctx, { action: "platform.", page });
   return (
     <>
-      <PxHeader title="Activity History" description="Every action taken in this Admin Centre by Evantix staff. For changes made by clients' own administrators and sign-ins, use the Security Audit." />
-      <PxPanel>
-        <AuditTable entries={entries} />
-        <Pagination page={page} pageSize={ACTIVITY_PAGE} total={total} base="/platform-admin/activity" />
+      <PxHeader title="Activity History" description="Every action taken in this Admin Centre by Evantix staff. Changes made by clients' own administrators, and sign-ins, are in the Security Audit." actions={<Link href="/platform-admin/security" className={pxSecondary}>Security audit</Link>} />
+      <PxPanel flush>
+        <div className="px-4"><AuditTable entries={entries} /></div>
+        <PxPagination page={page} pageSize={ACTIVITY_PAGE} total={total} base="/platform-admin/activity" noun="event" />
       </PxPanel>
     </>
   );

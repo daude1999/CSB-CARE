@@ -72,3 +72,8 @@ export function permissionDiff(before: readonly OrgRole[], after: readonly OrgRo
   const b = has(after);
   return { added: [...b].filter((p) => !a.has(p)), removed: [...a].filter((p) => !b.has(p)) };
 }
+
+/** Every organisation permission with its module and level, for the role editor's live effective-access view. */
+export function permissionCatalogue(): { groups: readonly string[]; perms: Record<string, { group: string; level: Level }> } {
+  return { groups: PERMISSION_GROUPS, perms: Object.fromEntries((Object.keys(ORG_PERMISSIONS) as OrgPermission[]).map((p) => [p, { group: groupOf(p), level: levelOf(p) }])) };
+}

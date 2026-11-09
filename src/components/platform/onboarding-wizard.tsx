@@ -2,6 +2,8 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check } from "@phosphor-icons/react";
+import { pxPrimary as btn, pxSecondary as btn2 } from "./buttons";
 import { provisionClientAction, type OnboardingState } from "@/app/platform-actions";
 
 interface Plan { id: string; name: string; modules: string[]; includedUsers: number | null; includedBranches: number | null; storageMb: number | null; aiRequestsPerMonth: number | null; monthlyPricePence: number | null; annualPricePence: number | null }
@@ -9,8 +11,7 @@ interface Plan { id: string; name: string; modules: string[]; includedUsers: num
 const STEPS = ["Company details", "Subscription", "Customer administrator", "Review and provision"];
 const SERVICE_TYPES = ["Domiciliary care", "Supported living", "Live-in care", "Extra care housing", "Residential care", "Nursing care", "Day services"];
 const money = (p: number | null) => (p === null ? "price not set" : new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(p / 100));
-const btn = "btn border-[1.5px] border-[#5b21b6] bg-[#5b21b6] text-white hover:bg-[#4c1d95] hover:text-white";
-const btn2 = "btn border-[1.5px] border-[#c5cad6] bg-white text-[#26304a] hover:border-[#5b21b6]";
+const STEP_NOTES = ["Who the customer is", "Plan, allowances and modules", "Who runs their account", "Check and create"];
 
 /**
  * Add New Client, one step at a time. All fields live in one form, so nothing typed is lost between steps or when the
@@ -67,17 +68,25 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
     if (p?.modules.length) setChosenModules(p.modules);
   }
 
-  const panel = "rounded-[8px] border border-[#e4e7ef] bg-white p-4";
+  const panel = "p-5";
   return (
-    <form ref={form} action={action} className="space-y-4" noValidate={false}>
+    <form ref={form} action={action} className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]" noValidate={false}>
       <input type="hidden" name="onboardingKey" value={onboardingKey} />
-      <ol aria-label="Steps" className="flex flex-wrap gap-2">
+      <ol aria-label="Steps" className="flex gap-2 overflow-x-auto lg:sticky lg:top-24 lg:flex-col lg:gap-0">
         {STEPS.map((s, i) => (
-          <li key={s} aria-current={i === step ? "step" : undefined} className={`rounded-full px-3 py-1 text-[12.5px] ${i === step ? "bg-[#5b21b6] text-white" : i < step ? "bg-[#ede9fe] text-[#3b1a86]" : "bg-[#eceef2] text-[#46505f]"}`}>{i + 1}. {s}</li>
+          <li key={s} aria-current={i === step ? "step" : undefined} className="flex shrink-0 items-start gap-3 lg:pb-5">
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold ${i === step ? "bg-px-accent text-white" : i < step ? "bg-px-accent-soft text-px-accent-strong" : "border border-px-line bg-white text-px-muted"}`}>{i < step ? <Check size={14} weight="bold" aria-label="Done" /> : i + 1}</span>
+            <span className="hidden min-w-0 pt-[3px] sm:block">
+              <span className={`block text-[13.5px] ${i === step ? "font-semibold text-px-ink" : "text-px-body"}`}>{s}</span>
+              <span className="hidden text-[12px] text-px-muted lg:block">{STEP_NOTES[i]}</span>
+            </span>
+          </li>
         ))}
       </ol>
+      <div className="min-w-0 overflow-hidden rounded-[10px] border border-px-line bg-white">
 
       <section ref={(el) => { sections.current[0] = el; }} hidden={step !== 0} className={panel} aria-label="Company details">
+        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[0]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className="label">Legal company name *</span><input name="legalName" required minLength={2} className="input" /></label>
           <label><span className="label">Trading name</span><input name="tradingName" className="input" /></label>
@@ -94,10 +103,11 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
           </fieldset>
           <label className="md:col-span-2"><span className="label">Branches (one per line; empty means a single &quot;Main office&quot;)</span><textarea name="branches" rows={3} className="input" /></label>
         </div>
-        <p className="mt-2 text-[12.5px] text-[#5b6478]">A CQC ID is recorded as given. It is not proof of registration until someone checks it on the CQC register.</p>
+        <p className="mt-2 text-[12.5px] text-px-muted">A CQC ID is recorded as given. It is not proof of registration until someone checks it on the CQC register.</p>
       </section>
 
       <section ref={(el) => { sections.current[1] = el; }} hidden={step !== 1} className={panel} aria-label="Subscription">
+        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[1]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="md:col-span-2"><span className="label">Plan *</span>
             <select name="planId" required value={planId} onChange={(e) => choosePlan(e.target.value)} className="input">{plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({money(p.monthlyPricePence)} a month)</option>)}</select>
@@ -117,16 +127,17 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
               {modules.map((m) => (
                 <label key={m.key} className="flex items-start gap-2 text-[13.5px]">
                   <input type="checkbox" name="modules" value={m.key} className="mt-1" checked={chosenModules.includes(m.key)} onChange={(e) => setChosenModules((c) => (e.target.checked ? [...c, m.key] : c.filter((x) => x !== m.key)))} />
-                  <span><span className="font-medium">{m.name}</span><span className="block text-[12px] text-[#5b6478]">{m.summary}</span></span>
+                  <span><span className="font-medium">{m.name}</span><span className="block text-[12px] text-px-muted">{m.summary}</span></span>
                 </label>
               ))}
             </div>
           </fieldset>
         </div>
-        <p className="mt-2 text-[12.5px] text-[#5b6478]">Empty allowances follow the plan. No payment is taken: billing is not connected.</p>
+        <p className="mt-2 text-[12.5px] text-px-muted">Empty allowances follow the plan. No payment is taken: billing is not connected.</p>
       </section>
 
       <section ref={(el) => { sections.current[2] = el; }} hidden={step !== 2} className={panel} aria-label="Customer administrator">
+        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[2]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className="label">Administrator name *</span><input name="adminName" required minLength={2} className="input" /></label>
           <label><span className="label">Administrator email *</span><input type="email" name="adminEmail" required className="input" /></label>
@@ -135,20 +146,25 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
             <div className="grid grid-cols-1 gap-1">{roles.map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="adminRoles" value={v} defaultChecked={v === "ORG_ADMIN" || v === "CARE_MANAGER" || v === "COMPLIANCE_LEAD"} disabled={false} />{l}</label>)}</div>
           </fieldset>
         </div>
-        <p className="mt-2 text-[12.5px] text-[#5b6478]">They receive a secure, single-use invitation link and choose their own password. Organisation admin is required.</p>
+        <p className="mt-2 text-[12.5px] text-px-muted">They receive a secure, single-use invitation link and choose their own password. Organisation admin is required.</p>
       </section>
 
       <section hidden={step !== 3} className={panel} aria-label="Review and provision">
+        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[3]}</h2>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-[13.5px] md:grid-cols-[200px_minmax(0,1fr)]">
-          {summary.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#5b6478]">{k}</dt><dd className="break-words">{v}</dd></div>)}
+          {summary.map(([k, v]) => <div key={k} className="contents"><dt className="text-px-muted">{k}</dt><dd className="break-words">{v}</dd></div>)}
         </dl>
-        {state.error ? <p role="alert" className="mt-3 rounded-[6px] border-l-4 border-rose-300 bg-rose-50 px-3 py-2 text-[13.5px] text-rose-800">{state.error}</p> : null}
-        <p className="mt-3 text-[12.5px] text-[#5b6478]">Provisioning creates the organisation, its reference, branches, subscription, modules, the invitation and an audit entry together. If anything fails, nothing is created.</p>
+        {state.error ? <p role="alert" className="mt-3 rounded-[8px] border border-[#f2c4c9] bg-px-danger-bg px-3 py-2 text-[13.5px] text-px-danger">{state.error}</p> : null}
+        <p className="mt-3 text-[12.5px] text-px-muted">Provisioning creates the organisation, its reference, branches, subscription, modules, the invitation and an audit entry together. If anything fails, nothing is created.</p>
       </section>
 
-      <div className="flex flex-wrap gap-2">
-        {step > 0 ? <button type="button" className={btn2} onClick={() => setStep((s) => s - 1)} disabled={pending}>Back</button> : null}
-        {step < 3 ? <button type="button" className={btn} onClick={next}>Continue</button> : <button className={btn} disabled={pending}>{pending ? "Provisioning…" : "Provision client"}</button>}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-px-line bg-px-field px-5 py-3">
+        <span className="text-[12.5px] text-px-muted">Step {step + 1} of {STEPS.length}</span>
+        <div className="flex gap-2">
+          {step > 0 ? <button type="button" className={btn2} onClick={() => setStep((s) => s - 1)} disabled={pending}>Back</button> : null}
+          {step < 3 ? <button key="next" type="button" className={btn} onClick={next}>Continue</button> : <button key="submit" type="submit" className={btn} disabled={pending}>{pending ? "Creating client…" : "Create client"}</button>}
+        </div>
+      </div>
       </div>
     </form>
   );
