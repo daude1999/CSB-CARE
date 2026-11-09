@@ -2,12 +2,12 @@
 
 ## Backup and recovery
 
-- **Database**: Azure PostgreSQL Flexible Server automated backups with point-in-time restore (set retention to 35 days for production) plus geo-redundant backup storage. For self-hosting, run `pg_dump -Fc` nightly to off-site storage and test a restore monthly.
-- **Files**: enable blob soft delete and versioning on the storage account (30 days). Evidence and raw source captures are referenced by key from the database, so restore the database and storage to the same point in time.
-- **Recovery test**: restore to a new server, point a staging deployment at it, sign in and open a policy, a revision and an evidence file.
-- **Targets** (suggested): RPO 15 minutes, RTO 4 hours.
+- **Current deployment**: Vercel uses the Neon PostgreSQL integration. The app stores uploads in the `StoredObject` table on Vercel, so one PostgreSQL dump covers the records and uploaded files. Do not assume that the Vercel filesystem is persistent.
+- **Neon recovery**: the linked Neon integration is on its Free plan. Neon’s current default restore history for Free projects is short (6 hours or 1 GB of changes, whichever is reached first); this is useful for quick recovery, not a separate off-site backup. Check the project’s configured retention in Neon before relying on it.
+- **Off-site backup**: a nightly encrypted dump to a private Azure Blob container, run only on an organisation-controlled UK self-hosted runner (`csb-approved-uk`), with a monthly restore check into a separate staging database. It is built but **not active** until the runner, storage, keys and GitHub settings exist. Setup, retention, restore and the exact secret and variable names are in [BACKUPS.md](BACKUPS.md).
+- **Targets** (initial proposal): RPO 24 hours for the off-site copy, RTO 4 hours. Neon’s shorter PITR window may allow a more recent recovery for accidental changes.
 
-Because source versions, approval decisions and the audit log are immutable, a restore never needs those rows reconciled by hand.
+Because source versions, approval decisions and the audit log are immutable, a restore never needs those rows reconciled by hand. Backups are sensitive personal data: restrict container access, protect the decryption identity, and do not upload dump files or decrypted restore copies to GitHub artifacts.
 
 ## Runbook
 

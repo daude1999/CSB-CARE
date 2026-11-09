@@ -1,0 +1,55 @@
+name: CSB-CARE encrypted PostgreSQL backup
+
+# Nightly off-site backup of the Neon database (records and uploaded documents held in PostgreSQL).
+# Dump (custom format) -> validate -> encrypt with age -> upload to a pre-created private Azure container.
+# Setup, retention and restore steps: docs/BACKUPS.md.
+
+on:
+  schedule:
+    - cron: "37 2 * * *" # 02:37 UTC every night
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: csb-care-postgres-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Dump, encrypt and copy the database
+    # Stays off until the owner sets the BACKUP_ENABLED Actions variable to "true".
+    if: ${{ vars.BACKUP_ENABLED == 'true' }}
+    # Care records must never pass through a GitHub-hosted runner. Only an organisation-controlled
+    # UK runner registered with the csb-approved-uk label can pick this job up.
+    runs-on: [self-hosted, linux, x64, csb-approved-uk]
+    timeout-minutes: 30
+    env:
+      BACKUP_WORK_DIR: ${{ runner.temp }}/csb-care-backup
+    steps:
+      - name: Confirm this is the approved self-hosted runner
+        run: |
+          if [[ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]]; then
+            echo "::error::Refusing to run: backups only run on the organisation's self-hosted UK runner."
+            exit 1
+          fi
+          rm -rf "$BACKUP_WORK_DIR"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Create encrypted backup and upload to private Blob Storage
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AZURE_BACKUP_CONTAINER_SAS_URL: ${{ secrets.AZURE_BACKUP_CONTAINER_SAS_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BACKUP_PG_IMAGE: ${{ vars.BACKUP_PG_IMAGE }}
+        run: bash scripts/backup/create-backup.sh
+      # Belt and braces: nothing from the backup survives on the runner, whatever happened above.
+      # Backups are never uploaded as GitHub artifacts.
+      - name: Remove temporary backup files
+        if: always()
+        run: rm -rf "$BACKUP_WORK_DIR"
