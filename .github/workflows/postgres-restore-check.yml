@@ -1,0 +1,60 @@
+name: CSB-CARE monthly backup restore check
+
+# Proves the newest encrypted backup can be decrypted and restored. It restores ONLY into a separate
+# staging database (never production) and reports row counts, never record contents.
+# Setup and the manual restore procedure: docs/BACKUPS.md.
+
+on:
+  schedule:
+    - cron: "17 4 3 * *" # 04:17 UTC on the 3rd of every month
+  workflow_dispatch:
+    inputs:
+      blob:
+        description: "Backup to restore (postgres/<stamp>/csb-care.dump.age). Leave empty for the newest."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: csb-care-postgres-restore-check
+  cancel-in-progress: false
+
+jobs:
+  restore-check:
+    name: Decrypt and restore the latest backup into staging
+    if: ${{ vars.RESTORE_CHECK_ENABLED == 'true' }}
+    runs-on: [self-hosted, linux, x64, csb-approved-uk]
+    # The decryption key and the staging database live only in this protected environment.
+    # Add a required reviewer to it so each restore check is approved by a person.
+    environment: backup-restore-check
+    timeout-minutes: 60
+    env:
+      BACKUP_WORK_DIR: ${{ runner.temp }}/csb-care-restore
+    steps:
+      - name: Confirm this is the approved self-hosted runner
+        run: |
+          if [[ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]]; then
+            echo "::error::Refusing to run: restore checks only run on the organisation's self-hosted UK runner."
+            exit 1
+          fi
+          rm -rf "$BACKUP_WORK_DIR"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Restore into the staging database and verify
+        env:
+          RESTORE_TARGET_DATABASE_URL: ${{ secrets.RESTORE_CHECK_DATABASE_URL }}
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+          AZURE_RESTORE_CONTAINER_SAS_URL: ${{ secrets.AZURE_RESTORE_CONTAINER_SAS_URL }}
+          PRODUCTION_DATABASE_HOSTS: ${{ vars.PRODUCTION_DATABASE_HOSTS }}
+          RESTORE_BLOB: ${{ inputs.blob }}
+          BACKUP_PG_IMAGE: ${{ vars.BACKUP_PG_IMAGE }}
+        run: bash scripts/backup/restore-to-staging.sh
+      - name: Remove temporary restore files
+        if: always()
+        run: rm -rf "$BACKUP_WORK_DIR"

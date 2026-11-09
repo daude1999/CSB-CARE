@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { AnthropicProvider } from "./anthropic";
 import { AiUnavailableError, type LlmProvider } from "./provider";
 import { SimulatedProvider } from "./simulated";
+import { meteredProvider } from "./metering";
 
 let override: LlmProvider | null | undefined;
 /** One Anthropic client per process, so its connection pool and the model check are reused between requests. */
@@ -40,10 +41,11 @@ export function getAiProvider(): LlmProvider | null {
   try {
     if (which === "anthropic") {
       const key = createHash("sha256").update(`${process.env.ANTHROPIC_MODEL ?? ""}|${process.env.ANTHROPIC_API_KEY ?? ""}`).digest("hex");
-      if (!anthropic || anthropic.key !== key) anthropic = { key, provider: new AnthropicProvider() };
+      if (!anthropic || anthropic.key !== key) anthropic = { key, provider: meteredProvider(new AnthropicProvider()) };
       return anthropic.provider;
     }
-    if (which === "simulated") return new SimulatedProvider();
+    // Every request is metered and checked against the organisation's AI allowance (src/server/ai/metering.ts).
+    if (which === "simulated") return meteredProvider(new SimulatedProvider());
   } catch (e) {
     logger.warn({ err: (e as Error).message }, "AI provider unavailable");
   }

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod/v4";
+import { noteAiTokens } from "./metering";
 import { AiUnavailableError, providerDetail, type CoordinatorAgentInput, type CoordinatorAgentResult, type AssistantInput, type BodyMapRecommendationInput, type CareSummaryInput, type ChangeAnalysisInput, type ImpactInput, type LlmProvider, type RevisionInput, type SupportPlanExtractionInput, type CareDocumentExtractionInput, type BranchPolicyDraftInput, type CallNoteOrganiseInput } from "./provider";
 import { toWire, fromWire } from "./wire-schema";
 import { AssistantAnswerSchema, BodyMapRecommendationSchema, CareSummarySchema, ChangeAnalysisSchema, ImpactAssessmentSchema, RevisionDraftSchema, SupportPlanExtractionSchema, CareDocumentExtractionSchema, BranchPolicyDraftSchema, CallNoteOrganisationSchema } from "./schemas";
@@ -116,7 +117,11 @@ export class AnthropicProvider implements LlmProvider {
     };
     const request = opts.timeoutMs ? { timeout: opts.timeoutMs, maxRetries: 0 } : undefined;
     // Long readings stream, so a large answer is never cut off by an HTTP timeout.
-    const send = (b: typeof body) => (opts.stream ? this.client.beta.messages.stream(b, request).finalMessage() : this.client.beta.messages.parse(b, request));
+    const send = async (b: typeof body) => {
+      const m = await (opts.stream ? this.client.beta.messages.stream(b, request).finalMessage() : this.client.beta.messages.parse(b, request));
+      noteAiTokens(m.usage);
+      return m;
+    };
     let res: { stop_reason: string | null; parsed_output: unknown };
     try {
       try {
@@ -128,6 +133,7 @@ export class AnthropicProvider implements LlmProvider {
         // as below) and a smaller answer limit. If that is refused too, the service's own reason is kept.
         const plain = plainRequest(body);
         const message = await this.client.beta.messages.stream(plain, request).finalMessage();
+        noteAiTokens(message.usage);
         const text = message.content.flatMap((c) => (c.type === "text" ? [c.text] : [])).join("");
         res = { stop_reason: message.stop_reason, parsed_output: jsonFromText(text) };
       }
@@ -163,6 +169,7 @@ Respond in short paragraphs. Mention case section or source-page details only if
         {role:"user",content:`<case_context>\n${input.caseContext.slice(0,16000)}\n</case_context>\n\nUser request: ${input.question.slice(0,3000)}`},
       ];
       const r=await this.client.messages.create({model:this.model,max_tokens:900,system:sys,messages});
+      noteAiTokens(r.usage);
       return r.content.filter(c=>c.type==="text").map(c=>c.text).join("\n").trim()||"I couldn't produce a reliable answer. Open the case details or try again.";
     }catch(e){
       if(e instanceof Anthropic.APIConnectionError || e instanceof Anthropic.RateLimitError || e instanceof Anthropic.InternalServerError) throw new AiUnavailableError("AI CSB Coordinator is temporarily unavailable. Your case records are unchanged.");

@@ -59,7 +59,7 @@ Demo sign-ins (password `DemoPassword!2026`, demo data only; the demo organisati
 | `manager@oakridge.demo` | A second organisation, to show tenant isolation |
 | `regulatory@csb.demo` | CSB regulatory reviewer (triages detected changes) |
 | `content@csb.demo` | CSB content editor (master templates) |
-| `admin@csb.demo` | Platform admin (sources, jobs) |
+| `admin@csb.demo` | Platform admin (sources, jobs, and the Evantix Admin Centre at `/platform-admin`) |
 
 The demo includes one **simulated** regulatory change (a safeguarding reporting timescale shortened from 48 to 24 hours) produced by running the real engine against recorded test content. It is labelled SIMULATED everywhere and is not real guidance. To walk the full flow: sign in as `regulatory@` and confirm the change as relevant; as `manager@`, record that the safeguarding policy needs revising; as `author@`, generate the draft and submit it; as `approver@`, approve and publish; as `carer1@`, acknowledge it.
 

@@ -3,6 +3,8 @@ import type { AcknowledgementEvent } from "@prisma/client";
 import { BUCKET_LABEL, type AckBucket, type SignoffFilters, type signoffCounts } from "@/server/policies/assignment";
 import { Badge, fmtDate, type Tone } from "@/components/ui";
 import { createRuleAction } from "@/app/signoff-actions";
+import { KeepFormValues } from "@/components/keep-form-values";
+import { RuleTargetFields } from "@/components/rule-target-fields";
 
 const TONE: Record<AckBucket, Tone> = { not_opened: "slate", opened: "amber", acknowledged: "green", assessment_pending: "amber", assessment_failed: "rose", exempted: "violet", withdrawn: "slate", superseded: "slate" };
 
@@ -103,18 +105,16 @@ const ROLES = ["ORG_ADMIN", "COMPLIANCE_LEAD", "CARE_MANAGER", "CARE_COORDINATOR
  * chooses it. Either way the rule goes through createRule, which checks the policy, branch and people on the server.
  */
 export function RuleForm({ back, policyId, policies, branches, roles, staff }: { back: string; policyId?: string; policies?: { id: string; ref: string; title: string }[]; branches: { id: string; name: string }[]; roles: string[]; staff: { id: string; displayName: string; jobTitle: string | null }[] }) {
+  const formId = `assignment-rule-${policyId ?? "any"}`;
   return (
-    <form action={createRuleAction} className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
+    <form id={formId} action={createRuleAction} className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
+      <KeepFormValues formId={formId} />
       <input type="hidden" name="back" value={back} />
       {policyId ? <input type="hidden" name="policyId" value={policyId} /> : (
         <label className="col-span-2"><span className="label">Policy (published policies only)</span><select name="policyId" required defaultValue="" className="input"><option value="" disabled>Choose a policy…</option>{(policies ?? []).map((p) => <option key={p.id} value={p.id}>{p.ref} {p.title}</option>)}</select></label>
       )}
-      <label className="col-span-2"><span className="label">Assign to</span><select name="scope" className="input"><option value="ORG">Everyone in the organisation</option><option value="BRANCH">One branch (employed there)</option><option value="WORKS_IN_BRANCH">Everyone who works in a branch (incl. staff based elsewhere)</option><option value="JOB_TITLE">A job title</option><option value="ROLE">A platform role</option><option value="STAFF">Named people</option></select></label>
-      <label><span className="label">Branch</span><select name="branchId" className="input"><option value="">—</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-      <label><span className="label">Job title</span><select name="jobTitle" className="input"><option value="">—</option>{roles.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
-      <label><span className="label">Platform role</span><select name="orgRole" className="input"><option value="">—</option>{ROLES.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ").toLowerCase()}</option>)}</select></label>
+      <RuleTargetFields branches={branches} jobTitles={roles} roles={ROLES} staff={staff} />
       <label><span className="label">Due after (days)</span><input type="number" name="dueDays" min={1} max={180} defaultValue={14} className="input" /></label>
-      <label className="col-span-2"><span className="label">Named people</span><select name="staffMemberIds" multiple size={4} className="input">{staff.map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>)}</select></label>
       <label><span className="label">Priority</span><select name="priority" defaultValue="2" className="input"><option value="1">High risk</option><option value="2">Standard</option><option value="3">Routine</option></select></label>
       <div className="space-y-1 pt-5">
         <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="mandatory" defaultChecked className="h-4 w-4" /> Mandatory</label>

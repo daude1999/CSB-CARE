@@ -187,6 +187,15 @@ export async function createRule(ctx: Ctx, input: RuleInput) {
   if ((d.scope === "BRANCH" || d.scope === "WORKS_IN_BRANCH") && !(d.branchId && (await db.branch.findFirst({ where: { id: d.branchId, organisationId } })))) throw new ValidationError("Choose the branch");
   if (d.scope === "ROLE" && !d.orgRole) throw new ValidationError("Choose the role");
   if (d.scope === "JOB_TITLE" && !d.jobTitle) throw new ValidationError("Give the job title");
+  // A choice that does not belong to the chosen target would otherwise be ignored and the policy sent to more people
+  // than the manager meant (for example a branch picked while "Assign to" still says everyone).
+  const extra = [
+    d.branchId && d.scope !== "BRANCH" && d.scope !== "WORKS_IN_BRANCH" ? "a branch" : null,
+    d.orgRole && d.scope !== "ROLE" ? "a platform role" : null,
+    d.jobTitle && d.scope !== "JOB_TITLE" ? "a job title" : null,
+    d.staffMemberIds?.length && d.scope !== "STAFF" ? "named people" : null,
+  ].filter(Boolean);
+  if (extra.length) throw new ValidationError(`You chose ${extra.join(" and ")}, but "Assign to" is set to something else. Nothing was assigned. Pick the matching "Assign to" option and try again.`);
   const staffIds = d.scope === "STAFF" ? [...new Set(d.staffMemberIds ?? [])] : [null];
   if (d.scope === "STAFF") {
     if (!staffIds.length) throw new ValidationError("Choose at least one person");

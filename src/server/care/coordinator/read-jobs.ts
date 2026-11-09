@@ -1,3 +1,4 @@
+import { runForTenant } from "@/server/ai/metering";
 import type { BackgroundJob, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
@@ -103,7 +104,7 @@ export async function runDocumentReadJob(raw: Record<string, unknown>, job: Back
     if (!alreadyRead) {
       await setStage(doc.id, "READING", doc.pageCount && doc.pageCount > 10 ? `Reading ${doc.pageCount} pages in parts. This can take a few minutes.` : "Reading the document.");
       // The background reading is CSB AI's work, started by the person who uploaded: its audit entries say so.
-      const r = await runAsAutomation({ initiatedById: p.actorId, run: `read:${doc.id}` }, () => readIntakeDocument(ctx, doc.id));
+      const r = await runForTenant(p.organisationId, () => runAsAutomation({ initiatedById: p.actorId, run: `read:${doc.id}` }, () => readIntakeDocument(ctx, doc.id)));
       read = { facts: r.facts, status: r.status, reader: r.reader };
     }
     let report: string | null = null;

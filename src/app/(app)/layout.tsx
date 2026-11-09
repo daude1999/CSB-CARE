@@ -24,6 +24,7 @@ import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
 import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
+import { getSetting } from "@/server/platform/settings";
 import { Bell, Buildings, CalendarDots, ChartBar, ChartLine, ChatTeardropText, ClockCounterClockwise, Cpu, GearSix, House, ListChecks, Pulse, ShieldCheck, SquaresFour, UsersThree, Warning, MapTrifold } from "@phosphor-icons/react/dist/ssr";
 
 /**
@@ -36,6 +37,7 @@ export const maxDuration = 300;
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireCtx();
   const colourMode = parseMode((await cookies()).get(MODE_COOKIE)?.value);
+  const [maintenanceNotice, supportContact] = await Promise.all([getSetting("maintenance.notice"), Promise.all([getSetting("general.supportEmail"), getSetting("general.supportPhone")])]);
   const [memberships, unread, org] = await Promise.all([
     db.membership.findMany({ where: { userId: ctx.userId }, include: { organisation: true, branch: { select: { name: true } } } }),
     db.notification.count({ where: { userId: ctx.userId, readAt: null } }),
@@ -89,6 +91,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         ...page("/modules", "Modules", <SquaresFour {...i} />),
         ...page("/admin/sources", "Source Monitoring", <Pulse {...i} />, isPlatformAdmin),
         ...page("/admin/jobs", "Background Jobs", <Cpu {...i} />, isPlatformAdmin),
+        // The Evantix Platform Admin Centre has its own shell; it is listed here for platform administrators only.
+        ...page("/platform-admin", "Evantix Admin Centre", <ShieldCheck {...i} />, hasPlatformPermission(ctx, "platform.view")),
       ],
     ),
   };
@@ -191,7 +195,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </header>
           </TopbarSwitch>
-          <MainArea>{children}</MainArea>
+          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
+          <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
           {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
           <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
@@ -220,4 +225,15 @@ function groupAdmin(everyday: ShellItem[], advanced: ShellItem[]): ShellItem[] {
     ...everyday.map((p, n) => (n === 0 ? { ...p, group: "Everyday", fold: "open" as const } : p)),
     ...advanced.map((p, n) => (n === 0 ? { ...p, group: "Advanced", fold: "closed" as const } : p)),
   ];
+}
+
+/** Shown instead of every page while Evantix has suspended or closed the organisation. Nothing has been deleted. */
+function SuspendedNotice({ orgName, email, phone }: { orgName: string; email: string; phone: string }) {
+  return (
+    <section aria-labelledby="suspended-heading" className="mx-auto mt-10 max-w-xl rounded-[6px] bg-white p-6 text-[15px]" data-testid="organisation-suspended">
+      <h1 id="suspended-heading" className="text-[22px] font-semibold text-[#0b1530]">{orgName} is suspended</h1>
+      <p className="mt-2 text-slate-700">Access to this organisation has been paused by the platform provider. Your records are safe and have not been changed or deleted.</p>
+      <p className="mt-2 text-slate-700">Please contact your organisation&apos;s administrator{email || phone ? <> or Evantix support{email ? <> at <a href={`mailto:${email}`}>{email}</a></> : null}{phone ? <> on {phone}</> : null}</> : null}.</p>
+    </section>
+  );
 }

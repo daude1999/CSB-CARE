@@ -72,6 +72,7 @@ export const READ_FAILURE_TEXT: Record<AiUnavailableReason, string> = {
   rejected: "the AI service rejected the request",
   "invalid-output": "the AI answer did not have the expected shape",
   truncated: "the AI answer was too long and was cut off",
+  "not-licensed": "AI use is switched off or has reached its limit for this organisation",
 };
 
 export type ReadPart = { from: number; to: number; ok: boolean; attempts: number; reason: AiUnavailableReason | null };
