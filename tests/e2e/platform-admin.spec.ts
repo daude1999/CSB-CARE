@@ -81,6 +81,7 @@ test("a platform administrator adds a plan and a client, and every page and prof
   await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Clients" }).click();
   await expect(page).toHaveURL(new RegExp(`q=${RUN}`));
   await page.getByRole("link", { name: /Brightwater Homecare/ }).first().click();
+  await page.waitForURL(/\/platform-admin\/clients\/[^/?]+\?/);
   const profile = page.url().split("?")[0];
   for (const tab of ["overview", "users", "subscription", "modules", "usage", "security", "settings"]) {
     const res = await page.goto(`${profile}?tab=${tab}`);

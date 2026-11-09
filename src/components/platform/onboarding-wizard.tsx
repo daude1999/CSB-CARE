@@ -162,7 +162,7 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
         <span className="text-[12.5px] text-px-muted">Step {step + 1} of {STEPS.length}</span>
         <div className="flex gap-2">
           {step > 0 ? <button type="button" className={btn2} onClick={() => setStep((s) => s - 1)} disabled={pending}>Back</button> : null}
-          {step < 3 ? <button type="button" className={btn} onClick={next}>Continue</button> : <button className={btn} disabled={pending}>{pending ? "Creating client…" : "Create client"}</button>}
+          {step < 3 ? <button key="next" type="button" className={btn} onClick={next}>Continue</button> : <button key="submit" type="submit" className={btn} disabled={pending}>{pending ? "Creating client…" : "Create client"}</button>}
         </div>
       </div>
       </div>

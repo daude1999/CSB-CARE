@@ -113,9 +113,13 @@ Figures are counted from records. Anything that is not set up says so:
 
 | Command | Result |
 | --- | --- |
-| `npx vitest run tests/unit/platform-admin.test.ts` | 10 passed |
-| `npx vitest run tests/integration/platform-admin.test.ts` | 23 passed |
-| `tests/e2e/platform-admin.spec.ts` (run against a local dev server) | 3 passed |
+| `npm run typecheck`, `npm run lint` | clean |
+| `npx vitest run tests/unit/platform-admin.test.ts tests/unit/platform-admin-nav.test.ts` | 15 passed |
+| `npx vitest run tests/integration/platform-admin.test.ts tests/integration/platform-quality.test.ts` | 37 passed |
+| `npm run build` | passed |
+| `npx playwright test tests/e2e/platform-admin.spec.ts` | 4 passed |
+
+The redesign (9 Nov 2026) added tests for the six workspaces, page coverage, `locate()`, safe `returnTo()` links, sign-in landing, the operations panel, the setup checklist and platform search. The browser tests also cover the seven client tabs, the old tab links, the side panel, global search and phone and tablet layouts with no sideways page scroll.
 
 The unit tests cover module mapping and enforcement, suspension, portals, permission levels and differences, billing status, IP masking, link states and settings rules.
 
@@ -147,7 +151,7 @@ The browser tests cover:
 - an organisation administrator gets 404
 - creating a plan, then a client through the wizard
 - the one-time link shown once
-- all 11 profile tabs and all 22 pages render
+- all 7 client tabs, the 5 earlier tab links and all 22 pages render
 - a phone layout with no sideways page scroll
 
 ## Limitations and what is not built
