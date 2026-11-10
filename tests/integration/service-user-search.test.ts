@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
+import { ownerDb } from "../support/owner-db";
 import { logger } from "@/lib/logger";
 import { addExternalReference } from "@/server/care/external-references";
 import { REFERENCE_KEY_MISSING, REFERENCE_REGISTER_FAILED } from "@/server/care/service-user-search";
@@ -159,11 +160,11 @@ describe("when the reference register cannot be used", () => {
 
   // Controlled schema mismatch on the local test database only: a column is renamed for the test and put back after.
   async function withRenamedColumn(table: string, column: string, run: () => Promise<void>) {
-    await db.$executeRawUnsafe(`ALTER TABLE "${table}" RENAME COLUMN "${column}" TO "${column}_moved"`);
+    await ownerDb.$executeRawUnsafe(`ALTER TABLE "${table}" RENAME COLUMN "${column}" TO "${column}_moved"`);
     try {
       await run();
     } finally {
-      await db.$executeRawUnsafe(`ALTER TABLE "${table}" RENAME COLUMN "${column}_moved" TO "${column}"`);
+      await ownerDb.$executeRawUnsafe(`ALTER TABLE "${table}" RENAME COLUMN "${column}_moved" TO "${column}"`);
     }
   }
 

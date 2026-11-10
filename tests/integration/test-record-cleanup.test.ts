@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { Client } from "pg";
 import { db } from "@/lib/db";
+import { ownerDb } from "../support/owner-db";
 import { setAiProviderForTests } from "@/server/ai";
 import { SimulatedProvider } from "@/server/ai/simulated";
 import { addDocuments, createIntake } from "@/server/care/coordinator/intake";
@@ -37,8 +38,8 @@ describe("test person clean-up", () => {
   let before = { serviceUsers: 0, visits: 0, staff: 0 };
 
   beforeAll(async () => {
-    await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${BACKUP_SCHEMA}" CASCADE`);
-    await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${SECOND.backupSchema}" CASCADE`);
+    await ownerDb.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${BACKUP_SCHEMA}" CASCADE`);
+    await ownerDb.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${SECOND.backupSchema}" CASCADE`);
     await resetDb();
     await seedAll({ simulatedChange: false, care: true });
     setAiProviderForTests(new SimulatedProvider());
@@ -65,7 +66,7 @@ describe("test person clean-up", () => {
     expect(await db.serviceUser.count({ where: { organisationId: orgId } })).toBe(before.serviceUsers);
     expect(await db.visit.count({ where: { organisationId: orgId } })).toBe(before.visits);
     expect(await db.staffMember.count({ where: { organisationId: orgId } })).toBe(before.staff);
-    const backup = await db.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM "${BACKUP_SCHEMA}"."ServiceUser"`);
+    const backup = await ownerDb.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM "${BACKUP_SCHEMA}"."ServiceUser"`);
     expect(backup[0]!.n).toBe(1);
     expect(await db.auditLog.count({ where: { action: "test-person.cleanup", entityId: CLEANUP_ID } })).toBe(1);
   }, 120_000);
@@ -87,7 +88,7 @@ describe("test person clean-up", () => {
     expect(await db.careIntake.count({ where: { id: otherIntake } })).toBe(1);
     expect(await db.serviceUser.count({ where: { organisationId: orgId } })).toBe(before.serviceUsers);
     expect(await db.staffMember.count({ where: { organisationId: orgId } })).toBe(before.staff);
-    const backup = await db.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM "${SECOND.backupSchema}"."ServiceUser"`);
+    const backup = await ownerDb.$queryRawUnsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM "${SECOND.backupSchema}"."ServiceUser"`);
     expect(backup[0]!.n).toBe(1);
     expect(await inTransaction((x) => cleanUpTestPerson(x, SECOND))).toEqual({ skipped: `${SECOND.id} already applied` });
   }, 120_000);
