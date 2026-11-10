@@ -124,10 +124,16 @@ export async function getRevision(ctx: Ctx, revisionId: string) {
     },
   });
   if (!r || !canOnPolicy(ctx, r.policy, "read")) throw new NotFoundError("Revision");
-  if (r.policy.kind === "CUSTOMER" && !hasOrgPermission(ctx, "policy.review") && !hasOrgPermission(ctx, "policy.author") && !hasOrgPermission(ctx, "policy.approve")) {
-    throw new ForbiddenError("Drafts are visible to authors, reviewers and approvers only");
-  }
+  if (!canOpenDraft(ctx, r.policy.kind)) throw new ForbiddenError("Drafts are visible to authors, reviewers and approvers only");
   return r;
+}
+
+/**
+ * Whether the caller may open a draft of a policy of this kind (the caller must also be able to read the policy).
+ * Pages use the same rule to decide whether to offer a link to a draft, so nobody is shown a link that answers 404.
+ */
+export function canOpenDraft(ctx: Ctx, kind: "MASTER" | "CUSTOMER"): boolean {
+  return kind !== "CUSTOMER" || hasOrgPermission(ctx, "policy.review") || hasOrgPermission(ctx, "policy.author") || hasOrgPermission(ctx, "policy.approve");
 }
 
 const REVIEW_ROLES = ["POLICY_REVIEWER", "POLICY_APPROVER", "COMPLIANCE_LEAD"] as const;

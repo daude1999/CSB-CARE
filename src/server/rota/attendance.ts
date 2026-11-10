@@ -8,7 +8,7 @@ import { audit } from "@/server/audit-log";
 import type { Ctx } from "@/server/auth/rbac";
 import { raiseAlert } from "@/server/workforce/impact";
 import { myStaff } from "@/server/workforce/link";
-import { lockVisit } from "./assign";
+import { isOverlapViolation, lockVisit } from "./assign";
 import { queueRefreshForVisit } from "./missed-auto/queue";
 import { rotaScope, type Scope } from "./scope";
 import { rotaSettings } from "./settings";
@@ -115,6 +115,17 @@ async function applyClock(tx: Tx, scope: Scope, visit: Visit, settings: RotaSett
   return { clock: row, status: steps.at(-1) ?? visit.status, short };
 }
 
+/**
+ * A missed call frees the carer's time, so they can be booked elsewhere in the same slot. Clocking in to the missed
+ * call afterwards would double-book them, which the database refuses: say so plainly instead of a generic error.
+ */
+function doubleBooked(message: string) {
+  return (e: unknown): never => {
+    if (isOverlapViolation(e)) throw new ConflictError(message);
+    throw e;
+  };
+}
+
 /** A carer clocks themselves in or out now. Their staff identity comes from the linked sign-in, never the form. */
 export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, input: { nonce?: string; note?: string }) {
   const staff = await myStaff(ctx);
@@ -144,7 +155,7 @@ export async function clockMine(ctx: Ctx, visitId: string, kind: ClockKind, inpu
       }
     }
     return { refused: null, result: await applyClock(tx, scope, v, settings, { staffId: staff.id, kind, at, method: "APP", actorId: ctx.userId, nonce: input.nonce, note: input.note }) };
-  });
+  }).catch(doubleBooked("You are now booked on another visit at this time, so this one cannot be clocked in from here. Phone the office."));
   if (outcome.refused !== null) {
     await db.$transaction((tx) => raiseAlert(tx, outcome.alert));
     throw new ValidationError(outcome.refused);
@@ -199,7 +210,7 @@ export async function officeClock(ctx: Ctx, visitId: string, input: z.input<type
     // Recorded as an approved request too, so office entries and carers' requests share one trail.
     await tx.clockCorrectionRequest.create({ data: { organisationId: scope.organisationId, visitId: v.id, staffId: p.data.staffId, kind: p.data.kind, requestedTime: at, reason: p.data.reason, origin: "OFFICE", status: "APPROVED", requestedById: ctx.userId, decidedById: ctx.userId, decidedAt: new Date(), clockId: r.clock.id } });
     return r;
-  });
+  }).catch(doubleBooked("This carer is booked on another visit that overlaps this one. Move or remove one of the bookings, then record the time."));
   await queueRefreshForVisit(visitId, "CLOCK");
   return result;
 }

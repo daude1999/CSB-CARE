@@ -84,7 +84,9 @@ test("V1 scenario through the screens: service user → schedule → build → a
   // The carer's day: clock in, a task, a concern, clock out.
   await signIn(page, "carer@care-solution.demo");
   await page.goto("/carer");
-  const clockIn = page.getByRole("button", { name: /^Clock in/ }).first();
+  // A visit that is still to come today. A call already marked missed may have had its carer booked elsewhere since,
+  // and is then rightly refused; that path has its own test (tests/integration/attendance.test.ts).
+  const clockIn = page.getByRole("listitem").filter({ has: page.getByRole("button", { name: /^Clock in/ }) }).filter({ hasNotText: "Missed" }).getByRole("button", { name: /^Clock in/ }).first();
   if (await clockIn.isVisible()) {
     await clockIn.click();
     await expect(page.getByRole("status")).toBeVisible();

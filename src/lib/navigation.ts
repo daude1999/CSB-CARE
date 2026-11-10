@@ -23,13 +23,16 @@ export type NavEntry = { href: string; match?: string[] };
 /**
  * The entry to light for an address. An entry matches by its own address or by any of its `match` prefixes; the most
  * specific match wins, so a workspace that owns "/changes" is lit on "/changes/abc" while "/" stays the dashboard only.
+ * Where two entries match equally well, the one whose own address it is wins over one that only stands in for it:
+ * "/rota/insights" lights Rota Insights, not the Rota workspace that also lists it as a tab.
  */
 export function activeEntryHref(entries: NavEntry[], path: string, params: URLSearchParams): string | undefined {
-  let best: { href: string; len: number } | undefined;
+  let best: { href: string; len: number; own: boolean } | undefined;
   for (const e of entries) {
     for (const pattern of [e.href, ...(e.match ?? [])]) {
       if (!isActiveHref(pattern, path, params)) continue;
-      if (!best || pattern.length > best.len) best = { href: e.href, len: pattern.length };
+      const own = pattern === e.href;
+      if (!best || pattern.length > best.len || (pattern.length === best.len && own && !best.own)) best = { href: e.href, len: pattern.length, own };
     }
   }
   return best?.href;

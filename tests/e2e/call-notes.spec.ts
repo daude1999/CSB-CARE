@@ -28,7 +28,7 @@ test.describe.serial("Call Notes", () => {
     await expect(groups.getByRole("link", { name: "Call Notes", exact: true })).toBeVisible();
     person = page.url().split("?")[0]!;
     const labels = await groups.getByRole("link").allInnerTexts();
-    expect(labels.map((l) => l.trim())).toEqual(["Overview", "Personal details", "Reference Numbers", "Care", "Health and safety", "Visits", "Documents", "Contacts & carers", "Call Notes", "History"]);
+    expect(labels.map((l) => l.trim())).toEqual(["Overview", "Personal details", "Reference Numbers", "Care", "Health and safety", "Visits", "Documents", "Contacts & carers", "Call Notes", "Audit & Exceptions", "History"]);
     await groups.getByRole("link", { name: "Call Notes", exact: true }).click();
     await expect(page).toHaveURL(/tab=call-notes/);
     await expect(page.getByRole("heading", { name: "Call Notes", exact: true })).toBeVisible();

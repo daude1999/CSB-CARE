@@ -5,7 +5,7 @@ import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
 import { markOpened } from "@/server/policies/assignment";
 import { canOnPolicy, hasOrgPermission } from "@/server/auth/rbac";
-import { getPolicy } from "@/server/policies/library";
+import { canOpenDraft, getPolicy } from "@/server/policies/library";
 import { bookmarksFor } from "@/server/policies/bookmarks";
 import { REVIEW_MARKER } from "@/server/policy-geo/generator";
 import { newRevisionAction, rollbackAction, confirmImplementationAction, logReadAndSignAction, startFormAction } from "../../../actions";
@@ -96,7 +96,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
   const myAck = latestPub?.acknowledgements.find((a) => a.userId === ctx.userId);
   const lastChanged = p.versions.find((x) => x.status === "PUBLISHED" || x.status === "SUPERSEDED");
   const previous = v ? p.versions.find((x) => x.status === "SUPERSEDED" && x.versionNumber < v.versionNumber) : undefined;
-  const openRevision = p.revisions.find((r) => !r.closedAt);
+  const openRevision = canOpenDraft(ctx, p.kind) ? p.revisions.find((r) => !r.closedAt) : undefined;
   const starter = v?.origin === "SEED";
   const level = impact ? (impact.urgency === "URGENT" || impact.urgency === "HIGH" ? 3 : impact.urgency === "MEDIUM" ? 2 : 1) : 0;
   // A CSB central document shown in the organisation's library can be assigned too: the sign-off page explains that
@@ -459,7 +459,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       title={<span className="flex flex-wrap items-center gap-2"><Link href={`/policies/${p.id}/versions/${ver.id}`} className="text-[16px] font-semibold text-navy-900">Version {ver.label}</Link><StatusBadge status={ver.status} /></span>}
                       aside={
                         <div className="flex flex-col items-start gap-2 sm:items-end">
-                          {ver.revisionAsDraft && draft ? <Link href={`/revisions/${ver.revisionAsDraft.id}`} className="btn-secondary px-2.5 py-1 text-xs">Open draft</Link> : null}
+                          {ver.revisionAsDraft && draft && canOpenDraft(ctx, p.kind) ? <Link href={`/revisions/${ver.revisionAsDraft.id}`} className="btn-secondary px-2.5 py-1 text-xs">Open draft</Link> : null}
                           {i < p.versions.length - 1 ? <Link href={`${back}/compare?from=${p.versions[i + 1]!.id}&to=${ver.id}`} className="text-xs">Compare with previous</Link> : null}
                           {canAuthor && ver.status === "SUPERSEDED" ? (
                             <form action={rollbackAction} className="flex gap-1">
