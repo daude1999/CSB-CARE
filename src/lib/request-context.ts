@@ -8,24 +8,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
  * It is an opaque random value. It never contains or derives from personal data, and a value sent by the browser is
  * never trusted: the middleware always makes its own.
  */
-export const REQUEST_ID_HEADER = "x-request-id";
+export { REQUEST_ID_HEADER, newRequestId, requestIdFrom } from "@/lib/request-id-header";
 
 /** Kept on globalThis because Next.js can load a module once per server bundle (same reason as the tenancy scope). */
 const globalForRequest = globalThis as typeof globalThis & { csbRequestContext?: AsyncLocalStorage<{ requestId: string }> };
 const storage = (globalForRequest.csbRequestContext ??= new AsyncLocalStorage<{ requestId: string }>());
-
-const VALID = /^[A-Za-z0-9-]{8,64}$/;
-
-/** A fresh id. Uses the Web Crypto API so it also works in the middleware runtime. */
-export function newRequestId(): string {
-  return crypto.randomUUID();
-}
-
-/** The id from request headers, if it has the expected shape. */
-export function requestIdFrom(headers: { get(name: string): string | null }): string | undefined {
-  const id = headers.get(REQUEST_ID_HEADER);
-  return id && VALID.test(id) ? id : undefined;
-}
 
 /** The id of the request being handled, when the caller ran inside `withRequestId`. */
 export function currentRequestId(): string | undefined {

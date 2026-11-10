@@ -68,7 +68,7 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 
 ## Operations (enterprise readiness, workstream 3, 10 Nov 2026)
 
-- **No error tracking service.** One has been proposed (Sentry, EU region) and waits for the owner's approval. Errors are found through the hosting logs by error reference or request id.
+- **Error tracking is built but off.** Sentry (EU region, approved 10 Nov 2026) starts only when the owner creates the account and sets `SENTRY_DSN` in the hosting settings (`docs/OPERATIONS.md`). Until then errors are found through the hosting logs by error reference or request id. It reports server-side errors only: an error that happens purely in the browser is not reported. Sentry's EU region is Frankfurt, not the UK. The message scrubber masks by pattern (emails, postcodes, numbers, quoted text); a name written without quotes inside an error message would not be caught, so error messages must not be built from record content.
 - **No uptime monitor or alerts are set up.** `docs/OPERATIONS.md` says what to monitor and who is told; the owner has to create the monitor and name the on-call people.
 - Request ids are on every response and on log lines from server actions, the logging API routes and unhandled errors. A log line written while a page is being rendered, outside those, has no request id.
 - Log redaction works on field names (up to two levels deep). Personal data placed inside an error message or under an unlisted field name is not caught.

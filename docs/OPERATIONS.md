@@ -89,10 +89,31 @@ Logs hold ids, counts and error kinds only. Personal and care-record fields are 
 logger (`src/lib/logger.ts`, checked by `tests/unit/log-redaction.test.ts`). Free text placed in an error message is
 not covered, so never build an error message from a record's content.
 
-### Error tracking
+### Error tracking (Sentry, EU region)
 
-Not installed. A service (Sentry, EU region) has been proposed and needs the owner's approval because it is a new
-dependency and a new data processor. Until then, errors are found through the logs as described above.
+Approved by the owner on 10 Nov 2026. **Off until the owner sets it up:**
+
+1. Create a Sentry account and choose the **EU (Frankfurt)** data region when asked. The region cannot be changed later.
+2. Create a project (platform: Next.js). Copy its DSN, which looks like `https://...@o123.ingest.de.sentry.io/456`.
+3. In Vercel, Project, Settings, Environment Variables, add `SENTRY_DSN` with that value for Production, then redeploy.
+4. In Sentry, add an alert rule: email (and SMS if the plan has it) on every new issue.
+5. Sign Sentry's data processing agreement and add Sentry to the processor list in `docs/assurance/DATA_FLOW.md`.
+
+What it does and does not send (`src/lib/error-tracking.ts`, checked by `tests/unit/error-tracking.test.ts`, which
+starts the real SDK and reads what it would send):
+
+- Server-side errors only. Browsers send nothing to Sentry, so the Content Security Policy is unchanged.
+- It refuses to start unless the DSN is in the EU region (the address must end in `.de.sentry.io`), and logs why.
+- Sent: the error's kind, the first line of its message with emails, links, quoted values, postcodes, phone numbers
+  and any number of four or more digits masked, the stack trace (file names and line numbers), the route pattern
+  (for example `/rota/service-users/[id]`, never the address with its ids), the request id, the error reference shown
+  to the user, and the release.
+- Never sent: request bodies, form data, cookies, headers, query strings, the signed-in user, breadcrumbs, local
+  variables, performance traces. Database errors are reduced to "Database error P2002"-style codes, because their
+  full messages can quote the record being saved.
+- To switch it off, remove `SENTRY_DSN` and redeploy.
+
+To find the log lines for a Sentry issue, search the hosting logs for its `requestId` or `errorRef` tag.
 
 ## Account emails
 

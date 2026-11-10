@@ -5,6 +5,7 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { randomBytes } from "node:crypto";
 import { AppError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { reportError } from "@/lib/error-report";
 import { currentRequestId, withRequestId } from "@/lib/request-context";
 import { requestIdOfRequest } from "@/lib/request-id";
 import { requireCtx } from "@/server/auth/current";
@@ -42,7 +43,10 @@ export function errorReference() {
 /** Logs an unexpected error with its reference: the error's kind, message and database code only, never form data. */
 function logUnexpected(e: unknown, ref: string, step?: string, requestId?: string) {
   const err = e as { message?: string; stack?: string; code?: unknown; name?: string };
-  logger.error({ ref, requestId: requestId ?? currentRequestId(), step, kind: err?.name, code: typeof err?.code === "string" ? err.code : undefined, err: err?.message, stack: err?.stack }, "action failed");
+  const id = requestId ?? currentRequestId();
+  logger.error({ ref, requestId: id, step, kind: err?.name, code: typeof err?.code === "string" ? err.code : undefined, err: err?.message, stack: err?.stack }, "action failed");
+  // Server actions catch their own errors to show a friendly message, so Next's error hook never sees them.
+  void reportError(e, { errorRef: ref, ...(id ? { requestId: id } : {}) });
 }
 
 /**

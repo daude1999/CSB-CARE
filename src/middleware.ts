@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { REQUEST_ID_HEADER, newRequestId } from "@/lib/request-context";
+import { REQUEST_ID_HEADER, newRequestId } from "@/lib/request-id-header";
 
 const PUBLIC = ["/login", "/account/", "/brand", "/hr/hr-hub.css", "/api/health", "/api/cron", "/_next", "/favicon", "/icon", "/csb-logo.png", "/csb-logo.svg"];
 
