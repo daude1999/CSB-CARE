@@ -1,5 +1,17 @@
 # Master build tracker — five-module CSB CRM
 
+## Enterprise readiness (brief of 10 Nov 2026)
+
+Five workstreams, one pull request each, never merged without the owner. Plan: `ENTERPRISE_READINESS_PLAN.md`.
+
+| Workstream | State |
+|---|---|
+| 1. Quality gates | Built on `enterprise-readiness`: `.github/workflows/ci.yml` (schema, types, lint, full vitest in three parts on PostgreSQL 16, HR tests, audit, build; one "Quality gate" check to mark required), `.github/dependabot.yml`, scratch file removed, high and critical audit findings cleared by upgrading existing packages (zod 4, vitest 4, nodemailer 10), four test failures fixed at their causes. Results: `TEST_RESULTS.md`. |
+| 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
+| 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
+| 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
+| 5. UX and responsiveness | Not started. Shares ground with the colour system redesign (`redesign-colour-system`); that branch owns the page frame, header, tabs and tailwind tokens. |
+
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level
 verification of national, regional and local sources), a Policy Generator (company policy with branch appendices or
