@@ -26,14 +26,14 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 function RoundBlock({ round, wide }: { round: CallRound; wide: boolean }) {
   return (
     <li className={`ovx-round ${wide ? "flex-[1_1_0]" : "flex-[0.6_1_0]"}`} data-state={round.state} data-testid={`round-${round.label.toLowerCase()}`}>
-      <span className="flex items-center justify-between gap-2 text-[14px] font-semibold leading-[18px]">
+      <span className="flex items-center justify-between gap-2 text-[13px] font-semibold leading-[17px]">
         <span className="truncate">{round.label}</span>
-        {round.state === "done" ? <span className="ovx-round-tag flex items-center gap-0.5"><Check size={12} weight="bold" aria-hidden="true" />Done</span> : null}
+        {round.state === "done" ? <span className="ovx-round-tag flex items-center gap-0.5"><Check size={11} weight="bold" aria-hidden="true" />Done</span> : null}
         {round.state === "now" ? <span className="ovx-round-tag">Now</span> : null}
       </span>
       <span className="mt-1 block leading-none">
-        <span className="text-[21px] font-bold tabular-nums">{round.done}</span>
-        <span className="ovx-round-of text-[14px] tabular-nums"> / {round.total}</span>
+        <span className="text-[18px] font-bold tabular-nums">{round.done}</span>
+        <span className="ovx-round-of text-[12.5px] tabular-nums"> / {round.total}</span>
         <span className="sr-only"> visits done{round.state === "now" ? ", in progress now" : round.state === "done" ? ", round finished" : ""}</span>
       </span>
     </li>
@@ -44,31 +44,31 @@ function RotaTile({ portal, done, total, carers, missed, rounds }: { portal: Por
   const alert = coverAlert(rounds);
   const biggest = Math.max(1, ...rounds.map((r) => r.total));
   return (
-    <section aria-labelledby="ov-rota-title" className="ovx-solid dm-fixed flex flex-col p-6" style={{ "--tile": portal.colour } as React.CSSProperties} data-testid="tile-rota">
-      <CalendarDots aria-hidden="true" className="ovx-ghost -right-10 -top-12 opacity-[.06]" size={300} weight="regular" />
+    <section aria-labelledby="ov-rota-title" className="ovx-solid dm-fixed flex flex-col p-5" style={{ "--tile": portal.colour } as React.CSSProperties} data-testid="tile-rota">
+      <CalendarDots aria-hidden="true" className="ovx-ghost -right-8 -top-10 opacity-[.06]" size={240} weight="regular" />
       <div className="relative flex items-center gap-3">
-        <span aria-hidden="true" className="ovx-chip"><CalendarDots size={22} /></span>
-        <h2 id="ov-rota-title" className="ovx-title min-w-0 flex-1 text-[17px] font-semibold leading-tight">{portal.name}</h2>
-        <Link href="/rota/visits" className="ovx-pill">Open rota <ArrowRight size={15} weight="bold" aria-hidden="true" /></Link>
+        <span aria-hidden="true" className="ovx-chip"><CalendarDots size={16} /></span>
+        <h2 id="ov-rota-title" className="ovx-title min-w-0 flex-1 text-[15px] font-semibold leading-tight">{portal.name}</h2>
+        <Link href="/rota/visits" className="ovx-pill">Open rota <ArrowRight size={13} weight="bold" aria-hidden="true" /></Link>
       </div>
-      <div className="relative mt-4 flex flex-wrap items-end gap-x-4 gap-y-1">
+      <div className="relative mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
         <p className="flex items-baseline gap-3" data-testid="rota-headline">
-          <span className="text-[68px] font-bold leading-[0.95] tracking-[-0.02em] tabular-nums">{done}</span>
-          <span className="text-[19px] font-medium">of {total} {plural(total, "visit", "visits")} done today</span>
+          <span className="text-[52px] font-bold leading-[0.95] tracking-[-0.02em] tabular-nums">{done}</span>
+          <span className="text-[16px] font-medium">of {total} {plural(total, "visit", "visits")} done today</span>
         </p>
-        <p className="ovx-soft ml-auto pb-1 text-[14.5px]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
+        <p className="ovx-soft ml-auto pb-1 text-[13px]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
       </div>
       {rounds.length ? (
-        <ul className="relative mt-5 grid grid-cols-2 gap-3 lg:flex" aria-label="Today's call rounds">
+        <ul className="relative mt-4 grid grid-cols-2 gap-2.5 lg:flex" aria-label="Today's call rounds">
           {rounds.map((r) => <RoundBlock key={r.name} round={r} wide={r.total * 4 >= biggest} />)}
         </ul>
       ) : (
-        <p className="ovx-soft relative mt-5 text-[14px]">No visits are booked for today.</p>
+        <p className="ovx-soft relative mt-4 text-[13px]">No visits are booked for today.</p>
       )}
-      <div className="ovx-alert relative mt-5 flex min-h-[56px] items-center gap-3 px-4 py-2 min-[1100px]:mt-auto" data-testid="rota-cover">
+      <div className="ovx-alert relative mt-4 flex min-h-[46px] items-center gap-3 px-3.5 py-1.5 min-[1100px]:mt-auto" data-testid="rota-cover">
         <span aria-hidden="true" className={`h-[9px] w-[9px] shrink-0 rounded-full ${alert ? "bg-[#dc2626]" : "bg-[#16a34a]"}`} />
-        <p className="min-w-0 flex-1 text-[15px] font-semibold">{alert ?? "All visits covered"}</p>
-        {alert ? <Link href="/rota/visits?view=unassigned" className="ovx-cover">Find cover <ArrowRight size={15} weight="bold" aria-hidden="true" /></Link> : null}
+        <p className="min-w-0 flex-1 text-[14px] font-semibold">{alert ?? "All visits covered"}</p>
+        {alert ? <Link href="/rota/visits?view=unassigned" className="ovx-cover">Find cover <ArrowRight size={13} weight="bold" aria-hidden="true" /></Link> : null}
       </div>
     </section>
   );
@@ -95,16 +95,16 @@ function ModuleTile({ tile }: { tile: Tile }) {
       {tile.ghost}
       <span className="relative flex items-center gap-3">
         <span aria-hidden="true" className="ovx-chip">{tile.icon}</span>
-        <span className="ovx-title text-[17px] font-semibold leading-tight">{tile.name}</span>
+        <span className="ovx-title text-[15px] font-semibold leading-tight">{tile.name}</span>
       </span>
       <span className="relative mt-auto block">
         <span className="flex items-baseline gap-2.5 whitespace-nowrap">
-          <span className="text-[46px] font-bold leading-none tracking-[-0.02em] tabular-nums">{tile.figure}</span>
-          <span className="text-[15px] font-medium">{tile.label}</span>
+          <span className="text-[36px] font-bold leading-none tracking-[-0.02em] tabular-nums">{tile.figure}</span>
+          <span className="text-[14px] font-medium">{tile.label}</span>
         </span>
-        <span className="ovx-soft mt-2 block truncate pr-[46px] text-[13px]" title={tile.detail}>{tile.detail}</span>
+        <span className="ovx-soft mt-1.5 block truncate pr-[38px] text-[12.5px]" title={tile.detail}>{tile.detail}</span>
       </span>
-      <span aria-hidden="true" className="ovx-arrow"><ArrowRight size={17} weight="bold" /></span>
+      <span aria-hidden="true" className="ovx-arrow"><ArrowRight size={15} weight="bold" /></span>
     </>
   );
   const props = { className: "ovx-solid ovx-tile dm-fixed", style: { "--tile": tile.portal.colour } as React.CSSProperties, "data-testid": `tile-${tile.key}` };
@@ -115,9 +115,9 @@ function ModuleTile({ tile }: { tile: Tile }) {
 function WeekBars({ days }: { days: { date: string; value: number }[] }) {
   const max = Math.max(1, ...days.map((d) => d.value));
   return (
-    <span aria-hidden="true" className="absolute right-6 top-[64px] flex h-[70px] items-end gap-[7px]" data-testid="reporting-bars">
+    <span aria-hidden="true" className="absolute right-5 top-[50px] flex h-[52px] items-end gap-[6px]" data-testid="reporting-bars">
       {days.map((d, i) => (
-        <span key={d.date} className={`ovx-bar w-[10px] ${i === days.length - 1 ? "opacity-50" : ""}`} style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }} />
+        <span key={d.date} className={`ovx-bar w-[8px] ${i === days.length - 1 ? "opacity-50" : ""}`} style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }} />
       ))}
     </span>
   );
@@ -162,10 +162,10 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   // care-delivery problems first, then overdue work, then reviews.
   const attention: Attention[] = [];
   const rotaColour = rotaPortal?.colour ?? "#6b46c9";
-  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ key: "unassigned", rank: 0, count: rotaFigures.unassignedToday, text: plural(rotaFigures.unassignedToday, "Visit needs a carer today", "Visits need a carer today"), action: "Find cover", href: "/rota/visits?view=unassigned", colour: rotaColour, icon: <CalendarDots size={18} /> });
-  if (rotaPortal && rota?.missedToday) attention.push({ key: "missed", rank: 0, count: rota.missedToday, text: plural(rota.missedToday, "Missed visit today", "Missed visits today"), action: "Review", href: "/rota/monitor", colour: rotaColour, icon: <WarningCircle size={18} /> });
-  if (rotaPortal && rotaFigures?.openAlerts) attention.push({ key: "alerts", rank: 1, count: rotaFigures.openAlerts, text: plural(rotaFigures.openAlerts, "Rota alert to review", "Rota alerts to review"), action: "Review", href: "/rota/exceptions", colour: rotaColour, icon: <CalendarDots size={18} /> });
-  if (hrPortal && hr?.overdue) attention.push({ key: "hr", rank: 2, count: hr.overdue, text: plural(hr.overdue, "HR check overdue", "HR checks overdue"), action: "Review", href: hrPortal.home, external: true, colour: hrPortal.colour, icon: <UsersThree size={18} /> });
+  if (rotaPortal && rotaFigures?.unassignedToday) attention.push({ key: "unassigned", rank: 0, count: rotaFigures.unassignedToday, text: plural(rotaFigures.unassignedToday, "Visit needs a carer today", "Visits need a carer today"), action: "Find cover", href: "/rota/visits?view=unassigned", colour: rotaColour, icon: <CalendarDots size={16} /> });
+  if (rotaPortal && rota?.missedToday) attention.push({ key: "missed", rank: 0, count: rota.missedToday, text: plural(rota.missedToday, "Missed visit today", "Missed visits today"), action: "Review", href: "/rota/monitor", colour: rotaColour, icon: <WarningCircle size={16} /> });
+  if (rotaPortal && rotaFigures?.openAlerts) attention.push({ key: "alerts", rank: 1, count: rotaFigures.openAlerts, text: plural(rotaFigures.openAlerts, "Rota alert to review", "Rota alerts to review"), action: "Review", href: "/rota/exceptions", colour: rotaColour, icon: <CalendarDots size={16} /> });
+  if (hrPortal && hr?.overdue) attention.push({ key: "hr", rank: 2, count: hr.overdue, text: plural(hr.overdue, "HR check overdue", "HR checks overdue"), action: "Review", href: hrPortal.home, external: true, colour: hrPortal.colour, icon: <UsersThree size={16} /> });
   const policyParts: string[] = [];
   let policyTotal = 0;
   if (policy && m) {
@@ -175,11 +175,11 @@ export default async function Overview({ searchParams }: { searchParams: Promise
       policyParts.push(`${count} ${plural(count, ...part)}`);
       policyTotal += count;
     };
-    if (can("staff.view")) add("signoffs", 3, m.overdueAcks, ["Staff sign-off overdue", "Staff sign-offs overdue"], ["sign-off", "sign-offs"], "Chase", "/staff", <FileText size={18} />);
-    add("reviews", 3, m.overdueReviews, ["Policy review overdue", "Policy reviews overdue"], ["review overdue", "reviews overdue"], "Open", "/policies?quick=overdue", <FileText size={18} />);
-    add("actions", 3, m.overdueActions, ["Action past due date", "Actions past due date"], ["action past due", "actions past due"], "Open", "/actions", <ClipboardText size={18} />);
-    add("approval", 4, m.draftsAwaitingApproval, ["Policy awaiting approval", "Policies awaiting approval"], ["awaiting approval", "awaiting approval"], "Review", "/queue", <FileText size={18} />);
-    add("changes", 5, m.newChanges + m.awaitingAssessment, ["Regulatory change to review", "Regulatory changes to review"], ["change to review", "changes to review"], "Review", "/changes", <ClipboardText size={18} />);
+    if (can("staff.view")) add("signoffs", 3, m.overdueAcks, ["Staff sign-off overdue", "Staff sign-offs overdue"], ["sign-off", "sign-offs"], "Chase", "/staff", <FileText size={16} />);
+    add("reviews", 3, m.overdueReviews, ["Policy review overdue", "Policy reviews overdue"], ["review overdue", "reviews overdue"], "Open", "/policies?quick=overdue", <FileText size={16} />);
+    add("actions", 3, m.overdueActions, ["Action past due date", "Actions past due date"], ["action past due", "actions past due"], "Open", "/actions", <ClipboardText size={16} />);
+    add("approval", 4, m.draftsAwaitingApproval, ["Policy awaiting approval", "Policies awaiting approval"], ["awaiting approval", "awaiting approval"], "Review", "/queue", <FileText size={16} />);
+    add("changes", 5, m.newChanges + m.awaitingAssessment, ["Regulatory change to review", "Regulatory changes to review"], ["change to review", "changes to review"], "Review", "/changes", <ClipboardText size={16} />);
   }
   attention.sort((a, b) => a.rank - b.rank);
   const SHOWN = 5;
@@ -188,7 +188,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   if (policy && m) {
     tiles.push({
       key: "policy", portal: policy, name: policy.name, icon: <FileText size={21} />,
-      ghost: <FileText aria-hidden="true" className="ovx-ghost -right-6 -top-6 opacity-10" size={190} />,
+      ghost: <FileText aria-hidden="true" className="ovx-ghost -right-5 -top-5 opacity-10" size={150} />,
       figure: policyTotal, label: "to action", detail: policyParts.length ? policyParts.join(", ") : "Nothing overdue",
     });
   }
@@ -196,7 +196,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     const detail = [hr ? `${hr.employees} ${plural(hr.employees, "employee", "employees")}` : null, rota ? `${rota.staffOnRota} on rota today` : null].filter(Boolean).join(" · ");
     tiles.push({
       key: "hr", portal: hrPortal, name: hrPortal.name, icon: <UsersThree size={21} />, external: true,
-      ghost: <UsersThree aria-hidden="true" className="ovx-ghost -right-8 -top-8 opacity-10" size={200} />,
+      ghost: <UsersThree aria-hidden="true" className="ovx-ghost -right-6 -top-6 opacity-10" size={160} />,
       figure: hr?.overdue ?? 0, label: "checks overdue", detail: detail || "Opens your HR Hub",
     });
   }
@@ -205,14 +205,14 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     const week = rota ? rota.completedSeries.days.reduce((n, d) => n + d.value, 0) : null;
     tiles.push({
       key: "reporting", portal: reporting, name: reporting.name, icon: <ChartBar size={21} />,
-      ghost: rota ? <WeekBars days={rota.completedSeries.days} /> : <ChartBar aria-hidden="true" className="ovx-ghost -right-6 -top-6 opacity-10" size={190} />,
+      ghost: rota ? <WeekBars days={rota.completedSeries.days} /> : <ChartBar aria-hidden="true" className="ovx-ghost -right-5 -top-5 opacity-10" size={150} />,
       figure: week ?? Object.keys(REPORTS).length, label: week !== null ? "visits, 7 days" : "report exports", detail: week !== null ? exportsReady : "Reports and CSV exports",
     });
   }
   if (admin) {
     tiles.push({
       key: "admin", portal: admin, name: "Administration", icon: <GearSix size={21} />,
-      ghost: <GearSix aria-hidden="true" className="ovx-ghost -right-10 -top-10 opacity-10" size={210} />,
+      ghost: <GearSix aria-hidden="true" className="ovx-ghost -right-8 -top-8 opacity-10" size={165} />,
       figure: branches ?? 0, label: plural(branches ?? 0, "branch", "branches"), detail: users !== null ? `${users} ${plural(users, "user", "users")} · activity log` : "Settings and activity log",
     });
   }
@@ -225,16 +225,16 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   return (
     <div className="ov-root">
-      <div className="space-y-4 px-4 pb-6 pt-5 md:px-4">
+      <div className="space-y-3.5 px-4 pb-6 pt-4 md:px-4">
         <Flash searchParams={sp} />
         <AutoRefresh seconds={60} />
         <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
-            <p className="mt-0.5 text-[15px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
+            <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
+            <p className="mt-0.5 text-[14px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
           </div>
           {!arranging && ctx.organisationId && ordered.length > 1 ? (
-            <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-[14px] text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
+            <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-[13px] text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
           ) : null}
         </div>
 
@@ -242,11 +242,11 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           {rotaPortal && rota ? (
             <RotaTile portal={rotaPortal} done={rota.completedToday} total={rota.visitsToday} carers={rota.staffOnRota} missed={rota.missedToday} rounds={rota.rounds} />
           ) : null}
-          <section aria-labelledby="attention-title" className="ovx-attention flex flex-col rounded-[18px] border border-[#eaecf0] bg-white px-6 pb-3 pt-5" data-testid="needs-attention">
-            <div className="flex items-center justify-between gap-3 border-b border-[#eaecf0] pb-3">
-              <h2 id="attention-title" className="text-[17px] font-semibold text-ink">Needs your attention</h2>
+          <section aria-labelledby="attention-title" className="ovx-attention flex flex-col rounded-[18px] border border-[#eaecf0] bg-white px-5 pb-2 pt-4" data-testid="needs-attention">
+            <div className="flex items-center justify-between gap-3 border-b border-[#eaecf0] pb-2.5">
+              <h2 id="attention-title" className="text-[15px] font-semibold text-ink">Needs your attention</h2>
               {attention.length ? (
-                <Link href="/notifications" className="flex items-center gap-1 text-[14px] font-semibold text-[#1565c0]">View all {attention.length} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
+                <Link href="/notifications" className="flex items-center gap-1 text-[13px] font-semibold text-[#1565c0]">View all {attention.length} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
               ) : null}
             </div>
             {attention.length ? (
@@ -256,17 +256,17 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                   const style = i === 0 ? ({ "--tile": a.colour } as React.CSSProperties) : undefined;
                   const label = <>{a.action}<span className="sr-only">: {a.count} {a.text.toLowerCase()}</span></>;
                   return (
-                    <li key={a.key} className="flex min-h-[59px] items-center gap-4 border-b border-[#f0f1f4] py-2 last:border-b-0" data-testid={`attention-${a.key}`}>
-                      <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] text-white" style={{ background: a.colour }}>{a.icon}</span>
-                      <span className="w-[28px] shrink-0 text-[17px] font-bold tabular-nums text-ink">{a.count}</span>
-                      <span className="min-w-0 flex-1 text-[15px] text-ink">{a.text}</span>
+                    <li key={a.key} className="flex min-h-[48px] items-center gap-3 border-b border-[#f0f1f4] py-2 last:border-b-0" data-testid={`attention-${a.key}`}>
+                      <span aria-hidden="true" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] text-white" style={{ background: a.colour }}>{a.icon}</span>
+                      <span className="w-[26px] shrink-0 text-[15px] font-bold tabular-nums text-ink">{a.count}</span>
+                      <span className="min-w-0 flex-1 text-[14px] text-ink">{a.text}</span>
                       {a.external ? <a href={a.href} className={cls} style={style}>{label}</a> : <Link href={a.href} className={cls} style={style}>{label}</Link>}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="py-4 text-[14px] text-[#475467]">Nothing needs your attention right now.</p>
+              <p className="py-4 text-[13px] text-[#475467]">Nothing needs your attention right now.</p>
             )}
           </section>
         </div>

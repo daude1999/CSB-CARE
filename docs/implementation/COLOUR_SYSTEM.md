@@ -292,3 +292,14 @@ like the header bands. Rules naming `.dm-fixed` are left alone by the dark-mode 
 
 Before/after pictures: `docs/design/colour-redesign/pr5/`.
 
+
+### Compact follow-up (10 Nov 2026)
+
+The owner found the merged Overview a little big. Everything is about 20% smaller, with the same layout, colours, figures and links:
+
+- greeting text is 22px, the Rota figure is 52px and the module tile figures are 36px
+- module tiles are at least 168px tall (was 224px), with 16px × 18px padding and a 14px corner radius
+- buttons, pills, icon chips, call rounds and attention rows are shorter (32px buttons, 48px rows)
+- the loading skeleton matches the new sizes
+
+All text stays at least 12.5px. White text on the module colours keeps the contrast in the PR 5 table, which does not depend on size. Pictures are in `docs/design/colour-redesign/pr5-compact/`.

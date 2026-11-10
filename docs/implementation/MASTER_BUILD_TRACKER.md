@@ -12,7 +12,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 4. Assurance pack | Drafted in `docs/assurance/`: DPIA, data flow diagram, retention schedule (proposal, no deletion jobs), DSPT evidence index, penetration test scope, incident response. All marked DRAFT FOR HUMAN REVIEW. Start at `docs/assurance/README.md`. |
 | 5. UX and responsiveness | On `enterprise-readiness-5-ux` (PR #138). The colour system redesign (#134 to #137) is now in `main` and merged into this branch. |
 
-## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview in review)
+## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview merged as #140, compact follow-up in review)
 The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
 the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple
 is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
