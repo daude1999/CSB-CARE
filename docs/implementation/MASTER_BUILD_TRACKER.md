@@ -7,7 +7,10 @@ is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar.
 Breadcrumb, description and secondary-button opacities were raised to meet WCAG AA (owner to confirm). PR 2: Rota
 Dashboard tiles and Daily Rota list. PR 3: Daily Rota Board and visit drawer. PR 4: Ctrl+K command bar. Details,
 contrast ratios and every replaced header: `COLOUR_SYSTEM.md`. PR 1 is #134. PR 2 (branch `redesign-rota-tiles-list`,
-stacked on PR 1) restyles the four call tiles and reorders, groups and stripes the Daily Rota list.
+stacked on PR 1) restyles the four call tiles and reorders, groups and stripes the Daily Rota list. PR 3 (branch
+`redesign-board-drawer`, stacked on PR 2) adds the Board as the Daily Rota's default view and the visit drawer, sharing
+the Advanced Rota planner's grouping and move rules (`src/server/rota/board.ts`); every move still goes through the
+eligibility service.
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

@@ -74,7 +74,7 @@ test.describe("Rostering & Care Management", () => {
 
   test("bulk actions show the details each action needs, and Reassign and Lock work from the Daily Rota", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    await page.goto(`/rota/visits?date=${mondayWeeksAhead(1)}`);
+    await page.goto(`/rota/visits?date=${mondayWeeksAhead(1)}&layout=list`);
     const bulk = page.locator("#bulk");
     const go = bulk.getByRole("button", { name: "Go" });
     await expect(go).toBeDisabled();
@@ -262,7 +262,11 @@ test.describe("Rostering & Care Management", () => {
 
   test("Daily Rota: a live list with no figure cards, the approved columns, and Visit Details only when a visit is chosen", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
+    // Board is the default view since the approved redesign (10 Nov 2026); List is one click away.
     await page.goto("/rota/visits");
+    await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "Board" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" }).click();
+    await expect(page).toHaveURL(/layout=list/);
     await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
     await expect(page.getByRole("region", { name: "The day's figures" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
@@ -292,7 +296,7 @@ test.describe("Rostering & Care Management", () => {
     await expect(page).toHaveURL(/tab=history/);
     await page.getByRole("link", { name: "Close visit details" }).click();
     await expect(page.getByRole("complementary", { name: "Visit Details" })).toHaveCount(0);
-    // Column settings add the less-used columns; sorting and Planner keep working.
+    // Column settings add the less-used columns; sorting and the Advanced Rota planner keep working.
     await page.locator("summary", { hasText: "Columns" }).click();
     await page.getByRole("checkbox", { name: "Clock in" }).check();
     await page.getByRole("checkbox", { name: "Calendar week" }).check();
@@ -304,7 +308,8 @@ test.describe("Rostering & Care Management", () => {
     await expect(table.getByRole("columnheader", { name: "Week", exact: true })).toBeVisible();
     await table.getByRole("columnheader", { name: "Service User" }).getByRole("link").click();
     await expect(page).toHaveURL(/sort=su/);
-    await page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "Planner" }).click();
+    await page.locator("summary", { hasText: "Actions" }).last().click();
+    await page.getByTestId("main-content").getByRole("link", { name: "Advanced Rota planner" }).click();
     await expect(page).toHaveURL(/\/rota\/advanced\?date=/);
   });
 

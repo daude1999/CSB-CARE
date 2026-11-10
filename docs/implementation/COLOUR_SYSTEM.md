@@ -153,6 +153,56 @@ for the 16px percentage. Supporting text `#475467` on each tint is 6.9 : 1 or mo
 - Sorting, bulk actions (the row checkboxes and Select all), filters, column settings, the Visit Details panel and
   pagination are unchanged.
 
+## PR 3: Daily Rota Board and visit drawer
+
+### Board (`/rota/visits`, `src/components/rota-board.tsx`)
+
+The Daily Rota opens on the Board. "List" and "Board" sit side by side in the header; the Advanced Rota planner is in
+the Actions menu. A link that asks for something only the list has (`visit`, `status`, `view`, `sort`, `dir`, `page`,
+`per`, `cols` or `cover` in the address) still opens the list, so the Dashboard tiles, Quick Actions and saved links
+land where they did before. `?layout=list` and `?layout=board` choose a view outright.
+
+Nothing is loaded or decided twice. The page loads the day's visits once with the existing filters and passes them to
+`boardData` (`src/app/(app)/rota/visits/board-data.ts`). Grouping by team member, the "Needs a carer" set, which
+visits can move and the "confirm this move" address are in `src/server/rota/board.ts`, used by both the Board and the
+Advanced Rota planner (which lost its own copies). A drag posts to `assignCarerAction`, which calls `assignCarer` and
+so the eligibility service: a blocked move is refused with its reason, a move with warnings comes back asking to
+confirm (`src/components/move-confirm.tsx`, also shared).
+
+Layout:
+
+- 196px name column with initials, name and "N visits · X h" (shadow shifts and cancelled visits are not counted),
+  50px rows (taller only when a team member's visits overlap), most visits first.
+- "Needs a carer" is the first row, tinted light red, for visits short of their full set of carers.
+- Call round labels above the hours come from the organisation's call types ("Morning calls" reads "Morning").
+- A stretch of more than 90 minutes with no visits folds into a 22px hatched divider (`src/lib/day-board.ts`,
+  unit-tested). The footer says so when anything is folded.
+- Blocks show surname and "start · duration"; under 60px wide they show initials and the start time. Double-ups show
+  "×2".
+- Block colours: completed `#dcfce7` with a 3px `#16a34a` left edge; still to come 13% module tint with a module
+  left edge; needs a carer white with a 1.5px dashed `#dc2626` border; missed, late, in progress and cancelled use
+  their status-badge colours.
+- A red line with the time marks now (Europe/London) when the day shown is today; earlier hours are shaded lightly.
+- One compact row above: search, the existing filters, and the legend on the right.
+- Footer: visits today, completed, still to come, needs a carer, carers working. "Visits today" matches the list's
+  total for the same filters (a browser test checks it).
+- Below 1280px the board scrolls sideways inside its card; the page does not.
+- Every block is a button named with service user, call, time, carer(s), status and reference.
+
+### Visit drawer
+
+Selecting a block opens a 420px dialog from the right over a dimmed page: initials, name, call type and reference,
+close button; time and duration, status badge, carer(s), area; the visit's care tasks with any recorded outcome; and
+"Why this carer". Focus moves into the drawer and stays there; Esc (or the backdrop or Close) closes it and puts focus
+back on the block. Footer: "Reassign" in the module colour (only for someone who may change the rota, and only while
+the visit can still be allocated; it opens the list's Visit Details panel for that visit) and "Open full visit".
+
+"Why this carer" shows only stored or computed facts, per booked carer: what the eligibility service decided at
+booking, the warnings the coordinator accepted (word for word), any review flag, and the matching service's reasons
+with their points (`visitDrawer` in `src/server/rota/board.ts`). When none of those exist the section is left out.
+The data comes from `GET /api/rota/visits/[id]/drawer`, which needs `rota.view` and goes through `getVisit`, so a
+visit in another organisation, branch or area returns 404 (integration-tested).
+
 ## Dark mode
 
 The dark twins are generated at build time (`docs/implementation/DARK_MODE.md`), so the band, tabs and buttons follow

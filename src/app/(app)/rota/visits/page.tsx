@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { VisitStatus } from "@prisma/client";
-import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users, X } from "@phosphor-icons/react/dist/ssr";
+import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, SquaresFour, User, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { ModuleHeader } from "@/components/module-header-band";
 import { requireRotaPage } from "@/server/auth/portals";
@@ -8,7 +8,11 @@ import { hasOrgPermission } from "@/server/auth/rbac";
 import { checklistOf, listVisits, patternWeek, rotaLookups, suName, type VisitRow } from "@/server/rota/queries";
 import { visitInspector } from "@/server/rota/inspector";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, isoWeek, londonDate, londonMinute, londonTime, mondayOf } from "@/lib/london";
-import { bulkVisitsAction } from "@/app/rota-actions";
+import { assignCarerAction, bulkVisitsAction } from "@/app/rota-actions";
+import { BoardLegend, RotaBoard } from "@/components/rota-board";
+import { MoveConfirm } from "@/components/move-confirm";
+import { pendingMove } from "@/server/rota/board";
+import { boardData } from "./board-data";
 import { Empty, Flash } from "@/components/ui";
 import { dayTimeline } from "@/server/rota/roster";
 import { DailyTimeline } from "@/components/daily-timeline";
@@ -159,7 +163,10 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
   const canComplete = hasOrgPermission(ctx, "rota.clockCorrect");
-  const layout = sp.layout === "timeline" ? "timeline" : "list";
+  // Board is the default view (approved redesign, 10 Nov 2026). Links that open a visit, filter by status or a "show
+  // only" view, sort, page or change columns come from places that expect the list, so they keep opening the list.
+  const listIntent = ["visit", "status", "view", "sort", "dir", "page", "per", "cols", "cover"].some((k) => !!sp[k]);
+  const layout: "board" | "list" | "timeline" = sp.layout === "list" || sp.layout === "timeline" || sp.layout === "board" ? sp.layout : listIntent ? "list" : "board";
   const cols = new Set((sp.cols ?? "").split(",").filter((c): c is Optional => OPTIONAL.some(([k]) => k === c)));
   const sort: SortKey = sp.sort && sp.sort in SORTS ? (sp.sort as SortKey) : "time";
   const dir = sp.dir === "desc" ? "desc" : "asc";
@@ -184,14 +191,16 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const shown = rows.slice((page - 1) * per, page * per);
   const inspector = sp.visit ? await visitInspector(ctx, sp.visit) : null;
   const timeline = layout === "timeline" ? await dayTimeline(ctx, date, all, lk) : null;
+  const board = layout === "board" ? boardData(all, { date, today, canEdit }) : null;
   const notBuilt = all.length === 0 && !q && !(await weekIsBuilt(ctx, date));
 
-  const params: Record<string, string | undefined> = { date: date === today ? undefined : date, branch, area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q, layout: layout === "timeline" ? "timeline" : undefined, cols: cols.size ? [...cols].join(",") : undefined, sort: sort === "time" ? undefined : sort, dir: dir === "asc" ? undefined : dir, per: per === 25 ? undefined : String(per), page: page === 1 ? undefined : String(page), visit: inspector ? inspector.visit.id : undefined };
+  const params: Record<string, string | undefined> = { date: date === today ? undefined : date, branch, area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q, layout: layout === "list" ? (sp.layout === "list" ? "list" : undefined) : layout, cols: cols.size ? [...cols].join(",") : undefined, sort: sort === "time" ? undefined : sort, dir: dir === "asc" ? undefined : dir, per: per === 25 ? undefined : String(per), page: page === 1 ? undefined : String(page), visit: inspector ? inspector.visit.id : undefined };
   const url = (extra: Record<string, string | undefined>) => {
     const s = new URLSearchParams(Object.entries({ ...params, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
     return `/rota/visits${s ? `?${s}` : ""}`;
   };
   const back = url({ date });
+  const move = pendingMove(sp.move, all, lk.staff);
   // Previous and Next in the Visit Details panel follow the list exactly as shown (same day, filters, sort and search),
   // across pages: the table turns to the page of the visit that opens, so its row stays highlighted.
   const at = inspector ? rows.findIndex((r) => r.id === inspector.visit.id) : -1;
@@ -239,8 +248,8 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="mh-btn">Today</Link> : null}
             </AutoSubmitForm>
             <nav aria-label="Rota view" className="flex gap-2">
-              <Link href={url({ layout: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`mh-btn ${layout === "list" ? "mh-btn-primary" : ""}`}><List size={19} weight="bold" aria-hidden />List</Link>
-              <Link href={plannerHref} className="mh-btn"><CalendarBlank size={19} aria-hidden />Planner</Link>
+              <Link href={url({ layout: "list", visit: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`mh-btn ${layout === "list" ? "mh-btn-primary" : ""}`}><List size={19} weight="bold" aria-hidden />List</Link>
+              <Link href={url({ layout: "board", visit: undefined, status: undefined, view: undefined, sort: undefined, dir: undefined, page: undefined, per: undefined, cols: undefined })} aria-current={layout === "board" ? "page" : undefined} className={`mh-btn ${layout === "board" ? "mh-btn-primary" : ""}`}><SquaresFour size={19} weight="bold" aria-hidden />Board</Link>
             </nav>
             {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className="mh-btn"><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
           </>
@@ -278,7 +287,8 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={url({ cancelled: sp.cancelled === "1" ? undefined : "1", page: undefined })} className="block px-3 py-2 no-underline hover:bg-slate-50">{sp.cancelled === "1" ? "Hide cancelled visits" : "Show cancelled visits"}</Link></li>
-              <li><Link href={url({ layout: layout === "timeline" ? undefined : "timeline" })} className="block px-3 py-2 no-underline hover:bg-slate-50">{layout === "timeline" ? "Back to the list" : "Carer timeline for the day"}</Link></li>
+              <li><Link href={plannerHref} className="block px-3 py-2 no-underline hover:bg-slate-50">Advanced Rota planner</Link></li>
+              <li><Link href={url({ layout: layout === "timeline" ? "list" : "timeline" })} className="block px-3 py-2 no-underline hover:bg-slate-50">{layout === "timeline" ? "Back to the list" : "Carer timeline for the day"}</Link></li>
               <li><Link href={`/rota/unassigned?from=${date}&days=1`} className="block px-3 py-2 no-underline hover:bg-slate-50">Unassigned visits (with suggestions)</Link></li>
               <li><Link href={`/rota/print?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Printable rota</Link></li>
               <li><Link href={`/rota/cover?from=${date}&days=1`} className="block px-3 py-2 no-underline hover:bg-slate-50">Sickness &amp; holiday cover</Link></li>
@@ -294,7 +304,18 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
       {only || status || q ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing {only ?? (status ? `${VISIT_LABEL[status].toLowerCase()} visits` : "visits")}{q ? ` matching “${q}”` : ""}. <Link href={url({ view: undefined, status: undefined, q: undefined, page: undefined })}>Show every visit</Link></p> : null}
 
       <div className={`grid grid-cols-1 items-start gap-4 ${inspector ? "xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
-        {layout === "list" ? (
+        {board ? (
+          <section aria-label="Board" data-testid="rota-board" className="min-w-0 overflow-hidden rounded-[10px] border border-rule bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <div className="px-3.5 pt-3"><MoveConfirm move={move} back={back} /></div> : null}
+            <div className="flex flex-wrap items-center gap-3 border-b border-rule px-3.5 py-2.5">
+              <h2 className="text-[15px] font-semibold text-ink" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
+              <span className="text-[13px] text-status-ink">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
+              <span className="ml-auto"><BoardLegend /></span>
+            </div>
+            <RotaBoard rows={board.rows} rounds={board.rounds} segments={board.segments} nowMin={board.nowMin} footer={board.footer} action={canEdit ? assignCarerAction : undefined} back={back} />
+            {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
+          </section>
+        ) : layout === "list" ? (
           <section aria-label="Visits" className="min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             <div className="flex flex-wrap items-center gap-2 px-3.5 py-3">
               {canEdit ? (
@@ -443,7 +464,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 heading={<>Team members ({timeline.rows.filter((r) => r.id !== "unassigned").length})</>}
               />
             ) : <div className="p-4"><Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty></div>}
-            <p className="border-t border-[#eef0f3] px-3 py-2 text-[12.5px] text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: undefined })}>Back to the list</Link></p>
+            <p className="border-t border-[#eef0f3] px-3 py-2 text-[12.5px] text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: "list" })}>Back to the list</Link></p>
           </section>
         )}
 

@@ -37,7 +37,7 @@ test.describe("protected Rota screens keep their approved structure", () => {
 
   test("Daily Rota", async ({ page }) => {
     await signIn(page);
-    await page.goto("/rota/visits");
+    await page.goto("/rota/visits?layout=list");
     await page.waitForLoadState("networkidle");
     expect(await structure(page)).toEqual({
       headings: ["Daily Rota"],
