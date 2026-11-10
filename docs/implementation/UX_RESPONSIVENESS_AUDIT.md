@@ -92,9 +92,14 @@ and what was deliberately left alone.
 - **No toast component.** Every mutation already ends in a `<Flash>` message (`role="status"` or `role="alert"`) from
   the server's answer. A second, client-side toast would be a new component style (design freeze) and could say
   "saved" before the server agreed.
-- **Type scale, fonts, page background and padding.** These live in `tailwind.config.ts`, the page frame and the
-  module header, which the approved colour redesign (pull requests #134 to #137) is changing right now. Doing the
-  consistency pass on top of the old frame would conflict with all four. It should follow once those are merged.
+- **Page background and padding.** Done by the approved colour redesign (pull requests #134 to #137, merged into
+  `main` on 10 November and into this branch): one `#f6f7fa` page frame with one set of padding tokens in
+  `tailwind.config.ts`. Nothing further was needed here.
+- **Type scale.** Not changed in this pull request. The app uses about 2,600 fixed text sizes in some 200 files,
+  most of them half sizes (12.5, 13.5 and 14.5 px), and the redesign's own approved header uses 22 px and 13.5 px.
+  Rounding them to 12/13/14/16/18/24 moves text on every screen, including the Overview and the screens the owner
+  has just approved, so the owner decided (10 November) that it will be its own pull request, with its own before and after
+  pictures, once the five enterprise readiness pull requests are merged. The app already uses Inter throughout; the display and label faces appear in 7 places.
 - **The HR Hub's two large files** (`src/hr/components/hub.tsx`, `workspace-widgets.tsx`). `CLAUDE.md` says not to
   restructure the HR Hub; the brief says to split them. The owner has been asked which applies.
 - **The eligibility check running once per week or visit** (finding 2). It is the rota's core safety rule; batching
@@ -102,44 +107,49 @@ and what was deliberately left alone.
   `KNOWN_LIMITATIONS.md`.
 - **The drafts queue and a person's own sign-offs** stay unpaged: they are work lists, and hiding open work on page 2
   is worse than a long page. Both are bounded by open work, not by history.
-- **Rota Dashboard tile text** (white at 95% on the orange "Late calls" tile, contrast 4.28 against 4.5 required) and
-  **the Policy Library viewer's toolbar buttons** (17 px wide at 1440, 24 px required): the first belongs to the
-  colour redesign, the second needs the toolbar laid out again. Both are listed for those changes.
+- **The Policy Library viewer's toolbar buttons** (17 px wide at 1440, 24 px required) and one low-contrast label
+  on the same screen: the toolbar needs laying out again, which the design freeze rules out here. The orange
+  "Late calls" tile on the Rota Dashboard, listed here earlier, was fixed by the colour redesign.
+- **One small tap target in the shared top bar on a phone** (it arrived with the colour redesign and is the same
+  before and after this change). It costs three accessibility points on a phone on four of the five pages.
 
 ## Lighthouse
 
 Lighthouse 13.6, run from outside the repository (it is not a dependency), signed in, against the local production
 build. "Desktop" is Lighthouse's desktop preset. "Mobile" is its default: a mid-range phone on slow 4G with the
-processor slowed four times.
+processor slowed four times. Measured again on 10 November after the colour redesign (#134 to #137, #139) was
+merged in: "before" is `main` with the redesign, "after" is this branch on top of it.
 
 | Page | Desktop performance | Desktop accessibility | Mobile performance | Mobile accessibility |
 | --- | --- | --- | --- | --- |
-| Overview | 100 → 100 | 96 → 100 | 89 → 89 | 96 → 100 |
-| Rota Dashboard | 100 → 100 | 97 → 97 | 89 → 88 | 97 → 97 |
-| Service Users | 100 → 100 | 100 → 100 | 92 → 89 | 100 → 100 |
-| HR Hub | 98 → 98 | 96 → 100 | 77 → 79 | 96 → 100 |
-| Policy Library | 100 → 99 | 97 → 97 | 78 → 76 | 100 → 100 |
+| Overview | 100 → 100 | 96 → 100 | 91 → 90 | 96 → 100 |
+| Rota Dashboard | 100 → 100 | 100 → 100 | 89 → 88 | 97 → 97 |
+| Service Users | 100 → 100 | 100 → 100 | 91 → 92 | 97 → 97 |
+| HR Hub | 98 → 98 | 96 → 100 | 78 → 77 | 93 → 96 |
+| Policy Library | 99 → 99 | 94 → 94 | 78 → 78 | 97 → 97 |
 
 Before → after. Read these honestly:
 
 - **Desktop meets the 90+ target on all five pages**, before and after. Accessibility rose to 100 on the Overview and
-  the HR Hub (the contrast fixes). The Rota Dashboard stays at 97 (the orange tile, left for the colour redesign) and
-  the Policy Library at 97 on desktop (viewer toolbar buttons).
-- **Mobile performance did not change** (differences of one to three points between runs are noise) and **is below 90**:
-  88 to 89 on three pages in the after run, 76 to 79 on the HR Hub and Policy Library. Nothing in this workstream made the first load on a
+  the HR Hub (the contrast fixes). The Policy Library stays at 94 on desktop (viewer toolbar buttons and one
+  low-contrast label, see above).
+- **Mobile performance did not change** (differences of one or two points between runs are noise) and **is below 90
+  on three pages**: 88 on the Rota Dashboard, 77 to 78 on the HR Hub and Policy Library. Nothing in this workstream made the first load on a
   slow phone lighter. What would: splitting the HR Hub so the dashboard does not download the whole workspace (one
   265 KB request and one script, 88% of it unused on that screen), and loading the Policy Library's document viewer
   (130 KB, 84% unused at first paint) only when a document is opened. The office uses this on desktops; carers use
   `/carer`, which was not one of the five pages.
+- **Mobile accessibility** is 100 on the Overview and 96 to 97 elsewhere. What is left is the top-bar tap target above.
 - Lighthouse measures a first, cold page load. The 200 ms test above measures what people feel when they click
   inside the app, which is the commoner case.
 
 ## Before and after screenshots
 
 43 screenshots were taken before and after on the same data (33 pages at 1440 wide, and the five main pages at 834
-and 390), then compared pixel by pixel. 36 are identical. The seven that differ are the Overview (chart axis labels,
-three widths), the HR Hub dashboard (tile notes, three widths) and the Rota Dashboard on a phone (0.03% of pixels,
-a handful of anti-aliased edges that also differ between two runs of the same build). Nothing moved.
+and 390), on the new colour system, then compared pixel by pixel. 33 are identical. The ten that differ are the
+Overview (chart axis labels, three widths), the HR Hub dashboard (tile notes, three widths), and the Rota Dashboard
+(three widths) and Needs Attention, where under 0.05% of pixels differ because the clock and "minutes late" figures
+moved on in the six minutes between the two runs. Nothing moved.
 
 ![Overview before and after](ux-audit/overview-before-after.png)
 

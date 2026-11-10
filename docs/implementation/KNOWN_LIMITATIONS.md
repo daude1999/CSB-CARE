@@ -77,7 +77,7 @@ Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
 - **Mobile Lighthouse performance is below 90 on the HR Hub and Policy Library** (simulated slow phone). The HR Hub loads its whole workspace in one request and one script; the Policy Library loads the document viewer with the list. Desktop scores are 98 to 100.
 - **The "missing from built weeks" notice on a visit template arrives a moment after the page**, and needs JavaScript to appear.
 - **The drafts queue and "my sign-offs" are not paged**; audits and corrective actions are (50 a page).
-- **Not done from the brief, on purpose:** per-section `loading.tsx` files, `useOptimistic`, a toast component, the single type scale and page padding, and splitting the HR Hub's two large files. Reasons are in the audit.
+- **Not done from the brief, on purpose:** per-section `loading.tsx` files, `useOptimistic`, a toast component, the single type scale (the owner decided it will be its own pull request after these are merged; page background and padding came with the colour redesign), and splitting the HR Hub's two large files. Reasons are in the audit.
 - **Two accessibility items left for other changes:** the orange "Late calls" tile's small text on the Rota Dashboard (contrast 4.28, needs 4.5) and the Policy Library viewer's toolbar buttons at 1440 wide (17 px, needs 24 px).
 
 ## Colour redesign, PR 1 (10 Nov 2026)
