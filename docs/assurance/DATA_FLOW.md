@@ -90,7 +90,7 @@ flowchart TB
 | --- | --- | --- | --- |
 | Anthropic (AI provider, United States) | Text of uploaded documents and prompts | Only when an administrator sets `AI_PROVIDER=anthropic` and a key | Off by default. `simulated` and `none` send nothing. Output is a proposal a person must accept. **This is an international transfer and needs a processor agreement and a transfer assessment before use with real records.** |
 | SMTP relay | Recipient address, subject, message text | Only when `EMAIL_PROVIDER=smtp` | Default `log` keeps messages in the database outbox only |
-| Sentry (EU) | Error type, stack trace, page address; names, emails, cookies and form data removed before sending | Only when `SENTRY_DSN` is set (PR #132) | Off until the owner creates the account |
+| Sentry (EU) | Error type, stack trace and route pattern (never the address with ids); user details, cookies, headers, request bodies and query strings are switched off and scrubbed | Only when `SENTRY_DSN` is set (PR #132) | Off until the owner creates the account |
 | Malware scanner | Bytes of an uploaded file | Only when `MALWARE_SCAN_URL` is set | Without it files are labelled "Not virus-checked" |
 | Staff downloads | Reports, printable rotas, MAR charts, policies, evidence | When an authorised person clicks download | Permission check on the server and an audit log entry for each |
 | Public regulatory sites | Requests for public pages; **no personal data** | Scheduled source monitoring | Robots rules respected |
