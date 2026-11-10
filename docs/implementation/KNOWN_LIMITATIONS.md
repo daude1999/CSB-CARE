@@ -73,3 +73,14 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
   first and last visit start of the day, and rounds are ordered by their first visit. Rows are grouped only when the
   list is sorted by time; other sorts show a plain list.
 
+## Colour redesign, PR 3 (10 Nov 2026)
+- The Daily Rota opens on the Board. Links that carry a list filter, sort, page or selected visit still open the list.
+  The "Planner" header button became "Advanced Rota planner" in the Actions menu.
+- Call rounds on the Board take their times from the day's visits, because a call type has no set hours. Two rounds
+  can overlap.
+- Dragging needs a mouse. With a keyboard or touch screen, open the block and use "Reassign", which goes to the same
+  assignment form and checks.
+- On phones the name column scrolls with the board rather than staying pinned, to leave room for the visits.
+- A scheduled visit past its start time shows as "Late" on the Board; there is no separate "overdue" colour.
+- "Why this carer" shows the match reasons as they stand now, not as they stood when the carer was booked. The
+  eligibility decision and accepted warnings are the ones recorded at booking.
