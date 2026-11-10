@@ -111,7 +111,7 @@ export async function getRisk(ctx: Ctx, id: string) {
 export type RiskSource = { origin: "DOCUMENT" | "AI_INFERRED"; intakeId: string; note: string };
 export const RISK_ORIGIN_LABEL: Record<string, string> = {
   MANUAL: "Written in CSB",
-  DOCUMENT: "From the council support plan",
+  DOCUMENT: "From the council's documents (a completed assessment)",
   AI_INFERRED: "AI-generated assessment information (not a completed clinical assessment)",
 };
 
@@ -127,6 +127,26 @@ export async function createRisk(ctx: Ctx, serviceUserId: string, input: RiskInp
     await syncRiskLevel(tx, su.id);
     await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: source ? "risk.imported" : "risk.created", entityType: "RiskAssessment", entityId: r.id, data: { serviceUserId: su.id, type: d.type, level: d.level, ...(source ? { origin: source.origin, intakeId: source.intakeId } : {}) } }, tx);
     return r;
+  });
+}
+
+/**
+ * A completed assessment in a document (a council risk assessment) replaces what CSB AI wrote about the same risk from a
+ * plan's narrative. Only an assessment nobody has reviewed since it was imported (CSB AI's version 1) is updated; the
+ * earlier content stays readable as version 1, and the change is in the audit log with its source.
+ */
+export async function updateRiskFromDocument(ctx: Ctx, id: string, version: number, input: RiskInput | Record<string, unknown>, source: RiskSource) {
+  const scope = await rotaScope(ctx, "care.plan.edit");
+  const d = parse(input);
+  return db.$transaction(async (tx) => {
+    const r = await riskInScope(tx, scope, id);
+    if (r.status !== "ACTIVE" || r.origin !== "AI_INFERRED") throw new ConflictError("Only an assessment CSB AI wrote from a plan, not yet reviewed, is updated from a document.");
+    const snap = { type: d.type, title: d.title, hazards: d.hazards, controls: d.controls, level: d.level, reviewDue: dbDate(d.reviewDue), requiredActions: d.requiredActions, responsiblePerson: d.responsiblePerson };
+    const { count } = await tx.riskAssessment.updateMany({ where: { id: r.id, version, origin: "AI_INFERRED" }, data: { ...snap, origin: source.origin, sourceIntakeId: source.intakeId, sourceNote: source.note.slice(0, 1000), version: { increment: 1 } } });
+    if (!count) throw new ConflictError("Someone changed this assessment while it was being updated. Run the setup again.");
+    await saveVersion(tx, { ...r, version: r.version + 1 }, { ...snap, status: "ACTIVE" }, "REVIEWED", ctx.userId, `Updated from ${source.note}`.slice(0, 1000));
+    await syncRiskLevel(tx, r.serviceUserId);
+    await audit({ organisationId: scope.organisationId, actorId: ctx.userId, action: "risk.imported", entityType: "RiskAssessment", entityId: r.id, data: { serviceUserId: r.serviceUserId, updated: true, previous: { level: r.level, origin: r.origin, version: r.version }, version: r.version + 1, level: d.level, origin: source.origin, intakeId: source.intakeId } }, tx);
   });
 }
 

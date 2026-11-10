@@ -17,7 +17,7 @@ const QUEUE_LABEL = { PROCESSING: "Processing", READY: "Ready", NEEDS_ATTENTION:
 const START_MODES = [
   { value: "NEW", label: "A. New service user", hint: "A council support plan or referral for someone not yet on the system. CSB AI creates the profile and drafts the records." },
   { value: "EXISTING", label: "B. Updated or revised plan", hint: "For someone already on the system. CSB AI updates routine details and proposes package and visit changes for review." },
-  { value: "DOCUMENT", label: "C. Supporting document", hint: "A letter, assessment or report for someone already on the system. It is filed and changes no records." },
+  { value: "DOCUMENT", label: "C. Supporting document", hint: "A letter, assessment or report for someone already on the system. It is filed and changes no records, except a risk assessment: its risks are added to the Risk Assessments tab." },
 ] as const;
 /** The dashboard's queues (owner's brief, 7 Nov 2026). History lists every intake, including finished and cancelled. */
 const FILTERS = [["", "Needs attention"], ["processing", "Processing"], ["ready", "Ready"], ["failed", "Failed"], ["history", "History"]] as const;

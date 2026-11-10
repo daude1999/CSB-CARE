@@ -128,6 +128,29 @@ restricted items are hidden from people without restricted access (they see a co
 made on the record's own tab with its usual permissions and version checks. The Audit & Exceptions tab then shows the
 saved value, the current value and who changed it.
 
+## Council risk assessments (fix of 10 Nov 2026)
+
+The owner asked why a risk assessment uploaded with a support plan did not load. A fictional plan plus risk assessment
+reproduced it: none of the risk assessment's four risks reached the Risk Assessments tab.
+
+- **Short rows were dropped while reading.** A risk assessment form names each hazard in a cell ("Falls", "Stairs"). The
+  risk fact needs a hazard of at least ten characters, and `readingToFacts` silently drops facts that fail their check.
+  Short hazards are now kept as "Hazard named in the document: Falls".
+- **The plan's version won.** When the plan and the risk assessment both mention a risk (same type and title), the later
+  upload was consolidated into the earlier one, so the stated level and controls were lost. Triage now keeps the most
+  complete version (stated level, then controls; the earliest of equals), and the saved assessment lists what the other
+  document says ("Also in Support plan, page 3: ...").
+- **Short controls stopped the section.** Controls such as "Rail" failed the ten-character rule in `createRisk`, which
+  would fail the whole Risk assessments section. They are saved as "Controls in the document: Rail".
+- **A risk assessment added later.** As a supporting document (option C) it used to change nothing. Its risks are now
+  saved (nothing else from it is). An assessment CSB AI wrote from the plan and nobody has reviewed is updated to the
+  council's version as version 2 (`updateRiskFromDocument`, version 1 kept, audit `risk.imported`); one a person wrote or
+  reviewed is never changed. A document counts as a risk assessment when it is filed as Council Risk Assessment or its
+  name says "risk assessment".
+
+Known limit: the review date on a council risk assessment is not read yet; imported risks get a review in 28 days.
+Tests: `tests/integration/coordinator-risk-assessment.test.ts`.
+
 ## Tests
 
 * `tests/unit/coordinator-triage.test.ts`: 14 sorting and safety rules.

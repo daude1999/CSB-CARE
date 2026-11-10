@@ -37,7 +37,11 @@ export interface TriageFact {
   question?: string | null;
   appliedAt: Date | null;
 }
-export interface TriageDoc { id: string; name: string; documentDate: string | null; sensitive: boolean }
+export interface TriageDoc {
+  id: string; name: string; documentDate: string | null; sensitive: boolean;
+  /** A risk assessment (filed as one, or named so): its risks are saved even when it is a supporting document. */
+  riskAssessment?: boolean;
+}
 
 export interface ExceptionSeed {
   severity: Severity;
@@ -122,6 +126,15 @@ export function factKey(f: Pick<TriageFact, "destination" | "value">): string {
   }
 }
 
+/**
+ * How complete a risk fact is. A completed assessment (a stated level and controls, as a council risk assessment has)
+ * outranks the same risk described in a plan's narrative, so the assessment is the one saved when both say it.
+ */
+export function riskCompleteness(value: unknown): number {
+  const v = (value ?? {}) as { level?: unknown; levelIsProvisional?: unknown; existingControls?: unknown };
+  return (v.level && v.levelIsProvisional === false ? 2 : 0) + (typeof v.existingControls === "string" && v.existingControls.trim() ? 1 : 0);
+}
+
 /** Values that disagree for a field that holds one value: same destination, different key. */
 function rivals(f: TriageFact, live: TriageFact[]) {
   const k = factKey(f);
@@ -132,6 +145,9 @@ function rivals(f: TriageFact, live: TriageFact[]) {
 
 const clip = (s: string, n = 160) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const where = (f: TriageFact, docs: Map<string, TriageDoc>) => `${f.sourceDocumentId ? (docs.get(f.sourceDocumentId)?.name ?? "document") : "added by hand"}${f.sourcePage ? `, page ${f.sourcePage}` : ""}`;
+
+/** A risk read from a document filed as a risk assessment. */
+const riskSaved = (f: TriageFact, docs: Map<string, TriageDoc>) => f.section === "RISKS" && !!f.sourceDocumentId && !!docs.get(f.sourceDocumentId)?.riskAssessment;
 
 export function display(f: Pick<TriageFact, "destination" | "value">): string {
   const v = f.value as Record<string, unknown> | null;
@@ -179,7 +195,14 @@ export function triage(input: { mode: string; facts: TriageFact[]; docs: TriageD
 
     // 1. The same information again: one record, linked to every source.
     const key = factKey(f);
-    const earlier = live.find((o) => o.position < f.position && !consolidated.has(o.id) && factKey(o) === key && o.destination === f.destination);
+    let earlier = live.find((o) => o.position < f.position && !consolidated.has(o.id) && factKey(o) === key && o.destination === f.destination);
+    if (f.destination === "risk") {
+      // The same risk in the plan and in a risk assessment: the most complete one is kept (the earliest of equals), so
+      // a completed assessment is never consolidated into a narrative mention uploaded before it.
+      const same = live.filter((o) => o.destination === "risk" && !consolidated.has(o.id) && factKey(o) === key && !(input.mode === "DOCUMENT" && !riskSaved(o, docs)));
+      const best = same.reduce<TriageFact | undefined>((a, o) => (!a || riskCompleteness(o.value) > riskCompleteness(a.value) ? o : a), undefined);
+      earlier = best && best.id !== f.id ? best : undefined;
+    }
     if (earlier || ON_THIS_PROFILE.test(conflict)) {
       consolidated.add(f.id);
       out.push(earlier
@@ -188,8 +211,9 @@ export function triage(input: { mode: string; facts: TriageFact[]; docs: TriageD
       continue;
     }
 
-    // 2. Supporting documents change nothing by themselves; only safety matters are raised.
-    if (input.mode === "DOCUMENT") {
+    // 2. Supporting documents change nothing by themselves; only safety matters are raised. The exception is a risk
+    //    assessment: its risks are what it is for, so they are saved like a plan's.
+    if (input.mode === "DOCUMENT" && !riskSaved(f, docs)) {
       if (safety) out.push({ factId: f.id, kind: "WAIT", identity: false, note: "Supporting document: not applied automatically.", exception: safety });
       continue;
     }
