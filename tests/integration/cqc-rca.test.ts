@@ -30,6 +30,9 @@ const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
 const author = () => ctxFor("author@care-solution.demo", BROOKFIELD); // no CQC or RCA permissions
 const other = () => ctxFor("manager@oakridge.demo", OAKRIDGE);
 const today = londonDate();
+// The events under investigation happened yesterday, so their clock times (06:50, 07:30, 12:40) are in the past
+// whatever time of day the suite runs. With today's date they were "in the future" before 07:30.
+const eventDay = addDays(today, -1);
 const txt = (s: string) => ({ name: "minutes.txt", type: "text/plain", bytes: Buffer.from(s) });
 let liverpool = "";
 let portsmouth = "";
@@ -39,7 +42,7 @@ let criteria: { id: string; code: string; keyQuestion: string }[] = [];
 const crit = (code: string) => criteria.find((c) => c.code === code)!.id;
 
 async function incident(ctx: Ctx, over: Record<string, unknown> = {}) {
-  return reportIncident(ctx, { serviceUserId, date: today, time: "07:30", category: "Missed or late call", severity: "MODERATE", description: "The morning call was not attended and the person waited without breakfast or medication support.", ...over });
+  return reportIncident(ctx, { serviceUserId, date: eventDay, time: "07:30", category: "Missed or late call", severity: "MODERATE", description: "The morning call was not attended and the person waited without breakfast or medication support.", ...over });
 }
 
 beforeAll(async () => {
@@ -178,7 +181,7 @@ describe("Root cause analysis", () => {
     incidentId = inc.id;
     incidentRef = inc.reference;
     const before = await db.incident.count();
-    const r = await createRca(m, { title: "Missed morning visit", category: "Missed or late visit", severity: "HIGH", eventDate: today, dueDate: addDays(today, 14), ownerId: (await reviewer()).userId, managerId: (await approver()).userId, sources: [{ type: "INCIDENT", id: incidentId }], externalRef: "LA-SG-4471" });
+    const r = await createRca(m, { title: "Missed morning visit", category: "Missed or late visit", severity: "HIGH", eventDate: eventDay, dueDate: addDays(today, 14), ownerId: (await reviewer()).userId, managerId: (await approver()).userId, sources: [{ type: "INCIDENT", id: incidentId }], externalRef: "LA-SG-4471" });
     rcaId = r.id;
     expect(r.reference).toMatch(/^RCA-\d{4}-0001$/);
     expect(r.branchId).toBe(liverpool);
@@ -187,7 +190,7 @@ describe("Root cause analysis", () => {
     expect(src.sourceRef).toBe(incidentRef);
     expect(src.externalRef).toBe("LA-SG-4471");
     expect((await db.incident.findUniqueOrThrow({ where: { id: incidentId } })).reference).toBe(incidentRef);
-    await expect(createRca(m, { title: "Second look", category: "Missed or late visit", severity: "LOW", eventDate: today, dueDate: addDays(today, 7), ownerId: m.userId, managerId: m.userId, sources: [{ type: "INCIDENT", id: incidentId }] })).rejects.toThrow(/already investigating/);
+    await expect(createRca(m, { title: "Second look", category: "Missed or late visit", severity: "LOW", eventDate: eventDay, dueDate: addDays(today, 7), ownerId: m.userId, managerId: m.userId, sources: [{ type: "INCIDENT", id: incidentId }] })).rejects.toThrow(/already investigating/);
     // 17. The investigator is told, and serious investigations alert managers.
     expect(await db.notification.count({ where: { type: "rca.assigned", userId: (await reviewer()).userId } })).toBe(1);
     expect(await db.notification.count({ where: { type: "rca.critical" } })).toBeGreaterThan(0);
@@ -202,8 +205,8 @@ describe("Root cause analysis", () => {
     const lock = (await db.rcaInvestigation.findUniqueOrThrow({ where: { id: rcaId } })).lockVersion;
     await saveWhatHappened(rv, rcaId, { summary: "The 07:30 visit was not covered after the booked carer phoned in sick at 06:50.", harm: "LOW", immediateActions: "Coordinator sent a replacement carer at 09:10 and called the family.", expectedLock: lock });
     await expect(saveWhatHappened(rv, rcaId, { summary: "Stale edit should fail because the lock moved on.", harm: "LOW", expectedLock: lock })).rejects.toBeInstanceOf(ConflictError);
-    await addTimelineEntry(rv, rcaId, { date: today, time: "06:50", text: "Carer phoned the office line to report sickness", kind: "FACT" });
-    await addTimelineEntry(rv, rcaId, { date: today, time: "07:00", text: "On-call coordinator says no one answered the escalation phone", kind: "WITNESS" });
+    await addTimelineEntry(rv, rcaId, { date: eventDay, time: "06:50", text: "Carer phoned the office line to report sickness", kind: "FACT" });
+    await addTimelineEntry(rv, rcaId, { date: eventDay, time: "07:00", text: "On-call coordinator says no one answered the escalation phone", kind: "WITNESS" });
     await saveFactors(rv, rcaId, { factors: { SCHEDULING: { relevant: true, notes: "No cover carer was rostered for early calls." }, COMMUNICATION: { relevant: true, notes: "Sickness call went to an unmonitored line." } }, fiveWhys: ["The visit was missed", "No cover was arranged", "No contingency rota exists for early calls"] });
     await addFinding(rv, rcaId, { kind: "SYSTEMIC", factorArea: "SCHEDULING", text: "No contingency cover arrangements for early morning calls.", evidence: "Rota for the week shows no cover carer before 08:00." });
     await addFinding(rv, rcaId, { kind: "CONTRIBUTING", factorArea: "STAFF", text: "Carer did not follow the sickness reporting procedure.", evidence: "Only the investigator's assumption; no witness." });
@@ -289,9 +292,9 @@ describe("Root cause analysis", () => {
   it("closes as an approved exception only, keeping open follow-up actions", async () => {
     const m = await manager();
     const ap = await approver();
-    const r = await createRca(m, { title: "Late lunch visits", category: "Missed or late visit", severity: "LOW", eventDate: today, dueDate: addDays(today, 10), ownerId: (await coordinator()).userId, managerId: ap.userId });
+    const r = await createRca(m, { title: "Late lunch visits", category: "Missed or late visit", severity: "LOW", eventDate: eventDay, dueDate: addDays(today, 10), ownerId: (await coordinator()).userId, managerId: ap.userId });
     await saveWhatHappened(m, r.id, { summary: "Lunch visits ran 40 minutes late on three days this week.", harm: "NONE" });
-    await addTimelineEntry(m, r.id, { date: today, time: "12:40", text: "Visit started late", kind: "FACT" });
+    await addTimelineEntry(m, r.id, { date: eventDay, time: "12:40", text: "Visit started late", kind: "FACT" });
     await addFinding(m, r.id, { kind: "IMMEDIATE", text: "Travel time between visits too short.", evidence: "Route times on the rota versus GPS-free travel estimates." });
     await saveConclusions(m, r.id, { conclusions: "Travel time needs to be increased on the lunch run." });
     await addRcaAction(m, r.id, { title: "Add travel time to the lunch run", ownerId: m.userId, dueDate: new Date(Date.now() + 30 * 86_400_000), actionType: "CORRECTIVE", priority: "MEDIUM", evidenceRequired: "Updated rota" });
@@ -334,7 +337,7 @@ describe("Security and reliability", () => {
   it("24, 26. keeps safeguarding investigations and their files confidential", async () => {
     const m = await manager();
     const inc = await incident(m, { category: "Safeguarding concern", severity: "HIGH", safeguarding: true, description: "Allegation of financial abuse reported by a neighbour during the evening visit." });
-    const r = await createRca(m, { title: "Financial abuse allegation", category: "Safeguarding concern", severity: "HIGH", eventDate: today, dueDate: addDays(today, 5), ownerId: (await coordinator()).userId, managerId: m.userId, sources: [{ type: "INCIDENT", id: inc.id }] });
+    const r = await createRca(m, { title: "Financial abuse allegation", category: "Safeguarding concern", severity: "HIGH", eventDate: eventDay, dueDate: addDays(today, 5), ownerId: (await coordinator()).userId, managerId: m.userId, sources: [{ type: "INCIDENT", id: inc.id }] });
     restrictedId = r.id;
     expect(r.restricted).toBe(true);
     const rv = await reviewer();
@@ -354,7 +357,7 @@ describe("Security and reliability", () => {
   it("25. checks role permissions on the server", async () => {
     const au = await author();
     await expect(createAssessment(au, { periodFrom: today, periodTo: today })).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(createRca(au, { title: "Not allowed here", category: "Other significant service failure", severity: "LOW", eventDate: today, dueDate: today, ownerId: au.userId, managerId: au.userId })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(createRca(au, { title: "Not allowed here", category: "Other significant service failure", severity: "LOW", eventDate: eventDay, dueDate: today, ownerId: au.userId, managerId: au.userId })).rejects.toBeInstanceOf(ForbiddenError);
     await expect(listRcas(au)).rejects.toBeInstanceOf(ForbiddenError);
     const rv = await reviewer();
     await expect(createAssessment(rv, { periodFrom: today, periodTo: today })).rejects.toBeInstanceOf(ForbiddenError);

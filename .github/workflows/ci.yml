@@ -1,0 +1,74 @@
+name: CI
+
+# The quality gate for every pull request and every push to main. Make the "CI / Quality gate" check required in
+# GitHub branch protection for main (Settings > Branches) so nothing merges while it is red.
+# Synthetic data only: the database is a throwaway PostgreSQL 16 service container.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality-gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d csb_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Placeholder for steps that only need a syntactically valid URL; the tests use TEST_DATABASE_URL.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
+      APP_URL: http://localhost:3000
+      AI_PROVIDER: simulated
+      STORAGE_PROVIDER: local
+      EMAIL_PROVIDER: log
+      NEXT_TELEMETRY_DISABLED: "1"
+      # No TZ override: the runner is UTC, like the Vercel servers, so London-calendar rules are tested as they run live.
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate the Prisma schema
+        run: npx prisma validate
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit and integration tests (vitest, PostgreSQL 16)
+        run: npm test
+      - name: HR Hub domain tests
+        run: npm run test:hr
+      - name: Dependency audit (high and critical)
+        run: npm audit --audit-level=high
+      - name: Production build
+        run: npm run build

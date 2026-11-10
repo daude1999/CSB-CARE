@@ -22,10 +22,27 @@ export interface PageInfo {
   text: string;
 }
 
+/**
+ * In Node, PDF.js runs its "worker" on the main thread and takes it from `globalThis.pdfjsWorker` when that is set.
+ * The app's document reader (unpdf) bundles its own, newer PDF.js and sets that global for itself, and the whole
+ * suite runs in one process, so a test file that ran earlier could leave a worker of another version behind
+ * ("The API version does not match the Worker version"). Each document is therefore opened with the worker that
+ * belongs to this copy of PDF.js, and whatever was there before is put back.
+ */
+type WorkerGlobal = { pdfjsWorker?: unknown };
+const ownWorker = import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+
 async function open(pdf: Buffer) {
-  const task = getDocument({ data: new Uint8Array(pdf), standardFontDataUrl: FONT_DATA, useSystemFonts: false, disableFontFace: true, verbosity: 0 });
-  const doc = await task.promise;
-  return Object.assign(doc, { close: () => task.destroy() });
+  const g = globalThis as WorkerGlobal;
+  const previous = g.pdfjsWorker;
+  g.pdfjsWorker = await ownWorker;
+  try {
+    const task = getDocument({ data: new Uint8Array(pdf), standardFontDataUrl: FONT_DATA, useSystemFonts: false, disableFontFace: true, verbosity: 0 });
+    const doc = await task.promise;
+    return Object.assign(doc, { close: () => task.destroy() });
+  } finally {
+    g.pdfjsWorker = previous;
+  }
 }
 
 /** Every visible text run with its box in PDF points, measured from the top-left of the page. */
