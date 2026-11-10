@@ -78,7 +78,7 @@ and what was deliberately left alone.
 | The "visits missing from built weeks" check on a visit template streams in after the page (React Suspense) | `src/app/(app)/rota/templates/[id]/page.tsx` | Finding 2: the heaviest page. The template is on screen without waiting for 250 queries |
 | Audits and corrective actions are paged, 50 to a page, with the existing footer | `src/app/(app)/audits/page.tsx`, `actions/page.tsx` | Finding 7. Each audit row carried all its answers |
 | The document viewer's "Download PDF" link in its error message is underlined | `src/components/library/document-viewer.tsx` | It was told apart from the red text around it by colour alone |
-| Three greys below WCAG AA contrast darkened to greys already used elsewhere | `src/components/overview-ui.tsx` (chart axis labels), `src/app/(app)/hr/hr-ui.css` (HR tile notes) | Lighthouse accessibility, see below |
+| Greys below WCAG AA contrast darkened to greys already used elsewhere | `src/app/(app)/hr/hr-ui.css` (HR tile notes) | Lighthouse accessibility, see below. The same fix to the old Overview chart's axis labels was dropped when the Overview was rebuilt (#140, #141), which removed that chart |
 
 ## What was deliberately not changed
 
@@ -114,6 +114,8 @@ and what was deliberately left alone.
   before and after this change). It costs three accessibility points on a phone on four of the five pages.
 
 ## Lighthouse
+
+> The Overview was rebuilt in `main` (#140, then made more compact in #141) after these measurements. The Overview rows and picture below are of the earlier Overview and are kept as the record of what was measured; this branch no longer changes the Overview.
 
 Lighthouse 13.6, run from outside the repository (it is not a dependency), signed in, against the local production
 build. "Desktop" is Lighthouse's desktop preset. "Mobile" is its default: a mid-range phone on slow 4G with the

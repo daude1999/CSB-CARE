@@ -324,7 +324,7 @@ Feedback times measured by `feedback-200ms.spec.ts` (server held back 1.5 s; lim
 
 | Page | Actions and time to first visible feedback |
 |---|---|
-| Overview | open Rostering 13 ms; open HR (full page load) 14 ms; view all notifications 146 ms |
+| Overview (rebuilt Overview, #140 and #141) | Open rota 17 ms; HR tile (full page load) 13 ms; View all 146 ms |
 | Rota | next day 146 ms; completed calls tile 14 ms; late calls tile 13 ms |
 | Service Users | Add New Service User 13 ms; apply the search 14 ms; open a service user 146 ms |
 | HR Hub | alerts 145 ms; employees 14 ms; recruitment 13 ms |

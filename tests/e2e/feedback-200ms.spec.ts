@@ -69,9 +69,9 @@ const PAGES: { title: string; path: string; actions: Action[] }[] = [
     title: "Overview",
     path: "/overview",
     actions: [
-      { name: "open the Rostering module", press: (p) => main(p).getByRole("link", { name: "Open Rostering & Care Management" }) },
-      { name: "open the HR module (a full page load)", press: (p) => main(p).getByRole("link", { name: "Go to HR & Workforce" }) },
-      { name: "view all notifications", press: (p) => main(p).getByRole("link", { name: "View all", exact: true }) },
+      { name: "open the rota", press: (p) => p.getByTestId("tile-rota").getByRole("link", { name: /Open rota/ }) },
+      { name: "open the HR module (a full page load)", press: (p) => p.getByTestId("tile-hr") },
+      { name: "view all notifications", press: (p) => main(p).getByRole("link", { name: /^View all/ }) },
     ],
   },
   {
