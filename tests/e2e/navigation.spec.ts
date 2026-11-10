@@ -28,7 +28,7 @@ async function slowNavigations(page: Page, ms: number) {
 }
 
 const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
-  { id: "policy", home: "/", title: /Policy & Compliance/, colour: "rgb(31, 95, 209)" },
+  { id: "policy", home: "/", title: /Compliance Dashboard/, colour: "rgb(31, 95, 209)" },
   { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(107, 70, 201)" },
   { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(11, 111, 153)" },
   { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(75, 86, 102)" },
@@ -344,8 +344,10 @@ test.describe("Page transitions", () => {
             }, 1800);
           }),
       );
+    // The first page load has its own entrance; let it finish so only the tab change is being watched.
+    await page.waitForFunction(() => !document.getElementById("main-content")!.getAnimations().some((a) => a.playState === "running"));
     let seen = watch();
-    await page.locator(".pl-tab").nth(1).click();
+    await page.getByTestId("ws-tabs-library").getByRole("link", { name: /CSB Central Library/ }).click();
     await expect(page).toHaveURL(/tab=/);
     expect(await seen).toEqual({ animated: false, skeleton: false });
 
@@ -479,7 +481,8 @@ test.describe("Dialogs and the phone menu", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signIn(page);
     await page.goto("/policies");
-    const trigger = page.getByTestId("policy-inspector").getByRole("button", { name: "Assign for Review" });
+    // The first policy is a published one, so the inspector's main action is the "Create revision" dialog.
+    const trigger = page.locator("#policy-inspector").getByRole("button", { name: "Create revision" });
     await trigger.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

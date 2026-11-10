@@ -113,5 +113,5 @@ export function PcFoot({ shown, total, page = 1, pages = 1, href, children }: { 
 
 /** Wraps a wide table so it scrolls sideways on small screens instead of the page. */
 export function PcTableWrap({ children, label }: { children: ReactNode; label?: string }) {
-  return <div className="min-w-0 overflow-x-auto xl:overflow-visible" role={label ? "region" : undefined} aria-label={label} tabIndex={label ? 0 : undefined}>{children}</div>;
+  return <div className="relative min-w-0 overflow-x-auto xl:overflow-visible" role={label ? "region" : undefined} aria-label={label} tabIndex={label ? 0 : undefined}>{children}</div>;
 }

@@ -29,7 +29,18 @@ async function signIn(page: Page, email: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  // A platform administrator lands in the Admin Centre, which has its own frame; everyone else lands in the main one.
+  if (!new URL(page.url()).pathname.startsWith("/platform-admin")) await expect(page.getByTestId("current-user")).toBeVisible();
+}
+
+/** A platform administrator lands in the Admin Centre: note its menu, then move to the main frame for the portals. */
+async function adminCentreMenu(page: Page): Promise<string[]> {
+  if (!new URL(page.url()).pathname.startsWith("/platform-admin")) return [];
+  const links = await page.locator('nav[aria-label="Admin Centre workspaces"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""));
+  await page.goto("/overview");
   await expect(page.getByTestId("current-user")).toBeVisible();
+  return ["/platform-admin", ...links];
 }
 
 interface Finding { path: string; problem: string; from?: string }
@@ -41,9 +52,10 @@ for (const email of ROLES) {
     const scriptErrors: string[] = [];
     page.on("pageerror", (e) => scriptErrors.push(e.message));
     await signIn(page, email);
+    const adminCentre = await adminCentreMenu(page);
 
     const portals = await page.locator("[data-testid=portal-switcher] a[data-portal-home]").evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""));
-    const start: string[] = [];
+    const start: string[] = [...adminCentre];
     for (const home of portals.filter((h) => h && !h.startsWith("/hr"))) {
       await page.goto(home);
       start.push(home, ...(await page.locator('aside nav[aria-label="Main"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""))));

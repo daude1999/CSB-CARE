@@ -66,7 +66,7 @@ export function SignoffRegister({ rows, canManage, back }: { rows: RegisterRow[]
           ) : null}
         </div>
       ) : null}
-      <div className="min-w-0 overflow-x-auto xl:overflow-visible">
+      <div className="relative min-w-0 overflow-x-auto xl:overflow-visible">
         <table className="pc-table">
           <thead>
             <tr>

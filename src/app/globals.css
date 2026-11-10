@@ -201,7 +201,7 @@
   .pc-crumbs [aria-current] { color: #344054; }
   .pc-title:where(:not(.cs *)) { font-family: inherit; font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -0.01em; color: #101828; }
   .pc-subtitle { margin-top: 4px; max-width: 780px; font-size: 14px; line-height: 20px; color: #475467; }
-  .pc-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid #eaecf0; margin-top: 16px; scrollbar-width: thin; }
+  .pc-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid #eaecf0; margin-top: 16px; scrollbar-width: thin; }
   .pc-tab { position: relative; display: inline-flex; height: 42px; flex-shrink: 0; align-items: center; gap: 8px; white-space: nowrap; padding: 0 12px; font-size: 14px; font-weight: 500; color: #475467; text-decoration: none; }
   .pc-tab:hover { color: #101828; }
   .pc-tab[aria-current="page"] { color: #101828; font-weight: 600; }
