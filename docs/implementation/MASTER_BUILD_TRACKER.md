@@ -6,7 +6,8 @@ the module colour, `#f6f7fa` page frame, one underline tab style, main buttons i
 is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
 Breadcrumb, description and secondary-button opacities were raised to meet WCAG AA (owner to confirm). PR 2: Rota
 Dashboard tiles and Daily Rota list. PR 3: Daily Rota Board and visit drawer. PR 4: Ctrl+K command bar. Details,
-contrast ratios and every replaced header: `COLOUR_SYSTEM.md`.
+contrast ratios and every replaced header: `COLOUR_SYSTEM.md`. PR 1 is #134. PR 2 (branch `redesign-rota-tiles-list`,
+stacked on PR 1) restyles the four call tiles and reorders, groups and stripes the Daily Rota list.
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

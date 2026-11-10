@@ -268,13 +268,19 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label, { exact: true })).toBeVisible();
     const table = page.getByRole("region", { name: "Visits" }).locator("table");
-    for (const name of ["Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"]) await expect(table.getByRole("columnheader", { name, exact: true })).toBeVisible();
-    // No details panel until a visit is chosen.
-    await expect(page.getByRole("complementary", { name: "Visit Details" })).toHaveCount(0);
-    // Coverage badges read filled/required; the calendar week is a number; Week is "Week n" or a dash.
-    await expect(table.locator("tbody tr").first().locator("td").nth(7)).toHaveText(/^\d\/\d|—/);
-    await expect(table.locator("tbody tr").first().locator("td").nth(13)).toHaveText(/^\d{1,2}$/);
-    await expect(table.locator("tbody tr").first().locator("td").nth(12)).toHaveText(/^Week \d$|—/);
+    // Approved redesign (10 Nov 2026): Time first, Ref last; Date, Week and Calendar week hidden until added under Columns.
+    const heads = await table.locator("thead th").allInnerTexts();
+    expect(heads.map((h) => h.trim()).filter(Boolean)).toEqual(["Time", "Duration", "Service User", "Service Call", "Team Member", "Carers", "Status", "Alerts", "Notes", "Visit checklist", "Ref"]);
+    for (const name of ["Date", "Week", "Calendar week"]) await expect(table.getByRole("columnheader", { name, exact: true })).toHaveCount(0);
+    // Rows are grouped under one header per call round, e.g. "Morning calls · 07:00 to 08:30 · 12 visits".
+    await expect(table.getByTestId("round-header").first()).toHaveText(/^\S.* calls · \d{2}:\d{2}( to \d{2}:\d{2})? · \d+ visits?$/);
+    const first = table.locator("tbody tr[data-href]").first();
+    // Coverage badges read filled/required; Time is 15px bold; each row has a 4px status stripe.
+    await expect(first.locator("td").nth(6)).toHaveText(/^\d\/\d|—/);
+    const time = first.locator("td").nth(1);
+    await expect(time).toHaveText(/^\d{2}:\d{2}$/);
+    expect(await time.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(["15px", "700"]);
+    expect(await first.locator("td").first().evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(/inset$|inset /);
     // Choosing a visit opens the details beside the list, keeping the filters; it closes again.
     await page.getByRole("link", { name: /Open details of visit/ }).first().click();
     await expect(page).toHaveURL(/visit=/);
@@ -289,9 +295,13 @@ test.describe("Rostering & Care Management", () => {
     // Column settings add the less-used columns; sorting and Planner keep working.
     await page.locator("summary", { hasText: "Columns" }).click();
     await page.getByRole("checkbox", { name: "Clock in" }).check();
+    await page.getByRole("checkbox", { name: "Calendar week" }).check();
+    await page.getByRole("checkbox", { name: "Week (rota pattern)" }).check();
     await page.getByRole("button", { name: "Apply", exact: true }).last().click();
-    await expect(page).toHaveURL(/cols=clockIn/);
+    await expect(page).toHaveURL(/cols=/);
     await expect(table.getByRole("columnheader", { name: "Clock in" })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Calendar week", exact: true })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Week", exact: true })).toBeVisible();
     await table.getByRole("columnheader", { name: "Service User" }).getByRole("link").click();
     await expect(page).toHaveURL(/sort=su/);
     await page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "Planner" }).click();

@@ -46,6 +46,9 @@ export default {
           unassigned: "#0369d5",
           ink: "#475467",
         },
+        // Rota Dashboard call tiles (PR 2). Each is the tile's own status colour, chosen so the figure and percentage
+        // pass WCAG AA (4.5 : 1) on the tile's 7% tint and white passes on the solid icon chip.
+        tile: { completed: "#15803d", late: "#b45309", missed: "#c42b2f", unassigned: "#0a72b5" },
         // The page frame: one light grey page behind white cards, with one hairline rule colour.
         page: "#f6f7fa",
         rule: "#e4e7ec",

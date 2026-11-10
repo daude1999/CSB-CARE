@@ -41,7 +41,8 @@ test.describe("protected Rota screens keep their approved structure", () => {
     await page.waitForLoadState("networkidle");
     expect(await structure(page)).toEqual({
       headings: ["Daily Rota"],
-      columns: ["", "Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"],
+      // Column order of the approved redesign (10 Nov 2026); Date, Week and Calendar week are under Columns.
+      columns: ["", "Time", "Duration", "Service User", "Service Call", "Team Member", "Carers", "Status", "Alerts", "Notes", "Visit checklist", "Ref"],
     });
   });
 });

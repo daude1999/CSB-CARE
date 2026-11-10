@@ -23,30 +23,39 @@ const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : "0
 const ddmmyyyy = (iso: string) => fmtLondonDate(iso, { day: "2-digit", month: "2-digit", year: "numeric" });
 const ddmm = (d: Date) => `${d.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "2-digit" })} ${londonTime(d)}`;
 
+/**
+ * The four call tiles (approved redesign, 10 Nov 2026): a white card with a 7% tint and a 28% border of the tile's
+ * status colour, a solid status-colour icon chip, the figure and percentage in the status colour, supporting text in
+ * grey, and a 5px bar along the bottom filled to the tile's share of the day's visits.
+ */
 const CARD = {
-  green: "bg-[#15803d]",
-  orange: "bg-[#c0570c]",
-  red: "bg-[#c42b2f]",
-  blue: "bg-[#0a72b5]",
+  green: { card: "bg-tile-completed/[.07] border-tile-completed/[.28]", chip: "bg-tile-completed", text: "text-tile-completed", bar: "bg-tile-completed", track: "bg-tile-completed/[.14]" },
+  orange: { card: "bg-tile-late/[.07] border-tile-late/[.28]", chip: "bg-tile-late", text: "text-tile-late", bar: "bg-tile-late", track: "bg-tile-late/[.14]" },
+  red: { card: "bg-tile-missed/[.07] border-tile-missed/[.28]", chip: "bg-tile-missed", text: "text-tile-missed", bar: "bg-tile-missed", track: "bg-tile-missed/[.14]" },
+  blue: { card: "bg-tile-unassigned/[.07] border-tile-unassigned/[.28]", chip: "bg-tile-unassigned", text: "text-tile-unassigned", bar: "bg-tile-unassigned", track: "bg-tile-unassigned/[.14]" },
 } as const;
 
-/** One of the four call cards: a solid colour block, white text, the count, its share of the day and what it counts. */
-function CallCard({ tone, icon, label, value, share, note, href, testId, title }: { tone: keyof typeof CARD; icon: ReactNode; label: string; value: number | string; share: string | null; note: string; href: string | null; testId: string; title?: string }) {
+function CallCard({ tone, icon, label, value, share, fraction, note, href, testId, title }: { tone: keyof typeof CARD; icon: ReactNode; label: string; value: number | string; share: string | null; fraction: number; note: string; href: string | null; testId: string; title?: string }) {
+  const t = CARD[tone];
+  const width = `${Math.max(0, Math.min(100, fraction * 100)).toFixed(1)}%`;
   const body = (
     <>
-      <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white/20">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{label}</span>
-        <span className="mt-0.5 flex items-center">
-          <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
-          {share ? <span className="ml-auto border-l border-white/50 pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
+      <span className="flex items-center gap-4 px-4 pb-3.5 pt-3">
+        <span aria-hidden className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] text-white ${t.chip}`}>{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold text-ink">{label}</span>
+          <span className={`mt-0.5 flex items-center ${t.text}`}>
+            <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
+            {share ? <span className="ml-auto border-l border-rule pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
+          </span>
+          <span className="mt-1.5 block truncate text-[12.5px] text-status-ink">{note}</span>
         </span>
-        <span className="mt-1.5 block truncate text-[12.5px] text-white/95">{note}</span>
       </span>
+      <span aria-hidden data-tile-bar className={`absolute inset-x-0 bottom-0 h-[5px] ${t.track}`}><span className={`block h-full ${t.bar}`} style={{ width }} /></span>
     </>
   );
-  const cls = `flex min-w-0 items-center gap-4 rounded-[10px] px-4 py-3 text-white no-underline shadow-[0_1px_3px_rgba(16,24,40,0.12)] ${CARD[tone]}`;
-  return href ? <Link href={href} title={title} data-testid={testId} className={`${cls} hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module`}>{body}</Link> : <div data-testid={testId} className={cls}>{body}</div>;
+  const cls = `relative flex min-w-0 flex-col overflow-hidden rounded-[10px] border bg-white no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${t.card}`;
+  return href ? <Link href={href} title={title} data-testid={testId} className={`${cls} hover:shadow-[0_2px_6px_rgba(16,24,40,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module`}>{body}</Link> : <div data-testid={testId} className={cls}>{body}</div>;
 }
 
 function Panel({ id, icon, title, count, aside, children, className = "" }: { id: string; icon: ReactNode; title: string; count?: number; aside?: ReactNode; children: ReactNode; className?: string }) {
@@ -173,13 +182,13 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
       {date === d.today ? <AutoRefresh seconds={60} /> : null}
 
       <section aria-label="Calls on this day" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-        <CallCard tone="green" testId="card-completed" icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />
-        <CallCard tone="orange" testId="card-late" icon={<Clock {...icon} />} label="Late Calls" value={c.late} share={pct(c.late, c.total)} note={`${c.late} calls ${c.lateAfterMin}+ minutes late`} href={day({ view: "late" })} />
-        <CallCard tone="red" testId="card-missed" icon={<X {...icon} />} label="Missed Calls" value={c.missed} share={pct(c.missed, c.total)} note={`${c.missed} scheduled visits not clocked into`} href={`/rota/missed?period=day&date=${date}`} />
+        <CallCard tone="green" testId="card-completed" fraction={c.total ? c.complete / c.total : 0} icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />
+        <CallCard tone="orange" testId="card-late" fraction={c.total ? c.late / c.total : 0} icon={<Clock {...icon} />} label="Late Calls" value={c.late} share={pct(c.late, c.total)} note={`${c.late} calls ${c.lateAfterMin}+ minutes late`} href={day({ view: "late" })} />
+        <CallCard tone="red" testId="card-missed" fraction={c.total ? c.missed / c.total : 0} icon={<X {...icon} />} label="Missed Calls" value={c.missed} share={pct(c.missed, c.total)} note={`${c.missed} scheduled visits not clocked into`} href={`/rota/missed?period=day&date=${date}`} />
         {c.missedMeds === null ? (
-          <CallCard tone="blue" testId="card-unassigned" icon={<UsersThree {...icon} />} label="Unassigned Calls" value={c.unassigned} share={pct(c.unassigned, c.total)} note={`${c.unassigned} visits short of a carer`} title="Shown in place of missed medication while medication records are switched off in Rota Settings" href={day({ view: "unassigned" })} />
+          <CallCard tone="blue" testId="card-unassigned" fraction={c.total ? c.unassigned / c.total : 0} icon={<UsersThree {...icon} />} label="Unassigned Calls" value={c.unassigned} share={pct(c.unassigned, c.total)} note={`${c.unassigned} visits short of a carer`} title="Shown in place of missed medication while medication records are switched off in Rota Settings" href={day({ view: "unassigned" })} />
         ) : (
-          <CallCard tone="blue" testId="card-missed-meds" icon={<FirstAidKit {...icon} />} label="Calls with Missed Meds" value={c.missedMeds} share={pct(c.missedMeds, c.total)} note={`${c.missedMeds} visits with a missed medication alert`} href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" />
+          <CallCard tone="blue" testId="card-missed-meds" fraction={c.total ? c.missedMeds / c.total : 0} icon={<FirstAidKit {...icon} />} label="Calls with Missed Meds" value={c.missedMeds} share={pct(c.missedMeds, c.total)} note={`${c.missedMeds} visits with a missed medication alert`} href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" />
         )}
       </section>
 

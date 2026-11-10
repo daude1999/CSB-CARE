@@ -106,3 +106,27 @@ test.describe("phone width", () => {
     }
   });
 });
+
+test.describe("PR 2: Rota Dashboard call tiles", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("each tile is a white card tinted with its status colour, with a solid icon chip and a bar filled to its share", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota");
+    const tiles: [string, string][] = [["card-completed", "rgb(21, 128, 61)"], ["card-late", "rgb(180, 83, 9)"], ["card-missed", "rgb(196, 43, 47)"]];
+    for (const [id, colour] of tiles) {
+      const tile = page.getByTestId(id);
+      await expect(tile).toBeVisible();
+      // Still a link to the visits behind the figure.
+      expect(await tile.evaluate((el) => el.tagName)).toBe("A");
+      expect(await tile.locator("[data-value]").evaluate((el) => getComputedStyle(el).color), id).toBe(colour);
+      const chip = tile.locator("span[aria-hidden]").first();
+      expect(await chip.evaluate((el) => getComputedStyle(el).backgroundColor), id).toBe(colour);
+      // The bar's fill matches the percentage shown on the tile.
+      const share = Number.parseFloat((await tile.innerText()).match(/([\d.]+)%/)![1]!);
+      const [fill, track] = await tile.locator("[data-tile-bar]").evaluate((el) => [(el.firstElementChild as HTMLElement).getBoundingClientRect().width, el.getBoundingClientRect().width]);
+      expect(Math.abs((fill / track) * 100 - share), id).toBeLessThan(1);
+      expect(await tile.locator("[data-tile-bar]").evaluate((el) => el.getBoundingClientRect().height)).toBe(5);
+    }
+  });
+});
