@@ -479,8 +479,12 @@ export function readingToFacts(r: Reading): FactSeed[] {
     add({ section: "CARE_PLAN", destination: `careplan.${section}`, label: topic?.label ?? PLAN_SECTION_LABEL[section as keyof typeof PLAN_SECTION_LABEL] ?? section, value: { topic: c.topic ?? null, canDo: c.canDo, support: c.support, how: c.how, preferences: c.preferences ?? null, outcome: c.outcome, clarify: c.clarify }, page: c.page, quote: c.quote, temporal: c.temporal });
   }
   for (const k of r.risks) {
+    // A risk assessment form names each hazard in a short cell ("Falls", "Stairs"). Such a row is kept, labelled as the
+    // document's own words, instead of failing the "at least a sentence" check and being dropped without a trace.
+    const title = k.title.trim().length >= 3 ? k.title.trim() : `${k.title.trim() || k.hazard.trim()} risk`.trim();
+    const hazard = k.hazard.trim().length >= 10 ? k.hazard : `Hazard named in the document: ${k.hazard.trim() || title}`;
     const open = [k.assessmentGaps ? `For a qualified assessor: ${k.assessmentGaps.trim().replace(/[.\s]*$/, ".")}` : null, k.level === null ? "The documents do not state a risk level. The assessor must set one." : null].filter(Boolean).join(" ");
-    add({ section: "RISKS", destination: "risk", label: k.title, value: { type: k.type, title: k.title, hazard: k.hazard, whoAffected: k.whoAffected, existingControls: k.existingControls, level: k.level, levelIsProvisional: k.level === null, recommendedActions: k.mitigation ?? null, responsiblePerson: null, reviewDue: null, openQuestions: open || null }, page: k.page, quote: k.quote, temporal: k.temporal });
+    add({ section: "RISKS", destination: "risk", label: title, value: { type: k.type, title, hazard, whoAffected: k.whoAffected, existingControls: k.existingControls, level: k.level, levelIsProvisional: k.level === null, recommendedActions: k.mitigation ?? null, responsiblePerson: null, reviewDue: null, openQuestions: open || null }, page: k.page, quote: k.quote, temporal: k.temporal });
   }
   for (const p of r.package) {
     let field = p.field;

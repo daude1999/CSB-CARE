@@ -102,6 +102,9 @@ export function reportOf(v: unknown): SetupReport | null {
   return v && typeof v === "object" && !Array.isArray(v) && "status" in v && "records" in v ? (v as SetupReport) : null;
 }
 
+/** A document filed as a risk assessment, or named as one. */
+export const isRiskAssessment = (d: { category: string; name: string }) => /RISK_ASSESSMENT/.test(d.category) || /risk assessment/i.test(d.name);
+
 const stage = (intakeId: string, s: string) => db.careIntake.update({ where: { id: intakeId }, data: { setupStage: s } });
 
 async function setUp(ctx: Ctx, scope: Scope, intakeId: string, opts: { rotaWeeks?: number }): Promise<SetupReport> {
@@ -124,12 +127,12 @@ async function setUp(ctx: Ctx, scope: Scope, intakeId: string, opts: { rotaWeeks
     await compareFacts(tx, scope, intakeId);
     const [facts, docs] = await Promise.all([
       tx.careIntakeFact.findMany({ where: { intakeId }, orderBy: { position: "asc" } }),
-      tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, name: true, documentDate: true, sensitive: true, findings: true } }),
+      tx.careIntakeDocument.findMany({ where: { intakeId }, select: { id: true, name: true, documentDate: true, sensitive: true, findings: true, category: true } }),
     ]);
     const outcomes = triage({
       mode: intake.mode,
       facts: facts.map((f): TriageFact => ({ ...f, value: f.value as unknown, existingValue: f.existingValue as unknown })),
-      docs: docs.map((d) => ({ id: d.id, name: d.name, documentDate: d.documentDate ? fromDbDate(d.documentDate) : null, sensitive: d.sensitive })),
+      docs: docs.map((d) => ({ id: d.id, name: d.name, documentDate: d.documentDate ? fromDbDate(d.documentDate) : null, sensitive: d.sensitive, riskAssessment: isRiskAssessment(d) })),
     });
     const now = new Date();
     const decide = async (ids: string[], decision: string, note: (id: string) => string) => {
@@ -178,8 +181,9 @@ async function setUp(ctx: Ctx, scope: Scope, intakeId: string, opts: { rotaWeeks
   await stage(intakeId, "IDENTITY");
 
   // ── RECORDS ──
-  if (intake.mode !== "DOCUMENT") {
-    for (const section of APPLY_ORDER) {
+  {
+    // A supporting document changes no records, except a risk assessment's risks (triage accepts nothing else from it).
+    for (const section of intake.mode === "DOCUMENT" ? (["RISKS"] as const) : APPLY_ORDER) {
       const label = sectionLabel(section);
       const unapplied = await db.careIntakeFact.count({ where: { intakeId, section, decision: { in: [...ACCEPTED] }, appliedAt: null, id: { notIn: await handedFactIds(db, intakeId) } } });
       if (!unapplied) continue;
@@ -351,7 +355,7 @@ async function verify(scope: Scope, intakeId: string, report: SetupReport) {
   // Facts handed to a person as an exception (for example a date of birth only a manager may save) are accounted for.
   const handed = await handedFactIds(db, intakeId);
   const missing = await db.careIntakeFact.groupBy({ by: ["section"], where: { intakeId, decision: { in: [...ACCEPTED] }, appliedAt: null, id: { notIn: handed } }, _count: true });
-  for (const m of missing) if (!skipped.has(m.section) && intake.mode !== "DOCUMENT" && intake.serviceUserId) report.failures.push(`${sectionLabel(m.section)}: ${m._count} accepted fact${m._count === 1 ? " was" : "s were"} not found on the record after saving.`);
+  for (const m of missing) if (!skipped.has(m.section) && (intake.mode !== "DOCUMENT" || m.section === "RISKS") && intake.serviceUserId) report.failures.push(`${sectionLabel(m.section)}: ${m._count} accepted fact${m._count === 1 ? " was" : "s were"} not found on the record after saving.`);
   const open = await db.careIntakeReviewItem.findMany({ where: { intakeId, status: "OPEN" }, select: { severity: true, category: true } });
   report.exceptions = EMPTY_COUNTS();
   for (const o of open) report.exceptions[exceptionSeverity(o)]++;

@@ -11,13 +11,14 @@ import { z } from "zod";
 import { audit, currentAutomation } from "@/server/audit-log";
 import { hasOrgPermission, requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { serviceUserWhere, type Scope } from "@/server/rota/scope";
+import { factKey } from "@/lib/coordinator-triage";
 import { durationCheck, visitTasks } from "./visit-tasks";
 import { DISCHARGE_CATEGORIES, openDischargeReview } from "../discharge-review";
 import { addPendingVersion, currentSupportPlan, recordVersionStatus } from "../document-versions";
 import { createTemplateInTx, type TemplateInput } from "@/server/rota/templates";
 import { draftFingerprint, putPlanInUse, saveDraft, startDraft } from "../care-plans";
 import { addMedication, medicationEnabled } from "../medication";
-import { createRisk } from "../risks";
+import { createRisk, updateRiskFromDocument } from "../risks";
 import { linkExternalReferenceInTx, referenceKeyConfigured } from "../external-references";
 import { checkArea, detailData, detailsSchema, nextServiceUserReference } from "../service-users";
 import { categoriesFor, parseDetails, promptCarePlanReview } from "../su-documents";
@@ -584,27 +585,55 @@ async function applyCarePlan(ctx: Ctx, scope: Scope, intakeId: string): Promise<
 export const RISK_LEVEL_NOT_STATED = "THE RISK LEVEL IS NOT STATED in the support plan.";
 
 /**
- * Risk information in the support plan is saved as active assessments (owner's brief of 7 Nov 2026). When the plan
- * contains a completed assessment (a stated level and controls), it is saved as the council's assessment (DOCUMENT).
- * Otherwise CSB AI wrote it from the plan's narrative, and it is saved and labelled as AI-generated assessment
- * information (AI_INFERRED), never as a completed clinical assessment. Nothing waits for an approval.
+ * Risk information in the documents is saved as active assessments (owner's brief of 7 Nov 2026). When a document
+ * contains a completed assessment (a stated level and controls, as a council risk assessment does), it is saved as the
+ * council's assessment (DOCUMENT). Otherwise CSB AI wrote it from the plan's narrative, and it is saved and labelled as
+ * AI-generated assessment information (AI_INFERRED), never as a completed clinical assessment. Nothing waits for an
+ * approval.
+ *
+ * The same risk in a plan and in a risk assessment is saved once, from the risk assessment, with the plan's words added
+ * under it. When the plan's version is already saved and nobody has reviewed it since, the risk assessment updates it
+ * (a new version, kept in its history); an assessment a person wrote or reviewed is never changed.
  */
 async function applyRisks(ctx: Ctx, scope: Scope, intakeId: string): Promise<SectionResult> {
   const { su, intake } = await db.$transaction((tx) => suFor(tx, scope, intakeId));
   const out: SectionResult = { created: [], skipped: [], notes: [], verified: true };
   const fs = await db.careIntakeFact.findMany({ where: { intakeId, section: "RISKS", decision: { in: [...ACCEPTED] }, appliedAt: null }, orderBy: { position: "asc" } });
+  const repeats = await db.careIntakeFact.findMany({ where: { intakeId, section: "RISKS", decision: "DUPLICATE" }, orderBy: { position: "asc" } });
   const ids: string[] = [];
   for (const f of fs) {
     const r = f.value as z.output<typeof riskValue>;
-    const dup = await db.riskAssessment.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "ACTIVE"] }, type: r.type, title: { equals: r.title, mode: "insensitive" } } });
-    if (dup) { await db.$transaction((tx) => markApplied(tx, f, `existing:RiskAssessment:${dup.id}`)); out.skipped.push(`${r.title} already exists`); continue; }
     const src = await db.$transaction((tx) => docLabel(tx, f.sourceDocumentId, f.sourcePage));
     const completed = !!r.level && !r.levelIsProvisional && !!r.existingControls;
     const origin = completed ? "DOCUMENT" as const : "AI_INFERRED" as const;
+    // What other documents say about the same risk (consolidated into this one) is kept with it, with its source.
+    const also: string[] = [];
+    for (const d of repeats.filter((x) => x.sourceDocumentId !== f.sourceDocumentId && factKey(x) === factKey(f))) {
+      const v = d.value as z.output<typeof riskValue>;
+      also.push(`Also in ${await db.$transaction((tx) => docLabel(tx, d.sourceDocumentId, d.sourcePage))}: ${v.hazard}${v.existingControls ? ` (in place: ${v.existingControls})` : ""}`);
+    }
     const reviewDue = r.reviewDue && r.reviewDue > londonDate() ? r.reviewDue : addDays(londonDate(), 28);
-    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, !r.level ? `${RISK_LEVEL_NOT_STATED} Medium is shown until someone sets it.` : r.levelIsProvisional ? `Level ${r.level} was suggested by CSB AI; the support plan does not state it.` : null].filter(Boolean).join("\n").slice(0, 4000);
-    const controls = (r.existingControls ? r.existingControls : "The support plan does not set out controls for this risk. Follow the care plan and report any change to the office.").slice(0, 4000);
-    const created = await createRisk(ctx, su.id, { type: r.type, title: r.title, hazards, controls, level: r.level ?? "MEDIUM", reviewDue, requiredActions: r.recommendedActions ?? undefined, responsiblePerson: r.recommendedActions ? (r.responsiblePerson ?? "Registered manager") : (r.responsiblePerson ?? undefined) }, { origin, intakeId, note: `${intake.reference}: ${src}` });
+    const hazards = [r.hazard, r.whoAffected ? `Who could be affected: ${r.whoAffected}` : null, `Source: ${src}`, ...also, r.openQuestions ? `Outstanding: ${r.openQuestions}` : null, !r.level ? `${RISK_LEVEL_NOT_STATED} Medium is shown until someone sets it.` : r.levelIsProvisional ? `Level ${r.level} was suggested by CSB AI; the support plan does not state it.` : null].filter(Boolean).join("\n").slice(0, 4000);
+    // Risk assessment forms often give controls in a word or two ("Rail"): kept as written, never dropped.
+    const written = r.existingControls?.trim() ?? "";
+    const controls = (!written ? "The support plan does not set out controls for this risk. Follow the care plan and report any change to the office." : written.length < 10 ? `Controls in the document: ${written}` : written).slice(0, 4000);
+    const input = { type: r.type, title: r.title, hazards, controls, level: r.level ?? "MEDIUM", reviewDue, requiredActions: r.recommendedActions ?? undefined, responsiblePerson: r.recommendedActions ? (r.responsiblePerson ?? "Registered manager") : (r.responsiblePerson ?? undefined) };
+    const source = { origin, intakeId, note: `${intake.reference}: ${src}` };
+    const dup = await db.riskAssessment.findFirst({ where: { serviceUserId: su.id, status: { in: ["DRAFT", "ACTIVE"] }, type: r.type, title: { equals: r.title, mode: "insensitive" } } });
+    if (dup) {
+      // A completed assessment replaces what CSB AI wrote from a narrative, unless a person has since reviewed it.
+      if (completed && dup.origin === "AI_INFERRED" && dup.version === 1 && dup.status === "ACTIVE") {
+        await updateRiskFromDocument(ctx, dup.id, dup.version, input, source);
+        await db.$transaction((tx) => markApplied(tx, f, `RiskAssessment:${dup.id}`));
+        ids.push(dup.id);
+        out.created.push(`${r.title} updated from the council's assessment (${src}), review by ${reviewDue}`);
+      } else {
+        await db.$transaction((tx) => markApplied(tx, f, `existing:RiskAssessment:${dup.id}`));
+        out.skipped.push(`${r.title} already exists${completed && dup.origin !== "AI_INFERRED" ? " and was written or reviewed by staff, so it was not changed" : ""}`);
+      }
+      continue;
+    }
+    const created = await createRisk(ctx, su.id, input, source);
     await db.$transaction((tx) => markApplied(tx, f, `RiskAssessment:${created.id}`));
     ids.push(created.id);
     out.created.push(`${r.title} (${origin === "DOCUMENT" ? "from the council's assessment" : "AI-generated from the plan"}, review by ${reviewDue})`);
