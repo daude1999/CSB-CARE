@@ -579,6 +579,19 @@
   }
   .mh .mh-band :is(select, input:not([type="checkbox"]):not([type="radio"])) { @apply border-transparent bg-white text-ink; }
   .mh .mh-band :is(.pc-select, .pl-select, .pc-search) { @apply border-transparent bg-white text-ink; }
+  /*
+   * Night mode (10 Nov 2026). The generated dark twins turn the band's white main action into a dark box with
+   * module-coloured text, which is hard to read on the band. In the dark the band is toned down a little towards the
+   * page so it does not glare, and the main action stays a white button with module-coloured text, as in light mode.
+   * Rules that name [data-mode="dark"] are written for night mode and are left alone by the generator.
+   */
+  :root[data-mode="dark"] .mh-band { background-color: color-mix(in srgb, var(--module) 80%, #0d1622); }
+  :root[data-mode="dark"] .mh .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary) {
+    border-color: #fff; background-color: #fff; color: var(--module) !important;
+  }
+  :root[data-mode="dark"] .mh .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary):hover {
+    border-color: #e6eaf2; background-color: #e6eaf2;
+  }
 
   /* One tab style: underline, 38px high, 14px, grey when inactive, module colour and a 2px underline when active. */
   .tabs-line { @apply flex overflow-x-auto border-b border-rule; scrollbar-width: thin; /* room for a tab of fractional width at the end of a scrolled row */ padding-inline-end: 2px; }

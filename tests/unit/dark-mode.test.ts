@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 import postcss from "postcss";
+import { PORTALS } from "@/lib/portals";
 import { COLOUR_MODES, DEFAULT_MODE, initialAppearance, modeCookie, parseMode } from "@/lib/colour-mode";
 
 const require = createRequire(import.meta.url);
@@ -98,8 +99,29 @@ describe("dark-mode style sheet plugin", () => {
     const css = await run("@media print { .p { color: #000; } }\n@keyframes k { from { background: #fff; } }\n.m { margin: 0; }");
     expect(css).not.toContain("data-mode");
   });
+  it("leaves rules written for night mode by hand as they are", async () => {
+    const css = await run(':root[data-mode="dark"] .mh .mh-btn-primary { background-color: #fff; }');
+    expect(css).not.toContain(":where(");
+    expect(css).toContain("background-color: #fff");
+  });
   it("keeps Tailwind's opacity variable on mapped colours", async () => {
     const css = await run(".bg-white { --tw-bg-opacity: 1; background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1)); }");
     expect(css).toMatch(/:where\(\[data-mode="dark"\]\) \.bg-white \{\s*background-color: rgb\(\d+ \d+ \d+ \/ var\(--tw-bg-opacity, 1\)\)/);
+  });
+});
+
+describe("module header band in night mode", () => {
+  /** The band's dark colour: 80% module colour over the dark page (globals.css). */
+  const mix = (hex: string, base: string, p: number) => {
+    const a = parseHex(hex);
+    const b = parseHex(base);
+    const c = (x: number, y: number) => Math.round(x * p + y * (1 - p)).toString(16).padStart(2, "0");
+    return `#${c(a.r, b.r)}${c(a.g, b.g)}${c(a.b, b.b)}`;
+  };
+  it.each(PORTALS.map((p) => [p.name, p.colour] as const))("keeps white band text and the white main action readable (%s)", (_name, module) => {
+    const band = mix(module, "#0d1622", 0.8);
+    expect(contrast("#ffffff", band)).toBeGreaterThanOrEqual(4.5);
+    // The main action is a white button with module-coloured text.
+    expect(contrast(module, "#ffffff")).toBeGreaterThanOrEqual(4.5);
   });
 });
