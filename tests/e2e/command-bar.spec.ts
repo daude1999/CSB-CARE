@@ -124,7 +124,9 @@ test.describe("Command bar", () => {
     for (const [path, colour] of [["/policies", "#1f5fd1"], ["/rota/visits", "#6b46c9"], ["/hr/dashboard", "#c2410c"], ["/analytics", "#0b6f99"], ["/settings", "#4b5666"], ["/overview", "#1565c0"]] as const) {
       await page.goto(path);
       const bar = await openBar(page);
-      expect(await bar.evaluate((el) => getComputedStyle(el).getPropertyValue("--module").trim()), path).toBe(colour);
+      // The dialog's wrapper carries the page's module colour, which the highlighted row tints.
+      const [r, g, b] = rgb(colour, 1);
+      expect(await bar.evaluate((el) => getComputedStyle(el.parentElement!).getPropertyValue("--module").trim()), path).toBe(`rgb(${r}, ${g}, ${b})`);
       await page.keyboard.press("Escape");
       await expect(bar).toHaveCount(0);
     }
@@ -146,7 +148,11 @@ test.describe("Command bar", () => {
   });
 
   test("nothing found says so plainly, and the search needs a sign-in", async ({ page, request }) => {
-    expect((await request.get("/api/search/command?q=anything")).status()).toBe(401);
+    // No session: the middleware sends the request to the sign-in page. A made-up session cookie reaches the route,
+    // which answers 401. Neither returns results.
+    const anonymous = await request.get("/api/search/command?q=anything", { maxRedirects: 0 });
+    expect([302, 307, 401]).toContain(anonymous.status());
+    expect((await request.get("/api/search/command?q=anything", { headers: { Cookie: "evx_session=not-a-real-session" } })).status()).toBe(401);
     await signIn(page);
     await page.goto("/rota");
     const bar = await openBar(page);
