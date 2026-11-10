@@ -27,11 +27,6 @@ test.describe("Service user search", () => {
     const p = await demoPerson(page);
     await page.goto("/rota");
     const search = page.getByRole("searchbox", { name: "Search rostering" });
-    // Ctrl+K works once the header has hydrated; retry the key press rather than racing it.
-    await expect(async () => {
-      await page.keyboard.press("Control+k");
-      await expect(search).toBeFocused({ timeout: 1000 });
-    }).toPass();
     await search.fill(`  ${p.name.toUpperCase()} `);
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=/);

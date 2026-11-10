@@ -54,7 +54,7 @@ BV Branch Viewer (taylor.reed@), CL compliance lead/manager, AU/RV/AP author/rev
 | Availability | `/workforce/availability` | as before | Tab of "Time Off & Availability" | Menu tab | HR login | E2E | hr10 |
 | HR settings (requirements, thresholds, document types, retention) | `/hr/settings` | SettingsPage | Tab "HR Settings" (heading "HR settings") | Menu → Settings | HR | existing | hr14 |
 | Branches | `/hr/branches` | BranchWorkspace | Tab "Branches" under Settings | Settings tab | HR | Unit hr-shell; E2E | hr13 |
-| HR search (top bar, Ctrl+K) | all HR pages | CommandPalette | Unchanged | Top bar | HR | navigation.spec | — |
+| HR search (top bar; Ctrl+K opens the platform command bar since 10 Nov 2026) | all HR pages | CommandPalette | Unchanged | Top bar | HR | navigation.spec | — |
 | Branch scope picker | all HR Hub pages | `?branch=` | Same picker, in the header strip | Header | HR | navigation.spec | hr16 |
 
 ### Policy & Compliance (six workspaces unchanged)

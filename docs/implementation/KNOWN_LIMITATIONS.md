@@ -96,3 +96,38 @@ Full description, the complete list of bypass call sites and operating notes: `d
 - **Backups.** `pg_dump` must run as a login that bypasses row-level security, or it stops with an error rather
   than writing a partial backup. Check the backup job (`docs/BACKUPS.md`) once it is active.
 
+## Colour redesign, PR 1 (10 Nov 2026)
+- The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
+  the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.
+- Below 640px the page frame keeps a 16px side padding (the brief's 24px applies from tablet width up), and the band's
+  icon chip is hidden so the title has room.
+- Pages that kept their own layout: the Overview (approved and locked; only the launcher moved), the Evantix Platform
+  Admin Centre (its own shell), the HR Hub's employee record (the person's name stays as its heading) and the Policy
+  Reader's document pills under the band.
+- The body map keeps its own clinical colours, and a few exported-file accents (Excel/PDF) keep their navy.
+
+## Colour redesign, PR 2 (10 Nov 2026)
+- The Late tile uses `#b45309`, a little darker than its old `#c0570c`, so its figure passes AA on the tile's tint.
+- Daily Rota call rounds are the organisation's call types. A call type has no set hours, so a round's times are its
+  first and last visit start of the day, and rounds are ordered by their first visit. Rows are grouped only when the
+  list is sorted by time; other sorts show a plain list.
+
+## Colour redesign, PR 3 (10 Nov 2026)
+- The Daily Rota opens on the Board. Links that carry a list filter, sort, page or selected visit still open the list.
+  The "Planner" header button became "Advanced Rota planner" in the Actions menu.
+- Call rounds on the Board take their times from the day's visits, because a call type has no set hours. Two rounds
+  can overlap.
+- Dragging needs a mouse. With a keyboard or touch screen, open the block and use "Reassign", which goes to the same
+  assignment form and checks.
+- On phones the name column scrolls with the board rather than staying pinned, to leave room for the visits.
+- A scheduled visit past its start time shows as "Late" on the Board; there is no separate "overdue" colour.
+- "Why this carer" shows the match reasons as they stand now, not as they stood when the carer was booked. The
+  eligibility decision and accepted warnings are the ones recorded at booking.
+
+## Colour redesign, PR 4 (10 Nov 2026)
+- The command bar finds service users, team members and today's visits for people with rota access. HR-only records
+  (employee files, HR documents) and policies are not searched in it; the HR Hub's search and the Policy Library
+  search stay in the top bar. Ctrl+K no longer opens the HR Hub's search on HR pages.
+- Six results are shown per group. The top bar's search page still lists up to 15.
+- Actions are links to existing screens. Nothing is changed from inside the command bar.
+- The Evantix Platform Admin Centre has its own shell and keeps its own quick search.

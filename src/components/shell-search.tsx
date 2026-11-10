@@ -3,16 +3,15 @@ import { usePathname } from "next/navigation";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import Link from "@/components/link";
 import { HUB_SEARCH_EVENT, isHubPath } from "@/lib/portals";
-import { SearchShortcut } from "@/components/portal-switcher";
 
 /** Phones: the search opens from an icon so it never squeezes the top bar. */
 const PHONE_ICON = "flex h-9 w-9 items-center justify-center rounded-full text-[#5b2bb5] no-underline hover:bg-[#5b2bb5]/10 hover:text-[#5b2bb5] sm:hidden";
 
 /**
  * The top bar's search, centred in the space between the history arrows and the alerts, help and profile controls.
- * On HR pages it opens the HR Hub's own search (which also answers Ctrl+K / ⌘K there); on rostering pages it searches
- * service users, team members and visit references; everywhere else it searches the policy library. Ctrl+K / ⌘K still
- * focuses it, but no shortcut badge is shown.
+ * On HR pages it opens the HR Hub's own search; on rostering pages it searches service users, team members and visit
+ * references; everywhere else it searches the policy library. Ctrl+K / ⌘K opens the command bar
+ * (src/components/command-bar.tsx) on every page.
  */
 export function ShellSearch() {
   const path = usePathname();
@@ -41,7 +40,6 @@ export function ShellSearch() {
           <span className="sr-only">{label}</span>
           <input id="global-search" name="q" type="search" placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[14.5px] text-[#0b1530] placeholder:text-[#667085] focus:outline-none" />
         </label>
-        <SearchShortcut targetId="global-search" />
       </form>
       <Link href={action} className={PHONE_ICON} aria-label={label} title={label}>
         <MagnifyingGlass size={21} weight="bold" aria-hidden="true" />

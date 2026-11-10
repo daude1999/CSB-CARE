@@ -49,12 +49,12 @@ export function SignoffRegister({ rows, canManage, back }: { rows: RegisterRow[]
       {canManage && picked.size ? (
         <div className="pc-bulk" role="region" aria-label="Bulk actions" data-testid="bulk-bar">
           <span className="font-semibold">{picked.size} selected</span>
-          <span aria-hidden="true" className="h-5 w-px bg-[#d6cdf3]" />
+          <span aria-hidden="true" className="h-5 w-px bg-module/[.30]" />
           {[...picked].map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
           <button type="submit" name="op" value="remind" formNoValidate className="pc-btn-secondary pc-btn-sm">Send reminder</button>
           <button type="button" className="pc-btn-secondary pc-btn-sm" aria-expanded={op === "extend"} onClick={() => setOp(op === "extend" ? null : "extend")}>Extend due date</button>
           <button type="button" className="pc-btn-secondary pc-btn-sm" aria-expanded={op === "exempt"} onClick={() => setOp(op === "exempt" ? null : "exempt")}>Exempt</button>
-          <button type="button" className="ml-auto text-[13px] font-semibold text-[#5b2bb5]" onClick={() => { setPicked(new Set()); setOp(null); }}>Clear selection</button>
+          <button type="button" className="ml-auto text-[13px] font-semibold text-module" onClick={() => { setPicked(new Set()); setOp(null); }}>Clear selection</button>
           {op ? (
             <div className="flex w-full flex-wrap items-end gap-2 border-t border-[#e4dcf8] pt-2">
               {op === "extend" ? (

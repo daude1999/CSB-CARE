@@ -92,7 +92,7 @@ export default async function Dashboard() {
                 return (
                   <li key={c.id} className="flex items-start gap-3 px-5 py-3">
                     <span className="min-w-0 flex-1">
-                      <Link href={`/changes/${c.id}`} className="pc-plain block truncate text-[14px] font-semibold text-[#101828] no-underline hover:text-[#5b2bb5]">{c.title}</Link>
+                      <Link href={`/changes/${c.id}`} className="pc-plain block truncate text-[14px] font-semibold text-[#101828] no-underline hover:text-module">{c.title}</Link>
                       <span className="block truncate text-[13px] text-[#475467]">{c.source.name} · {c.officialDate ? `published ${fmtDate(c.officialDate)}` : `detected ${fmtDate(c.detectedAt)}`}</span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">

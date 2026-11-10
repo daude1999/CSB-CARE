@@ -12,10 +12,10 @@ import type { Confidence, GroupScore } from "@/server/cqc/scoring";
 /** The label the owner's spec requires wherever a readiness score appears. */
 export function NotOfficialBanner({ children }: { children?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-[#d9d6fe] bg-[#f4f3ff] px-4 py-2.5 text-[13.5px] text-[#3e1c96]" role="note" data-testid="not-official">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-module/[.22] bg-module/[.08] px-4 py-2.5 text-[13.5px] text-[#3e1c96]" role="note" data-testid="not-official">
       <Info size={18} weight="fill" aria-hidden="true" className="shrink-0" />
       <strong className="font-semibold">Internal CQC Readiness Assessment – Not an Official CQC Rating</strong>
-      {children ? <span className="text-[#5925dc]">{children}</span> : null}
+      {children ? <span className="text-module">{children}</span> : null}
     </div>
   );
 }
