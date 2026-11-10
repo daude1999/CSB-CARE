@@ -11,3 +11,10 @@ tsconfig.tsbuildinfo
 
 public/pdfjs/
 .vitest.local.config.ts
+
+# Scratch files
+*.tmp.ts
+*.tmp.tsx
+*.tmp.js
+*.tmp.mjs
+*.tmp
