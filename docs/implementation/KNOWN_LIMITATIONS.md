@@ -84,3 +84,11 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - A scheduled visit past its start time shows as "Late" on the Board; there is no separate "overdue" colour.
 - "Why this carer" shows the match reasons as they stand now, not as they stood when the carer was booked. The
   eligibility decision and accepted warnings are the ones recorded at booking.
+
+## Colour redesign, PR 4 (10 Nov 2026)
+- The command bar finds service users, team members and today's visits for people with rota access. HR-only records
+  (employee files, HR documents) and policies are not searched in it; the HR Hub's search and the Policy Library
+  search stay in the top bar. Ctrl+K no longer opens the HR Hub's search on HR pages.
+- Six results are shown per group. The top bar's search page still lists up to 15.
+- Actions are links to existing screens. Nothing is changed from inside the command bar.
+- The Evantix Platform Admin Centre has its own shell and keeps its own quick search.
