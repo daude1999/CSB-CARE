@@ -65,7 +65,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
           )}
         </Card>
         <div className="space-y-3">
-          <Suspense fallback={<p role="status" className="skeleton-pulse rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13.5px] text-slate-600">Checking the weeks already built…</p>}>
+          <Suspense fallback={<p className="skeleton-pulse rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13.5px] text-slate-600">Checking the weeks already built…</p>}>
             <GapNotice check={gapCheck} serviceUser={suName(t.serviceUser)} />
           </Suspense>
           {preview ? (
