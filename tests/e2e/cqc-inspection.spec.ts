@@ -46,7 +46,11 @@ test.describe("CQC Inspection & Evidence", () => {
     await expect(page.getByTestId("area-result")).toContainText("Met");
     await expect(page.getByTestId("area-history")).toContainText("Result");
     // Not applicable without a reason is refused with a useful message.
+    // Wait for the next area's own page: its form has the same fields, so a slow page let the old form be filled instead.
+    const firstArea = new URL(page.url()).pathname;
     await page.getByRole("link", { name: "Next area" }).click();
+    await expect.poll(() => new URL(page.url()).pathname).not.toBe(firstArea);
+    await expect(page.getByTestId("area-result")).toContainText("Not assessed");
     await page.getByTestId("result-form").getByLabel("Not applicable", { exact: true }).check();
     await page.getByTestId("result-form").getByLabel("Rationale").fill("Does not apply to our domiciliary service.");
     await page.getByTestId("result-form").getByRole("button", { name: "Save result" }).click();
