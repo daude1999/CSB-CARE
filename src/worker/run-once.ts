@@ -4,6 +4,7 @@
  *   npm run monitor:once                     schedule all due sources and drain the queue
  */
 import { db } from "@/lib/db";
+import { withSystemScope } from "@/server/tenancy/system";
 import { drain } from "@/server/jobs/queue";
 import { checkSource, scheduleDueSources } from "@/server/sources/engine";
 import { handlers } from "./handlers";
@@ -23,7 +24,7 @@ async function main() {
   await db.$disconnect();
 }
 
-main().catch(async (e) => {
+withSystemScope("script: check sources once", main).catch(async (e) => {
   console.error(e.message);
   await db.$disconnect();
   process.exit(1);

@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -54,6 +55,8 @@ async function load() {
   await client.connect();
   try {
     await client.query("BEGIN");
+    // Row-level security: this script connects as the table owner and works across organisations on purpose.
+    await client.query("SELECT set_config('app.rls_bypass', 'on', true)");
     const tables = (await client.query<{ t: string }>(`SELECT format('%I.%I', n.nspname, c.relname) AS t FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname <> '_prisma_migrations'`)).rows.map((r) => r.t);
     const fks = (await client.query<{ t: string; name: string; def: string }>(`SELECT format('%I.%I', n.nspname, c.relname) AS t, quote_ident(k.conname) AS name, pg_get_constraintdef(k.oid) AS def FROM pg_constraint k JOIN pg_class c ON c.oid = k.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE k.contype = 'f' AND n.nspname = 'public'`)).rows;
     // The dump holds finished records (published versions, completed visits, immutable logs), and some foreign keys
@@ -103,7 +106,7 @@ async function main() {
   console.log("demo reset: done");
 }
 
-main()
+withSystemScope("deploy script: demo reset", main)
   .catch((e) => {
     // Never fail the deployment over the demo data: the site still builds with whatever data is there.
     console.error("demo reset: error", e);

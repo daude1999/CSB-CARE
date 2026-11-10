@@ -148,6 +148,8 @@ async function main() {
   await client.connect();
   try {
     await client.query("BEGIN");
+    // Row-level security: this script connects as the table owner and works across organisations on purpose.
+    await client.query("SELECT set_config('app.rls_bypass', 'on', true)");
     const result = await cleanUp(client);
     await client.query("COMMIT");
     console.log("demo clean-up:", JSON.stringify(result));

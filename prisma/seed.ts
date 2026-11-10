@@ -1,4 +1,5 @@
 import { db } from "../src/lib/db";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { seedBase } from "../src/server/seed/base";
 import { DEMO_PASSWORD, seedDemo } from "../src/server/seed/demo";
 
@@ -16,7 +17,7 @@ async function main() {
   console.log("Seed complete.");
 }
 
-main()
+withSystemScope("seed: base and demo data", main)
   .catch((e) => {
     console.error(e);
     process.exit(1);
