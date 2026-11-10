@@ -71,7 +71,7 @@
 .hr-ui .hx-stat-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 10px; background: var(--hx-neutral-bg); color: var(--hx-ink-2); }
 .hr-ui .hx-stat-value { display: block; font-size: 26px; line-height: 1.1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--hx-ink); }
 .hr-ui .hx-stat-label { display: block; margin-top: 3px; font-size: 15px; color: var(--hx-muted); }
-.hr-ui .hx-stat-note { display: block; font-size: 12px; color: var(--hx-faint); }
+.hr-ui .hx-stat-note { display: block; font-size: 12px; color: var(--hx-muted); }
 
 /* Overview layout */
 .hr-ui .hx-split { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 14px; align-items: start; }

@@ -10,7 +10,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
 | 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
 | 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
-| 5. UX and responsiveness | Not started. Shares ground with the colour system redesign (`redesign-colour-system`); that branch owns the page frame, header, tabs and tailwind tokens. |
+| 5. UX and responsiveness | Built on `enterprise-readiness-5-ux`: `UX_RESPONSIVENESS_AUDIT.md` (all 174 pages, 141 timed), the 200 ms feedback test on the five main pages, double-submission stopped, Admin Centre given the shell's feedback and its own error screen, the heaviest page's slow check streamed, audits and actions paged, three contrast fixes. Not done, with reasons in the audit: type scale and page frame (waits for the colour redesign), HR Hub file split (owner asked), per-section `loading.tsx`, optimistic updates, toasts. |
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

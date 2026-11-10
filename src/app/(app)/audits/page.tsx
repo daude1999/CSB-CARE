@@ -21,6 +21,9 @@ export const dynamic = "force-dynamic";
  * findings, internal score and status. The score is an internal indicator calculated from recorded answers, never a
  * CQC rating. A new audit starts from the header.
  */
+/** Audits per page: the list grows for ever (every audit is kept), and each row carries its answers for the score. */
+const PAGE_SIZE = 50;
+
 export default async function AuditsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
@@ -42,8 +45,15 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
     ...(branch === "org" ? { branchId: null } : branch ? { branchId: branch } : {}),
     ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
   };
+  const matching = await db.audit.count({ where });
+  const pages = Math.max(1, Math.ceil(matching / PAGE_SIZE));
+  const page = Math.min(pages, Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1));
+  const pageHref = (n: number) => {
+    const qs = new URLSearchParams(Object.entries({ q, status, branch, template, page: n > 1 ? String(n) : undefined }).filter((e): e is [string, string] => Boolean(e[1])));
+    return `/audits${qs.size ? `?${qs}` : ""}`;
+  };
   const [audits, total] = await Promise.all([
-    db.audit.findMany({ where, orderBy: { startedAt: "desc" }, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true, _count: { select: { questions: true } } } } } }),
+    db.audit.findMany({ where, orderBy: { startedAt: "desc" }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, include: { answers: true, _count: { select: { findings: true } }, template: { select: { title: true, _count: { select: { questions: true } } } } } }),
     db.audit.count({ where: { organisationId: orgId, ...auditBranchWhere(ctx) } }),
   ]);
   const branchName = new Map(branches.map((b) => [b.id, b.name]));
@@ -120,7 +130,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
         ) : (
           <p className="pc-empty">{total ? "No audits match these filters." : "No audits yet. Start one from the button above."}</p>
         )}
-        <PcFoot shown={audits.length} total={total}><span className="pc-note">Scores are an internal indicator, not a CQC rating.</span></PcFoot>
+        <PcFoot shown={audits.length} total={total} page={page} pages={pages} href={pageHref}><span className="pc-note">Scores are an internal indicator, not a CQC rating.</span></PcFoot>
       </section>
     </>
   );

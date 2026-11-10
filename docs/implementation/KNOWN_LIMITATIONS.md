@@ -68,3 +68,15 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - The nightly late-evening and after-midnight test runs start only once the workflow is on `main`.
 - Ending a service user's care cancels visits that have not started. A visit already in progress at that moment is left alone and then blocks archiving until it ends. Not changed here.
 
+## UX and responsiveness (enterprise readiness, workstream 5, 10 Nov 2026)
+
+Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
+
+- **Timings are from demo volumes on one machine.** No query was slow there, so no index was added. Repeat the crawl on a staging copy with realistic volumes before deciding the database needs nothing.
+- **The staff eligibility check runs once per week or per visit on several rota pages** (`/rota/visits/[id]` 105 queries, `/rota/coordinator/shift` 80, `/rota/attention` 78, `/rota/build` 71). Fast locally; on a hosted database each query adds network time. Batching it is a change to the rota's core rule and is not done.
+- **Mobile Lighthouse performance is below 90 on the HR Hub and Policy Library** (simulated slow phone). The HR Hub loads its whole workspace in one request and one script; the Policy Library loads the document viewer with the list. Desktop scores are 98 to 100.
+- **The "missing from built weeks" notice on a visit template arrives a moment after the page**, and needs JavaScript to appear.
+- **The drafts queue and "my sign-offs" are not paged**; audits and corrective actions are (50 a page).
+- **Not done from the brief, on purpose:** per-section `loading.tsx` files, `useOptimistic`, a toast component, the single type scale and page padding, and splitting the HR Hub's two large files. Reasons are in the audit.
+- **Two accessibility items left for other changes:** the orange "Late calls" tile's small text on the Rota Dashboard (contrast 4.28, needs 4.5) and the Policy Library viewer's toolbar buttons at 1440 wide (17 px, needs 24 px).
+

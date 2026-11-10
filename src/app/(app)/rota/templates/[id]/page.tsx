@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
@@ -30,7 +31,10 @@ export default async function TemplatePage({ params, searchParams }: { params: P
   );
   const settings = await rotaSettings(db, lk.scope.organisationId);
   const preview = canEdit ? await previewTemplateChanges(ctx, t.id) : null;
-  const gap = hasOrgPermission(ctx, "rota.build") ? await templateRotaGap(ctx, t.id) : null;
+  // The check for visits missing from built weeks plans every built week again, which is by far the slowest thing on
+  // this page. It is started here and streamed in below, so the template itself is on screen without waiting for it.
+  const gapCheck: Promise<RotaGap> = hasOrgPermission(ctx, "rota.build") ? templateRotaGap(ctx, t.id) : Promise.resolve(null);
+  gapCheck.catch(() => undefined);
   const instructions = await instructionHistory(ctx, t.id);
   const history = await db.auditLog.findMany({ where: { organisationId: lk.scope.organisationId, entityType: "VisitTemplate", entityId: t.id }, orderBy: { createdAt: "desc" }, take: 20 });
   const names = await memberNames(ctx, history.map((h) => h.actorId));
@@ -61,13 +65,9 @@ export default async function TemplatePage({ params, searchParams }: { params: P
           )}
         </Card>
         <div className="space-y-3">
-          {gap ? (
-            <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-[14px] text-slate-800" data-testid="template-rota-gap" aria-labelledby="gap-title">
-              <h2 id="gap-title" className="text-[15px] font-medium text-navy-900">Not on the rota yet</h2>
-              <p className="mt-1">{gap.missing} visit{gap.missing === 1 ? "" : "s"} from this template {gap.missing === 1 ? "is" : "are"} missing from weeks that were already built (up to {fmtLondonDate(gap.builtThrough)}). Build Rota only builds new weeks, so add {gap.missing === 1 ? "it" : "them"} for {suName(t.serviceUser)} now.</p>
-              <Link href={`/rota/service-users/${gap.serviceUserId}?tab=rota&future=1&from=${gap.from}&nweeks=${gap.weeks}`} className="btn-primary mt-2 inline-flex">Add to the built weeks</Link>
-            </section>
-          ) : null}
+          <Suspense fallback={<p role="status" className="skeleton-pulse rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13.5px] text-slate-600">Checking the weeks already built…</p>}>
+            <GapNotice check={gapCheck} serviceUser={suName(t.serviceUser)} />
+          </Suspense>
           {preview ? (
             <Card title="Built visits">
               {toApply.length ? (
@@ -85,7 +85,7 @@ export default async function TemplatePage({ params, searchParams }: { params: P
                   <p className="mt-2 text-[12.5px] text-slate-500">Every carer is re-checked at the new time. Visits a carer cannot do are listed as refused and left unchanged.</p>
                 </>
               ) : (
-                <Empty>{gap ? "The visits already on the rota match this template." : "All future built visits match this template."}</Empty>
+                <Empty><Suspense fallback="The visits already on the rota match this template."><MatchNote check={gapCheck} /></Suspense></Empty>
               )}
               {kept.length ? (
                 <details className="mt-3">
@@ -120,4 +120,23 @@ export default async function TemplatePage({ params, searchParams }: { params: P
       </div>
     </>
   );
+}
+
+type RotaGap = Awaited<ReturnType<typeof templateRotaGap>>;
+
+/** Visits this template should have in weeks that were built before it existed. Streams in after the page. */
+async function GapNotice({ check, serviceUser }: { check: Promise<RotaGap>; serviceUser: string }) {
+  const gap = await check;
+  if (!gap) return null;
+  return (
+    <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-[14px] text-slate-800" data-testid="template-rota-gap" aria-labelledby="gap-title">
+      <h2 id="gap-title" className="text-[15px] font-medium text-navy-900">Not on the rota yet</h2>
+      <p className="mt-1">{gap.missing} visit{gap.missing === 1 ? "" : "s"} from this template {gap.missing === 1 ? "is" : "are"} missing from weeks that were already built (up to {fmtLondonDate(gap.builtThrough)}). Build Rota only builds new weeks, so add {gap.missing === 1 ? "it" : "them"} for {serviceUser} now.</p>
+      <Link href={`/rota/service-users/${gap.serviceUserId}?tab=rota&future=1&from=${gap.from}&nweeks=${gap.weeks}`} className="btn-primary mt-2 inline-flex">Add to the built weeks</Link>
+    </section>
+  );
+}
+
+async function MatchNote({ check }: { check: Promise<RotaGap> }) {
+  return (await check) ? "The visits already on the rota match this template." : "All future built visits match this template.";
 }

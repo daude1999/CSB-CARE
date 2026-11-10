@@ -10,6 +10,7 @@ import { getSetting } from "@/server/platform/settings";
 import { logoutAction } from "../actions";
 import { PlatformNav, WorkspaceTabs } from "@/components/platform/nav";
 import { QuickSearch } from "@/components/platform/quick-search";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 export const metadata: Metadata = { title: { default: "Platform Administration", template: "%s | Evantix Platform Administration" } };
 
@@ -63,6 +64,8 @@ export default async function PlatformLayout({ children }: { children: React.Rea
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-px-line bg-px-nav px-3 md:bg-white md:px-4 lg:px-8">
+          {/* The same "working" feedback as the care platform: a bar under the header, a spinner on the pressed button, and no double submission. */}
+          <NavigationProgress renderKey={String(Date.now())} colour="#5b21b6" />
           <div className="flex items-center gap-2 md:hidden">
             <PlatformNav mobile badges={badges} />
             <Link href="/platform-admin" className="flex items-center gap-2 text-[14px] font-semibold text-white no-underline">{mark}{name}</Link>

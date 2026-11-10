@@ -39,7 +39,7 @@ export function OverviewChart({ series, colour }: { series: ChartSeries[]; colou
       <div aria-hidden="true" className="relative min-h-0 flex-1">
         {ticks.map((t) => (
           <div key={t} className="absolute inset-x-0 flex items-center gap-1.5" style={{ bottom: `${(t / top) * 100}%`, transform: "translateY(50%)" }}>
-            <span className="w-5 text-right text-[9px] leading-none text-[#8a93a3]">{t}</span>
+            <span className="w-5 text-right text-[9px] leading-none text-[#5f6b7a]">{t}</span>
             <span className={`h-px flex-1 ${t === 0 ? "bg-[#d9dee6]" : "bg-[#eef1f5]"}`} />
           </div>
         ))}
@@ -51,7 +51,7 @@ export function OverviewChart({ series, colour }: { series: ChartSeries[]; colou
           ))}
         </div>
       </div>
-      <div aria-hidden="true" className="ml-[26px] flex justify-around pt-1 text-[9.5px] leading-[11px] text-[#7a8494]">
+      <div aria-hidden="true" className="ml-[26px] flex justify-around pt-1 text-[9.5px] leading-[11px] text-[#5f6b7a]">
         {current.days.map((d, i) => <span key={d.date} className="w-[7%] whitespace-nowrap text-center">{i === last ? "Today" : dayLabel(d.date)}</span>)}
       </div>
     </figure>
