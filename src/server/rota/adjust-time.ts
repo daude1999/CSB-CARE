@@ -33,9 +33,9 @@ export const TRAVEL_GAP_MIN = 10;
 
 const inputSchema = z.object({
   visitId: z.string().min(1).max(60),
-  lockVersion: z.coerce.number().int().min(0),
+  lockVersion: z.coerce.number<number>().int().min(0),
   start: z.string().refine((s) => parseHhmm(s) !== null, "Enter a start time, such as 08:30"),
-  durationMin: z.coerce.number({ invalid_type_error: "Enter the length in minutes" }).int("Enter a whole number of minutes").min(5, "A visit lasts at least 5 minutes").max(1440, "A visit lasts at most 24 hours"),
+  durationMin: z.coerce.number<number>({ error: "Enter the length in minutes" }).int("Enter a whole number of minutes").min(5, "A visit lasts at least 5 minutes").max(1440, "A visit lasts at most 24 hours"),
   reason: z.string().trim().max(500).default(""),
   shortenReason: z.enum(["SU_REQUEST", "APPOINTMENT", "CARE_PLAN"]).optional(),
 });

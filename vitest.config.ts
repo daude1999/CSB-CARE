@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 export default defineConfig({
   resolve: { alias: { "@": resolve(__dirname, "src") } },
   // The same JSX runtime as Next.js, so tests can import components that build menus (e.g. src/components/hr-nav.tsx).
-  esbuild: { jsx: "automatic" },
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     globalSetup: ["tests/global-setup.ts"],
@@ -18,7 +18,8 @@ export default defineConfig({
       SOURCE_MIN_INTERVAL_MS: "0",
     },
     pool: "forks",
-    poolOptions: { forks: { singleFork: true } },
+    // One worker process: every test file shares one real database, so files run one after another.
+    maxWorkers: 1,
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 60_000,

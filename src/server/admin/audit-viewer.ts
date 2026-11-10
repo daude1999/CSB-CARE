@@ -19,7 +19,7 @@ export const auditFilters = z.object({
   entity: z.string().trim().max(60).optional().catch(undefined),
   from: z.string().refine(isIsoDate).optional().catch(undefined),
   to: z.string().refine(isIsoDate).optional().catch(undefined),
-  page: z.coerce.number().int().min(1).max(1000).catch(1),
+  page: z.coerce.number<number>().int().min(1).max(1000).catch(1),
 });
 export type AuditFilters = z.infer<typeof auditFilters>;
 

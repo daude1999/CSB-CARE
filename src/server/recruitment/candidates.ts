@@ -117,7 +117,7 @@ export const listSchema = z.object({
   recruiter: z.string().max(40).optional().catch(undefined),
   role: z.string().trim().max(100).optional().catch(undefined),
   focus: z.enum(["new", "review", "offers", "ready"]).optional().catch(undefined),
-  page: z.coerce.number().int().min(1).catch(1),
+  page: z.coerce.number<number>().int().min(1).catch(1),
 });
 
 export async function recruitmentBoard(ctx: Ctx, raw: Record<string, string | undefined>) {
@@ -366,7 +366,7 @@ export async function reviewScreening(ctx: Ctx, screeningId: string, outcome: st
 const interviewSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose the interview date"),
   time: z.string().refine((t) => parseHhmm(t) !== null, "Enter the time as HH:MM"),
-  durationMin: z.coerce.number().int().min(10).max(480).default(45),
+  durationMin: z.coerce.number<number>().int().min(10).max(480).default(45),
   location: z.string().trim().max(160).optional().transform((v) => v || null),
   interviewerId: z.string().min(1, "Choose the interviewer"),
 });
@@ -478,13 +478,13 @@ export async function recruitmentSettings(organisationId: string) {
 
 const settingsSchema = z.object({
   remindersOn: z.boolean(),
-  incompleteAfterDays: z.coerce.number().int().min(1).max(60),
-  screeningAfterDays: z.coerce.number().int().min(1).max(60),
-  interviewConfirmHours: z.coerce.number().int().min(1).max(168),
-  referencesAfterDays: z.coerce.number().int().min(1).max(60),
-  onboardingDocsAfterDays: z.coerce.number().int().min(1).max(60),
-  trainingAfterDays: z.coerce.number().int().min(1).max(90),
-  retentionMonths: z.coerce.number().int().min(1, "Keep applications for at least a month").max(24, "Keep applications for no more than 24 months"),
+  incompleteAfterDays: z.coerce.number<number>().int().min(1).max(60),
+  screeningAfterDays: z.coerce.number<number>().int().min(1).max(60),
+  interviewConfirmHours: z.coerce.number<number>().int().min(1).max(168),
+  referencesAfterDays: z.coerce.number<number>().int().min(1).max(60),
+  onboardingDocsAfterDays: z.coerce.number<number>().int().min(1).max(60),
+  trainingAfterDays: z.coerce.number<number>().int().min(1).max(90),
+  retentionMonths: z.coerce.number<number>().int().min(1, "Keep applications for at least a month").max(24, "Keep applications for no more than 24 months"),
 });
 
 export async function saveRecruitmentSettings(ctx: Ctx, raw: z.input<typeof settingsSchema> | Record<string, unknown>) {

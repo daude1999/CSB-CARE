@@ -15,7 +15,7 @@ import { myStaff } from "@/server/workforce/link";
 
 const claimSchema = z.object({
   date: z.string().refine(isIsoDate, "Choose the date"),
-  miles: z.coerce.number().positive("Miles must be more than 0").max(500, "That is more than 500 miles in a day"),
+  miles: z.coerce.number<number>().positive("Miles must be more than 0").max(500, "That is more than 500 miles in a day"),
   visitId: z.string().optional(),
   reason: z.string().trim().min(3, "Say what the journey was for").max(500),
 });

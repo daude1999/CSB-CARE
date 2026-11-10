@@ -62,9 +62,9 @@ const profileSchema = z.object({
   integratedCareBoard: optText(200),
   commissioningArrangements: optText(2000),
   extraSourceIds: z.array(z.string()).default([]),
-  nextReviewDate: z.coerce.date().optional(),
+  nextReviewDate: z.coerce.date<Date>().optional(),
   responsibleManagerId: optText(60),
-  version: z.coerce.number().int().min(1),
+  version: z.coerce.number<number>().int().min(1),
 });
 export type ProfileInput = z.input<typeof profileSchema>;
 

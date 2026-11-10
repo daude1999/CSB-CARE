@@ -60,7 +60,7 @@ export async function setMemberAreas(ctx: Ctx, membershipId: string, areaIds: st
   });
 }
 
-const callTypeSchema = z.object({ name: z.string().trim().min(2, "Name the call type").max(60), defaultDurationMin: z.coerce.number().int().min(5).max(1440), monitored: z.boolean(), chargeable: z.boolean() });
+const callTypeSchema = z.object({ name: z.string().trim().min(2, "Name the call type").max(60), defaultDurationMin: z.coerce.number<number>().int().min(5).max(1440), monitored: z.boolean(), chargeable: z.boolean() });
 
 export async function createCallType(ctx: Ctx, input: z.input<typeof callTypeSchema> | Record<string, unknown>) {
   const organisationId = requireOrgPermission(ctx, "rota.settings");

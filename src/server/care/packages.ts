@@ -19,7 +19,7 @@ export const REQUIREMENTS_MAX = 20000;
 
 export const packageSchema = z.object({
   reference: z.string().trim().max(80).optional(),
-  commissionedMinutesPerWeek: z.coerce.number().int().min(0, "Minutes cannot be negative").max(20160, "That is more than a week").optional().nullable(),
+  commissionedMinutesPerWeek: z.coerce.number<number>().int().min(0, "Minutes cannot be negative").max(20160, "That is more than a week").optional().nullable(),
   startDate: z.string().refine(isIsoDate, "Give the start date"),
   endDate: z.string().refine((s) => !s || isIsoDate(s), "End must be a date").optional(),
   // Long enough for text saved by earlier imports, so an existing package can always be edited and saved unchanged.

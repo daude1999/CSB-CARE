@@ -13,7 +13,7 @@ const schema = z.object({
   rotaEnabled: z.boolean().nullable(),
   gender: z.enum(["FEMALE", "MALE", "OTHER", "UNDISCLOSED"]).nullable(),
   drives: z.boolean(),
-  maxWeeklyHours: z.coerce.number().min(0).max(80).nullable(),
+  maxWeeklyHours: z.coerce.number<number>().min(0).max(80).nullable(),
   areaIds: z.array(z.string()).max(50),
   notes: z.string().max(1000).nullable(),
 });

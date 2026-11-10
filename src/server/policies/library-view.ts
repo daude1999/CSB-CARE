@@ -64,7 +64,7 @@ const QuerySchema = z.object({
   quick: optional(QUICK_KEYS),
   sort: optional(SORT_KEYS),
   layout: optional(LAYOUTS),
-  page: z.coerce.number().int().min(1).max(500).optional().catch(undefined),
+  page: z.coerce.number<number>().int().min(1).max(500).optional().catch(undefined),
   selected: id,
   pane: optional(PANE_KEYS),
   insp: optional(["closed"] as const),

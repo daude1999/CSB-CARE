@@ -186,7 +186,7 @@ export const PACKAGE_FIELDS = {
   reference: { label: "Package or purchase order reference", schema: s(80) },
   startDate: { label: "Package start date", schema: isoDate },
   endDate: { label: "Package end date", schema: isoDate },
-  minutesPerWeek: { label: "Authorised minutes per week", schema: z.coerce.number().int().min(0).max(20160) },
+  minutesPerWeek: { label: "Authorised minutes per week", schema: z.coerce.number<number>().int().min(0).max(20160) },
   /** Only how the commissioned care is staffed and delivered. Clinical, medication, family and funding notes go to
    *  their own sections or the document's flags, never into the package text. */
   requirements: { label: "Staffing and support instructions", schema: s(2000) },
@@ -195,10 +195,10 @@ export type PackageField = keyof typeof PACKAGE_FIELDS;
 
 export const visitValue = z.object({
   label: s(80),
-  weekdays: z.array(z.coerce.number().int().min(1).max(7)).min(1, "Choose at least one day").transform((d) => [...new Set(d)].sort()),
+  weekdays: z.array(z.coerce.number<number>().int().min(1).max(7)).min(1, "Choose at least one day").transform((d) => [...new Set(d)].sort()),
   startTime: z.string().trim().refine((v) => parseHhmm(v) !== null, "Give the start time as HH:MM"),
-  durationMin: z.coerce.number().int().min(5, "A visit lasts at least 5 minutes").max(1440),
-  carers: z.coerce.number().int().min(1).max(20),
+  durationMin: z.coerce.number<number>().int().min(5, "A visit lasts at least 5 minutes").max(1440),
+  carers: z.coerce.number<number>().int().min(1).max(20),
   tasks: z.array(z.string().trim().min(1).max(200)).max(30).default([]),
   fundedBy: z.enum(["COUNCIL", "CARERS_SERVICE", "OTHER"]).default("COUNCIL"),
   medicationPrompt: z.boolean().default(false),

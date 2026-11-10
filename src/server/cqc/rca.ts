@@ -225,7 +225,7 @@ const whatSchema = z.object({
   immediateImpact: z.string().trim().max(4000).optional(),
   harm: z.enum(Object.keys(HARM) as [keyof typeof HARM], { message: "Choose the level of harm" }),
   immediateActions: z.string().trim().max(4000).optional(),
-  expectedLock: z.coerce.number().int().optional(),
+  expectedLock: z.coerce.number<number>().int().optional(),
 });
 
 export async function saveWhatHappened(ctx: Ctx, id: string, raw: z.input<typeof whatSchema>) {

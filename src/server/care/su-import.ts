@@ -39,10 +39,10 @@ const optDate = z.string().trim().optional().transform((v) => v || undefined).re
 
 export const importVisitSchema = z
   .object({
-    weekdays: z.array(z.coerce.number().int().min(1).max(7)).min(1, "Choose at least one day for every visit"),
+    weekdays: z.array(z.coerce.number<number>().int().min(1).max(7)).min(1, "Choose at least one day for every visit"),
     startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, "Give each visit a start time (HH:MM)"),
-    durationMin: z.coerce.number().int().min(5, "A visit lasts at least 5 minutes").max(1440),
-    carers: z.coerce.number().int().min(1, "Each visit needs at least one carer").max(20),
+    durationMin: z.coerce.number<number>().int().min(5, "A visit lasts at least 5 minutes").max(1440),
+    carers: z.coerce.number<number>().int().min(1, "Each visit needs at least one carer").max(20),
     callTypeId: z.string().trim().min(1, "Choose a call type for every visit"),
     tasks: z.string().trim().max(2000, "Keep each visit's tasks under 2000 characters").optional().transform((v) => v || undefined),
     fundedBy: z.enum(["COUNCIL", "CARERS_SERVICE", "OTHER"]).default("COUNCIL"),

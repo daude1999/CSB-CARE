@@ -72,7 +72,7 @@ const medSchema = z.object({
   support: z.enum(["PROMPT", "ASSIST", "ADMINISTER"]),
   timeRanges: z.array(z.enum(["MORNING", "LUNCH", "TEA", "BED"])).default([]),
   asRequired: z.boolean().default(false),
-  maxDosesPerDay: z.coerce.number().int().min(1).max(24).optional().nullable(),
+  maxDosesPerDay: z.coerce.number<number>().int().min(1).max(24).optional().nullable(),
   controlled: z.boolean().default(false),
   instructions: z.string().trim().max(2000).optional(),
   startDate: z.string().refine(isIsoDate, "Give the start date"),

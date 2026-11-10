@@ -60,7 +60,7 @@
     "lucide-react": "^0.468.0",
     "mammoth": "^1.13.0",
     "next": "^15.5.28",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^10.5.0",
     "papaparse": "^5.7.0",
     "pdfjs-dist": "^6.3.289",
     "pdfkit": "^0.20.2",
@@ -71,7 +71,7 @@
     "recharts": "^3.10.1",
     "server-only": "^0.0.1",
     "unpdf": "^1.9.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
@@ -85,11 +85,15 @@
     "autoprefixer": "^10.6.1",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.28",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.32",
     "prisma": "^6.19.3",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.23.15",
     "typescript": "5.9",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "postcss": "^8.5.32",
+    "deepmerge-ts": "^8.0.2"
   }
 }

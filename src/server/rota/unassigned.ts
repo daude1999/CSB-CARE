@@ -56,7 +56,7 @@ export const unassignedInputSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
   /** Older links: ?from=YYYY-MM-DD&days=N. */
-  days: z.coerce.number().int().min(1).max(28).optional().catch(undefined),
+  days: z.coerce.number<number>().int().min(1).max(28).optional().catch(undefined),
   branch: optId,
   area: optId,
   call: optId,
@@ -68,8 +68,8 @@ export const unassignedInputSchema = z.object({
   q: z.string().trim().max(100).optional().transform((v) => v || undefined),
   sort: z.enum(["priority", "ref", "su", "date", "duration", "carers", "call", "area"]).catch("priority"),
   dir: z.enum(["asc", "desc"]).catch("asc"),
-  page: z.coerce.number().int().min(1).catch(1),
-  per: z.coerce.number().int().catch(25).transform((n) => ([25, 50, 100].includes(n) ? n : 25)),
+  page: z.coerce.number<number>().int().min(1).catch(1),
+  per: z.coerce.number<number>().int().catch(25).transform((n) => ([25, 50, 100].includes(n) ? n : 25)),
 });
 export type UnassignedFilters = z.output<typeof unassignedInputSchema> & { when: (typeof WHEN)[number]; from: string; to: string };
 

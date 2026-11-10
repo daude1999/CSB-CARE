@@ -28,7 +28,7 @@ const convertSchema = z.object({
   staffId: z.string().trim().max(40).optional(),
   start: z.string().optional(),
   linkEmployeeId: z.string().optional(),
-  lockVersion: z.coerce.number().int(),
+  lockVersion: z.coerce.number<number>().int(),
 });
 
 const CORE_CHECKS = ["DBS review", "Right to work", "Safeguarding training"];

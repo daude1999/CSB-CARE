@@ -135,7 +135,7 @@ const resultSchema = z.object({
   rationale: z.string().trim().min(10, "Give the rationale for the result (what you saw and why)").max(4000),
   findings: z.string().trim().max(4000).optional(),
   naReason: z.string().trim().max(1000).optional(),
-  expectedVersion: z.coerce.number().int().optional(),
+  expectedVersion: z.coerce.number<number>().int().optional(),
 });
 
 export async function recordResult(ctx: Ctx, assessmentId: string, criterionId: string, raw: z.input<typeof resultSchema> | Record<string, unknown>) {
