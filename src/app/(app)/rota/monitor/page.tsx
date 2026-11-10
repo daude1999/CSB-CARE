@@ -1,5 +1,6 @@
 import { GearSix } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { fmtLondonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -43,6 +44,17 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
+      <ModuleHeader
+        title="The Monitor"
+        description="Live check of today's calls: who has clocked in, who is late and what needs a decision."
+        actions={
+          <>
+            <Link href="/rota/exceptions" className="mh-btn">Exceptions</Link>
+            <form action={sweepNowAction}><input type="hidden" name="back" value={back} /><button className="mh-btn mh-btn-primary">Check now</button></form>
+            {canSettings ? <Link href="/rota/settings" className="mh-btn" aria-label="Monitor settings" title="Monitor settings"><GearSix size={20} weight="fill" /></Link> : null}
+          </>
+        }
+      />
       <AutoRefresh seconds={60} />
       <Flash searchParams={sp} />
 
@@ -82,15 +94,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
       </section>
 
       <section className="panel" aria-labelledby="monitor-title">
-        <div className="mb-2 grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:grid-cols-[1fr_auto_1fr] sm:gap-3">
-          <Link href="/rota" className="btn-secondary justify-self-start">Back</Link>
-          <h1 id="monitor-title" className="text-center text-[20px] font-semibold text-[#7b1fa2] sm:text-[24px]">The Monitor</h1>
-          <span className="flex flex-wrap items-center justify-end gap-2 justify-self-end">
-            <Link href="/rota/exceptions" className="btn-secondary">Exceptions</Link>
-            <form action={sweepNowAction}><input type="hidden" name="back" value={back} /><button className="btn-secondary">Check now</button></form>
-            {canSettings ? <Link href="/rota/settings" className="text-[#d9473f]" aria-label="Monitor settings" title="Monitor settings"><GearSix size={28} weight="fill" /></Link> : null}
-          </span>
-        </div>
+        <h2 id="monitor-title" className="mb-2 text-[17px] font-semibold text-ink">Today&apos;s calls</h2>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-[13px]">
           <p className={stale ? "font-medium text-[#8a5a00]" : "text-slate-600"}>
             {b.lastRun ? <>Last checked at <span className="tabular-nums">{londonTime(b.lastRun.startedAt)}</span>.</> : "Not checked yet today."}

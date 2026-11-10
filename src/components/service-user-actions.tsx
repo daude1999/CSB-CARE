@@ -45,9 +45,9 @@ export function updateHref(method: UpdateMethod, id: string): string {
   return `/rota/coordinator?mode=EXISTING&person=${person}${method === "discharge" ? "&doc=discharge" : ""}#start`;
 }
 
-const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5b2bb5] focus-visible:ring-offset-2";
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-module focus-visible:ring-offset-2";
 export const PRIMARY_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#4b1fa8] bg-[#4b1fa8] px-4 text-[15px] font-semibold text-white hover:border-[#3d1890] hover:bg-[#3d1890] hover:text-white ${FOCUS}`;
-export const OUTLINE_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#b9a6ea] bg-white px-4 text-[15px] font-semibold text-[#101828] hover:border-[#5b2bb5] hover:bg-[#f8f5fe] hover:text-[#101828] ${FOCUS}`;
+export const OUTLINE_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#b9a6ea] bg-white px-4 text-[15px] font-semibold text-[#101828] hover:border-module hover:bg-[#f8f5fe] hover:text-[#101828] ${FOCUS}`;
 
 /**
  * A button with a dropdown panel. The panel is positioned against the viewport so it is never cut off by the table's
@@ -130,7 +130,7 @@ function Choice({ href, icon, title, text, testId }: { href: string; icon: React
   return (
     <li>
       <Link href={href} data-testid={testId} className={`group flex items-start gap-3 rounded-[9px] px-3 py-2.5 text-[#101828] no-underline hover:bg-[#f6f2fd] hover:text-[#101828] ${FOCUS}`}>
-        <span aria-hidden className="mt-0.5 shrink-0 text-[#5b2bb5]">{icon}</span>
+        <span aria-hidden className="mt-0.5 shrink-0 text-module">{icon}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold text-[#3d1890]">{title}</span>
           <span className="mt-0.5 block text-[13px] leading-[18px] text-[#475467]">{text}</span>
@@ -245,7 +245,7 @@ export function UpdateServiceUserButton({ perms, person, buttonClass, testId = "
         <div>
           <p className="px-3 pb-1 pt-2 text-[13px] text-[#475467]" data-testid="update-person">Update <strong className="text-[#101828]">{picked.name}</strong>{picked.reference ? ` · ${picked.reference}` : ""}</p>
           <UpdateChoices perms={perms} person={picked} />
-          {!person ? <button type="button" onClick={() => setPicked(null)} className={`m-1 inline-flex items-center gap-1.5 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd] ${FOCUS}`}><ArrowLeft size={14} aria-hidden />Choose a different person</button> : null}
+          {!person ? <button type="button" onClick={() => setPicked(null)} className={`m-1 inline-flex items-center gap-1.5 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}><ArrowLeft size={14} aria-hidden />Choose a different person</button> : null}
         </div>
       ) : <PersonPicker onPick={setPicked} />}
     </Dropdown>

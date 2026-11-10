@@ -145,7 +145,7 @@ export function CallRing({ label, value, total, colour, note, href }: { label: s
 
 /** The office must say whether a cancellation is charged. Used on every cancel form; the server refuses a cancel without it. */
 export function CancelChargeChoice({ compact = false }: { compact?: boolean }) {
-  const opt = "flex flex-1 cursor-pointer items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-[14px] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold";
+  const opt = "flex flex-1 cursor-pointer items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-[14px] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold";
   return (
     <fieldset>
       <legend className={compact ? "mb-1 text-[12.5px] text-slate-600" : "label"}>Charge for this cancellation?</legend>

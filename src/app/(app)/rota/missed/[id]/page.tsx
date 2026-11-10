@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { orNotFound } from "@/server/auth/page-guard";
@@ -74,17 +75,19 @@ export default async function MissedCasePage({ params, searchParams }: { params:
 
   return (
     <>
-      <Flash searchParams={sp} />
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Link href="/rota/missed" className="btn-secondary">Back to Missed Calls</Link>
-        <div className="min-w-0 flex-1 text-center">
-          <h1 className="text-[22px] font-semibold text-[#6b46c9]">Missed call {c.visit.reference}</h1>
-          <p className="text-[13.5px] text-slate-600">{fmtLondonDate(londonDate(c.scheduledStart), { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {c.visit.callType.name} {londonTime(c.visit.scheduledStart)}–{londonTime(c.visit.scheduledEnd)}{c.visit.area ? ` · ${c.visit.area.name}` : ""}</p>
-        </div>
-        {canRca ? (rca ? <Link href={`/compliance/cqc/rca/${rca.rca.id}`} className="btn-secondary" data-testid="missed-rca">Open {rca.rca.reference}</Link> : <Link href={`/compliance/cqc/rca/new?missed=${c.id}`} className="btn-secondary" data-testid="missed-rca">Start root cause analysis</Link>) : null}
+      <ModuleHeader
+        title={`Missed call ${c.visit.reference}`}
+        crumbs={[{ label: "Missed Calls", href: "/rota/missed" }]}
+        description={<>{fmtLondonDate(londonDate(c.scheduledStart), { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {c.visit.callType.name} {londonTime(c.visit.scheduledStart)}–{londonTime(c.visit.scheduledEnd)}{c.visit.area ? ` · ${c.visit.area.name}` : ""}</>}
+        actions={
+          <>
+        {canRca ? (rca ? <Link href={`/compliance/cqc/rca/${rca.rca.id}`} className="mh-btn" data-testid="missed-rca">Open {rca.rca.reference}</Link> : <Link href={`/compliance/cqc/rca/new?missed=${c.id}`} className="mh-btn" data-testid="missed-rca">Start root cause analysis</Link>) : null}
         <Badge tone={STAGE_TONE[c.stage]}>{STAGE_LABEL[c.stage]}{d.overdue ? " · past deadline" : ""}</Badge>
         {c.escalatedAt ? <Badge tone="violet">Escalated {fmtDate(c.escalatedAt, true)}</Badge> : null}
-      </div>
+          </>
+        }
+      />
+      <Flash searchParams={sp} />
 
       <ol aria-label="Investigation progress" className="mb-3 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white text-[13px] sm:grid-cols-3 lg:grid-cols-6">
         {steps.map(([label, done], i) => (

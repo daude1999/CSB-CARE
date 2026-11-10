@@ -47,7 +47,7 @@ function ContactCard({ c }: { c: CoverContact }) {
       <div className="flex flex-wrap items-center gap-1.5">
         <b className="text-[14.5px] text-slate-900">{c.name}</b>
         <span className="text-[13px] text-slate-600">{c.relationship ?? c.kind.replace(/_/g, " ").toLowerCase()}</span>
-        {c.isPrimary ? <span className="rounded-full bg-[#ede7fb] px-2 py-0.5 text-[12px] font-semibold text-[#4b2f9a]">Primary contact</span> : null}
+        {c.isPrimary ? <span className="rounded-full bg-module/[.14] px-2 py-0.5 text-[12px] font-semibold text-[#4b2f9a]">Primary contact</span> : null}
         {c.isEmergency ? <span className="rounded-full bg-[#fde8e8] px-2 py-0.5 text-[12px] font-semibold text-[#8a1f1a]">Emergency contact</span> : null}
       </div>
       <div className="mt-1.5 space-y-1">

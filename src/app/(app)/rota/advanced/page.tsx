@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
-import { addDays, isIsoDate, londonDate, londonMinute, londonTime, mondayOf } from "@/lib/london";
-import { openPlaces, placeKey } from "@/lib/carer-places";
+import { addDays, isIsoDate, londonDate, londonMinute, mondayOf } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { listVisits, rotaLookups, suName, type VisitRow } from "@/server/rota/queries";
@@ -13,6 +12,8 @@ import { longDate, NotBuiltNotice } from "@/components/rota-ui";
 import { weekIsBuilt } from "@/server/rota/build";
 import { TimelineBoard, type BoardCard, type BoardRow, type CardTone } from "@/components/timeline-board";
 import { RotaTabs } from "@/components/rota-nav";
+import { MoveConfirm } from "@/components/move-confirm";
+import { canMove, needsCarer, pendingMove, staffDay } from "@/server/rota/board";
 
 export const dynamic = "force-dynamic";
 
@@ -81,22 +82,14 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
   if (uncovered === "only") visits = visits.filter((v) => v.flags.unassignedSlots > 0);
   if (uncovered === "hide") visits = visits.filter((v) => v.flags.unassignedSlots === 0);
 
-  const movable = (v: VisitRow) => canEdit && (v.status === "SCHEDULED" || v.status === "MISSED");
+  const movable = (v: VisitRow) => canMove(v, canEdit);
   const rows: BoardRow[] = [];
   if (view === "staff-day" || view === "staff-area") {
-    const unassigned = visits.filter((v) => v.flags.unassignedSlots > 0 && v.status !== "CANCELLED");
-    rows.push({ key: "none", label: "Unassigned", danger: true, sub: `${unassigned.length} visit${unassigned.length === 1 ? "" : "s"}`, cards: unassigned.map((v) => ({ ...card(v, suName(v.serviceUser), true), ...(movable(v) ? { move: { slot: openPlaces(v.carersRequired, v.assignments)[0] ?? "PRIMARY", lockVersion: v.lockVersion } } : {}) })) });
+    // Grouping and moves are shared with the Daily Rota Board (src/server/rota/board.ts).
+    const unassigned = needsCarer(visits);
+    rows.push({ key: "none", label: "Unassigned", danger: true, sub: `${unassigned.length} visit${unassigned.length === 1 ? "" : "s"}`, cards: unassigned.map(({ visit: v, place }) => ({ ...card(v, suName(v.serviceUser), true), ...(movable(v) ? { move: { slot: place, lockVersion: v.lockVersion } } : {}) })) });
     const byStaff = new Map<string, { name: string; cards: BoardCard[]; minutes: number; areas: Map<string, number> }>();
-    for (const v of visits) {
-      for (const a of v.assignments) {
-        const r = byStaff.get(a.staffId) ?? { name: a.staff.displayName, cards: [] as BoardCard[], minutes: 0, areas: new Map<string, number>() };
-        r.cards.push({ ...card(v, `${suName(v.serviceUser)}${a.slot === "SHADOW" ? " (shadow)" : ""}`), ...(movable(v) ? { move: { slot: placeKey(a), lockVersion: v.lockVersion } } : {}) });
-        if (v.status !== "CANCELLED" && a.slot !== "SHADOW") r.minutes += (v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000;
-        const area = v.area?.name ?? "No area";
-        r.areas.set(area, (r.areas.get(area) ?? 0) + 1);
-        byStaff.set(a.staffId, r);
-      }
-    }
+    for (const r of staffDay(visits)) byStaff.set(r.staffId, { name: r.name, minutes: r.minutes, areas: r.areas, cards: r.items.map(({ visit: v, place, shadow }) => ({ ...card(v, `${suName(v.serviceUser)}${shadow ? " (shadow)" : ""}`), ...(movable(v) ? { move: { slot: place, lockVersion: v.lockVersion } } : {}) })) });
     // Team members in the chosen area are listed even with no visits, so there is somewhere to drop a card.
     if (sp.area) for (const st of lk.carers.filter((x) => x.areas.some((a) => a.areaId === sp.area) && !byStaff.has(x.id))) byStaff.set(st.id, { name: st.displayName, cards: [], minutes: 0, areas: new Map([[lk.areas.find((a) => a.id === sp.area)?.name ?? "No area", 0]]) });
     const list = [...byStaff.entries()].map(([id, r]) => ({ id, ...r, mainArea: [...r.areas.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? "No area" }));
@@ -132,13 +125,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
   const params = { date, view, cancelled: sp.cancelled, uncovered: sp.uncovered, area: sp.area, carer: sp.carer, refresh: sp.refresh };
   const back = `/rota/advanced?${new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]))}`;
   // A drag that needs confirmation comes back with the move in the address, so the coordinator can accept the warnings.
-  const move = (() => {
-    const [visitId, slot, staffId, lockVersion] = (sp.move ?? "").split("~");
-    const v = all.find((x) => x.id === visitId);
-    const st = lk.staff.find((x) => x.id === staffId);
-    if (!v || !st || !slot || !lockVersion) return null;
-    return { visitId: v.id, slot, staffId: st.id, lockVersion, label: `${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`, staff: st.displayName };
-  })();
+  const move = pendingMove(sp.move, all, lk.staff);
   const qs = (extra: Record<string, string | undefined>) => new URLSearchParams(Object.entries({ ...params, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
 
   return (
@@ -187,21 +174,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
         </div>
       </section>
 
-      {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? (
-        <section aria-label="Confirm move" className="panel mb-3 border-l-4 border-[#e3934a]">
-          <p className="text-[14px]">Move <span className="font-medium">{move.label}</span> to <span className="font-medium">{move.staff}</span> anyway? The warnings above will be recorded on the allocation.</p>
-          <form action={assignCarerAction} className="mt-2 flex gap-2">
-            <input type="hidden" name="back" value={back} />
-            <input type="hidden" name="visitId" value={move.visitId} />
-            <input type="hidden" name="slot" value={move.slot} />
-            <input type="hidden" name="staffId" value={move.staffId} />
-            <input type="hidden" name="lockVersion" value={move.lockVersion} />
-            <input type="hidden" name="acceptWarnings" value="true" />
-            <button className="btn-primary">Move anyway</button>
-            <Link href={back} className="btn-secondary">Leave it</Link>
-          </form>
-        </section>
-      ) : null}
+      {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <MoveConfirm move={move} back={back} /> : null}
       <h2 className="mb-2 text-[22px] font-semibold text-[#2f6b3a]">{longDate(date)} · {VIEWS[view]}</h2>
       <TimelineBoard rows={rows} fromMin={fromMin} toMin={toMin} nowMin={nowMin} caption={view.startsWith("su") ? "Service user" : view === "route-day" ? "Run route" : "Team member"} action={canEdit && (view === "staff-day" || view === "staff-area") ? assignCarerAction : undefined} back={back} />
       <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-slate-600">

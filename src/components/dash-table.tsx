@@ -57,8 +57,8 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
         {filters?.length ? (
           <label className="relative">
             <span className="sr-only">{filterLabel ?? "Filter"}</span>
-            <Funnel size={17} aria-hidden className={`pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 ${filter ? "text-[#5b2bb5]" : "text-[#344054]"}`} />
-            <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }} title={filterLabel} className={`h-9 w-9 cursor-pointer appearance-none rounded-[7px] border bg-white text-transparent ${filter ? "border-[#5b2bb5] bg-[#f4effc]" : "border-[#d0d5dd]"}`}>
+            <Funnel size={17} aria-hidden className={`pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 ${filter ? "text-module" : "text-[#344054]"}`} />
+            <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }} title={filterLabel} className={`h-9 w-9 cursor-pointer appearance-none rounded-[7px] border bg-white text-transparent ${filter ? "border-module bg-[#f4effc]" : "border-[#d0d5dd]"}`}>
               <option value="">All</option>
               {filters.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
@@ -83,11 +83,11 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
                 return (
                   <th key={c.key} scope="col" aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-1.5 py-[7px] text-[12.5px] font-semibold text-[#101828] first:pl-3.5 ${c.className ?? ""}`}>
                     {c.sortable ? (
-                      <button type="button" onClick={() => setSort(active && sort!.dir === "asc" ? { key: c.key, dir: "desc" } : { key: c.key, dir: "asc" })} className="inline-flex items-center gap-1 hover:text-[#5b2bb5]">
+                      <button type="button" onClick={() => setSort(active && sort!.dir === "asc" ? { key: c.key, dir: "desc" } : { key: c.key, dir: "asc" })} className="inline-flex items-center gap-1 hover:text-module">
                         {c.label}
                         <span aria-hidden className="flex flex-col leading-none text-[#98a2b3]">
-                          <CaretUp size={8} weight="fill" className={active && sort!.dir === "asc" ? "text-[#5b2bb5]" : ""} />
-                          <CaretDown size={8} weight="fill" className={active && sort!.dir === "desc" ? "text-[#5b2bb5]" : ""} />
+                          <CaretUp size={8} weight="fill" className={active && sort!.dir === "asc" ? "text-module" : ""} />
+                          <CaretDown size={8} weight="fill" className={active && sort!.dir === "desc" ? "text-module" : ""} />
                         </span>
                       </button>
                     ) : c.label}
@@ -112,7 +112,7 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
           <nav aria-label={`${label} pages`} className="flex items-center gap-1">
             <button type="button" onClick={() => setPage(current - 1)} disabled={current === 1} aria-label="Previous page" className="flex h-7 w-7 items-center justify-center rounded text-[#344054] hover:bg-slate-100 disabled:opacity-40"><CaretLeft size={14} weight="bold" aria-hidden /></button>
             {nums.map((n, i) => n === null ? <span key={`gap-${i}`} className="px-1 text-[12.5px] text-[#667085]">…</span> : (
-              <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === current ? "page" : undefined} className={`h-7 min-w-7 rounded-[6px] border px-1.5 text-[12.5px] tabular-nums ${n === current ? "border-[#5b2bb5] bg-[#5b2bb5] font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</button>
+              <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === current ? "page" : undefined} className={`h-7 min-w-7 rounded-[6px] border px-1.5 text-[12.5px] tabular-nums ${n === current ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</button>
             ))}
             <button type="button" onClick={() => setPage(current + 1)} disabled={current === pages} aria-label="Next page" className="flex h-7 w-7 items-center justify-center rounded text-[#344054] hover:bg-slate-100 disabled:opacity-40"><CaretRight size={14} weight="bold" aria-hidden /></button>
           </nav>

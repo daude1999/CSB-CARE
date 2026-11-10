@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { Alarm, ArrowClockwise, ChatCircleText, ClockCounterClockwise, Info, PhoneX, UserPlus, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { Alarm, ArrowClockwise, ChatCircleText, ClockCounterClockwise, Info, PhoneX, UserPlus } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
@@ -25,9 +26,9 @@ const BASE = "/rota/attention";
 type Filter = "now" | AttentionType;
 type Keep = Record<string, string | undefined>;
 
-const PRIMARY = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-[#5b2bb5] bg-[#5b2bb5] px-3.5 text-[14px] font-semibold text-white no-underline hover:bg-[#4c2398] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
-const OUTLINE = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-[#5b2bb5] bg-white px-3.5 text-[14px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd] hover:text-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
-const TEXT_LINK = "text-[14.5px] font-semibold text-[#5b2bb5] no-underline hover:text-[#4c2398] hover:underline";
+const PRIMARY = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-module px-3.5 text-[14px] font-semibold text-white no-underline hover:bg-[#4c2398] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+const OUTLINE = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-white px-3.5 text-[14px] font-semibold text-module no-underline hover:bg-[#f6f2fd] hover:text-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+const TEXT_LINK = "text-[14.5px] font-semibold text-module no-underline hover:text-[#4c2398] hover:underline";
 
 const qs = (p: Keep) => {
   const u = new URLSearchParams(Object.entries(p).filter((e): e is [string, string] => !!e[1]));
@@ -63,16 +64,17 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
   const detail = selected ? await detailData(ctx, selected) : null;
 
   return (
-    <div className="daily-rota -mt-1">
-      <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[12px] bg-[#efeafc] text-[#5b2bb5]"><WarningOctagon size={30} weight="duotone" /></span>
-        <div className="mr-auto min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Visits Needing Attention</h1>
-          <p className="text-[15px] text-[#475467]">One queue for every visit that needs a decision, most urgent first.</p>
-        </div>
-        <span className="text-[14px] tabular-nums text-[#475467]" data-testid="attention-updated">Updated {londonTime(queue.now)}</span>
-        <Link href={qs(sp.item ? keep : listKeep)} scroll={false} className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-[14px] font-semibold text-[#344054] no-underline hover:bg-[#f9fafb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]"><ArrowClockwise size={16} aria-hidden />Refresh</Link>
-      </header>
+    <div className="daily-rota">
+      <ModuleHeader
+        title="Visits Needing Attention"
+        description="One queue for every visit that needs a decision, most urgent first."
+        actions={
+          <>
+            <span className="text-[14px] tabular-nums text-white/88" data-testid="attention-updated">Updated {londonTime(queue.now)}</span>
+            <Link href={qs(sp.item ? keep : listKeep)} scroll={false} className="mh-btn"><ArrowClockwise size={16} aria-hidden />Refresh</Link>
+          </>
+        }
+      />
       <Flash searchParams={sp} />
 
       <nav aria-label="Filter the queue" className="mb-4 grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 xl:grid-cols-4">
@@ -127,7 +129,7 @@ const TILE_TONE = {
 function Tile({ href, current, tone, icon, label, value, hint, testId }: { href: string; current: boolean; tone: keyof typeof TILE_TONE; icon: React.ReactNode; label: string; value: number; hint: string; testId: string }) {
   const t = TILE_TONE[tone];
   return (
-    <Link href={href} scroll={false} aria-current={current ? "true" : undefined} data-testid={testId} className={`flex items-center gap-3.5 rounded-[14px] border px-4 py-4 text-inherit no-underline hover:border-[#c7b8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5] ${current ? t.on : "border-[#eaecf0] bg-white"}`}>
+    <Link href={href} scroll={false} aria-current={current ? "true" : undefined} data-testid={testId} className={`flex items-center gap-3.5 rounded-[14px] border px-4 py-4 text-inherit no-underline hover:border-[#c7b8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module ${current ? t.on : "border-[#eaecf0] bg-white"}`}>
       <span aria-hidden className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] ${t.icon}`}>{icon}</span>
       <span className="shrink-0">
         <span className="block whitespace-nowrap text-[15px] font-semibold text-[#101828]">{label}</span>
@@ -153,7 +155,7 @@ function Toolbar({ queue, filter, listKeep }: { queue: AttentionQueue; filter: F
         {tabs.map((t) => {
           const on = filter === t.key;
           return (
-            <Link key={t.label} href={qs({ ...listKeep, type: t.key ?? undefined })} scroll={false} aria-current={on ? "page" : undefined} className={`rounded-[8px] px-3 py-1.5 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5] ${on ? "bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.08)]" : "text-[#475467] hover:text-[#101828]"}`}>
+            <Link key={t.label} href={qs({ ...listKeep, type: t.key ?? undefined })} scroll={false} aria-current={on ? "page" : undefined} className={`rounded-[8px] px-3 py-1.5 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module ${on ? "bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.08)]" : "text-[#475467] hover:text-[#101828]"}`}>
               {t.label} <span className="font-normal tabular-nums text-[#667085]">{t.n}</span>
             </Link>
           );
@@ -169,7 +171,7 @@ function BranchFilter({ queue, listKeep }: { queue: AttentionQueue; listKeep: Ke
           {listKeep.type ? <input type="hidden" name="type" value={listKeep.type} /> : null}
           <label>
             <span className="sr-only">Branch</span>
-            <select name="branch" defaultValue={queue.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#344054] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
+            <select name="branch" defaultValue={queue.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#344054] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
               <option value="">All branches</option>
               {queue.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
@@ -289,7 +291,7 @@ function UnassignedDetail({ item, data, keep, canEdit }: { item: UnassignedEntry
             const facts = [c.state === "REQUIRES_REVIEW" ? "Check warnings first" : "Free at this time", area ? "works in this area" : null, c.continuity ? `knows ${item.serviceUser.split(" ")[0]}` : null, `${c.weekHours} h this week`].filter(Boolean).join(" · ");
             return (
               <li key={c.id} className="flex items-center gap-3 rounded-[12px] border border-[#eaecf0] px-3.5 py-3" data-testid="attention-carer">
-                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efeafc] text-[13.5px] font-bold text-[#5b2bb5]">{initials(c.name)}</span>
+                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efeafc] text-[13.5px] font-bold text-module">{initials(c.name)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-semibold text-[#3b1f99]">{c.name}</span>
                   <span className="block text-[13px] leading-snug text-[#475467]">{facts}</span>

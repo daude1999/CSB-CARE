@@ -12,7 +12,7 @@ import { Badge, Card, Empty, Flash, PageHeader, fmtDate } from "@/components/ui"
 
 export const dynamic = "force-dynamic";
 
-const CHOICE = "flex min-h-[48px] items-center rounded-[10px] border border-[#d0d5dd] bg-white px-3.5 py-2.5 text-[15px] font-medium text-[#101828] no-underline hover:border-[#5b2bb5] hover:bg-[#f6f2fd] hover:text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const CHOICE = "flex min-h-[48px] items-center rounded-[10px] border border-[#d0d5dd] bg-white px-3.5 py-2.5 text-[15px] font-medium text-[#101828] no-underline hover:border-module hover:bg-[#f6f2fd] hover:text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 
 /**
  * Missed Visit Confirmation, inside My Visits. The carer picks what happened, then sees only the questions that answer
@@ -155,8 +155,8 @@ function Radios({ name, options }: { name: string; options: [string, string][] }
   return (
     <div className="grid gap-1.5">
       {options.map(([value, label], i) => (
-        <label key={value} className="flex min-h-[44px] items-center gap-2.5 rounded-[8px] border border-[#d0d5dd] px-3 text-[15px] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd]">
-          <input type="radio" name={name} value={value} required={i === 0} className="h-4 w-4 accent-[#5b2bb5]" />{label}
+        <label key={value} className="flex min-h-[44px] items-center gap-2.5 rounded-[8px] border border-[#d0d5dd] px-3 text-[15px] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd]">
+          <input type="radio" name={name} value={value} required={i === 0} className="h-4 w-4 accent-module" />{label}
         </label>
       ))}
     </div>

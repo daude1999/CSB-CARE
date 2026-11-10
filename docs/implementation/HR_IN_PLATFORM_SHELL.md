@@ -27,7 +27,7 @@ Compliance, Documents, Training, Branches, Alerts, Settings, Imports.
   (`src/hr/components/hub-header.tsx`). The HR Hub's own sidebar, top bar, portal menu, account menu (with its light/
   dark switch) and footer were removed. Every HR screen below the title bar is unchanged.
 - **Search.** On HR pages the top-bar search says "Search people or documents…" and opens the HR Hub's own search
-  (also Ctrl+K / ⌘K and "/"); on phones it is an icon. Elsewhere it still searches policies
+  (also "/"; Ctrl+K / ⌘K opens the platform command bar since 10 Nov 2026); on phones it is an icon. Elsewhere it still searches policies
   (`src/components/shell-search.tsx`).
 - **Addresses.** `/hr` now redirects to `/hr/dashboard` (keeping `?branch=`), so the menu can mark it.
 - **Fixes.** Training sizes its own columns; the Compliance register fits at 1440 (narrower screens still scroll);

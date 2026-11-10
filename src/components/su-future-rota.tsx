@@ -8,7 +8,7 @@ import { confirmServiceUserRotaAction } from "@/app/rota-actions";
 
 type Preview = Awaited<ReturnType<typeof previewServiceUserRota>>;
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 const TH = "whitespace-nowrap px-2 py-2 text-left text-[13.5px] font-bold text-[#101828]";
 const TD = "px-2 py-2 align-top";
 const BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-semibold text-[#101828] no-underline hover:bg-slate-50 ${FOCUS}`;

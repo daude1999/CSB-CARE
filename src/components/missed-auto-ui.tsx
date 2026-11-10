@@ -38,10 +38,10 @@ export function EvidenceTimeline({ entries, names }: { entries: TimelineEntry[];
         lastDay = day;
         return (
           <li key={`${e.sourceId ?? e.source}-${i}`} className="py-1.5">
-            <span aria-hidden className="absolute -left-[5px] mt-[7px] h-2 w-2 rounded-full bg-[#5b2bb5]" />
+            <span aria-hidden className="absolute -left-[5px] mt-[7px] h-2 w-2 rounded-full bg-module" />
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px]">
               <time dateTime={e.at} className="w-[3.2rem] shrink-0 font-semibold tabular-nums text-[#1b1340]">{hm(e.at)}</time>
-              <span className="min-w-0 flex-1 text-[#101828]">{e.href ? <Link href={e.href} className="text-[#101828] underline decoration-[#d0d5dd] underline-offset-2 hover:decoration-[#5b2bb5]">{e.text}</Link> : e.text}{e.staffId && names?.get(e.staffId) && !e.text.includes(names.get(e.staffId)!) ? ` · ${names.get(e.staffId)}` : ""}</span>
+              <span className="min-w-0 flex-1 text-[#101828]">{e.href ? <Link href={e.href} className="text-[#101828] underline decoration-[#d0d5dd] underline-offset-2 hover:decoration-module">{e.text}</Link> : e.text}{e.staffId && names?.get(e.staffId) && !e.text.includes(names.get(e.staffId)!) ? ` · ${names.get(e.staffId)}` : ""}</span>
               <KindTag kind={e.kind} />
             </div>
             <p className="ml-[3.7rem] text-[12.5px] text-[#475467]">{showDay ? `${day}. ` : ""}{e.recordedAt ? `Entered at ${hm(e.recordedAt)}${dayOf(e.recordedAt) !== day ? ` on ${dayOf(e.recordedAt)}` : ""}.` : ""}</p>
@@ -132,7 +132,7 @@ export function AutomatedInvestigation({ d, caseId, back, lockVersion, reasonRec
       {d.failedRun ? <p role="alert" className="mb-3 rounded-[8px] border border-[#f3c1bd] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#912018]">The last evidence check failed at {fmtDate(d.failedRun.startedAt, true)}. It is retried automatically{d.canRefresh ? ", or use Refresh evidence" : ""}. The case and its alert are not affected.</p> : null}
 
       {s ? (
-        <div className="mb-3 rounded-[10px] border border-[#e3dff0] bg-[#faf8ff] p-3" data-testid="auto-suggestion">
+        <div className="mb-3 rounded-[10px] border border-[#e3dff0] bg-module/[.04] p-3" data-testid="auto-suggestion">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <h3 className="text-[15px] font-bold text-[#1b1340]">{CLASSIFICATION_LABEL[s.classification]}</h3>
             <Badge tone={s.support === "SUPPORTED" ? "green" : s.support === "WEAK" ? "amber" : "slate"}>{SUPPORT_LABEL[s.support]}</Badge>
@@ -202,7 +202,7 @@ export function AutomatedInvestigation({ d, caseId, back, lockVersion, reasonRec
 
       {d.items.length ? (
         <details className="mt-3">
-          <summary className="cursor-pointer text-[14px] font-semibold text-[#5b2bb5]">View all evidence checked ({d.items.length})</summary>
+          <summary className="cursor-pointer text-[14px] font-semibold text-module">View all evidence checked ({d.items.length})</summary>
           <div className="mt-2"><EvidenceTable items={d.items} /></div>
         </details>
       ) : null}

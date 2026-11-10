@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ModuleHeader } from "@/components/module-header-band";
 import Link from "@/hr/nav";
 import { useRouter, useSearchParams } from "@/hr/nav";
 import {
@@ -203,38 +204,39 @@ export function DocumentCentre({
   return (
     <div className="document-control">
       {!employee && (
-        <div className="page-heading">
-          <div>
-            {focused && (
-              <button
-                className="text-btn"
-                onClick={() => {
-                  setSearch("");
-                  setBranch("");
-                  setType("");
-                  navigate("");
-                }}
-              >
-                <ChevronLeft size={15} />
-                Document centre
-              </button>
-            )}
-            <h1>
-              {group || (destination === "all" ? "All documents" : "Documents")}
-            </h1>
-            <p>
-              {focused
-                ? `${relevant.length} accessible documents in this work area`
-                : "Manage employee evidence, HR records and compliance files."}
-            </p>
-          </div>
-          {canEdit(data.user) && (
-            <button className="primary" onClick={onUpload}>
-              <Upload size={17} />
-              Upload document
-            </button>
-          )}
-        </div>
+        <ModuleHeader
+          module="hr"
+          title={group || (destination === "all" ? "All documents" : "Documents")}
+          description={
+            focused
+              ? `${relevant.length} accessible documents in this work area`
+              : "Manage employee evidence, HR records and compliance files."
+          }
+          actions={
+            <>
+              {focused && (
+                <button
+                  className="mh-btn"
+                  onClick={() => {
+                    setSearch("");
+                    setBranch("");
+                    setType("");
+                    navigate("");
+                  }}
+                >
+                  <ChevronLeft size={15} />
+                  Document centre
+                </button>
+              )}
+              {canEdit(data.user) && (
+                <button className="mh-btn-primary mh-btn" onClick={onUpload}>
+                  <Upload size={17} />
+                  Upload document
+                </button>
+              )}
+            </>
+          }
+        />
       )}
       <div className="panel document-filters">
         <div className="table-toolbar">
