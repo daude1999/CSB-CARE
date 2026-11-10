@@ -61,9 +61,9 @@ jobs:
       CSB_REFERENCE_SECRET: E2E-ONLY-REFERENCE-KEY
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -81,7 +81,7 @@ jobs:
         run: npx playwright test tests/e2e/care-coordinator.spec.ts
       - name: Save care-coordinator test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csb-care-care-coordinator-results
           path: test-results/
@@ -93,7 +93,7 @@ jobs:
         run: npx playwright test tests/e2e/policy-assignment.spec.ts
       - name: Save policy-assignment test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csb-care-policy-assignment-results
           path: test-results/
@@ -105,7 +105,7 @@ jobs:
         run: npx playwright test tests/e2e/v1-scenario.spec.ts
       - name: Save rota-journey test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csb-care-rota-journey-results
           path: test-results/
@@ -117,7 +117,7 @@ jobs:
         run: npx playwright test tests/e2e/rota.spec.ts
       - name: Save rota-regression test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csb-care-rota-regression-results
           path: test-results/
@@ -143,7 +143,7 @@ jobs:
           fi
       - name: Upload browser traces and screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: csb-care-playwright-results
           path: test-results/
