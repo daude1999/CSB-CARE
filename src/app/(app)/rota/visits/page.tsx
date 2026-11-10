@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { VisitStatus } from "@prisma/client";
 import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
@@ -27,8 +27,14 @@ const STATUSES = Object.keys(VISIT_LABEL) as VisitStatus[];
 const PER_PAGE = [25, 50, 100] as const;
 const RISK: Record<string, { label: string; colour: string }> = { LOW: { label: "Low", colour: "#3f9a5b" }, MEDIUM: { label: "Medium", colour: "#e0a526" }, HIGH: { label: "High", colour: "#d9473f" } };
 
-/** Columns a coordinator can add to the table (Column settings). The fifteen default columns are always shown. */
+/**
+ * Columns a coordinator can add to the table (Column settings). The eleven default columns are always shown. Date, Week
+ * and Calendar week are hidden by default since the approved redesign (10 Nov 2026): the header already shows the day.
+ */
 const OPTIONAL = [
+  ["date", "Date"],
+  ["week", "Week (rota pattern)"],
+  ["isoWeek", "Calendar week"],
   ["area", "Area"],
   ["run", "Run route"],
   ["risk", "Risk"],
@@ -70,6 +76,17 @@ const STATUS_BADGE: Record<VisitStatus, string> = {
   CANCELLED: "bg-[#fdecec] text-[#b42318]",
   NOT_DELIVERED: "bg-module/[.08] text-module",
 };
+/** The 4px stripe on the left of each row, in the colour of that status's badge. */
+const STATUS_STRIPE: Record<VisitStatus, string> = {
+  SCHEDULED: "[&>td:first-child]:shadow-[inset_4px_0_0_#344054]",
+  IN_PROGRESS: "[&>td:first-child]:shadow-[inset_4px_0_0_#175cd3]",
+  COMPLETED: "[&>td:first-child]:shadow-[inset_4px_0_0_#14713a]",
+  MISSED: "[&>td:first-child]:shadow-[inset_4px_0_0_#b42318]",
+  CANCELLED: "[&>td:first-child]:shadow-[inset_4px_0_0_#b42318]",
+  NOT_DELIVERED: "[&>td:first-child]:shadow-[inset_4px_0_0_var(--module)]",
+};
+/** "Morning call" → "Morning calls"; "Waking night" → "Waking night calls". */
+const roundName = (name: string) => (/\bcalls?$/i.test(name) ? name.replace(/\bcall$/i, "calls") : `${name} calls`);
 const ROW_TINT: Partial<Record<VisitStatus, string>> = { MISSED: "bg-[#fffafa]", COMPLETED: "bg-[#f8fdf9]", IN_PROGRESS: "bg-[#f7fbff]", CANCELLED: "bg-[#fafafa] text-[#667085]" };
 /** A cancelled call is struck through in red, selected or not. */
 const STRUCK = "[&>td]:line-through [&>td]:decoration-[#b42318] [&>td]:decoration-2";
@@ -147,7 +164,21 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const sort: SortKey = sp.sort && sp.sort in SORTS ? (sp.sort as SortKey) : "time";
   const dir = sp.dir === "desc" ? "desc" : "asc";
   const per = PER_PAGE.find((n) => String(n) === sp.per) ?? 25;
-  const rows = [...all].sort((a, b) => (dir === "asc" ? 1 : -1) * SORTS[sort](a, b) || a.scheduledStart.getTime() - b.scheduledStart.getTime() || a.reference.localeCompare(b.reference));
+  // Sorted by time (the default), rows are grouped under one header per call round (the organisation's call types),
+  // rounds in the order of their first visit of the day. Any other sort shows a plain list.
+  const grouped = sort === "time";
+  const rounds = new Map<string, { name: string; first: Date; last: Date; count: number }>();
+  for (const v of all) {
+    const r = rounds.get(v.callType.id);
+    if (!r) rounds.set(v.callType.id, { name: v.callType.name, first: v.scheduledStart, last: v.scheduledStart, count: 1 });
+    else {
+      r.count += 1;
+      if (v.scheduledStart < r.first) r.first = v.scheduledStart;
+      if (v.scheduledStart > r.last) r.last = v.scheduledStart;
+    }
+  }
+  const roundStart = (v: VisitRow) => rounds.get(v.callType.id)!.first.getTime();
+  const rows = [...all].sort((a, b) => (dir === "asc" ? 1 : -1) * ((grouped ? roundStart(a) - roundStart(b) : 0) || SORTS[sort](a, b)) || a.scheduledStart.getTime() - b.scheduledStart.getTime() || a.reference.localeCompare(b.reference));
   const pages = Math.max(1, Math.ceil(rows.length / per));
   const page = Math.min(pages, Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1));
   const shown = rows.slice((page - 1) * per, page * per);
@@ -191,7 +222,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
       </th>
     );
   };
-  const visible = 15 + cols.size - (canEdit ? 0 : 1);
+  const visible = 12 + cols.size - (canEdit ? 0 : 1);
 
   return (
     <div className="daily-rota">
@@ -292,21 +323,21 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                   <thead className="bg-[#f9fafb]">
                     <tr className="border-b border-[#eaecf0]">
                       {canEdit ? <th scope="col" className="w-10 px-3 py-2.5"><SelectAll form="bulk" name="visitIds" label="Select all visits on this page" /></th> : null}
-                      {sortHead("ref", "Ref")}
-                      {sortHead("date", <><CalendarBlank size={15} aria-hidden className="text-[#475467]" />Date</>)}
-                      {sortHead("status", "Status")}
-                      {sortHead("su", "Service User")}
                       {sortHead("time", "Time")}
                       {cols.has("end") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">End</th> : null}
                       {sortHead("duration", "Duration")}
-                      {sortHead("carers", "Carers")}
+                      {sortHead("su", "Service User")}
                       {sortHead("call", "Service Call")}
                       {sortHead("carer", "Team Member")}
+                      {sortHead("carers", "Carers")}
+                      {sortHead("status", "Status")}
                       <th scope="col" className="px-1.5 py-2.5 text-center" title="Alerts"><Bell size={17} weight="fill" aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Alerts</span></th>
                       <th scope="col" className="px-1.5 py-2.5 text-center" title="Notes"><FileText size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Notes</span></th>
-                      <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold" title="Position in the recurring rota pattern">Week</th>
-                      <th scope="col" className="px-1.5 py-2.5 text-center" title="Calendar (ISO) week"><CalendarBlank size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Calendar week</span></th>
                       <th scope="col" className="px-2 py-2.5 text-center" title="Visit checklist (care tasks)"><ListChecks size={18} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Visit checklist</span></th>
+                      {sortHead("ref", "Ref")}
+                      {cols.has("date") ? sortHead("date", <><CalendarBlank size={15} aria-hidden className="text-[#475467]" />Date</>) : null}
+                      {cols.has("week") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold" title="Position in the recurring rota pattern">Week</th> : null}
+                      {cols.has("isoWeek") ? <th scope="col" className="px-1.5 py-2.5 text-center" title="Calendar (ISO) week"><CalendarBlank size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Calendar week</span></th> : null}
                       {cols.has("area") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Area</th> : null}
                       {cols.has("run") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Run route</th> : null}
                       {cols.has("risk") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Risk</th> : null}
@@ -318,7 +349,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                     </tr>
                   </thead>
                   <tbody>
-                    {shown.map((v) => {
+                    {shown.map((v, i) => {
                       const selected = inspector?.visit.id === v.id;
                       const open = url({ visit: v.id, tab: undefined });
                       const carers = v.assignments.filter((a) => a.slot !== "SHADOW");
@@ -327,26 +358,36 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                       const pw = patternWeek(v, settings);
                       const risk = v.serviceUser.riskLevel ? RISK[v.serviceUser.riskLevel] : null;
                       const vd = fromDbDate(v.date);
+                      const prev = shown[i - 1];
+                      const round = grouped && (!prev || prev.callType.id !== v.callType.id) ? rounds.get(v.callType.id)! : null;
                       return (
-                        <tr key={v.id} data-href={open} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
+                        <Fragment key={v.id}>
+                        {round ? (
+                          <tr data-testid="round-header" className="border-b border-rule bg-module/[.08]">
+                            <th scope="colgroup" colSpan={visible} className="px-3 py-1.5 text-left text-[13px] font-semibold text-ink">
+                              {roundName(round.name)} · {londonTime(round.first)}{round.last.getTime() !== round.first.getTime() ? ` to ${londonTime(round.last)}` : ""} · {round.count} visit{round.count === 1 ? "" : "s"}
+                            </th>
+                          </tr>
+                        ) : null}
+                        <tr data-href={open} data-status={v.status} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${STATUS_STRIPE[v.status]} ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
-                          <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
-                          <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
-                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
-                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
-                          <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledStart)}</td>
+                          <td className="px-2.5 py-2 text-[15px] font-bold tabular-nums text-ink">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}
                           <td className="px-2.5 py-2 tabular-nums">{dur(mins(v.scheduledStart, v.scheduledEnd))}</td>
-                          <td className="px-2.5 py-2"><Coverage v={v} /></td>
+                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
                           <td className="max-w-[140px] truncate px-2.5 py-2" title={v.callType.name}>{v.callType.name}</td>
                           <td className="max-w-[150px] truncate px-2.5 py-2" title={carerNames(v) || "No carer booked"}>
                             {carers.length ? carers.map((a, i) => <span key={a.id}>{i ? ", " : ""}<Link href={`/rota/staff/${a.staff.id}`} title={a.reviewReason ? `Needs review: ${a.reviewReason}` : undefined} className={`underline underline-offset-2 ${a.reviewReason ? "text-[#b54708] decoration-[#f5c27a]" : "text-[#14713a] decoration-[#9fd6b2]"}`}>{a.staff.displayName}</Link></span>) : <span className="text-[#b42318]">{v.status === "CANCELLED" ? "—" : "Unassigned"}</span>}
-                          </td>
+                            </td>
+                          <td className="px-2.5 py-2"><Coverage v={v} /></td>
+                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
                           <td className="px-1.5 py-2 text-center">{alerts.length ? <Link href={open} title={alerts.join("\n")} aria-label={`Alerts: ${alerts.join("; ")}`} className="inline-flex text-[#c4320a]"><Bell size={18} weight="fill" aria-hidden /></Link> : <span title="No alerts" className="inline-flex text-[#d0d5dd]"><Bell size={18} aria-hidden /><span className="sr-only">No alerts</span></span>}</td>
                           <td className="px-1.5 py-2 text-center">{notes ? <Link href={url({ visit: v.id, tab: "notes" })} title={`${notes} note${notes === 1 ? "" : "s"}`} aria-label={`${notes} note${notes === 1 ? "" : "s"}`} className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-[#344054] no-underline"><FileText size={18} weight="fill" aria-hidden />{notes > 1 ? notes : null}</Link> : <span title="No notes" className="inline-flex text-[#d0d5dd]"><FileText size={18} aria-hidden /><span className="sr-only">No notes</span></span>}</td>
-                          <td className="px-2.5 py-2">{pw ? `Week ${pw}` : <span className="text-[#98a2b3]" title="A one-off visit, not part of the rota pattern">—<span className="sr-only">Not in the rota pattern</span></span>}</td>
-                          <td className="px-1.5 py-2 text-center tabular-nums" title={`Calendar week ${isoWeek(vd)}`}>{isoWeek(vd)}</td>
                           <td className="px-2 py-2 text-center"><Checklist v={v} href={url({ visit: v.id, tab: "tasks" })} /></td>
+                          <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
+                          {cols.has("date") ? <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td> : null}
+                          {cols.has("week") ? <td className="px-2.5 py-2">{pw ? `Week ${pw}` : <span className="text-[#98a2b3]" title="A one-off visit, not part of the rota pattern">—<span className="sr-only">Not in the rota pattern</span></span>}</td> : null}
+                          {cols.has("isoWeek") ? <td className="px-1.5 py-2 text-center tabular-nums" title={`Calendar week ${isoWeek(vd)}`}>{isoWeek(vd)}</td> : null}
                           {cols.has("area") ? <td className="px-2.5 py-2">{v.area ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: v.area.colour }} />{v.area.name}</span> : "—"}</td> : null}
                           {cols.has("run") ? <td className="px-2.5 py-2">{v.runRoute ? <span className="rounded px-1.5 py-0.5 text-[13px]" style={{ background: v.runRoute.colour, color: v.runRoute.textColour }}>{v.runRoute.name}</span> : "—"}</td> : null}
                           {cols.has("risk") ? <td className="px-2.5 py-2">{risk ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-[2px]" style={{ background: risk.colour }} />{risk.label}</span> : "—"}</td> : null}
@@ -356,6 +397,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                           {cols.has("ack") ? <td className="px-2.5 py-2">{carers.length ? (carers.every((a) => a.acknowledgedAt) ? "Yes" : carers.some((a) => a.acknowledgedAt) ? "Partly" : "No") : "—"}</td> : null}
                           {cols.has("flags") ? <td className="px-2.5 py-2 text-[13px] text-[#475467]">{[v.publishedAt ? "Published" : v.status === "SCHEDULED" ? "Not published" : null, v.timeLocked ? "Time locked" : null].filter(Boolean).join(" · ") || "—"}</td> : null}
                         </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -385,7 +427,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               </AutoSubmitForm>
             </div>
             {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
-            <p className="sr-only">{visible} columns. Week is the visit&apos;s place in the rota pattern; the calendar column is the ISO week number.</p>
+            <p className="sr-only">{visible} columns. Visits are grouped by call round when sorted by time. Date, Week (the visit&apos;s place in the rota pattern) and Calendar week can be added under Columns.</p>
           </section>
         ) : (
           <section aria-label="Carer timeline" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white">

@@ -116,6 +116,43 @@ Overview's own header): 34px high, 13px weight 600, `#0a4f57` with white text. O
 the same accessible name. It opens the same panel. The panel and its conversation stay outside the top bar, so they
 survive moving between pages; only the button is drawn into the top bar (`COORDINATOR_SLOT`, `src/lib/shell-slots.ts`).
 
+## PR 2: Rota Dashboard tiles and Daily Rota list
+
+### Call tiles (`src/app/(app)/rota/page.tsx`)
+
+The four tiles (`card-completed`, `card-late`, `card-missed`, `card-unassigned` or `card-missed-meds`) keep their
+links and figures. Each is now a white card with a 7% tint and a 1px border at 28% of its status colour, a solid
+status-colour icon chip with a white icon, the figure and percentage in the status colour, supporting text in
+`#475467`, and a 5px bar along the bottom filled to the tile's percentage.
+
+The tile colours are the `tile.*` tokens. They are the existing tile colours, except Late, which is a little darker
+so the figure passes AA on its tint. Measured:
+
+| Tile | Colour | Figure and % on the 7% tint | White icon on the chip |
+| --- | --- | --- | --- |
+| Completed | `#15803d` | 4.57 : 1 | 5.02 : 1 |
+| Late | `#b45309` (was `#c0570c`, 4.16 on the tint) | 4.57 : 1 | 5.02 : 1 |
+| Missed | `#c42b2f` | 5.05 : 1 | 5.62 : 1 |
+| Unassigned / missed meds | `#0a72b5` | 4.67 : 1 | 5.14 : 1 |
+
+The brief's exact status hexes (`#16a34a` green, `#d97706` amber) give 3.05 and 2.96 on the tint, so they would fail
+for the 16px percentage. Supporting text `#475467` on each tint is 6.9 : 1 or more.
+
+### Daily Rota list (`src/app/(app)/rota/visits/page.tsx`)
+
+- Column order: Time, Duration, Service User, Service Call, Team Member, Carers, Status, alerts, notes, checklist, Ref.
+  The optional End time column still sits next to Time.
+- Date, Week and Calendar week are hidden by default and are in the Columns menu ("Date", "Week (rota pattern)",
+  "Calendar week"), saved in the address like the other optional columns.
+- Sorted by time (the default, either direction), rows are grouped under a header row per call round, using the
+  organisation's call types: "Morning calls · 07:00 to 08:30 · 12 visits", tinted with 8% of the module colour. The
+  times are the round's first and last start times for the day and the count is every visit in that round matching
+  the filters (not only the page). Rounds are ordered by their first visit. Any other sort shows a plain list.
+- Each row has a 4px stripe on the left in the colour of its status badge.
+- Time is 15px bold with tabular numerals.
+- Sorting, bulk actions (the row checkboxes and Select all), filters, column settings, the Visit Details panel and
+  pagination are unchanged.
+
 ## Dark mode
 
 The dark twins are generated at build time (`docs/implementation/DARK_MODE.md`), so the band, tabs and buttons follow
