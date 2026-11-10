@@ -23,7 +23,7 @@ test.describe("Daily Rota bulk actions", () => {
 
   test("offers all 18 actions; the count, Select all and Go follow the ticks exactly", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    await page.goto("/rota/visits");
+    await page.goto("/rota/visits?layout=list");
     const bulk = page.locator("#bulk");
     const options = await bulk.locator("select[name=kind] option:not([disabled])").allTextContents();
     expect(options).toEqual(ALL_ACTIONS);
@@ -138,7 +138,7 @@ test.describe("Daily Rota bulk actions", () => {
   test("Cancel Visits asks for the charge decision and a reason, and reports already-cancelled visits as unchanged", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     const d = new Date(Date.now() + 9 * 86400000).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-    await page.goto(`/rota/visits?date=${d}`);
+    await page.goto(`/rota/visits?date=${d}&layout=list`);
     const boxes = page.locator("input[name=visitIds]");
     test.skip((await boxes.count()) < 1, "No visits on that day of the demo rota");
     await boxes.nth(0).check();

@@ -16,7 +16,7 @@ interface Preview {
 
 const CHIPS = [30, 40, 45, 60];
 const SHORTEN: [string, string][] = [["SU_REQUEST", "Service user or family request"], ["APPOINTMENT", "Hospital or appointment"], ["CARE_PLAN", "Approved care plan change"]];
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 const PRIMARY = `inline-flex h-10 items-center rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white hover:bg-[#3d1880] disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
 const SECONDARY = `inline-flex h-10 items-center rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 ${FOCUS}`;
 
@@ -125,7 +125,7 @@ export function AdjustVisitTime({ visitId, lockVersion, start, durationMin, labe
 
   return (
     <>
-      <button type="button" onClick={() => { setDone(null); setOpen(true); }} aria-haspopup="dialog" className={className ?? `inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd] ${FOCUS}`}>
+      <button type="button" onClick={() => { setDone(null); setOpen(true); }} aria-haspopup="dialog" className={className ?? `inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}>
         <Clock size={16} aria-hidden />{label}
       </button>
       {done ? <p role="status" data-testid="adjust-done" className="fixed bottom-4 left-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 rounded-[10px] bg-[#101828] px-4 py-3 text-[14px] text-white shadow-lg">{done} <button type="button" onClick={() => setDone(null)} className="ml-2 underline">Close</button></p> : null}
@@ -147,7 +147,7 @@ export function AdjustVisitTime({ visitId, lockVersion, start, durationMin, labe
                   </div>
                   <div role="group" aria-label="Duration" className="flex flex-wrap gap-1.5">
                     {CHIPS.map((c) => (
-                      <button key={c} type="button" aria-pressed={n === c} onClick={() => setMinutes(String(c))} className={`h-8 rounded-full border px-3 text-[13.5px] ${FOCUS} ${n === c ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white hover:bg-[#f4f1fd]"}`}>{c} min</button>
+                      <button key={c} type="button" aria-pressed={n === c} onClick={() => setMinutes(String(c))} className={`h-8 rounded-full border px-3 text-[13.5px] ${FOCUS} ${n === c ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white hover:bg-module/[.08]"}`}>{c} min</button>
                     ))}
                   </div>
                   <label className="block"><span className="block text-[13.5px] font-semibold">Reason for the change</span><input required minLength={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: GP appointment at 10:00" className={`input mt-1 ${FOCUS}`} /></label>

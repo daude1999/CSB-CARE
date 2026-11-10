@@ -90,7 +90,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                     {meds.get(v.id) === null && v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; medication records are switched off.</p> : null}
                     <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
-                    {meds.get(v.id)?.length ? <p className="text-[13px] font-medium text-[#5b2bb5]">{leads.get(v.id) ? (leads.get(v.id)!.staffId === staff.id ? "You are the Medication Lead on this visit." : `Medication Lead: ${leads.get(v.id)!.name}.`) : "No Medication Lead chosen yet. The office will confirm who is responsible."}</p> : null}
+                    {meds.get(v.id)?.length ? <p className="text-[13px] font-medium text-module">{leads.get(v.id) ? (leads.get(v.id)!.staffId === staff.id ? "You are the Medication Lead on this visit." : `Medication Lead: ${leads.get(v.id)!.name}.`) : "No Medication Lead chosen yet. The office will confirm who is responsible."}</p> : null}
                     {mine && meds.get(v.id) ? <CarerMedication visitId={v.id} due={meds.get(v.id)!} clockedIn={effectiveClocks(v.clocks).some((c) => c.kind === "IN")} /> : null}
                     {mine ? <TaskControls v={v} /> : null}
                     {mine ? <CorrectionControls v={v} now={now} /> : null}

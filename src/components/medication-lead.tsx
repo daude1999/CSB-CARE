@@ -20,7 +20,7 @@ export function MedicationLeadPanel({ view, visitId, back }: { view: View; visit
   return (
     <section id="medication-lead" aria-labelledby="medication-lead-title" className="mt-3 rounded-[10px] border border-[#e4e7ec] bg-[#fbfcfe] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <Pill size={18} aria-hidden className="text-[#5b2bb5]" />
+        <Pill size={18} aria-hidden className="text-module" />
         <h3 id="medication-lead-title" className="text-[15px] font-semibold text-[#101828]">Medication Lead</h3>
         <Badge tone={TONE[view.status]}>{LEAD_STATUS_LABEL[view.status]}</Badge>
       </div>

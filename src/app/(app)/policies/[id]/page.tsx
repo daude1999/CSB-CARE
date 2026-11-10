@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { db } from "@/lib/db";
 import { requireCtx } from "@/server/auth/current";
 import { orNotFound } from "@/server/auth/page-guard";
@@ -21,7 +22,7 @@ import { BookmarkToggle, PolicyReader, ReaderNav, ReaderProgress, type ReaderNav
 import { startableByRef } from "@/server/forms/records";
 import { linkedResourcesFor, type LinkedResource, type ResourceUse } from "@/server/forms/links";
 import {
-  ArrowSquareOut, ArrowsClockwise, Books, BookOpenText, CalendarBlank, CalendarCheck, CaretDown, CaretRight, CheckCircle, ClipboardText, ClockCounterClockwise, DownloadSimple, FileDoc, FilePdf, FileText,
+  ArrowSquareOut, ArrowsClockwise, Books, BookOpenText, CalendarBlank, CalendarCheck, CaretDown, CheckCircle, ClipboardText, ClockCounterClockwise, DownloadSimple, FileDoc, FilePdf, FileText,
   Flag, GitDiff, Info, Lightbulb, ListChecks, ListNumbers, MapPin, Notepad, Paperclip, PencilSimpleLine, Printer, Scales, ShieldCheck, Signature, Sparkle, Target, Translate, UserList, UsersThree, Warning,
 } from "@phosphor-icons/react/dist/ssr";
 
@@ -149,19 +150,6 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
 
   return (
     <div className="policy-reader-page">
-      <nav aria-label="Breadcrumb" className="reader-crumbbar" data-testid="reader-breadcrumb">
-        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {[
-            { label: "Home", href: "/overview" },
-            { label: "Policy & Compliance", href: "/" },
-            { label: p.kind === "MASTER" ? "CSB Template Library" : "Policy Library", href: p.kind === "MASTER" ? "/policies?tab=templates" : "/policies" },
-            { label: p.category.name, href: `/policies?category=${p.categoryCode}${p.kind === "MASTER" ? "&tab=templates" : ""}` },
-          ].map((c) => (
-            <li key={c.label} className="flex items-center gap-2"><Link href={c.href}>{c.label}</Link><CaretRight size={12} aria-hidden="true" className="text-white/60" /></li>
-          ))}
-          <li aria-current="page">{p.title}</li>
-        </ol>
-      </nav>
 
       {details && missing.length && isPolicy ? (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-[#f4c7cb] bg-[#fff6f6] px-4 py-2.5 text-[14px] text-[#a3242c]">
@@ -170,22 +158,15 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
         </div>
       ) : null}
 
-      <header className="reader-head" data-testid="reader-header">
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
-          <div className="flex min-w-0 flex-1 basis-[26rem] items-start gap-4">
-            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#f1ecfc] text-[#5b2bb5]"><FileText size={26} weight="duotone" /></span>
-            <div className="min-w-0">
-              <h1 className="text-[24px] font-bold leading-8 tracking-[-0.01em] text-[#101828]"><span className="text-[#5b2bb5]">{p.ref}</span> · {p.title}</h1>
-              <p className="mt-0.5 text-[14px] text-[#475467]">{p.category.name} · {typeName} · {p.kind === "MASTER" ? "CSB template" : "Our policy"}{p.scopeMode === "BRANCH_SPECIFIC" ? " · Branch-specific" : p.scopeMode === "SHARED_WITH_APPENDICES" ? " · With branch appendices" : ""}</p>
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                <VersionState version={v} starter={starter} />
-                {v ? <span className="reader-pill bg-[#f2f4f7] text-[#344054]" data-testid="reader-version">Version {v.label}</span> : null}
-                <span className={`reader-pill ${overdue ? "bg-[#fef3f2] text-[#b42318]" : "bg-[#f2f4f7] text-[#344054]"}`}><CalendarBlank size={14} aria-hidden="true" />{overdue ? `Review overdue since ${fmtDate(p.nextReviewDate)}` : `Next review ${fmtDate(p.nextReviewDate)}`}</span>
-                {openRevision ? <Link href={`/revisions/${openRevision.id}`} className="reader-pill bg-[#eff8ff] !text-[#175cd3] no-underline hover:underline"><PencilSimpleLine size={14} aria-hidden="true" />Revision in progress</Link> : null}
-                <SimulatedBadge show={Boolean(v?.isSimulated)} />
-              </div>
-            </div>
-          </div>
+      <ModuleHeader
+        title={<>{p.ref} · {p.title}</>}
+        page={p.title}
+        crumbs={[
+          { label: p.kind === "MASTER" ? "CSB Template Library" : "Policy Library", href: p.kind === "MASTER" ? "/policies?tab=templates" : "/policies" },
+          { label: p.category.name, href: `/policies?category=${p.categoryCode}${p.kind === "MASTER" ? "&tab=templates" : ""}` },
+        ]}
+        description={<>{p.category.name} · {typeName} · {p.kind === "MASTER" ? "CSB template" : "Our policy"}{p.scopeMode === "BRANCH_SPECIFIC" ? " · Branch-specific" : p.scopeMode === "SHARED_WITH_APPENDICES" ? " · With branch appendices" : ""}</>}
+        actions={
           <div className="reader-noprint flex flex-wrap items-center gap-2">
             {v ? (
               <details className="reader-menu">
@@ -226,6 +207,15 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               )
             ) : null}
           </div>
+        }
+      />
+      <header className="reader-head" data-testid="reader-header">
+        <div className="flex flex-wrap items-center gap-2">
+          <VersionState version={v} starter={starter} />
+          {v ? <span className="reader-pill bg-[#f2f4f7] text-[#344054]" data-testid="reader-version">Version {v.label}</span> : null}
+          <span className={`reader-pill ${overdue ? "bg-[#fef3f2] text-[#b42318]" : "bg-[#f2f4f7] text-[#344054]"}`}><CalendarBlank size={14} aria-hidden="true" />{overdue ? `Review overdue since ${fmtDate(p.nextReviewDate)}` : `Next review ${fmtDate(p.nextReviewDate)}`}</span>
+          {openRevision ? <Link href={`/revisions/${openRevision.id}`} className="reader-pill bg-[#eff8ff] !text-[#175cd3] no-underline hover:underline"><PencilSimpleLine size={14} aria-hidden="true" />Revision in progress</Link> : null}
+          <SimulatedBadge show={Boolean(v?.isSimulated)} />
         </div>
         <nav aria-label="Policy record views" className="reader-noprint mt-4 border-t border-[#f2f4f7] pt-3">
           <ul className="reader-views" data-testid="record-views">
@@ -234,7 +224,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 <Link
                   href={l.key === "reader" ? back : `${back}?view=${l.key}`}
                   aria-current={view === l.key ? "page" : undefined}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] px-3 text-[13.5px] font-medium no-underline ${view === l.key ? "bg-[#f1ecfc] !text-[#4a2196]" : "!text-[#475467] hover:bg-[#f9fafb] hover:!text-[#101828]"}`}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] px-3 text-[13.5px] font-medium no-underline ${view === l.key ? "bg-[#f1ecfc] !text-module-strong" : "!text-[#475467] hover:bg-[#f9fafb] hover:!text-[#101828]"}`}
                 >
                   <span aria-hidden="true" className="flex">{l.icon}</span>{l.label}
                   {l.count !== undefined ? <span className={`rounded-full px-1.5 text-[11.5px] font-semibold leading-[18px] ${l.key === "flags" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#f2f4f7] text-[#475467]"}`}>{l.count}</span> : null}
@@ -306,7 +296,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         </Row>
                         {framework.qs.length ? (
                           <Row label="CQC quality statements">
-                            <ul className="flex flex-wrap gap-2">{framework.qs.map((q) => { const [kq, title] = q.split(/:\s*/, 2); return <li key={q} className="rounded-full border border-[#e4dafb] bg-[#faf8ff] px-2.5 py-0.5 text-[13px] text-[#101828]"><strong className="font-semibold">{kq}</strong> · {title}</li>; })}</ul>
+                            <ul className="flex flex-wrap gap-2">{framework.qs.map((q) => { const [kq, title] = q.split(/:\s*/, 2); return <li key={q} className="rounded-full border border-[#e4dafb] bg-module/[.04] px-2.5 py-0.5 text-[13px] text-[#101828]"><strong className="font-semibold">{kq}</strong> · {title}</li>; })}</ul>
                           </Row>
                         ) : null}
                         {reading.length ? (
@@ -426,11 +416,11 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         <FileDoc size={22} className="mt-0.5 shrink-0 text-[#2b579a]" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
                           <Link href={`/policies/${f.id}`} className="block truncate text-[13.5px] font-medium no-underline hover:underline" title={f.title}>{f.title}</Link>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-[#4a2196]">{f.typeLabel}</span>{f.ref}{f.uses.filter((u) => u.placement?.step).map((u) => <a key={u.linkId} href={`#${u.placement!.sectionKey}`}>Step {u.placement!.step}</a>)}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-module-strong">{f.typeLabel}</span>{f.ref}{f.uses.filter((u) => u.placement?.step).map((u) => <a key={u.linkId} href={`#${u.placement!.sectionKey}`}>Step {u.placement!.step}</a>)}</span>
                         </div>
                         <span className="flex shrink-0 gap-0.5">
-                          <a href={`/api/policies/${f.id}/download?format=docx`} download className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-[#f4f3ff]" aria-label={`Download ${f.title} as Word`} title="Download Word"><DownloadSimple size={17} aria-hidden="true" /></a>
-                          <Link href={`/policies/${f.id}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-[#f4f3ff]" aria-label={`Open ${f.title}`} title="Open"><ArrowSquareOut size={17} aria-hidden="true" /></Link>
+                          <a href={`/api/policies/${f.id}/download?format=docx`} download className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-module/[.08]" aria-label={`Download ${f.title} as Word`} title="Download Word"><DownloadSimple size={17} aria-hidden="true" /></a>
+                          <Link href={`/policies/${f.id}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-module/[.08]" aria-label={`Open ${f.title}`} title="Open"><ArrowSquareOut size={17} aria-hidden="true" /></Link>
                         </span>
                       </li>
                     ))}
@@ -549,7 +539,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         <div>
                           <div className="flex items-baseline justify-between text-xs text-slate-600"><span>Read and signed</span><span className="font-mono">{done} of {total}</span></div>
                           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Acknowledgements">
-                            <div className={`h-full ${pct === 100 ? "bg-emerald-600" : "bg-[#5b2bb5]"}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-full ${pct === 100 ? "bg-emerald-600" : "bg-module"}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       ) : <p className="text-xs text-slate-500">No acknowledgement requested.</p>}
@@ -736,8 +726,8 @@ function LinkMeta({ f }: { f: LinkedResource }) {
 function StepForms({ items }: { items?: StepForm[] }) {
   if (!items?.length) return null;
   return (
-    <div className="col-start-2 mt-3 rounded-[10px] border border-[#e9e3fb] bg-[#faf8ff] px-3.5 py-2.5" data-testid="step-forms">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#5b2bb5]">{items.length === 1 ? "Form for this step" : "Forms for this step"}</p>
+    <div className="col-start-2 mt-3 rounded-[10px] border border-[#e9e3fb] bg-module/[.04] px-3.5 py-2.5" data-testid="step-forms">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-module">{items.length === 1 ? "Form for this step" : "Forms for this step"}</p>
       <ul className="mt-1 space-y-1.5">
         {items.map((f) => (
           <li key={f.use.linkId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">

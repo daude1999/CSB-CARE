@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 
 /**
@@ -9,40 +10,17 @@ import { CaretLeft, CaretRight, MagnifyingGlass } from "@phosphor-icons/react/di
 
 export type Crumb = { label: string; href?: string };
 
-/** Breadcrumb, title, subtitle and actions, then the workspace tabs. Replaces the coloured title bar on these pages. */
+/** The Policy & Compliance page header: the shared module band (src/components/module-header-band.tsx), then the tabs. */
 export function PcHeader({ title, subtitle, actions, crumbs, tabs }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; crumbs?: Crumb[]; tabs?: ReactNode }) {
-  const trail: Crumb[] = crumbs ?? [{ label: "Policy & Compliance", href: "/" }];
-  return (
-    <header className="pc-header" data-testid="module-header">
-      <nav aria-label="Breadcrumb">
-        <ol className="pc-crumbs">
-          {trail.map((c, i) => (
-            <li key={i} className="flex items-center gap-2">
-              {c.href ? <Link href={c.href} className="pc-plain">{c.label}</Link> : <span>{c.label}</span>}
-              <CaretRight size={11} aria-hidden="true" className="text-[#98a2b3]" />
-            </li>
-          ))}
-          <li aria-current="page">{title}</li>
-        </ol>
-      </nav>
-      <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0 flex-1 basis-[22rem]">
-          <h1 className="pc-title">{title}</h1>
-          {subtitle ? <p className="pc-subtitle">{subtitle}</p> : null}
-        </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-      </div>
-      {tabs}
-    </header>
-  );
+  return <ModuleHeader title={title} description={subtitle} actions={actions} tabs={tabs} crumbs={(crumbs ?? []).filter((c) => c.label !== "Policy & Compliance")} />;
 }
 
 /** Underlined tabs with an optional count pill. `active` is the key of the page on screen. */
 export function PcTabs({ label, items, active, testId }: { label: string; items: { key: string; label: string; href: string; count?: number }[]; active: string; testId?: string }) {
   return (
-    <nav aria-label={label} className="pc-tabs" data-testid={testId}>
+    <nav aria-label={label} className="pc-tabs tabs-line" data-testid={testId}>
       {items.map((t) => (
-        <Link key={t.key} href={t.href} className="pc-tab" aria-current={t.key === active ? "page" : undefined}>
+        <Link key={t.key} href={t.href} className="pc-tab tab-line" aria-current={t.key === active ? "page" : undefined}>
           {t.label}
           {t.count !== undefined ? <span className="pc-count">{t.count}<span className="sr-only"> items</span></span> : null}
         </Link>
@@ -59,7 +37,7 @@ export function PcBadge({ tone, children, title }: { tone: PcTone; children: Rea
 }
 
 const ICON_TONE: Record<"purple" | "green" | "amber" | "red" | "blue", string> = {
-  purple: "bg-[#f4f3ff] text-[#5925dc]",
+  purple: "bg-module/[.08] text-module",
   green: "bg-[#ecfdf3] text-[#067647]",
   amber: "bg-[#fffaeb] text-[#b54708]",
   red: "bg-[#fef3f2] text-[#b42318]",

@@ -83,10 +83,10 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
               key={r.kind}
               href={`/compliance/reports?${qs({ kind: r.kind, status: undefined, category: undefined })}`}
               aria-current={on ? "page" : undefined}
-              className={`pc-plain flex gap-3 rounded-[12px] border bg-white p-4 no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:border-[#b9a6ea] ${on ? "border-[#5b2bb5] ring-1 ring-[#5b2bb5]" : "border-[#eaecf0]"}`}
+              className={`pc-plain flex gap-3 rounded-[12px] border bg-white p-4 no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-colors hover:border-[#b9a6ea] ${on ? "border-module ring-1 ring-module" : "border-[#eaecf0]"}`}
             >
-              <span aria-hidden="true" className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-[#5b2bb5]" : "border-[#d0d5dd]"}`}>
-                {on ? <span className="h-2 w-2 rounded-full bg-[#5b2bb5]" /> : null}
+              <span aria-hidden="true" className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 ${on ? "border-module" : "border-[#d0d5dd]"}`}>
+                {on ? <span className="h-2 w-2 rounded-full bg-module" /> : null}
               </span>
               <span className="min-w-0">
                 <span className="block text-[14px] font-semibold text-[#101828]">{r.title}</span>

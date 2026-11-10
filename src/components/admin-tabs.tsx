@@ -15,9 +15,9 @@ export type AdminGroup = keyof typeof GROUPS;
 export function AdminTabs({ group, active }: { group: AdminGroup; active: string }) {
   const g = GROUPS[group];
   return (
-    <nav aria-label={`${g.label} pages`} className="ws-tabs" data-testid={`admin-tabs-${group}`}>
+    <nav aria-label={`${g.label} pages`} className="ws-tabs tabs-line" data-testid={`admin-tabs-${group}`}>
       {g.tabs.map((t) => (
-        <Link key={t.key} href={t.href} className="ws-tab" aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
+        <Link key={t.key} href={t.href} className="ws-tab tab-line" aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
       ))}
     </nav>
   );

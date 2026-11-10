@@ -37,11 +37,11 @@ export function LiveRangeControls({ sp }: { sp: Record<string, string | undefine
     <div className="flex flex-wrap items-center gap-2">
       <nav aria-label="Date range" className="inline-flex rounded-[8px] border border-[#d0d5dd] bg-white p-0.5">
         {([["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This Week"]] as const).map(([k, label]) => (
-          <Link key={k} href={url({ when: k === "today" ? undefined : k })} aria-current={f.when === k ? "page" : undefined} title={k === "week" ? "Today and the next six days" : undefined} className={`flex h-9 items-center rounded-[6px] px-4 text-[14.5px] font-semibold no-underline ${f.when === k ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>{label}</Link>
+          <Link key={k} href={url({ when: k === "today" ? undefined : k })} aria-current={f.when === k ? "page" : undefined} title={k === "week" ? "Today and the next six days" : undefined} className={`flex h-9 items-center rounded-[6px] px-4 text-[14.5px] font-semibold no-underline ${f.when === k ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>{label}</Link>
         ))}
       </nav>
       <details className="relative">
-        <summary className={`${SUMMARY_BTN} ${f.when === "custom" ? "border-[#5b2bb5] text-[#5b2bb5]" : ""}`} title="Choose dates"><CalendarBlank size={18} aria-hidden />{period}</summary>
+        <summary className={`${SUMMARY_BTN} ${f.when === "custom" ? "border-module text-module" : ""}`} title="Choose dates"><CalendarBlank size={18} aria-hidden />{period}</summary>
         <form method="get" className={`${MENU} grid w-[280px] gap-2.5 p-3`} aria-label="Custom date range">
           {hiddenExcept([])}
           <input type="hidden" name="when" value="custom" />
@@ -120,7 +120,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className={SUMMARY_BTN}><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-[#5b2bb5] px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className={SUMMARY_BTN}><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
             <form method="get" className={`${MENU} grid w-[300px] gap-2.5 p-3`}>
               {hiddenExcept(["branch", "su", "carer", "carers", "page", "cover", "slot", "ctab", "pick", "mq", "ptab"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
@@ -131,7 +131,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
             <div className={`${MENU} w-[290px] py-1 text-[14px]`}>
               {canBuild && f.to >= today ? (
                 <form action={generatePlanAction} className="border-b border-[#eef0f3] px-3 py-2">
@@ -142,7 +142,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                   <input type="hidden" name="gapMinutes" value="10" />
                   <input type="hidden" name="maxShiftMinutes" value="0" />
                   <input type="hidden" name="respectWeeklyLimits" value="on" />
-                  <button className="w-full text-left font-semibold text-[#5b2bb5] hover:underline">Review Suggested Cover Plan</button>
+                  <button className="w-full text-left font-semibold text-module hover:underline">Review Suggested Cover Plan</button>
                   <span className="block text-[12.5px] text-[#475467]">Proposes one eligible carer per empty place for these dates ({Math.max(1, planDays)} day{planDays === 1 ? "" : "s"} max 7), never the same person twice at once. Nothing is booked until you accept and apply.</span>
                 </form>
               ) : null}
@@ -166,7 +166,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                 {canBuild ? (
                   <>
                     <input type="hidden" name="planChosen" value="1" />
-                    <button formAction={generatePlanAction} formNoValidate data-testid="plan-chosen" className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#5b2bb5] bg-white px-3 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]" title="Suggests carers for the ticked visits to compare. Nothing is booked until you accept and confirm.">Find Suitable Carers</button>
+                    <button formAction={generatePlanAction} formNoValidate data-testid="plan-chosen" className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-module bg-white px-3 text-[14px] font-semibold text-module hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module" title="Suggests carers for the ticked visits to compare. Nothing is booked until you accept and confirm.">Find Suitable Carers</button>
                   </>
                 ) : null}
               </form>
@@ -203,7 +203,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                         {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
                         <td className={TD}><span title={it.why} className={`inline-flex rounded-[6px] px-2 py-0.5 text-[13px] font-semibold ${PRIORITY_BADGE[it.priority]}`}>{PRIORITY_LABEL[it.priority]}<span className="sr-only">: {it.why}</span></span></td>
                         <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[#101828] no-underline hover:underline">{v.reference}</Link></td>
-                        <td className={TD}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
+                        <td className={TD}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
                         <td className={`${TD} tabular-nums`}>{fmtLondonDate(fromDbDate(v.date), { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
                         <td className={`${TD} tabular-nums`}>{londonTime(v.scheduledStart)}</td>
                         <td className={`${TD} tabular-nums`}>{londonTime(v.scheduledEnd)}</td>
@@ -214,7 +214,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                         <td className={`${TD} max-w-[200px] truncate text-[#344054]`} title={it.reason}>{it.reason}</td>
                         <td className={`${TD} text-right`}>
                           {canEdit ? (
-                            <Link href={url({ cover: v.id, slot: undefined, ctab: undefined, pick: undefined, mq: undefined })} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`} className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold no-underline ${selected ? "border-[#5b2bb5] bg-[#5b2bb5] text-white" : "border-[#5b2bb5] bg-white text-[#5b2bb5] hover:bg-[#f6f2fd]"}`}><UserPlus size={17} aria-hidden />Find Cover</Link>
+                            <Link href={url({ cover: v.id, slot: undefined, ctab: undefined, pick: undefined, mq: undefined })} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`} className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold no-underline ${selected ? "border-module bg-module text-white" : "border-module bg-white text-module hover:bg-[#f6f2fd]"}`}><UserPlus size={17} aria-hidden />Find Cover</Link>
                           ) : <Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[13.5px]">View</Link>}
                         </td>
                       </tr>

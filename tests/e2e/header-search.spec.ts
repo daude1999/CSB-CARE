@@ -14,7 +14,7 @@ async function overflow(page: Page) {
 }
 
 test.describe("Top bar search", () => {
-  test("desktop: centred pill, no badges, Ctrl+K and Enter still search", async ({ page }) => {
+  test("desktop: centred pill, no badges, and Enter still searches", async ({ page }) => {
     await page.setViewportSize({ width: 1672, height: 941 });
     await signIn(page);
     await page.goto("/rota");
@@ -36,10 +36,7 @@ test.describe("Top bar search", () => {
     expect(bell.x - (pill.x + pill.width)).toBeGreaterThanOrEqual(16);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
 
-    // The keyboard shortcut still works without a visible badge, and Enter runs the rostering search.
-    await page.locator("body").click({ position: { x: 900, y: 500 } }).catch(() => undefined);
-    await page.keyboard.press("Control+k");
-    await expect(search).toBeFocused();
+    // Enter runs the rostering search. Ctrl+K opens the command bar instead (tests/e2e/command-bar.spec.ts).
     await search.fill("V-2");
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=V-2/);

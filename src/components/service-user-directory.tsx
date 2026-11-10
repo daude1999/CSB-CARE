@@ -14,10 +14,10 @@ type Option = { id: string; name: string };
 
 const suName = (s: { firstName: string; lastName: string; preferredName: string | null }) => `${s.preferredName || s.firstName} ${s.lastName}`;
 const initials = (s: { firstName: string; lastName: string; preferredName: string | null }) => `${(s.preferredName || s.firstName).charAt(0)}${s.lastName.charAt(0)}`.toUpperCase();
-const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5b2bb5] focus-visible:ring-offset-2";
-const ROW_BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-2.5 text-[14px] font-semibold text-[#344054] no-underline hover:border-[#5b2bb5] hover:bg-[#f8f5fe] hover:text-[#344054] ${FOCUS}`;
-const PAGE_BTN = `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white px-3 text-[14px] font-semibold text-[#344054] no-underline hover:border-[#5b2bb5] hover:text-[#344054] ${FOCUS}`;
-const FIELD = "h-11 w-full rounded-[9px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#101828] focus:border-[#5b2bb5] focus:outline-none focus:ring-2 focus:ring-[#ede7fb]";
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-module focus-visible:ring-offset-2";
+const ROW_BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-2.5 text-[14px] font-semibold text-[#344054] no-underline hover:border-module hover:bg-[#f8f5fe] hover:text-[#344054] ${FOCUS}`;
+const PAGE_BTN = `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white px-3 text-[14px] font-semibold text-[#344054] no-underline hover:border-module hover:text-[#344054] ${FOCUS}`;
+const FIELD = "h-11 w-full rounded-[9px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#101828] focus:border-module focus:outline-none focus:ring-2 focus:ring-module/[.14]";
 /** Columns that give way on narrower screens; everything in them is also under the row's ⋮ details. */
 const WIDE = "hidden xl:table-cell";
 /** The council number gives way first (below 1536px); it stays in the row's ⋮ details and in search. */
@@ -28,7 +28,7 @@ const WIDER = "hidden min-[1420px]:table-cell";
 const STATUS_PILL: Record<ServiceUserStatus, { label: string; cls: string }> = {
   ACTIVE: { label: "Active", cls: "bg-[#e7f6ec] text-[#16794a]" },
   ASSESSMENT: { label: "Assessment", cls: "bg-[#e8f0fd] text-[#2453b3]" },
-  ENQUIRY: { label: "Enquiry", cls: "bg-[#f1ecfc] text-[#5b2bb5]" },
+  ENQUIRY: { label: "Enquiry", cls: "bg-[#f1ecfc] text-module" },
   PAUSED: { label: "Paused", cls: "bg-[#fdf3dc] text-[#94600a]" },
   ENDED: { label: "Ended", cls: "bg-[#f2f4f7] text-[#475467]" },
 };
@@ -60,7 +60,7 @@ const COUNCIL_PROBLEM = {
  * All Service Users: the one service-user workspace. Title and the two management dropdowns, the search and filter
  * toolbar (Search, Branch, Area, Status), the table with View, Update and ⋮ details on every row, and pages of 20.
  */
-export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms, demo = false }: { dir: Directory; sp: Params; areas: Option[]; branches: Option[]; basePath: string; perms: ServiceUserActionPerms; demo?: boolean }) {
+export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms }: { dir: Directory; sp: Params; areas: Option[]; branches: Option[]; basePath: string; perms: ServiceUserActionPerms; demo?: boolean }) {
   const rows = dir.rows;
   const params = (extra: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -77,12 +77,9 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
   const canUpdate = perms.edit || perms.upload;
   const showing = dir.total ? <>Showing {first} to {last} of {dir.total.toLocaleString("en-GB")} service {dir.total === 1 ? "user" : "users"}{sp.status === "ARCHIVED" ? " (archived)" : sp.status ? "" : " (not ended)"}</> : null;
   return (
-    <section aria-labelledby="all-service-users" className="rounded-b-[3px] bg-white px-4 pb-5 pt-5 sm:px-6" data-testid="su-directory">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h2 id="all-service-users" className="text-[30px] font-bold leading-9 tracking-[-0.01em] text-[#101828]">All Service Users</h2>
-          <p className="mt-1 text-[15px] text-[#475467]">Manage service users, add new referrals and update existing records.{demo ? " All names in the demo are fictional." : ""}</p>
-        </div>
+    <section aria-label="All Service Users" className="rounded-[8px] bg-white px-4 pb-5 pt-5 sm:px-6" data-testid="su-directory">
+      {/* The page's title and description are in the module header band; the two management menus open the card. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-end">
         {perms.create || perms.upload || perms.edit ? (
           <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:flex-nowrap lg:justify-end" data-testid="su-actions">
             <AddServiceUserButton perms={perms} />
@@ -103,7 +100,7 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           <label><span className="sr-only">Area</span><select name="area" defaultValue={sp.area ?? ""} className={FIELD}><option value="">All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <label><span className="sr-only">Status</span><select name="status" defaultValue={sp.status ?? ""} className={FIELD}><option value="">Current (not ended)</option><option value="ALL">All Statuses</option>{DIRECTORY_STATUSES.map((s) => <option key={s} value={s}>{STATUS_PILL[s].label}</option>)}<option value="ARCHIVED">Archived</option></select></label>
           <div className="flex gap-2.5 sm:col-span-2 lg:col-span-1">
-            <button className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] bg-[#0f2547] px-6 text-[15px] font-semibold text-white hover:bg-[#1b3762] lg:flex-none ${FOCUS}`}>Apply</button>
+            <button className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] bg-module px-6 text-[15px] font-semibold text-white hover:bg-module-strong lg:flex-none ${FOCUS}`}>Apply</button>
             <Link href={basePath} className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] border border-[#344054] bg-white px-6 text-[15px] font-medium text-[#344054] no-underline hover:bg-[#f9fafb] hover:text-[#101828] lg:flex-none ${FOCUS}`}>Clear</Link>
           </div>
         </form>

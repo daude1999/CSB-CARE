@@ -22,6 +22,9 @@ import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-he
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
+import { COORDINATOR_SLOT } from "@/lib/shell-slots";
+import { CommandBar, type CommandPage } from "@/components/command-bar";
+import { commandActions } from "@/server/search/command";
 import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { getSetting } from "@/server/platform/settings";
@@ -125,6 +128,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         aiOn: (await coordinatorAiStatus(ctx.organisationId)).on,
       }
     : null;
+  // The command bar (Ctrl+K) lists exactly the modules and pages the sidebar offers this person.
+  const commandPages: CommandPage[] = portals.filter((p) => !p.planned).flatMap((p) => [
+    { label: p.name, href: p.home, hint: "Module", home: true },
+    ...(items[p.id] ?? []).filter((x) => !x.planned && x.href !== p.home).map((x) => ({ label: x.label, href: x.href, hint: p.name })),
+  ]);
   const shell = {
     portals,
     items,
@@ -162,6 +170,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
                   <LondonClock initial={Date.now()} />
                   <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 lg:block" />
+                  {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
                   <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-white no-underline hover:bg-white/10 hover:text-white">
                     <Bell size={22} aria-hidden="true" />
                     {unread ? <span className="absolute right-[6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#0b2a4a] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
@@ -185,6 +194,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                     <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                   </span>
                 ) : null}
+                {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
                 <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
                   <Bell size={21} aria-hidden="true" />
                   {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
@@ -198,6 +208,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
           <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
           {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
+          <CommandBar pages={commandPages} actions={commandActions(ctx)} />
           <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
