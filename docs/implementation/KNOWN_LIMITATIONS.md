@@ -90,9 +90,9 @@ Full description, the complete list of bypass call sites and operating notes: `d
   directly across organisations. Tenant scoping is exercised by `rls-tenancy.test.ts` and by the browser suite,
   which signs in through the real request path.
 - **Speed.** Each query is now a short transaction with one extra statement. Measured locally on the demo data
-  (150 requests per page, same build with the feature off and on): the slowest 5% of loads went from 170 to 192 ms
-  on the Rota Dashboard, 110 to 123 ms on the Daily Rota, 110 to 127 ms on All Service Users and 77 to 91 ms on a
-  service user's profile. Not measured on the hosted database, where each extra round trip costs more.
+  (150 requests per page, same build with the feature off and on): the slowest 5% of loads went from 170 to 194 ms
+  on the Rota Dashboard, 110 to 120 ms on the Daily Rota, 106 to 125 ms on All Service Users and 73 to 92 ms on a
+  service user's profile (table in `TEST_RESULTS.md`). Not measured on the hosted database, where each extra round trip costs more.
 - **Backups.** `pg_dump` must run as a login that bypasses row-level security, or it stops with an error rather
   than writing a partial backup. Check the backup job (`docs/BACKUPS.md`) once it is active.
 

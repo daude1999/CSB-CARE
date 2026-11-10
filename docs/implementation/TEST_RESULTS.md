@@ -272,3 +272,31 @@ Tests that were out of date or fragile, corrected without removing an assertion:
 - Tests that depended on timing or time of day: a row count taken before the table had loaded; next week's rota read before it had replaced this week's (which fails in the evening, when today's visits are over); Back pressed before a reloaded page was interactive; the first-load animation counted as a tab-change animation; a clock-in to whichever visit came first, which by evening is a missed one.
 - The PDF pixel comparison is now made on one named document. The difference is a property of the document (1.7% for the one used, 2.1% for Safeguarding Adults against a 2% limit), so the result used to depend on which policy happened to be first.
 
+
+## Enterprise readiness, workstream 2: row-level security (10 Nov 2026)
+
+Local PostgreSQL 16, synthetic data only. Branch `enterprise-readiness-2-rls`.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| `npx vitest run tests/integration/rls-tenancy.test.ts` | 23 of 23 |
+| `npm test` in three parts, row-level security on (first run) | 1,411 of 1,419. The 8 failures: 7 were tests running structural SQL (rename a column, add a trigger, read a backup schema) as the application role, which is now rightly refused; they use an owner connection. 1 (`attendance.test.ts`) chose "the first missed visit" with no ordering and got a different one; fixed on the workstream 1 branch |
+| `npm test` in three parts, row-level security on (after the fixes) | 1,419 of 1,420; the one failure was the same `attendance.test.ts` case, fixed afterwards and passing on its own (8 of 8). The complete run on GitHub is the Quality gate on the pull request |
+| `npx playwright test` (whole browser suite, 258 tests), row-level security on | 222 passed, 26 failed, 10 did not run. 20 of the failures are the same ones that fail without row-level security (stale tests, being fixed under workstream 1). 5 were test fixtures with no database scope (fixed: `tests/e2e/fixtures/system-scope.ts`). **1 was a real gap**: an invitation link could not be opened by a signed-out person (fixed, with a test) |
+| The 6 specs above re-run after the fixes (28 tests) | 26 passed. The 2 that fail also fail without row-level security (`cqc-inspection.spec.ts:32`, `v1.spec.ts:18`) |
+
+### Page timings, row-level security off and on
+
+Same build, same database (demo data, one organisation with 12 service users), `next start`, signed in as the demo
+manager, 150 requests per page after 5 warm-up requests, two runs each way (the second pair shown; the first pair
+was within 3 ms). Server response time in milliseconds.
+
+| Page | p50 off | p50 on | p95 off | p95 on |
+|---|---|---|---|---|
+| `/rota` (Rota Dashboard) | 139 | 163 | 170 | 194 |
+| `/rota/visits` (Daily Rota) | 88 | 94 | 110 | 120 |
+| `/service-users` | 83 | 104 | 106 | 125 |
+| `/rota/service-users/[id]` | 62 | 72 | 73 | 92 |
+
+Not measured on the hosted database.
