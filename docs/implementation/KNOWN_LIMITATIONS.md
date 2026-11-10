@@ -67,3 +67,9 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
   Reader's document pills under the band.
 - The body map keeps its own clinical colours, and a few exported-file accents (Excel/PDF) keep their navy.
 
+## Colour redesign, PR 2 (10 Nov 2026)
+- The Late tile uses `#b45309`, a little darker than its old `#c0570c`, so its figure passes AA on the tile's tint.
+- Daily Rota call rounds are the organisation's call types. A call type has no set hours, so a round's times are its
+  first and last visit start of the day, and rounds are ordered by their first visit. Rows are grouped only when the
+  list is sorted by time; other sorts show a plain list.
+
