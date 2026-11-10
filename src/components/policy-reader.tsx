@@ -209,10 +209,10 @@ export function ReaderProgress() {
       </p>
       <div className="mt-3 flex items-center justify-between text-[12.5px] text-[#475467]">
         <span>Progress</span>
-        <span className="font-semibold text-[#5b2bb5]" data-testid="reader-progress-value">{progress}%</span>
+        <span className="font-semibold text-module" data-testid="reader-progress-value">{progress}%</span>
       </div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#ede7fb]" role="progressbar" aria-label="Reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
-        <div className="h-full rounded-full bg-[#5b2bb5] transition-[width] duration-150" style={{ width: `${progress}%` }} />
+      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-module/[.14]" role="progressbar" aria-label="Reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+        <div className="h-full rounded-full bg-module transition-[width] duration-150" style={{ width: `${progress}%` }} />
       </div>
       <p className="mt-2.5 text-[12px] leading-[17px] text-[#667085]">Shows how far you have read. It does not sign the policy: use Log Read &amp; Sign for that.</p>
     </section>
@@ -243,9 +243,9 @@ export function BookmarkToggle({ policyId, kind, initial }: { policyId: string; 
           })
         }
       >
-        <Icon size={18} weight={on ? "fill" : "regular"} aria-hidden="true" className={on ? "text-[#5b2bb5]" : undefined} />
+        <Icon size={18} weight={on ? "fill" : "regular"} aria-hidden="true" className={on ? "text-module" : undefined} />
         <span className="flex-1 text-left">{label}</span>
-        {on ? <span className="text-[12px] font-medium text-[#5b2bb5]">{kind === "IMPORTANT" ? "Undo" : "Remove"}</span> : null}
+        {on ? <span className="text-[12px] font-medium text-module">{kind === "IMPORTANT" ? "Undo" : "Remove"}</span> : null}
       </button>
       {error ? <p role="alert" className="px-3 pb-1 text-[12px] font-medium text-[#a3242c]">{error}</p> : null}
     </>

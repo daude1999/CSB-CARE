@@ -22,6 +22,7 @@ import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-he
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
+import { COORDINATOR_SLOT } from "@/lib/shell-slots";
 import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { getSetting } from "@/server/platform/settings";
@@ -162,6 +163,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
                   <LondonClock initial={Date.now()} />
                   <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 lg:block" />
+                  {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
                   <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-white no-underline hover:bg-white/10 hover:text-white">
                     <Bell size={22} aria-hidden="true" />
                     {unread ? <span className="absolute right-[6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#0b2a4a] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
@@ -185,6 +187,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                     <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                   </span>
                 ) : null}
+                {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
                 <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
                   <Bell size={21} aria-hidden="true" />
                   {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}

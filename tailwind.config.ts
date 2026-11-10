@@ -25,7 +25,57 @@ export default {
           ok: "#17663a", "ok-bg": "#e7f6ed", warn: "#8a5300", "warn-bg": "#fff4d9", danger: "#a11d2b", "danger-strong": "#b42335", "danger-bg": "#fde9ea", info: "#1d4f91", "info-bg": "#eaf2fd", neutral: "#46505f", "neutral-bg": "#eef0f3",
         },
         paper: "color-mix(in srgb, var(--paper) calc(<alpha-value> * 100%), transparent)",
+        // Colour system (owner's approved redesign, 10 Nov 2026). Each module keeps one colour, set as `--module` on
+        // <main> by src/components/main-area.tsx from src/lib/portals.ts. It appears in three places on a page: the
+        // header band, the main action button and the active tab. `bg-module/[.13]` gives a tint of it.
+        module: {
+          DEFAULT: "color-mix(in srgb, var(--module, #1f5fd1) calc(<alpha-value> * 100%), transparent)",
+          // A slightly darker shade for hover on a module-colour button.
+          strong: "color-mix(in srgb, color-mix(in srgb, var(--module, #1f5fd1) 84%, #000) calc(<alpha-value> * 100%), transparent)",
+          policy: "#1f5fd1",
+          rota: "#6b46c9",
+          hr: "#c2410c",
+          reporting: "#0b6f99",
+          admin: "#4b5666",
+        },
+        // Status colours keep their meaning everywhere and never take the module colour.
+        status: {
+          completed: "#16a34a", "completed-bg": "#dcfce7",
+          late: "#d97706",
+          missed: "#dc2626",
+          unassigned: "#0369d5",
+          ink: "#475467",
+        },
+        // The page frame: one light grey page behind white cards, with one hairline rule colour.
+        page: "#f6f7fa",
+        rule: "#e4e7ec",
+        ink: "#101828",
+        // The AI CSB Coordinator launcher in the top bar.
+        coordinator: { DEFAULT: "#0a4f57", strong: "#073f46" },
       },
+      // 92% text and an 8% button fill keep white text at WCAG AA on every module colour (the brief's 78%, 88% and
+      // 14% fall below 4.5:1 on HR, Policy and Reporting; see docs/implementation/COLOUR_SYSTEM.md).
+      opacity: { 8: "0.08", 14: "0.14", 16: "0.16", 38: "0.38", 78: "0.78", 88: "0.88", 92: "0.92" },
+      spacing: {
+        // Module header band and its 44px icon chip; 38px tabs; the 34px top-bar launcher.
+        "header-y": "16px",
+        "header-x": "20px",
+        "header-gap": "14px",
+        chip: "44px",
+        tab: "38px",
+        topbar: "34px",
+        "page-top": "16px",
+        "page-x": "24px",
+        "page-phone": "16px",
+        "page-bottom": "24px",
+      },
+      fontSize: {
+        crumb: ["12px", { lineHeight: "16px", fontWeight: "500" }],
+        "header-title": ["22px", { lineHeight: "28px", fontWeight: "600" }],
+        "header-desc": ["13.5px", { lineHeight: "19px" }],
+        tab: ["14px", { lineHeight: "20px" }],
+      },
+      maxWidth: { "header-desc": "78ch" },
       fontFamily: {
         sans: ["var(--font-sans)"],
         // Display face for headings and figures.
@@ -34,7 +84,7 @@ export default {
         label: ["var(--font-label)"],
         mono: ["var(--font-mono)"],
       },
-      borderRadius: { sm: "var(--radius-sm)", DEFAULT: "var(--radius-md)", md: "var(--radius-md)", lg: "var(--radius-lg)", xl: "var(--radius-lg)", "2xl": "var(--radius-lg)" },
+      borderRadius: { sm: "var(--radius-sm)", DEFAULT: "var(--radius-md)", md: "var(--radius-md)", lg: "var(--radius-lg)", xl: "var(--radius-lg)", "2xl": "var(--radius-lg)", header: "12px", chip: "11px" },
     },
   },
   plugins: [],

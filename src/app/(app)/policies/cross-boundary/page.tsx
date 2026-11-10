@@ -95,7 +95,7 @@ export default async function CrossBoundaryPage({ searchParams }: { searchParams
 
                   {(canEdit || canDecide || canIncident) ? (
                     <details className="mt-3">
-                      <summary className="cursor-pointer text-[13.5px] font-semibold text-[#5b2bb5]">Record locations or a decision</summary>
+                      <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Record locations or a decision</summary>
                       <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3">
                         {canEdit ? (
                           <form action={recordGeographyAction} className="space-y-2 rounded-[10px] border border-[#eaecf0] p-3">

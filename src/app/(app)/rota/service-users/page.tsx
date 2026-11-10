@@ -25,7 +25,7 @@ export default async function ServiceUsersPage({ searchParams }: { searchParams:
   const dir = await serviceUserDirectory(ctx, { q: sp.q, status, areaId, branchId, page: Number(sp.page) || 1 });
   return (
     <>
-      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="All Service Users" back={null} />
+      <PageHeader tabs={<RotaTabs ctx={ctx} ws="people" active="directory" />} title="All Service Users" subtitle={`Manage service users, add new referrals and update existing records.${org?.isDemo ? " All names in the demo are fictional." : ""}`} back={null} />
       <Flash searchParams={sp} />
       <ServiceUserDirectory dir={dir} sp={{ q: sp.q, status: sp.status, area: areaId, branch: branchId }} areas={lk.areas} branches={lk.branches} basePath="/rota/service-users" perms={serviceUserActionPerms(ctx)} demo={!!org?.isDemo} />
     </>

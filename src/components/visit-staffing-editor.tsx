@@ -31,7 +31,7 @@ export function CarerChips({ carers, canChange, canAddPlace, maxCarers }: { care
           <span key={c.place} className="inline-flex items-center gap-1 rounded-full bg-[#eef0f4] py-0.5 pl-2.5 pr-1 text-[13px] text-[#101828]">
             <a href={c.href} className="text-inherit no-underline hover:underline">{c.name}</a>
             {canChange ? (
-              <button type="button" onClick={() => p.startEditing({ place: c.place, staffId: null })} aria-label={`Remove ${c.name} from this visit`} title="Remove from this visit (you save the change next)" className="flex h-5 w-5 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
+              <button type="button" onClick={() => p.startEditing({ place: c.place, staffId: null })} aria-label={`Remove ${c.name} from this visit`} title="Remove from this visit (you save the change next)" className="flex h-5 w-5 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
                 <X size={12} weight="bold" aria-hidden />
               </button>
             ) : <span className="w-1" />}
@@ -40,7 +40,7 @@ export function CarerChips({ carers, canChange, canAddPlace, maxCarers }: { care
         {!carers.length ? <span className="text-[13px] font-medium text-[#b42318]">No carer assigned</span> : null}
       </span>
       {canChange && (hasOpen || (canAddPlace && p.carersRequired < maxCarers)) ? (
-        <button type="button" onClick={() => p.startEditing(hasOpen ? undefined : { addPlace: true })} className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#5b2bb5] px-4 text-[14px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]" title={hasOpen ? "Choose a carer for the empty place" : `Add a place for carer ${p.carersRequired + 1}, then choose the carer`}>
+        <button type="button" onClick={() => p.startEditing(hasOpen ? undefined : { addPlace: true })} className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border border-module px-4 text-[14px] font-semibold text-module hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module" title={hasOpen ? "Choose a carer for the empty place" : `Add a place for carer ${p.carersRequired + 1}, then choose the carer`}>
           <Plus size={16} weight="bold" aria-hidden />Add Carer
         </button>
       ) : null}
@@ -52,7 +52,7 @@ export function CarerChips({ carers, canChange, canAddPlace, maxCarers }: { care
 export function ReassignButton() {
   const p = usePanel();
   return (
-    <button type="button" onClick={() => p.startEditing()} className="flex h-11 w-full items-center justify-center gap-2 rounded-[8px] border border-[#5b2bb5] bg-[#5b2bb5] text-[15px] font-semibold text-white hover:bg-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]">
+    <button type="button" onClick={() => p.startEditing()} className="flex h-11 w-full items-center justify-center gap-2 rounded-[8px] border border-module bg-module text-[15px] font-semibold text-white hover:bg-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module">
       <UsersThree size={20} weight="fill" aria-hidden />
       Reassign Carers
     </button>
@@ -93,8 +93,8 @@ export function StaffingEditor({ names, candidates, canChangePlaces, maxCarers, 
           ? "border-dashed border-[#f3a8a8] bg-white"
           : kind === "remove"
             ? "border-[#f3c9c9] bg-[#fdf5f5]"
-            : "border-[#5b2bb5] bg-[#f6f2fd]";
-    const badge = { booked: null, empty: <span className="rounded-full bg-[#fdecec] px-2 py-0.5 text-[12px] font-semibold text-[#b42318]">Empty place</span>, replace: <span className="rounded-full bg-[#5b2bb5] px-2 py-0.5 text-[12px] font-semibold text-white">Will change</span>, add: <span className="rounded-full bg-[#5b2bb5] px-2 py-0.5 text-[12px] font-semibold text-white">Will add</span>, remove: <span className="rounded-full bg-[#b42318] px-2 py-0.5 text-[12px] font-semibold text-white">Will remove</span> }[kind];
+            : "border-module bg-[#f6f2fd]";
+    const badge = { booked: null, empty: <span className="rounded-full bg-[#fdecec] px-2 py-0.5 text-[12px] font-semibold text-[#b42318]">Empty place</span>, replace: <span className="rounded-full bg-module px-2 py-0.5 text-[12px] font-semibold text-white">Will change</span>, add: <span className="rounded-full bg-module px-2 py-0.5 text-[12px] font-semibold text-white">Will add</span>, remove: <span className="rounded-full bg-[#b42318] px-2 py-0.5 text-[12px] font-semibold text-white">Will remove</span> }[kind];
     const newPlace = (placeNumber(place) ?? 0) > p.carersRequired && !beyond;
     const selectId = `place-${place}`;
     return (
@@ -104,7 +104,7 @@ export function StaffingEditor({ names, candidates, canChangePlaces, maxCarers, 
           {newPlace ? <span className="rounded-full bg-[#eef0f4] px-2 py-0.5 text-[12px] font-semibold text-[#344054]">New place</span> : null}
           {badge}
           {kind !== "booked" && kind !== "empty" && !beyond ? (
-            <button type="button" onClick={() => p.setPlace(place, now)} className="ml-auto text-[12.5px] font-semibold text-[#5b2bb5] hover:underline">Undo</button>
+            <button type="button" onClick={() => p.setPlace(place, now)} className="ml-auto text-[12.5px] font-semibold text-module hover:underline">Undo</button>
           ) : null}
         </div>
         <p className="mt-0.5 text-[13.5px] text-[#344054]">
@@ -180,7 +180,7 @@ export function StaffingEditor({ names, candidates, canChangePlaces, maxCarers, 
       {canChangePlaces ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {p.draft.required < maxCarers ? (
-            <button type="button" onClick={() => p.setRequired(p.draft.required + 1)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#5b2bb5] px-3 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]"><Plus size={14} weight="bold" aria-hidden />Add carer place</button>
+            <button type="button" onClick={() => p.setRequired(p.draft.required + 1)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-module px-3 text-[13px] font-semibold text-module hover:bg-[#f6f2fd]"><Plus size={14} weight="bold" aria-hidden />Add carer place</button>
           ) : null}
           {p.draft.required > 1 && lastEmpty ? (
             <button type="button" onClick={() => p.setRequired(p.draft.required - 1)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#d0d5dd] px-3 text-[13px] font-semibold text-[#344054] hover:bg-slate-50">Remove empty {placeLabel(last!)} place</button>

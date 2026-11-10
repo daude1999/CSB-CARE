@@ -17,7 +17,7 @@ test("Missed Calls register: figures, smart filter, and a case investigated to s
   const to = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   await page.goto(`/rota/missed?period=custom&from=${from}&to=${to}`);
-  await expect(page.getByRole("heading", { name: "Missed Calls" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Missed Calls" })).toBeVisible();
   const figures = page.getByRole("region", { name: "Management figures" });
   for (const label of ["Total missed calls", "Repeat offenders", "High-risk missed visits", "Uninvestigated", "Resolved", "Repeat service-user incidents"]) await expect(figures.getByText(label, { exact: true })).toBeVisible();
 

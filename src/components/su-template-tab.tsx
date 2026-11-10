@@ -8,13 +8,13 @@ import { duplicateTemplateAction, templateBulkAction } from "@/app/rota-actions"
 import { CoverageBadge, StatusBadge } from "@/components/template-ui";
 
 const SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 const TH = "whitespace-nowrap px-2 py-2.5 text-left text-[13.5px] font-bold text-[#101828]";
 const TD = "px-2 py-2 align-top";
 const CHIP = `inline-flex h-9 items-center rounded-full border px-3.5 text-[14px] no-underline ${FOCUS}`;
 const ON = "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white";
-const OFF = "border-[#d0d5dd] bg-white text-[#101828] hover:bg-[#f4f1fd]";
-const ACTION = `inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1 text-[13.5px] text-[#5b2bb5] no-underline hover:bg-[#f4f1fd] ${FOCUS}`;
+const OFF = "border-[#d0d5dd] bg-white text-[#101828] hover:bg-module/[.08]";
+const ACTION = `inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1 text-[13.5px] text-module no-underline hover:bg-module/[.08] ${FOCUS}`;
 
 /** Parses "1,3" into sorted, unique whole numbers between 1 and max; anything else is dropped. */
 export function parseList(v: string | undefined, max: number) {
@@ -47,14 +47,14 @@ export function ServiceUserTemplateTab({ base, rows, weeks, days, cycleLength, c
           </summary>
           <div role="group" aria-label="Select weeks" className="absolute left-0 z-30 mt-1 w-[200px] overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white py-1 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
             <p className="px-3 pb-1 pt-1.5 text-[12.5px] font-semibold uppercase tracking-wide text-[#667085]">Select Weeks</p>
-            <Link href={href([], days)} aria-pressed={!weeks.length} className={`flex items-center gap-2 px-3 py-2 text-[14px] text-[#101828] no-underline hover:bg-[#f4f1fd] ${FOCUS}`}>
+            <Link href={href([], days)} aria-pressed={!weeks.length} className={`flex items-center gap-2 px-3 py-2 text-[14px] text-[#101828] no-underline hover:bg-module/[.08] ${FOCUS}`}>
               {!weeks.length ? <CheckSquare size={18} weight="fill" className="text-[#4b1f9e]" aria-hidden /> : <Square size={18} aria-hidden />}Select All
             </Link>
             {allWeeks.map((w) => {
               const on = weeks.includes(w);
               const next = toggle(weeks, w);
               return (
-                <Link key={w} href={href(next.length === cycleLength ? [] : next, days)} aria-pressed={on} className={`flex items-center gap-2 px-3 py-2 text-[14px] text-[#101828] no-underline hover:bg-[#f4f1fd] ${FOCUS}`}>
+                <Link key={w} href={href(next.length === cycleLength ? [] : next, days)} aria-pressed={on} className={`flex items-center gap-2 px-3 py-2 text-[14px] text-[#101828] no-underline hover:bg-module/[.08] ${FOCUS}`}>
                   {on ? <CheckSquare size={18} weight="fill" className="text-[#4b1f9e]" aria-hidden /> : <Square size={18} aria-hidden />}Week {w}
                 </Link>
               );
@@ -74,7 +74,7 @@ export function ServiceUserTemplateTab({ base, rows, weeks, days, cycleLength, c
           const next = toggle(days, n);
           return <Link key={d} href={href(weeks, next.length === 7 ? [] : next)} aria-pressed={on} aria-label={`${WEEKDAYS[i]}${on ? ", selected" : ""}`} className={`${CHIP} ${on ? ON : OFF}`}>{d}</Link>;
         })}
-        {filtered ? <Link href={href([], [])} className="ml-1 text-[14px] font-medium text-[#5b2bb5]">Clear Filters</Link> : null}
+        {filtered ? <Link href={href([], [])} className="ml-1 text-[14px] font-medium text-module">Clear Filters</Link> : null}
       </div>
       <p className="px-4 pb-2 text-[14px] text-[#344054]" role="status" data-testid="template-summary">
         Showing {rows.length} template{rows.length === 1 ? "" : "s"} for {weekText}, {dayText}.

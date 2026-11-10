@@ -47,10 +47,10 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); take(e.dataTransfer.files); }}
-        className={`flex cursor-pointer flex-col items-center rounded-[12px] border-2 border-dashed px-4 py-6 text-center transition-colors focus-within:border-[#5b2bb5] ${over ? "border-[#5b2bb5] bg-[#f8f5ff]" : "border-[#d0d5dd] bg-[#f9fafb] hover:border-[#b9a6ea]"}`}
+        className={`flex cursor-pointer flex-col items-center rounded-[12px] border-2 border-dashed px-4 py-6 text-center transition-colors focus-within:border-module ${over ? "border-module bg-module/[.06]" : "border-[#d0d5dd] bg-[#f9fafb] hover:border-[#b9a6ea]"}`}
       >
-        <CloudArrowUp size={28} aria-hidden="true" className="text-[#5b2bb5]" />
-        <span className="mt-2 text-[14px] font-semibold text-[#101828]">Drag and drop files here, or <span className="text-[#5b2bb5] underline">browse</span></span>
+        <CloudArrowUp size={28} aria-hidden="true" className="text-module" />
+        <span className="mt-2 text-[14px] font-semibold text-[#101828]">Drag and drop files here, or <span className="text-module underline">browse</span></span>
         <span className="mt-1 text-[12.5px] text-[#475467]">Word (.docx) or PDF · up to {MAX_FILES} files, 10 MB in total</span>
         <input ref={input} type="file" name="files" multiple required accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(e) => take(e.currentTarget.files)} />
       </label>

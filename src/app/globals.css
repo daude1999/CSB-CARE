@@ -43,12 +43,13 @@
 
 @layer components {
   /* The compliance-centre look shared by every page: white panels on a soft grey canvas under a navy title bar. */
-  .page-canvas { @apply min-h-full rounded-[6px] bg-[#f1f2f5] pb-5; }
+  .page-canvas { @apply min-h-full; }
   .panel:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
   .card:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
   .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] px-3.5 py-[7px] text-[14px] font-normal no-underline disabled:opacity-50; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
   .btn:active:not(:disabled) { transform: translateY(1px); }
-  .btn-primary { @apply btn border-[1.5px] border-navy-900 bg-navy-900 text-white hover:bg-navy-700 hover:text-white; }
+  /* The main action takes the module colour (owner's colour rule); outside a module --module is the platform navy. */
+  .btn-primary { @apply btn border-[1.5px] border-module bg-module text-white hover:border-module-strong hover:bg-module-strong hover:text-white; }
   .btn-teal { @apply btn border-[1.5px] border-teal-600 bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
   .btn-secondary { @apply btn border-[1.5px] border-slate-500 bg-white text-slate-800 hover:border-navy-900 hover:text-navy-900; }
   .btn-danger { @apply btn border-[1.5px] border-rose-700 bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
@@ -165,70 +166,51 @@
   .ov-preview { @apply mx-3 mt-3 h-[122px] overflow-hidden rounded-[8px] border border-[#e8ebf0] bg-white; }
   .ov-topbar { background: #0b2a4a; font-family: "Inter Variable", var(--font-sans); box-shadow: 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 8px rgb(11 21 48 / 0.18); }
   .ov-rota-figures { @apply mx-3 mt-3; }
-  /* Policy & Compliance workspace tabs, under a page's title bar (src/components/compliance-nav.tsx). */
-  .ws-tabs { @apply flex overflow-x-auto border-b border-[#e3e6ec] bg-white px-[8px]; scrollbar-width: thin; }
-  .ws-tab { @apply relative flex h-[44px] shrink-0 items-center whitespace-nowrap px-[14px] text-[14px] text-[#2b3b52] no-underline hover:text-[#0b1530]; }
-  .ws-tab[aria-current="page"] { color: #030825; font-weight: 600; }
-  .ws-tab[aria-current="page"]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 3px; background: var(--module, #1f5fd1); border-radius: 2px 2px 0 0; }
-  .ws-tab:focus-visible { outline: 2px solid #0369d5; outline-offset: -2px; border-radius: 4px; }
-  /*
+    /*
    * Policy & Compliance look (owner's brief of 3 Nov 2026, six mockups): the same product as HR & Workforce and
    * Rostering. White panels with a hairline border on a light grey page, a breadcrumb header, underlined purple tabs
    * with counts, 42px table headers and 58px rows, pill badges. Scoped to the Policy & Compliance pages through
    * main[data-module="policy"] (src/components/main-area.tsx) so no other module changes.
    */
-  main[data-module="policy"] { padding: 16px 24px 24px; background: #f8f9fb; font-family: "Inter Variable", var(--font-sans); color: #344054; font-variant-numeric: tabular-nums; }
+  main[data-module="policy"] { @apply bg-page px-page-phone pb-page-bottom pt-page-top sm:px-page-x; font-family: "Inter Variable", var(--font-sans); color: #344054; font-variant-numeric: tabular-nums; }
   main[data-module="policy"] .page-canvas { background: transparent; border-radius: 0; }
-  main[data-module="policy"] :focus-visible { outline: 2px solid #5b2bb5; outline-offset: 2px; }
+  main[data-module="policy"] :focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
   main[data-module="policy"] :is(.card, .panel):where(:not(.cs *)) { border: 1px solid #eaecf0; border-radius: 12px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); padding: 16px 20px; }
   main[data-module="policy"] :is(.card, .panel) h2:where(:not(.cs *)) { font-family: inherit; font-size: 16px; font-weight: 600; color: #101828; }
   main[data-module="policy"] .table { border-collapse: collapse; border-spacing: 0; font-size: 14px; }
   main[data-module="policy"] .table thead th { height: 42px; background: #f9fafb; color: #475467; font-size: 12.5px; font-weight: 600; padding: 0 12px; border-bottom: 1px solid #eaecf0; white-space: nowrap; }
   main[data-module="policy"] .table tbody td { height: 58px; padding: 8px 12px; border-bottom: 1px solid #f2f4f7; background: transparent; }
-  main[data-module="policy"] .table tbody tr:hover td { background: #faf8ff; }
-  main[data-module="policy"] .btn-primary { border-color: #5b2bb5; background: #5b2bb5; color: #fff; font-weight: 600; border-radius: 9px; min-height: 38px; white-space: nowrap; }
-  main[data-module="policy"] .btn-primary:hover { background: #4a2196; border-color: #4a2196; color: #fff; }
+  main[data-module="policy"] .table tbody tr:hover td { background: color-mix(in srgb, var(--module) 4%, #fff); }
+  main[data-module="policy"] .btn-primary { border-color: var(--module); background: var(--module); color: #fff; font-weight: 600; border-radius: 9px; min-height: 38px; white-space: nowrap; }
+  main[data-module="policy"] .btn-primary:hover { background: color-mix(in srgb, var(--module) 84%, #000); border-color: color-mix(in srgb, var(--module) 84%, #000); color: #fff; }
   main[data-module="policy"] .btn-secondary { border: 1px solid #d0d5dd; background: #fff; color: #344054; font-weight: 600; border-radius: 9px; min-height: 38px; white-space: nowrap; }
   main[data-module="policy"] .btn-secondary:hover { border-color: #b8bfca; background: #f9fafb; color: #101828; }
   main[data-module="policy"] .input { border-color: #d0d5dd; border-radius: 9px; font-size: 14px; }
-  main[data-module="policy"] .input:focus { border-color: #5b2bb5; --tw-ring-color: #ede7fb; }
-  main[data-module="policy"] a:where(:not(.cs *)):not([class*="btn"]):not(.pc-tab):not(.pc-plain):not([class*="pl-"]) { color: #5b2bb5; }
+  main[data-module="policy"] .input:focus { border-color: var(--module); --tw-ring-color: color-mix(in srgb, var(--module) 14%, #fff); }
+  main[data-module="policy"] a:where(:not(.cs *)):where(:not(.mh *)):not([class*="btn"]):not(.pc-tab):not(.pc-plain):not([class*="pl-"]) { color: var(--module); }
 
-  .pc-header { padding: 4px 0 0; margin-bottom: 16px; }
-  .pc-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #667085; }
-  .pc-crumbs a { color: #667085 !important; text-decoration: none; }
-  .pc-crumbs a:hover { color: #344054 !important; }
-  .pc-crumbs [aria-current] { color: #344054; }
-  .pc-title:where(:not(.cs *)) { font-family: inherit; font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -0.01em; color: #101828; }
-  .pc-subtitle { margin-top: 4px; max-width: 780px; font-size: 14px; line-height: 20px; color: #475467; }
-  .pc-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid #eaecf0; margin-top: 16px; scrollbar-width: thin; }
-  .pc-tab { position: relative; display: inline-flex; height: 42px; flex-shrink: 0; align-items: center; gap: 8px; white-space: nowrap; padding: 0 12px; font-size: 14px; font-weight: 500; color: #475467; text-decoration: none; }
-  .pc-tab:hover { color: #101828; }
-  .pc-tab[aria-current="page"] { color: #101828; font-weight: 600; }
-  .pc-tab[aria-current="page"]::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: -1px; height: 2px; background: #5b2bb5; border-radius: 2px 2px 0 0; }
-  .pc-tab:focus-visible { outline-offset: -2px; border-radius: 6px; }
   .pc-count { display: inline-flex; min-width: 22px; height: 20px; align-items: center; justify-content: center; border-radius: 999px; background: #f2f4f7; padding: 0 7px; font-size: 12px; font-weight: 500; color: #344054; }
-  .pc-tab[aria-current="page"] .pc-count { background: #f4f3ff; color: #5925dc; }
+  .pc-tab[aria-current="page"] .pc-count { background: color-mix(in srgb, var(--module) 10%, #fff); color: var(--module); }
   .pc-panel { min-width: 0; border: 1px solid #eaecf0; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); }
   .pc-panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-height: 56px; padding: 12px 20px; border-bottom: 1px solid #eaecf0; }
   .pc-panel-title:where(:not(.cs *)) { font-family: inherit; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828; }
   .pc-btn, .pc-btn-secondary { display: inline-flex; height: 38px; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; border-radius: 9px; padding: 0 14px; font-size: 14px; font-weight: 600; text-decoration: none !important; cursor: pointer; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard); }
-  .pc-btn { background: #5b2bb5; border: 1px solid #5b2bb5; color: #fff !important; }
-  .pc-btn:hover { background: #4a2196; border-color: #4a2196; }
+  .pc-btn { background: var(--module); border: 1px solid var(--module); color: #fff !important; }
+  .pc-btn:hover { background: color-mix(in srgb, var(--module) 84%, #000); border-color: color-mix(in srgb, var(--module) 84%, #000); }
   .pc-btn-secondary { background: #fff; border: 1px solid #d0d5dd; color: #344054 !important; }
   .pc-btn-secondary:hover { background: #f9fafb; color: #101828 !important; }
   .pc-btn-sm { height: 32px; padding: 0 12px; font-size: 13px; border-radius: 8px; }
   :is(.pc-btn, .pc-btn-secondary):disabled { opacity: 0.5; cursor: not-allowed; }
-  .pc-link { font-size: 13.5px; font-weight: 600; color: #5b2bb5 !important; text-decoration: none !important; white-space: nowrap; }
+  .pc-link { font-size: 13.5px; font-weight: 600; color: var(--module) !important; text-decoration: none !important; white-space: nowrap; }
   .pc-link:hover { text-decoration: underline !important; }
   .pc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; }
   .pc-search { display: flex; height: 38px; width: 100%; align-items: center; gap: 8px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; padding: 0 12px; color: #667085; }
-  .pc-search:focus-within { border-color: #5b2bb5; box-shadow: 0 0 0 3px #ede7fb; }
+  .pc-search:focus-within { border-color: var(--module); box-shadow: 0 0 0 3px color-mix(in srgb, var(--module) 14%, #fff); }
   .pc-search input { height: 100%; min-width: 0; flex: 1; background: transparent; font-size: 14px; color: #101828; outline: none; }
   .pc-search input::placeholder { color: #667085; }
   @media (min-width: 640px) { .pc-search { width: 260px; } }
   .pc-select { position: relative; display: inline-flex; height: 38px; align-items: center; gap: 6px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; padding: 0 30px 0 12px; font-size: 14px; color: #475467; white-space: nowrap; }
-  .pc-select:focus-within { border-color: #5b2bb5; box-shadow: 0 0 0 3px #ede7fb; }
+  .pc-select:focus-within { border-color: var(--module); box-shadow: 0 0 0 3px color-mix(in srgb, var(--module) 14%, #fff); }
   .pc-select::after { content: ""; position: absolute; right: 13px; top: 14px; width: 6px; height: 6px; border-right: 1.5px solid #667085; border-bottom: 1.5px solid #667085; transform: rotate(45deg); pointer-events: none; }
   .pc-select select { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; font-size: 14px; }
   .pc-select b { font-weight: 600; color: #101828; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
@@ -236,31 +218,31 @@
   .pc-table thead th { height: 42px; background: #f9fafb; padding: 0 16px; font-size: 12.5px; font-weight: 600; color: #475467; border-bottom: 1px solid #eaecf0; border-top: 1px solid #eaecf0; white-space: nowrap; }
   .pc-table tbody td { height: 58px; padding: 8px 16px; border-bottom: 1px solid #f2f4f7; vertical-align: middle; }
   .pc-table tbody tr:last-child td { border-bottom: 0; }
-  .pc-table tbody tr:hover td { background: #faf8ff; }
+  .pc-table tbody tr:hover td { background: color-mix(in srgb, var(--module) 4%, #fff); }
   .pc-table .pc-strong { font-weight: 600; color: #101828; }
   .pc-table .pc-sub { display: block; font-size: 12.5px; color: #667085; }
   .pc-table a.pc-strong { color: #101828 !important; text-decoration: none; }
-  .pc-table a.pc-strong:hover { color: #5b2bb5 !important; }
+  .pc-table a.pc-strong:hover { color: var(--module) !important; }
   .pc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 10px 16px; border-top: 1px solid #eaecf0; font-size: 13.5px; color: #475467; }
   .pc-badge { display: inline-flex; height: 22px; align-items: center; gap: 4px; white-space: nowrap; border-radius: 999px; padding: 0 9px; font-size: 12px; font-weight: 600; }
   .pc-badge[data-tone="green"] { background: #ecfdf3; color: #067647; }
   .pc-badge[data-tone="amber"] { background: #fffaeb; color: #b54708; }
   .pc-badge[data-tone="red"] { background: #fef3f2; color: #b42318; }
   .pc-badge[data-tone="blue"] { background: #eff8ff; color: #175cd3; }
-  .pc-badge[data-tone="purple"] { background: #f4f3ff; color: #5925dc; }
+  .pc-badge[data-tone="purple"] { background: color-mix(in srgb, var(--module) 10%, #fff); color: var(--module); }
   .pc-badge[data-tone="grey"] { background: #f2f4f7; color: #344054; }
   .pc-figure { display: flex; min-width: 0; align-items: flex-start; gap: 14px; border: 1px solid #eaecf0; border-radius: 12px; background: #fff; padding: 18px 20px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); text-decoration: none !important; color: inherit !important; }
-  a.pc-figure:hover { border-color: #d6cdf3; }
+  a.pc-figure:hover { border-color: color-mix(in srgb, var(--module) 30%, #fff); }
   .pc-figure-icon { display: flex; height: 40px; width: 40px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 10px; }
   .pc-figure-label { display: block; font-size: 14px; font-weight: 500; color: #475467; }
   .pc-figure-value { display: block; font-size: 28px; line-height: 36px; font-weight: 700; color: #101828; }
   .pc-figure-note { display: block; font-size: 13px; color: #667085; }
-  .pc-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 16px 12px; border: 1px solid #d6cdf3; border-radius: 10px; background: #f8f5ff; padding: 8px 12px; font-size: 14px; color: #344054; }
-  .pc-check { height: 16px; width: 16px; accent-color: #5b2bb5; cursor: pointer; }
+  .pc-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 16px 12px; border: 1px solid color-mix(in srgb, var(--module) 30%, #fff); border-radius: 10px; background: color-mix(in srgb, var(--module) 6%, #fff); padding: 8px 12px; font-size: 14px; color: #344054; }
+  .pc-check { height: 16px; width: 16px; accent-color: var(--module); cursor: pointer; }
   .pc-note { font-size: 12.5px; color: #667085; }
   .pc-empty { padding: 40px 16px; text-align: center; font-size: 14px; color: #475467; }
-  .pc-root { font-family: "Inter Variable", var(--font-sans); color: #344054; background: #f8f9fb; min-height: 100%; padding: 12px 16px 20px; font-variant-numeric: tabular-nums; }
-  .pc-root :focus-visible { outline: 2px solid #5b2bb5; outline-offset: 2px; }
+  .pc-root { font-family: "Inter Variable", var(--font-sans); color: #344054; background: theme("colors.page"); min-height: 100%; padding: 12px 16px 20px; font-variant-numeric: tabular-nums; }
+  .pc-root :focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
   .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
@@ -309,32 +291,32 @@
   .pl-dl dd { color: #2f3d52; min-width: 0; }
   .pl-menu-item { @apply flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] text-[#1f2d42] hover:bg-[#f4f9fc] hover:text-[#0b1530]; }
   .pl-quick { @apply flex h-[30px] items-center gap-2.5 rounded-[6px] px-1.5 text-[13px] text-[#344054] hover:bg-[#f9fafb]; }
-  .pl-quick[aria-current="true"] { background: #f4f3ff; color: #5925dc; font-weight: 600; }
+  .pl-quick[aria-current="true"] { background: color-mix(in srgb, var(--module) 10%, #fff); color: var(--module); font-weight: 600; }
 
   /* Policy Library in the Policy & Compliance look (owner's brief of 3 Nov 2026): the same structure, recoloured. */
   main[data-module="policy"] .pl-root { background: transparent; color: #344054; padding-bottom: 0; }
-  main[data-module="policy"] .pl-root :focus-visible { outline-color: #5b2bb5; }
+  main[data-module="policy"] .pl-root :focus-visible { outline-color: var(--module); }
   main[data-module="policy"] .pl-panel { background: #fff; border-color: #eaecf0; border-radius: 12px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.05); }
   main[data-module="policy"] .pl-input, main[data-module="policy"] .pl-select { height: 38px; border-color: #d0d5dd; border-radius: 9px; }
   main[data-module="policy"] .pl-select::after { top: 14px; }
-  main[data-module="policy"] .pl-input:focus-within, main[data-module="policy"] .pl-select:focus-within { border-color: #5b2bb5; box-shadow: 0 0 0 3px rgb(91 43 181 / 0.12); }
+  main[data-module="policy"] .pl-input:focus-within, main[data-module="policy"] .pl-select:focus-within { border-color: var(--module); box-shadow: 0 0 0 3px color-mix(in srgb, var(--module) 12%, transparent); }
   main[data-module="policy"] .pl-btn-secondary { height: 38px; border-color: #d0d5dd; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: #344054; white-space: nowrap; }
-  main[data-module="policy"] .pl-btn-secondary:hover { border-color: #b9a6ea; color: #5b2bb5; }
-  main[data-module="policy"] .pl-btn-primary { height: 38px; border-radius: 9px; background: #5b2bb5; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
-  main[data-module="policy"] .pl-btn-primary:hover { background: #4a2196; }
+  main[data-module="policy"] .pl-btn-secondary:hover { border-color: color-mix(in srgb, var(--module) 45%, #fff); color: var(--module); }
+  main[data-module="policy"] .pl-btn-primary { height: 38px; border-radius: 9px; background: var(--module); font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+  main[data-module="policy"] .pl-btn-primary:hover { background: color-mix(in srgb, var(--module) 84%, #000); }
   main[data-module="policy"] .pl-tree-row { color: #344054; font-size: 13.5px; }
   main[data-module="policy"] .pl-tree-row:hover, main[data-module="policy"] .pl-tree-sub:hover { background: #f9fafb; }
-  main[data-module="policy"] .pl-tree-row[aria-current="true"], main[data-module="policy"] .pl-tree-sub[aria-current="true"] { background: #f4f3ff; color: #5925dc; font-weight: 600; }
+  main[data-module="policy"] .pl-tree-row[aria-current="true"], main[data-module="policy"] .pl-tree-sub[aria-current="true"] { background: color-mix(in srgb, var(--module) 10%, #fff); color: var(--module); font-weight: 600; }
   main[data-module="policy"] .pl-count { color: #667085; }
   main[data-module="policy"] .pl-row { border-radius: 0; border-width: 0 0 0 3px; border-color: transparent; padding: 14px 16px 14px 15px; min-height: 58px; }
-  main[data-module="policy"] .pl-row:hover { background: #faf8ff; }
-  main[data-module="policy"] .pl-row-selected, main[data-module="policy"] .pl-row-selected:hover { background: #f8f5ff; border-left-color: #5b2bb5; }
+  main[data-module="policy"] .pl-row:hover { background: color-mix(in srgb, var(--module) 4%, #fff); }
+  main[data-module="policy"] .pl-row-selected, main[data-module="policy"] .pl-row-selected:hover { background: color-mix(in srgb, var(--module) 6%, #fff); border-left-color: var(--module); }
   main[data-module="policy"] .pl-row-title { color: #101828; font-size: 14.5px; }
-  main[data-module="policy"] .pl-row-title:hover { color: #5b2bb5; }
+  main[data-module="policy"] .pl-row-title:hover { color: var(--module); }
   main[data-module="policy"] .pl-insp-tab { color: #475467; font-size: 13.5px; }
-  main[data-module="policy"] .pl-insp-tab[data-state="active"] { color: #5b2bb5; }
-  main[data-module="policy"] .pl-insp-tab[data-state="active"]::after { background: #5b2bb5; left: 8%; right: 8%; }
-  main[data-module="policy"] .pl-menu-item:hover { background: #f9fafb; color: #5b2bb5; }
+  main[data-module="policy"] .pl-insp-tab[data-state="active"] { color: var(--module); }
+  main[data-module="policy"] .pl-insp-tab[data-state="active"]::after { background: var(--module); left: 8%; right: 8%; }
+  main[data-module="policy"] .pl-menu-item:hover { background: #f9fafb; color: var(--module); }
   main[data-module="policy"] .pl-viewer { border-color: #eaecf0; border-radius: 10px; }
   main[data-module="policy"] .pl-viewer-bar { background: #f9fafb; border-color: #eaecf0; }
   main[data-module="policy"] .pl-tool-count { min-width: 92px; border-color: #d0d5dd; }
@@ -433,7 +415,6 @@
  * nothing underneath moves. Above page content and sticky headers (z 35), below dialogs and toasts.
  */
 @layer components {
-.ai-csb-launcher { right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); }
 .ai-csb-panel {
   font-family: "Inter Variable", var(--font-sans);
   inset: 0; width: 100vw; height: 100dvh; border-radius: 0;
@@ -466,7 +447,7 @@
    document and three management panels on the right. Purple #5b2bb5 / navy #101828 on the light Policy & Compliance
    page. Only the policy page (src/app/(app)/policies/[id]/page.tsx) uses these classes. */
 @layer components {
-  .reader-crumbbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 44px; padding: 10px 18px; border-radius: 12px; background: #5b2bb5; color: #fff; font-size: 13.5px; }
+  .reader-crumbbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 44px; padding: 10px 18px; border-radius: 12px; background: var(--module); color: #fff; font-size: 13.5px; }
   .reader-crumbbar a { color: rgb(255 255 255 / 0.82) !important; text-decoration: none; }
   .reader-crumbbar a:hover { color: #fff !important; text-decoration: underline; }
   .reader-crumbbar [aria-current] { color: #fff; font-weight: 600; }
@@ -478,22 +459,24 @@
   .reader-menu > summary::-webkit-details-marker { display: none; }
   .reader-menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; border: 1px solid #eaecf0; border-radius: 10px; background: #fff; padding: 6px; box-shadow: 0 12px 24px -6px rgb(16 24 40 / 0.16); }
   .reader-menu-list a { display: flex; align-items: center; gap: 10px; border-radius: 7px; padding: 9px 10px; font-size: 14px; color: #344054 !important; text-decoration: none; }
-  .reader-menu-list a:hover { background: #f4f3ff; color: #101828 !important; }
+  .reader-menu-list a:hover { background: color-mix(in srgb, var(--module) 8%, #fff); color: #101828 !important; }
 
   .reader-strip { position: sticky; top: 56px; z-index: 20; display: flex; align-items: stretch; gap: 8px; margin: 12px -24px 0; padding: 10px 24px; background: rgb(248 249 251 / 0.96); backdrop-filter: blur(6px); border-bottom: 1px solid transparent; }
   @media (min-width: 768px) { .reader-strip { top: 68px; } }
-  .reader-strip-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: #5b2bb5; border-radius: 0 2px 2px 0; transition: width 150ms linear; }
+  /* The page frame's side padding is 16px on a phone (24px from 640px), so the strip bleeds by the same amount. */
+  @media (max-width: 639px) { .reader-strip { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; } }
+  .reader-strip-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--module); border-radius: 0 2px 2px 0; transition: width 150ms linear; }
   @media (min-width: 1280px) { .reader-strip-progress { display: none; } }
   .reader-strip-list { display: flex; width: 100%; gap: 8px; overflow-x: auto; scroll-behavior: auto; scrollbar-width: thin; padding: 2px; }
   .reader-strip-list > li { flex: 1 0 98px; max-width: 132px; }
   .reader-card { display: flex; height: 72px; width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fff; padding: 6px 6px; text-align: center; font-size: 12.5px; font-weight: 500; line-height: 15px; color: #344054 !important; text-decoration: none; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
-  .reader-card:hover { border-color: #c9b8f2; background: #faf8ff; color: #101828 !important; }
-  .reader-card-icon { display: flex; color: #5b2bb5; }
+  .reader-card:hover { border-color: color-mix(in srgb, var(--module) 40%, #fff); background: color-mix(in srgb, var(--module) 4%, #fff); color: #101828 !important; }
+  .reader-card-icon { display: flex; color: var(--module); }
   .reader-card-icon svg { width: 22px; height: 22px; }
   .reader-card-label { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .reader-card[aria-current="location"] { border-color: #5b2bb5; background: #5b2bb5; color: #fff !important; box-shadow: 0 4px 10px -4px rgb(91 43 181 / 0.55); }
+  .reader-card[aria-current="location"] { border-color: var(--module); background: var(--module); color: #fff !important; box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--module) 55%, transparent); }
   .reader-card[aria-current="location"] .reader-card-icon { color: #fff; }
-  .reader-card:focus-visible { outline: 2px solid #5b2bb5; outline-offset: 2px; }
+  .reader-card:focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
   .reader-views { display: flex; flex-wrap: wrap; gap: 4px; }
 
   .reader-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 12px; }
@@ -503,9 +486,9 @@
   .reader-panel { border: 1px solid #eaecf0; border-radius: 12px; background: #fff; padding: 16px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); }
   .reader-panel-title { font-size: 15px; line-height: 22px; font-weight: 600; color: #101828; }
   .reader-action { display: flex; width: 100%; align-items: center; gap: 10px; border-radius: 8px; padding: 9px 10px; font-size: 14px; font-weight: 500; color: #344054 !important; text-decoration: none; background: transparent; }
-  .reader-action:hover:not(:disabled):not([aria-disabled="true"]) { background: #f4f3ff; color: #101828 !important; }
+  .reader-action:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--module) 8%, #fff); color: #101828 !important; }
   .reader-action:disabled, .reader-action[aria-disabled="true"] { color: #98a2b3 !important; cursor: not-allowed; }
-  .reader-action svg { flex-shrink: 0; color: #5b2bb5; }
+  .reader-action svg { flex-shrink: 0; color: var(--module); }
   .reader-action[aria-disabled="true"] svg { color: #98a2b3; }
 
   .reader-doc { border: 1px solid #eaecf0; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); }
@@ -513,21 +496,21 @@
   .reader-section:first-child { border-top: 0; }
   @media (max-width: 639px) { .reader-section { padding: 22px 16px; } }
   .reader-h2 { display: flex; align-items: baseline; gap: 12px; font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; color: #101828; outline: none; }
-  .reader-h2 .num { min-width: 28px; font-size: 14px; font-weight: 600; color: #5b2bb5; font-variant-numeric: tabular-nums; }
+  .reader-h2 .num { min-width: 28px; font-size: 14px; font-weight: 600; color: var(--module); font-variant-numeric: tabular-nums; }
   .reader-h3 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; line-height: 24px; font-weight: 600; color: #101828; }
-  .reader-h3 .num { font-size: 13px; font-weight: 600; color: #7a5ac9; font-variant-numeric: tabular-nums; }
+  .reader-h3 .num { font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--module) 80%, #fff); font-variant-numeric: tabular-nums; }
   .reader-body { max-width: 74ch; font-size: 15.5px; line-height: 1.75; color: #1d2939; }
-  .reader-sheet-head { border-radius: 12px 12px 0 0; background: #f1ecfc; padding: 14px 32px; }
+  .reader-sheet-head { border-radius: 12px 12px 0 0; background: color-mix(in srgb, var(--module) 10%, #fff); padding: 14px 32px; }
   @media (max-width: 639px) { .reader-sheet-head { padding: 12px 16px; } }
   .reader-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
   .reader-fact { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #eaecf0; border-radius: 10px; padding: 10px 12px; background: #fff; }
-  .reader-fact svg { flex-shrink: 0; margin-top: 2px; color: #5b2bb5; }
+  .reader-fact svg { flex-shrink: 0; margin-top: 2px; color: var(--module); }
   .reader-table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .reader-table th { width: 230px; padding: 11px 14px; text-align: left; vertical-align: top; font-weight: 600; color: #344054; background: #fafafb; border-bottom: 1px solid #f2f4f7; }
   .reader-table td { padding: 11px 14px; vertical-align: top; line-height: 1.55; color: #1d2939; border-bottom: 1px solid #f2f4f7; }
   @media (max-width: 639px) { .reader-table, .reader-table tbody, .reader-table tr, .reader-table th, .reader-table td { display: block; width: 100%; } .reader-table th { border-bottom: 0; padding-bottom: 2px; } }
   .reader-step { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 4px 12px; }
-  .reader-step-num { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 999px; background: #5b2bb5; color: #fff; font-size: 13px; font-weight: 600; }
+  .reader-step-num { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 999px; background: var(--module); color: #fff; font-size: 13px; font-weight: 600; }
 }
 
 @media print {
@@ -559,4 +542,65 @@
   .px-scope .btn { @apply h-9 rounded-[6px] px-3.5 py-0 text-[13.5px] font-medium; }
   .px-scope :focus-visible:not([tabindex="-1"]) { outline: 2px solid #7c3aed; outline-offset: 2px; }
   .px-scope input[type="checkbox"], .px-scope input[type="radio"] { accent-color: #5b21b6; }
+}
+
+/*
+ * Colour system and shared page frame (owner's approved redesign, 10 Nov 2026; src/components/module-header.tsx).
+ * Each module keeps one colour (`--module`, set on <main>). It appears in three places on a page: the header band,
+ * the main action button and the active tab. Status colours (green, amber, red) are separate. Every value here comes
+ * from the tokens in tailwind.config.ts.
+ */
+@layer components {
+  /* The page frame: one light grey page, 16px 24px 24px (16px at the sides on a phone), content in white cards. */
+  .page-frame { @apply w-full min-w-0 flex-1 bg-page px-page-phone pb-page-bottom pt-page-top sm:px-page-x; }
+
+  /* The header band. */
+  .mh { @apply mb-header-gap; }
+  .mh-band { @apply flex flex-wrap items-center gap-x-4 gap-y-3 rounded-header px-header-x py-header-y text-white; background-color: var(--module); }
+  .mh-chip { @apply hidden sm:flex h-chip w-chip shrink-0 items-center justify-center self-start rounded-chip bg-white/16 text-white; }
+  .mh-main { @apply min-w-0 flex-1 basis-[16rem]; }
+  .mh-crumbs { @apply flex flex-wrap items-center gap-x-1.5 text-crumb text-white/92; }
+  .mh-crumbs a { @apply text-white/92 no-underline hover:text-white hover:underline; }
+  .mh-crumbs [aria-current="page"] { @apply text-white; }
+  .mh-title:where(:not(.cs *)), .cs .mh-title { @apply m-0 text-left font-sans text-header-title text-white; letter-spacing: -0.005em; }
+  .mh-desc { @apply mt-0.5 max-w-header-desc text-header-desc text-white/92; }
+  .mh-actions { @apply ml-auto flex flex-wrap items-center gap-2; }
+  .mh-row { @apply flex w-full flex-wrap items-center gap-x-3 gap-y-2; }
+  .mh :focus-visible { outline: 2px solid theme("colors.white"); outline-offset: 2px; }
+  /* Buttons inside the band. Other actions: white at 14% with a white-at-38% border. Main action: white, module text. */
+  .mh .mh-band :is(.btn, .pc-btn, .pc-btn-secondary, .pl-btn-primary, .pl-btn-secondary, .hx-btn, .cs-btn, .module-primary, .module-secondary, .mh-btn, .mh-band-btn) {
+    @apply inline-flex min-h-[36px] items-center gap-1.5 whitespace-nowrap rounded-[8px] border border-white/38 bg-white/8 px-3 text-[14px] font-semibold text-white no-underline shadow-none hover:border-white hover:bg-white/8;
+    color: theme("colors.white") !important;
+  }
+  .mh .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary) {
+    @apply border-white bg-white hover:bg-white/[.92];
+    /* Some button classes (.pc-btn, .pc-btn-secondary) set their text colour with !important. */
+    color: var(--module) !important;
+  }
+  .mh .mh-band :is(select, input:not([type="checkbox"]):not([type="radio"])) { @apply border-transparent bg-white text-ink; }
+  .mh .mh-band :is(.pc-select, .pl-select, .pc-search) { @apply border-transparent bg-white text-ink; }
+
+  /* One tab style: underline, 38px high, 14px, grey when inactive, module colour and a 2px underline when active. */
+  .tabs-line { @apply flex overflow-x-auto border-b border-rule; scrollbar-width: thin; /* room for a tab of fractional width at the end of a scrolled row */ padding-inline-end: 2px; }
+  .tab-line { @apply relative inline-flex h-tab shrink-0 items-center gap-2 whitespace-nowrap px-3 text-tab font-medium text-status-ink no-underline hover:text-ink; }
+  .tab-line:is([aria-current="page"], [data-state="active"]) { @apply font-semibold; color: var(--module); }
+  .tab-line:is([aria-current="page"], [data-state="active"])::after { content: ""; @apply absolute inset-x-1 -bottom-px h-[2px] rounded-t-[2px]; background-color: var(--module); }
+  .tab-line:focus-visible { outline: 2px solid var(--module); outline-offset: -2px; border-radius: 6px; }
+
+  /* The AI CSB Coordinator launcher, now in the top bar to the left of the notifications bell. */
+  .topbar-coordinator { @apply inline-flex h-topbar shrink-0 items-center gap-1.5 rounded-[9px] bg-coordinator px-3 text-[13px] font-semibold text-white hover:bg-coordinator-strong; }
+  .topbar-coordinator:focus-visible { outline: 2px solid theme("colors.coordinator.DEFAULT"); outline-offset: 2px; }
+  .ov-topbar .topbar-coordinator:focus-visible { outline-color: theme("colors.white"); }
+}
+@layer components {
+  /* Controls a page puts in its header band's second row (the Rota's date navigation). */
+  .mh-round { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/38 bg-white/8 text-white no-underline hover:border-white hover:text-white; }
+  .mh-field { @apply h-10 rounded-[8px] border border-transparent bg-white px-3 text-[14px] text-ink; }
+  .mh-field input { @apply text-ink; }
+  .mh .mh-band .mh-field input { @apply border-0 bg-transparent p-0; }
+}
+@layer components {
+  /* Labels beside a band's selects (for example "Branch") read white on the module colour. */
+  .mh .mh-actions :is(label, .label, .hx-field-label) { color: theme("colors.white"); }
+  .mh .mh-actions label > span:first-child { color: theme("colors.white"); }
 }

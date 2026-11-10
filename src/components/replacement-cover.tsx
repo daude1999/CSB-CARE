@@ -92,8 +92,8 @@ export async function ReplacementCoverPanel({ ctx, sp, basePath, keep, fallback 
         {message ? <p role={message.error ? "alert" : "status"} className={`mb-3 mt-3 rounded-[6px] px-3 py-2 text-[13.5px] ${message.error ? "bg-[#fde8e8] text-[#8a1f1a]" : "bg-[#e6f4ea] text-[#1e6b2c]"}`}>{message.text}</p> : null}
         <Summary ws={ws} />
         <nav aria-label="Find Cover sections" className="mt-3 grid grid-cols-2 rounded-[8px] border border-[#d0d5dd] p-0.5">
-          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight rounded-[6px] text-[14px] font-semibold no-underline ${tab === "cover" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
-          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight gap-1.5 rounded-[6px] text-[14px] font-semibold no-underline ${tab === "comms" ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-slate-50"}`}>
+          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight rounded-[6px] text-[14px] font-semibold no-underline ${tab === "cover" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
+          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight gap-1.5 rounded-[6px] text-[14px] font-semibold no-underline ${tab === "comms" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>
             Contact &amp; communication
             {comms && tab !== "comms" ? <span title={COMMS_LABEL[comms.kind]} className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATE_DOT[comms.kind]}`}><span className="sr-only">: {COMMS_LABEL[comms.kind]}</span></span> : null}
           </Link>
@@ -238,7 +238,7 @@ function VisitCoverTab({ ws, u, step, sp, comms }: { ws: VisitCover; u: U; step:
   }
   const slotNav = ws.slots.length > 1 ? (
     <nav aria-label={ws.mode === "fill" ? "Carer place to fill" : "Carer to replace"} className="mt-3 flex flex-wrap gap-1.5">
-      {ws.slots.map((s) => <Link key={s.slot} href={u.at({ fcSlot: s.slot, fcStep: step === "manual" ? "manual" : undefined, fcStaff: undefined })} scroll={false} aria-current={s.slot === ws.slot ? "true" : undefined} className={`rounded-full border px-3 py-0.5 text-[13px] font-semibold no-underline ${s.slot === ws.slot ? "border-[#5b2bb5] bg-[#5b2bb5] text-white" : "border-[#d0d5dd] bg-white text-[#344054]"}`}>{s.label}{s.current ? `: ${s.current}` : ""}</Link>)}
+      {ws.slots.map((s) => <Link key={s.slot} href={u.at({ fcSlot: s.slot, fcStep: step === "manual" ? "manual" : undefined, fcStaff: undefined })} scroll={false} aria-current={s.slot === ws.slot ? "true" : undefined} className={`rounded-full border px-3 py-0.5 text-[13px] font-semibold no-underline ${s.slot === ws.slot ? "border-module bg-module text-white" : "border-[#d0d5dd] bg-white text-[#344054]"}`}>{s.label}{s.current ? `: ${s.current}` : ""}</Link>)}
     </nav>
   ) : null;
   const more = (

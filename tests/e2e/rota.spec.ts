@@ -128,7 +128,7 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByLabel("Week Setting")).toBeVisible();
     await expect(page.getByRole("button", { name: "Build New Rota" })).toBeVisible();
     await page.getByRole("link", { name: "No, cancel for now" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "All Rotas" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "All Rotas" })).toBeVisible();
     // Other suites in the same run (e.g. the support-plan setup) may add a rota for this week too.
     await expect(page.getByRole("cell", { name: "Yes", exact: true }).first()).toBeVisible();
   });
@@ -152,10 +152,13 @@ test.describe("Rostering & Care Management", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/cover");
     await expect(page.getByRole("heading", { level: 1, name: "Sickness & Holiday Cover" })).toBeVisible();
-    const use = page.getByRole("button", { name: /^Replace with / }).first();
-    if (await use.count()) {
-      await use.click();
-      await expect(page.getByRole("status")).toContainText("Carer assigned");
+    // Each booking to cover links to Find Replacement Cover (since the shared cover panel), where the replacement runs
+    // the full eligibility check; replacement-cover.spec.ts books one. With nothing to cover, the page says so.
+    const find = page.getByRole("link", { name: /^Find replacement cover for / }).first();
+    if (await find.count()) {
+      await find.click();
+      await expect(page).toHaveURL(/[?&]cover=/);
+      await expect(page.getByRole("navigation", { name: "Find Cover sections" })).toBeVisible();
     } else {
       await expect(page.getByText("No absences or flagged bookings in these dates.")).toBeVisible();
     }
@@ -260,7 +263,7 @@ test.describe("Rostering & Care Management", () => {
   test("Daily Rota: a live list with no figure cards, the approved columns, and Visit Details only when a visit is chosen", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
     await page.goto("/rota/visits");
-    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota – Live View" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
     await expect(page.getByRole("region", { name: "The day's figures" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label, { exact: true })).toBeVisible();

@@ -1,25 +1,13 @@
 import Link from "@/components/link";
 import { isValidElement, type ReactNode } from "react";
-import { Info } from "@phosphor-icons/react/dist/ssr";
-import { TitleBar } from "@/components/title-bar";
+import { ModuleHeader } from "@/components/module-header-band";
 
 /**
- * Every inner page opens like the dashboard: the navy title bar, then a white strip
- * with a one-line explanation on the left and the page's actions on the right.
+ * Every inner page opens with the module's header band (src/components/module-header-band.tsx): breadcrumb, title,
+ * a one-line description and the page's actions; the page's tabs sit under it.
  */
-export function PageHeader({ title, subtitle, actions, back = "/", tabs }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; back?: string | null; tabs?: ReactNode }) {
-  return (
-    <>
-      <TitleBar title={title} back={back ?? undefined} />
-      {tabs}
-      {subtitle || actions ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[3px] bg-white px-[15px] py-2.5">
-          {subtitle ? <p className="flex min-w-0 max-w-4xl flex-1 basis-[18rem] items-start gap-1.5 text-[13px] leading-5 text-slate-600"><Info size={15} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{subtitle}</span></p> : <span />}
-          {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-        </div>
-      ) : <div className="mb-3" />}
-    </>
-  );
+export function PageHeader({ title, subtitle, actions, tabs }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; back?: string | null; tabs?: ReactNode }) {
+  return <ModuleHeader title={title} description={subtitle} actions={actions} tabs={tabs} />;
 }
 
 /** A white panel on the grey canvas, titled like "My Reading List" on the dashboard. */
@@ -82,14 +70,14 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge tone={STATUS_TONE[status] ?? "slate"}>{status.replace(/_/g, " ").toLowerCase()}</Badge>;
 }
 
-/** Folder tabs above a panel, the same shape as the area tabs on My Policies. */
+/** The page's sections as underline tabs (one tab style for every module), with an optional count. */
 export function SegmentNav({ items, label, alert = false }: { items: { href: string; label: ReactNode; active: boolean; count?: number }[]; label: string; alert?: boolean }) {
   return (
-    <nav aria-label={label} className="flex gap-[6px] overflow-x-auto px-2 pt-1">
+    <nav aria-label={label} className="tabs-line mb-3">
       {items.map((i) => (
-        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className={`flex h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[4px] border border-b-0 px-4 text-[14.5px] text-navy-900 no-underline transition-colors duration-[120ms] ${i.active ? "border-slate-300 bg-white font-semibold" : "border-transparent bg-[#e3e7ed] hover:bg-white"}`}>
+        <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className="tab-line">
           {i.label}
-          {i.count !== undefined ? <span className={`flex h-[22px] min-w-[22px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-[#f06a4d] text-white" : "bg-slate-200 text-slate-700"}`}>{i.count}</span> : null}
+          {i.count !== undefined ? <span className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-status-missed text-white" : "bg-slate-100 text-slate-700"}`}>{i.count}</span> : null}
         </Link>
       ))}
     </nav>

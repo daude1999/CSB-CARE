@@ -16,7 +16,7 @@ export const R_TD = "px-3 py-2.5 align-top";
 const STAGE_TONE: Record<RecruitmentStage, string> = {
   APPLIED: "bg-[#f2f4f7] text-[#344054]",
   SCREENING: "bg-[#eef4ff] text-[#3538cd]",
-  INTERVIEW: "bg-[#f4f3ff] text-[#5925dc]",
+  INTERVIEW: "bg-module/[.08] text-module",
   OFFER: "bg-[#fef6ee] text-[#b93815]",
   ONBOARDING: "bg-[#ecfdf3] text-[#067647]",
   READY: "bg-[#067647] text-white",
