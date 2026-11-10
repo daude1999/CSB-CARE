@@ -182,3 +182,25 @@ describe("monitor access", () => {
     await expect(officeClock(await carer(), "x", {})).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
+
+describe("a missed call whose carer has since been booked elsewhere", () => {
+  it("refuses the late clock-in with a plain message instead of failing", async () => {
+    const [v] = (await ameliaVisits()).slice(-1);
+    // Another service user's visit at an overlapping time that Amelia is not on.
+    const other = await db.visit.findFirstOrThrow({
+      where: { organisationId: orgId, status: "SCHEDULED", publishedAt: { not: null }, id: { not: v!.id }, serviceUserId: { not: v!.serviceUserId }, scheduledStart: { lt: v!.scheduledEnd }, scheduledEnd: { gt: v!.scheduledStart }, assignments: { none: { staffId: ameliaId } } },
+    });
+    // The call is missed, which frees Amelia's time; the office then books her onto the other visit.
+    await db.visit.update({ where: { id: v!.id }, data: { status: "MISSED" } });
+    const c = await coordinator();
+    await db.visitAssignment.create({ data: { organisationId: orgId, visitId: other.id, staffId: ameliaId, slot: "SHADOW", startsAt: other.scheduledStart, endsAt: other.scheduledEnd, eligibility: "ELIGIBLE", assignedById: c.userId } });
+
+    at(v!.scheduledStart, 20);
+    const attempt = clockMine(await carer(), v!.id, "IN", {});
+    await expect(attempt).rejects.toBeInstanceOf(ConflictError);
+    await expect(attempt).rejects.toThrow("booked on another visit");
+    vi.useRealTimers();
+    expect((await db.visit.findUniqueOrThrow({ where: { id: v!.id } })).status).toBe("MISSED");
+    expect(await db.visitClock.count({ where: { visitId: v!.id } })).toBe(0);
+  });
+});

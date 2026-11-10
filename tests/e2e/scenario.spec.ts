@@ -80,10 +80,12 @@ test("detected change flows through review, drafting, approval, publication and 
   // 5. Staff are asked to acknowledge the updated policy.
   const carer = await signIn(browser, "carer1@care-solution.demo");
   await carer.goto("/acknowledgements");
-  const ack = carer.locator('[data-testid^="ack-"]').filter({ hasText: "Safeguarding" }).first();
+  // By reference: in a full run other specs publish policies with "Safeguarding" in the title, and the list reorders
+  // once one is acknowledged.
+  const ack = carer.getByTestId("ack-CSB-SAF-001").filter({ hasText: "v2" });
   await ack.getByRole("button", { name: /I confirm I have read this policy/ }).click();
   await expect(carer.getByRole("status")).toContainText("acknowledgement has been recorded");
-  await expect(carer.locator('[data-testid^="ack-"]').filter({ hasText: "Safeguarding" }).first()).toContainText("acknowledged");
+  await expect(carer.getByTestId("ack-CSB-SAF-001").filter({ hasText: "v2" })).toContainText("acknowledged");
 
   // 6. Another organisation cannot see Brookfield's draft or policy.
   const other = await signIn(browser, "manager@oakridge.demo");

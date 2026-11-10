@@ -172,6 +172,9 @@ test.describe("Sidebar", () => {
 
     await page.reload();
     await expect(currentPage(page)).toHaveText("The Monitor");
+    // The marker is placed by the browser once the page is interactive. Back pressed before that (possible only for
+    // a fraction of a second after a reload) is not seen by the router, so wait as a person effectively does.
+    await expect.poll(markerOnRow).toBe(true);
     await page.goBack();
     await expect(page).toHaveURL(/\/rota\/visits/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
@@ -481,8 +484,8 @@ test.describe("Dialogs and the phone menu", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signIn(page);
     await page.goto("/policies");
-    // The first policy is a published one, so the inspector's main action is the "Create revision" dialog.
-    const trigger = page.locator("#policy-inspector").getByRole("button", { name: "Create revision" });
+    // The page's own "Upload policy" dialog: it is there whatever policy happens to be selected.
+    const trigger = page.getByRole("button", { name: "Upload policy" });
     await trigger.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
