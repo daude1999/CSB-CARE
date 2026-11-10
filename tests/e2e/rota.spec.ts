@@ -152,10 +152,13 @@ test.describe("Rostering & Care Management", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/cover");
     await expect(page.getByRole("heading", { level: 1, name: "Sickness & Holiday Cover" })).toBeVisible();
-    const use = page.getByRole("button", { name: /^Replace with / }).first();
-    if (await use.count()) {
-      await use.click();
-      await expect(page.getByRole("status")).toContainText("Carer assigned");
+    // Each booking to cover links to Find Replacement Cover (since the shared cover panel), where the replacement runs
+    // the full eligibility check; replacement-cover.spec.ts books one. With nothing to cover, the page says so.
+    const find = page.getByRole("link", { name: /^Find replacement cover for / }).first();
+    if (await find.count()) {
+      await find.click();
+      await expect(page).toHaveURL(/[?&]cover=/);
+      await expect(page.getByRole("navigation", { name: "Find Cover sections" })).toBeVisible();
     } else {
       await expect(page.getByText("No absences or flagged bookings in these dates.")).toBeVisible();
     }
