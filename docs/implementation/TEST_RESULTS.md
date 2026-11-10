@@ -257,6 +257,25 @@ Whole-suite runs with only the JavaScript clock moved (`TEST_NOW`) are **not** a
 
 The last full run was not repeated after the final two fixes; the two tests were re-run with their neighbours instead.
 
+**After merging `main` with the colour redesign (#134 to #137, #139), evening of 10 Nov**
+
+| Run | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| Whole browser suite on the merged code (276 tests) | 274 passed, **2 failed** (`missed-cover.spec.ts`, `cqc-inspection.spec.ts`) |
+| Those two after their fixes | pass |
+| `npm test -- --shard=3/3` at 20:42 UTC, before the fixes below | 1 failed (`missed-calls.test.ts`) |
+| `npm test -- --shard=3/3` after the fixes | 421 passed |
+| `platform-admin.spec.ts`, eight runs in a row after the one-time link fix | 8 of 8 passed (1 in 5 failed before) |
+| GitHub: Quality gate and browser-test workflow on the pushed branch | green |
+
+What was behind them:
+
+- `missed-cover.spec.ts` was out of date: the Daily Rota now opens on the Board, so the test checks the visit on the Board and then opens the List. No assertion removed.
+- `cqc-inspection.spec.ts` raced a slow page (the same fix as on the workstream 5 branch): it now waits for the next area's page.
+- Two integration tests failed only late in the evening. `missed-calls.test.ts` asked for a carer's history without a date range, which by then no longer covered the visit. `attendance.test.ts` picked "another visit" that could overlap one the carer already had. Both now choose their data explicitly.
+- **A real fault, fixed in the application:** in the Admin Centre, a newly created account's one-time setup link could vanish before it was read (about one time in five). Clearing the cookie that carries it was done by a server action, which redrew the page without the link. It is now cleared by a small route (`DELETE /api/platform/one-time-link`) that does not redraw the page.
+
 Real faults the browser tests had caught, fixed in the application:
 
 - **Staff Sign-off scrolled sideways on tablets and phones** (203px and 435px). Screen-reader-only labels inside the scrolling table and tab bar were positioned against the page instead of the scroller. No visual change.
