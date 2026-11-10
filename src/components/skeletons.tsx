@@ -84,17 +84,17 @@ export function OverviewSkeleton() {
   return (
     <Busy label="Loading the overview">
       <div className="ov-root">
-        <div className="skeleton-pulse space-y-4 px-4 pb-6 pt-5">
+        <div className="skeleton-pulse space-y-3.5 px-4 pb-6 pt-4">
           <div>
-            <Bar className="h-[30px] w-[min(320px,70%)]" />
+            <Bar className="h-[26px] w-[min(320px,70%)]" />
             <Bar className="mt-2 h-[16px] w-[min(460px,90%)]" />
           </div>
           <div className="grid grid-cols-1 gap-4 min-[1100px]:grid-cols-[minmax(0,60fr)_minmax(0,40fr)]">
-            <div className="h-[352px] rounded-[18px] bg-[#e9ebef]" />
-            <div className="h-[352px] rounded-[18px] border border-[#eaecf0] bg-white" />
+            <div className="h-[290px] rounded-[14px] bg-[#e9ebef]" />
+            <div className="h-[290px] rounded-[14px] border border-[#eaecf0] bg-white" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1100px]:grid-cols-4">
-            {Array.from({ length: 4 }, (_, n) => <div key={n} className="h-[224px] rounded-[18px] bg-[#e9ebef]" />)}
+            {Array.from({ length: 4 }, (_, n) => <div key={n} className="h-[168px] rounded-[14px] bg-[#e9ebef]" />)}
           </div>
         </div>
       </div>
