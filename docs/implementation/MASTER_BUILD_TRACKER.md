@@ -9,7 +9,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 1. Quality gates | Built on `enterprise-readiness`: `.github/workflows/ci.yml` (schema, types, lint, full vitest in three parts on PostgreSQL 16, HR tests, audit, build; one "Quality gate" check to mark required), `.github/dependabot.yml`, scratch file removed, high and critical audit findings cleared by upgrading existing packages (zod 4, vitest 4, nodemailer 10), four test failures fixed at their causes. Results: `TEST_RESULTS.md`. |
 | 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
 | 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
-| 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
+| 4. Assurance pack | Drafted in `docs/assurance/`: DPIA, data flow diagram, retention schedule (proposal, no deletion jobs), DSPT evidence index, penetration test scope, incident response. All marked DRAFT FOR HUMAN REVIEW. Start at `docs/assurance/README.md`. |
 | 5. UX and responsiveness | Not started. Shares ground with the colour system redesign (`redesign-colour-system`); that branch owns the page frame, header, tabs and tailwind tokens. |
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
