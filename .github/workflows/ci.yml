@@ -106,6 +106,13 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      # The suite deliberately provokes hundreds of database refusals (immutability triggers, state machines), and the
+      # runner prints the database's own log after the job. Quietening it keeps the failing test, not thousands of
+      # expected refusals, at the end of the job log.
+      - name: Keep the test database's log quiet
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d csb_test -c "ALTER SYSTEM SET log_min_messages = 'fatal'" -c "ALTER SYSTEM SET log_min_error_statement = 'panic'" -c "SELECT pg_reload_conf()"
       - name: Vitest, part ${{ matrix.shard }} of 3
         run: npm test -- --shard=${{ matrix.shard }}/3
 

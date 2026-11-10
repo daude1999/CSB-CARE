@@ -21,7 +21,7 @@ test.describe("Version 1", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Staff Readiness" })).toBeVisible();
     await page.getByRole("link", { name: /Pending verification/ }).click();
     await expect(page).toHaveURL(/status=PENDING_VERIFICATION/);
-    await page.locator("table a.pc-strong").first().click();
+    await page.locator('table a[href^="/rota/staff/"]').first().click();
     await expect(page.getByRole("heading", { name: "Staff readiness" })).toBeVisible();
     const form = page.locator("section[aria-label='Evidence awaiting verification'] form").first();
     await form.getByRole("button", { name: "Verify" }).click();
@@ -38,7 +38,8 @@ test.describe("Version 1", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Staff Sign-off" })).toBeVisible();
     await expect(page.getByText(/not training and does not show competence/).first()).toBeVisible();
     await page.getByTestId("ws-tabs-signoff").getByRole("link", { name: /^By Policy/ }).click();
-    await page.locator("table a.pc-strong").first().click();
+    // Wait for the By Policy table itself: the By Person table stays on screen until the new view arrives.
+    await page.locator('table a[href^="/staff/policy/"]').first().click();
     await expect(page.getByRole("heading", { name: "Who must read it" })).toBeVisible();
     const form = page.locator("form:has(select[name=scope])");
     await form.locator("select[name=scope]").selectOption("ORG");

@@ -16,7 +16,11 @@ async function nextWeekRota(page: Page) {
   await page.goto("/rota/templates?week=all&day=all");
   const profile = (await page.locator('a[title="Open the service user\'s record"]').first().getAttribute("href"))!;
   await page.goto(`${profile}?tab=rota`);
-  await page.getByRole("link", { name: "Next Week" }).click();
+  const next = page.getByRole("link", { name: "Next Week" });
+  const week = new URL((await next.getAttribute("href"))!, "http://x").searchParams.get("week")!;
+  await next.click();
+  // This week's table is already on screen (and by evening most of its visits are over), so wait for next week's.
+  await expect(page).toHaveURL(new RegExp(`week=${week}`));
   await expect(page.locator("table tbody tr").first()).toBeVisible();
 }
 
@@ -57,6 +61,8 @@ test.describe("Adjust Visit Time", () => {
     await signIn(page, "manager@care-solution.demo");
     await nextWeekRota(page);
     const rows = page.locator("table tbody tr");
+    // count() does not wait: make sure the week's visits are on screen before counting them.
+    await expect(rows.first()).toBeVisible();
     const count = await rows.count();
     // Try visits until one whose carers can do a time 5 minutes later.
     for (let i = 0; i < Math.min(count, 6); i++) {

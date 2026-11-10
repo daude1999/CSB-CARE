@@ -237,7 +237,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
           <KeyRow label="Owner" value={data.owner ?? "Not recorded"} />
           <KeyRow label="Next review" value={p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"} />
           <KeyRow label="Category" value={<span title={category}>{p.category.name}</span>} />
-          <KeyRow label="Source" value={<span className="pc-badge" data-tone={isTemplate ? "blue" : "grey"}>{source}</span>} />
+          <KeyRow label="Source" value={<span className="pc-badge h-auto min-h-[22px] max-w-full whitespace-normal rounded-[11px] py-[2px]" data-tone={isTemplate ? "blue" : "grey"}>{source}</span>} />
           <KeyRow label="Last updated" value={fmtShort(v?.publishedAt ?? p.updatedAt)} />
           <KeyRow label="Applies to" value={data.services.length ? data.services.map((s) => s.name).join(", ") : "All services"} />
         </dl>

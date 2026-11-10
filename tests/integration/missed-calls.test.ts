@@ -196,7 +196,8 @@ describe("missed calls", () => {
       expect(byCarer.rows.every((r) => r.staffId === withCarer.staffId)).toBe(true);
       const searched = await missedCallRegister(mgr, { period: "custom", from: all.range.from, to: all.range.to, q: withCarer.carerName!.slice(0, 5) });
       expect(searched.rows.some((r) => r.id === withCarer.id)).toBe(true);
-      const hist = await missedHistory(mgr, { staffId: withCarer.staffId! });
+      // The same dates as the register: in the evening the first case with a carer can be tomorrow's (see above).
+      const hist = await missedHistory(mgr, { staffId: withCarer.staffId! }, { from: all.range.from, to: all.range.to });
       expect(hist.rows.length).toBeGreaterThan(0);
     }
     const reason = await missedCallRegister(mgr, { period: "custom", from: all.range.from, to: all.range.to, reason: "none" });

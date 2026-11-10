@@ -297,8 +297,3 @@ export async function decideSupportAction(fd: FormData) {
   const approve = str(fd, "decision") === "approve";
   return handle(fd, async (ctx) => { await decideSupportAccess(ctx, str(fd, "grantId"), approve); }, approve ? "Support access approved. It ends automatically at the time shown." : "Support access declined");
 }
-
-/** Forgets a one-time link as soon as the page showing it has loaded, so a reload or the back button cannot show it again. */
-export async function forgetOneTimeLinkAction() {
-  (await cookies()).set(PLATFORM_LINK_COOKIE, "", { httpOnly: true, sameSite: "strict", path: "/platform-admin", maxAge: 0 });
-}
