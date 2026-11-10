@@ -272,3 +272,35 @@ Tests that were out of date or fragile, corrected without removing an assertion:
 - Tests that depended on timing or time of day: a row count taken before the table had loaded; next week's rota read before it had replaced this week's (which fails in the evening, when today's visits are over); Back pressed before a reloaded page was interactive; the first-load animation counted as a tab-change animation; a clock-in to whichever visit came first, which by evening is a missed one.
 - The PDF pixel comparison is now made on one named document. The difference is a property of the document (1.7% for the one used, 2.1% for Safeguarding Adults against a 2% limit), so the result used to depend on which policy happened to be first.
 
+
+## Workstream 5: UX and responsiveness (10 Nov 2026, branch `enterprise-readiness-5-ux`)
+
+Local, production build, PostgreSQL 16, `csb_e2e` reset and seeded by the suite. Never the live site.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | clean |
+| `npm run lint` | clean |
+| `npx vitest run tests/unit` | 513 passed (61 files) |
+| `npx playwright test` (whole browser suite), first run on the branch | 263 passed, **4 failed** |
+| `npx playwright test` (whole browser suite), after the fixes below, at commit `b7d634b` | **267 passed, 0 failed** (17.2 minutes) |
+| GitHub: Quality gate (full Vitest in three parts, build, audit) and the browser-test workflow on `b7d634b` | green |
+
+The suite grew from 258 to 267 tests: `feedback-200ms.spec.ts` (7) and `list-paging.spec.ts` (2).
+
+The four failures of the first run and what was done:
+
+- **Three were caused by this branch** (`template-confirm.spec.ts` twice, `v1-scenario.spec.ts`). The placeholder shown while the template page checks the built weeks had `role="status"`, so the page had two status messages after a save and the tests, which expect one, refused to choose. The role was removed from the placeholder; the tests were not changed.
+- **One was a test that raced a slow page** (`cqc-inspection.spec.ts`). After "Next area" it filled the result form at once; the next area's form has the same fields, so when the page was slow it filled the previous area's form and no message ever came. Reproduced on the base branch with the next page held back 1.5 seconds. The test now waits for the next area's page. No assertion was removed.
+
+Feedback times measured by `feedback-200ms.spec.ts` (server held back 1.5 s; limit 200 ms):
+
+| Page | Actions and time to first visible feedback |
+|---|---|
+| Overview | open Rostering 13 ms; open HR (full page load) 14 ms; view all notifications 146 ms |
+| Rota | next day 146 ms; completed calls tile 14 ms; late calls tile 13 ms |
+| Service Users | Add New Service User 13 ms; apply the search 14 ms; open a service user 146 ms |
+| HR Hub | alerts 145 ms; employees 14 ms; recruitment 13 ms |
+| Policies | Upload policy 41 ms; Create policy 147 ms; grid view 147 ms; CSB Central Library tab 146 ms |
+
+The 145 to 147 ms figures are the progress bar, which is held back 120 ms on purpose so quick pages never flash it.
