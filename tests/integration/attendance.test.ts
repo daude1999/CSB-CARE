@@ -65,20 +65,24 @@ describe("call sweep", () => {
   });
 
   it("lets the office record a late arrival on a missed call, which answers the alerts and completes the visit", async () => {
-    const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, status: "MISSED", assignments: { some: { removedAt: null } } }, include: { assignments: { where: { removedAt: null } } } });
+    // Ordered, so the same visit is chosen whatever order the database happens to return rows in.
+    const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, status: "MISSED", assignments: { some: { removedAt: null } } }, orderBy: [{ scheduledStart: "asc" }, { id: "asc" }], include: { assignments: { where: { removedAt: null } } } });
     const staffId = v.assignments[0]!.staffId;
     const date = fromDbDate(v.date);
     const start = londonMinute(v.scheduledStart);
+    // The carer arrives 40 minutes late and stays the planned length, so the "shorter than planned" rule (a separate
+    // test below) does not come into it whatever the visit's length.
+    const planned = Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / MIN);
     const c = await coordinator();
     await expect(officeClock(c, v.id, { staffId, kind: "IN", date, time: hhmm(start + 40), reason: "" })).rejects.toBeInstanceOf(ValidationError);
     await expect(officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 40), reason: "Phoned in" })).rejects.toThrow("Clock in first");
 
     // The visit may still be in the future in real time; office entries cannot be, so only run the rest for past visits.
-    if (v.scheduledStart.getTime() + 70 * MIN > Date.now()) return;
+    if (v.scheduledStart.getTime() + (40 + planned) * MIN > Date.now()) return;
     await officeClock(c, v.id, { staffId, kind: "IN", date, time: hhmm(start + 40), reason: "Carer phoned in, app not working" });
     expect((await db.visit.findUniqueOrThrow({ where: { id: v.id } })).status).toBe("IN_PROGRESS");
     expect(await db.rotaAlert.count({ where: { visitId: v.id, kind: { in: ["LATE", "MISSED"] }, resolvedAt: null } })).toBe(0);
-    await officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 70), reason: "Carer phoned in" });
+    await officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 40 + planned), reason: "Carer phoned in" });
     expect((await db.visit.findUniqueOrThrow({ where: { id: v.id } })).status).toBe("COMPLETED");
   });
 });
