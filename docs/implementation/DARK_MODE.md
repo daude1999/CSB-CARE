@@ -31,7 +31,8 @@ build time rather than written page by page:
 - The CSB wordmark swaps to its official on-dark version (`public/csb-logo-light.svg`).
 
 - A rule whose selector already names `[data-mode="dark"]` is a hand-written night-mode rule and gets no generated
-  twin (used by the module header band, see `COLOUR_SYSTEM.md`).
+  twin (used by the module header band, see `COLOUR_SYSTEM.md`). A rule naming `.dm-fixed` paints the same colours in
+  both modes and gets no twin either (the Overview's solid tiles: white on a module colour).
 
 ## Limits
 

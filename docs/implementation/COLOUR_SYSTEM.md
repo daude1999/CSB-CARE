@@ -254,3 +254,41 @@ Create policy, Add employee) into a dark box with module-coloured text, which wa
   rules are not twinned back (the HR Hub build already worked this way).
 
 Light mode is unchanged. Before/after pictures: `docs/design/colour-redesign/night-mode/`.
+
+## PR 5: Overview (`/overview`)
+
+Rebuilt to the owner's picture of 10 Nov 2026. The dark top bar, the sidebar, every link target and Rearrange are kept.
+The old six-box grid, numbered badges, bullet lists, previews and the "Each module is its own workspace" note are gone.
+
+- Greeting: "Good morning/afternoon/evening, {first name}" (London time) and "Here is {organisation} today, {date}."
+  with a plain Rearrange link on the right.
+- Top row, 60/40: the Rota tile (solid Rota purple) and Needs your attention (white). The Rota tile shows completed
+  visits of today's total, carers working and missed, one block per call round (`src/lib/overview-rounds.ts`, counted in
+  `rotaSnapshot`), and a cover alert with Find cover, or "All visits covered".
+- Needs your attention: up to five rows, most urgent first, each with a 34px chip in its module colour, the count, one
+  line and one action (Find cover, Review, Chase, Open). The first action is solid module colour, the rest light grey.
+- Bottom row: Policy, HR, Reporting and Administration as solid tiles, 224px high, the whole tile a link. Reporting
+  shows the last seven days of completed visits as white bars, today at half strength.
+- Under 1100px the top row stacks and the tiles go two by two; on a phone, one column. Fits 1440 by 900.
+
+### Contrast (WCAG 2.2 AA)
+
+| Module | White text | White at 92% | Module text on white | White on round (10%) | Dark mode, white text |
+| --- | --- | --- | --- | --- | --- |
+| Rota `#6b46c9` | 6.28:1 | 5.58:1 | 6.28:1 | 5.10:1 | 7.81:1 |
+| Policy `#1f5fd1` | 5.81:1 | 5.17:1 | 5.81:1 | n/a | 7.24:1 |
+| HR `#c2410c` | 5.18:1 | 4.62:1 | 5.18:1 | n/a | 6.76:1 |
+| Reporting `#0b6f99` | 5.60:1 | 4.99:1 | 5.60:1 | n/a | 7.04:1 |
+| Admin `#4b5666` | 7.44:1 | 6.60:1 | 7.44:1 | n/a | 8.95:1 |
+
+"Open rota" uses white at 14% with a white-at-38% border (4.65:1), not the picture's white at 20% (4.10:1, which fails
+for 15px text); the round in progress uses white at 12% with a white outline (4.88:1). Grey actions: 9.49:1.
+
+### Night mode
+
+The tiles keep their white text and white parts in night mode, and the tile colour is toned towards the page (82%),
+like the header bands. Rules naming `.dm-fixed` are left alone by the dark-mode generator
+(`scripts/dark-mode/postcss-dark-mode.cjs`). The page, greeting and Needs your attention turn dark as usual.
+
+Before/after pictures: `docs/design/colour-redesign/pr5/`.
+

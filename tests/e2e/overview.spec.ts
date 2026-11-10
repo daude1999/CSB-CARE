@@ -13,62 +13,96 @@ async function signIn(page: Page, email: string) {
 test.describe("Overview", () => {
   test.use({ viewport: { width: 1536, height: 1024 } });
 
-  test("shows a coloured tile for each module the person may open, with planned modules labelled", async ({ page }) => {
+  test("greets the person and shows today's rota, what needs attention and a solid tile per module", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care Solution Bureau CIC");
-    // The owner removed only the Overview Quick Actions row; module cards and arrange control remain.
+    // Owner's redesign of 10 Nov 2026: a greeting with the organisation and today's date, then the Rota tile beside
+    // Needs your attention, then one solid tile for each other module.
+    await expect(page.getByTestId("overview-greeting")).toHaveText(/^Good (morning|afternoon|evening), \S+$/);
+    await expect(page.getByText(/^Here is .+ today, \w+day \d{1,2} \w+\.$/)).toBeVisible();
+    await expect(page.getByTestId("arrange-modules")).toHaveText("Rearrange");
     await expect(page.getByRole("navigation", { name: "Quick actions" })).toHaveCount(0);
-    await expect(page.getByText("Quick Actions", { exact: true })).toHaveCount(0);
-    await expect(page.getByTestId("arrange-modules")).toBeVisible();
-    // Approved design (1 Nov 2026): no row of figures above the cards; the Rota card carries today's five figures,
-    // each linking to the page it was counted from, in place of the old planner drawing.
     await expect(page.getByTestId("overview-stats")).toHaveCount(0);
-    for (const id of ["completed", "pending", "missed", "unassigned", "staff"]) await expect(page.getByTestId(`rota-figure-${id}`)).toBeVisible();
-    await expect(page.getByTestId("tile-rota").getByRole("img")).toHaveCount(0);
-    for (const id of ["policy", "rota", "hr", "reporting", "admin"]) await expect(page.getByTestId(`tile-${id}`)).toBeVisible();
-    // Electronic call monitoring and service users now live inside Rostering & Care Management.
-    for (const id of ["ecm", "service-users"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
-    await expect(page.getByTestId("tile-rota")).not.toContainText("Not built yet");
-    await expect(page.getByTestId("needs-attention")).toBeVisible();
+    await expect(page.getByText("Each module is its own workspace")).toHaveCount(0);
 
-    // The Policy tile and the Policy & Compliance pages share one colour.
-    const tileColour = await page.getByTestId("tile-policy").locator(".ov-tile-head").evaluate((el) => getComputedStyle(el).backgroundColor);
-    await page.getByTestId("tile-policy").getByRole("link", { name: "Open Policy & Compliance" }).click();
+    const rota = page.getByTestId("tile-rota");
+    await expect(rota.getByTestId("rota-headline")).toHaveText(/^\d+of \d+ visits? done today$/);
+    await expect(rota.getByRole("list", { name: "Today's call rounds" }).getByRole("listitem").first()).toBeVisible();
+    await expect(rota.getByTestId("rota-cover")).toContainText(/still needs? a carer|All visits covered/);
+    await expect(rota.getByRole("link", { name: /Open rota/ })).toHaveAttribute("href", "/rota/visits");
+
+    const attention = page.getByTestId("needs-attention");
+    await expect(attention).toBeVisible();
+    const rows = attention.getByRole("listitem");
+    expect(await rows.count()).toBeLessThanOrEqual(5);
+    // Each row has one action; the first is in its module's colour, the rest are light grey.
+    await expect(rows.first().getByRole("link")).toHaveCount(1);
+    const [firstBg, secondBg] = await Promise.all([
+      rows.nth(0).getByRole("link").evaluate((el) => getComputedStyle(el).backgroundColor),
+      rows.nth(1).getByRole("link").evaluate((el) => getComputedStyle(el).backgroundColor),
+    ]);
+    expect(firstBg).not.toBe(secondBg);
+
+    for (const id of ["policy", "hr", "reporting", "admin"]) await expect(page.getByTestId("module-tiles").getByTestId(`tile-${id}`)).toBeVisible();
+    for (const id of ["ecm", "service-users"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
+    await expect(page.getByTestId("tile-reporting").getByTestId("reporting-bars").locator("span")).toHaveCount(7);
+
+    // The whole tile opens its module, and the Policy tile shares the Policy & Compliance colour.
+    const tileColour = await page.getByTestId("tile-policy").evaluate((el) => getComputedStyle(el).backgroundColor);
+    await page.getByTestId("tile-policy").click();
     await expect(page).toHaveURL(/\/$/);
-    // Policy & Compliance now uses the light page header of the 3 Nov 2026 brief (like HR), not a coloured banner.
     await expect(page.getByRole("heading", { level: 1, name: "Compliance Dashboard" })).toBeVisible();
     await expect(page.getByTestId("module-header")).toBeVisible();
     expect(tileColour).toBeTruthy();
   });
 
+  test("fits one 1440 by 900 screen, and stacks below 1100px without sideways scrolling", async ({ page }) => {
+    await signIn(page, "manager@care-solution.demo");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/overview");
+    const bottom = await page.getByTestId("module-tiles").evaluate((el) => el.getBoundingClientRect().bottom);
+    expect(bottom).toBeLessThanOrEqual(900);
+    const [rotaBox, attentionBox] = [await page.getByTestId("tile-rota").boundingBox(), await page.getByTestId("needs-attention").boundingBox()];
+    // Side by side: the same top (to within the page-entry animation's sub-pixel offset).
+    expect(Math.abs(rotaBox!.y - attentionBox!.y)).toBeLessThanOrEqual(2);
+    expect(attentionBox!.x).toBeGreaterThan(rotaBox!.x + rotaBox!.width);
+    for (const width of [834, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/overview");
+      const [r, a] = [await page.getByTestId("tile-rota").boundingBox(), await page.getByTestId("needs-attention").boundingBox()];
+      expect(a!.y, `stacked at ${width}`).toBeGreaterThan(r!.y + r!.height - 1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `no sideways scroll at ${width}`).toBeLessThanOrEqual(0);
+    }
+  });
+
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    const banners: [string, string, string][] = [
-      ["reporting", "/analytics", "[data-testid=title-bar]"],
-      ["admin", "/settings", "[data-testid=title-bar]"],
-      ["rota", "/rota/service-users", "[data-testid=title-bar]"],
-      // The HR overview, People and Recruitment use the approved light heading (no banner); other HR pages keep it.
-      ["hr", "/workforce/absences", "[data-testid=title-bar]"],
+    const banners: [string, string][] = [
+      ["reporting", "/analytics"],
+      ["admin", "/settings"],
+      ["rota", "/rota/service-users"],
+      ["hr", "/workforce/absences"],
     ];
-    for (const [id, path, banner] of banners) {
+    for (const [id, path] of banners) {
       await page.goto("/overview");
-      const tileColour = await page.getByTestId(`tile-${id}`).locator(".ov-tile-head").evaluate((el) => getComputedStyle(el).backgroundColor);
+      const tileColour = await page.getByTestId(`tile-${id}`).evaluate((el) => getComputedStyle(el).backgroundColor);
       await page.goto(path);
-      const bannerColour = await page.locator(banner).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+      const bannerColour = await page.locator(".mh-band").first().evaluate((el) => getComputedStyle(el).backgroundColor);
       expect(bannerColour, `${id} banner on ${path}`).toBe(tileColour);
     }
   });
 
-  test("a person can rearrange their module boxes, and the order is kept", async ({ page }) => {
+  test("a person can rearrange the module tiles, and the order is kept", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     await page.getByTestId("arrange-modules").click();
     await expect(page.getByTestId("arrange-bar")).toBeVisible();
     // Start from the standard order so the test does not depend on an earlier run.
     await page.getByRole("button", { name: "Standard order" }).click();
+    // Wait for the standard order to come back before moving anything, so the move is not undone by the reload.
+    await expect(page.getByText("The module boxes are back in the standard order.")).toBeVisible();
     await expect(page.getByTestId("arrange-bar")).toBeVisible();
-    // Move HR to the front with its arrow button (retried until the page is interactive).
     const hr = page.getByTestId("arrange-hr");
     await expect(async () => {
       if (!(await hr.textContent())?.includes("position 1")) await page.getByRole("button", { name: "Move HR & Workforce earlier" }).click();
@@ -76,14 +110,26 @@ test.describe("Overview", () => {
     }).toPass();
     await page.getByRole("button", { name: "Save order" }).click();
     await expect(page.getByText("Your module order is saved.")).toBeVisible();
-    const order = () => page.locator("[data-testid^=tile-]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-    expect(await order()).toEqual(["tile-hr", "tile-policy", "tile-rota", "tile-reporting", "tile-admin"]);
+    // Rearrange orders the four tiles along the bottom; the Rota tile stays first.
+    const order = () => page.getByTestId("module-tiles").locator("[data-testid^=tile-]").evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+    expect(await order()).toEqual(["tile-hr", "tile-policy", "tile-reporting", "tile-admin"]);
     await page.reload();
-    expect(await order()).toEqual(["tile-hr", "tile-policy", "tile-rota", "tile-reporting", "tile-admin"]);
-    // Back to the standard order for the other tests.
+    expect(await order()).toEqual(["tile-hr", "tile-policy", "tile-reporting", "tile-admin"]);
     await page.goto("/overview?arrange=1");
     await page.getByRole("button", { name: "Standard order" }).click();
     await expect(page.getByText("The module boxes are back in the standard order.")).toBeVisible();
+  });
+
+  test("in dark mode the tiles keep white text and white parts on a toned-down module colour", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "csb-mode", value: "dark", url: String(baseURL) }]);
+    await signIn(page, "manager@care-solution.demo");
+    await page.goto("/overview");
+    expect(await page.locator("html").getAttribute("data-mode")).toBe("dark");
+    await expect(page.getByTestId("rota-cover")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(page.getByTestId("tile-rota").locator("h2")).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(page.getByTestId("tile-policy")).toHaveCSS("color", "rgb(255, 255, 255)");
+    // The page and the attention panel turn dark.
+    expect(await page.getByTestId("needs-attention").evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe("rgb(255, 255, 255)");
   });
 
   test("care staff only see the modules they can use", async ({ page }) => {
