@@ -80,6 +80,13 @@ Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
 - **Not done from the brief, on purpose:** per-section `loading.tsx` files, `useOptimistic`, a toast component, the single type scale (the owner decided it will be its own pull request after these are merged; page background and padding came with the colour redesign), and splitting the HR Hub's two large files. Reasons are in the audit.
 - **Two accessibility items left for other changes:** the Policy Library viewer's toolbar buttons at 1440 wide (17 px, needs 24 px) with one low-contrast label on that screen, and one small tap target in the shared top bar on a phone. The orange "Late calls" tile listed here earlier was fixed by the colour redesign.
 
+## Assurance pack (enterprise readiness, workstream 4, 10 Nov 2026)
+
+- Everything in `docs/assurance/` is a **draft for human review**. None of it is adopted, signed off or legal advice. The DPIA needs the data protection lead's review; the incident procedure needs named people and phone numbers.
+- The retention schedule is a proposal. **No deletion or disposal job exists**, and none was built: nothing in the platform deletes records on a schedule.
+- The DSPT index maps to the 10 data security standards and their themes, not to this year's evidence item numbers; whoever submits the toolkit must match them.
+- No penetration test has been commissioned; `PEN_TEST_SCOPE.md` is only the scope to give a supplier.
+
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
   the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.
