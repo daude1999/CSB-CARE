@@ -57,3 +57,13 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - Different answers from carers on a double-up give "Conflicting evidence" rather than a reason.
 - Contingency-plan and time-critical fields from the spec do not exist yet.
 
+## Colour redesign, PR 1 (10 Nov 2026)
+- The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
+  the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.
+- Below 640px the page frame keeps a 16px side padding (the brief's 24px applies from tablet width up), and the band's
+  icon chip is hidden so the title has room.
+- Pages that kept their own layout: the Overview (approved and locked; only the launcher moved), the Evantix Platform
+  Admin Centre (its own shell), the HR Hub's employee record (the person's name stays as its heading) and the Policy
+  Reader's document pills under the band.
+- The body map keeps its own clinical colours, and a few exported-file accents (Excel/PDF) keep their navy.
+

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import { COORDINATOR_SLOT } from "@/lib/shell-slots";
 import Link from "@/components/link";
 import {
   ArrowsInSimple, ArrowsOutSimple, CalendarPlus, CaretRight, ClipboardText, FileArrowUp, Minus, PaperPlaneRight, Paperclip, Sparkle, UserPlus, X,
@@ -44,8 +46,8 @@ export function suggestedActions(access: CoordinatorAccess, path: string | null)
 }
 
 /**
- * The one AI CSB Coordinator: a launcher fixed to the bottom right of every CRM page this employee may use, which opens
- * a chat panel over the page. It is a fixed layer, so the page underneath never moves or resizes. Minimise keeps the
+ * The one AI CSB Coordinator: a launcher in the top bar of every CRM page this employee may use, which opens a chat
+ * panel over the page. It is a fixed layer, so the page underneath never moves or resizes. Minimise keeps the
  * conversation; close clears it. Escape minimises, and focus returns to the launcher.
  */
 export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: CoordinatorAccess; aiOn?: boolean }) {
@@ -68,6 +70,11 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
   const input = useRef<HTMLTextAreaElement>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
+  // The launcher sits in the top bar, to the left of the notifications bell (owner's colour redesign, 10 Nov 2026).
+  // The panel and its conversation live here, outside the top bar, so they survive moving between pages; only the
+  // button is drawn into the top bar's slot, which is found again whenever the page (and so the top bar) changes.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setSlot(document.getElementById(COORDINATOR_SLOT)); }, [pathname]);
 
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => { if (open && messages.length > 1) scrollBottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, open, sending]);
@@ -318,19 +325,25 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
             <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send; attach documents with the paperclip. Nothing is published or sent to carers automatically.</p>
           </form>
         </section>
-      ) : (
-        <button
-          ref={launcher}
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-haspopup="dialog"
-          data-testid="ai-launcher-button"
-          className="ai-csb-launcher fixed z-[80] flex items-center gap-2 rounded-full bg-[#0a4f57] py-3 pl-3.5 pr-4 text-[14px] font-semibold text-white shadow-[0_10px_30px_rgba(7,61,69,.32)] transition hover:-translate-y-0.5 hover:bg-[#073f46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0a4f57]"
-        >
-          <Sparkle size={20} weight="fill" aria-hidden="true" />
-          AI CSB Coordinator
-        </button>
-      )}
+      ) : null}
+      {slot
+        ? createPortal(
+            <button
+              ref={launcher}
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-label="AI CSB Coordinator"
+              data-testid="ai-launcher-button"
+              className="topbar-coordinator"
+            >
+              <Sparkle size={16} weight="fill" aria-hidden="true" />
+              <span className="hidden sm:inline">AI CSB Coordinator</span>
+            </button>,
+            slot,
+          )
+        : null}
     </>
   );
 }

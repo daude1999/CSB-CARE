@@ -21,12 +21,12 @@ export const dynamic = "force-dynamic";
 
 const PER_PAGE = [10, 25, 50, 100] as const;
 const SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 const CONTROL = "h-[42px] rounded-[10px] border border-[#e4e7ec] bg-white text-[14.5px] text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.06)]";
 const TH = "whitespace-nowrap px-2 py-3 text-left text-[14px] font-bold text-[#101828]";
 const TD = "px-2 py-1.5";
-const ICON_BTN = `inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-[#5b2bb5] hover:bg-[#f4f1fd] ${FOCUS}`;
-const MENU_ITEM = "flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[#101828] no-underline hover:bg-[#f4f1fd]";
+const ICON_BTN = `inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-module hover:bg-module/[.08] ${FOCUS}`;
+const MENU_ITEM = "flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[#101828] no-underline hover:bg-module/[.08]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
   return (
@@ -106,7 +106,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
     const active = sort === key;
     return (
       <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={TH}>
-        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1.5 text-inherit no-underline hover:text-[#5b2bb5]">
+        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1.5 text-inherit no-underline hover:text-module">
           {label}{active ? (dir === "asc" ? <CaretUp size={12} weight="bold" aria-hidden /> : <CaretDown size={12} weight="bold" aria-hidden />) : null}
         </Link>
       </th>
@@ -124,19 +124,19 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
           items={Array.from({ length: cycleLength }, (_, i) => ({ href: url({ week: String(i + 1), on: undefined, page: undefined }), label: `Week ${i + 1}`, title: i + 1 === thisWeek ? "This calendar week is this cycle week" : undefined, active: week === i + 1, marker: i + 1 === thisWeek }))}
         />
         <nav aria-label="Day" className="flex min-w-0 max-w-full items-stretch gap-1.5 overflow-x-auto p-0.5">
-          {monday ? <Link href={url({ on: addDays(monday, -7), week: undefined, page: undefined })} aria-label="Previous week" title="Previous calendar week" className={`flex w-[44px] shrink-0 items-center justify-center min-[1600px]:w-[58px] rounded-[10px] bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-[#5b2bb5] ${FOCUS}`}><CaretLeft size={20} weight="bold" aria-hidden /></Link> : null}
+          {monday ? <Link href={url({ on: addDays(monday, -7), week: undefined, page: undefined })} aria-label="Previous week" title="Previous calendar week" className={`flex w-[44px] shrink-0 items-center justify-center min-[1600px]:w-[58px] rounded-[10px] bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module ${FOCUS}`}><CaretLeft size={20} weight="bold" aria-hidden /></Link> : null}
           {WEEKDAYS.map((d, i) => {
             const date = monday ? addDays(monday, i) : null;
             const active = day === i + 1;
             return (
-              <Link key={d} href={url({ day: String(i + 1), page: undefined })} aria-current={active ? "true" : undefined} title={`${d}${date ? ` ${fmtLondonDate(date, { day: "numeric", month: "long", year: "numeric" })}` : ""}${date === today ? " (today)" : ""}`} className={`relative flex min-w-[74px] shrink-0 flex-col items-center justify-center rounded-[10px] px-2.5 py-1.5 leading-tight no-underline min-[1600px]:min-w-[96px] ${FOCUS} ${active ? "bg-[#5b2bb5] text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-[#5b2bb5]"}`}>
+              <Link key={d} href={url({ day: String(i + 1), page: undefined })} aria-current={active ? "true" : undefined} title={`${d}${date ? ` ${fmtLondonDate(date, { day: "numeric", month: "long", year: "numeric" })}` : ""}${date === today ? " (today)" : ""}`} className={`relative flex min-w-[74px] shrink-0 flex-col items-center justify-center rounded-[10px] px-2.5 py-1.5 leading-tight no-underline min-[1600px]:min-w-[96px] ${FOCUS} ${active ? "bg-module text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module"}`}>
                 <span className="text-[15.5px] font-bold">{SHORT[i]}</span>
                 {date ? <span className="text-[14px]">{fmtLondonDate(date, { day: "numeric", month: "short" })}</span> : null}
-                {date === today ? <span aria-hidden className={`absolute bottom-1 h-1 w-1 rounded-full ${active ? "bg-white" : "bg-[#5b2bb5]"}`} /> : null}
+                {date === today ? <span aria-hidden className={`absolute bottom-1 h-1 w-1 rounded-full ${active ? "bg-white" : "bg-module"}`} /> : null}
               </Link>
             );
           })}
-          {monday ? <Link href={url({ on: addDays(monday, 7), week: undefined, page: undefined })} aria-label="Next week" title="Next calendar week" className={`flex w-[44px] shrink-0 items-center justify-center min-[1600px]:w-[58px] rounded-[10px] bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-[#5b2bb5] ${FOCUS}`}><CaretRight size={20} weight="bold" aria-hidden /></Link> : null}
+          {monday ? <Link href={url({ on: addDays(monday, 7), week: undefined, page: undefined })} aria-label="Next week" title="Next calendar week" className={`flex w-[44px] shrink-0 items-center justify-center min-[1600px]:w-[58px] rounded-[10px] bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module ${FOCUS}`}><CaretRight size={20} weight="bold" aria-hidden /></Link> : null}
         </nav>
       </div>
 
@@ -155,7 +155,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex justify-end gap-2.5">
           <details className="relative">
-            <summary className={`${CONTROL} flex cursor-pointer list-none items-center gap-2 whitespace-nowrap px-4 font-bold hover:bg-slate-50 [&::-webkit-details-marker]:hidden`}><SlidersHorizontal size={19} weight="bold" aria-hidden />More Filters{more ? <span className="rounded-full bg-[#5b2bb5] px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className={`${CONTROL} flex cursor-pointer list-none items-center gap-2 whitespace-nowrap px-4 font-bold hover:bg-slate-50 [&::-webkit-details-marker]:hidden`}><SlidersHorizontal size={19} weight="bold" aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
             <form method="get" aria-label="More filters" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["state", "empty", "week", "on", "day", "page", "tpl"])}
               {params.week && params.week !== "all" ? <input type="hidden" name="week" value={params.week} /> : null}
@@ -188,7 +188,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
             <p className="ml-auto text-[14.5px] text-[#344054]" title={scopeText}>{total} template{total === 1 ? "" : "s"}</p>
             <nav aria-label="Template layout" className="flex gap-1.5">
               <span aria-current="page" title="List" className="flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#101828]"><ListBullets size={20} weight="bold" aria-hidden /><span className="sr-only">List (shown)</span></span>
-              <Link href="/rota/templates/planner" title="Advanced Templates: carers by day" aria-label="Open Advanced Templates (carers by day)" className={`flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#475467] hover:text-[#5b2bb5] ${FOCUS}`}><SquaresFour size={20} aria-hidden /></Link>
+              <Link href="/rota/templates/planner" title="Advanced Templates: carers by day" aria-label="Open Advanced Templates (carers by day)" className={`flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#475467] hover:text-module ${FOCUS}`}><SquaresFour size={20} aria-hidden /></Link>
             </nav>
           </div>
 
@@ -220,10 +220,10 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                     const open = url({ tpl: t.id });
                     const carers = [t.carer1, t.carersRequired > 1 ? t.carer2 : null].filter((c): c is NonNullable<typeof c> => !!c);
                     return (
-                      <tr key={t.id} data-href={open} aria-selected={selected || undefined} className={`cursor-pointer border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-[#f4f1fd]" : cov.state === "none" && t.enabled ? "bg-[#fffafa]" : t.enabled ? "" : "bg-[#fafafa] text-[#667085]"} hover:bg-[#f9f8fe]`}>
+                      <tr key={t.id} data-href={open} aria-selected={selected || undefined} className={`cursor-pointer border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-module/[.08]" : cov.state === "none" && t.enabled ? "bg-[#fffafa]" : t.enabled ? "" : "bg-[#fafafa] text-[#667085]"} hover:bg-[#f9f8fe]`}>
                         {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="tbulk" name="templateIds" value={t.id} aria-label={`Select ${ref} ${suName(t.serviceUser)} ${t.callType.name}`} className="h-4 w-4" /></td> : null}
                         <td className={`${TD} whitespace-nowrap`}><Link href={open} scroll={false} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of template ${ref}`}>{ref}</Link></td>
-                        <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/service-users/${t.serviceUser.id}`} title="Open the service user's record" className="inline-flex items-center gap-2 font-bold text-[#5b2bb5] no-underline hover:underline"><User size={16} weight="fill" aria-hidden />{suName(t.serviceUser)}</Link></td>
+                        <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/service-users/${t.serviceUser.id}`} title="Open the service user's record" className="inline-flex items-center gap-2 font-bold text-module no-underline hover:underline"><User size={16} weight="fill" aria-hidden />{suName(t.serviceUser)}</Link></td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{hhmm(t.startMinute)}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{durationLabel(t.durationMin)}</td>
                         <td className={`${TD} whitespace-nowrap`}><CoverageBadge filled={cov.filled} required={cov.required} icon={<UsersThree size={16} weight="fill" aria-hidden />} /></td>
@@ -271,7 +271,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
               {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
                 <span key={n} className="flex items-center gap-2">
                   {i && n - arr[i - 1]! > 1 ? <span className="text-[#667085]">…</span> : null}
-                  <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-9 min-w-10 items-center justify-center rounded-[8px] border px-2 text-[14.5px] tabular-nums no-underline ${FOCUS} ${n === page ? "border-[#5b2bb5] bg-[#5b2bb5] font-bold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+                  <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-9 min-w-10 items-center justify-center rounded-[8px] border px-2 text-[14.5px] tabular-nums no-underline ${FOCUS} ${n === page ? "border-module bg-module font-bold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
                 </span>
               ))}
               {page < pages ? <Link href={url({ page: String(page + 1) })} aria-label="Next page" className={`flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50 ${FOCUS}`}><CaretRight size={16} weight="bold" aria-hidden /></Link> : <span aria-hidden className="flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#eaecf0] text-[#d0d5dd]"><CaretRight size={16} weight="bold" /></span>}
@@ -342,7 +342,7 @@ function TemplateDetailsBody({ d, cycleLength, canEdit, back, confirmOff, confir
           <form action={duplicateTemplateAction}>
             <input type="hidden" name="back" value={back} />
             <input type="hidden" name="templateId" value={t.id} />
-            <button title="Make a copy. The copy starts inactive until you check and activate it." className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#5b2bb5] bg-white px-2 text-[15px] font-bold text-[#5b2bb5] hover:bg-[#f4f1fd] ${FOCUS}`}><Copy size={18} weight="bold" aria-hidden />Duplicate</button>
+            <button title="Make a copy. The copy starts inactive until you check and activate it." className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-module bg-white px-2 text-[15px] font-bold text-module hover:bg-module/[.08] ${FOCUS}`}><Copy size={18} weight="bold" aria-hidden />Duplicate</button>
           </form>
           {t.enabled ? (
             <Link href={confirmHref} scroll={false} className={`flex h-[42px] items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#e5484d] bg-white px-2 text-[15px] font-bold text-[#d92d20] no-underline hover:bg-[#fef3f2] ${FOCUS}`}><Prohibit size={18} weight="bold" aria-hidden />Deactivate</Link>

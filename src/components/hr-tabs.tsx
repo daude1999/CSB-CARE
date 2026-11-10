@@ -41,9 +41,9 @@ export function HrTabs({ tabs, active, label, branch }: { tabs: HrTab[]; active:
     return `${href}${href.includes("?") ? "&" : "?"}branch=${encodeURIComponent(branch)}`;
   };
   return (
-    <nav aria-label={label} className="ws-tabs" data-testid="hr-tabs">
+    <nav aria-label={label} className="ws-tabs tabs-line" data-testid="hr-tabs">
       {tabs.map((t) => (
-        <Link key={t.key} href={withBranch(t.href)} className="ws-tab" aria-current={t.key === active ? "page" : undefined}>
+        <Link key={t.key} href={withBranch(t.href)} className="ws-tab tab-line" aria-current={t.key === active ? "page" : undefined}>
           {t.label}
         </Link>
       ))}

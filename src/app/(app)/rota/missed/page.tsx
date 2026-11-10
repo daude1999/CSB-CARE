@@ -1,4 +1,5 @@
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { fmtLondonDate, londonDate, londonTime } from "@/lib/london";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -74,6 +75,16 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
 
   return (
     <>
+      <ModuleHeader
+        title="Missed Calls"
+        description="Calls nobody clocked into, with the investigation for each."
+        actions={canExport ? (
+          <>
+            <a href={exportHref("xlsx")} className="mh-btn">Export Excel</a>
+            <a href={exportHref("pdf")} className="mh-btn">Export PDF</a>
+          </>
+        ) : <span className="text-[12.5px] text-white/88">Exports are for managers</span>}
+      />
       <Flash searchParams={sp as Record<string, string | undefined>} />
       <section aria-label="Calls in this period" className="panel mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <CallRing label="Complete Calls" value={rings.complete} total={rings.total} colour="#2e7d32" note={`${pct(rings.complete)}% of ${rings.total} visits`} href={`/rota/visits?status=COMPLETED&date=${range.from}`} />
@@ -83,17 +94,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
       </section>
 
       <section className="panel" aria-labelledby="missed-title">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Link href="/rota/monitor" className="btn-secondary">Back</Link>
-          <Link href="/rota" className="btn-secondary">Home</Link>
-          <h1 id="missed-title" className="order-first w-full text-center text-[22px] font-semibold text-[#6b46c9] sm:order-none sm:w-auto sm:flex-1 sm:text-[24px]">Missed Calls</h1>
-          {canExport ? (
-            <>
-              <a href={exportHref("xlsx")} className="btn-secondary">Export Excel</a>
-              <a href={exportHref("pdf")} className="btn-secondary">Export PDF</a>
-            </>
-          ) : <span className="text-[12.5px] text-slate-500">Exports are for managers</span>}
-        </div>
+        <h2 id="missed-title" className="mb-2 text-[17px] font-semibold text-ink">Missed calls in this period</h2>
         <p className="mb-3 rounded bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">You are looking at missed calls only. A call is missed when nobody has clocked in {settings.missedAfterMin} minutes after its start time (Rota Settings). Every missed call opens a case to investigate. A missed call means no attendance was recorded, not that the carer did not go: check with the carer and the person first.</p>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">

@@ -260,7 +260,7 @@ function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
             {ctx.organisationId ? (
               <li>
                 <Link href={libraryHref({ ...query, owner: query.owner === ctx.userId ? undefined : ctx.userId, page: 1 }, { selected: undefined })} scroll={false} aria-current={query.owner === ctx.userId ? "true" : undefined} className="pl-quick" data-testid="quick-mine">
-                  <User size={13} aria-hidden="true" className="shrink-0 text-[#5b2bb5]" />
+                  <User size={13} aria-hidden="true" className="shrink-0 text-module" />
                   <span className="min-w-0 flex-1 truncate">Owned by me</span>
                   <span className="pl-count">{view.mineCount}</span>
                 </Link>

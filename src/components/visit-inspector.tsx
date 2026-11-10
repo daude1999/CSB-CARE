@@ -59,10 +59,10 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
 /** A pop-over for one action. A native disclosure, so it works without JavaScript and from the keyboard. */
 function ActionPop({ label, icon, tone = "secondary", children, align = "left", size = "md", className = "" }: { label: string; icon: ReactNode; tone?: "primary" | "secondary" | "danger" | "outline" | "link"; children: ReactNode; align?: "left" | "right"; size?: "md" | "lg"; className?: string }) {
   const cls = {
-    primary: "border-[#5b2bb5] bg-[#5b2bb5] text-white hover:bg-[#4c2398]",
-    outline: "border-[#5b2bb5] bg-white text-[#5b2bb5] hover:bg-[#f6f2fd]",
+    primary: "border-module bg-module text-white hover:bg-[#4c2398]",
+    outline: "border-module bg-white text-module hover:bg-[#f6f2fd]",
     danger: "border-transparent bg-transparent text-[#b42318] hover:bg-[#fdeeee]",
-    link: "border-transparent bg-transparent text-[#5b2bb5] hover:bg-[#f6f2fd]",
+    link: "border-transparent bg-transparent text-module hover:bg-[#f6f2fd]",
     secondary: "border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50",
   }[tone];
   return (
@@ -120,15 +120,15 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
     <VisitPanelShell visitId={v.id} lockVersion={v.lockVersion} carersRequired={v.carersRequired} current={current} closeHref={closeHref} prevHref={nav.prevHref} nextHref={nav.nextHref} reviewStaffIds={editorCandidates.filter((c) => c.state === "REQUIRES_REVIEW").map((c) => c.id)}>
     <aside aria-labelledby="vi-title" className="flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] xl:max-h-[calc(100vh-210px)]">
       <div className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
-        <CalendarBlank size={22} weight="duotone" className="text-[#5b2bb5]" aria-hidden />
+        <CalendarBlank size={22} weight="duotone" className="text-module" aria-hidden />
         <h2 id="vi-title" className="text-[18px] font-bold text-[#101828]">Visit Details</h2>
-        <PanelLink href={closeHref} aria-label="Close visit details" title="Close (Esc)" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><X size={19} weight="bold" aria-hidden /></PanelLink>
+        <PanelLink href={closeHref} aria-label="Close visit details" title="Close (Esc)" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-module"><X size={19} weight="bold" aria-hidden /></PanelLink>
       </div>
       <PanelSaved />
       <PanelNav prevHref={nav.prevHref} nextHref={nav.nextHref} prevLabel={nav.prevLabel} nextLabel={nav.nextLabel} position={nav.position} total={nav.total} />
 
       <div className="flex items-start gap-3 px-4 pb-2.5 pt-1.5">
-        <User size={24} aria-hidden className="mt-0.5 shrink-0 text-[#5b2bb5]" />
+        <User size={24} aria-hidden className="mt-0.5 shrink-0 text-module" />
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[16px] font-bold text-[#101828] ${v.status === "CANCELLED" ? "line-through decoration-[#b42318] decoration-2" : ""}`}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
           <p className="text-[13px] text-[#475467]">Ref: <span>{v.reference}</span></p>
@@ -138,7 +138,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
 
       <nav aria-label="Visit details sections" className="flex border-b border-[#e4e7ec] px-3">
         {TABS.map(([k, label]) => (
-          <PanelLink key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-[13.5px] no-underline ${activeTab === k ? "border-[#5b2bb5] font-semibold text-[#5b2bb5]" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
+          <PanelLink key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-[13.5px] no-underline ${activeTab === k ? "border-module font-semibold text-module" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
             {label}{k === "notes" && v.visitNotes.length ? ` (${v.visitNotes.length})` : k === "tasks" && v.tasks.length ? ` (${v.tasks.length})` : ""}
           </PanelLink>
         ))}
@@ -260,7 +260,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
                 <p className="text-[12px] text-slate-500">Every carer on the visit is checked for the new time. If one cannot do it, nothing changes. <Link href={`/rota/visits/${v.id}`}>All visit settings</Link></p>
               </form>
             </ActionPop>
-          ) : <Link href={`/rota/visits/${v.id}`} className="flex h-9 items-center justify-center gap-2 rounded-[8px] border border-[#5b2bb5] text-[14px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={18} aria-hidden />View Visit</Link>}
+          ) : <Link href={`/rota/visits/${v.id}`} className="flex h-9 items-center justify-center gap-2 rounded-[8px] border border-module text-[14px] font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={18} aria-hidden />View Visit</Link>}
           {canEdit ? (
             <ActionPop label="Add Note" icon={<NotePencil size={18} />} tone="outline" align="right">
               <form action={addVisitNoteAction} className="space-y-2">
@@ -276,8 +276,8 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
-          <Link href={`/rota/visits/${v.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={16} aria-hidden />Full visit</Link>
-          {findCoverHref && assignable && v.scheduledEnd > new Date() ? <Link href={findCoverHref} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] no-underline hover:bg-[#f6f2fd]" title="Find Replacement Cover: fill an empty place or replace a booked carer, and record communication with the service user"><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
+          <Link href={`/rota/visits/${v.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={16} aria-hidden />Full visit</Link>
+          {findCoverHref && assignable && v.scheduledEnd > new Date() ? <Link href={findCoverHref} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module no-underline hover:bg-[#f6f2fd]" title="Find Replacement Cover: fill an empty place or replace a booked carer, and record communication with the service user"><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
           {editable && v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={hhmm(londonMinute(v.scheduledStart))} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} label="Adjust time" /> : null}
           {editable && swaps.length ? (
             <ActionPop label="Swap shift" icon={<ArrowsLeftRight size={16} />} tone="link" className="[&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-[13px]">
@@ -306,7 +306,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
             <form action={doubleUpAction}>
               {hidden}
               <input type="hidden" name="carersRequired" value={v.carersRequired - 1} />
-              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]" title={v.carersRequired === 2 ? "Change this visit back to one carer" : `Remove the empty carer ${v.carersRequired} place`}>{v.carersRequired === 2 ? "Make single" : "Remove empty place"}</button>
+              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd]" title={v.carersRequired === 2 ? "Change this visit back to one carer" : `Remove the empty carer ${v.carersRequired} place`}>{v.carersRequired === 2 ? "Make single" : "Remove empty place"}</button>
             </form>
           ) : null}
           {editable ? (
@@ -323,7 +323,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
           {canEdit && ["CANCELLED", "NOT_DELIVERED"].includes(v.status) && v.scheduledStart > new Date() ? (
             <form action={reinstateVisitAction} className="ml-auto">
               {hidden}
-              <button className="inline-flex h-8 items-center rounded-[8px] px-2 text-[13px] font-semibold text-[#5b2bb5] hover:bg-[#f6f2fd]">Reinstate visit</button>
+              <button className="inline-flex h-8 items-center rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd]">Reinstate visit</button>
             </form>
           ) : null}
         </div>

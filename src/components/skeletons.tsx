@@ -17,16 +17,15 @@ function Busy({ children, label }: { children: React.ReactNode; label: string })
   );
 }
 
-/** The usual inner page: title bar, explanation strip, then a panel of rows. */
+/** The usual inner page: the module header band, then a panel of rows. */
 export function PageSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <Busy label="Loading page">
-      <div aria-hidden="true" className="h-[60px] rounded-t-[6px] bg-[var(--module,#0f2a4f)]" />
+      <div aria-hidden="true" className="mb-header-gap flex h-[96px] items-center gap-4 rounded-header bg-module px-header-x">
+        <span className="h-chip w-chip shrink-0 rounded-chip bg-white/16" />
+        <span className="h-[14px] w-[min(320px,50%)] rounded-full bg-white/16" />
+      </div>
       <div className="skeleton-pulse">
-        <div className="mb-3 flex items-center justify-between gap-6 rounded-b-[3px] bg-white px-[15px] py-3">
-          <Bar className="h-[14px] w-[min(520px,60%)]" />
-          <Bar className="hidden h-[30px] w-[120px] sm:block" />
-        </div>
         <div className="panel">
           <Bar className="mb-4 h-[16px] w-[180px]" />
           <div className="space-y-[3px]">

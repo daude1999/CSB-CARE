@@ -18,7 +18,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
   return (
     <>
       <TitleBar title="This page couldn't load" />
-      <div role="alert" className="panel rounded-t-none">
+      <div role="alert" className="panel">
         <p className="text-[15px] text-slate-700">
           {error.message?.includes("not found") ? error.message : "Something went wrong on our side and the error has been logged. Nothing you entered has been lost."}{" "}
           {error.digest ? <span className="text-xs text-slate-500">Ref: {error.digest}</span> : null}

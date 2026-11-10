@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { VisitStatus } from "@prisma/client";
 import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { checklistOf, listVisits, patternWeek, rotaLookups, suName, type VisitRow } from "@/server/rota/queries";
@@ -67,7 +68,7 @@ const STATUS_BADGE: Record<VisitStatus, string> = {
   COMPLETED: "bg-[#e7f6ec] text-[#14713a]",
   MISSED: "bg-[#fdecec] text-[#b42318]",
   CANCELLED: "bg-[#fdecec] text-[#b42318]",
-  NOT_DELIVERED: "bg-[#f4f3ff] text-[#5925dc]",
+  NOT_DELIVERED: "bg-module/[.08] text-module",
 };
 const ROW_TINT: Partial<Record<VisitStatus, string>> = { MISSED: "bg-[#fffafa]", COMPLETED: "bg-[#f8fdf9]", IN_PROGRESS: "bg-[#f7fbff]", CANCELLED: "bg-[#fafafa] text-[#667085]" };
 /** A cancelled call is struck through in red, selected or not. */
@@ -107,7 +108,6 @@ function alertsOf(v: VisitRow) {
   return out;
 }
 
-const BTN = "flex h-10 items-center gap-2 rounded-[8px] px-4 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
 const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
@@ -185,7 +185,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
     const active = sort === key;
     return (
       <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-[#101828] ${extra}`}>
-        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-[#5b2bb5]">
+        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-module">
           {label}{active ? (dir === "asc" ? <CaretUp size={11} weight="fill" aria-hidden /> : <CaretDown size={11} weight="fill" aria-hidden />) : null}
         </Link>
       </th>
@@ -194,26 +194,27 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const visible = 15 + cols.size - (canEdit ? 0 : 1);
 
   return (
-    <div className="daily-rota -mt-1">
-      <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-[#efeafc] text-[#5b2bb5]"><CalendarBlank size={30} weight="duotone" /></span>
-        <div className="mr-auto min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Daily Rota – Live View</h1>
-          <p className="text-[15px] font-semibold text-[#101828]">{ordinalDate(date)} · {branchName}</p>
-        </div>
-        <AutoSubmitForm label="Day" className="flex items-center gap-2">
-          {hiddenExcept(["date", "page", "visit"])}
-          <Link href={url({ date: addDays(date, -1), page: undefined, visit: undefined })} aria-label="Previous day" className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
-          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3"><CalendarBlank size={18} aria-hidden className="text-[#344054]" /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] font-semibold text-[#101828]" /></label>
-          <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"><CaretRight size={18} weight="bold" aria-hidden /></Link>
-          {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="px-1 text-[14px] font-semibold text-[#5b2bb5]">Today</Link> : null}
-        </AutoSubmitForm>
-        <nav aria-label="Rota view" className="flex gap-1">
-          <Link href={url({ layout: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`${BTN} ${layout === "list" ? "bg-[#5b2bb5] text-white" : "border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"}`}><List size={19} weight="bold" aria-hidden />List</Link>
-          <Link href={plannerHref} className={`${BTN} border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50`}><CalendarBlank size={19} aria-hidden />Planner</Link>
-        </nav>
-        {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className={`${BTN} bg-[#5b2bb5] text-white hover:bg-[#4c2398]`}><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
-      </header>
+    <div className="daily-rota">
+      <ModuleHeader
+        title="Daily Rota"
+        description={<>{ordinalDate(date)} · {branchName}</>}
+        actions={
+          <>
+            <AutoSubmitForm label="Day" className="flex items-center gap-2">
+              {hiddenExcept(["date", "page", "visit"])}
+              <Link href={url({ date: addDays(date, -1), page: undefined, visit: undefined })} aria-label="Previous day" className="mh-btn"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
+              <label className="mh-field flex items-center gap-2"><CalendarBlank size={18} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] font-semibold" /></label>
+              <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="mh-btn"><CaretRight size={18} weight="bold" aria-hidden /></Link>
+              {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="mh-btn">Today</Link> : null}
+            </AutoSubmitForm>
+            <nav aria-label="Rota view" className="flex gap-2">
+              <Link href={url({ layout: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`mh-btn ${layout === "list" ? "mh-btn-primary" : ""}`}><List size={19} weight="bold" aria-hidden />List</Link>
+              <Link href={plannerHref} className="mh-btn"><CalendarBlank size={19} aria-hidden />Planner</Link>
+            </nav>
+            {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className="mh-btn"><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
+          </>
+        }
+      />
       <Flash searchParams={sp} />
 
       <div className="mb-3 flex flex-col gap-2.5 lg:flex-row lg:items-start">
@@ -231,7 +232,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-[#5b2bb5] px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
             <form method="get" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["branch", "call", "view", "cancelled", "page", "visit"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
@@ -242,7 +243,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
             <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={url({ cancelled: sp.cancelled === "1" ? undefined : "1", page: undefined })} className="block px-3 py-2 no-underline hover:bg-slate-50">{sp.cancelled === "1" ? "Hide cancelled visits" : "Show cancelled visits"}</Link></li>
@@ -272,7 +273,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 </form>
               ) : null}
               <details className="relative ml-auto">
-                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-[#5b2bb5]">+{cols.size}</span> : null}</summary>
+                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-module">+{cols.size}</span> : null}</summary>
                 <form method="get" className="absolute right-0 z-30 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
                   {hiddenExcept(["cols"])}
                   <fieldset>
@@ -332,7 +333,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                           <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
                           <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
-                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
+                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
                           <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}
                           <td className="px-2.5 py-2 tabular-nums">{dur(mins(v.scheduledStart, v.scheduledEnd))}</td>
@@ -371,7 +372,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                   {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
                     <span key={n} className="flex items-center gap-1">
                       {i && n - arr[i - 1]! > 1 ? <span className="px-0.5 text-[#667085]">…</span> : null}
-                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-[#5b2bb5] bg-[#5b2bb5] font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
                     </span>
                   ))}
                   {page < pages ? <Link href={url({ page: String(page + 1) })} aria-label="Next page" className="flex h-8 w-8 items-center justify-center rounded text-[#344054] hover:bg-slate-100"><CaretRight size={14} weight="bold" aria-hidden /></Link> : null}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ArrowsClockwise, CheckCircle, Hammer, ProhibitInset } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { AppError } from "@/lib/errors";
 import { fmtLondonDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal } from "@/server/auth/portals";
@@ -30,10 +31,12 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
   if (!hasOrgPermission(ctx, "rota.build")) {
     if (!hasOrgPermission(ctx, "rota.view")) notFound();
     return (
-      <section className="panel max-w-2xl" aria-labelledby="no-build">
-        <h1 id="no-build" className="text-[20px] font-normal text-navy-900">Build Rota</h1>
+      <>
+      <ModuleHeader title="Build Rota" />
+      <section className="panel max-w-2xl" aria-label="Build Rota">
         <p className="mt-2 text-[14.5px] text-slate-700">Your role can view the rota but not build or publish it. Building is open to administrators, care managers and care coordinators. Ask an administrator to change your role if you need it.</p>
       </section>
+      </>
     );
   }
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
@@ -162,16 +165,20 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
+      <ModuleHeader
+        title="Build Rota"
+        description="Every rota built so far, and the tools to build, publish or roll a rota forward."
+        actions={
+          <>
+            <Link href="/rota/build?roll=1" className="mh-btn"><ArrowsClockwise size={16} aria-hidden />Roll Forward</Link>
+            <Link href="/rota/build?new=1" className="mh-btn mh-btn-primary"><Hammer size={16} weight="fill" aria-hidden />Build Rota</Link>
+          </>
+        }
+      />
       {rolling ? null : <Flash searchParams={sp as Record<string, string | undefined>} />}
       <div inert={adding || rolling}>
         <section className="panel" aria-labelledby="all-rotas">
-          <div className="mb-3 flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-            <h1 id="all-rotas" className="text-[20px] font-normal text-navy-900">All Rotas</h1>
-            <span className="flex flex-wrap gap-2">
-              <Link href="/rota/build?roll=1" className="btn-secondary inline-flex items-center gap-1.5"><ArrowsClockwise size={16} aria-hidden />Roll Forward</Link>
-              <Link href="/rota/build?new=1" className="btn-primary inline-flex items-center gap-1.5 bg-[#13703c] hover:bg-[#0f5c31]"><Hammer size={16} weight="fill" aria-hidden />Build Rota</Link>
-            </span>
-          </div>
+          <h2 id="all-rotas" className="mb-3 border-b border-slate-200 pb-2 text-[17px] font-semibold text-ink">All Rotas</h2>
           <SearchTable
             label="All rotas"
             tall

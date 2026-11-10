@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 
 /**
  * HR & Workforce's shared building blocks (owner's approved HR concept, 2 Nov 2026): page heading, summary figure,
@@ -11,17 +12,9 @@ export const HX_PRIMARY = "hx-btn hx-btn--primary";
 export const HX_SECONDARY = "hx-btn hx-btn--secondary";
 export const HX_QUIET = "hx-btn hx-btn--quiet";
 
-/** The page's one level-one heading, with a short subtitle and the page's actions on the right. */
-export function HrHeading({ title, subtitle, actions, id }: { title: string; subtitle?: ReactNode; actions?: ReactNode; id?: string }) {
-  return (
-    <header className="hx-head" data-testid="hr-heading">
-      <div className="min-w-0">
-        <h1 className="hx-title" id={id}>{title}</h1>
-        {subtitle ? <p className="hx-subtitle">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="hx-head-actions">{actions}</div> : null}
-    </header>
-  );
+/** The page's one level-one heading: the shared module band with a short description and the page's actions. */
+export function HrHeading({ title, subtitle, actions, id, crumbs }: { title: string; subtitle?: ReactNode; actions?: ReactNode; id?: string; crumbs?: { label: string; href?: string }[] }) {
+  return <ModuleHeader title={title} description={subtitle} actions={actions} titleId={id} crumbs={crumbs} module="hr" testId="hr-heading" />;
 }
 
 /** A summary figure. `note` says exactly what is counted (shown small, and read out with the figure). */

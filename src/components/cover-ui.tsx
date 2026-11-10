@@ -52,7 +52,7 @@ export function CarerOption({ c, rank, name }: { c: Candidate & { areas?: string
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
             <b className="text-[14.5px] text-slate-900">{c.name}</b>
-            {rank !== null ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${rank === 0 ? "bg-[#ede7fb] text-[#4b2f9a]" : "bg-slate-100 text-slate-700"}`}>{RANK_LABEL[rank]}</span> : null}
+            {rank !== null ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${rank === 0 ? "bg-module/[.14] text-[#4b2f9a]" : "bg-slate-100 text-slate-700"}`}>{RANK_LABEL[rank]}</span> : null}
             {c.state === "REQUIRES_REVIEW" ? <Badge tone="amber">Check first</Badge> : c.state === "NOT_ELIGIBLE" ? <Badge tone="rose">Not eligible</Badge> : <Badge tone="green">Eligible</Badge>}
           </span>
           <span id={`${id}-why`} className="block">

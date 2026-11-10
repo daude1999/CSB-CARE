@@ -265,7 +265,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                     ) : null
                   ) : null}
                   {g.can.review ? (
-                    <form action={managerReviewAction} className="space-y-3 rounded-lg border border-[#d9d6fe] bg-[#f9f8ff] px-4 py-3" data-testid="rca-review-form">
+                    <form action={managerReviewAction} className="space-y-3 rounded-lg border border-module/[.22] bg-[#f9f8ff] px-4 py-3" data-testid="rca-review-form">
                       {base}{hidden("lockVersion", r.lockVersion)}
                       <p className="font-semibold">Confirm the findings the evidence supports</p>
                       {g.findings.map((f) => <label key={f.id} className="flex items-start gap-2 text-[13.5px]"><input type="checkbox" name="confirm" value={f.id} defaultChecked className="mt-1" /><span>{f.text}<span className="block text-[12.5px] text-[#667085]">Evidence: {f.evidence}</span></span></label>)}
@@ -282,7 +282,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                   {g.can.startEffectiveness ? <form action={startEffectivenessAction}>{base}<button className="pc-btn" type="submit">All actions verified: start effectiveness review</button></form> : null}
                   {r.status === "ACTIONS_IN_PROGRESS" && !g.can.startEffectiveness ? <p className="text-[#475467]">{g.actionsDone} of {g.actionsTotal} actions verified. The effectiveness review starts once every action is verified.</p> : null}
                   {g.can.effectiveness ? (
-                    <form action={effectivenessAction} className="space-y-3 rounded-lg border border-[#d9d6fe] bg-[#f9f8ff] px-4 py-3" data-testid="rca-effectiveness-form">
+                    <form action={effectivenessAction} className="space-y-3 rounded-lg border border-module/[.22] bg-[#f9f8ff] px-4 py-3" data-testid="rca-effectiveness-form">
                       {base}{hidden("lockVersion", r.lockVersion)}
                       <p className="font-semibold">Did the actions work?</p>
                       {Object.entries(EFFECTIVENESS_CHECKS).map(([k, v]) => <label key={k} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name={k} />{v}</label>)}
@@ -332,7 +332,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
               </ul>
               {g.can.escalate ? (
                 <details className="border-t border-[#eaecf0] px-5 py-3">
-                  <summary className="cursor-pointer text-[13.5px] font-semibold text-[#5925dc]">Record a decision</summary>
+                  <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Record a decision</summary>
                   <form action={escalationAction} className="mt-2 space-y-2">
                     {base}
                     <select name="kind" className="input" aria-label="Escalation question" defaultValue="">{<option value="" disabled>Which question…</option>}{Object.entries(ESCALATIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
@@ -351,7 +351,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                 <p className="border-t border-[#eaecf0] px-5 py-2 text-[12px] text-[#667085]">An investigation counts as evidence only after a manager confirms its findings and a reviewer verifies the link. Closing it does not change any score.</p>
                 {criteria.length ? (
                   <details className="border-t border-[#eaecf0] px-5 py-3">
-                    <summary className="cursor-pointer text-[13.5px] font-semibold text-[#5925dc]">Offer as evidence for CQC areas</summary>
+                    <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Offer as evidence for CQC areas</summary>
                     <form action={linkRcaCqcAction} className="mt-2 space-y-2">
                       {base}
                       <select name="criterionId" multiple className="input h-40" aria-label="CQC areas">{criteria.filter((c) => !linkedCriteria.has(c.id)).map((c) => <option key={c.id} value={c.id}>{c.code} {c.title} ({KQ_LABEL[c.keyQuestion as KeyQuestion]})</option>)}</select>

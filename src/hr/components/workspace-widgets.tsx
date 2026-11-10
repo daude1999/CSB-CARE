@@ -1,5 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
+import { ModuleHeader } from "@/components/module-header-band";
 import Link from "@/hr/nav";
 import {
   Users,
@@ -877,17 +878,17 @@ export function BranchWorkspace({
   const employees = currentPeople(data);
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="section-eyebrow">YOUR ORGANISATION</span>
-          <h1>Branches</h1>
-          <p>One CSB team. A clear view of every location.</p>
-        </div>
-        <span className="scope-chip">
-          <Building2 size={16} />
-          {branches.length} permitted branches
-        </span>
-      </div>
+      <ModuleHeader
+        module="hr"
+        title="Branches"
+        description="One CSB team. A clear view of every location."
+        actions={
+          <span className="mh-btn">
+            <Building2 size={16} />
+            {branches.length} permitted branches
+          </span>
+        }
+      />
       <div className="compact-summary-row">
         <StatCard
           label="Current employees"
@@ -1031,12 +1032,11 @@ export function AlertsWorkspace({
   ];
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="section-eyebrow">STAY ONE STEP AHEAD</span>
-          <h1>Alerts & reminders</h1>
-          <p>See what needs attention. Resolve it in the employee’s record.</p>
-        </div>
+      <ModuleHeader
+        module="hr"
+        title="Alerts & reminders"
+        description="See what needs attention. Resolve it in the employee’s record."
+        actions={
         <button
           className="secondary-button"
           disabled={!canEdit(data.user) || running}
@@ -1055,7 +1055,8 @@ export function AlertsWorkspace({
           <RefreshCw size={16} />
           {running ? "Processing…" : "Run reminder job"}
         </button>
-      </div>
+        }
+      />
       <div className="compact-summary-row">
         {groups.map((g) => (
           <StatCard

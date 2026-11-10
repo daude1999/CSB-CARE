@@ -9,13 +9,17 @@ import { SkeletonFor } from "@/components/skeletons";
 /** How long a page may take before its placeholder replaces the old page. Faster pages never show one. */
 const SKELETON_AFTER_MS = 450;
 
-/** The Policy Library and Overview draw their own full-width workspaces; the dashboard runs edge to edge; the rest sit on the grey canvas. */
+/**
+ * The Overview draws its own full-width workspace. Every other page sits in the shared page frame (owner's colour
+ * redesign, 10 Nov 2026): a light grey page, 16px 24px 24px, with content in white cards. The Policy Library keeps
+ * its own frame class because its workspace sizes itself to the window.
+ */
 type Frame = "bare" | "wide" | "canvas";
 const frameFor = (path: string): Frame => (path === "/policies" || path === "/overview" ? "bare" : path === "/" ? "wide" : "canvas");
 const FRAME_CLASS: Record<Frame, string> = {
   bare: "w-full min-w-0 flex-1",
-  wide: "w-full min-w-0 flex-1 bg-white px-4 pb-4 pt-3",
-  canvas: "w-full min-w-0 flex-1 bg-white px-4 pb-4 pt-3",
+  wide: "page-frame",
+  canvas: "page-frame",
 };
 
 /**

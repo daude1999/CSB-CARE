@@ -182,7 +182,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 <legend className="label">How should branch arrangements be handled?</legend>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                   {MODES.map((m) => (
-                    <label key={m.value} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-4 has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#faf8ff]">
+                    <label key={m.value} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-4 has-[:checked]:border-module has-[:checked]:bg-module/[.04]">
                       <input type="radio" name="mode" value={m.value} defaultChecked={(mode || "SHARED_WITH_APPENDICES") === m.value} className="pc-check mt-0.5" />
                       <span><span className="block text-[14px] font-semibold text-[#101828]">{m.label}</span><span className="mt-1 block text-[13px] text-[#475467]">{m.detail}</span></span>
                     </label>
@@ -195,7 +195,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                   {branches.map((b) => {
                     const p = b.policyProfile;
                     return (
-                      <label key={b.id} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-3 has-[:checked]:border-[#5b2bb5]">
+                      <label key={b.id} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-3 has-[:checked]:border-module">
                         <input type="checkbox" name="branch" value={b.id} defaultChecked={validBranches.includes(b.id)} className="pc-check mt-0.5" />
                         <span className="min-w-0">
                           <span className="block text-[14px] font-semibold text-[#101828]">{b.name}</span>
@@ -245,7 +245,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 </div>
               ))}
 
-              <form action={generatePolicyAction} className="rounded-[12px] border border-[#d6cdf3] bg-[#f8f5ff] p-5" data-testid="generate-form">
+              <form action={generatePolicyAction} className="rounded-[12px] border border-module/[.30] bg-module/[.06] p-5" data-testid="generate-form">
                 <input type="hidden" name="back" value={`/policies/generator?${new URLSearchParams([["basis", basis], ...(basisPolicy ? [["policy", basisPolicy.id]] : [["title", title], ["ref", ref], ["category", category]]), ["mode", mode], ...validBranches.map((id) => ["branch", id])])}`} />
                 <input type="hidden" name="basis" value={basis} />
                 {basisPolicy ? <input type="hidden" name="basisPolicyId" value={basisPolicy.id} /> : <><input type="hidden" name="title" value={title} /><input type="hidden" name="ref" value={ref} /><input type="hidden" name="categoryCode" value={category} /></>}

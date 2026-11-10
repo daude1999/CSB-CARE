@@ -85,7 +85,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
           <form id="start" action={createIntakeAction} className="space-y-3">
             <input type="hidden" name="back" value="/rota/coordinator" />
             {personLabel ? (
-              <p className="rounded-[4px] border-l-4 border-[#5b2bb5] bg-[#f8f5fe] px-3 py-2 text-[13.5px] text-slate-800" data-testid="intake-person-chosen">
+              <p className="rounded-[4px] border-l-4 border-module bg-[#f8f5fe] px-3 py-2 text-[13.5px] text-slate-800" data-testid="intake-person-chosen">
                 Updating <strong>{personLabel}</strong>. Their existing profile, plans and history are kept; no new person is created.
                 {discharge ? " Upload the hospital discharge summary or new medical document. When it is filed, a post-discharge review is opened for mobility, personal care, medicines, skin, equipment, follow-up, risks and visits. Medicines are reconciled with the GP or pharmacy, never changed from the letter." : null}
               </p>

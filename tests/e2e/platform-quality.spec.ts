@@ -40,7 +40,7 @@ test.describe("protected Rota screens keep their approved structure", () => {
     await page.goto("/rota/visits");
     await page.waitForLoadState("networkidle");
     expect(await structure(page)).toEqual({
-      headings: ["Daily Rota – Live View"],
+      headings: ["Daily Rota"],
       columns: ["", "Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"],
     });
   });

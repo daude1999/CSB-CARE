@@ -128,7 +128,7 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByLabel("Week Setting")).toBeVisible();
     await expect(page.getByRole("button", { name: "Build New Rota" })).toBeVisible();
     await page.getByRole("link", { name: "No, cancel for now" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "All Rotas" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "All Rotas" })).toBeVisible();
     // Other suites in the same run (e.g. the support-plan setup) may add a rota for this week too.
     await expect(page.getByRole("cell", { name: "Yes", exact: true }).first()).toBeVisible();
   });
@@ -260,7 +260,7 @@ test.describe("Rostering & Care Management", () => {
   test("Daily Rota: a live list with no figure cards, the approved columns, and Visit Details only when a visit is chosen", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
     await page.goto("/rota/visits");
-    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota – Live View" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
     await expect(page.getByRole("region", { name: "The day's figures" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label, { exact: true })).toBeVisible();

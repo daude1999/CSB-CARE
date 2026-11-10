@@ -1,16 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "@/components/link";
-import { CaretLeft, UsersThree } from "@phosphor-icons/react/dist/ssr";
-import { PcHeader, type Crumb } from "@/components/compliance-ui";
+import { ModuleHeader, type Crumb } from "@/components/module-header-band";
 
 /**
- * The page header for HR & Workforce (orange) and Policy & Compliance (blue), from the owner's approved designs of
- * 1 Nov 2026: a left-aligned title bar in the module colour with the module's icon, the workspace's tabs under it,
- * then one white strip with what the page is for and its actions.
- *
- * Rostering & Care Management keeps the shared, centred `PageHeader`/`TitleBar` (it is visually locked), so this is a
- * separate component used only by HR and Compliance pages. It takes the same props as `PageHeader`, so a page swaps
- * one for the other without other changes.
+ * Page headers for each module. Since the owner's approved colour redesign (10 Nov 2026) they all draw the one shared
+ * `ModuleHeader` band (src/components/module-header-band.tsx); these wrappers keep the props pages already pass.
+ * `subtitle` becomes the band's one-line description and `back` the middle breadcrumb of a detail page.
  */
 export type ModuleHeaderProps = {
   title: ReactNode;
@@ -20,31 +15,12 @@ export type ModuleHeaderProps = {
   eyebrow?: ReactNode;
   back?: string | null;
   tabs?: ReactNode;
+  /** Kept for call sites that passed it; the band shows the module's own icon. */
   icon?: ReactNode;
 };
 
-export function ModulePageHeader({ title, subtitle, actions, back = "/", tabs, icon }: ModuleHeaderProps) {
-  return (
-    <header className="mb-3" data-testid="module-header">
-      <div data-testid="title-bar" className="flex min-h-[56px] items-center gap-3 rounded-t-[6px] bg-[var(--module,#0f2a4f)] px-4 py-2.5 text-white">
-        {back ? (
-          <Link href={back} className="-ml-1 inline-flex h-9 items-center gap-1 rounded-[6px] px-2 text-[14px] text-white/90 no-underline hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
-            <CaretLeft size={14} weight="bold" aria-hidden="true" />Back
-          </Link>
-        ) : null}
-        {back ? <span aria-hidden="true" className="h-6 w-px bg-white/30" /> : null}
-        {icon ? <span aria-hidden="true" className="flex shrink-0 items-center text-white">{icon}</span> : null}
-        <h1 className="min-w-0 text-[22px] font-semibold leading-tight tracking-normal text-white">{title}</h1>
-      </div>
-      {tabs ? <div className="bg-white">{tabs}</div> : null}
-      {subtitle || actions ? (
-        <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-b-[6px] border-b border-slate-200 bg-white px-4 py-2.5 ${tabs ? "border-t" : ""}`}>
-          {subtitle ? <p className="min-w-0 max-w-4xl flex-1 basis-[18rem] text-[13.5px] leading-5 text-slate-600">{subtitle}</p> : <span />}
-          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-        </div>
-      ) : null}
-    </header>
-  );
+export function ModulePageHeader({ title, subtitle, actions, tabs }: ModuleHeaderProps) {
+  return <ModuleHeader title={title} description={subtitle} actions={actions} tabs={tabs} />;
 }
 
 /**
@@ -73,28 +49,31 @@ const COMPLIANCE_PARENTS: [string, string][] = [
   ["/compliance/cqc", "CQC Inspection & Evidence"],
 ];
 
-/**
- * Policy & Compliance page header (owner's brief of 3 Nov 2026): breadcrumb, title, subtitle and actions on the light
- * page, then the workspace tabs. A detail page's `back` address becomes the middle breadcrumb.
- */
-export function CompliancePageHeader({ title, subtitle, actions, back, tabs, crumbs }: ModuleHeaderProps & { crumbs?: Crumb[] }) {
+/** The list a detail page belongs to, from its `back` address, as a breadcrumb. */
+export function parentCrumb(back: string | null | undefined, title: ReactNode, parents: [string, string][] = COMPLIANCE_PARENTS): Crumb[] {
   const parentPath = back ? back.split("?")[0]! : null;
-  const parent = parentPath && parentPath !== "/" ? COMPLIANCE_PARENTS.find(([p]) => parentPath === p || parentPath.startsWith(`${p}/`)) : undefined;
-  const trail = crumbs ?? [{ label: "Policy & Compliance", href: "/" }, ...(parent && parent[1] !== title ? [{ label: parent[1], href: back! }] : [])];
-  return <PcHeader title={title} subtitle={subtitle} actions={actions} tabs={tabs} crumbs={trail} />;
+  const parent = parentPath && parentPath !== "/" ? parents.find(([p]) => parentPath === p || parentPath.startsWith(`${p}/`)) : undefined;
+  return parent && parent[1] !== title ? [{ label: parent[1], href: back! }] : [];
 }
 
-/** HR & Workforce page header (orange, from the module colour). */
+/** Policy & Compliance page header. A detail page's `back` address becomes the middle breadcrumb. */
+export function CompliancePageHeader({ title, subtitle, actions, back, tabs, crumbs }: ModuleHeaderProps & { crumbs?: Crumb[] }) {
+  // Older call sites pass the whole trail starting with the module; the band adds the module itself.
+  const trail = crumbs ? crumbs.filter((c) => c.label !== "Policy & Compliance") : parentCrumb(back, title);
+  return <ModuleHeader title={title} description={subtitle} actions={actions} tabs={tabs} crumbs={trail} />;
+}
+
+/** HR & Workforce page header. */
 export function HrPageHeader(props: ModuleHeaderProps) {
-  return <ModulePageHeader icon={<UsersThree size={26} aria-hidden="true" />} {...props} />;
+  return <ModulePageHeader {...props} />;
 }
 
 /** A module's primary action button: filled in the module colour. Use only for an action the person may take. */
 export const MODULE_PRIMARY =
-  "inline-flex h-9 items-center gap-1.5 rounded-[6px] bg-[var(--module,#1f5fd1)] px-3.5 text-[14px] font-semibold text-white no-underline hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
+  "module-primary inline-flex h-9 items-center gap-1.5 rounded-[6px] bg-[var(--module,#1f5fd1)] px-3.5 text-[14px] font-semibold text-white no-underline hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
 /** A secondary action: white with a grey border. */
 export const MODULE_SECONDARY =
-  "inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-slate-300 bg-white px-3.5 text-[14px] font-medium text-slate-800 no-underline hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
+  "module-secondary inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-slate-300 bg-white px-3.5 text-[14px] font-medium text-slate-800 no-underline hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
 
 const FIGURE_TONE = {
   navy: "text-slate-900",

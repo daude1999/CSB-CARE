@@ -1,5 +1,13 @@
 # Master build tracker — five-module CSB CRM
 
+## Approved colour redesign (10 Nov 2026, four PRs on branch `redesign-colour-system`, not merged)
+The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
+the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple
+is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
+Breadcrumb, description and secondary-button opacities were raised to meet WCAG AA (owner to confirm). PR 2: Rota
+Dashboard tiles and Daily Rota list. PR 3: Daily Rota Board and visit drawer. PR 4: Ctrl+K command bar. Details,
+contrast ratios and every replaced header: `COLOUR_SYSTEM.md`.
+
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level
 verification of national, regional and local sources), a Policy Generator (company policy with branch appendices or
