@@ -377,7 +377,7 @@ export function VisitPanelShell({
                     dialogRef.current?.close();
                   } else carryOn();
                 }}
-                className="h-10 rounded-[8px] bg-[#5b2bb5] px-3.5 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:opacity-60"
+                className="h-10 rounded-[8px] bg-module px-3.5 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save Changes"}
               </button>
@@ -392,10 +392,10 @@ export function VisitPanelShell({
 /** Previous | Visit 2 of 25 | Next, at the top of the panel. Real links, so they also work before scripts load. */
 export function PanelNav({ prevHref, nextHref, position, total, prevLabel, nextLabel }: { prevHref: string | null; nextHref: string | null; position: number | null; total: number; prevLabel?: string; nextLabel?: string }) {
   const { go } = usePanel();
-  const cls = "inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-[13.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]";
+  const cls = "inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-[13.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module";
   const link = (href: string | null, label: string, aria: string, title?: string) =>
     href ? (
-      <a href={href} title={title} aria-label={aria} data-panel-keep onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); go(href); }} className={`${cls} text-[#5b2bb5] hover:bg-[#f6f2fd]`}>{label}</a>
+      <a href={href} title={title} aria-label={aria} data-panel-keep onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); go(href); }} className={`${cls} text-module hover:bg-[#f6f2fd]`}>{label}</a>
     ) : (
       <span aria-disabled="true" aria-label={`${aria} (none)`} className={`${cls} cursor-not-allowed text-[#98a2b3]`}>{label}</span>
     );
@@ -439,7 +439,7 @@ export function PanelFooter({ children }: { children: ReactNode }) {
         disabled={!p.changeCount || p.saving || (p.needsAck && !p.draft.acceptWarnings)}
         aria-busy={p.saving || undefined}
         title={!p.changeCount ? "Nothing has changed yet" : p.needsAck && !p.draft.acceptWarnings ? "Tick that you have read the warnings first" : undefined}
-        className="h-10 rounded-[8px] bg-[#5b2bb5] px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#b9a6e3]"
+        className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#b9a6e3]"
       >
         {p.saving ? "Saving…" : "Save Changes"}
       </button>

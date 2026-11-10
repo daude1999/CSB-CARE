@@ -140,9 +140,9 @@ export function RotaTabs({ ctx, ws, active }: { ctx: Ctx; ws: RotaWorkspace; act
   if (tabs.length < 2) return null;
   const label = { daily: "Daily Rota", attention: "Visits Needing Attention", monitor: "The Monitor", templates: "Daily Templates", people: "Service Users", finance: "Finance", reports: "Reports" }[ws];
   return (
-    <nav aria-label={`${label} pages`} className="ws-tabs print:hidden" data-testid={`rota-tabs-${ws}`}>
+    <nav aria-label={`${label} pages`} className="ws-tabs tabs-line print:hidden" data-testid={`rota-tabs-${ws}`}>
       {tabs.map((t) => (
-        <Link key={t.key} href={t.href} className="ws-tab" aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
+        <Link key={t.key} href={t.href} className="ws-tab tab-line" aria-current={t.key === active ? "page" : undefined}>{t.label}</Link>
       ))}
     </nav>
   );

@@ -249,7 +249,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
         <fieldset className="flex items-center gap-1.5">
           <legend className="sr-only">Charge for the cancellation?</legend>
           {([["yes", "Charge"], ["no", "Don't charge"]] as const).map(([value, label]) => (
-            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828] has-[:checked]:border-[#5b2bb5] has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
+            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
               <input type="radio" name="charge" value={value} checked={charge === value} onChange={() => setCharge(value)} className="h-4 w-4" />{label}
             </label>
           ))}
@@ -258,7 +258,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
       {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]"><input type="checkbox" name="acceptWarnings" checked={acceptWarnings} onChange={(e) => setAcceptWarnings(e.target.checked)} className="h-4 w-4" /> Accept warnings</label> : null}
 
       {confirmTemplates ? <input type="hidden" name="confirmed" value={confirmed ? "1" : ""} form={form} /> : null}
-      <button type={review || (confirmTemplates && !NO_CONFIRM.has(kind)) ? "button" : "submit"} onClick={review ? openReview : confirmTemplates && !NO_CONFIRM.has(kind) ? () => !missing && setConfirming(describe()) : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
+      <button type={review || (confirmTemplates && !NO_CONFIRM.has(kind)) ? "button" : "submit"} onClick={review ? openReview : confirmTemplates && !NO_CONFIRM.has(kind) ? () => !missing && setConfirming(describe()) : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
       <span id="bulk-hint" className={compact && !selected ? "sr-only" : "text-[13px] text-[#667085]"} data-testid="bulk-hint">{missing ?? (review ? `Ready: review ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.` : `Ready: ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.`)}</span>
       {confirming && action ? (
         <TemplateBulkConfirm

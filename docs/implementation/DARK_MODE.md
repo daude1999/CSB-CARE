@@ -30,6 +30,9 @@ build time rather than written page by page:
   generated from a scan of the source (`@dark-mode inline-colours;` in `globals.css`).
 - The CSB wordmark swaps to its official on-dark version (`public/csb-logo-light.svg`).
 
+- A rule whose selector already names `[data-mode="dark"]` is a hand-written night-mode rule and gets no generated
+  twin (used by the module header band, see `COLOUR_SYSTEM.md`).
+
 ## Limits
 
 - The choice is per browser, not per account: signing in on another device starts in light.

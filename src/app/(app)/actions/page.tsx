@@ -114,7 +114,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
                       <td className={`whitespace-nowrap ${overdue ? "font-semibold text-[#b42318]" : ""}`}>{fmtDate(x.dueDate)}{overdue ? <span className="pc-sub text-[#b42318]">Overdue</span> : null}</td>
                       <td><PcBadge tone={overdue ? "red" : st.tone}>{overdue ? "Overdue" : st.label}</PcBadge></td>
                       <td className="text-right">{(evidenceOf.get(x.id) ?? 0) + (x.completionEvidenceId ? 1 : 0)}</td>
-                      <td className="whitespace-nowrap">{x.verifiedById ? <>Verified by {names.get(x.verifiedById) ?? "a member"}{x.verifiedAt ? <span className="pc-sub">{fmtDate(x.verifiedAt)}</span> : null}</> : x.status === "COMPLETED" ? <span className="text-[#5925dc]">Needs an independent check</span> : <span className="text-[#667085]">Not yet</span>}</td>
+                      <td className="whitespace-nowrap">{x.verifiedById ? <>Verified by {names.get(x.verifiedById) ?? "a member"}{x.verifiedAt ? <span className="pc-sub">{fmtDate(x.verifiedAt)}</span> : null}</> : x.status === "COMPLETED" ? <span className="text-module">Needs an independent check</span> : <span className="text-[#667085]">Not yet</span>}</td>
                     </tr>
                   );
                 })}

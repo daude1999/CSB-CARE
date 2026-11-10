@@ -1,13 +1,18 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { VisitStatus } from "@prisma/client";
-import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, User, Users, X } from "@phosphor-icons/react/dist/ssr";
+import { Bell, CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, CheckSquare, Columns, FileText, List, ListChecks, MagnifyingGlass, Plus, SlidersHorizontal, SquaresFour, User, Users, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { requireRotaPage } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
 import { checklistOf, listVisits, patternWeek, rotaLookups, suName, type VisitRow } from "@/server/rota/queries";
 import { visitInspector } from "@/server/rota/inspector";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, isoWeek, londonDate, londonMinute, londonTime, mondayOf } from "@/lib/london";
-import { bulkVisitsAction } from "@/app/rota-actions";
+import { assignCarerAction, bulkVisitsAction } from "@/app/rota-actions";
+import { BoardLegend, RotaBoard } from "@/components/rota-board";
+import { MoveConfirm } from "@/components/move-confirm";
+import { pendingMove } from "@/server/rota/board";
+import { boardData } from "./board-data";
 import { Empty, Flash } from "@/components/ui";
 import { dayTimeline } from "@/server/rota/roster";
 import { DailyTimeline } from "@/components/daily-timeline";
@@ -26,8 +31,14 @@ const STATUSES = Object.keys(VISIT_LABEL) as VisitStatus[];
 const PER_PAGE = [25, 50, 100] as const;
 const RISK: Record<string, { label: string; colour: string }> = { LOW: { label: "Low", colour: "#3f9a5b" }, MEDIUM: { label: "Medium", colour: "#e0a526" }, HIGH: { label: "High", colour: "#d9473f" } };
 
-/** Columns a coordinator can add to the table (Column settings). The fifteen default columns are always shown. */
+/**
+ * Columns a coordinator can add to the table (Column settings). The eleven default columns are always shown. Date, Week
+ * and Calendar week are hidden by default since the approved redesign (10 Nov 2026): the header already shows the day.
+ */
 const OPTIONAL = [
+  ["date", "Date"],
+  ["week", "Week (rota pattern)"],
+  ["isoWeek", "Calendar week"],
   ["area", "Area"],
   ["run", "Run route"],
   ["risk", "Risk"],
@@ -67,8 +78,19 @@ const STATUS_BADGE: Record<VisitStatus, string> = {
   COMPLETED: "bg-[#e7f6ec] text-[#14713a]",
   MISSED: "bg-[#fdecec] text-[#b42318]",
   CANCELLED: "bg-[#fdecec] text-[#b42318]",
-  NOT_DELIVERED: "bg-[#f4f3ff] text-[#5925dc]",
+  NOT_DELIVERED: "bg-module/[.08] text-module",
 };
+/** The 4px stripe on the left of each row, in the colour of that status's badge. */
+const STATUS_STRIPE: Record<VisitStatus, string> = {
+  SCHEDULED: "[&>td:first-child]:shadow-[inset_4px_0_0_#344054]",
+  IN_PROGRESS: "[&>td:first-child]:shadow-[inset_4px_0_0_#175cd3]",
+  COMPLETED: "[&>td:first-child]:shadow-[inset_4px_0_0_#14713a]",
+  MISSED: "[&>td:first-child]:shadow-[inset_4px_0_0_#b42318]",
+  CANCELLED: "[&>td:first-child]:shadow-[inset_4px_0_0_#b42318]",
+  NOT_DELIVERED: "[&>td:first-child]:shadow-[inset_4px_0_0_var(--module)]",
+};
+/** "Morning call" → "Morning calls"; "Waking night" → "Waking night calls". */
+const roundName = (name: string) => (/\bcalls?$/i.test(name) ? name.replace(/\bcall$/i, "calls") : `${name} calls`);
 const ROW_TINT: Partial<Record<VisitStatus, string>> = { MISSED: "bg-[#fffafa]", COMPLETED: "bg-[#f8fdf9]", IN_PROGRESS: "bg-[#f7fbff]", CANCELLED: "bg-[#fafafa] text-[#667085]" };
 /** A cancelled call is struck through in red, selected or not. */
 const STRUCK = "[&>td]:line-through [&>td]:decoration-[#b42318] [&>td]:decoration-2";
@@ -107,7 +129,6 @@ function alertsOf(v: VisitRow) {
   return out;
 }
 
-const BTN = "flex h-10 items-center gap-2 rounded-[8px] px-4 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
 const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
@@ -142,25 +163,44 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const canEdit = hasOrgPermission(ctx, "rota.edit");
   const canPublish = hasOrgPermission(ctx, "rota.build");
   const canComplete = hasOrgPermission(ctx, "rota.clockCorrect");
-  const layout = sp.layout === "timeline" ? "timeline" : "list";
+  // Board is the default view (approved redesign, 10 Nov 2026). Links that open a visit, filter by status or a "show
+  // only" view, sort, page or change columns come from places that expect the list, so they keep opening the list.
+  const listIntent = ["visit", "status", "view", "sort", "dir", "page", "per", "cols", "cover"].some((k) => !!sp[k]);
+  const layout: "board" | "list" | "timeline" = sp.layout === "list" || sp.layout === "timeline" || sp.layout === "board" ? sp.layout : listIntent ? "list" : "board";
   const cols = new Set((sp.cols ?? "").split(",").filter((c): c is Optional => OPTIONAL.some(([k]) => k === c)));
   const sort: SortKey = sp.sort && sp.sort in SORTS ? (sp.sort as SortKey) : "time";
   const dir = sp.dir === "desc" ? "desc" : "asc";
   const per = PER_PAGE.find((n) => String(n) === sp.per) ?? 25;
-  const rows = [...all].sort((a, b) => (dir === "asc" ? 1 : -1) * SORTS[sort](a, b) || a.scheduledStart.getTime() - b.scheduledStart.getTime() || a.reference.localeCompare(b.reference));
+  // Sorted by time (the default), rows are grouped under one header per call round (the organisation's call types),
+  // rounds in the order of their first visit of the day. Any other sort shows a plain list.
+  const grouped = sort === "time";
+  const rounds = new Map<string, { name: string; first: Date; last: Date; count: number }>();
+  for (const v of all) {
+    const r = rounds.get(v.callType.id);
+    if (!r) rounds.set(v.callType.id, { name: v.callType.name, first: v.scheduledStart, last: v.scheduledStart, count: 1 });
+    else {
+      r.count += 1;
+      if (v.scheduledStart < r.first) r.first = v.scheduledStart;
+      if (v.scheduledStart > r.last) r.last = v.scheduledStart;
+    }
+  }
+  const roundStart = (v: VisitRow) => rounds.get(v.callType.id)!.first.getTime();
+  const rows = [...all].sort((a, b) => (dir === "asc" ? 1 : -1) * ((grouped ? roundStart(a) - roundStart(b) : 0) || SORTS[sort](a, b)) || a.scheduledStart.getTime() - b.scheduledStart.getTime() || a.reference.localeCompare(b.reference));
   const pages = Math.max(1, Math.ceil(rows.length / per));
   const page = Math.min(pages, Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1));
   const shown = rows.slice((page - 1) * per, page * per);
   const inspector = sp.visit ? await visitInspector(ctx, sp.visit) : null;
   const timeline = layout === "timeline" ? await dayTimeline(ctx, date, all, lk) : null;
+  const board = layout === "board" ? boardData(all, { date, today, canEdit }) : null;
   const notBuilt = all.length === 0 && !q && !(await weekIsBuilt(ctx, date));
 
-  const params: Record<string, string | undefined> = { date: date === today ? undefined : date, branch, area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q, layout: layout === "timeline" ? "timeline" : undefined, cols: cols.size ? [...cols].join(",") : undefined, sort: sort === "time" ? undefined : sort, dir: dir === "asc" ? undefined : dir, per: per === 25 ? undefined : String(per), page: page === 1 ? undefined : String(page), visit: inspector ? inspector.visit.id : undefined };
+  const params: Record<string, string | undefined> = { date: date === today ? undefined : date, branch, area, carer: sp.carer, su: sp.su, call: sp.call, status: sp.status, view: sp.view, cancelled: sp.cancelled, q, layout: layout === "list" ? (sp.layout === "list" ? "list" : undefined) : layout, cols: cols.size ? [...cols].join(",") : undefined, sort: sort === "time" ? undefined : sort, dir: dir === "asc" ? undefined : dir, per: per === 25 ? undefined : String(per), page: page === 1 ? undefined : String(page), visit: inspector ? inspector.visit.id : undefined };
   const url = (extra: Record<string, string | undefined>) => {
     const s = new URLSearchParams(Object.entries({ ...params, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
     return `/rota/visits${s ? `?${s}` : ""}`;
   };
   const back = url({ date });
+  const move = pendingMove(sp.move, all, lk.staff);
   // Previous and Next in the Visit Details panel follow the list exactly as shown (same day, filters, sort and search),
   // across pages: the table turns to the page of the visit that opens, so its row stays highlighted.
   const at = inspector ? rows.findIndex((r) => r.id === inspector.visit.id) : -1;
@@ -185,35 +225,36 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
     const active = sort === key;
     return (
       <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-[#101828] ${extra}`}>
-        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-[#5b2bb5]">
+        <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-module">
           {label}{active ? (dir === "asc" ? <CaretUp size={11} weight="fill" aria-hidden /> : <CaretDown size={11} weight="fill" aria-hidden />) : null}
         </Link>
       </th>
     );
   };
-  const visible = 15 + cols.size - (canEdit ? 0 : 1);
+  const visible = 12 + cols.size - (canEdit ? 0 : 1);
 
   return (
-    <div className="daily-rota -mt-1">
-      <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-[#efeafc] text-[#5b2bb5]"><CalendarBlank size={30} weight="duotone" /></span>
-        <div className="mr-auto min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Daily Rota – Live View</h1>
-          <p className="text-[15px] font-semibold text-[#101828]">{ordinalDate(date)} · {branchName}</p>
-        </div>
-        <AutoSubmitForm label="Day" className="flex items-center gap-2">
-          {hiddenExcept(["date", "page", "visit"])}
-          <Link href={url({ date: addDays(date, -1), page: undefined, visit: undefined })} aria-label="Previous day" className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
-          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3"><CalendarBlank size={18} aria-hidden className="text-[#344054]" /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] font-semibold text-[#101828]" /></label>
-          <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="flex h-10 w-10 items-center justify-center rounded-[8px] border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"><CaretRight size={18} weight="bold" aria-hidden /></Link>
-          {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="px-1 text-[14px] font-semibold text-[#5b2bb5]">Today</Link> : null}
-        </AutoSubmitForm>
-        <nav aria-label="Rota view" className="flex gap-1">
-          <Link href={url({ layout: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`${BTN} ${layout === "list" ? "bg-[#5b2bb5] text-white" : "border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50"}`}><List size={19} weight="bold" aria-hidden />List</Link>
-          <Link href={plannerHref} className={`${BTN} border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50`}><CalendarBlank size={19} aria-hidden />Planner</Link>
-        </nav>
-        {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className={`${BTN} bg-[#5b2bb5] text-white hover:bg-[#4c2398]`}><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
-      </header>
+    <div className="daily-rota">
+      <ModuleHeader
+        title="Daily Rota"
+        description={<>{ordinalDate(date)} · {branchName}</>}
+        actions={
+          <>
+            <AutoSubmitForm label="Day" className="flex items-center gap-2">
+              {hiddenExcept(["date", "page", "visit"])}
+              <Link href={url({ date: addDays(date, -1), page: undefined, visit: undefined })} aria-label="Previous day" className="mh-btn"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
+              <label className="mh-field flex items-center gap-2"><CalendarBlank size={18} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] font-semibold" /></label>
+              <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="mh-btn"><CaretRight size={18} weight="bold" aria-hidden /></Link>
+              {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="mh-btn">Today</Link> : null}
+            </AutoSubmitForm>
+            <nav aria-label="Rota view" className="flex gap-2">
+              <Link href={url({ layout: "list", visit: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`mh-btn ${layout === "list" ? "mh-btn-primary" : ""}`}><List size={19} weight="bold" aria-hidden />List</Link>
+              <Link href={url({ layout: "board", visit: undefined, status: undefined, view: undefined, sort: undefined, dir: undefined, page: undefined, per: undefined, cols: undefined })} aria-current={layout === "board" ? "page" : undefined} className={`mh-btn ${layout === "board" ? "mh-btn-primary" : ""}`}><SquaresFour size={19} weight="bold" aria-hidden />Board</Link>
+            </nav>
+            {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className="mh-btn"><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
+          </>
+        }
+      />
       <Flash searchParams={sp} />
 
       <div className="mb-3 flex flex-col gap-2.5 lg:flex-row lg:items-start">
@@ -231,7 +272,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-[#5b2bb5] px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
             <form method="get" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["branch", "call", "view", "cancelled", "page", "visit"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
@@ -242,11 +283,12 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-[#5b2bb5] px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
             <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={url({ cancelled: sp.cancelled === "1" ? undefined : "1", page: undefined })} className="block px-3 py-2 no-underline hover:bg-slate-50">{sp.cancelled === "1" ? "Hide cancelled visits" : "Show cancelled visits"}</Link></li>
-              <li><Link href={url({ layout: layout === "timeline" ? undefined : "timeline" })} className="block px-3 py-2 no-underline hover:bg-slate-50">{layout === "timeline" ? "Back to the list" : "Carer timeline for the day"}</Link></li>
+              <li><Link href={plannerHref} className="block px-3 py-2 no-underline hover:bg-slate-50">Advanced Rota planner</Link></li>
+              <li><Link href={url({ layout: layout === "timeline" ? "list" : "timeline" })} className="block px-3 py-2 no-underline hover:bg-slate-50">{layout === "timeline" ? "Back to the list" : "Carer timeline for the day"}</Link></li>
               <li><Link href={`/rota/unassigned?from=${date}&days=1`} className="block px-3 py-2 no-underline hover:bg-slate-50">Unassigned visits (with suggestions)</Link></li>
               <li><Link href={`/rota/print?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Printable rota</Link></li>
               <li><Link href={`/rota/cover?from=${date}&days=1`} className="block px-3 py-2 no-underline hover:bg-slate-50">Sickness &amp; holiday cover</Link></li>
@@ -262,7 +304,18 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
       {only || status || q ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing {only ?? (status ? `${VISIT_LABEL[status].toLowerCase()} visits` : "visits")}{q ? ` matching “${q}”` : ""}. <Link href={url({ view: undefined, status: undefined, q: undefined, page: undefined })}>Show every visit</Link></p> : null}
 
       <div className={`grid grid-cols-1 items-start gap-4 ${inspector ? "xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
-        {layout === "list" ? (
+        {board ? (
+          <section aria-label="Board" data-testid="rota-board" className="min-w-0 overflow-hidden rounded-[10px] border border-rule bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+            {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <div className="px-3.5 pt-3"><MoveConfirm move={move} back={back} /></div> : null}
+            <div className="flex flex-wrap items-center gap-3 border-b border-rule px-3.5 py-2.5">
+              <h2 className="text-[15px] font-semibold text-ink" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
+              <span className="text-[13px] text-status-ink">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
+              <span className="ml-auto"><BoardLegend /></span>
+            </div>
+            <RotaBoard rows={board.rows} rounds={board.rounds} segments={board.segments} nowMin={board.nowMin} footer={board.footer} action={canEdit ? assignCarerAction : undefined} back={back} />
+            {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
+          </section>
+        ) : layout === "list" ? (
           <section aria-label="Visits" className="min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             <div className="flex flex-wrap items-center gap-2 px-3.5 py-3">
               {canEdit ? (
@@ -272,7 +325,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 </form>
               ) : null}
               <details className="relative ml-auto">
-                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-[#5b2bb5]">+{cols.size}</span> : null}</summary>
+                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-module">+{cols.size}</span> : null}</summary>
                 <form method="get" className="absolute right-0 z-30 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
                   {hiddenExcept(["cols"])}
                   <fieldset>
@@ -291,21 +344,21 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                   <thead className="bg-[#f9fafb]">
                     <tr className="border-b border-[#eaecf0]">
                       {canEdit ? <th scope="col" className="w-10 px-3 py-2.5"><SelectAll form="bulk" name="visitIds" label="Select all visits on this page" /></th> : null}
-                      {sortHead("ref", "Ref")}
-                      {sortHead("date", <><CalendarBlank size={15} aria-hidden className="text-[#475467]" />Date</>)}
-                      {sortHead("status", "Status")}
-                      {sortHead("su", "Service User")}
                       {sortHead("time", "Time")}
                       {cols.has("end") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">End</th> : null}
                       {sortHead("duration", "Duration")}
-                      {sortHead("carers", "Carers")}
+                      {sortHead("su", "Service User")}
                       {sortHead("call", "Service Call")}
                       {sortHead("carer", "Team Member")}
+                      {sortHead("carers", "Carers")}
+                      {sortHead("status", "Status")}
                       <th scope="col" className="px-1.5 py-2.5 text-center" title="Alerts"><Bell size={17} weight="fill" aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Alerts</span></th>
                       <th scope="col" className="px-1.5 py-2.5 text-center" title="Notes"><FileText size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Notes</span></th>
-                      <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold" title="Position in the recurring rota pattern">Week</th>
-                      <th scope="col" className="px-1.5 py-2.5 text-center" title="Calendar (ISO) week"><CalendarBlank size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Calendar week</span></th>
                       <th scope="col" className="px-2 py-2.5 text-center" title="Visit checklist (care tasks)"><ListChecks size={18} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Visit checklist</span></th>
+                      {sortHead("ref", "Ref")}
+                      {cols.has("date") ? sortHead("date", <><CalendarBlank size={15} aria-hidden className="text-[#475467]" />Date</>) : null}
+                      {cols.has("week") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold" title="Position in the recurring rota pattern">Week</th> : null}
+                      {cols.has("isoWeek") ? <th scope="col" className="px-1.5 py-2.5 text-center" title="Calendar (ISO) week"><CalendarBlank size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Calendar week</span></th> : null}
                       {cols.has("area") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Area</th> : null}
                       {cols.has("run") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Run route</th> : null}
                       {cols.has("risk") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Risk</th> : null}
@@ -317,7 +370,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                     </tr>
                   </thead>
                   <tbody>
-                    {shown.map((v) => {
+                    {shown.map((v, i) => {
                       const selected = inspector?.visit.id === v.id;
                       const open = url({ visit: v.id, tab: undefined });
                       const carers = v.assignments.filter((a) => a.slot !== "SHADOW");
@@ -326,26 +379,36 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                       const pw = patternWeek(v, settings);
                       const risk = v.serviceUser.riskLevel ? RISK[v.serviceUser.riskLevel] : null;
                       const vd = fromDbDate(v.date);
+                      const prev = shown[i - 1];
+                      const round = grouped && (!prev || prev.callType.id !== v.callType.id) ? rounds.get(v.callType.id)! : null;
                       return (
-                        <tr key={v.id} data-href={open} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
+                        <Fragment key={v.id}>
+                        {round ? (
+                          <tr data-testid="round-header" className="border-b border-rule bg-module/[.08]">
+                            <th scope="colgroup" colSpan={visible} className="px-3 py-1.5 text-left text-[13px] font-semibold text-ink">
+                              {roundName(round.name)} · {londonTime(round.first)}{round.last.getTime() !== round.first.getTime() ? ` to ${londonTime(round.last)}` : ""} · {round.count} visit{round.count === 1 ? "" : "s"}
+                            </th>
+                          </tr>
+                        ) : null}
+                        <tr data-href={open} data-status={v.status} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${STATUS_STRIPE[v.status]} ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
-                          <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
-                          <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
-                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
-                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-[#5b2bb5]" />{suName(v.serviceUser)}</Link></td>
-                          <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledStart)}</td>
+                          <td className="px-2.5 py-2 text-[15px] font-bold tabular-nums text-ink">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}
                           <td className="px-2.5 py-2 tabular-nums">{dur(mins(v.scheduledStart, v.scheduledEnd))}</td>
-                          <td className="px-2.5 py-2"><Coverage v={v} /></td>
+                          <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
                           <td className="max-w-[140px] truncate px-2.5 py-2" title={v.callType.name}>{v.callType.name}</td>
                           <td className="max-w-[150px] truncate px-2.5 py-2" title={carerNames(v) || "No carer booked"}>
                             {carers.length ? carers.map((a, i) => <span key={a.id}>{i ? ", " : ""}<Link href={`/rota/staff/${a.staff.id}`} title={a.reviewReason ? `Needs review: ${a.reviewReason}` : undefined} className={`underline underline-offset-2 ${a.reviewReason ? "text-[#b54708] decoration-[#f5c27a]" : "text-[#14713a] decoration-[#9fd6b2]"}`}>{a.staff.displayName}</Link></span>) : <span className="text-[#b42318]">{v.status === "CANCELLED" ? "—" : "Unassigned"}</span>}
-                          </td>
+                            </td>
+                          <td className="px-2.5 py-2"><Coverage v={v} /></td>
+                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
                           <td className="px-1.5 py-2 text-center">{alerts.length ? <Link href={open} title={alerts.join("\n")} aria-label={`Alerts: ${alerts.join("; ")}`} className="inline-flex text-[#c4320a]"><Bell size={18} weight="fill" aria-hidden /></Link> : <span title="No alerts" className="inline-flex text-[#d0d5dd]"><Bell size={18} aria-hidden /><span className="sr-only">No alerts</span></span>}</td>
                           <td className="px-1.5 py-2 text-center">{notes ? <Link href={url({ visit: v.id, tab: "notes" })} title={`${notes} note${notes === 1 ? "" : "s"}`} aria-label={`${notes} note${notes === 1 ? "" : "s"}`} className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-[#344054] no-underline"><FileText size={18} weight="fill" aria-hidden />{notes > 1 ? notes : null}</Link> : <span title="No notes" className="inline-flex text-[#d0d5dd]"><FileText size={18} aria-hidden /><span className="sr-only">No notes</span></span>}</td>
-                          <td className="px-2.5 py-2">{pw ? `Week ${pw}` : <span className="text-[#98a2b3]" title="A one-off visit, not part of the rota pattern">—<span className="sr-only">Not in the rota pattern</span></span>}</td>
-                          <td className="px-1.5 py-2 text-center tabular-nums" title={`Calendar week ${isoWeek(vd)}`}>{isoWeek(vd)}</td>
                           <td className="px-2 py-2 text-center"><Checklist v={v} href={url({ visit: v.id, tab: "tasks" })} /></td>
+                          <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
+                          {cols.has("date") ? <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td> : null}
+                          {cols.has("week") ? <td className="px-2.5 py-2">{pw ? `Week ${pw}` : <span className="text-[#98a2b3]" title="A one-off visit, not part of the rota pattern">—<span className="sr-only">Not in the rota pattern</span></span>}</td> : null}
+                          {cols.has("isoWeek") ? <td className="px-1.5 py-2 text-center tabular-nums" title={`Calendar week ${isoWeek(vd)}`}>{isoWeek(vd)}</td> : null}
                           {cols.has("area") ? <td className="px-2.5 py-2">{v.area ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: v.area.colour }} />{v.area.name}</span> : "—"}</td> : null}
                           {cols.has("run") ? <td className="px-2.5 py-2">{v.runRoute ? <span className="rounded px-1.5 py-0.5 text-[13px]" style={{ background: v.runRoute.colour, color: v.runRoute.textColour }}>{v.runRoute.name}</span> : "—"}</td> : null}
                           {cols.has("risk") ? <td className="px-2.5 py-2">{risk ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-[2px]" style={{ background: risk.colour }} />{risk.label}</span> : "—"}</td> : null}
@@ -355,6 +418,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                           {cols.has("ack") ? <td className="px-2.5 py-2">{carers.length ? (carers.every((a) => a.acknowledgedAt) ? "Yes" : carers.some((a) => a.acknowledgedAt) ? "Partly" : "No") : "—"}</td> : null}
                           {cols.has("flags") ? <td className="px-2.5 py-2 text-[13px] text-[#475467]">{[v.publishedAt ? "Published" : v.status === "SCHEDULED" ? "Not published" : null, v.timeLocked ? "Time locked" : null].filter(Boolean).join(" · ") || "—"}</td> : null}
                         </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -371,7 +435,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                   {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
                     <span key={n} className="flex items-center gap-1">
                       {i && n - arr[i - 1]! > 1 ? <span className="px-0.5 text-[#667085]">…</span> : null}
-                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-[#5b2bb5] bg-[#5b2bb5] font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
                     </span>
                   ))}
                   {page < pages ? <Link href={url({ page: String(page + 1) })} aria-label="Next page" className="flex h-8 w-8 items-center justify-center rounded text-[#344054] hover:bg-slate-100"><CaretRight size={14} weight="bold" aria-hidden /></Link> : null}
@@ -384,7 +448,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               </AutoSubmitForm>
             </div>
             {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
-            <p className="sr-only">{visible} columns. Week is the visit&apos;s place in the rota pattern; the calendar column is the ISO week number.</p>
+            <p className="sr-only">{visible} columns. Visits are grouped by call round when sorted by time. Date, Week (the visit&apos;s place in the rota pattern) and Calendar week can be added under Columns.</p>
           </section>
         ) : (
           <section aria-label="Carer timeline" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4e7ec] bg-white">
@@ -400,7 +464,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 heading={<>Team members ({timeline.rows.filter((r) => r.id !== "unassigned").length})</>}
               />
             ) : <div className="p-4"><Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty></div>}
-            <p className="border-t border-[#eef0f3] px-3 py-2 text-[12.5px] text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: undefined })}>Back to the list</Link></p>
+            <p className="border-t border-[#eef0f3] px-3 py-2 text-[12.5px] text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: "list" })}>Back to the list</Link></p>
           </section>
         )}
 

@@ -34,7 +34,7 @@ async function figures(page: Page, date: string) {
     await page.goto(path);
     return Number(await page.getByTestId("visit-count").getAttribute("data-total"));
   };
-  expect(await total(`/rota/visits?date=${date}`)).toBe(scheduled);
+  expect(await total(`/rota/visits?date=${date}&layout=list`)).toBe(scheduled);
   expect(await total(`/rota/visits?date=${date}&view=unassigned`)).toBe(unassigned);
   return { scheduled, unassigned };
 }
@@ -67,7 +67,7 @@ test.describe("Dashboards follow rota changes", () => {
     let now = await figures(page, day);
     expect(now.scheduled).toBe(before.scheduled + 1);
     expect(now.unassigned).toBe(before.unassigned + 1);
-    await page.goto(`/rota/visits?date=${day}`);
+    await page.goto(`/rota/visits?date=${day}&layout=list`);
     await expect(page.locator(link).first()).toBeAttached();
     await page.goto(`/rota/advanced?date=${day}&view=su-day`);
     await expect(page.locator(link).first()).toBeAttached();
@@ -112,7 +112,7 @@ test.describe("Dashboards follow rota changes", () => {
     now = await figures(page, day);
     expect(now.scheduled).toBe(before.scheduled);
     expect(now.unassigned).toBe(before.unassigned);
-    await page.goto(`/rota/visits?date=${day}`);
+    await page.goto(`/rota/visits?date=${day}&layout=list`);
     await expect(page.locator(link)).toHaveCount(0);
     await page.goto(`/rota/visits?date=${day}&cancelled=1&status=CANCELLED`);
     await expect(page.locator(link).first()).toBeAttached();

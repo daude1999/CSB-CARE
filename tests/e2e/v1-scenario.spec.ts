@@ -62,8 +62,9 @@ test("V1 scenario through the screens: service user → schedule → build → a
   await page.goto(`/rota/build?week=${week}`);
   await page.getByRole("button", { name: "Build New Rota" }).click();
   await expect(page.getByRole("status")).toBeVisible();
-  await page.goto(`/rota/visits?date=${week}&q=Scenario`);
-  // The Daily Rota opens Visit Details beside the list; "Full visit" opens the visit's own page.
+  // The Daily Rota opens on the Board since 10 Nov 2026; this journey uses the list.
+  await page.goto(`/rota/visits?date=${week}&q=Scenario&layout=list`);
+  // The list opens Visit Details beside it; "Full visit" opens the visit's own page.
   await page.locator("main tr", { hasText: "Scenario" }).getByRole("link", { name: /^Open details of visit/ }).first().click();
   await page.getByRole("link", { name: "Full visit" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Scenario");
