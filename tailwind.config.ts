@@ -66,6 +66,7 @@ export default {
         topbar: "34px",
         "page-top": "16px",
         "page-x": "24px",
+        "page-phone": "16px",
         "page-bottom": "24px",
       },
       fontSize: {

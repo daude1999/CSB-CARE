@@ -43,7 +43,7 @@ test.describe("shared page frame", () => {
       // Exactly one h1 on the page: no second in-page title repeats the header.
       await expect(page.locator("main h1"), path).toHaveCount(1);
       // The page frame behind the cards.
-      expect(await page.locator("main .page-frame, main[data-module=policy]").first().evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(246, 247, 250)");
+      expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(246, 247, 250)");
     }
   });
 
@@ -91,10 +91,12 @@ test.describe("shared page frame", () => {
 });
 
 test.describe("phone width", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  test.use({ viewport: { width: 1440, height: 900 } });
 
   test("the band and page keep a 16px gutter and the page never scrolls sideways", async ({ page }) => {
+    // Sign in at desktop width (the signed-in name sits in the phone menu), then narrow the window.
     await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
     for (const [path] of MODULES) {
       await page.goto(path);
       const band = page.getByTestId("title-bar").first();

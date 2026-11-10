@@ -55,7 +55,9 @@ export function ModuleHeader({ title, page, crumbs = [], description, actions, c
         <div className="mh-main">
           <nav aria-label="Breadcrumb">
             <ol className="mh-crumbs">
-              {home ? <Crumbed><Link href={home.home}>{home.name}</Link></Crumbed> : null}
+              {/* The module name is plain text: not everyone who can open a page in a module can open its home page (a
+                  coordinator reaches Rota Reports but not Analytics). The sidebar is the way round a module. */}
+              {home ? <Crumbed><span>{home.name}</span></Crumbed> : null}
               {crumbs.filter((c) => c.label !== pageName).map((c, i) => (
                 <Crumbed key={i}>{c.href ? <Link href={c.href}>{c.label}</Link> : <span>{c.label}</span>}</Crumbed>
               ))}
