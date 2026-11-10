@@ -1,6 +1,6 @@
 # Master build tracker — five-module CSB CRM
 
-## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview in review)
+## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview merged as #140, compact follow-up in review)
 The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
 the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple
 is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
