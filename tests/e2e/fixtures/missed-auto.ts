@@ -1,3 +1,4 @@
+import "./system-scope";
 import { db } from "@/lib/db";
 import { drain } from "@/server/jobs/queue";
 import { handlers } from "@/worker/handlers";

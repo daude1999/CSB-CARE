@@ -4,6 +4,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withNoScope, withTenantScope } from "@/server/tenancy/scope";
 import { withSystemScope } from "@/server/tenancy/system";
+import { describeToken, inviteMemberIn, redeemToken } from "@/server/admin/users";
 import { resetDb } from "../helpers";
 
 /**
@@ -355,6 +356,25 @@ describe("the audited bypass", () => {
 
   it("ends with the callback: the next query is back to default deny", async () => {
     await withSystemScope("rls test: ends", () => db.serviceUser.count());
+    expect(await withNoScope(() => db.serviceUser.count())).toBe(0);
+  });
+});
+
+describe("signed-out paths that must still work", () => {
+  it("a one-time invitation link can be read and used with no session, and joins only the organisation stored on it", async () => {
+    const email = `rls-invite-${Date.now()}@example.test`;
+    const admin = await owner.user.create({ data: { email: `rls-admin-${Date.now()}@example.test`, name: "Ada Fictional", passwordHash: "x" } });
+    // The synthetic rows above have no parent records, so this test makes a real organisation of its own.
+    const org = await owner.organisation.create({ data: { name: "RLS Invitation Test Care", slug: `rls-invite-${Date.now()}` } });
+    const invite = await withTenantScope(org.id, () => inviteMemberIn(org.id, { userId: admin.id, level: "admin" }, { email, name: "Robin Fictional", roles: ["STAFF"] }));
+    // The person holding the link has no session: no scope is set.
+    const shown = await withNoScope(() => describeToken(invite.token));
+    expect(shown).toMatchObject({ kind: "INVITE", email, needsName: true });
+    await withNoScope(() => redeemToken(invite.token, { password: "a long synthetic password 2026" }));
+    const memberships = await owner.membership.findMany({ where: { user: { email } }, select: { organisationId: true } });
+    expect(memberships).toEqual([{ organisationId: org.id }]);
+    // Used once: the link is dead afterwards, and the signed-out caller still sees no tenant rows.
+    expect(await withNoScope(() => describeToken(invite.token))).toBeNull();
     expect(await withNoScope(() => db.serviceUser.count())).toBe(0);
   });
 });

@@ -9,6 +9,7 @@ import { hashPassword } from "@/server/auth/password";
 import { requireOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { getSetting } from "@/server/platform/settings";
 import { nextCustomerReference } from "@/server/platform/reference";
+import { withIdentityScope } from "@/server/tenancy/scope";
 
 /**
  * Administration of an organisation's members: invite, change roles and branches, deactivate and reactivate, and
@@ -225,9 +226,12 @@ export async function issueResetLink(user: { userId: string; email: string; name
 
 /** What a one-time link is for, without using it. Expired, used or revoked links are not described. */
 export async function describeToken(token: string) {
-  const t = await db.accountToken.findUnique({ where: { tokenHash: sha256(token) }, include: { organisation: { select: { name: true } } } });
-  if (!t || t.usedAt || t.revokedAt || t.expiresAt < new Date()) return null;
-  return { kind: t.kind, email: t.email, name: t.name, organisation: t.organisation?.name ?? "the CSB platform", needsName: t.kind === "INVITE" && !(await db.user.findUnique({ where: { email: t.email } })) };
+  // Sign-in machinery: the person holding the link has no session yet, so there is no organisation to scope to.
+  return withIdentityScope(async () => {
+    const t = await db.accountToken.findUnique({ where: { tokenHash: sha256(token) }, include: { organisation: { select: { name: true } } } });
+    if (!t || t.usedAt || t.revokedAt || t.expiresAt < new Date()) return null;
+    return { kind: t.kind, email: t.email, name: t.name, organisation: t.organisation?.name ?? "the CSB platform", needsName: t.kind === "INVITE" && !(await db.user.findUnique({ where: { email: t.email } })) };
+  });
 }
 
 /** The shortest password accepted (Platform Settings → Authentication; never below 12). */
@@ -241,6 +245,11 @@ export async function redeemToken(token: string, input: { password: string; name
   const pw = (await passwordSchema()).safeParse(input.password);
   if (!pw.success) throw new ValidationError(pw.error.issues[0]?.message ?? "Choose a longer password");
   const hash = await hashPassword(pw.data);
+  // Sign-in machinery: no session exists yet. The organisation joined comes from the stored token, never the request.
+  return withIdentityScope(() => redeemInTransaction(token, input, hash));
+}
+
+function redeemInTransaction(token: string, input: { password: string; name?: string }, hash: string) {
   return db.$transaction(async (tx) => {
     const t = await tx.accountToken.findUnique({ where: { tokenHash: sha256(token) } });
     if (!t || t.usedAt || t.revokedAt || t.expiresAt < new Date()) throw new ValidationError("This link has expired or has already been used. Ask your administrator for a new one.");

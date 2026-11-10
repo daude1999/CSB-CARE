@@ -38,8 +38,8 @@ another organisation.
     the session cookie (`src/server/auth/current.ts`), never from the request.
   - **System**: every organisation, only through `withSystemScope(reason, ...)` (`src/server/tenancy/system.ts`),
     which writes an `rls.bypass` entry to the audit log.
-  - **Identity**: the sign-in code only (`src/server/auth/session.ts`), which must find a user's memberships before
-    any organisation is known.
+  - **Identity**: the sign-in code only (`src/server/auth/session.ts`, and the one-time link functions in
+    `src/server/admin/users.ts`), which must find a user, a membership or a link before any organisation is known.
   - **None**: anything else. Protected tables then show no rows and refuse writes (default deny).
 - Tables whose `organisationId` is optional hold shared, central rows (CSB master policies, platform notifications,
   platform audit entries). Rows with no organisation are readable and writable from any scope; the application's
@@ -56,7 +56,8 @@ another organisation.
 | `scripts/create-organisation.ts`, `scripts/workforce-identity.ts` | Operator scripts | Each run |
 | `prisma/demo-cleanup.ts`, `prisma/test-record-cleanup.ts`, `prisma/demo-reset.ts` (direct `pg` connection as the table owner) | One-off data scripts that work across organisations; they set `app.rls_bypass` for their own transaction | Each already writes its own audit entry for what it changed |
 | `src/server/auth/session.ts` (identity scope) | Session and membership lookup at sign-in and on each request | Not audited one by one (it runs on every page view); sign-ins are audited as `auth.login` |
-| `tests/support/db-scope.ts` | The vitest suite calls server functions directly and checks the database across organisations | Test databases only |
+| `src/server/admin/users.ts` `describeToken()` and `redeemToken()` (identity scope) | A one-time invitation or password-reset link is opened by someone with no session. The organisation joined is the one stored on the token, never one from the request | The use of the link is audited as `admin.member.joined` or `auth.password.reset` |
+| `tests/support/db-scope.ts`, `tests/e2e/fixtures/system-scope.ts` | The vitest suite and the browser-test fixtures call server functions directly and prepare records across organisations | Test databases only |
 
 Adding a bypass call site is a security decision and needs review.
 
