@@ -8,7 +8,9 @@ import { vi } from "vitest";
  *
  *   TEST_NOW=2026-11-10T23:30:00Z npx vitest run tests/integration/cutoff.test.ts
  *
- * CI runs the whole suite at the real time and the date-sensitive files again at fixed awkward times.
+ * Only the JavaScript clock moves; PostgreSQL keeps the real time. Tests that compare the two (rate-limit windows,
+ * job run times, database-stamped approvals) therefore fail under a far-away TEST_NOW without being wrong. Use it on
+ * one file at a time. CI does not use it: it runs the whole suite at the real late-evening and after-midnight times.
  */
 const now = process.env.TEST_NOW;
 if (now) {

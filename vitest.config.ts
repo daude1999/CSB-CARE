@@ -14,7 +14,8 @@ export default defineConfig({
       DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/csb_test?schema=public",
       AI_PROVIDER: "simulated",
       STORAGE_PROVIDER: "local",
-      STORAGE_LOCAL_DIR: ".data/test-storage",
+      // TEST_STORAGE_DIR lets several shards of the suite run side by side, each with its own database and files.
+      STORAGE_LOCAL_DIR: process.env.TEST_STORAGE_DIR ?? ".data/test-storage",
       EMAIL_PROVIDER: "log",
       SOURCE_MIN_INTERVAL_MS: "0",
     },
