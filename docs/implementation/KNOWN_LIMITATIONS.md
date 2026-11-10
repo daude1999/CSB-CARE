@@ -78,7 +78,7 @@ Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
 - **The "missing from built weeks" notice on a visit template arrives a moment after the page**, and needs JavaScript to appear.
 - **The drafts queue and "my sign-offs" are not paged**; audits and corrective actions are (50 a page).
 - **Not done from the brief, on purpose:** per-section `loading.tsx` files, `useOptimistic`, a toast component, the single type scale (the owner decided it will be its own pull request after these are merged; page background and padding came with the colour redesign), and splitting the HR Hub's two large files. Reasons are in the audit.
-- **Two accessibility items left for other changes:** the orange "Late calls" tile's small text on the Rota Dashboard (contrast 4.28, needs 4.5) and the Policy Library viewer's toolbar buttons at 1440 wide (17 px, needs 24 px).
+- **Two accessibility items left for other changes:** the Policy Library viewer's toolbar buttons at 1440 wide (17 px, needs 24 px) with one low-contrast label on that screen, and one small tap target in the shared top bar on a phone. The orange "Late calls" tile listed here earlier was fixed by the colour redesign.
 
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not

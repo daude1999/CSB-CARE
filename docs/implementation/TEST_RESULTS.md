@@ -312,6 +312,14 @@ The four failures of the first run and what was done:
 - **Three were caused by this branch** (`template-confirm.spec.ts` twice, `v1-scenario.spec.ts`). The placeholder shown while the template page checks the built weeks had `role="status"`, so the page had two status messages after a save and the tests, which expect one, refused to choose. The role was removed from the placeholder; the tests were not changed.
 - **One was a test that raced a slow page** (`cqc-inspection.spec.ts`). After "Next area" it filled the result form at once; the next area's form has the same fields, so when the page was slow it filled the previous area's form and no message ever came. Reproduced on the base branch with the next page held back 1.5 seconds. The test now waits for the next area's page. No assertion was removed.
 
+**After merging `main` with the colour redesign, evening of 10 Nov**
+
+| Run | Result |
+|---|---|
+| Whole browser suite on the merged code (285 tests) | 284 passed, **1 failed** (`platform-admin.spec.ts`, the one-time link fault described under workstream 1; fixed there and merged in) |
+| `platform-admin.spec.ts` after that fix | passes |
+| Lighthouse on the five pages, and 43 before and after screenshots, retaken on the new look | see `UX_RESPONSIVENESS_AUDIT.md` |
+
 Feedback times measured by `feedback-200ms.spec.ts` (server held back 1.5 s; limit 200 ms):
 
 | Page | Actions and time to first visible feedback |
