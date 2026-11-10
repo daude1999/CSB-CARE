@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { logger } from "@/lib/logger";
 import { runSystemScope } from "./scope";
 
 /**
@@ -8,15 +7,14 @@ import { runSystemScope } from "./scope";
  * Each call is recorded in the audit log as `rls.bypass` with its reason and who (if anyone) asked for it. Machine
  * paths that repeat all day (the worker's tick, the job kick, cron) pass `audit: "hourly"`: one entry per reason per
  * hour per server process, carrying how many times the path ran, so the audit log shows the bypass was in use
- * without thousands of identical rows. Seeds on an empty database pass `audit: "log"` (there is nowhere meaningful to
- * write an audit row before the first organisation exists); that is written to the application log instead.
+ * without thousands of identical rows.
  *
  * Every call site is listed in docs/SECURITY.md. Adding one is a security decision: review it as such.
  */
 export interface SystemScopeOptions {
   /** The signed-in person the work is done for, when there is one (Platform Admin pages). */
   actorId?: string | null;
-  audit?: "each" | "hourly" | "log";
+  audit?: "each" | "hourly";
 }
 
 const hourly = new Map<string, { hour: number; count: number }>();
@@ -30,9 +28,7 @@ async function record(reason: string, opts: SystemScopeOptions, uses: number) {
 export async function withSystemScope<T>(reason: string, fn: () => Promise<T> | T, opts: SystemScopeOptions = {}): Promise<T> {
   return runSystemScope(reason, async () => {
     const mode = opts.audit ?? "each";
-    if (mode === "log") {
-      logger.info({ reason }, "rls.bypass");
-    } else if (mode === "hourly") {
+    if (mode === "hourly") {
       const hour = Math.floor(Date.now() / 3_600_000);
       const seen = hourly.get(reason);
       if (!seen || seen.hour !== hour) {
