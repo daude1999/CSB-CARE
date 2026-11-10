@@ -21,10 +21,10 @@ export const DEFAULT_MAX_SHIFT = 15;
 
 export const planInputSchema = z.object({
   from: z.string().refine(isIsoDate, "Choose a start date"),
-  days: z.coerce.number().int().min(1).max(MAX_PLAN_DAYS),
+  days: z.coerce.number<number>().int().min(1).max(MAX_PLAN_DAYS),
   areaId: z.string().optional().transform((v) => v || undefined),
-  gapMinutes: z.coerce.number().int().min(0, "The gap cannot be negative").max(120, "Use a gap of 2 hours or less"),
-  maxShiftMinutes: z.coerce.number().int().min(0).max(60, "Time adjustments are limited to an hour").refine((n) => n % 5 === 0, "Time adjustments go in steps of 5 minutes"),
+  gapMinutes: z.coerce.number<number>().int().min(0, "The gap cannot be negative").max(120, "Use a gap of 2 hours or less"),
+  maxShiftMinutes: z.coerce.number<number>().int().min(0).max(60, "Time adjustments are limited to an hour").refine((n) => n % 5 === 0, "Time adjustments go in steps of 5 minutes"),
   respectWeeklyLimits: z.boolean().default(true),
   /** Plan only these visits (chosen on Unassigned Visits). The dates then come from the visits themselves. */
   visitIds: z.array(z.string().min(1)).max(200).optional(),

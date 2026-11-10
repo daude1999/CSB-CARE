@@ -21,7 +21,7 @@ export const printSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "Choose at least one person").max(60, "Print at most 60 people at a time"),
   from: z.string().refine(isIsoDate, "Choose the start date"),
   to: z.string().refine(isIsoDate, "Choose the end date"),
-  fontSize: z.coerce.number().int().min(8).max(14).default(10),
+  fontSize: z.coerce.number<number>().int().min(8).max(14).default(10),
   includeCancelled: z.boolean().default(false),
   includeShadow: z.boolean().default(true),
   address: z.boolean().default(true),

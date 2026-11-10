@@ -165,11 +165,11 @@ export const coverageInputSchema = z.object({
   q: z.string().trim().max(100).optional().transform((v) => v || undefined),
   day: z.string().optional().transform((v) => (v && isIsoDate(v) ? v : undefined)),
   view: z.enum(VIEWS).catch("all"),
-  late: z.coerce.number().int().catch(DEFAULT_LATE_MIN).transform((n) => (LATE_THRESHOLDS as readonly number[]).includes(n) ? n : DEFAULT_LATE_MIN),
+  late: z.coerce.number<number>().int().catch(DEFAULT_LATE_MIN).transform((n) => (LATE_THRESHOLDS as readonly number[]).includes(n) ? n : DEFAULT_LATE_MIN),
   sort: z.enum(["date", "ref", "su", "status", "changes"]).catch("date"),
   dir: z.enum(["asc", "desc"]).catch("desc"),
-  page: z.coerce.number().int().min(1).catch(1),
-  per: z.coerce.number().int().catch(25).transform((n) => ([25, 50, 100].includes(n) ? n : 25)),
+  page: z.coerce.number<number>().int().min(1).catch(1),
+  per: z.coerce.number<number>().int().catch(25).transform((n) => ([25, 50, 100].includes(n) ? n : 25)),
 });
 export type CoverageInput = z.input<typeof coverageInputSchema>;
 export type CoverageFilters = z.output<typeof coverageInputSchema> & { from: string; to: string };

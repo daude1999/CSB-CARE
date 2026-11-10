@@ -65,20 +65,24 @@ describe("call sweep", () => {
   });
 
   it("lets the office record a late arrival on a missed call, which answers the alerts and completes the visit", async () => {
-    const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, status: "MISSED", assignments: { some: { removedAt: null } } }, include: { assignments: { where: { removedAt: null } } } });
+    // Ordered, so the same visit is chosen whatever order the database happens to return rows in.
+    const v = await db.visit.findFirstOrThrow({ where: { organisationId: orgId, status: "MISSED", assignments: { some: { removedAt: null } } }, orderBy: [{ scheduledStart: "asc" }, { id: "asc" }], include: { assignments: { where: { removedAt: null } } } });
     const staffId = v.assignments[0]!.staffId;
     const date = fromDbDate(v.date);
     const start = londonMinute(v.scheduledStart);
+    // The carer arrives 40 minutes late and stays the planned length, so the "shorter than planned" rule (a separate
+    // test below) does not come into it whatever the visit's length.
+    const planned = Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / MIN);
     const c = await coordinator();
     await expect(officeClock(c, v.id, { staffId, kind: "IN", date, time: hhmm(start + 40), reason: "" })).rejects.toBeInstanceOf(ValidationError);
     await expect(officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 40), reason: "Phoned in" })).rejects.toThrow("Clock in first");
 
     // The visit may still be in the future in real time; office entries cannot be, so only run the rest for past visits.
-    if (v.scheduledStart.getTime() + 70 * MIN > Date.now()) return;
+    if (v.scheduledStart.getTime() + (40 + planned) * MIN > Date.now()) return;
     await officeClock(c, v.id, { staffId, kind: "IN", date, time: hhmm(start + 40), reason: "Carer phoned in, app not working" });
     expect((await db.visit.findUniqueOrThrow({ where: { id: v.id } })).status).toBe("IN_PROGRESS");
     expect(await db.rotaAlert.count({ where: { visitId: v.id, kind: { in: ["LATE", "MISSED"] }, resolvedAt: null } })).toBe(0);
-    await officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 70), reason: "Carer phoned in" });
+    await officeClock(c, v.id, { staffId, kind: "OUT", date, time: hhmm(start + 40 + planned), reason: "Carer phoned in" });
     expect((await db.visit.findUniqueOrThrow({ where: { id: v.id } })).status).toBe("COMPLETED");
   });
 });
@@ -176,5 +180,32 @@ describe("monitor access", () => {
     for (const r of b.rows.filter((x) => x.status === "MISSED")) expect(r.state).toBe("missed");
     await expect(monitorBoard(await carer())).rejects.toBeInstanceOf(ForbiddenError);
     await expect(officeClock(await carer(), "x", {})).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("a missed call whose carer has since been booked elsewhere", () => {
+  it("refuses the late clock-in with a plain message instead of failing", async () => {
+    const [v] = (await ameliaVisits()).slice(-1);
+    // Another service user's visit at an overlapping time that Amelia is not on, and that clashes with none of her other
+    // bookings (which of her visits is "the last of the next five" moves with the time of day, and so do its neighbours).
+    const candidates = await db.visit.findMany({
+      where: { organisationId: orgId, status: "SCHEDULED", publishedAt: { not: null }, id: { not: v!.id }, serviceUserId: { not: v!.serviceUserId }, scheduledStart: { lt: v!.scheduledEnd }, scheduledEnd: { gt: v!.scheduledStart }, assignments: { none: { staffId: ameliaId } } },
+      orderBy: { scheduledStart: "asc" },
+    });
+    const booked = await db.visitAssignment.findMany({ where: { staffId: ameliaId, blocking: true, visitId: { not: v!.id } }, select: { startsAt: true, endsAt: true } });
+    const other = candidates.find((o) => booked.every((b) => b.endsAt <= o.scheduledStart || b.startsAt >= o.scheduledEnd));
+    if (!other) throw new Error("The demo rota has no overlapping visit Amelia is free for");
+    // The call is missed, which frees Amelia's time; the office then books her onto the other visit.
+    await db.visit.update({ where: { id: v!.id }, data: { status: "MISSED" } });
+    const c = await coordinator();
+    await db.visitAssignment.create({ data: { organisationId: orgId, visitId: other.id, staffId: ameliaId, slot: "SHADOW", startsAt: other.scheduledStart, endsAt: other.scheduledEnd, eligibility: "ELIGIBLE", assignedById: c.userId } });
+
+    at(v!.scheduledStart, 20);
+    const attempt = clockMine(await carer(), v!.id, "IN", {});
+    await expect(attempt).rejects.toBeInstanceOf(ConflictError);
+    await expect(attempt).rejects.toThrow("booked on another visit");
+    vi.useRealTimers();
+    expect((await db.visit.findUniqueOrThrow({ where: { id: v!.id } })).status).toBe("MISSED");
+    expect(await db.visitClock.count({ where: { visitId: v!.id } })).toBe(0);
   });
 });

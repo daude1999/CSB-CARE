@@ -39,9 +39,9 @@ export const automationSchema = z
     evidence: z.boolean(),
     confirm: z.boolean(),
     summary: z.boolean(),
-    confirmMinutes: z.coerce.number({ message: "Answer time must be a number of minutes" }).int().min(15, "Give carers at least 15 minutes to answer").max(1440, "Answer time can be at most 24 hours"),
-    reminders: z.coerce.number().int().min(0).max(2, "At most 2 reminders"),
-    reminderMinutes: z.coerce.number().int().min(5).max(1440),
+    confirmMinutes: z.coerce.number<number>({ message: "Answer time must be a number of minutes" }).int().min(15, "Give carers at least 15 minutes to answer").max(1440, "Answer time can be at most 24 hours"),
+    reminders: z.coerce.number<number>().int().min(0).max(2, "At most 2 reminders"),
+    reminderMinutes: z.coerce.number<number>().int().min(5).max(1440),
   })
   .refine((v) => v.reminders === 0 || v.reminderMinutes < v.confirmMinutes, { message: "The first reminder must come before the answer time runs out", path: ["reminderMinutes"] });
 

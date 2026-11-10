@@ -123,7 +123,7 @@ export async function updateSettings(ctx: Ctx, group: SettingGroup, values: Reco
 }
 
 /** The last verified restore test, recorded by a person (the platform cannot verify a restore by itself). */
-const restoreSchema = z.object({ testedOn: z.coerce.date(), outcome: z.enum(["PASSED", "FAILED"]), notes: z.string().trim().max(500).default("") });
+const restoreSchema = z.object({ testedOn: z.coerce.date<Date>(), outcome: z.enum(["PASSED", "FAILED"]), notes: z.string().trim().max(500).default("") });
 export type RestoreTest = { testedOn: string; outcome: "PASSED" | "FAILED"; notes: string; recordedById: string; recordedAt: string };
 
 export async function recordRestoreTest(ctx: Ctx, input: { testedOn: string; outcome: string; notes?: string }) {

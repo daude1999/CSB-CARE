@@ -97,7 +97,7 @@ export async function referenceLibrary(ctx: Ctx, f: LibraryFilters = {}) {
 const reviewSchema = z.object({
   status: z.enum(["VERIFIED", "UNVERIFIED", "NEEDS_REVIEW"]),
   note: z.string().trim().max(2000).optional(),
-  nextReviewDate: z.coerce.date().optional(),
+  nextReviewDate: z.coerce.date<Date>().optional(),
 });
 
 /** Records the organisation's own check of a source. "Verified" needs a note of what was checked and a next review date. */
@@ -134,8 +134,8 @@ const proposeSchema = z.object({
   topics: z.array(z.string()).default([]),
   documentReference: z.string().trim().max(200).optional(),
   versionLabel: z.string().trim().max(200).optional(),
-  publishedOn: z.coerce.date().optional(),
-  effectiveOn: z.coerce.date().optional(),
+  publishedOn: z.coerce.date<Date>().optional(),
+  effectiveOn: z.coerce.date<Date>().optional(),
   referenceSummary: z.string().trim().max(4000).optional(),
 });
 
@@ -191,8 +191,8 @@ const detailSchema = z.object({
   referenceSummary: z.string().trim().max(4000).optional(),
   versionLabel: z.string().trim().max(200).optional(),
   documentReference: z.string().trim().max(200).optional(),
-  publishedOn: z.coerce.date().optional(),
-  effectiveOn: z.coerce.date().optional(),
+  publishedOn: z.coerce.date<Date>().optional(),
+  effectiveOn: z.coerce.date<Date>().optional(),
 });
 
 /**

@@ -215,3 +215,79 @@ Screenshots of 20 main screens at 1440, 834 and 390 are in `docs/implementation/
 | `npm run build` | pass |
 | `npm run test:e2e` (first run after the merge) | 66 passed, 2 failed: two navigation tests still expected Reporting to open on Compliance Reports; on this branch it opens on Analytics. Test fix; `npx playwright test tests/e2e/navigation.spec.ts` then passed 17/17 |
 | `npm run typecheck`, `npm run lint`, `npm run build`, `npm run test:e2e` (final, at 1d5ed62) | pass; **68 passed, 0 failed** (7.9 min). The QA walk checked 475 screens for 8 roles with no findings; React's hydration notice (#418) appeared once (`/notifications`, manager@), listed in `v1-qa-walk.json` |
+
+## Enterprise readiness, workstream 1: quality gates (10 Nov 2026)
+
+Local runs on PostgreSQL 16 with synthetic data only.
+
+**Baseline on `main` (a702f5c), before any change**
+
+| Command | Result |
+|---|---|
+| `npx prisma validate`, `npm run typecheck`, `npm run lint`, `npm run test:hr`, `npm run build` | pass |
+| `npm audit --audit-level=high` | **fail**: 2 critical, 6 high |
+| `npm test` | 1,370 of 1,375 passed, **5 failed** (4 PDF tests that fail only when another PDF test ran first in the same process; 2 service-user archive tests that fail when a seeded visit is in progress at the time of the run) |
+
+**After the fixes (branch `enterprise-readiness`)**
+
+| Command | Result |
+|---|---|
+| `npx prisma validate`, `npm run typecheck`, `npm run lint`, `npm run test:hr`, `npm run build` | pass |
+| `npm audit --audit-level=high` | pass (8 moderate remain, in `uuid` through `exceljs` and in `minimatch`; no fix without a breaking change) |
+| `npm test -- --shard=1/3`, `2/3`, `3/3` (the whole suite in three parts, as CI runs it) | **156 files, 1,397 tests, all passed** (about 13 minutes side by side; about 46 minutes as one process) |
+| `TEST_NOW=<late evening / after midnight> npx vitest run tests/integration/cutoff.test.ts tests/integration/cqc-rca.test.ts` | pass (these were the two time-of-day failures; see below) |
+
+Causes fixed, none by loosening a test:
+
+- **PDF tests** (`tests/support/pdf-inspect.ts`): the app's PDF reader leaves its own pdf.js worker registered globally, and the test helper's different pdf.js version then refused it. The helper now registers its own worker for the duration of each read.
+- **Pay cut-off test, late evening** (`cutoff.test.ts`): the scenario was built from "now", so after about 21:00 the visits it books had already ended. The scenario's clock is now fixed at 10:00 London time.
+- **CQC root-cause tests, just after midnight** (`cqc-rca.test.ts`): the test dated its event "today" and then looked back a day. The event is now dated yesterday.
+- **Service-user archive tests** (`service-user-archive.test.ts`): a seeded visit in progress at the time of the run blocked the archive. The test now moves any such visit ahead before ending care. This also showed a small product gap, left as it is and listed in KNOWN_LIMITATIONS.md.
+
+Whole-suite runs with only the JavaScript clock moved (`TEST_NOW`) are **not** a valid check: PostgreSQL keeps the real time, so rate-limit windows, job run times and database-stamped approvals disagree with the app and 4 to 49 tests fail for that reason alone. CI therefore runs the whole suite at the real times instead (23:10 and 00:10 UTC every night).
+
+**Browser tests** (`npm run build && npm run test:e2e`, 258 tests, about 20 minutes, synthetic data on a local database)
+
+| Run | Result |
+|---|---|
+| Baseline on this branch before the browser-test fixes | 232 passed, **22 failed**, 4 did not run |
+| After the first round of fixes (1c947ca), evening run | 250 passed, **8 failed** |
+| After the second round, evening run | 256 passed, **2 failed** (`scenario.spec.ts`, `v1-scenario.spec.ts`) |
+| Those two, with `rota.spec.ts` and `carer.spec.ts`, after their fixes and a rebuild | 26 of 26 passed |
+
+The last full run was not repeated after the final two fixes; the two tests were re-run with their neighbours instead.
+
+**After merging `main` with the colour redesign (#134 to #137, #139), evening of 10 Nov**
+
+| Run | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass |
+| Whole browser suite on the merged code (276 tests) | 274 passed, **2 failed** (`missed-cover.spec.ts`, `cqc-inspection.spec.ts`) |
+| Those two after their fixes | pass |
+| `npm test -- --shard=3/3` at 20:42 UTC, before the fixes below | 1 failed (`missed-calls.test.ts`) |
+| `npm test -- --shard=3/3` after the fixes | 421 passed |
+| `platform-admin.spec.ts`, eight runs in a row after the one-time link fix | 8 of 8 passed (1 in 5 failed before) |
+| GitHub: Quality gate and browser-test workflow on the pushed branch | green |
+
+What was behind them:
+
+- `missed-cover.spec.ts` was out of date: the Daily Rota now opens on the Board, so the test checks the visit on the Board and then opens the List. No assertion removed.
+- `cqc-inspection.spec.ts` raced a slow page (the same fix as on the workstream 5 branch): it now waits for the next area's page.
+- Two integration tests failed only late in the evening. `missed-calls.test.ts` asked for a carer's history without a date range, which by then no longer covered the visit. `attendance.test.ts` picked "another visit" that could overlap one the carer already had. Both now choose their data explicitly.
+- **A real fault, fixed in the application:** in the Admin Centre, a newly created account's one-time setup link could vanish before it was read (about one time in five). Clearing the cookie that carries it was done by a server action, which redrew the page without the link. It is now cleared by a small route (`DELETE /api/platform/one-time-link`) that does not redraw the page.
+
+Real faults the browser tests had caught, fixed in the application:
+
+- **Staff Sign-off scrolled sideways on tablets and phones** (203px and 435px). Screen-reader-only labels inside the scrolling table and tab bar were positioned against the page instead of the scroller. No visual change.
+- **The Policy Library scrolled sideways at 1440** (70px): a long badge in the inspector ("CSB central, with your local sections") could not wrap.
+- **`/rota/insights` lit "Rota Reports" in the Reporting menu.** On a tie, a page's own menu entry now wins over a workspace that only lists it as a tab.
+- **Two links that answered 404 for the signed-in role** (fixed earlier in this branch): "Open draft" for people who cannot open drafts, and Staff Sign-off for people without that permission.
+- **A carer double-booked after a missed call got "Something went wrong".** A missed call frees the carer's time; if the office then books them elsewhere in that slot and they clock in to the missed call after all, the database rightly refuses the double booking. The carer and the office now get a plain message saying so (`attendance.ts`), with an integration test.
+
+Tests that were out of date or fragile, corrected without removing an assertion:
+
+- Screens that changed since the test was written: the service user tab list (Audit & Exceptions), the Compliance Dashboard title, the Policy Library tab bar, the dialog used for the focus test, the Staff Readiness and Staff Sign-off tables, Sickness & Holiday Cover (now opens Find Replacement Cover), and the platform administrator landing in the Admin Centre (its menu is now part of both page walks).
+- Tests that depended on what earlier tests left behind: three assumed the first policy in the library is a published one (an earlier spec leaves a draft there); one matched any policy with "Safeguarding" in its title.
+- Tests that depended on timing or time of day: a row count taken before the table had loaded; next week's rota read before it had replaced this week's (which fails in the evening, when today's visits are over); Back pressed before a reloaded page was interactive; the first-load animation counted as a tab-change animation; a clock-in to whichever visit came first, which by evening is a missed one.
+- The PDF pixel comparison is now made on one named document. The difference is a property of the document (1.7% for the one used, 2.1% for Safeguarding Adults against a 2% limit), so the result used to depend on which policy happened to be first.
+

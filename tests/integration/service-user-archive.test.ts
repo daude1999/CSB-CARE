@@ -91,6 +91,13 @@ describe("archive", () => {
   it("archives a person once their care has ended, keeping their visits", async () => {
     const ctx = await admin();
     const visitsBefore = await db.visit.count({ where: { serviceUserId: activeId } });
+    // Ending care cancels visits that have not reached their start time; a visit whose time has come is left for the
+    // office to deal with and still blocks the archive. Whether the seed has such a visit depends on the time of day
+    // the suite runs, so any visit of this person that is due right now is put an hour ahead first.
+    const soon = new Date(Date.now() + 60 * 60_000);
+    for (const v of await db.visit.findMany({ where: { serviceUserId: activeId, status: "SCHEDULED", scheduledStart: { lte: new Date(Date.now() + 60_000) }, scheduledEnd: { gt: new Date() } } })) {
+      await db.visit.update({ where: { id: v.id }, data: { scheduledStart: soon, scheduledEnd: new Date(soon.getTime() + (v.scheduledEnd.getTime() - v.scheduledStart.getTime())) } });
+    }
     // Care ended yesterday, so no visit is still booked (ending today keeps today's remaining visits).
     await setServiceUserStatus(ctx, activeId, "ENDED", "Moved to a care home", addDays(londonDate(), -1));
     expect((await serviceUserArchiveStatus(ctx, activeId)).archiveBlockers).toEqual([]);

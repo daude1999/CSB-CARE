@@ -244,11 +244,11 @@ const bookSchema = z.object({
   slot: z.string().transform((v, c) => { const k = parsePlace(v); return k && k !== "SHADOW" ? k : (c.addIssue({ code: "custom", message: "Choose the carer place" }), z.NEVER); }),
   staffId: z.string().min(1, "Choose a carer").max(40),
   /** The visit version the coordinator reviewed. */
-  lockVersion: z.coerce.number().int(),
+  lockVersion: z.coerce.number<number>().int(),
   /** Who was in the place when the coordinator reviewed it ("" = empty). Stops two people filling the same place. */
   expectStaffId: z.string().max(40).default(""),
   source: z.enum(["RECOMMENDED", "MANUAL"]).default("MANUAL"),
-  rank: z.coerce.number().int().min(0).max(2).optional(),
+  rank: z.coerce.number<number>().int().min(0).max(2).optional(),
   /** Each warning the coordinator ticked. Every current warning must be among them. */
   acknowledged: z.array(z.string().max(600)).max(40).default([]),
   warningReason: z.string().trim().max(1000).optional(),

@@ -28,7 +28,7 @@ async function slowNavigations(page: Page, ms: number) {
 }
 
 const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
-  { id: "policy", home: "/", title: /Policy & Compliance/, colour: "rgb(31, 95, 209)" },
+  { id: "policy", home: "/", title: /Compliance Dashboard/, colour: "rgb(31, 95, 209)" },
   { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(107, 70, 201)" },
   { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(11, 111, 153)" },
   { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(75, 86, 102)" },
@@ -174,6 +174,9 @@ test.describe("Sidebar", () => {
 
     await page.reload();
     await expect(currentPage(page)).toHaveText("The Monitor");
+    // The marker is placed by the browser once the page is interactive. Back pressed before that (possible only for
+    // a fraction of a second after a reload) is not seen by the router, so wait as a person effectively does.
+    await expect.poll(markerOnRow).toBe(true);
     await page.goBack();
     await expect(page).toHaveURL(/\/rota\/visits/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
@@ -346,8 +349,10 @@ test.describe("Page transitions", () => {
             }, 1800);
           }),
       );
+    // The first page load has its own entrance; let it finish so only the tab change is being watched.
+    await page.waitForFunction(() => !document.getElementById("main-content")!.getAnimations().some((a) => a.playState === "running"));
     let seen = watch();
-    await page.locator(".pl-tab").nth(1).click();
+    await page.getByTestId("ws-tabs-library").getByRole("link", { name: /CSB Central Library/ }).click();
     await expect(page).toHaveURL(/tab=/);
     expect(await seen).toEqual({ animated: false, skeleton: false });
 
@@ -481,7 +486,8 @@ test.describe("Dialogs and the phone menu", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signIn(page);
     await page.goto("/policies");
-    const trigger = page.getByTestId("policy-inspector").getByRole("button", { name: "Assign for Review" });
+    // The page's own "Upload policy" dialog: it is there whatever policy happens to be selected.
+    const trigger = page.getByRole("button", { name: "Upload policy" });
     await trigger.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

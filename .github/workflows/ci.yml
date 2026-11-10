@@ -1,0 +1,133 @@
+name: CI
+
+# The quality gate for every pull request and every push to main.
+#
+# To make it REQUIRED: GitHub > Settings > Branches > branch protection for main > "Require status checks to pass",
+# and tick the check called "Quality gate". That one check passes only when every job below has passed.
+#
+# Synthetic data only: each test job gets its own throwaway PostgreSQL 16 service container. No secret is used.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Date rules have failed before only late in the evening or just after midnight, when nobody opens a pull
+    # request. So the whole suite also runs every night at those real times (23:10 and 00:10 UTC, which covers both
+    # sides of midnight in London in winter and in summer). The clock is real for the app and the database alike.
+    - cron: "10 23 * * *"
+    - cron: "10 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  AI_PROVIDER: simulated
+  STORAGE_PROVIDER: local
+  EMAIL_PROVIDER: log
+  APP_URL: http://localhost:3000
+  # No TZ override: the runners are on UTC, like the Vercel servers, so London-calendar rules are tested as they run live.
+
+jobs:
+  checks:
+    name: Schema, types, lint, HR tests, audit, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # prisma validate and next build only need a well-formed URL; nothing connects to it.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_ci?schema=public
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate the Prisma schema
+        run: npx prisma validate
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: HR Hub domain tests
+        run: npm run test:hr
+      - name: Dependency audit (high and critical)
+        run: npm audit --audit-level=high
+      - name: Production build
+        run: npm run build
+
+  tests:
+    # The full vitest suite, split into three parts that run side by side (the whole suite takes about 45 minutes in
+    # one piece). Every part runs; together they are the complete suite.
+    name: Unit and integration tests (${{ matrix.shard }} of 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: csb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d csb_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      # The suite deliberately provokes hundreds of database refusals (immutability triggers, state machines), and the
+      # runner prints the database's own log after the job. Quietening it keeps the failing test, not thousands of
+      # expected refusals, at the end of the job log.
+      - name: Keep the test database's log quiet
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d csb_test -c "ALTER SYSTEM SET log_min_messages = 'fatal'" -c "ALTER SYSTEM SET log_min_error_statement = 'panic'" -c "SELECT pg_reload_conf()"
+      - name: Vitest, part ${{ matrix.shard }} of 3
+        run: npm test -- --shard=${{ matrix.shard }}/3
+
+  quality-gate:
+    # The one check to mark as required. It fails if any job above failed, was cancelled or was skipped.
+    name: Quality gate
+    if: always()
+    needs: [checks, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed
+        env:
+          CHECKS: ${{ needs.checks.result }}
+          TESTS: ${{ needs.tests.result }}
+        run: |
+          echo "checks: $CHECKS, tests: $TESTS"
+          test "$CHECKS" = "success" && test "$TESTS" = "success"

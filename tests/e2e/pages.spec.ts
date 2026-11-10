@@ -12,6 +12,14 @@ for (const email of USERS) {
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+    // A platform administrator lands in the Admin Centre, which has its own frame and menu: note that menu, then
+    // carry on in the main frame like everyone else.
+    const adminCentre: string[] = [];
+    if (new URL(page.url()).pathname.startsWith("/platform-admin")) {
+      adminCentre.push("/platform-admin", ...(await page.locator('nav[aria-label="Admin Centre workspaces"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")!))));
+      await page.goto("/overview");
+    }
     await expect(page.getByTestId("current-user")).toBeVisible();
     // Each portal has its own side menu, so collect the menu of every portal this person may open.
     const portals = await page.locator("[data-testid=portal-switcher] a[data-portal-home]").evaluateAll((as) => as.map((a) => a.getAttribute("href")!));
@@ -21,7 +29,7 @@ for (const email of USERS) {
       nav.push(home, ...(await page.locator('aside nav[aria-label="Main"] a').evaluateAll((as) => as.map((a) => a.getAttribute("href")!))));
     }
     const seen = new Set<string>();
-    for (const href of [...nav, "/notifications", "/acknowledgements"]) {
+    for (const href of [...adminCentre, ...nav, "/notifications", "/acknowledgements"]) {
       const res = await page.goto(href);
       expect(res?.status(), href).toBeLessThan(400);
       await expect(page.locator("h1").first(), href).toBeVisible();

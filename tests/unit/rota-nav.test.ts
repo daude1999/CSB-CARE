@@ -58,6 +58,14 @@ const lit = (c: Ctx, href: string) => {
 };
 
 describe("the Rota side menu", () => {
+  it("lights a page's own entry rather than a workspace that only lists it as a tab", () => {
+    // Reporting & Analytics lists Rota Insights as a page of its own; the Rota menu's Reports entry stands in for it.
+    const entries = [{ href: "/rota/reports", match: ["/rota/insights"] }, { href: "/rota/insights" }];
+    expect(activeEntryHref(entries, "/rota/insights", new URLSearchParams())).toBe("/rota/insights");
+    expect(activeEntryHref([...entries].reverse(), "/rota/insights", new URLSearchParams())).toBe("/rota/insights");
+    expect(activeEntryHref(entries, "/rota/reports", new URLSearchParams())).toBe("/rota/reports");
+  });
+
   it("shows exactly the eight destinations, with Settings set apart at the foot", () => {
     const items = rotaItems(admin, i);
     expect(items.map((x) => x.label)).toEqual([...DESTINATIONS, "Settings"]);

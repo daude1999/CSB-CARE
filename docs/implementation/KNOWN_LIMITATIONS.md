@@ -57,6 +57,17 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - Different answers from carers on a double-up give "Conflicting evidence" rather than a reason.
 - Contingency-plan and time-critical fields from the spec do not exist yet.
 
+## Quality gates (enterprise readiness, workstream 1, 10 Nov 2026)
+
+- **The CI check is not yet required.** The owner has to tick "Quality gate" under GitHub, Settings, Branches, branch protection for `main`. Until then a failing check does not block a merge.
+- `npm audit` still reports 8 moderate findings (`uuid` through `exceljs`, and `minimatch`). The gate fails on high and critical only.
+- The browser tests are not part of the Quality gate. They run in their own workflow (`playwright-e2e.yml`). That workflow runs four of the specs; the full suite of 258 (about 20 minutes) is run by hand.
+- Pressing Back in the first fraction of a second after reloading a page, before it is interactive, changes the address but not the page. This is how the framework behaves; the browser test now waits as a person would.
+- A carer who is booked elsewhere after one of their calls was marked missed cannot clock in to the missed call; they are told to phone the office. Whether the office should be able to override that is a product decision, not made here.
+- Vercel's preview check fails on every pull request for a reason outside the repository (its logs cannot be read from here). It is not part of the Quality gate.
+- The nightly late-evening and after-midnight test runs start only once the workflow is on `main`.
+- Ending a service user's care cancels visits that have not started. A visit already in progress at that moment is left alone and then blocks archiving until it ends. Not changed here.
+
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
   the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { POLICY_AREAS } from "@/lib/policy-areas";
 import { hasOrgPermission, type Ctx } from "../auth/rbac";
 import { searchChunks } from "../search/index-chunks";
-import { getPolicy } from "./library";
+import { canOpenDraft, getPolicy } from "./library";
 import { DOC_TYPES } from "../../../prisma/seed-data/library/types";
 
 /**
@@ -64,7 +64,7 @@ const QuerySchema = z.object({
   quick: optional(QUICK_KEYS),
   sort: optional(SORT_KEYS),
   layout: optional(LAYOUTS),
-  page: z.coerce.number().int().min(1).max(500).optional().catch(undefined),
+  page: z.coerce.number<number>().int().min(1).max(500).optional().catch(undefined),
   selected: id,
   pane: optional(PANE_KEYS),
   insp: optional(["closed"] as const),
@@ -249,7 +249,7 @@ export async function loadLibraryRows(ctx: Ctx, tab: LibraryTab, now = new Date(
       serviceTypes: p.serviceTypes, kind: p.kind, ownerId: p.ownerId, ownerName: p.ownerId ? (name.get(p.ownerId) ?? null) : null, reviewerId: p.reviewerId,
       version: v?.label ?? null, publishedAt: v?.publishedAt ?? null, updatedAt: p.updatedAt, nextReviewDate: p.nextReviewDate,
       // Organisations never see CSB's own drafts of central documents.
-      openRevisionId: central ? null : (open?.id ?? null), adopted: adopted.has(p.id), central,
+      openRevisionId: central || !canOpenDraft(ctx, p.kind) ? null : (open?.id ?? null), adopted: adopted.has(p.id), central,
       status: policyStatus({ currentPublishedVersion: v ? { publishedAt: v.publishedAt, replacedEarlier: Boolean(v.previousVersionId) } : null, nextReviewDate: p.nextReviewDate, archived: p.status === "ARCHIVED" }, now),
     };
   });
@@ -485,7 +485,7 @@ export async function inspectPolicy(ctx: Ctx, policyId: string, now = new Date()
     area,
     version: v ? { id: v.id, label: v.label, origin: v.origin, publishedAt: v.publishedAt, effectiveDate: v.effectiveDate, sections: v.sections.map((s) => ({ key: s.key, heading: s.heading })) } : null,
     approvals: approvals.map((a) => ({ id: a.id, name: person.get(a.deciderId) ?? "A former member", at: a.createdAt })),
-    openRevision: open ? { id: open.id, title: open.title, submitted: Boolean(open.submittedAt) } : null,
+    openRevision: open && canOpenDraft(ctx, p.kind) ? { id: open.id, title: open.title, submitted: Boolean(open.submittedAt) } : null,
     central,
     orgCopy,
     history: history.map((h) => ({

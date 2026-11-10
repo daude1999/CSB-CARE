@@ -623,7 +623,7 @@
   }
 
   /* One tab style: underline, 38px high, 14px, grey when inactive, module colour and a 2px underline when active. */
-  .tabs-line { @apply flex overflow-x-auto border-b border-rule; scrollbar-width: thin; /* room for a tab of fractional width at the end of a scrolled row */ padding-inline-end: 2px; }
+  .tabs-line { @apply relative flex overflow-x-auto border-b border-rule; scrollbar-width: thin; /* room for a tab of fractional width at the end of a scrolled row */ padding-inline-end: 2px; }
   .tab-line { @apply relative inline-flex h-tab shrink-0 items-center gap-2 whitespace-nowrap px-3 text-tab font-medium text-status-ink no-underline hover:text-ink; }
   .tab-line:is([aria-current="page"], [data-state="active"]) { @apply font-semibold; color: var(--module); }
   .tab-line:is([aria-current="page"], [data-state="active"])::after { content: ""; @apply absolute inset-x-1 -bottom-px h-[2px] rounded-t-[2px]; background-color: var(--module); }

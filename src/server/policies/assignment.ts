@@ -79,8 +79,8 @@ const ruleSchema = z.object({
   jobTitle: z.string().trim().max(120).optional(),
   staffMemberIds: z.array(z.string()).optional(),
   mandatory: z.boolean().default(true),
-  priority: z.coerce.number().int().min(1).max(3).default(2),
-  dueDays: z.coerce.number().int().min(1, "Allow at least a day").max(180).default(14),
+  priority: z.coerce.number<number>().int().min(1).max(3).default(2),
+  dueDays: z.coerce.number<number>().int().min(1, "Allow at least a day").max(180).default(14),
   requiresAssessment: z.boolean().default(false),
 });
 export type RuleInput = z.input<typeof ruleSchema>;
@@ -317,8 +317,8 @@ async function managedRow(tx: Db, ctx: Ctx, acknowledgementId: string) {
 
 const assessmentSchema = z.object({
   method: z.enum(["KNOWLEDGE_CHECK", "DISCUSSION", "COMPETENCY_SIGN_OFF"]),
-  score: z.coerce.number().int().min(0).max(100).optional(),
-  passMark: z.coerce.number().int().min(0).max(100).optional(),
+  score: z.coerce.number<number>().int().min(0).max(100).optional(),
+  passMark: z.coerce.number<number>().int().min(0).max(100).optional(),
   passed: z.boolean(),
   note: z.string().trim().min(5, "Record what was checked or discussed").max(2000),
 });
@@ -358,7 +358,7 @@ export async function exemptRow(ctx: Ctx, acknowledgementId: string, reason: str
  */
 const bulkSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("remind"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500) }),
-  z.object({ op: z.literal("extend"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500), dueAt: z.coerce.date({ message: "Choose the new due date" }), reason: z.string().trim().min(5, "Give the reason for the new date").max(500) }),
+  z.object({ op: z.literal("extend"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500), dueAt: z.coerce.date<Date>({ message: "Choose the new due date" }), reason: z.string().trim().min(5, "Give the reason for the new date").max(500) }),
   z.object({ op: z.literal("exempt"), ids: z.array(z.string().min(1)).min(1, "Select at least one row").max(500), reason: z.string().trim().min(5, "Give the reason for the exemption").max(500) }),
 ]);
 export type BulkSignoffInput = z.input<typeof bulkSchema>;

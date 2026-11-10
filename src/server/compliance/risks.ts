@@ -69,7 +69,7 @@ export function riskReviewOverdue(r: { status: string; reviewDate: Date }, now =
   return r.status !== "CLOSED" && r.reviewDate < now;
 }
 
-const score = z.coerce.number().int().min(1, "Score from 1 to 5").max(5, "Score from 1 to 5");
+const score = z.coerce.number<number>().int().min(1, "Score from 1 to 5").max(5, "Score from 1 to 5");
 const riskSchema = z.object({
   title: z.string().trim().min(5, "Give the risk a clear title (at least 5 characters)").max(160),
   description: z.string().trim().min(10, "Describe the risk: what could happen, and why (at least 10 characters)").max(4000),
@@ -82,7 +82,7 @@ const riskSchema = z.object({
   residualLikelihood: score,
   residualImpact: score,
   ownerId: z.string().trim().min(1, "Choose who owns the risk"),
-  reviewDate: z.coerce.date({ message: "Give a review date" }).refine((d) => !Number.isNaN(d.getTime()), "Give a review date"),
+  reviewDate: z.coerce.date<Date>({ message: "Give a review date" }).refine((d) => !Number.isNaN(d.getTime()), "Give a review date"),
   findingId: z.string().trim().max(40).optional().transform((v) => v || null),
 });
 export type RiskInput = z.input<typeof riskSchema>;
@@ -175,7 +175,7 @@ export async function updateRisk(ctx: Ctx, id: string, input: RiskInput & { reas
 
 const reviewSchema = z.object({
   note: z.string().trim().min(10, "Record what the review found (at least 10 characters)").max(4000),
-  nextReviewDate: z.coerce.date({ message: "Set the next review date" }).refine((d) => !Number.isNaN(d.getTime()), "Set the next review date"),
+  nextReviewDate: z.coerce.date<Date>({ message: "Set the next review date" }).refine((d) => !Number.isNaN(d.getTime()), "Set the next review date"),
   status: z.enum(["OPEN", "MONITORING"]).optional(),
 });
 

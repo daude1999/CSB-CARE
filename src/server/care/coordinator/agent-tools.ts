@@ -62,6 +62,8 @@ interface Tool<S extends z.ZodTypeAny> {
 
 const ID = /^[a-zA-Z0-9]{10,40}$/;
 const id = z.string().regex(ID, "Not a record id");
+const sectionEnum = z.enum(SECTION_KEYS);
+const intakeModeEnum = z.enum(["NEW", "EXISTING", "DOCUMENT"]);
 const nullableString = (description: string) => ({ type: ["string", "null"], description });
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties, required: Object.keys(properties), additionalProperties: false });
 
@@ -228,7 +230,7 @@ const tools = {
       description: "The prepared drafts for one section of an intake, fact by fact, with value, the coordinator's decision, document, page and quote. Sections: PERSONAL, CONTACTS, CARER_PREFERENCES, PACKAGE, CARE_PLAN, RISKS, MEDICATION, INCIDENTS, BODY_MAP, VISITS, CALL_NOTES. Restricted sections need access to restricted records.",
       inputSchema: obj({ intakeId: { type: "string" }, section: { type: "string", enum: [...SECTION_KEYS] } }),
     },
-    schema: z.object({ intakeId: id, section: z.enum(SECTION_KEYS) }),
+    schema: z.object({ intakeId: id, section: sectionEnum }),
     async run(ctx, { intakeId, section }, state) {
       const view = await getIntake(ctx, intakeId);
       const docs = new Map(view.documents.map((d) => [d.id, d.name]));
@@ -244,7 +246,7 @@ const tools = {
         })),
       };
     },
-  } satisfies Tool<z.ZodObject<{ intakeId: typeof id; section: z.ZodEnum<typeof SECTION_KEYS> }>>,
+  } satisfies Tool<z.ZodObject<{ intakeId: typeof id; section: typeof sectionEnum }>>,
 
   get_review_steps: {
     spec: { name: "get_review_steps", description: "Where an intake is: documents still being read, what CSB AI's automatic setup saved per section, the exceptions that need a person and the rota readiness checks (care package, visits, care plan in use, risk assessments in use).", inputSchema: obj({ intakeId: { type: "string" } }) },
@@ -334,7 +336,7 @@ const tools = {
       description: "Start a new DRAFT care intake (nothing is added to any person's record). Only when the employee asked to start one and no suitable open intake exists. mode NEW sets up a new person; EXISTING updates the given service user from new or revised documents; DOCUMENT files a supporting document for the given service user without changing their records. Returns the intake id; documents are attached by the employee with the paperclip.",
       inputSchema: obj({ title: { type: "string", description: "e.g. 'New referral, Stepney'" }, mode: { type: "string", enum: ["NEW", "EXISTING", "DOCUMENT"] }, serviceUserId: nullableString("Required for EXISTING and DOCUMENT") }),
     },
-    schema: z.object({ title: z.string().trim().min(3).max(120), mode: z.enum(["NEW", "EXISTING", "DOCUMENT"]), serviceUserId: id.nullable() }),
+    schema: z.object({ title: z.string().trim().min(3).max(120), mode: intakeModeEnum, serviceUserId: id.nullable() }),
     async run(ctx, input, state) {
       if (!coordinatorRole(ctx)) throw new ForbiddenError("This employee's role cannot start care intakes.");
       // A repeated message must not create a second intake: the same title by the same person in the last 10 minutes is reused.
@@ -344,7 +346,7 @@ const tools = {
       link(state, { label: `Open ${intake.reference}`, href: intakeHref(intake.id, "documents") });
       return { created: !recent, reusedExisting: !!recent, intakeId: intake.id, reference: intake.reference, status: "Coordinator review (draft)", next: "Attach the support plan with the paperclip, or upload it on the intake's Documents step." };
     },
-  } satisfies Tool<z.ZodObject<{ title: z.ZodString; mode: z.ZodEnum<["NEW", "EXISTING", "DOCUMENT"]>; serviceUserId: z.ZodNullable<typeof id> }>>,
+  } satisfies Tool<z.ZodObject<{ title: z.ZodString; mode: typeof intakeModeEnum; serviceUserId: z.ZodNullable<typeof id> }>>,
 
   read_documents: {
     spec: {

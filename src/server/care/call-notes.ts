@@ -165,7 +165,7 @@ const createSchema = z.object({
   submissionKey: z.string().trim().min(8, "This form is out of date. Reload the page and try again.").max(80),
   date: z.string().refine(isIsoDate, "Enter the date of the communication"),
   time: z.string().refine((v) => parseHhmm(v) !== null, "Enter the time as HH:MM"),
-  method: z.enum(METHOD_KEYS, { errorMap: () => ({ message: "Choose how the communication happened" }) }),
+  method: z.enum(METHOD_KEYS, { error: "Choose how the communication happened" }),
   contactName: z.string().trim().min(1, "Say who you spoke with").max(200),
   contactRole: optText(200),
   contactId: optText(40),
@@ -732,7 +732,7 @@ const filterSchema = z.object({
   by: z.string().trim().max(40).optional(),
   followUp: z.enum(["yes", "no"]).optional(),
   status: z.enum(["DRAFT", "AWAITING_REVIEW", "APPROVED", "CLARIFICATION_REQUESTED", "REJECTED", "SUPERSEDED", "WITHDRAWN", "FOLLOW_UP", "COMPLETED"]).optional(),
-  page: z.coerce.number().int().min(1).max(1000).default(1),
+  page: z.coerce.number<number>().int().min(1).max(1000).default(1),
 });
 export type CallNoteFilters = z.input<typeof filterSchema>;
 

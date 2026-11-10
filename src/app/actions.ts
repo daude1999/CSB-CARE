@@ -150,7 +150,7 @@ const PublishSchema = z.object({
     }
     return d;
   }),
-  ackDays: z.coerce.number().int().min(1, "Allow at least one day to read it").max(90, "Allow at most 90 days to read it").catch(14),
+  ackDays: z.coerce.number<number>().int().min(1, "Allow at least one day to read it").max(90, "Allow at most 90 days to read it").catch(14),
   changeSummary: z.string().max(2000, "Keep the summary of changes under 2,000 characters").optional(),
 });
 
@@ -249,7 +249,7 @@ export async function withdrawResourceLinkAction(fd: FormData) {
   await handle(fd, async (ctx) => void (await withdrawResourceLink(ctx, { linkId: str(fd, "linkId"), reason: str(fd, "reason") })), "Link removed. It stays in this policy's link history.");
 }
 // ───────── on-screen forms (Forms PR 2/3)
-const LockVersion = z.coerce.number().int().min(0);
+const LockVersion = z.coerce.number<number>().int().min(0);
 /** The answers posted by a form: fields are named f_<key>; multi-select fields post several values. */
 function postedAnswers(fd: FormData): Record<string, string | string[]> {
   const out: Record<string, string | string[]> = {};

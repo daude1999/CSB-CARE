@@ -470,7 +470,7 @@ export async function approveVerified(ctx: Ctx, intakeId: string, section: strin
   });
 }
 
-const manualSchema = z.object({ destination: z.string().trim().min(1), label: z.string().trim().max(200).optional(), value: z.unknown(), sourceDocumentId: z.string().trim().optional().transform((v) => v || null), sourcePage: z.coerce.number().int().min(1).max(500).optional().nullable() });
+const manualSchema = z.object({ destination: z.string().trim().min(1), label: z.string().trim().max(200).optional(), value: z.unknown(), sourceDocumentId: z.string().trim().optional().transform((v) => v || null), sourcePage: z.coerce.number<number>().int().min(1).max(500).optional().nullable() });
 
 /** A fact the coordinator adds by hand (for a scanned page, or something the reader missed). It records who added it. */
 export async function addManualFact(ctx: Ctx, intakeId: string, input: z.input<typeof manualSchema>) {

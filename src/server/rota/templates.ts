@@ -10,7 +10,7 @@ import { assertInScope, rotaScope, serviceUserWhere, templateScopeWhere, type Sc
 import { MAX_CARERS, placeNumber, preferredOf, type PlaceKey } from "@/lib/carer-places";
 export { preferredOf, preferredFor } from "@/lib/carer-places";
 
-const ids = z.array(z.coerce.number().int());
+const ids = z.array(z.coerce.number<number>().int());
 export const templateSchema = z
   .object({
     serviceUserId: z.string().min(1, "Choose a service user"),
@@ -18,9 +18,9 @@ export const templateSchema = z
     areaId: z.string().nullable().optional(),
     cycleWeeks: ids.refine((w) => w.length > 0 && w.every((n) => n >= 1 && n <= 4), "Choose at least one cycle week (1–4)"),
     weekdays: ids.refine((w) => w.length > 0 && w.every((n) => n >= 1 && n <= 7), "Choose at least one day"),
-    startMinute: z.coerce.number().int().min(0, "Start time is required").max(1439),
-    durationMin: z.coerce.number().int().min(5, "A visit lasts at least 5 minutes").max(1440, "A visit lasts at most 24 hours"),
-    carersRequired: z.coerce.number({ invalid_type_error: "Enter how many carers are needed" }).int("Enter a whole number of carers").min(1, "A visit needs at least one carer").max(MAX_CARERS, `A visit can need at most ${MAX_CARERS} carers`),
+    startMinute: z.coerce.number<number>().int().min(0, "Start time is required").max(1439),
+    durationMin: z.coerce.number<number>().int().min(5, "A visit lasts at least 5 minutes").max(1440, "A visit lasts at most 24 hours"),
+    carersRequired: z.coerce.number<number>({ error: "Enter how many carers are needed" }).int("Enter a whole number of carers").min(1, "A visit needs at least one carer").max(MAX_CARERS, `A visit can need at most ${MAX_CARERS} carers`),
     preferredStaff1Id: z.string().nullable().optional(),
     preferredStaff2Id: z.string().nullable().optional(),
     /** Preferred carers for places 3 and above, in order; "" = no preference for that place. */

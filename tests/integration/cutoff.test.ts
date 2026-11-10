@@ -11,6 +11,10 @@ const finance = () => ctxFor("finance@care-solution.demo", BROOKFIELD);
 const coordinator = () => ctxFor("coordinator@care-solution.demo", BROOKFIELD);
 const MIN = 60_000;
 let orgId = "";
+// This scenario happens at 10:00 London time today, whenever the suite really runs. The seed starts or finishes
+// every visit that is already due, so late in the evening it leaves no visit of today waiting to be started and the
+// tests below had nothing to work with. Only the JavaScript clock is set; it keeps ticking from there.
+vi.useFakeTimers({ toFake: ["Date"], now: londonToUtc(londonDate(), 10 * 60), shouldAdvanceTime: true });
 const thisWeek = mondayOf(londonDate());
 const lastWeek = addDays(thisWeek, -7);
 

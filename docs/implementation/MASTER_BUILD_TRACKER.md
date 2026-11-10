@@ -1,5 +1,17 @@
 # Master build tracker — five-module CSB CRM
 
+## Enterprise readiness (brief of 10 Nov 2026)
+
+Five workstreams, one pull request each, never merged without the owner. Plan: `ENTERPRISE_READINESS_PLAN.md`.
+
+| Workstream | State |
+|---|---|
+| 1. Quality gates | Built on `enterprise-readiness`: `.github/workflows/ci.yml` (schema, types, lint, full vitest in three parts on PostgreSQL 16, HR tests, audit, build; one "Quality gate" check to mark required), `.github/dependabot.yml`, scratch file removed, high and critical audit findings cleared by upgrading existing packages (zod 4, vitest 4, nodemailer 10), four test failures fixed at their causes. Results: `TEST_RESULTS.md`. |
+| 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
+| 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
+| 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
+| 5. UX and responsiveness | On `enterprise-readiness-5-ux` (PR #138). The colour system redesign (#134 to #137) is now in `main` and merged into this branch. |
+
 ## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview merged as #140, compact follow-up in review)
 The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
 the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple

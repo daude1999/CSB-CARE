@@ -41,10 +41,10 @@ const funderSchema = z.object({
   kind: z.enum(["LOCAL_AUTHORITY", "NHS", "PRIVATE", "OTHER"], { message: "Choose the type of funder" }),
   reference: z.string().trim().max(60).optional(),
   billingEmail: z.union([z.literal(""), z.string().trim().email("Check the billing email")]).optional(),
-  paymentTermsDays: z.coerce.number().int().min(0).max(120),
+  paymentTermsDays: z.coerce.number<number>().int().min(0).max(120),
   chargeBasis: z.enum(["SCHEDULED", "ACTUAL"]),
   chargeRateCardId: z.string().optional(),
-  shortNoticeCancelHours: z.union([z.literal(""), z.coerce.number().int().min(0).max(168)]).optional(),
+  shortNoticeCancelHours: z.union([z.literal(""), z.coerce.number<number>().int().min(0).max(168)]).optional(),
 });
 
 export async function saveFunder(ctx: Ctx, id: string | null, input: Record<string, unknown>) {
@@ -154,7 +154,7 @@ const settingsSchema = z.object({
   payBasis: z.enum(["SCHEDULED", "ACTUAL"]),
   mileage: z.string().refine((s) => parsePounds(s) !== null, "Enter the mileage rate in pounds, for example 0.45"),
   invoicePrefix: z.string().trim().regex(/^[A-Z0-9-]{1,10}$/, "Use up to 10 capital letters, numbers or dashes"),
-  estimateOnCostPercent: z.coerce.number({ invalid_type_error: "Enter the on-cost as a whole percentage" }).int("Enter the on-cost as a whole percentage").min(0).max(100).default(0),
+  estimateOnCostPercent: z.coerce.number<number>({ error: "Enter the on-cost as a whole percentage" }).int("Enter the on-cost as a whole percentage").min(0).max(100).default(0),
 });
 
 export async function updateFinanceSettings(ctx: Ctx, input: Record<string, unknown>) {
