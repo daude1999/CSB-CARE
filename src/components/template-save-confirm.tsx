@@ -11,7 +11,7 @@ interface Impact { rows: ImpactRow[]; newDates: string[]; manualActions: string[
 
 const RESULT: Record<Result, { label: string; cls: string }> = {
   update: { label: "Can update", cls: "bg-[#ecfdf3] text-[#067647]" },
-  manual: { label: "Manual change – protected", cls: "bg-[#f4f1fd] text-[#4b1f9e]" },
+  manual: { label: "Manual change – protected", cls: "bg-module/[.08] text-[#4b1f9e]" },
   started: { label: "Started or finished – history kept", cls: "bg-[#f2f4f7] text-[#344054]" },
   locked: { label: "Time locked – protected", cls: "bg-[#eef4ff] text-[#1d4f91]" },
   review: { label: "Needs review", cls: "bg-[#fffaeb] text-[#93370d]" },
@@ -20,7 +20,7 @@ const RESULT: Record<Result, { label: string; cls: string }> = {
 };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmtDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const BTN = "inline-flex h-10 items-center justify-center rounded-[8px] px-4 text-[14.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5] disabled:cursor-not-allowed disabled:opacity-60";
+const BTN = "inline-flex h-10 items-center justify-center rounded-[8px] px-4 text-[14.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module disabled:cursor-not-allowed disabled:opacity-60";
 const PRIMARY = `${BTN} bg-[#4b1f9e] text-white hover:bg-[#3d1880]`;
 const SECONDARY = `${BTN} border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50`;
 

@@ -98,7 +98,7 @@ test.describe("Portal switching", () => {
     await expect(page.getByTestId("nav-progress")).toHaveAttribute("data-phase", /idle|done/);
   });
 
-  test("on HR pages the top-bar search opens the HR Hub's search, from the box or with Ctrl+K", async ({ page }) => {
+  test("on HR pages the top-bar search opens the HR Hub's search, and Ctrl+K opens the command bar as on every page", async ({ page }) => {
     await signIn(page);
     await page.goto("/hr/dashboard");
     await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
@@ -108,8 +108,10 @@ test.describe("Portal switching", () => {
     await dialog.getByPlaceholder("Search people, documents or actions…").fill("Amelia");
     await dialog.getByPlaceholder("Search people, documents or actions…").press("Escape");
     await expect(dialog).toHaveCount(0);
+    // Ctrl+K means the same on every page since the command bar (10 Nov 2026); the HR search stays on the top-bar box.
     await page.keyboard.press("Control+k");
-    await expect(dialog).toBeVisible();
+    await expect(page.getByTestId("command-bar")).toBeVisible();
+    await expect(dialog).toHaveCount(0);
   });
 
   test("bare /hr opens the HR Dashboard and keeps the chosen branch", async ({ page }) => {

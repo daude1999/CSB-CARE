@@ -30,7 +30,7 @@ export function StatusPill({ status, className = "" }: { status: StatusKey; clas
 export function DocTile({ status, size = 48 }: { status: StatusKey; size?: number }) {
   const warn = status === "review_due" || status === "overdue";
   return (
-    <span aria-hidden="true" style={{ width: size, height: size }} className={`flex shrink-0 items-center justify-center rounded-[8px] border ${warn ? "border-[#fedf89] bg-[#fffaeb] text-[#b54708]" : "border-[#e4dcf8] bg-[#f8f5ff] text-[#5b2bb5]"}`}>
+    <span aria-hidden="true" style={{ width: size, height: size }} className={`flex shrink-0 items-center justify-center rounded-[8px] border ${warn ? "border-[#fedf89] bg-[#fffaeb] text-[#b54708]" : "border-[#e4dcf8] bg-module/[.06] text-module"}`}>
       <FileText size={Math.round(size * 0.5)} weight="regular" />
     </span>
   );

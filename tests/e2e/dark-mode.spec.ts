@@ -71,4 +71,23 @@ test.describe("Dark and light appearance", () => {
     await page.getByTestId("account-menu").getByTestId("colour-mode-light").click();
     expect(await mode(page)).toBe("light");
   });
+
+  test("the header band's main action stays a white button with readable text in the dark", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "csb-mode", value: "dark", url: baseURL! }]);
+    await signIn(page);
+    await page.goto("/rota/visits");
+    expect(await mode(page)).toBe("dark");
+    // The current view (Board) is the band's main action: white, with the module colour as its text.
+    const current = page.locator('.mh-band nav[aria-label="Rota view"] [aria-current="page"]');
+    await expect(current).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    const text = await current.evaluate((el) => getComputedStyle(el).color);
+    const moduleColour = await page.locator("main").evaluate((el) => getComputedStyle(el).getPropertyValue("--module").trim());
+    expect(text).not.toBe("rgb(255, 255, 255)");
+    expect(moduleColour).not.toBe("");
+    // The band is toned down towards the dark page, so it is not the full-strength light-mode colour.
+    const band = await background(page, ".mh-band");
+    await context.addCookies([{ name: "csb-mode", value: "light", url: baseURL! }]);
+    await page.reload();
+    expect(await background(page, ".mh-band")).not.toBe(band);
+  });
 });

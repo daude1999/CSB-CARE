@@ -74,7 +74,7 @@ test.describe("Rostering & Care Management", () => {
 
   test("bulk actions show the details each action needs, and Reassign and Lock work from the Daily Rota", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
-    await page.goto(`/rota/visits?date=${mondayWeeksAhead(1)}`);
+    await page.goto(`/rota/visits?date=${mondayWeeksAhead(1)}&layout=list`);
     const bulk = page.locator("#bulk");
     const go = bulk.getByRole("button", { name: "Go" });
     await expect(go).toBeDisabled();
@@ -128,7 +128,7 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByLabel("Week Setting")).toBeVisible();
     await expect(page.getByRole("button", { name: "Build New Rota" })).toBeVisible();
     await page.getByRole("link", { name: "No, cancel for now" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "All Rotas" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "All Rotas" })).toBeVisible();
     // Other suites in the same run (e.g. the support-plan setup) may add a rota for this week too.
     await expect(page.getByRole("cell", { name: "Yes", exact: true }).first()).toBeVisible();
   });
@@ -152,15 +152,16 @@ test.describe("Rostering & Care Management", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota/cover");
     await expect(page.getByRole("heading", { level: 1, name: "Sickness & Holiday Cover" })).toBeVisible();
-    // Whether anything needs cover depends on the day's seed data. A booking to cover leads into the shared Find
-    // Replacement Cover panel (its eligibility checks and confirmation are covered in missed-cover.spec.ts and
-    // replacement-cover.spec.ts); otherwise the page says plainly that there is nothing to do.
+    // Whether anything needs cover depends on the day's seed data. Each booking to cover links to Find Replacement
+    // Cover (the shared cover panel), where the replacement runs the full eligibility check; replacement-cover.spec.ts
+    // books one. With nothing to cover, the page says so plainly.
     const find = page.getByRole("link", { name: /^Find replacement cover for / }).first();
     const nothing = page.getByText("No absences or flagged bookings in these dates.");
     await expect(find.or(nothing).first()).toBeVisible();
     if (await find.count()) {
       await find.click();
-      await expect(page.getByRole("dialog", { name: "Find Replacement Cover" })).toBeVisible();
+      await expect(page).toHaveURL(/[?&]cover=/);
+      await expect(page.getByRole("navigation", { name: "Find Cover sections" })).toBeVisible();
     } else {
       await expect(nothing).toBeVisible();
     }
@@ -264,19 +265,29 @@ test.describe("Rostering & Care Management", () => {
 
   test("Daily Rota: a live list with no figure cards, the approved columns, and Visit Details only when a visit is chosen", async ({ page }) => {
     await signIn(page, "coordinator@care-solution.demo");
+    // Board is the default view since the approved redesign (10 Nov 2026); List is one click away.
     await page.goto("/rota/visits");
-    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota – Live View" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "Board" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" }).click();
+    await expect(page).toHaveURL(/layout=list/);
+    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
     await expect(page.getByRole("region", { name: "The day's figures" })).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     for (const label of ["Search visits by service user, carer or reference", "Area", "Status", "Service user", "Team member"]) await expect(page.getByRole("form", { name: "Filters" }).getByLabel(label, { exact: true })).toBeVisible();
     const table = page.getByRole("region", { name: "Visits" }).locator("table");
-    for (const name of ["Ref", "Date", "Status", "Service User", "Time", "Duration", "Carers", "Service Call", "Team Member", "Alerts", "Notes", "Week", "Calendar week", "Visit checklist"]) await expect(table.getByRole("columnheader", { name, exact: true })).toBeVisible();
-    // No details panel until a visit is chosen.
-    await expect(page.getByRole("complementary", { name: "Visit Details" })).toHaveCount(0);
-    // Coverage badges read filled/required; the calendar week is a number; Week is "Week n" or a dash.
-    await expect(table.locator("tbody tr").first().locator("td").nth(7)).toHaveText(/^\d\/\d|—/);
-    await expect(table.locator("tbody tr").first().locator("td").nth(13)).toHaveText(/^\d{1,2}$/);
-    await expect(table.locator("tbody tr").first().locator("td").nth(12)).toHaveText(/^Week \d$|—/);
+    // Approved redesign (10 Nov 2026): Time first, Ref last; Date, Week and Calendar week hidden until added under Columns.
+    const heads = await table.locator("thead th").allInnerTexts();
+    expect(heads.map((h) => h.trim()).filter(Boolean)).toEqual(["Time", "Duration", "Service User", "Service Call", "Team Member", "Carers", "Status", "Alerts", "Notes", "Visit checklist", "Ref"]);
+    for (const name of ["Date", "Week", "Calendar week"]) await expect(table.getByRole("columnheader", { name, exact: true })).toHaveCount(0);
+    // Rows are grouped under one header per call round, e.g. "Morning calls · 07:00 to 08:30 · 12 visits".
+    await expect(table.getByTestId("round-header").first()).toHaveText(/^\S.* calls · \d{2}:\d{2}( to \d{2}:\d{2})? · \d+ visits?$/);
+    const first = table.locator("tbody tr[data-href]").first();
+    // Coverage badges read filled/required; Time is 15px bold; each row has a 4px status stripe.
+    await expect(first.locator("td").nth(6)).toHaveText(/^\d\/\d|—/);
+    const time = first.locator("td").nth(1);
+    await expect(time).toHaveText(/^\d{2}:\d{2}$/);
+    expect(await time.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(["15px", "700"]);
+    expect(await first.locator("td").first().evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(/inset$|inset /);
     // Choosing a visit opens the details beside the list, keeping the filters; it closes again.
     await page.getByRole("link", { name: /Open details of visit/ }).first().click();
     await expect(page).toHaveURL(/visit=/);
@@ -288,15 +299,20 @@ test.describe("Rostering & Care Management", () => {
     await expect(page).toHaveURL(/tab=history/);
     await page.getByRole("link", { name: "Close visit details" }).click();
     await expect(page.getByRole("complementary", { name: "Visit Details" })).toHaveCount(0);
-    // Column settings add the less-used columns; sorting and Planner keep working.
+    // Column settings add the less-used columns; sorting and the Advanced Rota planner keep working.
     await page.locator("summary", { hasText: "Columns" }).click();
     await page.getByRole("checkbox", { name: "Clock in" }).check();
+    await page.getByRole("checkbox", { name: "Calendar week" }).check();
+    await page.getByRole("checkbox", { name: "Week (rota pattern)" }).check();
     await page.getByRole("button", { name: "Apply", exact: true }).last().click();
-    await expect(page).toHaveURL(/cols=clockIn/);
+    await expect(page).toHaveURL(/cols=/);
     await expect(table.getByRole("columnheader", { name: "Clock in" })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Calendar week", exact: true })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: "Week", exact: true })).toBeVisible();
     await table.getByRole("columnheader", { name: "Service User" }).getByRole("link").click();
     await expect(page).toHaveURL(/sort=su/);
-    await page.getByRole("navigation", { name: "Rota view" }).getByRole("link", { name: "Planner" }).click();
+    await page.locator("summary", { hasText: "Actions" }).last().click();
+    await page.getByTestId("main-content").getByRole("link", { name: "Advanced Rota planner" }).click();
     await expect(page).toHaveURL(/\/rota\/advanced\?date=/);
   });
 

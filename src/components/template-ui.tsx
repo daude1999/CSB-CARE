@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { CalendarDots, FastForward, Stack, Warning, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 
 /**
  * Shared look for the template screens (Daily Templates, Advanced Templates, Template Details), built to the owner's
  * approved Daily Templates image of 1 Nov 2026.
  */
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 
 /**
  * The header row: calendar icon, title and subtitle on the left; the three connected template views next to it; Roll
@@ -21,30 +22,24 @@ export function TemplatesHeader({ title, subtitle, active, canBuild }: { title: 
     { key: "build", href: "/rota/build", label: "Build Rota", icon: <Stack size={20} weight="fill" aria-hidden /> },
   ] as const;
   return (
-    <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 min-[1600px]:gap-x-6">
-      <div className="mr-auto flex min-w-0 items-center gap-4">
-        <span aria-hidden className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-[12px] bg-[#ece6fb] text-[#5b2bb5]"><CalendarDots size={34} weight="bold" /></span>
-        <div className="min-w-0">
-          <h1 className="text-[28px] font-bold leading-tight text-[#101828]">{title}</h1>
-          <p className="text-[15.5px] text-[#475467]">{subtitle}</p>
-        </div>
-      </div>
-      <nav aria-label="Template views" className="flex max-w-full gap-1 overflow-x-auto rounded-[12px] bg-white p-1 shadow-[0_1px_3px_rgba(16,24,40,0.10)]">
-        {tabs.map((t) => {
-          const on = t.key === active;
-          return (
-            <Link key={t.key} href={t.href} aria-current={on ? "page" : undefined} className={`flex h-[42px] shrink-0 items-center gap-2 whitespace-nowrap rounded-[9px] px-3.5 text-[14.5px] min-[1600px]:gap-2.5 min-[1600px]:px-5 min-[1600px]:text-[15px] font-bold no-underline ${FOCUS} ${on ? "bg-[#5b2bb5] text-white" : "text-[#101828] hover:bg-[#f4f1fd] hover:text-[#5b2bb5]"}`}>
-              {t.icon}{t.label}
-            </Link>
-          );
-        })}
-      </nav>
-      {canBuild ? (
-        <Link href="/rota/build?roll=1" data-testid="roll-forward" title="Copy a built week into future weeks as drafts. You preview first, then confirm." className={`flex h-[46px] items-center gap-2.5 whitespace-nowrap rounded-[10px] border-2 border-[#5b2bb5] bg-white px-4 min-[1600px]:px-6 text-[15.5px] font-bold text-[#5b2bb5] no-underline shadow-[0_1px_3px_rgba(16,24,40,0.10)] hover:bg-[#f4f1fd] ${FOCUS}`}>
+    <ModuleHeader
+      title={title}
+      description={subtitle}
+      actions={canBuild ? (
+        <Link href="/rota/build?roll=1" data-testid="roll-forward" title="Copy a built week into future weeks as drafts. You preview first, then confirm." className="mh-btn mh-btn-primary">
           <FastForward size={20} weight="fill" aria-hidden />Roll Forward
         </Link>
       ) : null}
-    </header>
+      tabs={
+        <nav aria-label="Template views" className="tabs-line">
+          {tabs.map((t) => (
+            <Link key={t.key} href={t.href} aria-current={t.key === active ? "page" : undefined} className="tab-line [&_svg]:h-[18px] [&_svg]:w-[18px]">
+              {t.icon}{t.label}
+            </Link>
+          ))}
+        </nav>
+      }
+    />
   );
 }
 
@@ -55,9 +50,9 @@ export function ChoiceGroup({ label, items }: { label: string; items: { href: st
       <ul className="flex gap-1.5 p-0.5">
         {items.map((it, i) => (
           <li key={i}>
-            <Link href={it.href} title={it.title} aria-current={it.active ? "true" : undefined} className={`relative flex h-[44px] min-w-[92px] items-center min-[1600px]:min-w-[112px] justify-center whitespace-nowrap rounded-[10px] px-4 text-[15.5px] font-bold no-underline ${FOCUS} ${it.active ? "bg-[#5b2bb5] text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-[#5b2bb5]"}`}>
+            <Link href={it.href} title={it.title} aria-current={it.active ? "true" : undefined} className={`relative flex h-[44px] min-w-[92px] items-center min-[1600px]:min-w-[112px] justify-center whitespace-nowrap rounded-[10px] px-4 text-[15.5px] font-bold no-underline ${FOCUS} ${it.active ? "bg-module text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module"}`}>
               {it.label}
-              {it.marker ? <span aria-hidden className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${it.active ? "bg-white" : "bg-[#5b2bb5]"}`} /> : null}
+              {it.marker ? <span aria-hidden className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${it.active ? "bg-white" : "bg-module"}`} /> : null}
             </Link>
           </li>
         ))}
@@ -85,9 +80,9 @@ export function DetailsPanel({ title, closeHref, children }: { title: string; cl
   return (
     <aside aria-label={title} className="rounded-[12px] border border-[#eaecf0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
       <div className="flex items-center gap-2.5 border-b border-[#eaecf0] px-4 py-3.5">
-        <CalendarDots size={22} weight="bold" aria-hidden className="text-[#5b2bb5]" />
-        <h2 className="mr-auto text-[17px] font-bold text-[#5b2bb5]">{title}</h2>
-        <Link href={closeHref} scroll={false} aria-label={`Close ${title}`} className={`flex h-8 w-8 items-center justify-center rounded-[6px] text-[#5b2bb5] hover:bg-[#f4f1fd] ${FOCUS}`}><X size={20} weight="bold" aria-hidden /></Link>
+        <CalendarDots size={22} weight="bold" aria-hidden className="text-module" />
+        <h2 className="mr-auto text-[17px] font-bold text-module">{title}</h2>
+        <Link href={closeHref} scroll={false} aria-label={`Close ${title}`} className={`flex h-8 w-8 items-center justify-center rounded-[6px] text-module hover:bg-module/[.08] ${FOCUS}`}><X size={20} weight="bold" aria-hidden /></Link>
       </div>
       {children}
     </aside>

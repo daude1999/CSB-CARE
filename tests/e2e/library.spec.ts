@@ -163,12 +163,13 @@ test.describe("Policy Library", () => {
     await expect(inspector).toContainText("Policy not found");
   });
 
-  test("is keyboard reachable from the search shortcut", async ({ page }) => {
+  test("the top-bar search is keyboard reachable", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/policies");
-    await page.keyboard.press("Control+k");
+    // Ctrl+K opens the command bar since 10 Nov 2026 (tests/e2e/command-bar.spec.ts); the box is reached with Tab.
+    await page.locator("#global-search").focus();
     await expect(page.locator("#global-search")).toBeFocused();
-    await page.locator("#global-search").fill("medicines");
+    await page.keyboard.type("medicines");
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/q=medicines/);
   });

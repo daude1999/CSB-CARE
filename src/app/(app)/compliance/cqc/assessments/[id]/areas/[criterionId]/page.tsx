@@ -146,7 +146,7 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
               ) : <p className="px-5 py-3 text-[13.5px] text-[#667085]">No improvement actions for this area.</p>}
               {canAssess && a.status !== "SUPERSEDED" ? (
                 <details className="border-t border-[#eaecf0] px-5 py-3">
-                  <summary className="cursor-pointer text-[13.5px] font-semibold text-[#5925dc]">Raise an improvement action</summary>
+                  <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Raise an improvement action</summary>
                   <form action={improvementActionAction} className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="assessmentId" value={a.id} /><input type="hidden" name="criterionId" value={c.id} />
                     <label className="md:col-span-2"><span className="label">What needs to happen</span><input name="title" className="input" required minLength={3} /></label>

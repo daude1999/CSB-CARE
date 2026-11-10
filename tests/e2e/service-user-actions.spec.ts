@@ -28,7 +28,7 @@ test.describe("All Service Users", () => {
     await page.goto("/rota/service-users");
     const tabs = page.getByTestId("rota-tabs-people").getByRole("link");
     await expect(tabs).toHaveText(["All Service Users", "Care Coordinator", "Incidents", "Visit Notes"]);
-    await expect(page.getByRole("heading", { level: 2, name: "All Service Users" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "All Service Users" })).toBeVisible();
     await expect(page.getByTestId("add-service-user")).toBeVisible();
     await expect(page.getByTestId("update-service-user")).toBeVisible();
     const filters = page.getByRole("region", { name: "Filters" });

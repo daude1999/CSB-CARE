@@ -10,7 +10,20 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
 | 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
 | 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
-| 5. UX and responsiveness | Not started. Shares ground with the colour system redesign (`redesign-colour-system`); that branch owns the page frame, header, tabs and tailwind tokens. |
+| 5. UX and responsiveness | On `enterprise-readiness-5-ux` (PR #138). The colour system redesign (#134 to #137) is now in `main` and merged into this branch. |
+
+## Approved colour redesign (10 Nov 2026, four PRs on branch `redesign-colour-system`, not merged)
+The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
+the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple
+is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
+Breadcrumb, description and secondary-button opacities were raised to meet WCAG AA (owner to confirm). PR 2: Rota
+Dashboard tiles and Daily Rota list. PR 3: Daily Rota Board and visit drawer. PR 4: Ctrl+K command bar. Details,
+contrast ratios and every replaced header: `COLOUR_SYSTEM.md`. PR 1 is #134. PR 2 (branch `redesign-rota-tiles-list`,
+stacked on PR 1) restyles the four call tiles and reorders, groups and stripes the Daily Rota list. PR 3 (branch
+`redesign-board-drawer`, stacked on PR 2) adds the Board as the Daily Rota's default view and the visit drawer, sharing
+the Advanced Rota planner's grouping and move rules (`src/server/rota/board.ts`); every move still goes through the
+eligibility service. PR 4 (branch `redesign-command-bar`, stacked on PR 3) adds the Ctrl+K command bar: service users, staff,
+today's visits, pages and actions, scoped on the server (`src/server/search/command.ts`).
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

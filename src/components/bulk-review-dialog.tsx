@@ -240,7 +240,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
           {phase === "results" ? (
             <>
               {notChanged.length ? <button type="button" onClick={() => finish(true)} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14px] font-semibold">Keep the {plural(notChanged.length, "visit")} not changed ticked</button> : null}
-              <button type="button" autoFocus onClick={() => finish(false)} className="h-10 rounded-[8px] bg-[#5b2bb5] px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398]">Close</button>
+              <button type="button" autoFocus onClick={() => finish(false)} className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398]">Close</button>
             </>
           ) : (
             <>
@@ -249,7 +249,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                 type="button"
                 onClick={confirm}
                 disabled={phase !== "review" || !will.length || (complete && !confirmed)}
-                className="h-10 rounded-[8px] bg-[#5b2bb5] px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]"
+                className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]"
               >
                 {phase === "running" ? "Applying…" : !will.length && phase === "review" ? "Nothing to change" : complete ? `Confirm Completion (${will.length})` : `Confirm: ${request.label} (${will.length})`}
               </button>
@@ -269,7 +269,7 @@ function ResultTable({ caption, rows, tone, showWarnings = false }: { caption: s
         <tbody>
           {rows.map((r) => (
             <tr key={r.visitId} className="border-t border-[#f2f4f7] align-top" data-testid={tone === "bad" ? "bulk-failed-row" : "bulk-result-row"}>
-              <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-medium">{r.reference === "—" ? "—" : <a href={`/rota/visits/${r.visitId}`} target="_blank" rel="noreferrer" className="text-[#5b2bb5]">{r.reference}</a>}</th>
+              <th scope="row" className="whitespace-nowrap px-3 py-2 text-left font-medium">{r.reference === "—" ? "—" : <a href={`/rota/visits/${r.visitId}`} target="_blank" rel="noreferrer" className="text-module">{r.reference}</a>}</th>
               <td className="px-3 py-2">{showWarnings ? r.warnings?.join(". ") : r.message}</td>
             </tr>
           ))}

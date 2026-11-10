@@ -2,6 +2,7 @@
 
 import { useMemo,useRef,useState,type FormEvent } from "react";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { ArrowRight, ArrowUp, CheckCircle, ChatCenteredDots, FileText, FolderOpen, LockKey, Plus, Sparkle, WarningCircle } from "@phosphor-icons/react";
 import { askCsbCoordinator } from "@/app/csb-coordinator-chat-actions";
 
@@ -45,24 +46,14 @@ export function CsbCoordinatorWorkspace({cases,initialId,aiEnabled}:{cases:Case[
   }
   function onSubmit(e:FormEvent<HTMLFormElement>){e.preventDefault();void send(question);}
   return <div className="space-y-5">
-    <div className="relative overflow-hidden rounded-[24px] border border-[#dce8e8] bg-gradient-to-br from-[#edf9f7] via-white to-[#f2f6ff] px-6 py-6 shadow-sm sm:px-8">
-      <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-[#d5f0ec] blur-3xl" />
-      <div className="relative flex flex-wrap items-start justify-between gap-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#166d78] text-white shadow-md shadow-teal-900/10"><Sparkle size={27} weight="fill"/></div>
-          <div><div className="mb-1 text-xs font-semibold uppercase tracking-[0.19em] text-[#467985]">Care operations intelligence</div>
-            <h1 className="text-[28px] font-bold tracking-tight text-[#17364b]">AI CSB Coordinator</h1>
-            <p className="mt-1 max-w-xl text-sm leading-6 text-[#50687b]">Your connected workspace for support plans, service-user setup, care documentation and rota preparation.</p>
-          </div>
-        </div>
-        <Link href="/rota/coordinator" className="inline-flex items-center gap-2 rounded-xl border border-[#c7d8da] bg-white px-4 py-2.5 text-sm font-semibold text-[#17636c] shadow-sm transition hover:bg-[#eff9f8]"><Plus size={16} weight="bold"/> New intake</Link>
-      </div>
-      <div className="relative mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <ModuleHeader title="AI CSB Coordinator" description="Your connected workspace for support plans, service-user setup, care documentation and rota preparation." actions={<Link href="/rota/coordinator" className="mh-btn mh-btn-primary"><Plus size={16} weight="bold"/> New intake</Link>} />
+    <div className="panel">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           {n:ready,label:"Ready to confirm",icon:<CheckCircle size={17}/>},
           {n:saving,label:"Being saved",icon:<LockKey size={17}/>},
           {n:totalOpen,label:"Facts to review",icon:<FileText size={17}/>},
-        ].map(x=><div key={x.label} className="rounded-xl border border-white/80 bg-white/80 p-3 shadow-sm"><div className="mb-2 flex items-center gap-2 text-[#557284]">{x.icon}<span className="text-xs">{x.label}</span></div><div className="text-2xl font-semibold tracking-tight text-[#18384b]">{x.n}</div></div>)}
+        ].map(x=><div key={x.label} className="rounded-xl border border-rule bg-page p-3"><div className="mb-2 flex items-center gap-2 text-[#557284]">{x.icon}<span className="text-xs">{x.label}</span></div><div className="text-2xl font-semibold tracking-tight text-[#18384b]">{x.n}</div></div>)}
       </div>
     </div>
     <div className="grid min-h-[655px] gap-4 xl:grid-cols-[330px_minmax(0,1fr)]">

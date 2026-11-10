@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ModuleHeader } from "@/components/module-header-band";
 import type { OrganisationSettings, State, User } from "@/hr/lib/domain";
 
 /** Types and small helpers shared by the HR Hub's screens (split out of hub.tsx so each screen can live in its own file). */
@@ -28,13 +29,6 @@ export function PageHeading({
   subtitle: string;
   action?: ReactNode;
 }) {
-  return (
-    <div className="page-heading">
-      <div>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
-      </div>
-      {action}
-    </div>
-  );
+  // The shared module band (owner's colour redesign, 10 Nov 2026).
+  return <ModuleHeader title={title} description={subtitle} actions={action} module="hr" />;
 }

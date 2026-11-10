@@ -8,12 +8,12 @@ import { AdjustVisitTime } from "@/components/adjust-visit-time";
 
 type Rota = Awaited<ReturnType<typeof serviceUserRota>>;
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 const TH = "whitespace-nowrap px-2 py-2.5 text-left text-[13.5px] font-bold text-[#101828]";
 const TD = "px-2 py-2 align-top";
 const NAV = `inline-flex h-9 items-center gap-1 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-semibold text-[#101828] no-underline hover:bg-slate-50 ${FOCUS}`;
-const ACTION = `inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1 text-[13.5px] text-[#5b2bb5] no-underline hover:bg-[#f4f1fd] ${FOCUS}`;
-const WARN_TONE: Record<string, string> = { "Manual change": "bg-[#f4f1fd] text-[#4b1f9e]", "Time locked": "bg-[#eef4ff] text-[#1d4f91]", "Not published": "bg-[#f2f4f7] text-[#344054]", "Needs review": "bg-[#fffaeb] text-[#93370d]" };
+const ACTION = `inline-flex items-center gap-1 rounded-[6px] px-1.5 py-1 text-[13.5px] text-module no-underline hover:bg-module/[.08] ${FOCUS}`;
+const WARN_TONE: Record<string, string> = { "Manual change": "bg-module/[.08] text-[#4b1f9e]", "Time locked": "bg-[#eef4ff] text-[#1d4f91]", "Not published": "bg-[#f2f4f7] text-[#344054]", "Needs review": "bg-[#fffaeb] text-[#93370d]" };
 
 /**
  * Service User Profile -> Visits -> Rota: the person's actual visits for one week. Same Visit rows as the Daily Rota;
@@ -48,7 +48,7 @@ export function ServiceUserRotaTab({ base, rota, filter, thisMonday, canEdit, ca
         <p className="text-[15px] font-semibold text-[#101828]" data-testid="rota-range">{range} <span className="text-[13.5px] font-normal text-[#667085]">· Week {rota.cycleWeek} of the cycle</span></p>
         <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Show visits">
           {SU_ROTA_FILTERS.map((f) => (
-            <Link key={f} href={href(rota.weekStart, f)} aria-pressed={f === filter} className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13.5px] no-underline ${FOCUS} ${f === filter ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white text-[#101828] hover:bg-[#f4f1fd]"}`}>
+            <Link key={f} href={href(rota.weekStart, f)} aria-pressed={f === filter} className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13.5px] no-underline ${FOCUS} ${f === filter ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white text-[#101828] hover:bg-module/[.08]"}`}>
               {SU_ROTA_FILTER_LABEL[f]}<span className={`tabular-nums ${f === filter ? "text-white/85" : "text-[#667085]"}`}>{rota.counts[f]}</span>
             </Link>
           ))}

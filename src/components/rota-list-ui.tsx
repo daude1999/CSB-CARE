@@ -8,8 +8,8 @@ import { AutoSubmitForm } from "@/components/auto-submit";
  * its sister screens (Unassigned Visits, Coverage History) look and behave the same.
  */
 
-export const BTN = "flex h-10 items-center gap-2 rounded-[8px] px-4 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]";
-export const BTN_PRIMARY = `${BTN} bg-[#5b2bb5] text-white hover:bg-[#4c2398]`;
+export const BTN = "flex h-10 items-center gap-2 rounded-[8px] px-4 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+export const BTN_PRIMARY = `${BTN} bg-module text-white hover:bg-[#4c2398]`;
 export const BTN_SECONDARY = `${BTN} border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50`;
 export const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]";
 export const PANEL = "min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]";
@@ -31,7 +31,7 @@ export function FilterSelect({ name, label, value, children }: { name: string; l
 export function SortHead({ active, dir, href, children, className = "" }: { active: boolean; dir: "asc" | "desc"; href: string; children: ReactNode; className?: string }) {
   return (
     <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={`${TH} ${className}`}>
-      <Link href={href} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-[#5b2bb5]">
+      <Link href={href} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-module">
         {children}{active ? (dir === "asc" ? <CaretUp size={11} weight="fill" aria-hidden /> : <CaretDown size={11} weight="fill" aria-hidden />) : null}
       </Link>
     </th>
@@ -50,7 +50,7 @@ export function ListFooter({ total, page, pages, per, noun, href, hidden, testId
           {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
             <span key={n} className="flex items-center gap-1">
               {i && n - arr[i - 1]! > 1 ? <span className="px-0.5 text-[#667085]">…</span> : null}
-              <Link href={href(n === 1 ? undefined : n)} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-[#5b2bb5] bg-[#5b2bb5] font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+              <Link href={href(n === 1 ? undefined : n)} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
             </span>
           ))}
           {page < pages ? <Link href={href(page + 1)} aria-label="Next page" className="flex h-8 w-8 items-center justify-center rounded text-[#344054] hover:bg-slate-100"><CaretRight size={14} weight="bold" aria-hidden /></Link> : null}

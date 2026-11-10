@@ -379,20 +379,3 @@ export function MobileMenu({ light = false, ...props }: SidebarProps & { light?:
     </>
   );
 }
-
-/** Ctrl+K or ⌘K jumps to the global search, as the shortcut hint in the search box says. */
-export function SearchShortcut({ targetId }: { targetId: string }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // A page with its own search (the HR Hub's command palette) has already taken the shortcut.
-      if (e.defaultPrevented) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        (document.getElementById(targetId) as HTMLInputElement | null)?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [targetId]);
-  return null;
-}

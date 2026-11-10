@@ -1,5 +1,5 @@
 "use client";
-// Line tabs in the CSB board-paper style. The structure (root, list, trigger, panel)
+// Underline tabs, the one tab style for every module (.tabs-line / .tab-line in globals.css). The structure (root, list, trigger, panel)
 // follows UIAble's tabs component (MIT, codedthemes/uiable), built on Radix.
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import type { ReactNode } from "react";
@@ -14,7 +14,7 @@ export function Tabs({ defaultValue, children, label }: { defaultValue: string; 
 
 export function TabList({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <TabsPrimitive.List aria-label={label} className="-mb-px flex gap-6 overflow-x-auto border-b border-slate-300">
+    <TabsPrimitive.List aria-label={label} className="tabs-line">
       {children}
     </TabsPrimitive.List>
   );
@@ -24,7 +24,7 @@ export function Tab({ value, children, count }: { value: string; children: React
   return (
     <TabsPrimitive.Trigger
       value={value}
-      className="-mb-px flex shrink-0 items-baseline gap-1.5 whitespace-nowrap border-b-2 border-transparent pb-2.5 pt-1 text-sm font-medium text-slate-500 transition-colors hover:text-navy-900 data-[state=active]:border-navy-900 data-[state=active]:text-navy-900 focus-visible:rounded-sm focus-visible:ring-offset-0"
+      className="tab-line"
     >
       {children}
       {count !== undefined ? <span className="font-mono text-xs font-normal text-slate-400">{count}</span> : null}
@@ -47,7 +47,7 @@ export function TabPanel({ value, children }: { value: string; children: ReactNo
  */
 export function TileTabList({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <TabsPrimitive.List aria-label={label} className="flex gap-1 overflow-x-auto rounded-t-[6px] border-b border-slate-200 bg-white px-2">
+    <TabsPrimitive.List aria-label={label} className="tabs-line rounded-t-[6px] bg-white px-2">
       {children}
     </TabsPrimitive.List>
   );
@@ -57,7 +57,7 @@ export function TileTab({ value, icon, children, count }: { value: string; icon:
   return (
     <TabsPrimitive.Trigger
       value={value}
-      className="relative -mb-px flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-[3px] border-transparent px-2.5 text-[14px] font-medium text-slate-600 transition-colors hover:text-slate-900 data-[state=active]:border-[var(--module,#1f5fd1)] data-[state=active]:text-[#0646b1] focus-visible:ring-offset-0 [&_svg]:h-[18px] [&_svg]:w-[18px]"
+      className="tab-line [&_svg]:h-[18px] [&_svg]:w-[18px]"
     >
       <span aria-hidden="true" className="flex">{icon}</span>
       {children}

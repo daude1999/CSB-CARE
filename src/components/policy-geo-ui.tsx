@@ -35,7 +35,7 @@ export function GeneratorSteps({ current }: { current: number }) {
         const state = n < current ? "done" : n === current ? "current" : "todo";
         return (
           <li key={s} className="flex items-center gap-1" aria-current={state === "current" ? "step" : undefined}>
-            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold ${state === "current" ? "bg-[#5b2bb5] text-white" : state === "done" ? "bg-[#ecfdf3] text-[#067647]" : "bg-[#f2f4f7] text-[#667085]"}`}>{state === "done" ? "✓" : n}</span>
+            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold ${state === "current" ? "bg-module text-white" : state === "done" ? "bg-[#ecfdf3] text-[#067647]" : "bg-[#f2f4f7] text-[#667085]"}`}>{state === "done" ? "✓" : n}</span>
             <span className={state === "current" ? "font-semibold text-[#101828]" : "text-[#475467]"}>{s}</span>
             {n < GENERATOR_STEPS.length ? <span aria-hidden="true" className="mx-1.5 text-[#98a2b3]">›</span> : null}
           </li>

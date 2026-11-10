@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { Alarm, Cake, CalendarBlank, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
+import { ModuleHeader } from "@/components/module-header-band";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -22,37 +23,46 @@ const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : "0
 const ddmmyyyy = (iso: string) => fmtLondonDate(iso, { day: "2-digit", month: "2-digit", year: "numeric" });
 const ddmm = (d: Date) => `${d.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "2-digit" })} ${londonTime(d)}`;
 
+/**
+ * The four call tiles (approved redesign, 10 Nov 2026): a white card with a 7% tint and a 28% border of the tile's
+ * status colour, a solid status-colour icon chip, the figure and percentage in the status colour, supporting text in
+ * grey, and a 5px bar along the bottom filled to the tile's share of the day's visits.
+ */
 const CARD = {
-  green: "bg-[#15803d]",
-  orange: "bg-[#c0570c]",
-  red: "bg-[#c42b2f]",
-  blue: "bg-[#0a72b5]",
+  green: { card: "bg-tile-completed/[.07] border-tile-completed/[.28]", chip: "bg-tile-completed", text: "text-tile-completed", bar: "bg-tile-completed", track: "bg-tile-completed/[.14]" },
+  orange: { card: "bg-tile-late/[.07] border-tile-late/[.28]", chip: "bg-tile-late", text: "text-tile-late", bar: "bg-tile-late", track: "bg-tile-late/[.14]" },
+  red: { card: "bg-tile-missed/[.07] border-tile-missed/[.28]", chip: "bg-tile-missed", text: "text-tile-missed", bar: "bg-tile-missed", track: "bg-tile-missed/[.14]" },
+  blue: { card: "bg-tile-unassigned/[.07] border-tile-unassigned/[.28]", chip: "bg-tile-unassigned", text: "text-tile-unassigned", bar: "bg-tile-unassigned", track: "bg-tile-unassigned/[.14]" },
 } as const;
 
-/** One of the four call cards: a solid colour block, white text, the count, its share of the day and what it counts. */
-function CallCard({ tone, icon, label, value, share, note, href, testId, title }: { tone: keyof typeof CARD; icon: ReactNode; label: string; value: number | string; share: string | null; note: string; href: string | null; testId: string; title?: string }) {
+function CallCard({ tone, icon, label, value, share, fraction, note, href, testId, title }: { tone: keyof typeof CARD; icon: ReactNode; label: string; value: number | string; share: string | null; fraction: number; note: string; href: string | null; testId: string; title?: string }) {
+  const t = CARD[tone];
+  const width = `${Math.max(0, Math.min(100, fraction * 100)).toFixed(1)}%`;
   const body = (
     <>
-      <span aria-hidden className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white/20">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold">{label}</span>
-        <span className="mt-0.5 flex items-center">
-          <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
-          {share ? <span className="ml-auto border-l border-white/50 pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
+      <span className="flex items-center gap-4 px-4 pb-3.5 pt-3">
+        <span aria-hidden className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] text-white ${t.chip}`}>{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold text-ink">{label}</span>
+          <span className={`mt-0.5 flex items-center ${t.text}`}>
+            <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
+            {share ? <span className="ml-auto border-l border-rule pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
+          </span>
+          <span className="mt-1.5 block truncate text-[12.5px] text-status-ink">{note}</span>
         </span>
-        <span className="mt-1.5 block truncate text-[12.5px] text-white/95">{note}</span>
       </span>
+      <span aria-hidden data-tile-bar className={`absolute inset-x-0 bottom-0 h-[5px] ${t.track}`}><span className={`block h-full ${t.bar}`} style={{ width }} /></span>
     </>
   );
-  const cls = `flex min-w-0 items-center gap-4 rounded-[10px] px-4 py-3 text-white no-underline shadow-[0_1px_3px_rgba(16,24,40,0.12)] ${CARD[tone]}`;
-  return href ? <Link href={href} title={title} data-testid={testId} className={`${cls} hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b2bb5]`}>{body}</Link> : <div data-testid={testId} className={cls}>{body}</div>;
+  const cls = `relative flex min-w-0 flex-col overflow-hidden rounded-[10px] border bg-white no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${t.card}`;
+  return href ? <Link href={href} title={title} data-testid={testId} className={`${cls} hover:shadow-[0_2px_6px_rgba(16,24,40,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module`}>{body}</Link> : <div data-testid={testId} className={cls}>{body}</div>;
 }
 
 function Panel({ id, icon, title, count, aside, children, className = "" }: { id: string; icon: ReactNode; title: string; count?: number; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section aria-labelledby={id} className={`flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${className}`}>
       <div className="flex flex-wrap items-center gap-2 px-3.5 pb-2 pt-2.5">
-        <span aria-hidden className="text-[#5b2bb5]">{icon}</span>
+        <span aria-hidden className="text-module">{icon}</span>
         <h2 id={id} className="text-[16.5px] font-bold text-[#101828]">{title}</h2>
         {count !== undefined ? <span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-[#344054]">{count.toLocaleString("en-GB")}</span> : null}
         {aside ? <span className="ml-auto flex items-center gap-2">{aside}</span> : null}
@@ -62,9 +72,9 @@ function Panel({ id, icon, title, count, aside, children, className = "" }: { id
   );
 }
 
-const ICON_LINK = "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]";
+const ICON_LINK = "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module";
 function RowActions({ items }: { items: { href: string; label: string; icon: ReactNode; tone: "green" | "blue" | "violet" }[] }) {
-  const tone = { green: "bg-[#e7f6ec] text-[#15803d]", blue: "bg-[#e6f1fb] text-[#0a72b5]", violet: "bg-[#efeafc] text-[#5b2bb5]" };
+  const tone = { green: "bg-[#e7f6ec] text-[#15803d]", blue: "bg-[#e6f1fb] text-[#0a72b5]", violet: "bg-[#efeafc] text-module" };
   return (
     <span className="flex gap-1">
       {items.map((i) => <Link key={i.href} href={i.href} title={i.label} aria-label={i.label} className={`${ICON_LINK} ${tone[i.tone]}`}>{i.icon}</Link>)}
@@ -83,7 +93,7 @@ const STATUS_PILL: Record<TeamDayStatus, string> = {
 function Issue({ href, icon, value, label, tone, testId }: { href: string; icon: ReactNode; value: number; label: string; tone: string; testId: string }) {
   return (
     <li className="min-w-0 flex-1">
-      <Link href={href} data-testid={testId} className="flex items-center justify-center gap-4 rounded-[8px] px-3 py-1.5 no-underline hover:bg-[#fafafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
+      <Link href={href} data-testid={testId} className="flex items-center justify-center gap-4 rounded-[8px] px-3 py-1.5 no-underline hover:bg-[#fafafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
         <span aria-hidden style={{ color: tone }}>{icon}</span>
         <span className="min-w-0">
           <span data-value className="block text-[19px] font-bold leading-tight tabular-nums text-[#101828]">{value}</span>
@@ -119,7 +129,7 @@ function BirthdayTable({ who, rows, unavailable }: { who: string; rows: Birthday
 
 function QuickAction({ href, icon, label, badge, tone = "#5b2bb5" }: { href: string; icon: ReactNode; label: string; badge?: number; tone?: string }) {
   return (
-    <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-[14px] font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-[#faf8ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]">
+    <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-[14px] font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-module/[.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
       <span aria-hidden style={{ color: tone }}>{icon}</span>
       <span className="line-clamp-2 min-w-0 flex-1 leading-[1.2]">{label}</span>
       {badge ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12.5px] font-bold tabular-nums text-white" style={{ background: tone }}>{badge}</span> : null}
@@ -149,42 +159,36 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
   const statuses: TeamDayStatus[] = ["On rota", "Off rota", "On leave", "Off sick", "Not ready"];
 
   return (
-    <div className="rota-home -mt-1 space-y-3">
-      <header className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-2">
-        <div className="min-w-0">
-          <h1 className="text-[26px] font-bold leading-tight text-[#101828]">Rota Dashboard</h1>
-          <p className="text-[14.5px] text-[#475467]">Visit performance, people and reminders for the day · <span className="font-medium text-[#101828]">{branchName}</span></p>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <nav aria-label="Change day" className="flex items-center justify-center gap-2.5">
-            <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
-            <p className="flex items-center gap-2.5 text-[21px] font-bold text-[#3b1f7a]"><CalendarBlank size={24} aria-hidden className="text-[#475467]" /><span>{ordinalDate(date)}</span></p>
-            <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="flex h-9 w-9 items-center justify-center rounded-full text-[#344054] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5b2bb5]"><CaretRight size={20} weight="bold" aria-hidden /></Link>
-          </nav>
-        <p className="text-[16px] font-semibold leading-6 tabular-nums text-[#475467] sm:border-l sm:border-[#d0d5dd] sm:pl-2.5" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
-        </div>
-        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
+    <div className="rota-home space-y-3">
+      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>}>
+        <nav aria-label="Change day" className="flex items-center gap-2.5">
+          <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-round"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
+          <p className="flex items-center gap-2.5 text-[21px] font-bold text-white sm:text-[24px]"><CalendarBlank size={24} aria-hidden /><span>{ordinalDate(date)}</span></p>
+          <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-round"><CaretRight size={20} weight="bold" aria-hidden /></Link>
+        </nav>
+        <p className="text-[16px] font-semibold leading-6 tabular-nums text-white sm:border-l sm:border-white/38 sm:pl-3" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
+        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2">
           {d.branches.length > 1 ? (
             <label><span className="sr-only">Branch</span>
-              <select name="branch" defaultValue={branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828]"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+              <select name="branch" defaultValue={branch ?? ""} className="mh-field"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
             </label>
           ) : null}
-          <label className="flex h-10 items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3"><CalendarBlank size={17} aria-hidden className="text-[#475467]" /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] text-[#101828]" /></label>
-          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="flex h-10 items-center rounded-[8px] border border-[#d0d5dd] bg-[#f4f2fb] px-4 text-[14px] font-semibold text-[#101828] no-underline hover:bg-[#ebe6f9]">Today</Link>
+          <label className="mh-field flex items-center gap-2"><CalendarBlank size={17} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px]" /></label>
+          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn mh-btn-primary">Today</Link>
         </AutoSubmitForm>
-      </header>
+      </ModuleHeader>
       <Flash searchParams={sp} />
       {d.notBuilt ? <NotBuiltNotice date={date} canBuild={canBuild} /> : null}
       {date === d.today ? <AutoRefresh seconds={60} /> : null}
 
       <section aria-label="Calls on this day" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-        <CallCard tone="green" testId="card-completed" icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />
-        <CallCard tone="orange" testId="card-late" icon={<Clock {...icon} />} label="Late Calls" value={c.late} share={pct(c.late, c.total)} note={`${c.late} calls ${c.lateAfterMin}+ minutes late`} href={day({ view: "late" })} />
-        <CallCard tone="red" testId="card-missed" icon={<X {...icon} />} label="Missed Calls" value={c.missed} share={pct(c.missed, c.total)} note={`${c.missed} scheduled visits not clocked into`} href={`/rota/missed?period=day&date=${date}`} />
+        <CallCard tone="green" testId="card-completed" fraction={c.total ? c.complete / c.total : 0} icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />
+        <CallCard tone="orange" testId="card-late" fraction={c.total ? c.late / c.total : 0} icon={<Clock {...icon} />} label="Late Calls" value={c.late} share={pct(c.late, c.total)} note={`${c.late} calls ${c.lateAfterMin}+ minutes late`} href={day({ view: "late" })} />
+        <CallCard tone="red" testId="card-missed" fraction={c.total ? c.missed / c.total : 0} icon={<X {...icon} />} label="Missed Calls" value={c.missed} share={pct(c.missed, c.total)} note={`${c.missed} scheduled visits not clocked into`} href={`/rota/missed?period=day&date=${date}`} />
         {c.missedMeds === null ? (
-          <CallCard tone="blue" testId="card-unassigned" icon={<UsersThree {...icon} />} label="Unassigned Calls" value={c.unassigned} share={pct(c.unassigned, c.total)} note={`${c.unassigned} visits short of a carer`} title="Shown in place of missed medication while medication records are switched off in Rota Settings" href={day({ view: "unassigned" })} />
+          <CallCard tone="blue" testId="card-unassigned" fraction={c.total ? c.unassigned / c.total : 0} icon={<UsersThree {...icon} />} label="Unassigned Calls" value={c.unassigned} share={pct(c.unassigned, c.total)} note={`${c.unassigned} visits short of a carer`} title="Shown in place of missed medication while medication records are switched off in Rota Settings" href={day({ view: "unassigned" })} />
         ) : (
-          <CallCard tone="blue" testId="card-missed-meds" icon={<FirstAidKit {...icon} />} label="Calls with Missed Meds" value={c.missedMeds} share={pct(c.missedMeds, c.total)} note={`${c.missedMeds} visits with a missed medication alert`} href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" />
+          <CallCard tone="blue" testId="card-missed-meds" fraction={c.total ? c.missedMeds / c.total : 0} icon={<FirstAidKit {...icon} />} label="Calls with Missed Meds" value={c.missedMeds} share={pct(c.missedMeds, c.total)} note={`${c.missedMeds} visits with a missed medication alert`} href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" />
         )}
       </section>
 
