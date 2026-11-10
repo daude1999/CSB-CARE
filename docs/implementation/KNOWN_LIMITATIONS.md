@@ -115,3 +115,15 @@ Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
 - Six results are shown per group. The top bar's search page still lists up to 15.
 - Actions are links to existing screens. Nothing is changed from inside the command bar.
 - The Evantix Platform Admin Centre has its own shell and keeps its own quick search.
+
+## Colour redesign, PR 5: Overview (10 Nov 2026)
+- Call rounds come from today's visits: one round per call type that has visits, timed by its first and last visit
+  (call types have no set hours). "Done" means nothing is left to deliver in the round (completed, missed or not
+  delivered); "Now" is the latest round that has started and still has visits to come.
+- The Policy tile's figure is the sum of the Policy items in Needs your attention; its breakdown line is cut short with
+  an ellipsis when it does not fit (the full text is in the tooltip).
+- The Reporting tile's figure and bars are completed visits for the last seven days, for people with rota access. Others
+  see the number of report exports instead.
+- "View all" still opens Notifications, which is not filtered to the attention items.
+- Rearrange orders the four tiles along the bottom. The Rota tile and Needs your attention stay at the top.
+

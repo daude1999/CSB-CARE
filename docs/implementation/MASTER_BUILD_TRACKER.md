@@ -12,7 +12,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
 | 5. UX and responsiveness | Built on `enterprise-readiness-5-ux`: `UX_RESPONSIVENESS_AUDIT.md` (all 174 pages, 141 timed), the 200 ms feedback test on the five main pages, double-submission stopped, Admin Centre given the shell's feedback and its own error screen, the heaviest page's slow check streamed, audits and actions paged, three contrast fixes. Not done, with reasons in the audit: type scale and page frame (waits for the colour redesign), HR Hub file split (owner asked), per-section `loading.tsx`, optimistic updates, toasts. |
 
-## Approved colour redesign (10 Nov 2026, four PRs on branch `redesign-colour-system`, not merged)
+## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview in review)
 The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in
 the module colour, `#f6f7fa` page frame, one underline tab style, main buttons in the module colour (Policy's purple
 is now Policy blue), and the AI CSB Coordinator launcher moved into the top bar. Tokens are in `tailwind.config.ts`.
@@ -23,7 +23,9 @@ stacked on PR 1) restyles the four call tiles and reorders, groups and stripes t
 `redesign-board-drawer`, stacked on PR 2) adds the Board as the Daily Rota's default view and the visit drawer, sharing
 the Advanced Rota planner's grouping and move rules (`src/server/rota/board.ts`); every move still goes through the
 eligibility service. PR 4 (branch `redesign-command-bar`, stacked on PR 3) adds the Ctrl+K command bar: service users, staff,
-today's visits, pages and actions, scoped on the server (`src/server/search/command.ts`).
+today's visits, pages and actions, scoped on the server (`src/server/search/command.ts`). PR 5 rebuilds the Overview
+body to the owner's picture of 10 Nov 2026: a greeting, the Rota tile with today's call rounds and a cover alert, Needs
+your attention with one action per row, and four solid module tiles that Rearrange reorders. Night mode follow-up: #139.
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

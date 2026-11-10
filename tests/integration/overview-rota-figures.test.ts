@@ -38,6 +38,13 @@ describe("Overview Rota figures", () => {
       expect(snap!.staffOnRota).toBe(dash.calls.staffOnDuty);
       // The same figure as the "Unassigned visits today" row in Needs your attention.
       expect(head!.unassignedToday).toBe(live.filter((v) => !["COMPLETED", "NOT_DELIVERED"].includes(v.status) && v.flags.unassignedSlots > 0).length);
+      // The Rota tile (10 Nov 2026 redesign): "of N visits done today" and one round per call type that has visits.
+      expect(snap!.visitsToday).toBe(live.length);
+      expect(snap!.rounds.reduce((n, r) => n + r.total, 0)).toBe(live.length);
+      expect(snap!.rounds.reduce((n, r) => n + r.done, 0)).toBe(snap!.completedToday);
+      expect(new Set(snap!.rounds.map((r) => r.name))).toEqual(new Set(live.map((v) => v.callType.name)));
+      // "Needs a carer" in the alert bar agrees with the Needs your attention row.
+      expect(snap!.rounds.reduce((n, r) => n + r.needsCarer, 0)).toBe(head!.unassignedToday);
     }
   });
 

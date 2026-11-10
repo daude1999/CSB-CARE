@@ -79,27 +79,23 @@ export function LibrarySkeleton() {
   );
 }
 
-/** The Overview: greeting, then one tile per module. */
+/** The Overview: greeting, the Rota tile beside Needs your attention, then four module tiles. */
 export function OverviewSkeleton() {
   return (
     <Busy label="Loading the overview">
       <div className="ov-root">
-        <div className="px-4 pb-4 pt-5 md:px-[33px]">
-          <Bar className="h-[13px] w-[70px]" />
-          <Bar className="mt-2 h-[40px] w-[min(380px,80%)]" />
-          <Bar className="mt-3 h-[14px] w-[min(640px,90%)]" />
-        </div>
-        <div className="skeleton-pulse grid gap-3.5 px-4 pb-6 sm:grid-cols-2 md:px-[33px] xl:grid-cols-4">
-          {Array.from({ length: 6 }, (_, n) => (
-            <div key={n} className="ov-tile">
-              <div className="h-[48px] bg-[#e9ebef]" />
-              <div className="space-y-2.5 p-[14px]">
-                <Bar className="h-[12px] w-[80%]" />
-                <Bar className="h-[12px] w-[65%]" />
-                <Bar className="h-[12px] w-[72%]" />
-              </div>
-            </div>
-          ))}
+        <div className="skeleton-pulse space-y-4 px-4 pb-6 pt-5">
+          <div>
+            <Bar className="h-[30px] w-[min(320px,70%)]" />
+            <Bar className="mt-2 h-[16px] w-[min(460px,90%)]" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 min-[1100px]:grid-cols-[minmax(0,60fr)_minmax(0,40fr)]">
+            <div className="h-[352px] rounded-[18px] bg-[#e9ebef]" />
+            <div className="h-[352px] rounded-[18px] border border-[#eaecf0] bg-white" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 min-[1100px]:grid-cols-4">
+            {Array.from({ length: 4 }, (_, n) => <div key={n} className="h-[224px] rounded-[18px] bg-[#e9ebef]" />)}
+          </div>
         </div>
       </div>
     </Busy>
