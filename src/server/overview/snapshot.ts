@@ -1,7 +1,8 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { addDays, dbDate, londonDate } from "@/lib/london";
+import { addDays, dbDate, londonDate, londonMinute } from "@/lib/london";
+import { overviewRounds, type CallRound } from "@/lib/overview-rounds";
 import { hasOrgPermission, type Ctx } from "@/server/auth/rbac";
 import { branchWhere, memberScope, serviceUserWhere, visitWhere, type Scope } from "@/server/rota/scope";
 
@@ -32,6 +33,10 @@ export interface RotaSnapshot {
    * shadow shifts excluded: the Rota Dashboard's "staff on duty".
    */
   staffOnRota: number;
+  /** Today's visits that are going ahead or were (cancelled visits left out), the Rota tile's "of N visits". */
+  visitsToday: number;
+  /** Today's call rounds, one per call type with visits, with what is done and what still needs a carer. */
+  rounds: CallRound[];
 }
 
 const DAYS = 7;
@@ -57,7 +62,14 @@ export async function rotaSnapshot(ctx: Ctx, now = new Date()): Promise<RotaSnap
     db.visit.count({ where: { ...where, date: dbDate(yesterday), status: "MISSED", statusChangedAt: { lte: sameTimeYesterday } } }),
     db.visit.findMany({
       where: { ...where, date: dbDate(today), status: { notIn: ["CANCELLED"] } },
-      select: { status: true, assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staff: { select: { id: true } } } } },
+      select: {
+        status: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+        carersRequired: true,
+        callType: { select: { name: true } },
+        assignments: { where: { removedAt: null, slot: { not: "SHADOW" } }, select: { staff: { select: { id: true } } } },
+      },
     }),
   ]);
 
@@ -81,6 +93,18 @@ export async function rotaSnapshot(ctx: Ctx, now = new Date()): Promise<RotaSnap
     completedSeries: series("COMPLETED"),
     missedSeries: series("MISSED"),
     staffOnRota: onRota.size,
+    visitsToday: todays.length,
+    // "Needs a carer" is counted as the Rota Dashboard and Daily Rota count it: still to be delivered, a carer slot empty.
+    rounds: overviewRounds(
+      todays.map((v) => ({
+        callType: v.callType.name,
+        start: londonMinute(v.scheduledStart),
+        end: londonMinute(v.scheduledStart) + Math.max(0, Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)),
+        status: v.status,
+        needsCarer: !["COMPLETED", "NOT_DELIVERED"].includes(v.status) && v.assignments.length < v.carersRequired,
+      })),
+      londonMinute(now),
+    ),
   };
 }
 

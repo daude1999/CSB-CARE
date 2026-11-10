@@ -153,19 +153,17 @@
    * Policy Library workspace (docs/design/policy-library-reference.png). Scoped to [data-surface="policy-library"]
    * so the other pages and themes are unchanged. Serif display face, Inter for the interface, warm neutrals.
    */
-  /* Overview: one coloured tile per module, from the approved mock-up. */
+  /* Overview (owner's redesign of 10 Nov 2026): greeting, the Rota lead tile, Needs your attention, module tiles. */
   .ov-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; background: #f3f5f9; min-height: 100%; }
   .ov-root a { text-decoration: none; }
   .ov-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
   .ov-tile { @apply flex flex-col overflow-hidden rounded-[10px] border border-[#e6e9ef] bg-white; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 20px rgb(11 21 48 / 0.05); }
-  .ov-tile-head { @apply flex min-h-[46px] items-center gap-[10px] px-[14px] py-[10px] text-white; }
-  .ov-tile-planned li { color: #5f6b7a; }
-  .ov-num { @apply flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold; background: rgb(255 255 255 / 0.22); }
-  .ov-figures { @apply mx-[14px] mt-1.5 rounded-[7px] px-3 py-2.5; }
-  .ov-cta { @apply mx-4 mb-3 mt-2.5 flex h-[36px] items-center justify-between rounded-[7px] border bg-white px-3.5 text-[13.5px] font-semibold hover:bg-[#fafbfc]; }
-  .ov-preview { @apply mx-3 mt-3 h-[122px] overflow-hidden rounded-[8px] border border-[#e8ebf0] bg-white; }
   .ov-topbar { background: #0b2a4a; font-family: "Inter Variable", var(--font-sans); box-shadow: 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 8px rgb(11 21 48 / 0.18); }
-  .ov-rota-figures { @apply mx-3 mt-3; }
+  .ovx-attention { box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 24px rgb(16 24 40 / 0.05); }
+  .ovx-act { @apply ml-auto inline-flex h-9 shrink-0 items-center rounded-[8px] bg-[#f2f4f7] px-3.5 text-[14px] font-semibold text-[#344054] hover:bg-[#e4e7ec]; }
+  /* The most urgent row's action takes its module colour (set as --tile). */
+  .ovx-act.ovx-act-primary { background-color: var(--tile); color: #fff; }
+  .ovx-act.ovx-act-primary:hover { background-color: color-mix(in srgb, var(--tile) 86%, #000); }
     /*
    * Policy & Compliance look (owner's brief of 3 Nov 2026, six mockups): the same product as HR & Workforce and
    * Rostering. White panels with a hairline border on a light grey page, a breadcrumb header, underlined purple tabs
@@ -531,6 +529,37 @@
 @media screen {
   :root[data-mode="dark"] img.csb-wordmark-ink { content: url("/csb-logo-light.svg"); }
 }
+
+/*
+ * The Overview's solid module tiles. Their colours are the same in light and dark mode (the dark-mode generator leaves
+ * rules naming .dm-fixed alone): white text and white-tinted parts on the module colour, which is set as --tile.
+ * In dark mode only the tile itself is toned towards the page, as the header bands are.
+ */
+.dm-fixed.ovx-solid { position: relative; overflow: hidden; border-radius: 18px; color: #fff; background-color: var(--tile); box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--tile) 75%, transparent); }
+.dm-fixed.ovx-tile { display: flex; flex-direction: column; min-height: 224px; padding: 22px 24px 22px 24px; }
+.dm-fixed.ovx-tile:hover { box-shadow: 0 18px 34px -14px color-mix(in srgb, var(--tile) 85%, transparent); }
+.dm-fixed.ovx-tile:focus-visible { outline: 3px solid var(--tile); outline-offset: 3px; }
+.dm-fixed .ovx-ghost { position: absolute; pointer-events: none; color: #fff; }
+.dm-fixed .ovx-chip { display: flex; height: 38px; width: 38px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 10px; background-color: rgb(255 255 255 / 0.18); color: #fff; }
+.dm-fixed .ovx-title { color: #fff; }
+.dm-fixed .ovx-soft { color: rgb(255 255 255 / 0.92); }
+.dm-fixed .ovx-pill { display: inline-flex; height: 40px; flex-shrink: 0; align-items: center; gap: 6px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.38); background-color: rgb(255 255 255 / 0.14); padding: 0 18px; font-size: 15px; font-weight: 600; color: #fff; }
+.dm-fixed .ovx-pill:hover { border-color: #fff; }
+.dm-fixed .ovx-pill:focus-visible, .dm-fixed .ovx-cover:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.dm-fixed .ovx-round { min-width: 0; border-radius: 12px; border: 1.5px solid transparent; background-color: rgb(255 255 255 / 0.1); padding: 10px 14px; color: #fff; }
+.dm-fixed .ovx-round[data-state="done"] { background-color: #fff; color: var(--tile); }
+.dm-fixed .ovx-round[data-state="now"] { border-color: #fff; background-color: rgb(255 255 255 / 0.12); }
+.dm-fixed .ovx-round-tag { font-size: 12.5px; font-weight: 600; }
+.dm-fixed .ovx-round-of { color: rgb(255 255 255 / 0.9); }
+.dm-fixed .ovx-round[data-state="done"] .ovx-round-of { color: var(--tile); }
+.dm-fixed .ovx-alert { border-radius: 12px; background-color: #fff; color: #101828; }
+.dm-fixed .ovx-cover { margin-left: auto; display: inline-flex; height: 40px; flex-shrink: 0; align-items: center; gap: 6px; border-radius: 9px; background-color: var(--tile); padding: 0 16px; font-size: 15px; font-weight: 600; color: #fff; }
+.dm-fixed .ovx-cover:hover { background-color: color-mix(in srgb, var(--tile) 86%, #000); }
+.dm-fixed .ovx-cover:focus-visible { outline-color: var(--tile); }
+.dm-fixed .ovx-arrow { position: absolute; bottom: 22px; right: 22px; display: flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 999px; background-color: rgb(255 255 255 / 0.2); color: #fff; }
+.dm-fixed.ovx-tile:hover .ovx-arrow { background-color: rgb(255 255 255 / 0.3); }
+.dm-fixed .ovx-bar { display: block; border-radius: 3px 3px 0 0; background-color: rgb(255 255 255 / 0.85); }
+:root[data-mode="dark"] .dm-fixed.ovx-solid { background-color: color-mix(in srgb, var(--tile) 82%, #0d1622); box-shadow: 0 14px 30px -14px rgb(0 0 0 / 0.6); }
 @dark-mode inline-colours;
 
 /* Evantix Platform Admin Centre: denser, purple-accented form controls inside the Admin Centre shell only. */

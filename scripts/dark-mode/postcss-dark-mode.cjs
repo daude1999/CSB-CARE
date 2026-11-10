@@ -185,8 +185,9 @@ const plugin = (opts = {}) => ({
 
     const rules = [];
     root.walkRules((rule) => {
-      // A rule that already names the dark switch was written for night mode by hand, so it is left as written.
-      if (!rule.__csbDark && !insideSkippedAtRule(rule) && !rule.selector.includes("[data-mode=")) rules.push(rule);
+      // A rule that already names the dark switch was written for night mode by hand, and a rule naming .dm-fixed
+      // paints the same colours in both modes (white on a module colour), so both are left as written.
+      if (!rule.__csbDark && !insideSkippedAtRule(rule) && !rule.selector.includes("[data-mode=") && !/\.dm-fixed\b/.test(rule.selector)) rules.push(rule);
     });
     for (const rule of rules) {
       // Theme token blocks get their dark token values.
