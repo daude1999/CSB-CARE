@@ -96,6 +96,9 @@ test("Find Cover from a case: review the checks, confirm, and the recovery visit
   const ref = ((await panel.getByRole("link", { name: /^V-\d{6}-/ }).first().textContent()) ?? "").trim();
   expect(ref).not.toBe("");
   await panel.getByRole("link", { name: "Open the Daily Rota" }).click();
+  // The Daily Rota opens on the Board (colour redesign, PR 3): the recovery visit is a block there, then a row in the list.
+  await expect(page.getByRole("button", { name: new RegExp(`reference ${ref}$`) }).first()).toBeVisible();
+  await page.getByRole("link", { name: "List", exact: true }).click();
   await expect(page.getByLabel(`Select ${ref}`)).toBeVisible();
 
   // The missed visit is still missed and the case is still open.
