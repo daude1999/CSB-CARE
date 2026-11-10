@@ -8,7 +8,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 |---|---|
 | 1. Quality gates | Built on `enterprise-readiness`: `.github/workflows/ci.yml` (schema, types, lint, full vitest in three parts on PostgreSQL 16, HR tests, audit, build; one "Quality gate" check to mark required), `.github/dependabot.yml`, scratch file removed, high and critical audit findings cleared by upgrading existing packages (zod 4, vitest 4, nodemailer 10), four test failures fixed at their causes. Results: `TEST_RESULTS.md`. |
 | 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
-| 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
+| 3. Operations | Built on `enterprise-readiness-3-operations`: request id on every response and in logs, care-record log redaction with a test, job backlog on `/api/health`, invitation and password reset emails (branded HTML and text, limits, copy-link fallback), Sentry EU error tracking (off until `SENTRY_DSN` is set; sends nothing personal), monitoring and alert guide in `docs/OPERATIONS.md`. Owner still to do: create the Sentry account, set up the uptime monitor, configure a mail server. |
 | 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
 | 5. UX and responsiveness | Not started. Shares ground with the colour system redesign (`redesign-colour-system`); that branch owns the page frame, header, tabs and tailwind tokens. |
 
