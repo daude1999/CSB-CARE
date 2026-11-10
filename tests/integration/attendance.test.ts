@@ -186,10 +186,15 @@ describe("monitor access", () => {
 describe("a missed call whose carer has since been booked elsewhere", () => {
   it("refuses the late clock-in with a plain message instead of failing", async () => {
     const [v] = (await ameliaVisits()).slice(-1);
-    // Another service user's visit at an overlapping time that Amelia is not on.
-    const other = await db.visit.findFirstOrThrow({
+    // Another service user's visit at an overlapping time that Amelia is not on, and that clashes with none of her other
+    // bookings (which of her visits is "the last of the next five" moves with the time of day, and so do its neighbours).
+    const candidates = await db.visit.findMany({
       where: { organisationId: orgId, status: "SCHEDULED", publishedAt: { not: null }, id: { not: v!.id }, serviceUserId: { not: v!.serviceUserId }, scheduledStart: { lt: v!.scheduledEnd }, scheduledEnd: { gt: v!.scheduledStart }, assignments: { none: { staffId: ameliaId } } },
+      orderBy: { scheduledStart: "asc" },
     });
+    const booked = await db.visitAssignment.findMany({ where: { staffId: ameliaId, blocking: true, visitId: { not: v!.id } }, select: { startsAt: true, endsAt: true } });
+    const other = candidates.find((o) => booked.every((b) => b.endsAt <= o.scheduledStart || b.startsAt >= o.scheduledEnd));
+    if (!other) throw new Error("The demo rota has no overlapping visit Amelia is free for");
     // The call is missed, which frees Amelia's time; the office then books her onto the other visit.
     await db.visit.update({ where: { id: v!.id }, data: { status: "MISSED" } });
     const c = await coordinator();
