@@ -68,6 +68,34 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - The nightly late-evening and after-midnight test runs start only once the workflow is on `main`.
 - Ending a service user's care cancels visits that have not started. A visit already in progress at that moment is left alone and then blocks archiving until it ends. Not changed here.
 
+## Row-level security (enterprise readiness, workstream 2, 10 Nov 2026)
+
+Full description, the complete list of bypass call sites and operating notes: `docs/SECURITY.md`, "Row-level security".
+
+- **Not yet tried on the hosted database.** Everything was tested on local PostgreSQL 16, where the application's
+  login is a superuser. The live database is Supabase, where the `postgres` login is not a superuser. The migration
+  needs that login to be able to create the `csb_app` role and switch to it. Try the migration on a staging copy of
+  the hosted database before merging; if it fails there, nothing in the application has changed yet.
+- **The migration runs on the live database at merge** (through `vercel-build`). It adds policies and a role; it
+  does not change or delete any row. Rollback is in the pull request.
+- **Second layer, not a replacement.** The application's own `organisationId` filters remain the first layer. The
+  database layer stops a forgotten filter from leaking; it does not stop SQL injection or a stolen database
+  password, because the application's login still owns the tables. A separate, weaker login for the application is
+  hosting work and out of scope.
+- **Child tables without an `organisationId` column** (for example `CarePlanSection`, `VisitTask`) are protected
+  only through their parent row.
+- **Shared rows** (no organisation: CSB master policies, platform notifications, platform audit entries) are
+  readable from any scope, as before; platform permissions in the application decide who may change them.
+- **The vitest suite and the browser-test fixtures run in the system scope**, because they call server functions
+  directly across organisations. Tenant scoping is exercised by `rls-tenancy.test.ts` and by the browser suite,
+  which signs in through the real request path.
+- **Speed.** Each query is now a short transaction with one extra statement. Measured locally on the demo data
+  (150 requests per page, same build with the feature off and on): the slowest 5% of loads went from 170 to 194 ms
+  on the Rota Dashboard, 110 to 120 ms on the Daily Rota, 106 to 125 ms on All Service Users and 73 to 92 ms on a
+  service user's profile (table in `TEST_RESULTS.md`). Not measured on the hosted database, where each extra round trip costs more.
+- **Backups.** `pg_dump` must run as a login that bypasses row-level security, or it stops with an error rather
+  than writing a partial backup. Check the backup job (`docs/BACKUPS.md`) once it is active.
+
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
   the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.

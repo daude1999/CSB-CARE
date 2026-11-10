@@ -1,3 +1,4 @@
+import { PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
 import { CORE_REFS, seedBase } from "@/server/seed/base";
 import { seedDemo } from "@/server/seed/demo";
@@ -5,9 +6,15 @@ import { ctxForUser } from "@/server/auth/session";
 import { setAiProviderForTests } from "@/server/ai";
 import { LogEmailProvider, setEmailProvider } from "@/server/notifications/email";
 
+/**
+ * The table owner's own connection, outside row-level security. The application's client runs every query as the
+ * csb_app role, which may not TRUNCATE; emptying the database between test files is the owner's job.
+ */
+const owner = new PrismaClient();
+
 export async function resetDb() {
-  const tables = await db.$queryRaw<{ tablename: string }[]>`SELECT tablename::text AS tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
-  await db.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(", ")} CASCADE`);
+  const tables = await owner.$queryRaw<{ tablename: string }[]>`SELECT tablename::text AS tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
+  await owner.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(", ")} CASCADE`);
   setAiProviderForTests(undefined);
   const email = new LogEmailProvider();
   setEmailProvider(email);

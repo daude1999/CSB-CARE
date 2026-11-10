@@ -3,12 +3,68 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { ctxFromToken, SESSION_COOKIE } from "./session";
-import type { Ctx } from "./rbac";
+import { hasPlatformPermission, type Ctx } from "./rbac";
+import { setRequestScopeResolver, type DbScope } from "@/server/tenancy/scope";
+import { withSystemScope } from "@/server/tenancy/system";
+import { PATH_HEADER } from "@/lib/request-headers";
 import { ForbiddenError } from "@/lib/errors";
 
-export const getCtx = cache(async (): Promise<Ctx | null> => {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return ctxFromToken(token);
+/**
+ * One session lookup per request. React's `cache` covers a page render; the WeakMap (keyed by the request's cookie
+ * store, which Next.js creates once per request) also covers server actions and route handlers, where the database
+ * layer asks for the request's scope before every query.
+ */
+const perRequest = new WeakMap<object, Promise<Ctx | null>>();
+
+async function ctxOfRequest(): Promise<Ctx | null> {
+  const store = await cookies();
+  let found = perRequest.get(store);
+  if (!found) {
+    found = ctxFromToken(store.get(SESSION_COOKIE)?.value);
+    perRequest.set(store, found);
+  }
+  return found;
+}
+
+export const getCtx = cache(ctxOfRequest);
+
+/**
+ * Row-level security: the database scope of a signed-in request (see src/server/tenancy/scope.ts).
+ *
+ *  - Everyone works within their session's active organisation.
+ *  - The Evantix Platform Admin Centre (/platform-admin and /api/platform) looks across organisations by design. A
+ *    platform administrator's requests to those addresses, and only those, run in the audited system scope: one
+ *    `rls.bypass` audit entry per request, naming the person and the address.
+ *  - Outside a request (`cookies()` throws there) there is no request scope.
+ */
+const PLATFORM_PATHS = ["/platform-admin", "/api/platform"];
+const scopeOfRequest = new WeakMap<object, Promise<DbScope | undefined>>();
+
+async function resolveRequestScope(): Promise<DbScope | undefined> {
+  const ctx = await ctxOfRequest();
+  if (!ctx) return undefined;
+  const path = (await headers()).get(PATH_HEADER) ?? "";
+  if (PLATFORM_PATHS.some((p) => path === p || path.startsWith(`${p}/`)) && hasPlatformPermission(ctx, "platform.view")) {
+    const reason = `platform admin: ${path}`;
+    await withSystemScope(reason, () => undefined, { actorId: ctx.userId });
+    return { kind: "SYSTEM", reason };
+  }
+  return ctx.organisationId ? { kind: "TENANT", organisationId: ctx.organisationId } : undefined;
+}
+
+setRequestScopeResolver(async () => {
+  let store: object;
+  try {
+    store = await cookies();
+  } catch {
+    return undefined;
+  }
+  let scope = scopeOfRequest.get(store);
+  if (!scope) {
+    scope = resolveRequestScope();
+    scopeOfRequest.set(store, scope);
+  }
+  return scope;
 });
 
 export async function requireCtx(): Promise<Ctx> {

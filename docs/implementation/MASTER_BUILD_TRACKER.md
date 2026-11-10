@@ -7,7 +7,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | Workstream | State |
 |---|---|
 | 1. Quality gates | Built on `enterprise-readiness`: `.github/workflows/ci.yml` (schema, types, lint, full vitest in three parts on PostgreSQL 16, HR tests, audit, build; one "Quality gate" check to mark required), `.github/dependabot.yml`, scratch file removed, high and critical audit findings cleared by upgrading existing packages (zod 4, vitest 4, nodemailer 10), four test failures fixed at their causes. Results: `TEST_RESULTS.md`. |
-| 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
+| 2. Row-level security | Built on `enterprise-readiness-2-rls`: PostgreSQL row-level security on all 150 tables with an `organisationId` column, the `csb_app` role, a per-request scope (`src/server/tenancy`), an audited bypass with every call site listed in `docs/SECURITY.md`, and `tests/integration/rls-tenancy.test.ts`. **Its migration runs on the live database when merged: merge only with the owner watching, after a trial on a staging copy.** Limits: `KNOWN_LIMITATIONS.md`. |
 | 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
 | 4. Assurance pack | Drafted on `enterprise-readiness-4-assurance` (`docs/assurance/`). |
 | 5. UX and responsiveness | On `enterprise-readiness-5-ux` (PR #138). The colour system redesign (#134 to #137) is now in `main` and merged into this branch. |

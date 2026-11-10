@@ -1,4 +1,5 @@
 import { db } from "../src/lib/db";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { seedRecruitmentDemo } from "../src/server/seed/recruitment";
 
 /**
@@ -15,7 +16,7 @@ async function main() {
   console.log(n ? `Recruitment demo candidates ready (${n}).` : "Recruitment demo candidates already present.");
 }
 
-main()
+withSystemScope("seed: recruitment demo data", main)
   .catch((e) => {
     console.error(e);
     process.exitCode = 1;

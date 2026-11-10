@@ -8,6 +8,7 @@
  * Administration → Users. Nothing is emailed.
  */
 import { db } from "../src/lib/db";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { AppError } from "../src/lib/errors";
 import { provisionOrganisation } from "../src/server/admin/users";
 
@@ -31,7 +32,7 @@ async function main() {
   console.log(`Give this link to the first admin. It works once, for 7 days:\n\n  ${base}/account/${token}\n`);
 }
 
-main()
+withSystemScope("script: create organisation", main)
   .catch((e) => {
     console.error(`\n${e instanceof AppError ? e.message : e instanceof Error ? e.message : String(e)}\n`);
     process.exitCode = 1;

@@ -1,4 +1,5 @@
 import { runForTenant } from "@/server/ai/metering";
+import { withSystemScope } from "@/server/tenancy/system";
 import type { BackgroundJob, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -128,16 +129,28 @@ export async function runClaimed(job: BackgroundJob, handlers: Record<string, Jo
   }
 }
 
-/** Drains currently runnable jobs (used by the worker loop, CLI and tests). */
+/**
+ * Drains currently runnable jobs (used by the worker loop, the job kick and cron routes, the CLI and tests).
+ *
+ * The queue holds every organisation's jobs, and handlers such as the call sweep and reminders work across
+ * organisations, so draining runs in the audited system scope (row-level security bypass; one audit entry per hour
+ * per server process while the queue is being drained).
+ */
 export async function drain(workerId: string, handlers: Record<string, JobHandler>, opts: { max?: number; types?: string[]; excludeTypes?: string[]; lockMs?: number } = {}) {
-  const outcomes: { id: string; type: string; outcome: string }[] = [];
-  for (let i = 0; i < (opts.max ?? 100); i++) {
-    const job = await claimNext(workerId, opts.types, { lockMs: opts.lockMs, excludeTypes: opts.excludeTypes });
-    if (!job) break;
-    const outcome = await runClaimed(job, handlers);
-    outcomes.push({ id: job.id, type: job.type, outcome });
-  }
-  return outcomes;
+  return withSystemScope(
+    "job queue",
+    async () => {
+      const outcomes: { id: string; type: string; outcome: string }[] = [];
+      for (let i = 0; i < (opts.max ?? 100); i++) {
+        const job = await claimNext(workerId, opts.types, { lockMs: opts.lockMs, excludeTypes: opts.excludeTypes });
+        if (!job) break;
+        const outcome = await runClaimed(job, handlers);
+        outcomes.push({ id: job.id, type: job.type, outcome });
+      }
+      return outcomes;
+    },
+    { audit: "hourly" },
+  );
 }
 
 export class PermanentJobError extends Error {

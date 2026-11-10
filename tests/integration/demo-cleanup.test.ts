@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { Client } from "pg";
 import { db } from "@/lib/db";
+import { ownerDb } from "../support/owner-db";
 import { BACKUP_SCHEMA, CLEANUP_ID, cleanUp } from "../../prisma/demo-cleanup";
 import { BROOKFIELD, OAKRIDGE, resetDb, seedAll } from "../helpers";
 
@@ -24,7 +25,7 @@ async function inTransaction<T>(run: (c: Client) => Promise<T>) {
   }
 }
 
-const dropBackup = () => db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${BACKUP_SCHEMA}" CASCADE`);
+const dropBackup = () => ownerDb.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${BACKUP_SCHEMA}" CASCADE`);
 
 describe("demo data clean-up", () => {
   let before: { users: number; memberships: number; staff: number; policies: number; serviceUsers: number; visits: number };
@@ -80,7 +81,7 @@ describe("demo data clean-up", () => {
     expect(await db.user.count({ where: { isDemo: true, memberships: { some: { organisationId: orgId } } } })).toBe(0);
 
     // The restore copy holds the rows as they were.
-    const [copy] = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM "${BACKUP_SCHEMA}"."ServiceUser"`);
+    const [copy] = await ownerDb.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM "${BACKUP_SCHEMA}"."ServiceUser"`);
     expect(Number(copy!.n)).toBe(before.serviceUsers);
     expect(await db.auditLog.count({ where: { action: "demo.cleanup", entityId: CLEANUP_ID } })).toBe(1);
   });
@@ -102,7 +103,7 @@ describe("demo data clean-up", () => {
     })).rejects.toThrow("simulated failure");
     expect(await db.serviceUser.count({ where: { organisationId: org.id } })).toBe(count);
     expect((await db.organisation.findUniqueOrThrow({ where: { id: org.id } })).isDemo).toBe(true);
-    const [schema] = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM pg_namespace WHERE nspname = '${BACKUP_SCHEMA}'`);
+    const [schema] = await ownerDb.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) AS n FROM pg_namespace WHERE nspname = '${BACKUP_SCHEMA}'`);
     expect(Number(schema!.n)).toBe(0);
   }, 120_000);
 });

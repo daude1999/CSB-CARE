@@ -12,6 +12,7 @@
  * edit is undone by correcting the HR record, which projects again.
  */
 import { db } from "../src/lib/db";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { reconcileWorkforce } from "../src/server/workforce/projection";
 import { workforceIdentityReport } from "../src/server/workforce/identity";
 
@@ -43,7 +44,7 @@ async function main() {
   if (problems) console.error(`\n${problems} organisation(s) have identity items to review (see notProjected, unmatched, duplicateStaffNumbers).`);
 }
 
-main()
+withSystemScope("script: workforce identity report", main)
   .catch((e) => {
     console.error(e instanceof Error ? e.message : e);
     process.exitCode = 1;

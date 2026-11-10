@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
+import { ownerDb } from "../support/owner-db";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/errors";
 import { hhmm, londonDate, londonMinute, dbDate } from "@/lib/london";
 import { drain } from "@/server/jobs/queue";
@@ -299,11 +300,11 @@ describe("with the automation switched on", () => {
     await runJobs();
     const { caseId: id } = await missedVisit([noLoginStaffId]);
     // Make the run's final write fail inside the database for this case only, then remove the fault.
-    await db.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION test_fail_run() RETURNS trigger AS $$ BEGIN IF NEW.status = 'COMPLETED' AND NEW."caseId" = '${id}' THEN RAISE EXCEPTION 'injected test failure'; END IF; RETURN NEW; END $$ LANGUAGE plpgsql`);
-    await db.$executeRawUnsafe(`CREATE TRIGGER test_fail_run BEFORE UPDATE ON "MissedCallInvestigationRun" FOR EACH ROW EXECUTE FUNCTION test_fail_run()`);
+    await ownerDb.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION test_fail_run() RETURNS trigger AS $$ BEGIN IF NEW.status = 'COMPLETED' AND NEW."caseId" = '${id}' THEN RAISE EXCEPTION 'injected test failure'; END IF; RETURN NEW; END $$ LANGUAGE plpgsql`);
+    await ownerDb.$executeRawUnsafe(`CREATE TRIGGER test_fail_run BEFORE UPDATE ON "MissedCallInvestigationRun" FOR EACH ROW EXECUTE FUNCTION test_fail_run()`);
     const job = await db.backgroundJob.findUniqueOrThrow({ where: { idempotencyKey: `missed-inv:${id}:DETECTED` } });
     await drain("test", handlers, { types: ["missed.investigate"], max: 1 });
-    await db.$executeRawUnsafe(`DROP TRIGGER test_fail_run ON "MissedCallInvestigationRun"`);
+    await ownerDb.$executeRawUnsafe(`DROP TRIGGER test_fail_run ON "MissedCallInvestigationRun"`);
     expect((await db.backgroundJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe("FAILED");
     const failed = await db.missedCallInvestigationRun.findFirstOrThrow({ where: { caseId: id, status: "FAILED" } });
     expect(failed.error).not.toMatch(/injected/);

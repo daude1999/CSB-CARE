@@ -1,3 +1,4 @@
+import "./system-scope";
 import { db } from "@/lib/db";
 import { addDays, londonDate } from "@/lib/london";
 import { createRisk, reviewRisk } from "@/server/care/risks";

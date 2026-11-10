@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { withSystemScope } from "../src/server/tenancy/system";
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/server/auth/password";
 import { DEMO_PASSWORD } from "../src/server/seed/demo";
@@ -58,7 +59,7 @@ async function main() {
   }
 }
 
-main()
+withSystemScope("seed: HR demo people", main)
   .catch((e) => {
     console.error(e);
     process.exit(1);
