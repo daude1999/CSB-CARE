@@ -304,6 +304,7 @@ Local PostgreSQL 16, synthetic data only. Branch `enterprise-readiness-2-rls`.
 | `npm test` in three parts, row-level security on (after the fixes) | 1,419 of 1,420; the one failure was the same `attendance.test.ts` case, fixed afterwards and passing on its own (8 of 8). The complete run on GitHub is the Quality gate on the pull request |
 | `npx playwright test` (whole browser suite, 258 tests), row-level security on | 222 passed, 26 failed, 10 did not run. 20 of the failures are the same ones that fail without row-level security (stale tests, being fixed under workstream 1). 5 were test fixtures with no database scope (fixed: `tests/e2e/fixtures/system-scope.ts`). **1 was a real gap**: an invitation link could not be opened by a signed-out person (fixed, with a test) |
 | The 6 specs above re-run after the fixes (28 tests) | 26 passed. The 2 that fail also fail without row-level security (`cqc-inspection.spec.ts:32`, `v1.spec.ts:18`) |
+| `npx playwright test` (whole browser suite, 276 tests), row-level security on, after merging `main` with the colour redesign and workstream 1's test fixes (evening of 10 Nov) | **276 passed, 0 failed** (17.7 minutes) |
 
 ### Page timings, row-level security off and on
 
