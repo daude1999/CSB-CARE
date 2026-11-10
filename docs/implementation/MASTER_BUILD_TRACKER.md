@@ -10,7 +10,7 @@ Five workstreams, one pull request each, never merged without the owner. Plan: `
 | 2. Row-level security | In progress on `enterprise-readiness-2-rls`. |
 | 3. Operations | In progress on `enterprise-readiness-3-operations`. Error tracking waits for the owner's approval. |
 | 4. Assurance pack | Drafted in `docs/assurance/`: DPIA, data flow diagram, retention schedule (proposal, no deletion jobs), DSPT evidence index, penetration test scope, incident response. All marked DRAFT FOR HUMAN REVIEW. Start at `docs/assurance/README.md`. |
-| 5. UX and responsiveness | On `enterprise-readiness-5-ux` (PR #138). The colour system redesign (#134 to #137) is now in `main` and merged into this branch. |
+| 5. UX and responsiveness | Built on `enterprise-readiness-5-ux`: `UX_RESPONSIVENESS_AUDIT.md` (all 174 pages, 141 timed), the 200 ms feedback test on the five main pages, double-submission stopped, Admin Centre given the shell's feedback and its own error screen, the heaviest page's slow check streamed, audits and actions paged, three contrast fixes. Not done, with reasons in the audit: type scale and page frame (waits for the colour redesign), HR Hub file split (owner asked), per-section `loading.tsx`, optimistic updates, toasts. |
 
 ## Approved colour redesign (10 Nov 2026, PRs 1-4 merged as #134-#137; PR 5 Overview merged as #140, compact follow-up in review)
 The owner's approved mock-ups, built in four PRs. PR 1 (shared page frame): one module header band on every page in

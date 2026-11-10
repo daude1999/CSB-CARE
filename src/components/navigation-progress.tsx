@@ -76,10 +76,10 @@ function submitsToServer(form: HTMLFormElement, defaultPrevented: boolean): bool
 }
 
 /**
- * Mounted once in the shell. `renderKey` changes on every server render of the layout, which is how a form that
+ * Mounted once in each shell (the care platform's, and the Platform Admin Centre's with its own `colour`). `renderKey` changes on every server render of the layout, which is how a form that
  * redirects back to the very same address still ends its pending state.
  */
-export function NavigationProgress({ renderKey }: { renderKey: string }) {
+export function NavigationProgress({ renderKey, colour: fixedColour }: { renderKey: string; colour?: string }) {
   const path = usePathname();
   const params = useSearchParams();
   const address = `${path}?${params.toString()}`;
@@ -115,16 +115,28 @@ export function NavigationProgress({ renderKey }: { renderKey: string }) {
       for (const el of [form, submitter]) if (el) el.setAttribute(el === form ? "aria-busy" : "data-pending", "true");
       marked = [form, ...(submitter ? [submitter] : [])];
     };
+    // A second press (or Enter pressed twice) while the first submission is still with the server is dropped, so one
+    // action never runs twice. Capture phase, before React sends a Server Action. Once a page has stopped responding
+    // ("stalled") the form can be sent again.
+    const onResubmit = (e: SubmitEvent) => {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement) || form.getAttribute("aria-busy") !== "true" || !marked.includes(form)) return;
+      if (state.pending?.kind !== "form" || state.phase === "stalled") return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
     // Coming back through the browser's history cache must not show a page as still loading.
     const onShow = () => endNavigation();
     // Bubble phase on window, so this runs after React and Next.js have handled the event.
     window.addEventListener("click", onEdge, true);
     window.addEventListener("click", onClick);
+    window.addEventListener("submit", onResubmit, true);
     window.addEventListener("submit", onSubmit);
     window.addEventListener("pageshow", onShow);
     return () => {
       window.removeEventListener("click", onEdge, true);
       window.removeEventListener("click", onClick);
+      window.removeEventListener("submit", onResubmit, true);
       window.removeEventListener("submit", onSubmit);
       window.removeEventListener("pageshow", onShow);
     };
@@ -141,7 +153,7 @@ export function NavigationProgress({ renderKey }: { renderKey: string }) {
   }, [address, renderKey]);
 
   const target = s.pending?.href ?? path;
-  const colour = portalById(portalForPath(target.split("?")[0])).colour;
+  const colour = fixedColour ?? portalById(portalForPath(target.split("?")[0])).colour;
   return (
     <>
       <div aria-hidden="true" data-testid="nav-progress" data-phase={s.phase} className="nav-progress" style={{ "--progress": colour } as React.CSSProperties}>

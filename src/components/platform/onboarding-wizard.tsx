@@ -70,7 +70,7 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
 
   const panel = "p-5";
   return (
-    <form ref={form} action={action} className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]" noValidate={false}>
+    <form ref={form} action={action} data-no-progress className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_minmax(0,1fr)]" noValidate={false}>
       <input type="hidden" name="onboardingKey" value={onboardingKey} />
       <ol aria-label="Steps" className="flex gap-2 overflow-x-auto lg:sticky lg:top-24 lg:flex-col lg:gap-0">
         {STEPS.map((s, i) => (
