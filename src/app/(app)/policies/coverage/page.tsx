@@ -55,7 +55,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
             <strong>{summary.national}</strong> national · <strong>{summary.shared}</strong> shared with branch appendices · <strong>{summary.branchPolicies}</strong> branch policies.{" "}
             Across the branches shown: <strong>{summary.approved}</strong> published, <strong>{summary.drafts}</strong> in draft, <strong>{summary.awaiting}</strong> ready to publish,{" "}
             <strong className={summary.missingLocal ? "text-[#b42318]" : ""}>{summary.missingLocal}</strong> missing local arrangements, <strong className={summary.needsReview ? "text-[#b54708]" : ""}>{summary.needsReview}</strong> needing review.{" "}
-            <Link href="/changes?group=all" className="pc-link">{summary.localChanges} local source change{summary.localChanges === 1 ? "" : "s"} open</Link> · <Link href="/staff" className="pc-link">{summary.staffOutstanding} staff acknowledgements outstanding</Link>
+            <Link href="/changes?group=all" className="pc-link">{summary.localChanges} local source change{summary.localChanges === 1 ? "" : "s"} open</Link> · {hasOrgPermission(ctx, "staff.view") ? <Link href="/staff" className="pc-link">{summary.staffOutstanding} staff acknowledgements outstanding</Link> : <>{summary.staffOutstanding} staff acknowledgements outstanding</>}
           </p>
         </div>
         <form method="get" action="/policies/coverage" className="pc-toolbar" role="search" aria-label="Filter coverage">
