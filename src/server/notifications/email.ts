@@ -4,6 +4,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Optional HTML part. The text part is always sent too. */
+  html?: string;
 }
 
 export interface EmailProvider {
@@ -17,16 +19,22 @@ export class LogEmailProvider implements EmailProvider {
   outbox: EmailMessage[] = [];
   async send(msg: EmailMessage) {
     this.outbox.push(msg);
-    logger.info({ to: msg.to, subject: msg.subject }, "email (log provider)");
+    // Metadata only: the address, body and any link in it are never logged.
+    logger.info({ subject: msg.subject, hasHtml: Boolean(msg.html) }, "email (log provider)");
     return { messageId: `log-${Date.now()}-${this.outbox.length}` };
   }
 }
 
-class SmtpEmailProvider implements EmailProvider {
+/** The part of a nodemailer transport this provider uses. Tests pass nodemailer's own in-memory transport. */
+export interface MailTransport {
+  sendMail(mail: { from: string; to: string; subject: string; text: string; html?: string }): Promise<{ messageId: string }>;
+}
+
+export class SmtpEmailProvider implements EmailProvider {
   name = "smtp";
-  private transport;
-  constructor() {
-    this.transport = import("nodemailer").then((m) =>
+  private transport: Promise<MailTransport>;
+  constructor(transport?: MailTransport) {
+    this.transport = transport ? Promise.resolve(transport) : import("nodemailer").then((m) =>
       m.default.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT ?? 587),
@@ -37,7 +45,7 @@ class SmtpEmailProvider implements EmailProvider {
   }
   async send(msg: EmailMessage) {
     const t = await this.transport;
-    const info = await t.sendMail({ from: process.env.EMAIL_FROM ?? "CSB Care Solution Bureau <no-reply@csb.example>", to: msg.to, subject: msg.subject, text: msg.text });
+    const info = await t.sendMail({ from: process.env.EMAIL_FROM ?? "CSB Care Solution Bureau <no-reply@csb.example>", to: msg.to, subject: msg.subject, text: msg.text, ...(msg.html ? { html: msg.html } : {}) });
     return { messageId: info.messageId };
   }
 }

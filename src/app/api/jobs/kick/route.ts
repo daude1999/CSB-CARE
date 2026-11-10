@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors";
 import { describeDbError, isTransientDbError } from "@/lib/db-retry";
 import { assertSameOrigin, getCtx } from "@/server/auth/current";
 import { inlineJobsEnabled, runJobsNow } from "@/server/jobs/inline";
+import { withRequestLog } from "@/lib/request-id";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,7 +18,7 @@ export const maxDuration = 60;
  * (for example just after a deployment) is 503 with Retry-After, and anything else is logged with its class and code.
  * The next page load tries again, and jobs that were claimed but not finished are picked up after their lock expires.
  */
-export async function POST() {
+export const POST = withRequestLog(async function POST() {
   if (!inlineJobsEnabled()) return new NextResponse(null, { status: 204 });
   try {
     await assertSameOrigin();
@@ -35,4 +36,4 @@ export async function POST() {
     logger.error({ err: detail }, "inline jobs failed");
     return NextResponse.json({ error: "inline jobs failed" }, { status: 500 });
   }
-}
+});

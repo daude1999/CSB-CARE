@@ -3,12 +3,13 @@ import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getCtx } from "@/server/auth/current";
 import { exportMissedCalls } from "@/server/rota/missed-calls";
+import { withRequestLog } from "@/lib/request-id";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /** Excel or PDF of the Missed Calls register, after the same permission and area checks as the page. */
-export async function GET(req: Request) {
+export const GET = withRequestLog(async function GET(req: Request) {
   const ctx = await getCtx();
   if (!ctx) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const sp = new URL(req.url).searchParams;
@@ -23,4 +24,4 @@ export async function GET(req: Request) {
     logger.error({ err: (e as Error).message }, "missed-call export failed");
     return NextResponse.json({ error: "Export failed" }, { status: 500 });
   }
-}
+});

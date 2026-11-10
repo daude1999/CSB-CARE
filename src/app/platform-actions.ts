@@ -6,7 +6,7 @@ import { PLATFORM_LINK_COOKIE } from "./platform-link";
 import { addClientBranch, markCqcChecked, updateCompanyDetails } from "@/server/platform/customers";
 import { provisionClient, type OnboardingResult } from "@/server/platform/onboarding";
 import {
-  deactivateAccount, deactivateMembershipAsPlatform, emailResetLink, inviteAsPlatform, platformResetLink, reactivateAccount, reactivateMembershipAsPlatform,
+  deactivateAccount, deactivateMembershipAsPlatform, inviteAsPlatform, platformResetLink, reactivateAccount, reactivateMembershipAsPlatform,
   requirePasswordReset, revokeAllSessions, revokeInviteAsPlatform, revokeResetLink, revokeResetLinks, revokeSession, setPlatformRoles, updateMembershipAsPlatform,
 } from "@/server/platform/accounts";
 import { setClientModule, setClientModuleLimits } from "@/server/platform/modules";
@@ -14,6 +14,7 @@ import { changeSubscription, extendTrial, savePlan, setCustomerStatus } from "@/
 import { coerceSetting, isSettingKey, recordRestoreTest, SETTINGS, updateSettings, type SettingGroup, type SettingKey } from "@/server/platform/settings";
 import { decideSupportAccess, emergencySupportAccess, requestSupportAccess, revokeSupportAccess } from "@/server/platform/support";
 import { ValidationError } from "@/lib/errors";
+import { deliverAccountLink, deliveryMessage } from "@/server/admin/account-delivery";
 import { isModuleKey } from "@/lib/platform-modules";
 import { ROLES } from "@/server/admin/users";
 import type { OrgRole } from "@prisma/client";
@@ -133,10 +134,10 @@ export async function platformResetAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const r = await platformResetLink(ctx, str(fd, "userId"), { delivery });
     if (r.emailed) {
-      const { db } = await import("@/lib/db");
-      const u = await db.user.findUniqueOrThrow({ where: { id: str(fd, "userId") } });
-      await emailResetLink(u.email, u.name, `${await origin()}/account/${r.token}`, r.expiresInHours);
-      return { ok: `Password reset link emailed to ${u.email}. It works once, for ${r.expiresInHours} hours.` };
+      const sent = await deliverAccountLink({ tokenId: r.tokenId, token: r.token, origin: await origin(), actor: { userId: ctx.userId, level: "platform" } });
+      if (sent.emailed) return { ok: `Password reset link emailed. It works once, for ${r.expiresInHours} hours.` };
+      await showLinkOnce(r.token);
+      return { ok: deliveryMessage("reset", sent) };
     }
     await showLinkOnce(r.token);
     return { ok: `Password reset link created. Copy it below; it works once, for ${r.expiresInHours} hours.` };
@@ -195,7 +196,9 @@ export async function platformReactivateMemberAction(fd: FormData) {
 export async function platformInviteAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const r = await inviteAsPlatform(ctx, str(fd, "organisationId"), { ...memberInput(fd), email: str(fd, "email"), name: str(fd, "name") });
+    const sent = await deliverAccountLink({ tokenId: r.inviteId, token: r.token, origin: await origin(), actor: { userId: ctx.userId, level: "platform" } });
     await showLinkOnce(r.token);
+    return { ok: deliveryMessage("invite", sent) };
   }, "Invitation created. Copy the link below.");
 }
 

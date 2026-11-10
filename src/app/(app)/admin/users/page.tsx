@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Users: who can sign in to this organisation, with what roles and in which branches. Invitations and password
- * resets are one-time links the administrator passes on in person; nothing is emailed.
+ * resets are one-time links, emailed when a mail server is configured and always shown here to copy as well.
  */
 export default async function UsersPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
