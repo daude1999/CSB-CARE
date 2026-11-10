@@ -68,6 +68,13 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - The nightly late-evening and after-midnight test runs start only once the workflow is on `main`.
 - Ending a service user's care cancels visits that have not started. A visit already in progress at that moment is left alone and then blocks archiving until it ends. Not changed here.
 
+## Assurance pack (enterprise readiness, workstream 4, 10 Nov 2026)
+
+- Everything in `docs/assurance/` is a **draft for human review**. None of it is adopted, signed off or legal advice. The DPIA needs the data protection lead's review; the incident procedure needs named people and phone numbers.
+- The retention schedule is a proposal. **No deletion or disposal job exists**, and none was built: nothing in the platform deletes records on a schedule.
+- The DSPT index maps to the 10 data security standards and their themes, not to this year's evidence item numbers; whoever submits the toolkit must match them.
+- No penetration test has been commissioned; `PEN_TEST_SCOPE.md` is only the scope to give a supplier.
+
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
   the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.
