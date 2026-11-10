@@ -10,7 +10,8 @@ contrast ratios and every replaced header: `COLOUR_SYSTEM.md`. PR 1 is #134. PR 
 stacked on PR 1) restyles the four call tiles and reorders, groups and stripes the Daily Rota list. PR 3 (branch
 `redesign-board-drawer`, stacked on PR 2) adds the Board as the Daily Rota's default view and the visit drawer, sharing
 the Advanced Rota planner's grouping and move rules (`src/server/rota/board.ts`); every move still goes through the
-eligibility service.
+eligibility service. PR 4 (branch `redesign-command-bar`, stacked on PR 3) adds the Ctrl+K command bar: service users, staff,
+today's visits, pages and actions, scoped on the server (`src/server/search/command.ts`).
 
 ## Branch-specific Policy Generator (4 Nov 2026, draft PR)
 Policy & Compliance gains Branch & Local Authority Configuration, Local & Safeguarding References (organisation-level

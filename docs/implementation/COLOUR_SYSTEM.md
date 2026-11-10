@@ -203,7 +203,38 @@ with their points (`visitDrawer` in `src/server/rota/board.ts`). When none of th
 The data comes from `GET /api/rota/visits/[id]/drawer`, which needs `rota.view` and goes through `getVisit`, so a
 visit in another organisation, branch or area returns 404 (integration-tested).
 
-## Dark mode
+## PR 4: command bar (Ctrl+K)
+
+`src/components/command-bar.tsx`, mounted once in the app layout. Ctrl+K (Cmd+K on a Mac) opens a centred 640px
+dialog from any page inside the platform shell. Results are grouped in this order: Service users, Staff, Visits today,
+Pages, Actions.
+
+- **Service users and Staff** come from the top bar's search service (`rotaSearch`), so the command bar finds exactly
+  what that search finds, including CSB numbers, postcodes and exact external references. A service user's row shows
+  their area and next scheduled visit when they have them.
+- **Visits today** are today's visits (Europe/London) whose service user, booked carer or reference matches, with the
+  status on the right ("Needs a carer" when a scheduled visit is short of its carers).
+- **Pages** are the modules and sidebar pages the layout already worked out this person may open. Before anything is
+  typed, only the modules are listed.
+- **Actions** are links to the screens that do the work (Add a visit, Build the rota for a week, Add a service user
+  and so on), each listed only with its permission and each checked again by the screen it opens. When a service user
+  is found, "Add a visit for …" and "Open care plans for …" for the first one come first.
+
+Scoping (`src/server/search/command.ts`, `GET /api/search/command`): the organisation, branches, areas and
+permissions come from the session; the request carries only the search text (zod-checked, 100 characters at most). A
+member without `rota.view`, a suspended organisation and a platform account with no organisation get no records.
+`tests/integration/command-bar.test.ts` plants a matching service user, team member and visit in two organisations and
+proves neither sees the other's, and that a branch-limited coordinator sees only their branches.
+
+Keyboard: the search box keeps focus; Up and Down move the highlight (it wraps), Enter opens, Esc closes and puts
+focus back where it was. Tab stays in the dialog. It is a `dialog` with a `combobox` and `listbox`
+(`aria-activedescendant`), and a polite status line gives the number of results. The highlighted row is a 10% tint of
+the module colour of the page underneath; text on it is `#101828` (15.2 : 1 or more on every module's tint) and the
+right-hand detail is `#475467` (6.6 : 1 or more). The service-user chip is white on the module colour (5.18 : 1 or more).
+
+Ctrl+K used to put the cursor in the top-bar search box (and, on HR pages, open the HR Hub's own search). It now opens
+the command bar everywhere. The top-bar box and the HR Hub's search are unchanged and still open from the top bar.
+
 
 The dark twins are generated at build time (`docs/implementation/DARK_MODE.md`), so the band, tabs and buttons follow
 the switch automatically. The band keeps the module colour with white text in dark mode.

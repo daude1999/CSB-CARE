@@ -23,6 +23,8 @@ import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
 import { COORDINATOR_SLOT } from "@/lib/shell-slots";
+import { CommandBar, type CommandPage } from "@/components/command-bar";
+import { commandActions } from "@/server/search/command";
 import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
 import { inlineJobsEnabled } from "@/server/jobs/inline";
 import { getSetting } from "@/server/platform/settings";
@@ -126,6 +128,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         aiOn: (await coordinatorAiStatus(ctx.organisationId)).on,
       }
     : null;
+  // The command bar (Ctrl+K) lists exactly the modules and pages the sidebar offers this person.
+  const commandPages: CommandPage[] = portals.filter((p) => !p.planned).flatMap((p) => [
+    { label: p.name, href: p.home, hint: "Module", home: true },
+    ...(items[p.id] ?? []).filter((x) => !x.planned && x.href !== p.home).map((x) => ({ label: x.label, href: x.href, hint: p.name })),
+  ]);
   const shell = {
     portals,
     items,
@@ -201,6 +208,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
           <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
           {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
+          <CommandBar pages={commandPages} actions={commandActions(ctx)} />
           <AppHistory />
           {inlineJobsEnabled() ? <JobKicker /> : null}
         </div>
