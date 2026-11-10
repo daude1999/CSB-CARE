@@ -28,6 +28,9 @@ type View = keyof typeof VIEWS;
  * Corrective actions: what must be put right, where the need came from (an audit finding or a risk), who owns it, when
  * it is due, the evidence and who independently verified it. Open an action for its full history.
  */
+/** Actions per page: closed actions are kept for ever, so "All" grows without limit. */
+const PAGE_SIZE = 50;
+
 export default async function ActionsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
   const ctx = await requireCtx();
@@ -42,10 +45,13 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
   const view: View = sp.closed === "1" ? "all" : sp.view && sp.view in VIEWS ? (sp.view as View) : "open";
   const now = new Date();
   const scope: Prisma.ComplianceActionWhereInput = { organisationId: orgId, ...(showAll ? {} : { ownerId: ctx.userId }) };
+  const requestedPage = Math.min(10_000, Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1));
   const [actions, members, counts, evidenceCounts] = await Promise.all([
     db.complianceAction.findMany({
       where: { ...scope, ...VIEWS[view].where, ...(view === "overdue" ? { dueDate: { lt: now } } : {}) },
-      orderBy: { dueDate: "asc" },
+      orderBy: [{ dueDate: "asc" }, { id: "asc" }],
+      skip: (requestedPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
       include: { finding: { select: { description: true, riskRating: true, audit: { select: { id: true, title: true } } } }, risk: { select: { id: true, ref: true, title: true } } },
     }),
     db.membership.findMany({ where: { organisationId: orgId, user: { deactivatedAt: null } }, include: { user: { select: { id: true, name: true } } }, orderBy: { user: { name: "asc" } } }),
@@ -56,6 +62,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
   const evidenceOf = new Map(evidenceCounts.map((e) => [e.linkedId, e._count._all]));
   const count = Object.fromEntries((Object.keys(VIEWS) as View[]).map((v, n) => [v, counts[n]!])) as Record<View, number>;
   const mine = sp.mine === "1" ? "1" : undefined;
+  const pageHref = (n: number) => `/actions?view=${view}${mine ? "&mine=1" : ""}${n > 1 ? `&page=${n}` : ""}`;
   const STATUS: Record<string, { label: string; tone: PcTone }> = { OPEN: { label: "Open", tone: "amber" }, IN_PROGRESS: { label: "In progress", tone: "blue" }, COMPLETED: { label: "Awaiting verification", tone: "purple" }, VERIFIED: { label: "Verified", tone: "green" }, CLOSED: { label: "Closed", tone: "grey" } };
   const PRIORITY: Record<string, PcTone> = { LOW: "grey", MEDIUM: "amber", HIGH: "red", CRITICAL: "red" };
   return (
@@ -117,7 +124,7 @@ export default async function ActionsPage({ searchParams }: { searchParams: Prom
         ) : (
           <p className="pc-empty">{view === "open" ? "No open actions." : "Nothing here."}</p>
         )}
-        <PcFoot shown={actions.length} total={actions.length} />
+        <PcFoot shown={actions.length} total={count[view]} page={requestedPage} pages={Math.max(1, Math.ceil(count[view] / PAGE_SIZE))} href={pageHref} />
       </section>
     </>
   );

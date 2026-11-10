@@ -250,7 +250,7 @@ function PdfPane({ pdf, error, downloadHref, wordHref, title, headings, variant,
         ) : null}
         <div ref={scroller} className="pl-viewer-page min-w-0 flex-1" tabIndex={0} onKeyDown={onKey} aria-label="Document pages">
           {error ? (
-            <p role="alert" className="m-6 rounded-[6px] bg-white p-4 text-[13px] text-[#b42318]">{error} <a href={downloadHref} download>Download PDF</a></p>
+            <p role="alert" className="m-6 rounded-[6px] bg-white p-4 text-[13px] text-[#b42318]">{error} <a href={downloadHref} download className="underline">Download PDF</a></p>
           ) : !pdf || !base ? (
             <p className="pt-8 text-center text-[12.5px] text-[#6b7586]">Loading document…</p>
           ) : (

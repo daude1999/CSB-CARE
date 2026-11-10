@@ -301,3 +301,44 @@ Tests that were out of date or fragile, corrected without removing an assertion:
 | `npx vitest run tests/integration/account-email-delivery.test.ts tests/integration/admin-users.test.ts tests/integration/platform-admin.test.ts` | 43 passed |
 | Built app started locally: `x-request-id` on `/api/health`, on the redirect to sign-in and replaced when the browser sends its own; `/api/health` shows the queue; a US-region `SENTRY_DSN` is refused with a logged reason | checked by hand with curl |
 
+## Workstream 5: UX and responsiveness (10 Nov 2026, branch `enterprise-readiness-5-ux`)
+
+Local, production build, PostgreSQL 16, `csb_e2e` reset and seeded by the suite. Never the live site.
+
+| Command | Result |
+|---|---|
+| `npm run typecheck` | clean |
+| `npm run lint` | clean |
+| `npx vitest run tests/unit` | 513 passed (61 files) |
+| `npx playwright test` (whole browser suite), first run on the branch | 263 passed, **4 failed** |
+| `npx playwright test` (whole browser suite), after the fixes below, at commit `b7d634b` | **267 passed, 0 failed** (17.2 minutes) |
+| GitHub: Quality gate (full Vitest in three parts, build, audit) and the browser-test workflow on `b7d634b` | green |
+
+The suite grew from 258 to 267 tests: `feedback-200ms.spec.ts` (7) and `list-paging.spec.ts` (2).
+
+The four failures of the first run and what was done:
+
+- **Three were caused by this branch** (`template-confirm.spec.ts` twice, `v1-scenario.spec.ts`). The placeholder shown while the template page checks the built weeks had `role="status"`, so the page had two status messages after a save and the tests, which expect one, refused to choose. The role was removed from the placeholder; the tests were not changed.
+- **One was a test that raced a slow page** (`cqc-inspection.spec.ts`). After "Next area" it filled the result form at once; the next area's form has the same fields, so when the page was slow it filled the previous area's form and no message ever came. Reproduced on the base branch with the next page held back 1.5 seconds. The test now waits for the next area's page. No assertion was removed.
+
+**After merging `main` with the colour redesign, evening of 10 Nov**
+
+| Run | Result |
+|---|---|
+| Whole browser suite on the merged code (285 tests) | 284 passed, **1 failed** (`platform-admin.spec.ts`, the one-time link fault described under workstream 1; fixed there and merged in) |
+| `platform-admin.spec.ts` after that fix | passes |
+| Whole browser suite again after merging the Overview rebuild (#140, #141), 287 tests, 23:10 to 23:30 | 286 passed, **1 failed**: `rota-board.spec.ts` drag test timed out once while the board was still settling; it passes when run again on its own. `feedback-200ms.spec.ts` now presses the rebuilt Overview's buttons (Open rota 17 ms, HR tile 13 ms, View all 146 ms) |
+| `rota-board.spec.ts` re-run alone at 23:31 | drag test passes; the "red line for now" check fails after about 23:30 because the time is past the end of the board's day. Not changed by this branch, so it will fail the same way on `main` late at night |
+| Lighthouse on the five pages, and 43 before and after screenshots, retaken on the new look | see `UX_RESPONSIVENESS_AUDIT.md` |
+
+Feedback times measured by `feedback-200ms.spec.ts` (server held back 1.5 s; limit 200 ms):
+
+| Page | Actions and time to first visible feedback |
+|---|---|
+| Overview (rebuilt Overview, #140 and #141) | Open rota 17 ms; HR tile (full page load) 13 ms; View all 146 ms |
+| Rota | next day 146 ms; completed calls tile 14 ms; late calls tile 13 ms |
+| Service Users | Add New Service User 13 ms; apply the search 14 ms; open a service user 146 ms |
+| HR Hub | alerts 145 ms; employees 14 ms; recruitment 13 ms |
+| Policies | Upload policy 41 ms; Create policy 147 ms; grid view 147 ms; CSB Central Library tab 146 ms |
+
+The 145 to 147 ms figures are the progress bar, which is held back 120 ms on purpose so quick pages never flash it.
