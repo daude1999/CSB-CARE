@@ -238,3 +238,19 @@ the command bar everywhere. The top-bar box and the HR Hub's search are unchange
 
 The dark twins are generated at build time (`docs/implementation/DARK_MODE.md`), so the band, tabs and buttons follow
 the switch automatically. The band keeps the module colour with white text in dark mode.
+
+### Night mode follow-up (10 Nov 2026)
+
+The owner asked for the redesign to sit well in night mode. Checked in dark at 1440 on the Rota Dashboard, Daily Rota
+(Board and List), visit drawer, command bar, Visits Needing Attention, Policy Library, HR People, Analytics and
+Settings. One real problem: the generated twin turned the band's white main action (the current Rota view, Today,
+Create policy, Add employee) into a dark box with module-coloured text, which was hard to read. Fixed by hand in
+`globals.css`:
+
+- In the dark the band is 80% module colour over the dark page (`#0d1622`), so it no longer glares. White band text
+  stays at least 4.5:1 for every module (unit test in `tests/unit/dark-mode.test.ts`).
+- The band's main action stays a white button with module-coloured text, as in light mode.
+- The dark-mode generator now leaves alone any rule that already names `[data-mode=…]`, so hand-written night-mode
+  rules are not twinned back (the HR Hub build already worked this way).
+
+Light mode is unchanged. Before/after pictures: `docs/design/colour-redesign/night-mode/`.

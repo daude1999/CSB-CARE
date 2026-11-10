@@ -185,7 +185,8 @@ const plugin = (opts = {}) => ({
 
     const rules = [];
     root.walkRules((rule) => {
-      if (!rule.__csbDark && !insideSkippedAtRule(rule)) rules.push(rule);
+      // A rule that already names the dark switch was written for night mode by hand, so it is left as written.
+      if (!rule.__csbDark && !insideSkippedAtRule(rule) && !rule.selector.includes("[data-mode=")) rules.push(rule);
     });
     for (const rule of rules) {
       // Theme token blocks get their dark token values.
