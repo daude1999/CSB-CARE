@@ -3,7 +3,7 @@ import { PLATFORM_LINK_COOKIE } from "@/app/platform-link";
 import { CopyButton } from "@/components/copy-button";
 import { ForgetLink } from "./forget-link";
 
-/** A just-created invitation or reset link, shown once: the cookie is cleared as soon as it is on screen. Nothing is emailed unless the page says so. */
+/** A just-created invitation or reset link, shown once: the cookie is cleared as soon as it is on screen. It is emailed too only when the confirmation message says so. */
 export async function OneTimeLink() {
   const link = (await cookies()).get(PLATFORM_LINK_COOKIE)?.value ?? null;
   if (!link) return null;

@@ -12,8 +12,9 @@ import { nextCustomerReference } from "@/server/platform/reference";
 
 /**
  * Administration of an organisation's members: invite, change roles and branches, deactivate and reactivate, and
- * password reset links. Nothing is emailed: an invite or reset produces a one-time link that the administrator
- * gives to the person themselves (it is shown once and stored only as a hash). Every change is audited.
+ * password reset links. An invite or reset produces a one-time link (shown once to the administrator and stored only
+ * as a hash). It is also emailed to the person when a mail server is configured (./account-delivery.ts); otherwise
+ * the administrator gives it to them. Every change is audited.
  */
 
 export const ROLE_LABEL: Record<OrgRole, string> = {

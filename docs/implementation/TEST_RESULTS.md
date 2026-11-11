@@ -291,6 +291,15 @@ Tests that were out of date or fragile, corrected without removing an assertion:
 - Tests that depended on timing or time of day: a row count taken before the table had loaded; next week's rota read before it had replaced this week's (which fails in the evening, when today's visits are over); Back pressed before a reloaded page was interactive; the first-load animation counted as a tab-change animation; a clock-in to whichever visit came first, which by evening is a missed one.
 - The PDF pixel comparison is now made on one named document. The difference is a property of the document (1.7% for the one used, 2.1% for Safeguarding Adults against a 2% limit), so the result used to depend on which policy happened to be first.
 
+## Enterprise readiness, workstream 3: operations (10 Nov 2026)
+
+| Command | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint`, `npm run build` | pass (middleware bundle 35.1 kB, was 34.7 kB) |
+| `npm audit --audit-level=high` with `@sentry/nextjs` added | pass (the same 8 moderate as before) |
+| `npx vitest run tests/unit/log-redaction.test.ts tests/unit/request-id.test.ts tests/unit/account-emails.test.ts tests/unit/error-tracking.test.ts` | 24 passed |
+| `npx vitest run tests/integration/account-email-delivery.test.ts tests/integration/admin-users.test.ts tests/integration/platform-admin.test.ts` | 43 passed |
+| Built app started locally: `x-request-id` on `/api/health`, on the redirect to sign-in and replaced when the browser sends its own; `/api/health` shows the queue; a US-region `SENTRY_DSN` is refused with a logged reason | checked by hand with curl |
 
 ## Workstream 5: UX and responsiveness (10 Nov 2026, branch `enterprise-readiness-5-ux`)
 

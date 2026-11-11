@@ -5,6 +5,9 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { randomBytes } from "node:crypto";
 import { AppError, ValidationError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { reportError } from "@/lib/error-report";
+import { currentRequestId, withRequestId } from "@/lib/request-context";
+import { requestIdOfRequest } from "@/lib/request-id";
 import { requireCtx } from "@/server/auth/current";
 import type { Ctx } from "@/server/auth/rbac";
 import { AiUnavailableError } from "@/server/ai/provider";
@@ -38,9 +41,12 @@ export function errorReference() {
 }
 
 /** Logs an unexpected error with its reference: the error's kind, message and database code only, never form data. */
-function logUnexpected(e: unknown, ref: string, step?: string) {
+function logUnexpected(e: unknown, ref: string, step?: string, requestId?: string) {
   const err = e as { message?: string; stack?: string; code?: unknown; name?: string };
-  logger.error({ ref, step, kind: err?.name, code: typeof err?.code === "string" ? err.code : undefined, err: err?.message, stack: err?.stack }, "action failed");
+  const id = requestId ?? currentRequestId();
+  logger.error({ ref, requestId: id, step, kind: err?.name, code: typeof err?.code === "string" ? err.code : undefined, err: err?.message, stack: err?.stack }, "action failed");
+  // Server actions catch their own errors to show a friendly message, so Next's error hook never sees them.
+  void reportError(e, { errorRef: ref, ...(id ? { requestId: id } : {}) });
 }
 
 /**
@@ -62,9 +68,10 @@ export async function step<T>(name: string, failure: string, fn: () => Promise<T
 export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | void | { to?: string; ok: string }>, ok: string) {
   const back = safeBack(fd.get("back"));
   let target: string;
+  const requestId = await requestIdOfRequest();
   try {
     const ctx = await requireCtx();
-    const next = await runForTenant(ctx.organisationId, () => fn(ctx));
+    const next = await withRequestId(requestId, () => runForTenant(ctx.organisationId, () => fn(ctx)));
     target = typeof next === "object" ? withParam(next.to ?? back, "ok", next.ok) : withParam(next ?? back, "ok", ok);
   } catch (e) {
     if (isRedirectError(e)) throw e;
@@ -72,7 +79,7 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
     if (e instanceof AppError || e instanceof AiUnavailableError) msg = e.message;
     else {
       const ref = errorReference();
-      logUnexpected(e, ref);
+      logUnexpected(e, ref, undefined, requestId);
       msg = `Something went wrong. The error has been logged. Error reference: ${ref}.`;
     }
     if (e instanceof AiUnavailableError) logger.error({ err: e.message }, "action failed");
@@ -88,16 +95,17 @@ export async function handle(fd: FormData, fn: (ctx: Ctx) => Promise<string | vo
  * and returns `{ ok: true, data }`, or `{ ok: false, error }` with a message safe to show. Refreshes server-rendered pages.
  */
 export async function handleData<T>(fn: (ctx: Ctx) => Promise<T>, opts: { revalidate?: boolean } = {}): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  const requestId = await requestIdOfRequest();
   try {
     const ctx = await requireCtx();
-    const data = await runForTenant(ctx.organisationId, () => fn(ctx));
+    const data = await withRequestId(requestId, () => runForTenant(ctx.organisationId, () => fn(ctx)));
     if (opts.revalidate) revalidatePath("/", "layout");
     return { ok: true, data };
   } catch (e) {
     if (isRedirectError(e)) throw e;
     if (e instanceof AppError || e instanceof AiUnavailableError) return { ok: false, error: e.message };
     const ref = errorReference();
-    logUnexpected(e, ref);
+    logUnexpected(e, ref, undefined, requestId);
     return { ok: false, error: `Something went wrong. The error has been logged. Error reference: ${ref}.` };
   }
 }

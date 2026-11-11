@@ -13,7 +13,7 @@ Written plainly so nothing below is mistaken for working software.
 - Overnight and cut-off pay: runs prepared before this change keep their old lines until they are prepared again. A correction after a pay run is approved needs the run voided and prepared again; automatic adjustment lines into the next run are not built.
 - Travel and rest advice uses visit times only, not addresses: under 10 minutes between visits, or under 11 hours between working days, is shown as advice in the allocation picker and never blocks.
 - Reporting & Analytics has no charts by month or scheduled reports yet. Analytics covers at most a year at a time and Rota Reports 92 days.
-- Invitations and password resets are not emailed: the admin copies a one-time link and gives it to the person.
+- Invitations and password resets are emailed only when a mail server is configured (`EMAIL_PROVIDER=smtp`). None is configured on the live site yet, so the admin still copies a one-time link and gives it to the person. The link is always shown as well.
 
 - Policy acknowledgement assessments are a manager's recorded pass or fail, not an online quiz. Reminders and escalations for overdue acknowledgements are in-app only; no email or text goes to staff who have no sign-in, so their manager sees them as outstanding on Staff Sign-off.
 
@@ -67,6 +67,15 @@ These OnePlan Daily Rota and Daily Templates actions are deliberately left out:
 - Vercel's preview check fails on every pull request for a reason outside the repository (its logs cannot be read from here). It is not part of the Quality gate.
 - The nightly late-evening and after-midnight test runs start only once the workflow is on `main`.
 - Ending a service user's care cancels visits that have not started. A visit already in progress at that moment is left alone and then blocks archiving until it ends. Not changed here.
+
+## Operations (enterprise readiness, workstream 3, 10 Nov 2026)
+
+- **Error tracking is built but off.** Sentry (EU region, approved 10 Nov 2026) starts only when the owner creates the account and sets `SENTRY_DSN` in the hosting settings (`docs/OPERATIONS.md`). Until then errors are found through the hosting logs by error reference or request id. It reports server-side errors only: an error that happens purely in the browser is not reported. Sentry's EU region is Frankfurt, not the UK. The message scrubber masks by pattern (emails, postcodes, numbers, quoted text); a name written without quotes inside an error message would not be caught, so error messages must not be built from record content.
+- **No uptime monitor or alerts are set up.** `docs/OPERATIONS.md` says what to monitor and who is told; the owner has to create the monitor and name the on-call people.
+- Request ids are on every response and on log lines from server actions, the logging API routes and unhandled errors. A log line written while a page is being rendered, outside those, has no request id.
+- Log redaction works on field names (up to two levels deep). Personal data placed inside an error message or under an unlisted field name is not caught.
+- Account emails: the hourly limits (5 to one address, 30 by one administrator) are fixed in code, not in Platform Settings. The first-administrator invitation made when a new organisation is provisioned is not emailed; its link is shown to the platform administrator.
+- The email's logo is loaded from the site (`/csb-logo.png`), so it shows only when `APP_URL` is a public address and the reader's mail program allows images.
 
 ## UX and responsiveness (enterprise readiness, workstream 5, 10 Nov 2026)
 

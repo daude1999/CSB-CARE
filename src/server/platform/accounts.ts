@@ -137,11 +137,6 @@ export async function platformResetLink(ctx: Ctx, userId: string, opts: { delive
   return { ...r, emailed: false };
 }
 
-/** Sends a reset link by email (only with a configured email provider). The link itself is never stored or logged. */
-export async function emailResetLink(email: string, name: string, link: string, hours: number) {
-  await emailProvider().send({ to: email, subject: "Reset your CSB password", text: `Hello ${name},\n\nA password reset was requested for your account. Use this link within ${hours} hours to choose a new password:\n\n${link}\n\nIf you did not expect this, contact your administrator.` });
-}
-
 /** Signs a person out everywhere. */
 export async function revokeAllSessions(ctx: Ctx, userId: string, reasonRaw: string) {
   requirePlatform(ctx, "platform.accounts");

@@ -5,13 +5,18 @@ import { redirect } from "next/navigation";
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createResetLink, deactivateMember, inviteMember, reactivateMember, redeemToken, revokeInvite, updateMember } from "@/server/admin/users";
+import { deliverAccountLink, deliveryMessage } from "@/server/admin/account-delivery";
 import { handle, str } from "./action-kit";
 import { saveBranch, setMemberBranches } from "@/server/admin/branches";
 import { ONE_TIME_LINK_COOKIE } from "./admin-link";
 
-async function showLinkOnce(token: string) {
+async function appOrigin() {
   const h = await headers();
-  const origin = process.env.APP_URL?.replace(/\/$/, "") || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+  return process.env.APP_URL?.replace(/\/$/, "") || `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+}
+
+async function showLinkOnce(token: string) {
+  const origin = await appOrigin();
   (await cookies()).set(ONE_TIME_LINK_COOKIE, `${origin}/account/${token}`, { httpOnly: true, sameSite: "strict", secure: origin.startsWith("https"), path: "/admin/users", maxAge: 120 });
 }
 
@@ -38,7 +43,9 @@ const memberInput = (fd: FormData) => ({
 export async function inviteMemberAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const r = await inviteMember(ctx, { ...memberInput(fd), email: str(fd, "email"), name: str(fd, "name") });
+    const sent = await deliverAccountLink({ tokenId: r.inviteId, token: r.token, origin: await appOrigin(), actor: { userId: ctx.userId, level: "admin" } });
     await showLinkOnce(r.token);
+    return { ok: deliveryMessage("invite", sent) };
   }, "Invitation created. Copy the link below.");
 }
 
@@ -61,7 +68,9 @@ export async function reactivateMemberAction(fd: FormData) {
 export async function createResetLinkAction(fd: FormData) {
   return handle(fd, async (ctx) => {
     const r = await createResetLink(ctx, str(fd, "membershipId"));
+    const sent = await deliverAccountLink({ tokenId: r.tokenId, token: r.token, origin: await appOrigin(), actor: { userId: ctx.userId, level: "admin" } });
     await showLinkOnce(r.token);
+    return { ok: deliveryMessage("reset", sent) };
   }, "Password reset link created. Copy the link below.");
 }
 

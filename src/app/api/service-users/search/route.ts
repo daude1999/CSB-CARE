@@ -3,6 +3,7 @@ import { getCtx } from "@/server/auth/current";
 import { AppError, ForbiddenError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { findServiceUsersToUpdate } from "@/server/care/service-users";
+import { withRequestLog } from "@/lib/request-id";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
  * JSON for the "Update Existing Service User" person picker. The search runs on the server with the member's own
  * permissions, branches and areas (findServiceUsersToUpdate); nothing is cached and the search text is never logged.
  */
-export async function GET(req: Request) {
+export const GET = withRequestLog(async function GET(req: Request) {
   const ctx = await getCtx();
   if (!ctx) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const q = new URL(req.url).searchParams.get("q") ?? "";
@@ -22,4 +23,4 @@ export async function GET(req: Request) {
     logger.error({ event: "serviceUser.updatePicker.failed", errorName: e instanceof Error ? e.name : typeof e }, "Service user picker search failed");
     return NextResponse.json({ error: "The search could not be completed. Try again." }, { status: 500 });
   }
-}
+});
