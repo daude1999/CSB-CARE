@@ -49,15 +49,15 @@ export default async function AuditPage({ params, searchParams }: { params: Prom
           <form action={completeAuditAction} className="flex items-center gap-3">
             <input type="hidden" name="auditId" value={a.id} />
             <input type="hidden" name="back" value={back} />
-            <span className="text-[13px] text-slate-600" data-testid="audit-progress">{progress.answered} of {progress.total} answered</span>
+            <span className="text-meta text-slate-600" data-testid="audit-progress">{progress.answered} of {progress.total} answered</span>
             <button className="btn-primary" type="submit" title={progress.missing.length ? "Every question needs an answer first" : undefined}>Complete audit</button>
           </form>
-        ) : <span className="flex items-center gap-2 text-[13px] text-slate-600"><StatusBadge status={a.status} />{a.completedAt ? `Completed ${fmtDate(a.completedAt)}${a.completedById ? ` by ${members.find((m) => m.userId === a.completedById)?.user.name ?? "a member"}` : ""}` : null}</span>}
+        ) : <span className="flex items-center gap-2 text-meta text-slate-600"><StatusBadge status={a.status} />{a.completedAt ? `Completed ${fmtDate(a.completedAt)}${a.completedById ? ` by ${members.find((m) => m.userId === a.completedById)?.user.name ?? "a member"}` : ""}` : null}</span>}
       />
       <Flash searchParams={sp} />
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2" title={`Questions (internal score: ${score === null ? (progress.missing.length ? `not scored until all ${progress.total} are answered` : "not scored") : `${score}%`})`}>
-          <p className="-mt-1 mb-3 text-[12.5px] text-slate-600">The score is an internal indicator from the answers recorded here (partially met counts half; not applicable is left out). It is not a CQC rating.</p>
+          <p className="-mt-1 mb-3 text-meta text-slate-600">The score is an internal indicator from the answers recorded here (partially met counts half; not applicable is left out). It is not a CQC rating.</p>
           <ol className="space-y-4">
             {a.template.questions.map((q, i) => {
               const ans = answers.get(q.id);

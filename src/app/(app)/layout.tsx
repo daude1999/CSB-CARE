@@ -144,9 +144,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   return (
     <div className="flex min-h-screen flex-col">
-      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-[14px] text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
+      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-body text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       {setupLeft ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-body text-[#a3242c]">
           <Warning size={18} weight="fill" aria-hidden="true" className="shrink-0" />
           <span className="min-w-0 flex-1">Your organisation is not fully set up yet. Complete your setup checklist so every policy is personalised to your service.</span>
           <Link href="/" className="rounded-[4px] bg-emerald-500 px-4 py-1 font-medium text-white no-underline hover:bg-emerald-600 hover:text-white">Complete Setup</Link>
@@ -164,8 +164,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <MobileMenu {...shell} light />
                 <Monogram className="h-[30px] sm:h-[36px] lg:h-[46px]" />
                 <div className="min-w-0">
-                  <h1 className="truncate text-[16px] font-semibold max-sm:sr-only leading-[22px] text-white md:text-[18px] lg:text-[20px] lg:leading-[26px]">Care Solution Bureau CIC</h1>
-                  <p className="hidden truncate text-[13px] leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
+                  <h1 className="truncate text-lead font-semibold max-sm:sr-only leading-[22px] text-white md:text-subtitle lg:text-title lg:leading-[26px]">Care Solution Bureau CIC</h1>
+                  <p className="hidden truncate text-meta leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
                   <LondonClock initial={Date.now()} />
@@ -190,7 +190,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <ShellSearch />
               <div className="flex shrink-0 items-center gap-2 md:gap-3 lg:gap-4">
                 {me?.branch?.name ? (
-                  <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
+                  <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-meta text-[#0b1530] lg:flex" title="Your branch">
                     <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                   </span>
                 ) : null}
@@ -201,11 +201,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 </Link>
                 <ColourModeMenu initial={colourMode} />
                 <HelpMenu assistant={can.assistant} />
-                <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
+                <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-meta font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
               </div>
             </header>
           </TopbarSwitch>
-          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
+          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-body text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
           <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
           {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
           <CommandBar pages={commandPages} actions={commandActions(ctx)} />
@@ -241,8 +241,8 @@ function groupAdmin(everyday: ShellItem[], advanced: ShellItem[]): ShellItem[] {
 /** Shown instead of every page while Evantix has suspended or closed the organisation. Nothing has been deleted. */
 function SuspendedNotice({ orgName, email, phone }: { orgName: string; email: string; phone: string }) {
   return (
-    <section aria-labelledby="suspended-heading" className="mx-auto mt-10 max-w-xl rounded-[6px] bg-white p-6 text-[15px]" data-testid="organisation-suspended">
-      <h1 id="suspended-heading" className="text-[22px] font-semibold text-[#0b1530]">{orgName} is suspended</h1>
+    <section aria-labelledby="suspended-heading" className="mx-auto mt-10 max-w-xl rounded-[6px] bg-white p-6 text-lead" data-testid="organisation-suspended">
+      <h1 id="suspended-heading" className="text-heading font-semibold text-[#0b1530]">{orgName} is suspended</h1>
       <p className="mt-2 text-slate-700">Access to this organisation has been paused by the platform provider. Your records are safe and have not been changed or deleted.</p>
       <p className="mt-2 text-slate-700">Please contact your organisation&apos;s administrator{email || phone ? <> or Evantix support{email ? <> at <a href={`mailto:${email}`}>{email}</a></> : null}{phone ? <> on {phone}</> : null}</> : null}.</p>
     </section>

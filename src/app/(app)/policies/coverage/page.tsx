@@ -51,7 +51,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
       <Flash searchParams={sp} />
       <section aria-label="Branch policy coverage" className="pc-panel">
         <div className="pc-panel-head">
-          <p className="text-[14px] leading-6 text-[#344054]" data-testid="coverage-summary">
+          <p className="text-body leading-6 text-[#344054]" data-testid="coverage-summary">
             <strong>{summary.national}</strong> national · <strong>{summary.shared}</strong> shared with branch appendices · <strong>{summary.branchPolicies}</strong> branch policies.{" "}
             Across the branches shown: <strong>{summary.approved}</strong> published, <strong>{summary.drafts}</strong> in draft, <strong>{summary.awaiting}</strong> ready to publish,{" "}
             <strong className={summary.missingLocal ? "text-[#b42318]" : ""}>{summary.missingLocal}</strong> missing local arrangements, <strong className={summary.needsReview ? "text-[#b54708]" : ""}>{summary.needsReview}</strong> needing review.{" "}
@@ -75,7 +75,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
               <thead>
                 <tr>
                   <th>Policy</th>
-                  {branches.map((b) => <th key={b.id}>{b.name}<span className="block text-[11.5px] font-normal text-[#667085]">{b.policyProfile?.localAuthority?.name ?? "Area not set"} · {regionName(b.policyProfile?.regionCode)}</span></th>)}
+                  {branches.map((b) => <th key={b.id}>{b.name}<span className="block text-caption font-normal text-[#667085]">{b.policyProfile?.localAuthority?.name ?? "Area not set"} · {regionName(b.policyProfile?.regionCode)}</span></th>)}
                 </tr>
               </thead>
               <tbody>
@@ -84,7 +84,7 @@ export default async function BranchCoveragePage({ searchParams }: { searchParam
                     <td className="min-w-[240px] max-w-[340px]"><Link href={`/policies/${r.id}`} className="pc-strong">{r.ref} {r.title}</Link><span className="pc-sub">{r.category}</span></td>
                     {r.cells.map((c) => (
                       <td key={c.branchId} className="min-w-[170px]">
-                        {c.how === "not_applicable" ? <span className="text-[13px] text-[#98a2b3]">Not this branch</span> : (
+                        {c.how === "not_applicable" ? <span className="text-meta text-[#98a2b3]">Not this branch</span> : (
                           <>
                             <CellBadge state={c.state} />
                             <span className="pc-sub">{c.policyId && c.how === "branch_policy" ? <Link href={`/policies/${c.policyId}`}>{HOW_LABEL[c.how]} {c.ref}</Link> : HOW_LABEL[c.how]}{c.pendingAcks ? ` · ${c.pendingAcks} to read` : ""}</span>

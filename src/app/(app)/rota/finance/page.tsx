@@ -43,8 +43,8 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
                       <td className="whitespace-nowrap">w/c {fmtLondonDate(w, { day: "numeric", month: "short", year: "numeric" })}</td>
                       <td>
                         <Link href={`/rota/finance/timesheets?week=${w}`}>{total ? `${count(w, "APPROVED")} of ${total} approved` : "Not prepared"}</Link>
-                        {count(w, "SUBMITTED") ? <span className="block text-[12.5px] text-slate-500">{count(w, "SUBMITTED")} waiting for approval</span> : null}
-                        {count(w, "REJECTED") ? <span className="block text-[12.5px] text-[#a3242c]">{count(w, "REJECTED")} rejected</span> : null}
+                        {count(w, "SUBMITTED") ? <span className="block text-meta text-slate-500">{count(w, "SUBMITTED")} waiting for approval</span> : null}
+                        {count(w, "REJECTED") ? <span className="block text-meta text-[#a3242c]">{count(w, "REJECTED")} rejected</span> : null}
                       </td>
                       <td>{p ? <Link href={`/rota/finance/payroll/${p.id}`}>{pounds(p.totalPence)} <Badge tone={p.status === "APPROVED" ? "green" : "amber"}>{p.status === "APPROVED" ? "Approved" : "Draft"}</Badge></Link> : <Link href={`/rota/finance/payroll?week=${w}`}>Not prepared</Link>}</td>
                       <td>{i ? <Link href={`/rota/finance/invoices/${i.id}`}>{pounds(i.totalPence)} <Badge tone={i.status === "APPROVED" ? "green" : "amber"}>{i.status === "APPROVED" ? "Approved" : "Draft"}</Badge></Link> : <Link href={`/rota/finance/invoices?week=${w}`}>Not prepared</Link>}</td>
@@ -58,18 +58,18 @@ export default async function FinanceHome({ searchParams }: { searchParams: Prom
         </Card>
         <div className="space-y-3">
         <Card title="How each week is prepared">
-          <ol className="list-decimal space-y-1.5 pl-5 text-[14px]" data-testid="finance-steps">
+          <ol className="list-decimal space-y-1.5 pl-5 text-body" data-testid="finance-steps">
             <li><span className="font-medium">Review</span> each carer’s timesheet against their visits.</li>
             <li><span className="font-medium">Prepare</span> the payroll and invoice runs for the week.</li>
             <li><span className="font-medium">Check</span> the totals and any lines flagged for attention.</li>
             <li><span className="font-medium">Approve</span>: a second person approves each run.</li>
             <li><span className="font-medium">Export</span> the approved files for your payroll provider and accounts system.</li>
           </ol>
-          <p className="mt-2 text-[12.5px] text-slate-500">The “Next step” column shows where each week has got to.</p>
+          <p className="mt-2 text-meta text-slate-500">The “Next step” column shows where each week has got to.</p>
         </Card>
         <Card title="Set-up">
-          <ul className="space-y-2 text-[14px]">
-            <li><Link href="/rota/finance/rates">Funders and rate cards</Link><span className="block text-[12.5px] text-slate-500">{funders} active funders, {cards} rate cards</span></li>
+          <ul className="space-y-2 text-body">
+            <li><Link href="/rota/finance/rates">Funders and rate cards</Link><span className="block text-meta text-slate-500">{funders} active funders, {cards} rate cards</span></li>
             <li><Link href="/rota/finance/rates?tab=packages">Who funds each person</Link></li>
             <li><Link href="/rota/finance/rates?tab=staff">Carers’ pay rates</Link></li>
             <li><Link href="/rota/finance/rates?tab=settings">Pay basis, mileage and invoice numbering</Link></li>

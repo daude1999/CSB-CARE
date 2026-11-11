@@ -66,9 +66,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
                 <tbody>
                   {list.map((k) => (
                     <tr key={k.key} data-kpi={k.key}>
-                      <td className="font-medium">{k.href ? <Link href={k.href}>{k.name}</Link> : k.name}<span className="block text-[12.5px] font-normal text-slate-600">{k.detail}</span></td>
-                      <td className="text-right text-[18px] font-semibold tabular-nums">{fmt(k.value, k.unit)}</td>
-                      <td className="text-[13px] text-slate-700">{k.definition}{!k.branchAware && (branch || ctx.branchIds) ? <span className="block text-[12.5px] text-[#8a5a00]">Whole organisation: this measure has no branch.</span> : null}</td>
+                      <td className="font-medium">{k.href ? <Link href={k.href}>{k.name}</Link> : k.name}<span className="block text-meta font-normal text-slate-600">{k.detail}</span></td>
+                      <td className="text-right text-subtitle font-semibold tabular-nums">{fmt(k.value, k.unit)}</td>
+                      <td className="text-meta text-slate-700">{k.definition}{!k.branchAware && (branch || ctx.branchIds) ? <span className="block text-meta text-[#8a5a00]">Whole organisation: this measure has no branch.</span> : null}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -77,7 +77,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </Card>
         );
       }) : <Card><Empty>{group && categories.total ? `None of the ${KPI_GROUPS[group]} measures apply to your roles. Choose another category above.` : "None of the measures apply to your roles."}</Empty></Card>}
-      <p className="text-[13px] text-slate-600">More detail: <Link href="/rota/reports">Rota reports</Link>{hasOrgPermission(ctx, "report.view") ? <> · <Link href="/compliance/reports">Compliance reports</Link></> : null}. Scheduled reports and charts by month are not built yet.</p>
+      <p className="text-meta text-slate-600">More detail: <Link href="/rota/reports">Rota reports</Link>{hasOrgPermission(ctx, "report.view") ? <> · <Link href="/compliance/reports">Compliance reports</Link></> : null}. Scheduled reports and charts by month are not built yet.</p>
     </>
   );
 }

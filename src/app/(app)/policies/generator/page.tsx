@@ -29,7 +29,7 @@ const MODE_LABEL: Record<string, string> = Object.fromEntries(MODES.map((m) => [
 const METHOD_LABEL: Record<string, string> = { AI: "AI-assisted, checked against sources", SOURCE_GUIDED: "Built from recorded sources (no AI)" };
 
 function SourceTable({ sources, empty }: { sources: AssembledSource[]; empty: string }) {
-  if (!sources.length) return <p className="px-5 py-3 text-[13.5px] text-[#b42318]">{empty}</p>;
+  if (!sources.length) return <p className="px-5 py-3 text-body text-[#b42318]">{empty}</p>;
   return (
     <PcTableWrap>
       <table className="pc-table">
@@ -40,7 +40,7 @@ function SourceTable({ sources, empty }: { sources: AssembledSource[]; empty: st
               <td className="font-semibold">{s.label}</td>
               <td className="min-w-[260px] max-w-[420px]"><a href={s.url} target="_blank" rel="noreferrer noopener" className="pc-strong">{s.name}</a><span className="pc-sub">{s.issuer ?? "Publisher not recorded"}{s.versionLabel ? ` · ${s.versionLabel}` : ""}</span></td>
               <td><LevelBadge level={s.level} /></td>
-              <td className="text-[13px]">{s.areas}</td>
+              <td className="text-meta">{s.areas}</td>
               <td><TrustBadge trust={s.trust} /></td>
               <td className="whitespace-nowrap">{s.lastChecked ? fmtDate(s.lastChecked) : "Never"}</td>
             </tr>
@@ -107,11 +107,11 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
 
       {doneRuns.length ? (
         <section className="pc-panel mb-4" aria-label="Drafts generated" data-testid="generated-drafts">
-          <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">Drafts generated</h2><span className="pc-note">Open each draft to check it, resolve gaps and send it for review.</span></div>
+          <div className="pc-panel-head"><h2 className="text-lead font-semibold text-[#101828]">Drafts generated</h2><span className="pc-note">Open each draft to check it, resolve gaps and send it for review.</span></div>
           <ul className="divide-y divide-[#f2f4f7]">
             {doneRuns.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-[14px]">
-                <span><span className="font-semibold text-[#101828]">{r.policy.ref} {r.policy.title}</span><span className="block text-[13px] text-[#667085]">{r.branchNames.join(", ") || "All branches"} · {METHOD_LABEL[r.method] ?? r.method}</span></span>
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-body">
+                <span><span className="font-semibold text-[#101828]">{r.policy.ref} {r.policy.title}</span><span className="block text-meta text-[#667085]">{r.branchNames.join(", ") || "All branches"} · {METHOD_LABEL[r.method] ?? r.method}</span></span>
                 <span className="flex items-center gap-3">{r.openCritical ? <PcBadge tone="red">{r.openCritical} critical gap{r.openCritical === 1 ? "" : "s"}</PcBadge> : <PcBadge tone="green">No critical gaps</PcBadge>}{r.revisionId ? <Link href={`/revisions/${r.revisionId}`} className="pc-link">Open draft</Link> : null}</span>
               </li>
             ))}
@@ -124,16 +124,16 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
 
         {/* Step 1 */}
         <div className="border-b border-[#eaecf0] p-5">
-          <h2 className="text-[15px] font-semibold text-[#101828]">1. Select policy</h2>
+          <h2 className="text-lead font-semibold text-[#101828]">1. Select policy</h2>
           {step1Done ? (
-            <p className="mt-1 text-[14px] text-[#344054]" data-testid="chosen-basis">
+            <p className="mt-1 text-body text-[#344054]" data-testid="chosen-basis">
               {basisPolicy ? <>{basis === "TEMPLATE" ? "CSB template" : "Your policy"}: <strong>{basisPolicy.ref} {basisPolicy.title}</strong></> : <>New policy: <strong>{ref} {title}</strong></>} · {categoryName}{" "}
               <Link href="/policies/generator" className="pc-link ml-2">Change</Link>
             </p>
           ) : (
             <form method="get" action="/policies/generator" className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-3" data-testid="generator-step1">
               <fieldset className="rounded-[10px] border border-[#eaecf0] p-4">
-                <legend className="px-1 text-[14px] font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="POLICY" defaultChecked={basis !== "TEMPLATE" && basis !== "NEW"} className="pc-check" />One of your policies</label></legend>
+                <legend className="px-1 text-body font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="POLICY" defaultChecked={basis !== "TEMPLATE" && basis !== "NEW"} className="pc-check" />One of your policies</label></legend>
                 <select name="own" className="input mt-2" defaultValue={basis === "POLICY" ? policyId : ""} aria-label="Your policy">
                   <option value="">Choose a policy</option>
                   {ownPolicies.map((p) => <option key={p.id} value={p.id}>{p.ref} {p.title}</option>)}
@@ -141,7 +141,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 <p className="pc-note mt-2">Only published policies can be used as a basis.</p>
               </fieldset>
               <fieldset className="rounded-[10px] border border-[#eaecf0] p-4">
-                <legend className="px-1 text-[14px] font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="TEMPLATE" defaultChecked={basis === "TEMPLATE"} className="pc-check" />A CSB template</label></legend>
+                <legend className="px-1 text-body font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="TEMPLATE" defaultChecked={basis === "TEMPLATE"} className="pc-check" />A CSB template</label></legend>
                 <select name="tpl" className="input mt-2" defaultValue={basis === "TEMPLATE" ? policyId : ""} aria-label="CSB template">
                   <option value="">Choose a template</option>
                   {templates.map((p) => <option key={p.id} value={p.id}>{p.ref} {p.title}</option>)}
@@ -149,7 +149,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 <p className="pc-note mt-2">If you already use this template, your own copy is updated instead.</p>
               </fieldset>
               <fieldset className="rounded-[10px] border border-[#eaecf0] p-4">
-                <legend className="px-1 text-[14px] font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="NEW" defaultChecked={basis === "NEW"} className="pc-check" />A new policy</label></legend>
+                <legend className="px-1 text-body font-semibold text-[#101828]"><label className="flex items-center gap-2"><input type="radio" name="basis" value="NEW" defaultChecked={basis === "NEW"} className="pc-check" />A new policy</label></legend>
                 <div className="mt-2 space-y-2">
                   <input name="title" defaultValue={title} maxLength={200} className="input" placeholder="Title" aria-label="New policy title" />
                   <input name="ref" defaultValue={ref} maxLength={40} className="input" placeholder="Reference, e.g. CSB-SG-010" aria-label="New policy reference" />
@@ -160,7 +160,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 </div>
               </fieldset>
               <div className="lg:col-span-3">
-                {basis && !step1Done ? <p className="mb-2 text-[13.5px] text-[#b42318]" role="alert">{basis === "NEW" ? "Give a title (5+ characters), a reference such as CSB-SG-010 and a category." : "Choose the policy to start from."}</p> : null}
+                {basis && !step1Done ? <p className="mb-2 text-body text-[#b42318]" role="alert">{basis === "NEW" ? "Give a title (5+ characters), a reference such as CSB-SG-010 and a category." : "Choose the policy to start from."}</p> : null}
                 <button className="pc-btn" type="submit">Continue</button>
               </div>
             </form>
@@ -169,9 +169,9 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
 
         {/* Step 2 */}
         <div className="border-b border-[#eaecf0] p-5">
-          <h2 className={`text-[15px] font-semibold ${step1Done ? "text-[#101828]" : "text-[#98a2b3]"}`}>2. Select branches</h2>
+          <h2 className={`text-lead font-semibold ${step1Done ? "text-[#101828]" : "text-[#98a2b3]"}`}>2. Select branches</h2>
           {step1Done && step2Done ? (
-            <p className="mt-1 text-[14px] text-[#344054]" data-testid="chosen-branches">
+            <p className="mt-1 text-body text-[#344054]" data-testid="chosen-branches">
               {MODE_LABEL[mode]} · {mode === "NATIONAL" ? "every branch" : branches.filter((b) => validBranches.includes(b.id)).map((b) => b.name).join(", ")}
               <Link href={`/policies/generator?${new URLSearchParams({ basis, ...(basisPolicy ? { policy: basisPolicy.id } : { title, ref, category }) })}`} className="pc-link ml-2">Change</Link>
             </p>
@@ -184,7 +184,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                   {MODES.map((m) => (
                     <label key={m.value} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-4 has-[:checked]:border-module has-[:checked]:bg-module/[.04]">
                       <input type="radio" name="mode" value={m.value} defaultChecked={(mode || "SHARED_WITH_APPENDICES") === m.value} className="pc-check mt-0.5" />
-                      <span><span className="block text-[14px] font-semibold text-[#101828]">{m.label}</span><span className="mt-1 block text-[13px] text-[#475467]">{m.detail}</span></span>
+                      <span><span className="block text-body font-semibold text-[#101828]">{m.label}</span><span className="mt-1 block text-meta text-[#475467]">{m.detail}</span></span>
                     </label>
                   ))}
                 </div>
@@ -198,8 +198,8 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                       <label key={b.id} className="flex gap-3 rounded-[10px] border border-[#eaecf0] p-3 has-[:checked]:border-module">
                         <input type="checkbox" name="branch" value={b.id} defaultChecked={validBranches.includes(b.id)} className="pc-check mt-0.5" />
                         <span className="min-w-0">
-                          <span className="block text-[14px] font-semibold text-[#101828]">{b.name}</span>
-                          <span className="block text-[13px] text-[#475467]">{p?.localAuthority?.name ?? "Local authority not set"} · {regionName(p?.regionCode)}</span>
+                          <span className="block text-body font-semibold text-[#101828]">{b.name}</span>
+                          <span className="block text-meta text-[#475467]">{p?.localAuthority?.name ?? "Local authority not set"} · {regionName(p?.regionCode)}</span>
                           <span className="mt-1 block">{p?.lastVerifiedAt ? <PcBadge tone="green">Configuration verified</PcBadge> : <PcBadge tone="amber">Configuration not verified</PcBadge>}</span>
                         </span>
                       </label>
@@ -208,7 +208,7 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 </div>
                 {hasOrgPermission(ctx, "policy.localConfig") ? <p className="pc-note mt-2"><Link href="/policies/branches" className="pc-link">Branch & Local Authority Configuration</Link> is where each branch’s area and local arrangements are recorded.</p> : null}
               </fieldset>
-              {mode && !step2Done ? <p className="text-[13.5px] text-[#b42318]" role="alert">Choose at least one branch, or choose a national policy.</p> : null}
+              {mode && !step2Done ? <p className="text-body text-[#b42318]" role="alert">Choose at least one branch, or choose a national policy.</p> : null}
               <button className="pc-btn" type="submit">Review requirements</button>
             </form>
           ) : null}
@@ -216,17 +216,17 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
 
         {/* Step 3 and 4 */}
         <div className="p-5">
-          <h2 className={`text-[15px] font-semibold ${assembly ? "text-[#101828]" : "text-[#98a2b3]"}`}>3. Review applicable requirements</h2>
+          <h2 className={`text-lead font-semibold ${assembly ? "text-[#101828]" : "text-[#98a2b3]"}`}>3. Review applicable requirements</h2>
           {assembly ? (
             <div className="mt-3 space-y-5" data-testid="generator-review">
-              <p className="text-[14px] text-[#344054]">These are the sources the draft will cite, labelled S1, S2 and so on. Regional and local sources are matched to each branch’s own area only. Nothing is generated for an area without its own recorded sources.</p>
+              <p className="text-body text-[#344054]">These are the sources the draft will cite, labelled S1, S2 and so on. Regional and local sources are matched to each branch’s own area only. Nothing is generated for an area without its own recorded sources.</p>
               <div className="pc-panel">
-                <div className="pc-panel-head"><h3 className="text-[14px] font-semibold text-[#101828]">National (England)</h3></div>
+                <div className="pc-panel-head"><h3 className="text-body font-semibold text-[#101828]">National (England)</h3></div>
                 <SourceTable sources={assembly.national} empty="No national sources recorded for this topic." />
                 {assembly.requirements.length ? (
                   <div className="border-t border-[#eaecf0] px-5 py-3">
-                    <p className="text-[13px] font-semibold text-[#344054]">Requirements Register entries mapped to this policy</p>
-                    <ul className="mt-1 list-disc pl-5 text-[13px] text-[#475467]">{assembly.requirements.map((r) => <li key={r.ref}>{r.ref}: {r.title} ({r.exactReference})</li>)}</ul>
+                    <p className="text-meta font-semibold text-[#344054]">Requirements Register entries mapped to this policy</p>
+                    <ul className="mt-1 list-disc pl-5 text-meta text-[#475467]">{assembly.requirements.map((r) => <li key={r.ref}>{r.ref}: {r.title} ({r.exactReference})</li>)}</ul>
                   </div>
                 ) : null}
                 {assembly.nationalGaps.length ? <GapList gaps={assembly.nationalGaps} /> : null}
@@ -234,12 +234,12 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
               {assembly.branches.map((b) => (
                 <div key={b.id} className="pc-panel" data-testid={`review-branch-${b.name}`}>
                   <div className="pc-panel-head">
-                    <h3 className="text-[14px] font-semibold text-[#101828]">{b.name}</h3>
-                    <span className="text-[13px] text-[#475467]">{b.localAuthority ?? "Local authority not set"} · {b.region ?? "Region not set"}</span>
+                    <h3 className="text-body font-semibold text-[#101828]">{b.name}</h3>
+                    <span className="text-meta text-[#475467]">{b.localAuthority ?? "Local authority not set"} · {b.region ?? "Region not set"}</span>
                   </div>
-                  <p className="px-5 pt-3 text-[13px] font-semibold text-[#344054]">Regional</p>
+                  <p className="px-5 pt-3 text-meta font-semibold text-[#344054]">Regional</p>
                   <SourceTable sources={b.regional} empty="No regional source recorded for this branch's region." />
-                  <p className="px-5 pt-3 text-[13px] font-semibold text-[#344054]">Local authority</p>
+                  <p className="px-5 pt-3 text-meta font-semibold text-[#344054]">Local authority</p>
                   <SourceTable sources={b.local} empty="No local authority source recorded for this branch." />
                   <GapList gaps={b.gaps} />
                 </div>
@@ -251,23 +251,23 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 {basisPolicy ? <input type="hidden" name="basisPolicyId" value={basisPolicy.id} /> : <><input type="hidden" name="title" value={title} /><input type="hidden" name="ref" value={ref} /><input type="hidden" name="categoryCode" value={category} /></>}
                 <input type="hidden" name="mode" value={mode} />
                 {mode === "NATIONAL" ? null : validBranches.map((id) => <input key={id} type="hidden" name="branchIds" value={id} />)}
-                <h3 className="text-[15px] font-semibold text-[#101828]">4. Generate draft</h3>
-                <p className="mt-1 text-[14px] text-[#344054]">
+                <h3 className="text-lead font-semibold text-[#101828]">4. Generate draft</h3>
+                <p className="mt-1 text-body text-[#344054]">
                   {criticalCount ? <><strong className="text-[#b42318]">{criticalCount} critical gap{criticalCount === 1 ? "" : "s"}</strong> will be recorded on the draft. Where something is missing the draft says <code>[REVIEW REQUIRED]</code> instead of guessing, and it cannot be published until those are completed.</> : "No critical gaps found. The draft still needs checking, and the pre-publication confirmations, before it can be published."}
                 </p>
-                <label className="mt-3 flex items-start gap-2 text-[14px]">
+                <label className="mt-3 flex items-start gap-2 text-body">
                   <input type="checkbox" name="useAi" defaultChecked={aiAvailable} disabled={!aiAvailable} className="pc-check mt-0.5" />
                   <span>Use AI to improve the wording of the generated sections{aiAvailable ? "" : " (not available: no AI service is switched on, so the draft is built only from the recorded sources and branch details)"}. AI wording is rejected if it adds contact details, cites a source not listed above, or quotes text the source does not contain.</span>
                 </label>
                 <button className="pc-btn mt-4" type="submit" data-testid="generate-draft">Generate draft</button>
               </form>
             </div>
-          ) : <p className="mt-1 text-[13.5px] text-[#667085]">Choose the policy and branches first.</p>}
+          ) : <p className="mt-1 text-body text-[#667085]">Choose the policy and branches first.</p>}
         </div>
       </section>
 
       <section className="pc-panel mt-4" aria-label="Recent generated drafts">
-        <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">Recent generated drafts</h2><span className="pc-note">5. Check the draft and 6. Publish happen on each draft.</span></div>
+        <div className="pc-panel-head"><h2 className="text-lead font-semibold text-[#101828]">Recent generated drafts</h2><span className="pc-note">5. Check the draft and 6. Publish happen on each draft.</span></div>
         {runs.length ? (
           <PcTableWrap>
             <table className="pc-table" data-testid="recent-runs">
@@ -276,9 +276,9 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
                 {runs.map((r) => (
                   <tr key={r.id}>
                     <td className="min-w-[220px]"><span className="pc-strong">{r.policy.ref}</span><span className="pc-sub">{r.policy.title}</span></td>
-                    <td className="text-[13px]">{MODE_LABEL[r.mode] ?? r.mode}</td>
-                    <td className="text-[13px]">{r.branchNames.join(", ") || "All"}</td>
-                    <td className="text-[13px]">{METHOD_LABEL[r.method] ?? r.method}</td>
+                    <td className="text-meta">{MODE_LABEL[r.mode] ?? r.mode}</td>
+                    <td className="text-meta">{r.branchNames.join(", ") || "All"}</td>
+                    <td className="text-meta">{METHOD_LABEL[r.method] ?? r.method}</td>
                     <td>{r.openCritical ? <PcBadge tone="red">{r.openCritical} open</PcBadge> : <PcBadge tone="green">None open</PcBadge>}</td>
                     <td>{r.status ? <PcBadge tone={r.status === "PUBLISHED" ? "green" : r.status === "APPROVED" ? "purple" : "blue"}>{r.status.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</PcBadge> : "—"}</td>
                     <td className="whitespace-nowrap">{fmtDate(r.createdAt, true)}</td>
@@ -295,11 +295,11 @@ export default async function PolicyGeneratorPage({ searchParams }: { searchPara
 }
 
 function GapList({ gaps }: { gaps: { kind: string; severity: string; message: string }[] }) {
-  if (!gaps.length) return <p className="border-t border-[#eaecf0] px-5 py-3 text-[13.5px] text-[#067647]">No gaps found for this branch.</p>;
+  if (!gaps.length) return <p className="border-t border-[#eaecf0] px-5 py-3 text-body text-[#067647]">No gaps found for this branch.</p>;
   return (
     <ul className="divide-y divide-[#f2f4f7] border-t border-[#eaecf0]" aria-label="Gaps found">
       {gaps.map((g, i) => (
-        <li key={`${g.kind}-${i}`} className="flex items-start gap-3 px-5 py-2.5 text-[13.5px]"><SeverityBadge severity={g.severity} /><span className="text-[#344054]">{g.message}</span></li>
+        <li key={`${g.kind}-${i}`} className="flex items-start gap-3 px-5 py-2.5 text-body"><SeverityBadge severity={g.severity} /><span className="text-[#344054]">{g.message}</span></li>
       ))}
     </ul>
   );

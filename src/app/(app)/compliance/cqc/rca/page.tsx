@@ -59,8 +59,8 @@ export default async function RcaListPage({ searchParams }: { searchParams: Prom
           <PcSelect name="branch" label="Branch" defaultValue={f.branch ?? ""} options={[{ value: "", label: "All" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]} />
           <PcSelect name="service" label="Service" defaultValue={f.service ?? ""} options={[{ value: "", label: "All" }, ...services.map((s) => ({ value: s.code, label: s.name }))]} />
           <PcSelect name="owner" label="Investigator or manager" defaultValue={f.owner ?? ""} options={[{ value: "", label: "Anyone" }, ...people.map((p) => ({ value: p.id, label: p.name }))]} />
-          <label className="pc-select pr-3"><span>From</span><input type="date" name="from" defaultValue={f.from} className="border-0 bg-transparent text-[13.5px]" aria-label="Event from" /></label>
-          <label className="pc-select pr-3"><span>To</span><input type="date" name="to" defaultValue={f.to} className="border-0 bg-transparent text-[13.5px]" aria-label="Event to" /></label>
+          <label className="pc-select pr-3"><span>From</span><input type="date" name="from" defaultValue={f.from} className="border-0 bg-transparent text-body" aria-label="Event from" /></label>
+          <label className="pc-select pr-3"><span>To</span><input type="date" name="to" defaultValue={f.to} className="border-0 bg-transparent text-body" aria-label="Event to" /></label>
           <button className="pc-btn-secondary pc-btn-sm" type="submit">Apply</button>
           {filtered ? <Link href="/compliance/cqc/rca" className="pc-link">Clear filters</Link> : null}
         </form>
@@ -111,9 +111,9 @@ export default async function RcaListPage({ searchParams }: { searchParams: Prom
             </Panel>
             <Panel title="Recurring themes" testId="rca-themes">
               {dash.themes.length ? (
-                <ul className="divide-y divide-[#eaecf0]">{dash.themes.map(([c, n]) => <li key={c}><Link href={href({ category: c })} className="flex justify-between px-5 py-2 text-[13.5px] no-underline hover:bg-[#f9fafb]"><span className="text-[#344054]">{c}</span><strong className="tabular-nums">{n}</strong></Link></li>)}</ul>
-              ) : <p className="px-5 py-3 text-[13px] text-[#667085]">No category has come up more than once in the last 12 months.</p>}
-              <p className="border-t border-[#eaecf0] px-5 py-2 text-[12px] text-[#667085]">Categories with two or more investigations in the last 12 months.</p>
+                <ul className="divide-y divide-[#eaecf0]">{dash.themes.map(([c, n]) => <li key={c}><Link href={href({ category: c })} className="flex justify-between px-5 py-2 text-body no-underline hover:bg-[#f9fafb]"><span className="text-[#344054]">{c}</span><strong className="tabular-nums">{n}</strong></Link></li>)}</ul>
+              ) : <p className="px-5 py-3 text-meta text-[#667085]">No category has come up more than once in the last 12 months.</p>}
+              <p className="border-t border-[#eaecf0] px-5 py-2 text-caption text-[#667085]">Categories with two or more investigations in the last 12 months.</p>
             </Panel>
             {hasOrgPermission(ctx, "report.export") ? (
               <Panel title="Export">

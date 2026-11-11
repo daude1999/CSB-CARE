@@ -46,8 +46,8 @@ export function updateHref(method: UpdateMethod, id: string): string {
 }
 
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-module focus-visible:ring-offset-2";
-export const PRIMARY_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#4b1fa8] bg-[#4b1fa8] px-4 text-[15px] font-semibold text-white hover:border-[#3d1890] hover:bg-[#3d1890] hover:text-white ${FOCUS}`;
-export const OUTLINE_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#b9a6ea] bg-white px-4 text-[15px] font-semibold text-[#101828] hover:border-module hover:bg-[#f8f5fe] hover:text-[#101828] ${FOCUS}`;
+export const PRIMARY_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#4b1fa8] bg-[#4b1fa8] px-4 text-lead font-semibold text-white hover:border-[#3d1890] hover:bg-[#3d1890] hover:text-white ${FOCUS}`;
+export const OUTLINE_BTN = `inline-flex h-11 items-center justify-center gap-2 rounded-[9px] border border-[#b9a6ea] bg-white px-4 text-lead font-semibold text-[#101828] hover:border-module hover:bg-[#f8f5fe] hover:text-[#101828] ${FOCUS}`;
 
 /**
  * A button with a dropdown panel. The panel is positioned against the viewport so it is never cut off by the table's
@@ -132,8 +132,8 @@ function Choice({ href, icon, title, text, testId }: { href: string; icon: React
       <Link href={href} data-testid={testId} className={`group flex items-start gap-3 rounded-[9px] px-3 py-2.5 text-[#101828] no-underline hover:bg-[#f6f2fd] hover:text-[#101828] ${FOCUS}`}>
         <span aria-hidden className="mt-0.5 shrink-0 text-module">{icon}</span>
         <span className="min-w-0">
-          <span className="block text-[15px] font-semibold text-[#3d1890]">{title}</span>
-          <span className="mt-0.5 block text-[13px] leading-[18px] text-[#475467]">{text}</span>
+          <span className="block text-lead font-semibold text-[#3d1890]">{title}</span>
+          <span className="mt-0.5 block text-meta leading-[18px] text-[#475467]">{text}</span>
         </span>
       </Link>
     </li>
@@ -197,27 +197,27 @@ function PersonPicker({ onPick }: { onPick: (p: PickedPerson) => void }) {
   }, [q]);
   return (
     <div className="p-2">
-      <label htmlFor={inputId} className="block text-[14px] font-semibold">Choose the service user to update</label>
+      <label htmlFor={inputId} className="block text-body font-semibold">Choose the service user to update</label>
       <div className="relative mt-1.5">
         <MagnifyingGlass size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
-        <input id={inputId} type="search" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" placeholder="Name, CSB reference, council or Frameworki number" className={`input h-10 pl-9 text-[14px] ${FOCUS}`} data-testid="update-search" />
+        <input id={inputId} type="search" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" placeholder="Name, CSB reference, council or Frameworki number" className={`input h-10 pl-9 text-body ${FOCUS}`} data-testid="update-search" />
       </div>
-      <p className="mt-1 text-[12px] leading-4 text-[#667085]">Council and Frameworki numbers must be typed in full. NHS numbers are searched only for staff allowed to see them.</p>
+      <p className="mt-1 text-caption leading-4 text-[#667085]">Council and Frameworki numbers must be typed in full. NHS numbers are searched only for staff allowed to see them.</p>
       <div aria-live="polite" className="mt-2">
-        {state.problem ? <p className="mb-2 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">{state.problem}</p> : null}
-        {state.error ? <p role="alert" className="rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[13px] text-[#b42318]">{state.error}</p> : null}
-        {state.loading ? <p className="px-1 text-[13px] text-[#475467]">Searching…</p> : null}
-        {!state.loading && !state.error && state.searched && !state.people.length ? <p className="px-1 text-[13px] text-[#475467]">No service users you are allowed to see match “{state.searched}”.</p> : null}
+        {state.problem ? <p className="mb-2 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-meta text-amber-900">{state.problem}</p> : null}
+        {state.error ? <p role="alert" className="rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-meta text-[#b42318]">{state.error}</p> : null}
+        {state.loading ? <p className="px-1 text-meta text-[#475467]">Searching…</p> : null}
+        {!state.loading && !state.error && state.searched && !state.people.length ? <p className="px-1 text-meta text-[#475467]">No service users you are allowed to see match “{state.searched}”.</p> : null}
         {!state.loading && state.people.length ? (
           <ul className="max-h-64 divide-y divide-[#eaecf0] overflow-y-auto rounded-[9px] border border-[#e4e7ec]" aria-label="Matching service users" data-testid="update-results">
             {state.people.map((p) => (
               <li key={p.id}>
                 <button type="button" onClick={() => onPick({ id: p.id, name: p.name, reference: p.reference })} className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-[#f8f5fe] ${FOCUS}`}>
                   <span className="min-w-0">
-                    <span className="block text-[14px] font-semibold">{p.name}</span>
-                    <span className="block text-[12px] text-[#475467] [overflow-wrap:anywhere]">{[p.reference, p.legacyReference ? `legacy ${p.legacyReference}` : null, p.postcode, p.area, p.matchedReference ? `matched ${p.matchedReference}` : null].filter(Boolean).join(" · ")}</span>
+                    <span className="block text-body font-semibold">{p.name}</span>
+                    <span className="block text-caption text-[#475467] [overflow-wrap:anywhere]">{[p.reference, p.legacyReference ? `legacy ${p.legacyReference}` : null, p.postcode, p.area, p.matchedReference ? `matched ${p.matchedReference}` : null].filter(Boolean).join(" · ")}</span>
                   </span>
-                  <span className="shrink-0 rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[11.5px] font-medium text-[#344054]">{p.archived ? "Archived" : p.status.charAt(0) + p.status.slice(1).toLowerCase()}</span>
+                  <span className="shrink-0 rounded-full bg-[#f2f4f7] px-2 py-0.5 text-caption font-medium text-[#344054]">{p.archived ? "Archived" : p.status.charAt(0) + p.status.slice(1).toLowerCase()}</span>
                 </button>
               </li>
             ))}
@@ -243,9 +243,9 @@ export function UpdateServiceUserButton({ perms, person, buttonClass, testId = "
     <Dropdown label={label} buttonClass={buttonClass ?? OUTLINE_BTN} testId={testId} panelTestId="update-menu" width={person ? 380 : 420} onClose={reset}>
       {() => picked ? (
         <div>
-          <p className="px-3 pb-1 pt-2 text-[13px] text-[#475467]" data-testid="update-person">Update <strong className="text-[#101828]">{picked.name}</strong>{picked.reference ? ` · ${picked.reference}` : ""}</p>
+          <p className="px-3 pb-1 pt-2 text-meta text-[#475467]" data-testid="update-person">Update <strong className="text-[#101828]">{picked.name}</strong>{picked.reference ? ` · ${picked.reference}` : ""}</p>
           <UpdateChoices perms={perms} person={picked} />
-          {!person ? <button type="button" onClick={() => setPicked(null)} className={`m-1 inline-flex items-center gap-1.5 rounded-[8px] px-2 py-1 text-[13px] font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}><ArrowLeft size={14} aria-hidden />Choose a different person</button> : null}
+          {!person ? <button type="button" onClick={() => setPicked(null)} className={`m-1 inline-flex items-center gap-1.5 rounded-[8px] px-2 py-1 text-meta font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}><ArrowLeft size={14} aria-hidden />Choose a different person</button> : null}
         </div>
       ) : <PersonPicker onPick={setPicked} />}
     </Dropdown>
@@ -255,8 +255,8 @@ export function UpdateServiceUserButton({ perms, person, buttonClass, testId = "
 /** The ⋮ button on a row: the rest of that person's directory details, in the same dropdown panel. */
 export function RowDetails({ name, children }: { name: string; children: ReactNode }) {
   return (
-    <Dropdown label={<><span aria-hidden className="text-[18px] leading-none">⋮</span><span className="sr-only">More details for {name}</span></>} buttonClass={`inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-[#475467] hover:bg-[#f2f4f7] ${FOCUS}`} testId="row-more" panelTestId="row-details" width={320}>
-      {() => <div className="p-2 text-[13.5px]">{children}</div>}
+    <Dropdown label={<><span aria-hidden className="text-subtitle leading-none">⋮</span><span className="sr-only">More details for {name}</span></>} buttonClass={`inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-[#475467] hover:bg-[#f2f4f7] ${FOCUS}`} testId="row-more" panelTestId="row-details" width={320}>
+      {() => <div className="p-2 text-body">{children}</div>}
     </Dropdown>
   );
 }

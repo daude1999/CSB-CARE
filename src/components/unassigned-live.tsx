@@ -24,7 +24,7 @@ function Coverage({ item }: { item: UnassignedItem }) {
   const filled = required - missing;
   const tone = filled === 0 ? "bg-[#fdecec] text-[#b42318]" : "bg-[#fdf3d8] text-[#8a5a00]";
   const words = required === 1 ? "no carer allocated" : filled === 0 ? (required === 2 ? "both carers missing" : `all ${required} carers missing`) : missing === 1 ? "one carer missing" : `${missing} carers missing`;
-  return <span title={`${filled} of ${required} carers booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold tabular-nums ${tone}`}><Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
+  return <span title={`${filled} of ${required} carers booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-meta font-semibold tabular-nums ${tone}`}><Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
 }
 
 /** Today | Tomorrow | This Week and a custom range, shown in the page header like the Daily Rota's day picker. */
@@ -37,7 +37,7 @@ export function LiveRangeControls({ sp }: { sp: Record<string, string | undefine
     <div className="flex flex-wrap items-center gap-2">
       <nav aria-label="Date range" className="inline-flex rounded-[8px] border border-[#d0d5dd] bg-white p-0.5">
         {([["today", "Today"], ["tomorrow", "Tomorrow"], ["week", "This Week"]] as const).map(([k, label]) => (
-          <Link key={k} href={url({ when: k === "today" ? undefined : k })} aria-current={f.when === k ? "page" : undefined} title={k === "week" ? "Today and the next six days" : undefined} className={`flex h-9 items-center rounded-[6px] px-4 text-[14.5px] font-semibold no-underline ${f.when === k ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>{label}</Link>
+          <Link key={k} href={url({ when: k === "today" ? undefined : k })} aria-current={f.when === k ? "page" : undefined} title={k === "week" ? "Today and the next six days" : undefined} className={`flex h-9 items-center rounded-[6px] px-4 text-body font-semibold no-underline ${f.when === k ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>{label}</Link>
         ))}
       </nav>
       <details className="relative">
@@ -47,7 +47,7 @@ export function LiveRangeControls({ sp }: { sp: Record<string, string | undefine
           <input type="hidden" name="when" value="custom" />
           <label><span className="label">From</span><input type="date" name="from" defaultValue={f.from} className="input" /></label>
           <label><span className="label">To</span><input type="date" name="to" defaultValue={f.to} className="input" /></label>
-          <p className="text-[12.5px] text-[#475467]">Up to 28 days.</p>
+          <p className="text-meta text-[#475467]">Up to 28 days.</p>
           <button className="btn-primary">Show dates</button>
         </form>
       </details>
@@ -92,17 +92,17 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
 
   return (
     <>
-      <section aria-label="Summary" className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-[10px] border border-[#e4e7ec] bg-white px-4 py-2.5 text-[14px] text-[#344054]">
+      <section aria-label="Summary" className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-[10px] border border-[#e4e7ec] bg-white px-4 py-2.5 text-body text-[#344054]">
         <span className="font-semibold text-[#101828]">{period}</span>
         <span aria-hidden className="h-5 w-px bg-[#e4e7ec]" />
-        <span><strong data-testid="sum-visits" className="text-[17px] font-bold tabular-nums text-[#101828]">{board.summary.visits}</strong> unassigned visit{board.summary.visits === 1 ? "" : "s"}</span>
+        <span><strong data-testid="sum-visits" className="text-subtitle font-bold tabular-nums text-[#101828]">{board.summary.visits}</strong> unassigned visit{board.summary.visits === 1 ? "" : "s"}</span>
         <span aria-hidden className="h-5 w-px bg-[#e4e7ec]" />
-        <Link href={url({ priority: f.priority === "URGENT" ? undefined : "URGENT", page: undefined })} className="text-inherit no-underline hover:underline" title={PRIORITY_RULE}><strong data-testid="sum-urgent" className="text-[17px] font-bold tabular-nums text-[#b42318]">{board.summary.urgent}</strong> urgent</Link>
+        <Link href={url({ priority: f.priority === "URGENT" ? undefined : "URGENT", page: undefined })} className="text-inherit no-underline hover:underline" title={PRIORITY_RULE}><strong data-testid="sum-urgent" className="text-subtitle font-bold tabular-nums text-[#b42318]">{board.summary.urgent}</strong> urgent</Link>
         <span aria-hidden className="h-5 w-px bg-[#e4e7ec]" />
-        <Link href={url({ staffing: f.staffing === "partial" ? undefined : "partial", page: undefined })} className="text-inherit no-underline hover:underline"><strong data-testid="sum-partial" className="text-[17px] font-bold tabular-nums text-[#8a5a00]">{board.summary.partial}</strong> partially staffed</Link>
+        <Link href={url({ staffing: f.staffing === "partial" ? undefined : "partial", page: undefined })} className="text-inherit no-underline hover:underline"><strong data-testid="sum-partial" className="text-subtitle font-bold tabular-nums text-[#8a5a00]">{board.summary.partial}</strong> partially staffed</Link>
         <span aria-hidden className="h-5 w-px bg-[#e4e7ec]" />
-        <span><strong data-testid="sum-slots" className="text-[17px] font-bold tabular-nums text-[#101828]">{board.summary.slots}</strong> empty carer place{board.summary.slots === 1 ? "" : "s"}</span>
-        <span className="ml-auto text-[12.5px] text-[#667085]">Upcoming visits only. Past missed visits stay in Missed Calls and Coverage History.</span>
+        <span><strong data-testid="sum-slots" className="text-subtitle font-bold tabular-nums text-[#101828]">{board.summary.slots}</strong> empty carer place{board.summary.slots === 1 ? "" : "s"}</span>
+        <span className="ml-auto text-meta text-[#667085]">Upcoming visits only. Past missed visits stay in Missed Calls and Coverage History.</span>
       </section>
 
       <div className="mb-3 flex flex-col gap-2.5 lg:flex-row lg:items-start">
@@ -111,7 +111,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
           <label className="relative min-w-0">
             <span className="sr-only">Search by service user or visit reference</span>
             <MagnifyingGlass size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
-            <input type="search" name="q" defaultValue={f.q ?? ""} placeholder="Search visits…" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-[14px] text-[#101828] placeholder:text-[#667085]" />
+            <input type="search" name="q" defaultValue={f.q ?? ""} placeholder="Search visits…" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-body text-[#101828] placeholder:text-[#667085]" />
           </label>
           <FilterSelect name="area" label="Area" value={area ?? ""}><option value="">Area: All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>Area: {a.name}</option>)}</FilterSelect>
           <FilterSelect name="priority" label="Priority" value={f.priority ?? ""}><option value="">Priority: All</option>{(["URGENT", "HIGH", "NORMAL"] as const).map((p) => <option key={p} value={p}>Priority: {PRIORITY_LABEL[p]}</option>)}</FilterSelect>
@@ -120,7 +120,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className={SUMMARY_BTN}><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className={SUMMARY_BTN}><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-meta text-white">{more}</span> : null}</summary>
             <form method="get" className={`${MENU} grid w-[300px] gap-2.5 p-3`}>
               {hiddenExcept(["branch", "su", "carer", "carers", "page", "cover", "slot", "ctab", "pick", "mq", "ptab"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
@@ -131,8 +131,8 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
-            <div className={`${MENU} w-[290px] py-1 text-[14px]`}>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <div className={`${MENU} w-[290px] py-1 text-body`}>
               {canBuild && f.to >= today ? (
                 <form action={generatePlanAction} className="border-b border-[#eef0f3] px-3 py-2">
                   <input type="hidden" name="back" value={back} />
@@ -143,7 +143,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                   <input type="hidden" name="maxShiftMinutes" value="0" />
                   <input type="hidden" name="respectWeeklyLimits" value="on" />
                   <button className="w-full text-left font-semibold text-module hover:underline">Review Suggested Cover Plan</button>
-                  <span className="block text-[12.5px] text-[#475467]">Proposes one eligible carer per empty place for these dates ({Math.max(1, planDays)} day{planDays === 1 ? "" : "s"} max 7), never the same person twice at once. Nothing is booked until you accept and apply.</span>
+                  <span className="block text-meta text-[#475467]">Proposes one eligible carer per empty place for these dates ({Math.max(1, planDays)} day{planDays === 1 ? "" : "s"} max 7), never the same person twice at once. Nothing is booked until you accept and apply.</span>
                 </form>
               ) : null}
               <Link href={`/rota/visits?date=${f.from}&view=unassigned`} className="block px-3 py-2 no-underline hover:bg-slate-50">Open in Daily Rota</Link>
@@ -154,7 +154,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
           </details>
         </div>
       </div>
-      {board.truncated ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing the first 2,000 visits short of a carer. Choose fewer days to see the rest.</p> : null}
+      {board.truncated ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-body text-[#5c3d00]" role="note">Showing the first 2,000 visits short of a carer. Choose fewer days to see the rest.</p> : null}
 
       <div className="grid grid-cols-1 items-start gap-4">
         <section aria-label="Unassigned visits" className={PANEL}>
@@ -166,7 +166,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                 {canBuild ? (
                   <>
                     <input type="hidden" name="planChosen" value="1" />
-                    <button formAction={generatePlanAction} formNoValidate data-testid="plan-chosen" className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-module bg-white px-3 text-[14px] font-semibold text-module hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module" title="Suggests carers for the ticked visits to compare. Nothing is booked until you accept and confirm.">Find Suitable Carers</button>
+                    <button formAction={generatePlanAction} formNoValidate data-testid="plan-chosen" className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-module bg-white px-3 text-body font-semibold text-module hover:bg-[#f6f2fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module" title="Suggests carers for the ticked visits to compare. Nothing is booked until you accept and confirm.">Find Suitable Carers</button>
                   </>
                 ) : null}
               </form>
@@ -175,7 +175,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
           ) : null}
           {board.items.length ? (
             <div className="relative min-w-0 overflow-x-auto border-t border-[#eaecf0]">
-              <table className="w-full border-collapse whitespace-nowrap text-[14px]">
+              <table className="w-full border-collapse whitespace-nowrap text-body">
                 <caption className="sr-only">Visits short of a carer, {period}</caption>
                 <thead className="bg-[#f9fafb]">
                   <tr className="border-b border-[#eaecf0]">
@@ -201,7 +201,7 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                     return (
                       <tr key={v.id} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ""} hover:bg-[#f9f8fe]`}>
                         {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
-                        <td className={TD}><span title={it.why} className={`inline-flex rounded-[6px] px-2 py-0.5 text-[13px] font-semibold ${PRIORITY_BADGE[it.priority]}`}>{PRIORITY_LABEL[it.priority]}<span className="sr-only">: {it.why}</span></span></td>
+                        <td className={TD}><span title={it.why} className={`inline-flex rounded-[6px] px-2 py-0.5 text-meta font-semibold ${PRIORITY_BADGE[it.priority]}`}>{PRIORITY_LABEL[it.priority]}<span className="sr-only">: {it.why}</span></span></td>
                         <td className={`${TD} whitespace-nowrap`}><Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[#101828] no-underline hover:underline">{v.reference}</Link></td>
                         <td className={TD}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
                         <td className={`${TD} tabular-nums`}>{fmtLondonDate(fromDbDate(v.date), { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
@@ -214,8 +214,8 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
                         <td className={`${TD} max-w-[200px] truncate text-[#344054]`} title={it.reason}>{it.reason}</td>
                         <td className={`${TD} text-right`}>
                           {canEdit ? (
-                            <Link href={url({ cover: v.id, slot: undefined, ctab: undefined, pick: undefined, mq: undefined })} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`} className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold no-underline ${selected ? "border-module bg-module text-white" : "border-module bg-white text-module hover:bg-[#f6f2fd]"}`}><UserPlus size={17} aria-hidden />Find Cover</Link>
-                          ) : <Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-[13.5px]">View</Link>}
+                            <Link href={url({ cover: v.id, slot: undefined, ctab: undefined, pick: undefined, mq: undefined })} aria-label={`Find cover for ${suName(v.serviceUser)} at ${londonTime(v.scheduledStart)}`} className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-body font-semibold no-underline ${selected ? "border-module bg-module text-white" : "border-module bg-white text-module hover:bg-[#f6f2fd]"}`}><UserPlus size={17} aria-hidden />Find Cover</Link>
+                          ) : <Link href={`/rota/visits?date=${fromDbDate(v.date)}&visit=${v.id}`} className="text-body">View</Link>}
                         </td>
                       </tr>
                     );
@@ -226,14 +226,14 @@ export async function UnassignedLive({ ctx, sp }: { ctx: Ctx; sp: Record<string,
           ) : (
             <div className="border-t border-[#eaecf0] p-4">
               <Empty>No visits are short of a carer {f.from === f.to ? `on ${fmtLondonDate(f.from, { weekday: "long", day: "numeric", month: "long" })}` : "in these dates"}{f.q || f.priority || f.staffing || area || f.call ? " with these filters" : ""}.</Empty>
-              {ahead ? <p className="mt-2 text-center text-[14px]"><Link href={url({ when: "week", page: undefined })}>{ahead} visit{ahead === 1 ? " is" : "s are"} short of a carer in the next 7 days</Link></p> : null}
+              {ahead ? <p className="mt-2 text-center text-body"><Link href={url({ when: "week", page: undefined })}>{ahead} visit{ahead === 1 ? " is" : "s are"} short of a carer in the next 7 days</Link></p> : null}
             </div>
           )}
           <ListFooter total={board.summary.visits} page={board.page} pages={board.pages} per={f.per} noun="unassigned visit" testId="unassigned-count" href={(p) => url({ page: p ? String(p) : undefined })} hidden={hiddenExcept(["per", "page"])} />
         </section>
       </div>
       {coverOpen ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/unassigned" keep={{ ...params, ...closeCover }} /> : null}
-      <p className="mt-2 text-[12.5px] text-[#667085]">Priority rule: {PRIORITY_RULE} A custom range can cover up to 28 days.</p>
+      <p className="mt-2 text-meta text-[#667085]">Priority rule: {PRIORITY_RULE} A custom range can cover up to 28 days.</p>
     </>
   );
 }

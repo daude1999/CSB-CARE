@@ -15,30 +15,30 @@ export function ExceptionList({ items, hidden, back, profileBase, empty }: { ite
   if (!items.length && !hidden) return <Empty>{empty}</Empty>;
   return (
     <div className="space-y-2">
-      {hidden ? <p className="text-[13px] text-slate-600">{hidden} restricted item{hidden === 1 ? " is" : "s are"} not shown to you (clinical, medication or safeguarding). A registered manager sees and settles {hidden === 1 ? "it" : "them"}.</p> : null}
+      {hidden ? <p className="text-meta text-slate-600">{hidden} restricted item{hidden === 1 ? " is" : "s are"} not shown to you (clinical, medication or safeguarding). A registered manager sees and settles {hidden === 1 ? "it" : "them"}.</p> : null}
       <ul className="space-y-2">
         {items.map((x) => (
           <li key={x.id} id={`exception-${x.id}`} className={`rounded border px-3 py-2 ${x.status === "OPEN" && x.severity === "URGENT" ? "border-[#e8a1a6] bg-[#fff6f6]" : "border-slate-200 bg-white"}`}>
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={x.status === "OPEN" ? TONE[x.severity] : "green"}>{x.status === "OPEN" ? x.severityLabel : "Resolved"}</Badge>
-              <span className="font-medium text-[14.5px]">{x.title}</span>
-              <span className="text-[13px] text-slate-600">{x.categoryLabel}{x.restricted ? " · restricted" : ""}</span>
+              <span className="font-medium text-body">{x.title}</span>
+              <span className="text-meta text-slate-600">{x.categoryLabel}{x.restricted ? " · restricted" : ""}</span>
             </div>
-            <p className="mt-1 text-[14px] text-slate-800">{x.description}</p>
-            <dl className="mt-1 grid grid-cols-1 gap-x-4 text-[13px] text-slate-600 sm:grid-cols-2">
+            <p className="mt-1 text-body text-slate-800">{x.description}</p>
+            <dl className="mt-1 grid grid-cols-1 gap-x-4 text-meta text-slate-600 sm:grid-cols-2">
               <div><dt className="inline">Source: </dt><dd className="inline">{x.sourceRef ?? "Not recorded"}</dd></div>
               <div><dt className="inline">Raised: </dt><dd className="inline">{fmtDate(x.createdAt, true)} by {x.raisedBy}</dd></div>
               <div><dt className="inline">Owner: </dt><dd className="inline">{x.owner}</dd></div>
               {x.intake ? <div><dt className="inline">Intake: </dt><dd className="inline"><Link href={`/rota/coordinator/${x.intake.id}?step=setup`}>{x.intake.reference}</Link></dd></div> : null}
             </dl>
-            {x.status !== "OPEN" ? <p className="mt-1 text-[13px] text-slate-700">Resolved {fmtDate(x.resolvedAt, true)} by {x.resolvedBy}: {x.resolution}</p> : null}
+            {x.status !== "OPEN" ? <p className="mt-1 text-meta text-slate-700">Resolved {fmtDate(x.resolvedAt, true)} by {x.resolvedBy}: {x.resolution}</p> : null}
             {x.status === "OPEN" ? (
               <div className="mt-2 flex flex-wrap items-start gap-2">
                 {profileBase && x.recordTab ? <Link href={`${profileBase}?tab=${x.recordTab}`} className="btn-secondary py-1">Open {TAB_LABEL[x.recordTab] ?? "the record"}</Link> : null}
                 {x.choices.length > 1 || (x.choices.length === 1 && x.category !== "REFERENCE") ? x.choices.map((c) => (
                   <form key={c.factId} action={resolveExceptionAction}>
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="itemId" value={x.id} /><input type="hidden" name="action" value="USE_FACT" /><input type="hidden" name="factId" value={c.factId} />
-                    <button className="btn-secondary py-1" title={c.source}>Use &ldquo;{c.value}&rdquo; <span className="text-[12px] text-slate-600">({c.source})</span></button>
+                    <button className="btn-secondary py-1" title={c.source}>Use &ldquo;{c.value}&rdquo; <span className="text-caption text-slate-600">({c.source})</span></button>
                   </form>
                 )) : null}
                 {x.referenceChoice ? (
@@ -69,7 +69,7 @@ export function ExceptionList({ items, hidden, back, profileBase, empty }: { ite
               </div>
             ) : null}
             {x.trail.length ? (
-              <details className="mt-1 text-[13px] text-slate-600"><summary className="cursor-pointer">History ({x.trail.length})</summary>
+              <details className="mt-1 text-meta text-slate-600"><summary className="cursor-pointer">History ({x.trail.length})</summary>
                 <ol className="mt-1 space-y-0.5">{x.trail.map((t, i) => <li key={i}>{fmtDate(t.at, true)} · {t.action} · {t.by}</li>)}</ol>
               </details>
             ) : null}

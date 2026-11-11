@@ -21,7 +21,7 @@ export function ShellSearch() {
       <div className="flex min-w-0 flex-1 justify-end sm:justify-center">
         <button type="button" onClick={open} className="shell-search hidden w-full max-w-[780px] text-left sm:flex" aria-label="Search people or documents">
           <MagnifyingGlass size={19} weight="bold" aria-hidden="true" className="shrink-0 text-[#5b2bb5]" />
-          <span className="min-w-0 flex-1 truncate text-[14.5px] text-[#667085]">Search people or documents…</span>
+          <span className="min-w-0 flex-1 truncate text-body text-[#667085]">Search people or documents…</span>
         </button>
         <button type="button" onClick={open} className={PHONE_ICON} aria-label="Search people or documents">
           <MagnifyingGlass size={21} weight="bold" aria-hidden="true" />
@@ -38,7 +38,7 @@ export function ShellSearch() {
         <label htmlFor="global-search" className="shell-search">
           <MagnifyingGlass size={19} weight="bold" aria-hidden="true" className="shrink-0 text-[#5b2bb5]" />
           <span className="sr-only">{label}</span>
-          <input id="global-search" name="q" type="search" placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[14.5px] text-[#0b1530] placeholder:text-[#667085] focus:outline-none" />
+          <input id="global-search" name="q" type="search" placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-body text-[#0b1530] placeholder:text-[#667085] focus:outline-none" />
         </label>
       </form>
       <Link href={action} className={PHONE_ICON} aria-label={label} title={label}>

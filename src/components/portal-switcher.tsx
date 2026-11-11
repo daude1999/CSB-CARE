@@ -100,7 +100,7 @@ function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: 
               <PortalAnchor portal={p} current={p.id === shownId && path === p.home} inside={p.id === shownId} className={`shell-portal relative ${current ? "shell-portal-current" : ""}`} style={current ? { background: p.colour } : undefined}>
                 <span aria-hidden="true" className="flex w-[20px] shrink-0 justify-center">{p.icon}</span>
                 <span className={`min-w-0 leading-[17px] ${p.planned ? "text-white/70" : ""}`}>{p.name}</span>
-                {p.planned ? <span className="ml-auto shrink-0 text-[10px] text-white/60">Planned</span> : null}
+                {p.planned ? <span className="ml-auto shrink-0 text-micro text-white/60">Planned</span> : null}
               </PortalAnchor>
               {pages.length ? (
                 <div className="shell-section mb-[8px] mt-[4px]" data-state={closing ? "closing" : sections.moved ? "opening" : "open"} inert={closing || undefined} data-testid={current ? "portal-pages" : undefined}>
@@ -115,8 +115,8 @@ function PortalNav({ portals, items, branch }: { portals: ShellPortal[]; items: 
       </ul>
       {branch ? (
         <div className="mt-[14px] border-t border-white/[0.1] px-[6px] pt-[12px]">
-          <p className="text-[12.5px] text-white/60">Workspace</p>
-          <p className="mt-[8px] flex items-center gap-[10px] px-[4px] text-[13px] text-white" title="Your branch">
+          <p className="text-caption text-white/60">Workspace</p>
+          <p className="mt-[8px] flex items-center gap-[10px] px-[4px] text-meta text-white" title="Your branch">
             <MapPin size={18} aria-hidden="true" className="shrink-0" /><span className="sr-only">Your branch: </span><span className="truncate">{branch}</span>
           </p>
         </div>
@@ -193,7 +193,7 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
       {groups.map((g, n) => {
         const all = [...g.rows, ...(g.more?.rows ?? [])];
         if (!g.fold) {
-          const heading = g.name ? <li key={`g-${g.name}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{g.name}</li> : null;
+          const heading = g.name ? <li key={`g-${g.name}`} aria-hidden="true" className="px-[7px] pb-[2px] pt-[9px] text-micro font-semibold uppercase tracking-[0.06em] text-white/50 first:pt-[2px]">{g.name}</li> : null;
           return [heading, ...all.map(renderItem)];
         }
         const name = g.name ?? `group-${n}`;
@@ -201,7 +201,7 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
         const id = `nav-group-${slug(name)}`;
         return (
           <li key={`g-${name}`} className="first:[&>button]:pt-[2px]">
-            <button type="button" aria-expanded={open} aria-controls={id} onClick={() => flip(name, open)} data-nav-group={name} className="flex w-full items-center rounded-[4px] px-[7px] pb-[2px] pt-[9px] text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-white/60 hover:text-white">
+            <button type="button" aria-expanded={open} aria-controls={id} onClick={() => flip(name, open)} data-nav-group={name} className="flex w-full items-center rounded-[4px] px-[7px] pb-[2px] pt-[9px] text-left text-micro font-semibold uppercase tracking-[0.06em] text-white/60 hover:text-white">
               <span className="min-w-0 flex-1 truncate">{g.name}</span>
               <CaretDown size={10} weight="bold" aria-hidden="true" className={`shrink-0 transition-transform ${open ? "" : "-rotate-90"}`} />
             </button>
@@ -238,7 +238,7 @@ function PageList({ pages, activeHref, shownHref, accent }: { pages: ShellItem[]
         <li key={i.label} className="shell-page h-auto cursor-default py-[4px] text-white/45" title={`${i.label}: planned, not built yet`}>
           <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
           {/* Two lines, so the page's full name stays readable in the narrow sidebar. */}
-          <span className="min-w-0 leading-[14px]"><span className="block truncate">{i.label}</span><span className="block text-[10px] leading-[12px] text-white/40">Planned</span></span>
+          <span className="min-w-0 leading-[14px]"><span className="block truncate">{i.label}</span><span className="block text-micro leading-[12px] text-white/40">Planned</span></span>
         </li>
       );
     const active = i.href === activeHref;
@@ -266,8 +266,8 @@ function OrganisationCard({ org, switchAction }: { org: ShellOrganisation; switc
       <div className="flex items-center gap-3 rounded-[8px] border border-white/[0.16] px-3 py-2.5">
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/40 text-white/90"><Swap size={14} /></span>
         <span className="min-w-0">
-          <span className="block text-[12.5px] text-white/70">Organisation</span>
-          <span className="line-clamp-2 block text-[12.5px] leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
+          <span className="block text-caption text-white/70">Organisation</span>
+          <span className="line-clamp-2 block text-caption leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
         </span>
       </div>
     );
@@ -277,17 +277,17 @@ function OrganisationCard({ org, switchAction }: { org: ShellOrganisation; switc
       <summary className="flex cursor-pointer list-none items-center gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/40 text-white/90"><Swap size={14} /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[12.5px] text-white/70">Switch Organisation</span>
-          <span className="line-clamp-2 block text-[12.5px] leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
+          <span className="block text-caption text-white/70">Switch Organisation</span>
+          <span className="line-clamp-2 block text-caption leading-[16px] text-white" title={place}>{shown}<span className="sr-only">, {org.name}</span></span>
         </span>
         <CaretDown size={12} weight="bold" aria-hidden="true" className="text-white/80 transition-transform group-open:rotate-180" />
       </summary>
       <form action={switchAction} className="menu-pop space-y-2 border-t border-white/[0.12] px-3 pb-3 pt-2">
         <label className="sr-only" htmlFor="shell-org">Organisation</label>
-        <select id="shell-org" name="organisationId" defaultValue={org.currentId ?? ""} className="w-full rounded-[6px] border border-white/25 bg-[#0c2a44] px-2 py-1.5 text-[13px] text-white">
+        <select id="shell-org" name="organisationId" defaultValue={org.currentId ?? ""} className="w-full rounded-[6px] border border-white/25 bg-[#0c2a44] px-2 py-1.5 text-meta text-white">
           {org.options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
-        <button type="submit" className="w-full rounded-[6px] bg-white/[0.12] py-1.5 text-[13px] text-white transition-colors hover:bg-white/20">Switch</button>
+        <button type="submit" className="w-full rounded-[6px] bg-white/[0.12] py-1.5 text-meta text-white transition-colors hover:bg-white/20">Switch</button>
       </form>
     </details>
   );
@@ -298,20 +298,20 @@ function SidebarBody({ portals, items, org, person, switchAction, signOutAction,
     <>
       <div className="shrink-0 px-[18px] pb-5 pt-[18px]">
         <Link href="/overview" aria-label="CSB All in One Platform home" className="block w-fit no-underline">{logo}</Link>
-        <p className="mt-2.5 whitespace-nowrap text-[14px] leading-tight text-white">Care Solution Bureau CIC</p>
+        <p className="mt-2.5 whitespace-nowrap text-body leading-tight text-white">Care Solution Bureau CIC</p>
       </div>
       <PortalNav portals={portals} items={items} branch={org?.branch ?? null} />
       <div className="shrink-0 space-y-3 border-t border-white/[0.08] px-3 pb-4 pt-3">
         {org ? <OrganisationCard org={org} switchAction={switchAction} /> : null}
         <div className="flex items-center gap-3 px-1">
-          <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white/[0.92] text-[13px] font-semibold text-[#092135]">{person.initials}</span>
+          <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-white/[0.92] text-meta font-semibold text-[#092135]">{person.initials}</span>
           <span className="min-w-0">
-            <span className="block truncate text-[14px] text-white" data-testid="current-user">{person.name}</span>
-            <span className="block truncate text-[12.5px] text-white/70">{person.role}</span>
+            <span className="block truncate text-body text-white" data-testid="current-user">{person.name}</span>
+            <span className="block truncate text-caption text-white/70">{person.role}</span>
           </span>
         </div>
         <form action={signOutAction}>
-          <button type="submit" className="flex w-full items-center gap-3 rounded-[6px] px-2 py-2 text-left text-[14px] text-white transition-colors hover:bg-white/[0.08]">
+          <button type="submit" className="flex w-full items-center gap-3 rounded-[6px] px-2 py-2 text-left text-body text-white transition-colors hover:bg-white/[0.08]">
             <SignOut size={18} aria-hidden="true" />Sign out
           </button>
         </form>

@@ -94,7 +94,7 @@ export async function BodyMapSection({ ctx, serviceUserId, personName, base, sp 
     <section className="bm-card" aria-label="Observations">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="bm-h3">Observations</h3>
-        <span className="text-[12.5px] text-slate-500">{obs.length} recorded</span>
+        <span className="text-meta text-slate-500">{obs.length} recorded</span>
       </div>
       {obs.length ? (
         <ul className="divide-y divide-[#f2f4f7]" data-testid="body-map-list">
@@ -103,10 +103,10 @@ export async function BodyMapSection({ ctx, serviceUserId, personName, base, sp 
             return (
               <li key={o.id} className={`-mx-2 rounded-[8px] px-2 py-2.5 ${o.id === selected?.id ? "bg-[#f4f3ff]" : ""}`}>
                 <div className="flex items-start gap-2.5">
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white" style={{ background: o.status === "OPEN" ? colour(o.category) : "#98a2b3" }}>{numberOf.get(o.id)}</span>
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-caption font-semibold text-white" style={{ background: o.status === "OPEN" ? colour(o.category) : "#98a2b3" }}>{numberOf.get(o.id)}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1"><Link href={`${here}&obs=${o.id}`} className="text-[14px] font-semibold text-[#101828] hover:text-[#5b2bb5]">{o.category} – {o.region}</Link><Badge tone={f.tone}>{f.label}</Badge></div>
-                    <p className="text-[12px] text-slate-600">{fmtDate(o.observedAt)}, {londonTime(o.observedAt)} · {BODY_MAP_VIEWS[o.view].toLowerCase()}{o.photos.length ? ` · ${o.photos.length} photo${o.photos.length === 1 ? "" : "s"}` : ""}{o.notes.length ? ` · ${o.notes.length} note${o.notes.length === 1 ? "" : "s"}` : ""}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1"><Link href={`${here}&obs=${o.id}`} className="text-body font-semibold text-[#101828] hover:text-[#5b2bb5]">{o.category} – {o.region}</Link><Badge tone={f.tone}>{f.label}</Badge></div>
+                    <p className="text-caption text-slate-600">{fmtDate(o.observedAt)}, {londonTime(o.observedAt)} · {BODY_MAP_VIEWS[o.view].toLowerCase()}{o.photos.length ? ` · ${o.photos.length} photo${o.photos.length === 1 ? "" : "s"}` : ""}{o.notes.length ? ` · ${o.notes.length} note${o.notes.length === 1 ? "" : "s"}` : ""}</p>
                     <p className="mt-1">{decisionBadge(o)}</p>
                   </div>
                 </div>
@@ -118,22 +118,22 @@ export async function BodyMapSection({ ctx, serviceUserId, personName, base, sp 
       {meds.enabled ? (
         <div className="mt-4 border-t border-[#eaecf0] pt-3" data-testid="body-map-med-sites">
           <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="bm-h4">Medication application sites</h4>{canSites ? <Link href={`${here}&site=1`} className="bm-secondary bm-small">Record application site</Link> : null}</div>
-          <p className="text-[12px] text-slate-500">Where creams and patches are applied (square markers). Not skin observations, and not a record that a dose was given.</p>
+          <p className="text-caption text-slate-500">Where creams and patches are applied (square markers). Not skin observations, and not a record that a dose was given.</p>
           {meds.sites.length ? (
-            <ul className="mt-2 space-y-1.5 text-[13px]">
+            <ul className="mt-2 space-y-1.5 text-meta">
               {meds.sites.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2">
                   <span><span className="font-medium">{s.medication.name}</span> · {s.region} ({BODY_MAP_VIEWS[s.view].toLowerCase()}){s.note ? ` · ${s.note}` : ""}</span>
                   {canSites ? (
-                    <details><summary className="cursor-pointer text-[12.5px] font-medium text-[#5b2bb5]">End site</summary>
+                    <details><summary className="cursor-pointer text-meta font-medium text-[#5b2bb5]">End site</summary>
                       <form action={endMedicationSiteAction} className="mt-1 flex gap-2"><Hidden v={{ back: here, siteId: s.id }} /><input name="reason" required minLength={3} className="input" placeholder="Why it is no longer used" aria-label="Reason" /><button className="bm-secondary bm-small">End</button></form>
                     </details>
                   ) : null}
                 </li>
               ))}
             </ul>
-          ) : <p className="mt-1 text-[12.5px] text-slate-600">No application sites recorded.</p>}
-          {meds.topical.filter((t) => !t.hasSite).length ? <p className="mt-2 text-[12.5px] text-[#8a5a00]">No site recorded for: {meds.topical.filter((t) => !t.hasSite).map((t) => t.name).join(", ")}.</p> : null}
+          ) : <p className="mt-1 text-meta text-slate-600">No application sites recorded.</p>}
+          {meds.topical.filter((t) => !t.hasSite).length ? <p className="mt-2 text-meta text-[#8a5a00]">No site recorded for: {meds.topical.filter((t) => !t.hasSite).map((t) => t.name).join(", ")}.</p> : null}
         </div>
       ) : null}
     </section>
@@ -144,8 +144,8 @@ export async function BodyMapSection({ ctx, serviceUserId, personName, base, sp 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="bm-h2">Digital Body Map</h2>
-          <p className="mt-0.5 text-[13.5px] text-slate-600">Record and track skin integrity, injuries and other physical observations with photographs, follow-ups and history. Describe what you see; do not diagnose.</p>
-          <p className="mt-2 flex flex-wrap gap-1.5 text-[13px]" data-testid="body-map-counts">
+          <p className="mt-0.5 text-body text-slate-600">Record and track skin integrity, injuries and other physical observations with photographs, follow-ups and history. Describe what you see; do not diagnose.</p>
+          <p className="mt-2 flex flex-wrap gap-1.5 text-meta" data-testid="body-map-counts">
             <Badge tone={outstanding.length ? "amber" : "slate"}>{outstanding.length} outstanding follow-up{outstanding.length === 1 ? "" : "s"}</Badge>
             {overdue ? <Badge tone="rose">{overdue} overdue</Badge> : null}
             <Badge tone={awaiting ? "amber" : "slate"}>{awaiting} awaiting manager review</Badge>
@@ -222,12 +222,12 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
   const defaultDue = addDays(londonDate(), 3);
 
   return (
-    <div className="text-[13.5px]">
+    <div className="text-body">
       <div className="flex items-start gap-3">
         <span className="bm-icon"><ClipboardText size={20} aria-hidden /></span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><h3 className="bm-h3">{o.category} – {o.region}</h3><span className={`bm-pill ${o.status === "OPEN" ? "bg-[#ecfdf3] text-[#067647]" : "bg-[#f2f4f7] text-[#344054]"}`}>{o.status === "OPEN" ? "Open" : "Resolved"}</span></div>
-          <p className="text-[12px] text-slate-500">Observation {n} · ID: {obsRef(o.id)} · Created: {fmtDate(o.recordedAt, true)}</p>
+          <p className="text-caption text-slate-500">Observation {n} · ID: {obsRef(o.id)} · Created: {fmtDate(o.recordedAt, true)}</p>
         </div>
         <Link href={here} aria-label="Close the observation" className="text-slate-500 hover:text-slate-900"><X size={20} aria-hidden /></Link>
       </div>
@@ -266,13 +266,13 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={photoUrl(firstPhoto.id)} alt={firstPhoto.caption ?? `Photo of ${o.category.toLowerCase()}`} className="h-[150px] w-full rounded-[10px] border border-[#eaecf0] bg-slate-50 object-cover" />
                   </a>
-                ) : <div className="flex h-[150px] items-center justify-center rounded-[10px] border border-dashed border-[#d0d5dd] text-center text-[12px] text-slate-500">{o.photos.length && !canPhotos ? "Your role cannot view body map photographs" : "No photograph"}</div>}
+                ) : <div className="flex h-[150px] items-center justify-center rounded-[10px] border border-dashed border-[#d0d5dd] text-center text-caption text-slate-500">{o.photos.length && !canPhotos ? "Your role cannot view body map photographs" : "No photograph"}</div>}
                 <div className="mt-2 flex gap-2">
                   {canPhotos ? o.photos.slice(1, 3).map((p) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <a key={p.id} href={photoUrl(p.id)} target="_blank" rel="noopener"><img src={photoUrl(p.id)} alt={p.caption ?? "Photo"} className="h-[52px] w-[60px] rounded-[8px] border border-[#eaecf0] object-cover" /></a>
                   )) : null}
-                  {canRecord && canPhotos ? <Link href={`${at}&pane=photos#add-photo`} className="flex h-[52px] w-[60px] flex-col items-center justify-center rounded-[8px] border border-[#eaecf0] text-[11px] text-[#344054]"><Plus size={15} aria-hidden />Add Photo</Link> : null}
+                  {canRecord && canPhotos ? <Link href={`${at}&pane=photos#add-photo`} className="flex h-[52px] w-[60px] flex-col items-center justify-center rounded-[8px] border border-[#eaecf0] text-micro text-[#344054]"><Plus size={15} aria-hidden />Add Photo</Link> : null}
                 </div>
               </div>
             </div>
@@ -300,7 +300,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                 <p className="bm-h4 flex-1">Follow-up &amp; Review</p>
                 {canRecord ? <Link href={`${at}&pane=followup`} className="bm-primary bm-small">Update Review</Link> : null}
               </div>
-              <dl className="mt-2 grid grid-cols-3 gap-2 text-[12.5px]">
+              <dl className="mt-2 grid grid-cols-3 gap-2 text-meta">
                 <div><dt className="text-slate-500">Next Review</dt><dd className="font-semibold text-[#101828]">{o.status === "RESOLVED" ? "None (resolved)" : o.followUpOn ? fmtDate(o.followUpOn) : "Not set"}</dd></div>
                 <div><dt className="text-slate-500">Assigned To</dt><dd className="flex items-center gap-1 text-[#101828]"><UserCircle size={15} aria-hidden />{o.reviewerId ? who(o.reviewerId) : "Not assigned"}</dd></div>
                 <div><dt className="text-slate-500">Status</dt><dd><Badge tone={f.tone}>{f.label}</Badge></dd></div>
@@ -310,10 +310,10 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
             {canRecord ? <NoteForm o={o} back={back} canPhotos={canPhotos} /> : null}
 
             {canRecord ? (
-              <div className="bm-ai flex flex-wrap items-center gap-2 text-[13px]" data-testid="body-map-ai-summary">
+              <div className="bm-ai flex flex-wrap items-center gap-2 text-meta" data-testid="body-map-ai-summary">
                 <Sparkle size={17} className="text-[#5b2bb5]" aria-hidden />
                 <span className="flex-1"><span className="font-semibold">AI-Assisted Recommendations: </span>{ai.state === "off" ? "switched off for your organisation." : ai.state === "not_configured" ? "no AI provider configured." : current ? `${current.recommendations.length} suggestion${current.recommendations.length === 1 ? "" : "s"}, ${openRecs} awaiting a decision.` : "none yet."}</span>
-                <Link href={`${at}&pane=ai`} className="text-[13px] font-medium text-[#5b2bb5]">Open</Link>
+                <Link href={`${at}&pane=ai`} className="text-meta font-medium text-[#5b2bb5]">Open</Link>
               </div>
             ) : null}
           </>
@@ -324,7 +324,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
             {!canPhotos ? <p className="text-slate-600">{o.photos.length ? `${o.photos.length} photo(s). Your role cannot view body map photographs.` : "No photographs."}</p> : o.photos.length ? (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="body-map-photos">
                 {o.photos.map((p) => (
-                  <li key={p.id} className="text-[12px] text-slate-600">
+                  <li key={p.id} className="text-caption text-slate-600">
                     <a href={photoUrl(p.id)} target="_blank" rel="noopener">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photoUrl(p.id)} alt={p.caption ?? `Photo of ${o.category.toLowerCase()}`} className="h-28 w-full rounded-[8px] border border-[#eaecf0] bg-slate-50 object-cover" />
@@ -343,7 +343,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                 <button className="bm-secondary bm-small">Add photo</button>
               </form>
             ) : null}
-            <p className="text-[12px] text-slate-500">Photographs are never changed or sent to an AI provider. Every view is recorded in the audit trail.</p>
+            <p className="text-caption text-slate-500">Photographs are never changed or sent to an AI provider. Every view is recorded in the audit trail.</p>
           </>
         ) : null}
 
@@ -354,12 +354,12 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
               <div>
                 <h4 className="bm-h4 mb-1">Recorded measurements: {o.region}</h4>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[12.5px]" data-testid="body-map-compare">
+                  <table className="w-full text-meta" data-testid="body-map-compare">
                     <thead className="text-left text-slate-500"><tr><th className="py-1 pr-2 font-medium">Observed</th><th className="py-1 pr-2 font-medium">Type</th><th className="py-1 pr-2 font-medium">Size</th><th className="py-1 pr-2 font-medium">Appearance</th><th className="py-1 pr-2 font-medium">Status</th></tr></thead>
                     <tbody>{sameArea.map((c) => <tr key={c.id} className={`border-t border-[#f2f4f7] ${c.id === o.id ? "bg-[#f4f3ff]" : ""}`}><td className="py-1 pr-2"><Link href={`${here}&obs=${c.id}&pane=history`}>{fmtDate(c.observedAt)}</Link></td><td className="py-1 pr-2">{c.category}</td><td className="py-1 pr-2">{c.size ?? "not recorded"}</td><td className="py-1 pr-2">{c.appearance ?? "—"}</td><td className="py-1 pr-2">{c.status === "OPEN" ? "Open" : "Resolved"}</td></tr>)}</tbody>
                   </table>
                 </div>
-                <p className="mt-1 text-[12px] text-slate-500">These are the measurements as recorded. The system does not judge whether the area is getting better or worse.</p>
+                <p className="mt-1 text-caption text-slate-500">These are the measurements as recorded. The system does not judge whether the area is getting better or worse.</p>
               </div>
             ) : null}
           </>
@@ -369,43 +369,43 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
           <>
             <section aria-labelledby="bm-inc-h">
               <h4 id="bm-inc-h" className="bm-h4 mb-1 flex items-center gap-1.5"><FirstAidKit size={16} aria-hidden /> Incident and safeguarding</h4>
-              <p>{decisionBadge(o)}{o.incidentDecidedAt ? <span className="ml-1 text-[12.5px] text-slate-600">by {who(o.incidentDecidedById)}, {fmtDate(o.incidentDecidedAt, true)}{o.incidentDecisionNote ? `: ${o.incidentDecisionNote}` : ""}</span> : null}</p>
+              <p>{decisionBadge(o)}{o.incidentDecidedAt ? <span className="ml-1 text-meta text-slate-600">by {who(o.incidentDecidedById)}, {fmtDate(o.incidentDecidedAt, true)}{o.incidentDecisionNote ? `: ${o.incidentDecisionNote}` : ""}</span> : null}</p>
               {links.incidents.length ? (
-                <ul className="mt-1.5 space-y-1 text-[13px]">
+                <ul className="mt-1.5 space-y-1 text-meta">
                   {links.incidents.map((i) => <li key={i.id}><Link href={`/rota/incidents/${i.id}`}>{i.reference}</Link> · {i.category} · {i.status.toLowerCase()}{i.safeguarding ? " · safeguarding" : ""} · {fmtDate(i.occurredAt)}{i.linked ? <Badge tone="violet">Linked</Badge> : null}</li>)}
                 </ul>
-              ) : <p className="mt-1 text-[12.5px] text-slate-600">No open incidents for this person.</p>}
-              {canDecide ? <IncidentDecision o={o} back={back} incidents={incidents} /> : !o.incidentDecision ? <p className="mt-1 text-[12.5px] text-slate-500">A manager will decide whether an incident report is needed.</p> : null}
+              ) : <p className="mt-1 text-meta text-slate-600">No open incidents for this person.</p>}
+              {canDecide ? <IncidentDecision o={o} back={back} incidents={incidents} /> : !o.incidentDecision ? <p className="mt-1 text-meta text-slate-500">A manager will decide whether an incident report is needed.</p> : null}
             </section>
             <section aria-labelledby="bm-med-h" className="border-t border-[#eaecf0] pt-3">
               <h4 id="bm-med-h" className="bm-h4 mb-1 flex items-center gap-1.5"><Pill size={16} aria-hidden /> Medication (topical and patches)</h4>
-              {!links.medication.enabled ? <p className="text-[12.5px] text-slate-600">Medication records are switched off for your organisation, or your role cannot see them.</p> : (
+              {!links.medication.enabled ? <p className="text-meta text-slate-600">Medication records are switched off for your organisation, or your role cannot see them.</p> : (
                 <>
                   {links.medication.sameArea.length ? (
-                    <ul className="space-y-2 text-[13px]">
+                    <ul className="space-y-2 text-meta">
                       {links.medication.sameArea.map((s) => (
                         <li key={s.id} className="bm-block">
                           <p className="font-medium">{s.medication.name}{s.medication.strength ? ` ${s.medication.strength}` : ""} · {s.medication.dose} · {ROUTE_LABEL[s.medication.route as keyof typeof ROUTE_LABEL] ?? s.medication.route}</p>
                           <p className="text-slate-600">Instructions: {s.medication.instructions ?? "none recorded"}{s.note ? ` · Site note: ${s.note}` : ""}</p>
-                          <p className="text-[12px] text-slate-500">Last recorded on the MAR: {s.medication.records.length ? s.medication.records.map((r) => `${OUTCOME_LABEL[r.outcome]} ${fmtDate(r.at, true)}`).join("; ") : "nothing yet"}. <Link href={`/rota/service-users/${links.serviceUserId}?tab=medication`}>Open medication and MAR</Link></p>
+                          <p className="text-caption text-slate-500">Last recorded on the MAR: {s.medication.records.length ? s.medication.records.map((r) => `${OUTCOME_LABEL[r.outcome]} ${fmtDate(r.at, true)}`).join("; ") : "nothing yet"}. <Link href={`/rota/service-users/${links.serviceUserId}?tab=medication`}>Open medication and MAR</Link></p>
                         </li>
                       ))}
                     </ul>
-                  ) : <p className="text-[12.5px] text-slate-600">No medication application site is documented for {o.region.toLowerCase()}.</p>}
-                  {links.medication.noSite.length ? <p className="mt-1 text-[12.5px] text-[#8a5a00]">No application site recorded for: {links.medication.noSite.map((m) => m.name).join(", ")}. An authorised manager can record one from the body map.</p> : null}
-                  <p className="mt-1 text-[12px] text-slate-500">Application sites are not skin observations. Doses are only recorded on the visit (MAR); nothing on the body map creates one.</p>
+                  ) : <p className="text-meta text-slate-600">No medication application site is documented for {o.region.toLowerCase()}.</p>}
+                  {links.medication.noSite.length ? <p className="mt-1 text-meta text-[#8a5a00]">No application site recorded for: {links.medication.noSite.map((m) => m.name).join(", ")}. An authorised manager can record one from the body map.</p> : null}
+                  <p className="mt-1 text-caption text-slate-500">Application sites are not skin observations. Doses are only recorded on the visit (MAR); nothing on the body map creates one.</p>
                 </>
               )}
             </section>
             <section aria-labelledby="bm-cp-h" className="border-t border-[#eaecf0] pt-3">
               <h4 id="bm-cp-h" className="bm-h4 mb-1 flex items-center gap-1.5"><ClipboardText size={16} aria-hidden /> Care plan</h4>
               {links.carePlan ? (
-                <p className="text-[13px]"><Link href={`/rota/care-plans/${links.serviceUserId}`}>Care plan version {links.carePlan.version}</Link>{links.carePlan.reviewDue ? ` · review due ${fmtDate(links.carePlan.reviewDue)}` : ""}{links.carePlan.sections.length ? <span className="block text-slate-600">Relevant sections: {links.carePlan.sections.map((s) => s.title).join(", ")}</span> : <span className="block text-slate-600">No section mentions skin, pressure or personal care.</span>}</p>
-              ) : <p className="text-[12.5px] text-slate-600">No active care plan.</p>}
+                <p className="text-meta"><Link href={`/rota/care-plans/${links.serviceUserId}`}>Care plan version {links.carePlan.version}</Link>{links.carePlan.reviewDue ? ` · review due ${fmtDate(links.carePlan.reviewDue)}` : ""}{links.carePlan.sections.length ? <span className="block text-slate-600">Relevant sections: {links.carePlan.sections.map((s) => s.title).join(", ")}</span> : <span className="block text-slate-600">No section mentions skin, pressure or personal care.</span>}</p>
+              ) : <p className="text-meta text-slate-600">No active care plan.</p>}
             </section>
             <section aria-labelledby="bm-ra-h" className="border-t border-[#eaecf0] pt-3">
               <h4 id="bm-ra-h" className="bm-h4 mb-1 flex items-center gap-1.5"><ShieldCheck size={16} aria-hidden /> Risk assessments</h4>
-              {links.risks.length ? <ul className="space-y-1 text-[13px]">{links.risks.map((r) => <li key={r.id}><Link href={`/rota/risks/${r.id}`}>{r.title}</Link> · {r.level.toLowerCase()} risk · review due {fmtDate(r.reviewDue)}{r.reviewDue < today ? <Badge tone="rose">Overdue</Badge> : null}</li>)}</ul> : <p className="text-[12.5px] text-slate-600">No active skin, pressure, falls or moving and handling risk assessment.</p>}
+              {links.risks.length ? <ul className="space-y-1 text-meta">{links.risks.map((r) => <li key={r.id}><Link href={`/rota/risks/${r.id}`}>{r.title}</Link> · {r.level.toLowerCase()} risk · review due {fmtDate(r.reviewDue)}{r.reviewDue < today ? <Badge tone="rose">Overdue</Badge> : null}</li>)}</ul> : <p className="text-meta text-slate-600">No active skin, pressure, falls or moving and handling risk assessment.</p>}
             </section>
           </>
         ) : null}
@@ -427,7 +427,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
               <h4 className="bm-h4 mb-1">Follow-ups</h4>
               {o.reviews.length ? (
                 <ol className="space-y-1.5" data-testid="body-map-reviews">
-                  {o.reviews.map((r) => <li key={r.id} className="border-b border-[#f2f4f7] pb-1.5"><span className="whitespace-pre-line">{r.outcome}</span><span className="block text-[12px] text-slate-500">{fmtDate(r.reviewedAt, true)} · {who(r.reviewedById)}{r.resolved ? " · resolved" : r.nextFollowUpOn ? ` · next follow-up ${fmtDate(r.nextFollowUpOn)}` : ""}</span></li>)}
+                  {o.reviews.map((r) => <li key={r.id} className="border-b border-[#f2f4f7] pb-1.5"><span className="whitespace-pre-line">{r.outcome}</span><span className="block text-caption text-slate-500">{fmtDate(r.reviewedAt, true)} · {who(r.reviewedById)}{r.resolved ? " · resolved" : r.nextFollowUpOn ? ` · next follow-up ${fmtDate(r.nextFollowUpOn)}` : ""}</span></li>)}
                 </ol>
               ) : <p className="text-slate-600">No follow-ups yet.</p>}
               <form action={reviewBodyMapAction} className="bm-block mt-2 space-y-2">
@@ -447,9 +447,9 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                   {o.tasks.map((t) => (
                     <li key={t.id} className="bm-block">
                       <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.title}</span><Badge tone={t.status === "OPEN" ? (fromDbDate(t.dueOn) < londonDate() ? "rose" : "amber") : t.status === "DONE" ? "green" : "slate"}>{t.status === "OPEN" ? `Due ${fmtDate(t.dueOn)}` : t.status === "DONE" ? "Done" : "Cancelled"}</Badge></div>
-                      <p className="text-[12.5px] text-slate-600">{TASK_KINDS[t.kind as TaskKind]?.label ?? t.kind} · for {who(t.assigneeId)} · set by {who(t.createdById)} {fmtDate(t.createdAt, true)}{t.recommendationId ? " · from an AI-assisted suggestion" : ""}</p>
-                      {t.details ? <p className="text-[12.5px]">{t.details}</p> : null}
-                      {t.outcome ? <p className="text-[12.5px] text-slate-600">Outcome: {t.outcome} ({who(t.closedById)}, {fmtDate(t.closedAt, true)})</p> : null}
+                      <p className="text-meta text-slate-600">{TASK_KINDS[t.kind as TaskKind]?.label ?? t.kind} · for {who(t.assigneeId)} · set by {who(t.createdById)} {fmtDate(t.createdAt, true)}{t.recommendationId ? " · from an AI-assisted suggestion" : ""}</p>
+                      {t.details ? <p className="text-meta">{t.details}</p> : null}
+                      {t.outcome ? <p className="text-meta text-slate-600">Outcome: {t.outcome} ({who(t.closedById)}, {fmtDate(t.closedAt, true)})</p> : null}
                       {t.status === "OPEN" && (t.assigneeId === ctx.userId || canReview) ? (
                         <form action={closeBodyMapTaskAction} className="mt-1.5 flex flex-wrap items-end gap-2">
                           <Hidden v={{ back, taskId: t.id, version: t.version }} />
@@ -463,7 +463,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                 </ul>
               ) : <p className="text-slate-600">No review tasks.</p>}
               {canReview ? (
-                <details className="mt-2"><summary className="cursor-pointer text-[13px] font-medium text-[#5b2bb5]">Create a review task</summary>
+                <details className="mt-2"><summary className="cursor-pointer text-meta font-medium text-[#5b2bb5]">Create a review task</summary>
                   <form action={bodyMapTaskAction} className="bm-block mt-2 grid gap-2 sm:grid-cols-2">
                     <Hidden v={{ back, observationId: o.id }} />
                     <label><span className="bm-label">Kind</span><select name="kind" className="input" defaultValue="FOLLOW_UP">{TASK_KIND_KEYS.map((k) => <option key={k} value={k}>{TASK_KINDS[k].label}</option>)}</select></label>
@@ -487,26 +487,26 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                 <form action={generateBodyMapRecsAction}><Hidden v={{ back, observationId: o.id }} /><button className="bm-secondary bm-small">{current ? "Refresh recommendations" : "Generate recommendations"}</button></form>
               ) : null}
             </div>
-            <p className="mt-1 text-[12px] text-slate-600">{DISCLAIMER}</p>
-            {ai.state === "off" ? <p className="mt-2 rounded-[8px] bg-[#f9fafb] p-2.5 text-[13px]">Switched off for your organisation. An organisation admin can switch it on in <Link href="/rota/settings">Rota Settings</Link> once the data protection (DPIA) and clinical safety review is recorded. The body map works fully without it.</p> : null}
-            {ai.state === "not_configured" ? <p className="mt-2 rounded-[8px] bg-[#f9fafb] p-2.5 text-[13px]">No AI provider is configured. The body map works fully without it.</p> : null}
-            {lastFailed && !lastFailed.supersededAt ? <p className="mt-2 text-[13px] text-[#a3242c]" role="alert">The last attempt failed ({fmtDate(lastFailed.createdAt, true)}): {lastFailed.error}</p> : null}
+            <p className="mt-1 text-caption text-slate-600">{DISCLAIMER}</p>
+            {ai.state === "off" ? <p className="mt-2 rounded-[8px] bg-[#f9fafb] p-2.5 text-meta">Switched off for your organisation. An organisation admin can switch it on in <Link href="/rota/settings">Rota Settings</Link> once the data protection (DPIA) and clinical safety review is recorded. The body map works fully without it.</p> : null}
+            {ai.state === "not_configured" ? <p className="mt-2 rounded-[8px] bg-[#f9fafb] p-2.5 text-meta">No AI provider is configured. The body map works fully without it.</p> : null}
+            {lastFailed && !lastFailed.supersededAt ? <p className="mt-2 text-meta text-[#a3242c]" role="alert">The last attempt failed ({fmtDate(lastFailed.createdAt, true)}): {lastFailed.error}</p> : null}
             {current ? (
               <div className="mt-2 space-y-2">
-                <p className="text-[12px] text-slate-500">
+                <p className="text-caption text-slate-500">
                   {current.isSimulated ? <Badge tone="amber">Simulated suggestions (demonstration only)</Badge> : <Badge tone="violet">{current.provider}{current.model ? ` · ${current.model}` : ""}</Badge>} Generated {fmtDate(current.createdAt, true)} {current.trigger === "AUTO" ? "automatically after saving" : `on request by ${who(current.requestedById)}`}, from {current.sources.length} record{current.sources.length === 1 ? "" : "s"}. Photographs are never sent.
                 </p>
                 {current.recommendations.length ? current.recommendations.map((r) => (
                   <article key={r.id} className="bm-ai" data-testid="body-map-rec">
                     <div className="flex flex-wrap items-start gap-2">
-                      <div className="min-w-0 flex-1"><p className="text-[11.5px] font-medium uppercase tracking-wide text-[#6941c6]">{REC_CATEGORY_LABEL[r.category] ?? r.category}</p><h5 className="text-[14px] font-semibold text-[#101828]">{r.title}</h5></div>
+                      <div className="min-w-0 flex-1"><p className="text-caption font-medium uppercase tracking-wide text-[#6941c6]">{REC_CATEGORY_LABEL[r.category] ?? r.category}</p><h5 className="text-body font-semibold text-[#101828]">{r.title}</h5></div>
                       <Badge tone={REC_TONE[r.status] ?? "slate"}>{REC_STATUS_LABEL[r.status] ?? r.status}</Badge>
                     </div>
                     <p className="mt-1">{r.explanation}</p>
-                    {r.facts.length ? <div className="mt-1.5"><p className="text-[12px] font-semibold text-[#344054]">Recorded facts</p><ul className="list-disc pl-5 text-[12.5px] text-slate-600">{r.facts.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
-                    <p className="mt-1.5 text-[12.5px]"><span className="font-semibold">Suggested next action: </span>{r.suggestedAction}</p>
-                    <p className="mt-1 text-[12px] text-slate-600">Supporting records: {r.sources.map((s, i) => <span key={s.sid}>{i ? ", " : ""}<Link href={s.href}>{s.label}</Link></span>)}</p>
-                    {r.decidedAt ? <p className="mt-1 text-[12px] text-slate-500">{REC_STATUS_LABEL[r.status]} by {who(r.decidedById)}, {fmtDate(r.decidedAt, true)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : r.reviewStartedAt ? <p className="mt-1 text-[12px] text-slate-500">Under review by {who(r.reviewStartedById)} since {fmtDate(r.reviewStartedAt, true)}</p> : null}
+                    {r.facts.length ? <div className="mt-1.5"><p className="text-caption font-semibold text-[#344054]">Recorded facts</p><ul className="list-disc pl-5 text-meta text-slate-600">{r.facts.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
+                    <p className="mt-1.5 text-meta"><span className="font-semibold">Suggested next action: </span>{r.suggestedAction}</p>
+                    <p className="mt-1 text-caption text-slate-600">Supporting records: {r.sources.map((s, i) => <span key={s.sid}>{i ? ", " : ""}<Link href={s.href}>{s.label}</Link></span>)}</p>
+                    {r.decidedAt ? <p className="mt-1 text-caption text-slate-500">{REC_STATUS_LABEL[r.status]} by {who(r.decidedById)}, {fmtDate(r.decidedAt, true)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : r.reviewStartedAt ? <p className="mt-1 text-caption text-slate-500">Under review by {who(r.reviewStartedById)} since {fmtDate(r.reviewStartedAt, true)}</p> : null}
                     {canReview && ["NEW", "UNDER_REVIEW", "ACCEPTED"].includes(r.status) ? (
                       <div className="mt-2 flex flex-wrap items-start gap-2">
                         {r.status === "NEW" ? <form action={bodyMapRecDecisionAction}><Hidden v={{ back, recommendationId: r.id, decision: "REVIEW" }} /><button className="bm-secondary bm-small">Review Suggestion</button></form> : null}
@@ -536,14 +536,14 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
                       </div>
                     ) : null}
                   </article>
-                )) : <p className="rounded-[8px] bg-[#f9fafb] p-2.5 text-[13px]">No reliable recommendation could be made from the records.</p>}
-                {current.gaps.length ? <div className="text-[12.5px]"><p className="font-semibold text-[#344054]">What the records do not show</p><ul className="list-disc pl-5 text-slate-600">{current.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul></div> : null}
-                <p className="text-[12px] text-slate-500">Accepting a suggestion is not a clinical or safeguarding decision. Tasks use the normal care plan, risk assessment and incident workflows.</p>
+                )) : <p className="rounded-[8px] bg-[#f9fafb] p-2.5 text-meta">No reliable recommendation could be made from the records.</p>}
+                {current.gaps.length ? <div className="text-meta"><p className="font-semibold text-[#344054]">What the records do not show</p><ul className="list-disc pl-5 text-slate-600">{current.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul></div> : null}
+                <p className="text-caption text-slate-500">Accepting a suggestion is not a clinical or safeguarding decision. Tasks use the normal care plan, risk assessment and incident workflows.</p>
               </div>
-            ) : ai.state === "ready" ? <p className="mt-2 text-[13px] text-slate-600">No recommendations yet. They are prepared automatically after a new observation is saved, or use Generate recommendations.</p> : null}
+            ) : ai.state === "ready" ? <p className="mt-2 text-meta text-slate-600">No recommendations yet. They are prepared automatically after a new observation is saved, or use Generate recommendations.</p> : null}
             {earlierRuns.length ? (
-              <details className="mt-3"><summary className="cursor-pointer text-[13px] font-medium text-[#5b2bb5]">Earlier suggestions, based on older information ({earlierRuns.length})</summary>
-                <ul className="mt-2 space-y-2 text-[12.5px]">
+              <details className="mt-3"><summary className="cursor-pointer text-meta font-medium text-[#5b2bb5]">Earlier suggestions, based on older information ({earlierRuns.length})</summary>
+                <ul className="mt-2 space-y-2 text-meta">
                   {earlierRuns.map((run) => (
                     <li key={run.id} className="bm-block">
                       <p className="text-slate-500">{fmtDate(run.createdAt, true)} · {run.isSimulated ? "simulated" : run.provider} · replaced {fmtDate(run.supersededAt, true)} when the record changed</p>
@@ -558,7 +558,7 @@ async function ObservationDetail({ ctx, o, n, all, pane, here, today, canRecord,
 
         {pane === "audit" && canRecord ? (
           audits.length ? (
-            <ol className="space-y-1.5 text-[12.5px]" data-testid="body-map-audit">
+            <ol className="space-y-1.5 text-meta" data-testid="body-map-audit">
               {audits.map((a) => (
                 <li key={a.id} className="flex gap-3 border-b border-[#f2f4f7] pb-1.5">
                   <span className="w-[130px] shrink-0 text-slate-500">{fmtDate(a.createdAt, true)}</span>
@@ -598,10 +598,10 @@ function NoteForm({ o, back, canPhotos }: { o: Obs; back: string; canPhotos: boo
     <form action={noteBodyMapAction} className="bm-note" data-testid="body-map-note-form">
       <Hidden v={{ back, observationId: o.id }} />
       <label className="block">
-        <span className="mb-1.5 flex items-center gap-2 text-[15px] font-semibold text-[#101828]"><ClipboardText size={18} className="text-[#5b2bb5]" aria-hidden />Add Note / Update</span>
+        <span className="mb-1.5 flex items-center gap-2 text-lead font-semibold text-[#101828]"><ClipboardText size={18} className="text-[#5b2bb5]" aria-hidden />Add Note / Update</span>
         <textarea name="text" required minLength={3} maxLength={4000} rows={3} className="input" placeholder="e.g. Reviewed today. Bruising appears smaller and the service user reports no discomfort. Continue monitoring according to the care plan." />
       </label>
-      <p className="mt-1 text-[11.5px] text-slate-500">The date, time and your name are added when you save. The original observation and earlier notes are never changed.</p>
+      <p className="mt-1 text-caption text-slate-500">The date, time and your name are added when you save. The original observation and earlier notes are never changed.</p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
         {canPhotos ? <PhotoButton name="photo" accept={PHOTO_ACCEPT} maxBytes={MAX_DOCUMENT_BYTES} /> : <span />}
         <div className="flex gap-2"><button type="reset" className="bm-secondary">Cancel</button><button className="bm-primary">Save Note</button></div>
@@ -613,7 +613,7 @@ function NoteForm({ o, back, canPhotos }: { o: Obs; back: string; canPhotos: boo
 function IncidentDecision({ o, back, incidents }: { o: Obs; back: string; incidents: Awaited<ReturnType<typeof linkableIncidents>> }) {
   return (
     <details className="mt-2" open={!o.incidentDecision ? true : undefined}>
-      <summary className="cursor-pointer text-[13px] font-medium text-[#5b2bb5]">{o.incidentDecision ? "Change the decision" : "Decide whether an incident report is needed"}</summary>
+      <summary className="cursor-pointer text-meta font-medium text-[#5b2bb5]">{o.incidentDecision ? "Change the decision" : "Decide whether an incident report is needed"}</summary>
       <div className="mt-2 space-y-2">
         <form action={bodyMapIncidentAction} className="bm-block space-y-2">
           <Hidden v={{ back, observationId: o.id, version: o.version, decision: "NEW" }} />
@@ -657,7 +657,7 @@ function PhotoCompare({ items, current, here }: { items: Obs[]; current: string;
         {[["Earliest", first], ["Latest", last]].map(([label, x]) => {
           const it = x as typeof first;
           return (
-            <figure key={label as string} className={`text-[12px] ${it.o.id === current ? "" : ""}`}>
+            <figure key={label as string} className={`text-caption ${it.o.id === current ? "" : ""}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photoUrl(it.p.id)} alt={`${label} photo, ${fmtDate(it.p.uploadedAt)}`} className="h-32 w-full rounded-[8px] border border-[#eaecf0] object-cover" />
               <figcaption className="mt-1 text-slate-600">{label as string}: {fmtDate(it.p.uploadedAt, true)} · <Link href={`${here}&obs=${it.o.id}&pane=photos`}>{it.o.category}</Link>{it.o.size ? ` · recorded size ${it.o.size}` : ""}</figcaption>
@@ -665,7 +665,7 @@ function PhotoCompare({ items, current, here }: { items: Obs[]; current: string;
           );
         })}
       </div>
-      <p className="mt-1 text-[12px] text-slate-500">For a person to compare. The system does not assess photographs.</p>
+      <p className="mt-1 text-caption text-slate-500">For a person to compare. The system does not assess photographs.</p>
     </div>
   );
 }
@@ -689,8 +689,8 @@ function Timeline({ o, runs, who }: { o: Obs; runs: Runs; who: (id: string | nul
         <li key={i} className="relative">
           <span className="absolute -left-[22px] top-1 h-2.5 w-2.5 rounded-full bg-[#7f56d9] ring-2 ring-white" />
           <p className="font-medium text-[#101828]">{it.title}</p>
-          {it.detail ? <p className="whitespace-pre-line text-[12.5px] text-slate-600">{it.detail}</p> : null}
-          <p className="text-[11.5px] text-slate-500">{fmtDate(it.at, true)}{it.by ? ` · ${it.by}` : ""}</p>
+          {it.detail ? <p className="whitespace-pre-line text-meta text-slate-600">{it.detail}</p> : null}
+          <p className="text-caption text-slate-500">{fmtDate(it.at, true)}{it.by ? ` · ${it.by}` : ""}</p>
         </li>
       ))}
     </ol>

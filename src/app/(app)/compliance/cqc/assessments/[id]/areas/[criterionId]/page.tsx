@@ -63,13 +63,13 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
             <Panel title="What good looks like">
-              <div className="space-y-2 px-5 py-4 text-[14px] text-[#344054]">
+              <div className="space-y-2 px-5 py-4 text-body text-[#344054]">
                 <p>{c.guidance}</p>
-                {c.evidenceExamples.length ? <><p className="text-[13px] font-semibold text-[#101828]">Evidence an inspector may ask to see</p><ul className="list-disc space-y-0.5 pl-5 text-[13.5px]">{c.evidenceExamples.map((e) => <li key={e}>{e}</li>)}</ul></> : null}
+                {c.evidenceExamples.length ? <><p className="text-meta font-semibold text-[#101828]">Evidence an inspector may ask to see</p><ul className="list-disc space-y-0.5 pl-5 text-body">{c.evidenceExamples.map((e) => <li key={e}>{e}</li>)}</ul></> : null}
               </div>
             </Panel>
 
-            <Panel title="Evidence" testId="area-evidence" actions={<span className="text-[12.5px] text-[#667085]">Only verified, in-date evidence counts towards the score</span>}>
+            <Panel title="Evidence" testId="area-evidence" actions={<span className="text-meta text-[#667085]">Only verified, in-date evidence counts towards the score</span>}>
               {links.length ? (
                 <PcTableWrap label="Evidence for this area">
                   <table className="pc-table">
@@ -86,8 +86,8 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
                             {l.effective === "VERIFIED" && l.validUntil ? <span className="pc-sub">Counts until {fmtDate(l.validUntil)}</span> : null}
                             {l.effective === "OUTDATED" && l.status === "VERIFIED" ? <span className="pc-sub">Was verified; {l.info.stale ? "source changed" : "past its date"}</span> : null}
                           </td>
-                          <td className="whitespace-nowrap text-[13px]">{l.linkedById ? users.get(l.linkedById) : "System"}<span className="pc-sub">{fmtDate(l.createdAt)}{l.note ? ` · ${l.note}` : ""}</span></td>
-                          <td className="min-w-[220px] text-[13px]">
+                          <td className="whitespace-nowrap text-meta">{l.linkedById ? users.get(l.linkedById) : "System"}<span className="pc-sub">{fmtDate(l.createdAt)}{l.note ? ` · ${l.note}` : ""}</span></td>
+                          <td className="min-w-[220px] text-meta">
                             {l.reviewedById ? <span className="block">{users.get(l.reviewedById)} · {fmtDate(l.reviewedAt)}{l.reviewNote ? <span className="pc-sub">{l.reviewNote}</span> : null}</span> : null}
                             {l.status === "SUGGESTED" && canAssess ? (
                               <form action={proposeSuggestionAction} className="mt-1 inline-block">
@@ -98,14 +98,14 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
                             {canVerify && !l.info.restricted ? (
                               <form action={reviewEvidenceAction} className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <input type="hidden" name="back" value={back} /><input type="hidden" name="linkId" value={l.id} /><input type="hidden" name="updatedAt" value={l.updatedAt.toISOString()} />
-                                <select name="to" className="input h-8 w-auto py-0 text-[13px]" aria-label={`Decision for ${l.info.label}`} defaultValue="">
+                                <select name="to" className="input h-8 w-auto py-0 text-meta" aria-label={`Decision for ${l.info.label}`} defaultValue="">
                                   <option value="" disabled>Decision…</option>
                                   {l.status !== "VERIFIED" ? <option value="VERIFIED">Verify</option> : null}
                                   <option value="REJECTED">Reject</option>
                                   <option value="OUTDATED">Mark outdated</option>
                                   <option value="SUPERSEDED">Mark superseded</option>
                                 </select>
-                                <input name="note" className="input h-8 w-[150px] py-0 text-[13px]" placeholder="Reason" aria-label="Reason for the decision" />
+                                <input name="note" className="input h-8 w-[150px] py-0 text-meta" placeholder="Reason" aria-label="Reason for the decision" />
                                 <button className="pc-btn-secondary pc-btn-sm" type="submit">Save</button>
                               </form>
                             ) : null}
@@ -127,7 +127,7 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
                   </label>
                   <label><span className="label">Note (optional)</span><input name="note" className="input" placeholder="What it shows" /></label>
                   <div className="flex items-end"><button className="pc-btn w-full md:w-auto" type="submit">Link evidence</button></div>
-                  <p className="text-[12.5px] text-[#667085] md:col-span-3">Linking never verifies. A reviewer with evidence rights decides whether it counts. Files stay in the Evidence Library; nothing is copied.</p>
+                  <p className="text-meta text-[#667085] md:col-span-3">Linking never verifies. A reviewer with evidence rights decides whether it counts. Files stay in the Evidence Library; nothing is copied.</p>
                 </form>
               ) : null}
             </Panel>
@@ -136,17 +136,17 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
               {actions.length ? (
                 <ul className="divide-y divide-[#eaecf0]">
                   {actions.map((x) => (
-                    <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-[13.5px]">
+                    <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 text-body">
                       <Link href={`/actions/${x.id}`} className="pc-strong flex-1">{x.title}</Link>
                       <span className="text-[#475467]">{users.get(x.ownerId) ?? "—"} · due {fmtDate(x.dueDate)}</span>
                       <PcBadge tone={x.status === "VERIFIED" || x.status === "CLOSED" ? "green" : x.dueDate < new Date() ? "red" : "blue"}>{x.status !== "VERIFIED" && x.status !== "CLOSED" && x.dueDate < new Date() ? "Overdue" : ACTION_STATUS[x.status as keyof typeof ACTION_STATUS] ?? x.status}</PcBadge>
                     </li>
                   ))}
                 </ul>
-              ) : <p className="px-5 py-3 text-[13.5px] text-[#667085]">No improvement actions for this area.</p>}
+              ) : <p className="px-5 py-3 text-body text-[#667085]">No improvement actions for this area.</p>}
               {canAssess && a.status !== "SUPERSEDED" ? (
                 <details className="border-t border-[#eaecf0] px-5 py-3">
-                  <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Raise an improvement action</summary>
+                  <summary className="cursor-pointer text-body font-semibold text-module">Raise an improvement action</summary>
                   <form action={improvementActionAction} className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="assessmentId" value={a.id} /><input type="hidden" name="criterionId" value={c.id} />
                     <label className="md:col-span-2"><span className="label">What needs to happen</span><input name="title" className="input" required minLength={3} /></label>
@@ -164,18 +164,18 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
 
           <div className="space-y-4">
             <Panel title="Result" testId="area-result">
-              <div className="space-y-3 px-5 py-4 text-[13.5px]">
+              <div className="space-y-3 px-5 py-4 text-body">
                 <div className="flex items-center gap-2">{res ? <PcBadge tone={RESULT_TONE[res.result] ?? "grey"}>{RESULT_LABEL[res.result]}</PcBadge> : <PcBadge tone="grey">Not assessed</PcBadge>}<span className="ml-auto tabular-nums text-[#475467]">Area score {score?.score ?? "—"}</span></div>
-                {score && score.state === "SCORED" && !score.hasVerifiedEvidence ? <p className="text-[12.5px] text-[#b54708]">Halved because no verified evidence supports this result.</p> : null}
-                {score?.deduction ? <p className="text-[12.5px] text-[#b42318]">Overdue actions take {score.deduction} points off this area.</p> : null}
-                {res ? <p className="text-[#344054]"><span className="block text-[12px] font-semibold uppercase tracking-wide text-[#667085]">Rationale</span>{res.rationale}{res.naReason ? <span className="mt-1 block">Why not applicable: {res.naReason}</span> : null}{res.findings ? <span className="mt-1 block">Findings: {res.findings}</span> : null}<span className="mt-1 block text-[12px] text-[#667085]">{users.get(res.recordedById)} · {fmtDate(res.recordedAt, true)} · version {res.version}</span></p> : null}
+                {score && score.state === "SCORED" && !score.hasVerifiedEvidence ? <p className="text-meta text-[#b54708]">Halved because no verified evidence supports this result.</p> : null}
+                {score?.deduction ? <p className="text-meta text-[#b42318]">Overdue actions take {score.deduction} points off this area.</p> : null}
+                {res ? <p className="text-[#344054]"><span className="block text-caption font-semibold uppercase tracking-wide text-[#667085]">Rationale</span>{res.rationale}{res.naReason ? <span className="mt-1 block">Why not applicable: {res.naReason}</span> : null}{res.findings ? <span className="mt-1 block">Findings: {res.findings}</span> : null}<span className="mt-1 block text-caption text-[#667085]">{users.get(res.recordedById)} · {fmtDate(res.recordedAt, true)} · version {res.version}</span></p> : null}
                 {editable ? (
                   <form action={recordResultAction} className="space-y-2 border-t border-[#eaecf0] pt-3" data-testid="result-form">
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="assessmentId" value={a.id} /><input type="hidden" name="criterionId" value={c.id} />
                     {res ? <input type="hidden" name="version" value={res.version} /> : null}
                     <fieldset><legend className="label">Result</legend>
                       <div className="grid grid-cols-2 gap-1.5">
-                        {RESULTS.map((r) => <label key={r} className="flex items-center gap-2 rounded-lg border border-[#d0d5dd] px-2.5 py-1.5 text-[13px]"><input type="radio" name="result" value={r} defaultChecked={res?.result === r} required />{RESULT_LABEL[r]}</label>)}
+                        {RESULTS.map((r) => <label key={r} className="flex items-center gap-2 rounded-lg border border-[#d0d5dd] px-2.5 py-1.5 text-meta"><input type="radio" name="result" value={r} defaultChecked={res?.result === r} required />{RESULT_LABEL[r]}</label>)}
                       </div>
                     </fieldset>
                     <label><span className="label">Rationale</span><textarea name="rationale" className="input" rows={3} required minLength={10} defaultValue={res?.rationale ?? ""} /></label>
@@ -183,7 +183,7 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
                     <label><span className="label">If not applicable, why</span><input name="naReason" className="input" defaultValue={res?.naReason ?? ""} /></label>
                     <button className="pc-btn w-full" type="submit">{res ? "Update result" : "Save result"}</button>
                   </form>
-                ) : <p className="text-[12.5px] text-[#667085]">{a.status === "IN_PROGRESS" ? "You can view this assessment but not change results." : "Results are locked once an assessment is submitted. Start a reassessment to change them."}</p>}
+                ) : <p className="text-meta text-[#667085]">{a.status === "IN_PROGRESS" ? "You can view this assessment but not change results." : "Results are locked once an assessment is submitted. Start a reassessment to change them."}</p>}
               </div>
             </Panel>
 
@@ -192,8 +192,8 @@ export default async function AreaPage({ params, searchParams }: { params: Promi
                 {[...history.map((h) => ({ id: h.id, at: h.createdAt, actor: h.actorId, text: (() => { const d = h.data as { from?: { result?: string } | null; to?: { result?: string } }; return h.action === "cqc.result.recorded" ? `Result ${d.from?.result ? `${RESULT_LABEL[d.from.result]} → ` : ""}${RESULT_LABEL[d.to?.result ?? ""] ?? ""}` : "Improvement action raised"; })() })),
                   ...linkHistory.map((h) => ({ id: h.id, at: h.createdAt, actor: h.actorId, text: (() => { const d = h.data as { from?: string | null; to?: string; note?: string | null }; return `Evidence ${d.from ? `${LINK_STATUS[d.from as keyof typeof LINK_STATUS] ?? d.from} → ` : ""}${LINK_STATUS[d.to as keyof typeof LINK_STATUS] ?? d.to}${d.note ? ` (${d.note})` : ""}`; })() }))]
                   .sort((x, y) => y.at.getTime() - x.at.getTime())
-                  .map((h) => <li key={h.id} className="px-5 py-2 text-[12.5px]"><span className="font-medium text-[#101828]">{h.text}</span><span className="block text-[#667085]">{users.get(h.actor ?? "") ?? "System"} · {fmtDate(h.at, true)}</span></li>)}
-                {!history.length && !linkHistory.length ? <li className="px-5 py-3 text-[13px] text-[#667085]">Nothing recorded yet.</li> : null}
+                  .map((h) => <li key={h.id} className="px-5 py-2 text-meta"><span className="font-medium text-[#101828]">{h.text}</span><span className="block text-[#667085]">{users.get(h.actor ?? "") ?? "System"} · {fmtDate(h.at, true)}</span></li>)}
+                {!history.length && !linkHistory.length ? <li className="px-5 py-3 text-meta text-[#667085]">Nothing recorded yet.</li> : null}
               </ol>
             </Panel>
           </div>

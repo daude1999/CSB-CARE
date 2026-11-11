@@ -35,12 +35,12 @@ export default async function NotificationsPage() {
         <PxPanel title="Your security alerts" flush>
           <div className="px-4">
             <Table label="Your security alerts" minWidth={520} head={["When", "Alert", ""]} empty={mine.length ? null : <EmptyRow>{alertsOn ? "No alerts yet." : "Security alerts are switched off."}</EmptyRow>}>
-              {mine.map((n) => <tr key={n.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(n.createdAt, true)}</td><td><span className="font-medium text-px-ink">{n.title}</span><span className="block text-[12.5px] text-px-muted">{n.body}</span></td><td className="text-right">{n.actionUrl ? <Link href={n.actionUrl} className="text-[13px]">Open</Link> : null}</td></tr>)}
+              {mine.map((n) => <tr key={n.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(n.createdAt, true)}</td><td><span className="font-medium text-px-ink">{n.title}</span><span className="block text-meta text-px-muted">{n.body}</span></td><td className="text-right">{n.actionUrl ? <Link href={n.actionUrl} className="text-meta">Open</Link> : null}</td></tr>)}
             </Table>
           </div>
         </PxPanel>
         <PxPanel title="What is sent">
-          {sent.map(([label, value, help]) => <SettingsRow key={label} label={label} help={help}><p className="text-[13.5px] text-px-body md:text-right">{value}</p></SettingsRow>)}
+          {sent.map(([label, value, help]) => <SettingsRow key={label} label={label} help={help}><p className="text-body text-px-body md:text-right">{value}</p></SettingsRow>)}
         </PxPanel>
       </div>
     </>

@@ -59,26 +59,26 @@ export default async function ReadinessMatrixPage({ searchParams }: { searchPara
                 {requirements.map((r) => (
                   <tr key={r.id} className={r.status === "RETIRED" ? "text-slate-500" : ""}>
                     <td>
-                      <span className="font-medium">{r.name}</span> <span className="text-[12px] text-slate-500">v{r.version}</span>
+                      <span className="font-medium">{r.name}</span> <span className="text-caption text-slate-500">v{r.version}</span>
                       {r.status === "RETIRED" ? <> <Badge>Retired{r.effectiveTo ? ` ${fmtDate(r.effectiveTo)}` : ""}</Badge></> : null}
-                      <span className="block text-[12px] text-slate-500">{CLASSIFICATION[r.classification]}{r.sourceAuthority ? ` · ${r.sourceAuthority}` : ""}{r.policyId ? ` · ${names.policy.get(r.policyId) ?? "policy"}` : ""}</span>
+                      <span className="block text-caption text-slate-500">{CLASSIFICATION[r.classification]}{r.sourceAuthority ? ` · ${r.sourceAuthority}` : ""}{r.policyId ? ` · ${names.policy.get(r.policyId) ?? "policy"}` : ""}</span>
                     </td>
-                    <td>{CATEGORY[r.category]}{r.requiresPractical && r.category !== "COMPETENCY" ? <span className="block text-[12px] text-slate-500">+ observed competency</span> : null}</td>
-                    <td className="text-[13px]">{r.scopes.map(scopeText).join(", ")}</td>
+                    <td>{CATEGORY[r.category]}{r.requiresPractical && r.category !== "COMPETENCY" ? <span className="block text-caption text-slate-500">+ observed competency</span> : null}</td>
+                    <td className="text-meta">{r.scopes.map(scopeText).join(", ")}</td>
                     <td>{r.renewalMonths ? `${r.renewalMonths} months` : "No renewal"}</td>
-                    <td>{r.hardStop ? <Badge tone="rose">Blocks</Badge> : <Badge tone="amber">Review</Badge>}{r.exceptionAllowed ? null : <span className="block text-[12px] text-slate-500">No exceptions</span>}</td>
+                    <td>{r.hardStop ? <Badge tone="rose">Blocks</Badge> : <Badge tone="amber">Review</Badge>}{r.exceptionAllowed ? null : <span className="block text-caption text-slate-500">No exceptions</span>}</td>
                     <td className="tabular-nums">{r._count.records} records · {r._count.assessments} assessments</td>
                     <td className="whitespace-nowrap">
                       {r.status === "ACTIVE" ? (
                         <>
-                          <Link href={`${back}?edit=${r.id}`} className="btn-secondary py-1 text-[13px]">New version</Link>
+                          <Link href={`${back}?edit=${r.id}`} className="btn-secondary py-1 text-meta">New version</Link>
                           <details className="mt-1">
-                            <summary className="cursor-pointer text-[13px] text-[#0646b1]">Retire</summary>
+                            <summary className="cursor-pointer text-meta text-[#0646b1]">Retire</summary>
                             <form action={retireRequirementAction} className="mt-1 flex gap-1">
                               <input type="hidden" name="back" value={back} />
                               <input type="hidden" name="requirementId" value={r.id} />
-                              <input name="reason" required minLength={3} className="input w-40 py-1 text-[13px]" placeholder="Why" aria-label={`Why ${r.name} is retired`} />
-                              <button className="btn-secondary py-1 text-[13px]">Retire</button>
+                              <input name="reason" required minLength={3} className="input w-40 py-1 text-meta" placeholder="Why" aria-label={`Why ${r.name} is retired`} />
+                              <button className="btn-secondary py-1 text-meta">Retire</button>
                             </form>
                           </details>
                         </>
@@ -109,7 +109,7 @@ function RequirementForm({ editing, back, roles, branches, careTasks, serviceUse
   const has = (kind: string, v?: string | null) => Boolean(e?.scopes.some((s) => s.kind === kind && (v === undefined || s.jobTitle === v || s.branchId === v || s.careTaskId === v || s.serviceUserId === v)));
   const otherTitles = e?.scopes.filter((s) => s.kind === "JOB_TITLE" && s.jobTitle && !roles.includes(s.jobTitle)).map((s) => s.jobTitle).join(", ") ?? "";
   return (
-    <Card title={e ? `New version of “${e.name}”` : "Add a requirement"} actions={e ? <Link href={back} className="btn-secondary py-1 text-[13px]">Cancel</Link> : null}>
+    <Card title={e ? `New version of “${e.name}”` : "Add a requirement"} actions={e ? <Link href={back} className="btn-secondary py-1 text-meta">Cancel</Link> : null}>
       <form action={saveRequirementAction} className="grid grid-cols-2 gap-2">
         <input type="hidden" name="back" value={e ? `${back}?edit=${e.id}` : back} />
         {e ? <input type="hidden" name="requirementId" value={e.id} /> : null}
@@ -125,21 +125,21 @@ function RequirementForm({ editing, back, roles, branches, careTasks, serviceUse
         <label className="col-span-2"><span className="label">Description</span><textarea name="description" rows={2} defaultValue={e?.description ?? ""} className="input" /></label>
         <fieldset className="col-span-2 space-y-1">
           <legend className="label">Rules</legend>
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="hardStop" defaultChecked={e?.hardStop ?? true} className="h-4 w-4" /> Not met blocks allocation and clock-in (otherwise flagged for review)</label>
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="requiresPractical" defaultChecked={e?.requiresPractical ?? false} className="h-4 w-4" /> Needs an observed competency assessment as well as the course</label>
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="exceptionAllowed" defaultChecked={e?.exceptionAllowed ?? true} className="h-4 w-4" /> A manager may grant a time-limited exception</label>
+          <label className="flex items-center gap-2 text-body"><input type="checkbox" name="hardStop" defaultChecked={e?.hardStop ?? true} className="h-4 w-4" /> Not met blocks allocation and clock-in (otherwise flagged for review)</label>
+          <label className="flex items-center gap-2 text-body"><input type="checkbox" name="requiresPractical" defaultChecked={e?.requiresPractical ?? false} className="h-4 w-4" /> Needs an observed competency assessment as well as the course</label>
+          <label className="flex items-center gap-2 text-body"><input type="checkbox" name="exceptionAllowed" defaultChecked={e?.exceptionAllowed ?? true} className="h-4 w-4" /> A manager may grant a time-limited exception</label>
         </fieldset>
         <fieldset className="col-span-2 space-y-1.5">
           <legend className="label">Applies to (any match applies)</legend>
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="scopeAll" defaultChecked={has("ALL")} className="h-4 w-4" /> Everyone</label>
-          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{roles.map((t) => <label key={t} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="jobTitles" value={t} defaultChecked={e ? has("JOB_TITLE", t) : true} className="h-4 w-4" /> {t}</label>)}</div>
+          <label className="flex items-center gap-2 text-body"><input type="checkbox" name="scopeAll" defaultChecked={has("ALL")} className="h-4 w-4" /> Everyone</label>
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{roles.map((t) => <label key={t} className="flex items-center gap-2 text-body"><input type="checkbox" name="jobTitles" value={t} defaultChecked={e ? has("JOB_TITLE", t) : true} className="h-4 w-4" /> {t}</label>)}</div>
           <label className="block"><span className="label">Other job titles (comma separated)</span><input name="otherJobTitles" defaultValue={otherTitles} className="input" /></label>
-          {branches.length ? <div><span className="label">Branches</span><div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{branches.map((b) => <label key={b.id} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={has("BRANCH", b.id)} className="h-4 w-4" /> {b.name}</label>)}</div></div> : null}
-          {careTasks.length ? <div><span className="label">Only for visits with these care tasks</span><div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{careTasks.map((t) => <label key={t.id} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="careTaskIds" value={t.id} defaultChecked={has("CARE_TASK", t.id)} className="h-4 w-4" /> {t.name}</label>)}</div></div> : null}
+          {branches.length ? <div><span className="label">Branches</span><div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{branches.map((b) => <label key={b.id} className="flex items-center gap-2 text-body"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={has("BRANCH", b.id)} className="h-4 w-4" /> {b.name}</label>)}</div></div> : null}
+          {careTasks.length ? <div><span className="label">Only for visits with these care tasks</span><div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{careTasks.map((t) => <label key={t.id} className="flex items-center gap-2 text-body"><input type="checkbox" name="careTaskIds" value={t.id} defaultChecked={has("CARE_TASK", t.id)} className="h-4 w-4" /> {t.name}</label>)}</div></div> : null}
           <label className="block"><span className="label">Only for visits to these people</span><select name="serviceUserIds" multiple size={4} defaultValue={e?.scopes.filter((s) => s.kind === "SERVICE_USER" && s.serviceUserId).map((s) => s.serviceUserId as string) ?? []} className="input">{serviceUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
-          <p className="text-[12.5px] text-slate-500">Task and person scopes only bite on visits that involve that task or person.</p>
+          <p className="text-meta text-slate-500">Task and person scopes only bite on visits that involve that task or person.</p>
         </fieldset>
-        <div className="col-span-2"><button className="btn-primary">{e ? "Save new version" : "Add requirement"}</button>{e ? <span className="ml-2 text-[13px] text-slate-500">Everyone it applies to is flagged for review.</span> : null}</div>
+        <div className="col-span-2"><button className="btn-primary">{e ? "Save new version" : "Add requirement"}</button>{e ? <span className="ml-2 text-meta text-slate-500">Everyone it applies to is flagged for review.</span> : null}</div>
       </form>
     </Card>
   );

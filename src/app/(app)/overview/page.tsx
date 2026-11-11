@@ -26,14 +26,14 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 function RoundBlock({ round, wide }: { round: CallRound; wide: boolean }) {
   return (
     <li className={`ovx-round ${wide ? "flex-[1_1_0]" : "flex-[0.6_1_0]"}`} data-state={round.state} data-testid={`round-${round.label.toLowerCase()}`}>
-      <span className="flex items-center justify-between gap-2 text-[13px] font-semibold leading-[17px]">
+      <span className="flex items-center justify-between gap-2 text-meta font-semibold leading-[17px]">
         <span className="truncate">{round.label}</span>
         {round.state === "done" ? <span className="ovx-round-tag flex items-center gap-0.5"><Check size={11} weight="bold" aria-hidden="true" />Done</span> : null}
         {round.state === "now" ? <span className="ovx-round-tag">Now</span> : null}
       </span>
       <span className="mt-1 block leading-none">
-        <span className="text-[18px] font-bold tabular-nums">{round.done}</span>
-        <span className="ovx-round-of text-[12.5px] tabular-nums"> / {round.total}</span>
+        <span className="text-subtitle font-bold tabular-nums">{round.done}</span>
+        <span className="ovx-round-of text-meta tabular-nums"> / {round.total}</span>
         <span className="sr-only"> visits done{round.state === "now" ? ", in progress now" : round.state === "done" ? ", round finished" : ""}</span>
       </span>
     </li>
@@ -48,26 +48,26 @@ function RotaTile({ portal, done, total, carers, missed, rounds }: { portal: Por
       <CalendarDots aria-hidden="true" className="ovx-ghost -right-8 -top-10 opacity-[.06]" size={240} weight="regular" />
       <div className="relative flex items-center gap-3">
         <span aria-hidden="true" className="ovx-chip"><CalendarDots size={16} /></span>
-        <h2 id="ov-rota-title" className="ovx-title min-w-0 flex-1 text-[15px] font-semibold leading-tight">{portal.name}</h2>
+        <h2 id="ov-rota-title" className="ovx-title min-w-0 flex-1 text-lead font-semibold leading-tight">{portal.name}</h2>
         <Link href="/rota/visits" className="ovx-pill">Open rota <ArrowRight size={13} weight="bold" aria-hidden="true" /></Link>
       </div>
       <div className="relative mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
         <p className="flex items-baseline gap-3" data-testid="rota-headline">
           <span className="text-[52px] font-bold leading-[0.95] tracking-[-0.02em] tabular-nums">{done}</span>
-          <span className="text-[16px] font-medium">of {total} {plural(total, "visit", "visits")} done today</span>
+          <span className="text-lead font-medium">of {total} {plural(total, "visit", "visits")} done today</span>
         </p>
-        <p className="ovx-soft ml-auto pb-1 text-[13px]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
+        <p className="ovx-soft ml-auto pb-1 text-meta">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
       </div>
       {rounds.length ? (
         <ul className="relative mt-4 grid grid-cols-2 gap-2.5 lg:flex" aria-label="Today's call rounds">
           {rounds.map((r) => <RoundBlock key={r.name} round={r} wide={r.total * 4 >= biggest} />)}
         </ul>
       ) : (
-        <p className="ovx-soft relative mt-4 text-[13px]">No visits are booked for today.</p>
+        <p className="ovx-soft relative mt-4 text-meta">No visits are booked for today.</p>
       )}
       <div className="ovx-alert relative mt-4 flex min-h-[46px] items-center gap-3 px-3.5 py-1.5 min-[1100px]:mt-auto" data-testid="rota-cover">
         <span aria-hidden="true" className={`h-[9px] w-[9px] shrink-0 rounded-full ${alert ? "bg-[#dc2626]" : "bg-[#16a34a]"}`} />
-        <p className="min-w-0 flex-1 text-[14px] font-semibold">{alert ?? "All visits covered"}</p>
+        <p className="min-w-0 flex-1 text-body font-semibold">{alert ?? "All visits covered"}</p>
         {alert ? <Link href="/rota/visits?view=unassigned" className="ovx-cover">Find cover <ArrowRight size={13} weight="bold" aria-hidden="true" /></Link> : null}
       </div>
     </section>
@@ -95,14 +95,14 @@ function ModuleTile({ tile }: { tile: Tile }) {
       {tile.ghost}
       <span className="relative flex items-center gap-3">
         <span aria-hidden="true" className="ovx-chip">{tile.icon}</span>
-        <span className="ovx-title text-[15px] font-semibold leading-tight">{tile.name}</span>
+        <span className="ovx-title text-lead font-semibold leading-tight">{tile.name}</span>
       </span>
       <span className="relative mt-auto block">
         <span className="flex items-baseline gap-2.5 whitespace-nowrap">
-          <span className="text-[36px] font-bold leading-none tracking-[-0.02em] tabular-nums">{tile.figure}</span>
-          <span className="text-[14px] font-medium">{tile.label}</span>
+          <span className="text-figure-lg font-bold leading-none tracking-[-0.02em] tabular-nums">{tile.figure}</span>
+          <span className="text-body font-medium">{tile.label}</span>
         </span>
-        <span className="ovx-soft mt-1.5 block truncate pr-[38px] text-[12.5px]" title={tile.detail}>{tile.detail}</span>
+        <span className="ovx-soft mt-1.5 block truncate pr-[38px] text-meta" title={tile.detail}>{tile.detail}</span>
       </span>
       <span aria-hidden="true" className="ovx-arrow"><ArrowRight size={15} weight="bold" /></span>
     </>
@@ -230,11 +230,11 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         <AutoRefresh seconds={60} />
         <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[22px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
-            <p className="mt-0.5 text-[14px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
+            <h2 className="text-heading font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
+            <p className="mt-0.5 text-body text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
           </div>
           {!arranging && ctx.organisationId && ordered.length > 1 ? (
-            <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-[13px] text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
+            <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-meta text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
           ) : null}
         </div>
 
@@ -244,9 +244,9 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           ) : null}
           <section aria-labelledby="attention-title" className="ovx-attention flex flex-col rounded-[18px] border border-[#eaecf0] bg-white px-5 pb-2 pt-4" data-testid="needs-attention">
             <div className="flex items-center justify-between gap-3 border-b border-[#eaecf0] pb-2.5">
-              <h2 id="attention-title" className="text-[15px] font-semibold text-ink">Needs your attention</h2>
+              <h2 id="attention-title" className="text-lead font-semibold text-ink">Needs your attention</h2>
               {attention.length ? (
-                <Link href="/notifications" className="flex items-center gap-1 text-[13px] font-semibold text-[#1565c0]">View all {attention.length} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
+                <Link href="/notifications" className="flex items-center gap-1 text-meta font-semibold text-[#1565c0]">View all {attention.length} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
               ) : null}
             </div>
             {attention.length ? (
@@ -258,15 +258,15 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                   return (
                     <li key={a.key} className="flex min-h-[48px] items-center gap-3 border-b border-[#f0f1f4] py-2 last:border-b-0" data-testid={`attention-${a.key}`}>
                       <span aria-hidden="true" className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] text-white" style={{ background: a.colour }}>{a.icon}</span>
-                      <span className="w-[26px] shrink-0 text-[15px] font-bold tabular-nums text-ink">{a.count}</span>
-                      <span className="min-w-0 flex-1 text-[14px] text-ink">{a.text}</span>
+                      <span className="w-[26px] shrink-0 text-lead font-bold tabular-nums text-ink">{a.count}</span>
+                      <span className="min-w-0 flex-1 text-body text-ink">{a.text}</span>
                       {a.external ? <a href={a.href} className={cls} style={style}>{label}</a> : <Link href={a.href} className={cls} style={style}>{label}</Link>}
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="py-4 text-[13px] text-[#475467]">Nothing needs your attention right now.</p>
+              <p className="py-4 text-meta text-[#475467]">Nothing needs your attention right now.</p>
             )}
           </section>
         </div>

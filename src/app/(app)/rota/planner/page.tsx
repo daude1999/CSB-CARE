@@ -78,7 +78,7 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
           <input type="hidden" name="week" value={r.week} />
           <label><span className="label">Show</span><select name="view" defaultValue={r.view} className="input"><option value="carers">By carer</option><option value="clients">By service user</option></select></label>
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{r.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-          <fieldset className="flex items-center gap-3 pb-2 text-[14px]">
+          <fieldset className="flex items-center gap-3 pb-2 text-body">
             <legend className="sr-only">Display options</legend>
             <label className="flex items-center gap-1.5"><input type="checkbox" name="all" value="1" defaultChecked={sp.all === "1"} className="h-4 w-4" /> Everyone, even with no visits</label>
             <label className="flex items-center gap-1.5"><input type="checkbox" name="cancelled" value="1" defaultChecked={sp.cancelled === "1"} className="h-4 w-4" /> Cancelled</label>
@@ -94,7 +94,7 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
         <section className="panel min-w-0" aria-label="Week roster">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <RosterKey tones={["ok", "draft", "active", "done", "missed", "review", "empty"]} shades={r.view === "carers" ? ["leave", "sick", "unavailable", "requested"] : []} />
-            <p className="text-[13px] text-slate-600">
+            <p className="text-meta text-slate-600">
               <span className="tabular-nums">{r.counts.visits}</span> visits this week
               {r.counts.emptySlots ? <> · <span className="font-medium tabular-nums text-[#a3242c]">{r.counts.emptySlots}</span> carer slots to fill</> : null}
               {r.counts.draft ? <> · <span className="tabular-nums">{r.counts.draft}</span> drafts not published{canBuild ? <> (<Link href="/rota/build">publish</Link>)</> : null}</> : null}
@@ -102,27 +102,27 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
             </p>
           </div>
           <PlannerBoard days={r.days} rows={r.rows} action={assignCarerAction} moveAction={r.view === "carers" ? moveVisitAction : undefined} back={back} canEdit={canEdit && r.view === "carers"} rowLabel={r.view === "clients" ? "Service user" : "Carer"} stateColours />
-          {r.truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">This week has more than 4,000 visits. Choose an area to see them all.</p> : null}
-          {!r.rows.some((x) => x.cells.some((cell) => cell.length)) && !r.notBuilt ? <p className="mt-2 text-[14px] text-slate-600">No visits match these filters this week.</p> : null}
+          {r.truncated ? <p className="mt-2 text-meta text-[#8a5a00]">This week has more than 4,000 visits. Choose an area to see them all.</p> : null}
+          {!r.rows.some((x) => x.cells.some((cell) => cell.length)) && !r.notBuilt ? <p className="mt-2 text-body text-slate-600">No visits match these filters this week.</p> : null}
         </section>
 
         {panel ? (
           <aside aria-label="Visit details" className="panel xl:sticky xl:top-3 xl:self-start">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-[18px] font-semibold">{suName(panel.serviceUser)}</h2>
-                <p className="text-[13.5px] text-slate-600">{fmtLondonDate(londonDate(panel.scheduledStart), { weekday: "long", day: "numeric", month: "long" })} · {londonTime(panel.scheduledStart)}–{londonTime(panel.scheduledEnd)} · {panel.callType.name}</p>
+                <h2 className="text-subtitle font-semibold">{suName(panel.serviceUser)}</h2>
+                <p className="text-body text-slate-600">{fmtLondonDate(londonDate(panel.scheduledStart), { weekday: "long", day: "numeric", month: "long" })} · {londonTime(panel.scheduledStart)}–{londonTime(panel.scheduledEnd)} · {panel.callType.name}</p>
               </div>
-              <Link href={back} aria-label="Close visit details" className="text-[22px] leading-none text-slate-500 no-underline hover:text-navy-900">×</Link>
+              <Link href={back} aria-label="Close visit details" className="text-heading leading-none text-slate-500 no-underline hover:text-navy-900">×</Link>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-meta">
               <VisitStatusBadge status={panel.status} />
               {!panel.publishedAt && panel.status === "SCHEDULED" ? <span className="rounded-full bg-[#eef1f5] px-2 py-0.5 text-[#3c4a5c]">Draft, not published</span> : null}
               {panel.timeLocked ? <span className="rounded-full bg-slate-100 px-2 py-0.5">Time locked</span> : null}
               <span className="text-slate-500">{panel.reference}</span>
             </div>
-            <h3 className="mt-3 text-[14px] font-semibold">Carers</h3>
-            <ul className="mt-1 space-y-1 text-[13.5px]">
+            <h3 className="mt-3 text-body font-semibold">Carers</h3>
+            <ul className="mt-1 space-y-1 text-body">
               {carerPlaces(panel.carersRequired).map((s) => {
                 const a = live.find((x) => placeKey(x) === s);
                 return <li key={s}><span className="text-slate-600">{SLOT_LABEL(s)}:</span> {a ? <span className={a.reviewReason ? "text-[#8a5a00]" : ""}>{a.staff.displayName}{a.reviewReason ? ` (needs review: ${a.reviewReason})` : ""}</span> : <span className="font-medium text-[#a3242c]">Not filled</span>}</li>;
@@ -130,11 +130,11 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
             </ul>
             {assignable && openSlot ? (
               <>
-                <h3 className="mt-3 text-[14px] font-semibold">{live.some((a) => placeKey(a) === openSlot) ? `Best matches to replace the ${SLOT_LABEL(openSlot).toLowerCase()}` : `Best matches for the ${SLOT_LABEL(openSlot).toLowerCase()}`}</h3>
+                <h3 className="mt-3 text-body font-semibold">{live.some((a) => placeKey(a) === openSlot) ? `Best matches to replace the ${SLOT_LABEL(openSlot).toLowerCase()}` : `Best matches for the ${SLOT_LABEL(openSlot).toLowerCase()}`}</h3>
                 {candidates.some((x) => x.score !== null) ? (
                   <CarerRecommendations list={candidates} visitId={panel.id} slot={openSlot} lockVersion={panel.lockVersion} back={`/rota/planner?${qs({ visit: panel.id })}`} replacing={live.some((a) => placeKey(a) === openSlot)} />
-                ) : <p className="mt-1 text-[13px] text-[#a3242c]">No one is free and eligible for this time. Open the visit to see each carer&rsquo;s reasons.</p>}
-                <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
+                ) : <p className="mt-1 text-meta text-[#a3242c]">No one is free and eligible for this time. Open the visit to see each carer&rsquo;s reasons.</p>}
+                <p className="mt-1 text-caption text-slate-500">{SCORE_NOTE}</p>
               </>
             ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -143,7 +143,7 @@ export default async function WeeklyPlanner({ searchParams }: { searchParams: Pr
             </div>
           </aside>
         ) : sp.visit ? (
-          <p role="alert" className="mt-2 text-[14px] text-[#a3242c]">That visit could not be found, or is outside your areas.</p>
+          <p role="alert" className="mt-2 text-body text-[#a3242c]">That visit could not be found, or is outside your areas.</p>
         ) : null}
       </div>
     </>

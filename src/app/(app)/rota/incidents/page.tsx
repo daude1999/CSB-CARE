@@ -30,7 +30,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
           <label><span className="label">Severity</span><select name="severity" defaultValue={sp.severity ?? ""} className="input"><option value="">Any</option><option value="CRITICAL">Critical</option><option value="HIGH">High</option><option value="MODERATE">Moderate</option><option value="LOW">Low</option></select></label>
           <label className="col-span-2 md:col-span-1"><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Reference, name or words" className="input" /></label>
           <div className="col-span-2 flex items-end gap-3">
-            <label className="flex items-center gap-2 pb-2 text-[14px]"><input type="checkbox" name="safeguarding" value="1" defaultChecked={sp.safeguarding === "1"} className="h-4 w-4" /> Safeguarding only</label>
+            <label className="flex items-center gap-2 pb-2 text-body"><input type="checkbox" name="safeguarding" value="1" defaultChecked={sp.safeguarding === "1"} className="h-4 w-4" /> Safeguarding only</label>
             <button className="btn-primary" type="submit">Apply</button>
           </div>
         </form>

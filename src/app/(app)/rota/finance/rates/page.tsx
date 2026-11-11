@@ -40,7 +40,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
                   <tbody>
                     {ref.funders.map((f) => (
                       <tr key={f.id}>
-                        <td>{can ? <Link href={`${back}&edit=${f.id}`}>{f.name}</Link> : f.name}{f.reference ? <div className="text-[12.5px] text-slate-500">{f.reference}</div> : null}</td>
+                        <td>{can ? <Link href={`${back}&edit=${f.id}`}>{f.name}</Link> : f.name}{f.reference ? <div className="text-meta text-slate-500">{f.reference}</div> : null}</td>
                         <td>{KIND[f.kind]}</td>
                         <td>{f.chargeRateCard?.name ?? <Badge tone="rose">None</Badge>}</td>
                         <td>{f.chargeBasis === "ACTUAL" ? "Actual time" : "Planned time"}</td>
@@ -108,7 +108,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
                   ) : <Empty>No bands yet. Visits cannot be priced on this card until it has some.</Empty>}
                   {can ? (
                     <details className="mt-3" open={sp.card === c.id}>
-                      <summary className="cursor-pointer text-[14px] font-medium">Add a band</summary>
+                      <summary className="cursor-pointer text-body font-medium">Add a band</summary>
                       <form action={addBandAction} className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-6">
                         <input type="hidden" name="back" value={`${back}&card=${c.id}#card-${c.id}`} />
                         <input type="hidden" name="rateCardId" value={c.id} />
@@ -117,9 +117,9 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
                         <label><span className="label">To</span><input name="to" defaultValue="22:00" pattern="[0-2][0-9]:[0-5][0-9]" className="input" /></label>
                         <label><span className="label">Rate (£)</span><input name="rate" required inputMode="decimal" className="input" placeholder="24.50" /></label>
                         <label><span className="label">Per</span><select name="unit" className="input"><option value="PER_HOUR">Hour</option><option value="PER_VISIT">Visit</option></select></label>
-                        <fieldset className="col-span-2 md:col-span-4"><legend className="label">Days</legend><div className="flex flex-wrap gap-3">{WEEKDAYS.map((d, i) => <label key={d} className="flex items-center gap-1 text-[14px]"><input type="checkbox" name="weekdays" value={i + 1} defaultChecked={i < 5} className="h-4 w-4" />{d.slice(0, 3)}</label>)}</div></fieldset>
+                        <fieldset className="col-span-2 md:col-span-4"><legend className="label">Days</legend><div className="flex flex-wrap gap-3">{WEEKDAYS.map((d, i) => <label key={d} className="flex items-center gap-1 text-body"><input type="checkbox" name="weekdays" value={i + 1} defaultChecked={i < 5} className="h-4 w-4" />{d.slice(0, 3)}</label>)}</div></fieldset>
                         <label><span className="label">Minimum (min)</span><input name="minimumMinutes" type="number" min={0} max={240} className="input" /></label>
-                        <label className="flex items-end gap-2 pb-2 text-[14px]"><input type="checkbox" name="bankHoliday" className="h-4 w-4" /> Bank holiday band</label>
+                        <label className="flex items-end gap-2 pb-2 text-body"><input type="checkbox" name="bankHoliday" className="h-4 w-4" /> Bank holiday band</label>
                         <div className="col-span-2 md:col-span-6"><button className="btn-secondary">Add band</button></div>
                       </form>
                     </details>
@@ -146,7 +146,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
           <Card>
             {ref.holidays.length ? (
-              <ul className="rows text-[14px]">
+              <ul className="rows text-body">
                 {ref.holidays.map((h) => (
                   <li key={h.id} className="flex items-center justify-between py-2">
                     <span><span className="tabular-nums">{fmtLondonDate(fromDbDate(h.date))}</span> · {h.name}</span>
@@ -179,7 +179,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
                   {ref.packages.map((p) => (
                     <tr key={p.id}>
                       <td><Link href={`/rota/service-users/${p.serviceUser.id}`}>{suName(p.serviceUser)}</Link></td>
-                      <td>{p.reference ?? "—"}<div className="text-[12.5px] text-slate-500">from {fmtLondonDate(fromDbDate(p.startDate))}</div></td>
+                      <td>{p.reference ?? "—"}<div className="text-meta text-slate-500">from {fmtLondonDate(fromDbDate(p.startDate))}</div></td>
                       <td className="tabular-nums">{p.commissionedMinutesPerWeek ? (p.commissionedMinutesPerWeek / 60).toFixed(1) : "—"}</td>
                       <td>
                         {can ? (
@@ -203,7 +203,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
 
       {tab === "staff" ? (
         <Card>
-          <p className="mb-2 text-[13.5px] text-slate-600">Carers without their own card are paid on the default pay card ({payCards.find((c) => c.id === ref.settings.defaultPayRateCardId)?.name ?? "none set"}).</p>
+          <p className="mb-2 text-body text-slate-600">Carers without their own card are paid on the default pay card ({payCards.find((c) => c.id === ref.settings.defaultPayRateCardId)?.name ?? "none set"}).</p>
           {ref.staff.length ? (
             <div className="relative min-w-0 overflow-x-auto">
               <table className="table">
@@ -212,7 +212,7 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
                   {ref.staff.map((s) => (
                     <tr key={s.id}>
                       <td>{s.displayName}</td>
-                      <td>{s.payRates[0] ? <>{s.payRates[0].rateCard.name}<div className="text-[12.5px] text-slate-500">from {fmtLondonDate(fromDbDate(s.payRates[0].effectiveFrom))}</div></> : <span className="text-slate-500">Default</span>}</td>
+                      <td>{s.payRates[0] ? <>{s.payRates[0].rateCard.name}<div className="text-meta text-slate-500">from {fmtLondonDate(fromDbDate(s.payRates[0].effectiveFrom))}</div></> : <span className="text-slate-500">Default</span>}</td>
                       {can ? (
                         <td>
                           <form action={staffPayCardAction} className="flex flex-wrap gap-2">
@@ -242,11 +242,11 @@ export default async function RatesPage({ searchParams }: { searchParams: Promis
             <label><span className="label">Default pay rate card</span><select name="defaultPayRateCardId" defaultValue={ref.settings.defaultPayRateCardId ?? ""} disabled={!can} className="input"><option value="">None</option>{payCards.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             <label><span className="label">Pay carers on</span><select name="payBasis" defaultValue={ref.settings.payBasis} disabled={!can} className="input"><option value="ACTUAL">Actual clocked time</option><option value="SCHEDULED">Planned time (when clocked in and out)</option></select></label>
             <label><span className="label">Mileage rate (£ a mile)</span><input name="mileage" defaultValue={(ref.settings.mileagePencePerMile / 100).toFixed(2)} disabled={!can} className="input" /></label>
-            <label><span className="label">Invoice number prefix</span><input name="invoicePrefix" defaultValue={ref.settings.invoicePrefix} disabled={!can} className="input" /><span className="mt-1 block text-[12.5px] text-slate-500">Next number: {ref.settings.invoicePrefix}-{String(ref.settings.nextInvoiceNumber).padStart(5, "0")}</span></label>
-            <label><span className="label">Employer on-costs for estimates (%)</span><input type="number" name="estimateOnCostPercent" min={0} max={100} step={1} defaultValue={ref.settings.estimateOnCostPercent} disabled={!can} className="input" /><span className="mt-1 block text-[12.5px] text-slate-500">Added to pay in the rota&rsquo;s cost and margin estimates only (employer National Insurance, pension, holiday accrual). Never used for payroll. 0 means pay rates only.</span></label>
+            <label><span className="label">Invoice number prefix</span><input name="invoicePrefix" defaultValue={ref.settings.invoicePrefix} disabled={!can} className="input" /><span className="mt-1 block text-meta text-slate-500">Next number: {ref.settings.invoicePrefix}-{String(ref.settings.nextInvoiceNumber).padStart(5, "0")}</span></label>
+            <label><span className="label">Employer on-costs for estimates (%)</span><input type="number" name="estimateOnCostPercent" min={0} max={100} step={1} defaultValue={ref.settings.estimateOnCostPercent} disabled={!can} className="input" /><span className="mt-1 block text-meta text-slate-500">Added to pay in the rota&rsquo;s cost and margin estimates only (employer National Insurance, pension, holiday accrual). Never used for payroll. 0 means pay rates only.</span></label>
             {can ? <div className="md:col-span-2"><button className="btn-primary">Save settings</button></div> : null}
           </form>
-          <p className="mt-3 text-[13px] text-slate-600">Mileage claims are not built yet, so pay runs contain visit time only. The rate above is stored for when they are.</p>
+          <p className="mt-3 text-meta text-slate-600">Mileage claims are not built yet, so pay runs contain visit time only. The rate above is stored for when they are.</p>
         </Card>
       ) : null}
     </>

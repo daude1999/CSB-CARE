@@ -31,12 +31,12 @@ export function PlatformNav({ mobile = false, badges = {} }: { mobile?: boolean;
               href={w.href}
               aria-current={active ? "page" : undefined}
               title={rail ? w.label : undefined}
-              className={`group relative flex items-center gap-3 rounded-[7px] text-[13.5px] no-underline transition-colors ${rail ? "justify-center px-0 py-2.5 lg:justify-start lg:px-3 lg:py-[7px]" : "px-3 py-[9px]"} ${active ? "bg-px-nav-active font-medium text-white" : "text-px-nav-text hover:bg-px-nav-hover hover:text-white"}`}
+              className={`group relative flex items-center gap-3 rounded-[7px] text-body no-underline transition-colors ${rail ? "justify-center px-0 py-2.5 lg:justify-start lg:px-3 lg:py-[7px]" : "px-3 py-[9px]"} ${active ? "bg-px-nav-active font-medium text-white" : "text-px-nav-text hover:bg-px-nav-hover hover:text-white"}`}
             >
               {active ? <span aria-hidden="true" className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[#a78bfa]" /> : null}
               <Ico size={18} weight={active ? "fill" : "regular"} className={active ? "text-[#c4b5fd]" : "text-px-nav-muted group-hover:text-px-nav-text"} aria-hidden="true" />
               <span className={rail ? "sr-only lg:not-sr-only lg:flex-1 lg:truncate" : "flex-1 truncate"}>{w.label}</span>
-              {badge ? <span className={`rounded-full bg-px-focus px-1.5 text-[11px] font-semibold leading-[18px] text-white ${rail ? "absolute right-1.5 top-1 lg:static" : ""}`} aria-label={`${badge} waiting`}>{badge}</span> : null}
+              {badge ? <span className={`rounded-full bg-px-focus px-1.5 text-micro font-semibold leading-[18px] text-white ${rail ? "absolute right-1.5 top-1 lg:static" : ""}`} aria-label={`${badge} waiting`}>{badge}</span> : null}
             </Link>
           </li>
         );
@@ -54,7 +54,7 @@ export function PlatformNav({ mobile = false, badges = {} }: { mobile?: boolean;
         <nav aria-label="Admin Centre workspaces">{list(false)}</nav>
         <div className="mt-4 border-t border-white/10 pt-3">
           {WORKSPACES.find((w) => w.key === workspace.key)?.pages.map((p) => (
-            <Link key={p.href} href={p.href} className="block rounded-[6px] px-3 py-2 text-[13.5px] text-px-nav-text no-underline hover:bg-px-nav-hover hover:text-white">{p.label}</Link>
+            <Link key={p.href} href={p.href} className="block rounded-[6px] px-3 py-2 text-body text-px-nav-text no-underline hover:bg-px-nav-hover hover:text-white">{p.label}</Link>
           ))}
         </div>
       </div>
@@ -70,13 +70,13 @@ export function WorkspaceTabs() {
   return (
     <div className="border-b border-px-line bg-white px-4 lg:px-8">
       <div className="mx-auto flex max-w-[1440px] items-end gap-6">
-        <p className="hidden shrink-0 py-3 text-[13px] font-semibold text-px-ink xl:block">{workspace.label}</p>
+        <p className="hidden shrink-0 py-3 text-meta font-semibold text-px-ink xl:block">{workspace.label}</p>
         <span aria-hidden="true" className="mb-3 hidden h-4 w-px bg-px-line xl:block" />
         <nav aria-label={`${workspace.label} pages`} className="-mb-px flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none]">
           {workspace.pages.map((p) => {
             const active = p.href === page.href;
             return (
-              <Link key={p.href} href={p.href} aria-current={active ? "page" : undefined} className={`whitespace-nowrap border-b-2 px-2.5 py-3 text-[13.5px] no-underline transition-colors ${active ? "border-px-accent font-medium text-px-ink" : "border-transparent text-px-muted hover:text-px-ink"}`}>
+              <Link key={p.href} href={p.href} aria-current={active ? "page" : undefined} className={`whitespace-nowrap border-b-2 px-2.5 py-3 text-body no-underline transition-colors ${active ? "border-px-accent font-medium text-px-ink" : "border-transparent text-px-muted hover:text-px-ink"}`}>
                 {p.label}
               </Link>
             );

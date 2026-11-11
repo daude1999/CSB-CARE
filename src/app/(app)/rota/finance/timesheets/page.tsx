@@ -41,7 +41,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
           {canPrepare && n("DRAFT") ? <form action={bulkTimesheetsAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="week" value={week} /><button className="btn-secondary" name="kind" value="submit">Submit all drafts ({n("DRAFT")})</button></form> : null}
           {canApprove && n("SUBMITTED") ? <form action={bulkTimesheetsAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="week" value={week} /><button className="btn-secondary" name="kind" value="approve">Approve all submitted ({n("SUBMITTED")})</button></form> : null}
         </div>
-        {!ended ? <p className="w-full text-[13px] text-slate-600">This week has not finished yet. Timesheets are prepared once it has.</p> : null}
+        {!ended ? <p className="w-full text-meta text-slate-600">This week has not finished yet. Timesheets are prepared once it has.</p> : null}
       </section>
       <Card>
         {rows.length ? (
@@ -51,7 +51,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
-                    <td><Link href={`/rota/finance/timesheets/${t.id}`}>{t.staff?.displayName ?? "Former staff member"}</Link><div className="text-[12.5px] text-slate-500">{t.staff?.jobTitle}</div></td>
+                    <td><Link href={`/rota/finance/timesheets/${t.id}`}>{t.staff?.displayName ?? "Former staff member"}</Link><div className="text-meta text-slate-500">{t.staff?.jobTitle}</div></td>
                     <td className="text-right tabular-nums">{hours(t.scheduledMinutes)}</td>
                     <td className="text-right tabular-nums">{hours(t.deliveredMinutes)}</td>
                     <td className="text-right tabular-nums font-medium">{hours(t.payableMinutes)}</td>

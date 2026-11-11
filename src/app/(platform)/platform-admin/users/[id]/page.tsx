@@ -58,7 +58,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[180px_minmax(0,1fr)]">
         <nav aria-label="Account sections" className="hidden lg:sticky lg:top-24 lg:block">
           <ul className="space-y-0.5 border-l border-px-line">
-            {SECTIONS.map(([k, l]) => <li key={k}><a href={`#${k}`} className="-ml-px block border-l-2 border-transparent py-1.5 pl-3 text-[13.5px] text-px-muted no-underline hover:border-px-faint hover:text-px-ink">{l}</a></li>)}
+            {SECTIONS.map(([k, l]) => <li key={k}><a href={`#${k}`} className="-ml-px block border-l-2 border-transparent py-1.5 pl-3 text-body text-px-muted no-underline hover:border-px-faint hover:text-px-ink">{l}</a></li>)}
           </ul>
         </nav>
         <div className="min-w-0 space-y-5">
@@ -79,15 +79,15 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                     <li key={m.id} className="px-4 py-3.5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="flex flex-wrap items-center gap-2 text-[13.5px]"><Link href={`/platform-admin/clients/${m.organisation.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.organisation.name}</Link>{m.organisation.customerAccount ? <span className="font-mono text-[11.5px] text-px-subtle">{m.organisation.customerAccount.reference}</span> : null}{m.deactivatedAt ? <Pill value="CLOSED" label="Removed" /> : null}</p>
-                          <p className="mt-0.5 text-[13px] text-px-body">{m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") || "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</p>
-                          <p className="text-[12.5px] text-px-muted">Branches: {m.branches.length ? chosen.join(", ") : "all"}</p>
+                          <p className="flex flex-wrap items-center gap-2 text-body"><Link href={`/platform-admin/clients/${m.organisation.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.organisation.name}</Link>{m.organisation.customerAccount ? <span className="font-mono text-caption text-px-subtle">{m.organisation.customerAccount.reference}</span> : null}{m.deactivatedAt ? <Pill value="CLOSED" label="Removed" /> : null}</p>
+                          <p className="mt-0.5 text-meta text-px-body">{m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") || "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</p>
+                          <p className="text-meta text-px-muted">Branches: {m.branches.length ? chosen.join(", ") : "all"}</p>
                         </div>
                         {m.deactivatedAt ? (
                           <form action={platformReactivateMemberAction}><Back value={here} /><input type="hidden" name="organisationId" value={m.organisation.id} /><input type="hidden" name="membershipId" value={m.id} /><button className={`${pxSecondary} ${pxSm}`}>Reactivate</button></form>
                         ) : <Link href={withEdit(`edit=member&member=${m.id}`)} scroll={false} className={`${pxSecondary} ${pxSm}`}>Change access</Link>}
                       </div>
-                      <details className="mt-2 text-[12.5px]">
+                      <details className="mt-2 text-meta">
                         <summary className="cursor-pointer text-px-accent">Effective permissions in {m.organisation.name}</summary>
                         <ul className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">{effectivePermissions(m.roles).map((g) => <li key={g.group} className="flex justify-between gap-2 border-b border-px-row pb-1"><span>{g.group}</span><span className={g.level === "No access" ? "text-px-subtle" : "font-medium text-px-ink"}>{g.level}</span></li>)}</ul>
                       </details>
@@ -101,31 +101,31 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           <section id="security" aria-label="Security" className="scroll-mt-24 space-y-4">
             <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
               <PxPanel title="Password" description="Platform-level recovery. Works for people in several organisations, whose own administrators cannot reset them.">
-                {a.deactivatedAt ? <p className="text-[13.5px] text-px-muted">Reactivate the account first.</p> : a.isDemo ? <p className="text-[13.5px] text-px-muted">Demo accounts keep the shared demo password.</p> : (
+                {a.deactivatedAt ? <p className="text-body text-px-muted">Reactivate the account first.</p> : a.isDemo ? <p className="text-body text-px-muted">Demo accounts keep the shared demo password.</p> : (
                   <div className="flex flex-wrap gap-2">
                     <form action={platformResetAction}><Back value={here} />{uid}<input type="hidden" name="delivery" value="show" /><button className={pxPrimary}>Create reset link</button></form>
                     {canEmail ? <form action={platformResetAction}><Back value={here} />{uid}<input type="hidden" name="delivery" value="email" /><button className={pxSecondary}>Email the link</button></form> : null}
                     {!self ? (
                       <Confirm label="Require a new password" tone="danger">
-                        <form action={requireResetAction} className="space-y-2"><Back value={here} />{uid}<p className="text-[12.5px] text-px-muted">Signs them out everywhere and blocks the old password until they use a new link.</p><ReasonField /><button className={pxDanger}>Require new password</button></form>
+                        <form action={requireResetAction} className="space-y-2"><Back value={here} />{uid}<p className="text-meta text-px-muted">Signs them out everywhere and blocks the old password until they use a new link.</p><ReasonField /><button className={pxDanger}>Require new password</button></form>
                       </Confirm>
                     ) : null}
                   </div>
                 )}
-                {!canEmail && canReset ? <p className="mt-2 text-[12.5px] text-px-muted">Email is not configured, so the link is shown once for you to hand over.</p> : null}
-                <h3 className="mb-1 mt-4 text-[12.5px] font-medium text-px-muted">Reset links</h3>
-                {resets.length ? <ul className="-my-1 divide-y divide-px-row text-[13px]">{resets.map((t) => <li key={t.id} className="flex items-center justify-between gap-2 py-1.5"><span className="tabular-nums">{fmtDate(t.createdAt, true)}</span><Pill value={t.state} /></li>)}</ul> : <p className="text-[13px] text-px-muted">None.</p>}
+                {!canEmail && canReset ? <p className="mt-2 text-meta text-px-muted">Email is not configured, so the link is shown once for you to hand over.</p> : null}
+                <h3 className="mb-1 mt-4 text-meta font-medium text-px-muted">Reset links</h3>
+                {resets.length ? <ul className="-my-1 divide-y divide-px-row text-meta">{resets.map((t) => <li key={t.id} className="flex items-center justify-between gap-2 py-1.5"><span className="tabular-nums">{fmtDate(t.createdAt, true)}</span><Pill value={t.state} /></li>)}</ul> : <p className="text-meta text-px-muted">None.</p>}
                 {resets.some((t) => t.state === "active") ? <form action={revokeResetLinksAction} className="mt-2"><Back value={here} />{uid}<button className={`${pxSecondary} ${pxSm}`}>Revoke unused links</button></form> : null}
               </PxPanel>
               <PxPanel title="Sessions" description={`${a.sessions.length} active`} actions={a.sessions.length ? <Confirm small label="Sign out everywhere"><form action={revokeSessionsAction} className="w-[260px] space-y-2"><Back value={here} />{uid}<ReasonField /><button className={pxDanger}>Sign out of {a.sessions.length}</button></form></Confirm> : null} flush>
                 {a.sessions.length ? (
                   <ul className="divide-y divide-px-row">
                     {a.sessions.map((s) => (
-                      <li key={s.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-[13px]">
+                      <li key={s.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-meta">
                         <span className="min-w-0">
                           <span className="block text-px-ink">{a.memberships.find((m) => m.organisation.id === s.activeOrgId)?.organisation.name ?? "Admin Centre"}</span>
-                          <span className="block text-[12px] text-px-muted">Active {fmtDate(s.lastSeenAt, true)} · {s.ip ?? "unknown network"}</span>
-                          {s.userAgent ? <span className="block max-w-[320px] truncate text-[12px] text-px-subtle">{s.userAgent}</span> : null}
+                          <span className="block text-caption text-px-muted">Active {fmtDate(s.lastSeenAt, true)} · {s.ip ?? "unknown network"}</span>
+                          {s.userAgent ? <span className="block max-w-[320px] truncate text-caption text-px-subtle">{s.userAgent}</span> : null}
                         </span>
                         <form action={revokeSessionAction}><Back value={here} /><input type="hidden" name="sessionId" value={s.id} /><button className={`${pxSecondary} ${pxSm}`}>End</button></form>
                       </li>
@@ -140,7 +140,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                   <Table label="Security history" minWidth={520} head={["When", "Event", "Details"]}>
                     {a.history.map((h) => {
                       const d = (h.data && typeof h.data === "object" && !Array.isArray(h.data) ? h.data : {}) as Record<string, unknown>;
-                      return <tr key={h.id}><td className="whitespace-nowrap text-[12.5px] tabular-nums">{fmtDate(h.createdAt, true)}</td><td><Tone tone={actionTone(h.action)}>{actionLabel(h.action)}</Tone></td><td className="text-[12.5px] text-px-body">{typeof d.reason === "string" ? `Reason: ${d.reason}` : ""}{d.outcome === "blocked" ? " Blocked" : ""}</td></tr>;
+                      return <tr key={h.id}><td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(h.createdAt, true)}</td><td><Tone tone={actionTone(h.action)}>{actionLabel(h.action)}</Tone></td><td className="text-meta text-px-body">{typeof d.reason === "string" ? `Reason: ${d.reason}` : ""}{d.outcome === "blocked" ? " Blocked" : ""}</td></tr>;
                     })}
                   </Table>
                 </div>
@@ -151,21 +151,21 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
           <PxPanel id="administration" title="Administration">
             <div className="divide-y divide-px-row">
               <div className="grid grid-cols-1 gap-3 pb-4 md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] md:gap-8">
-                <div><p className="text-[13.5px] font-medium text-px-ink">Evantix platform roles</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">Only platform administrators change these, with their password. At least one platform administrator always remains. Organisation administrators can never grant them.</p></div>
+                <div><p className="text-body font-medium text-px-ink">Evantix platform roles</p><p className="mt-0.5 text-meta leading-[18px] text-px-muted">Only platform administrators change these, with their password. At least one platform administrator always remains. Organisation administrators can never grant them.</p></div>
                 <form action={platformRolesAction} className="space-y-2">
                   <Back value={here} />{uid}
-                  <div className="space-y-1.5">{Object.entries(PLATFORM_ROLE_NAMES).map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="platformRoles" value={v} defaultChecked={a.platformRoles.includes(v as never)} />{l}</label>)}</div>
+                  <div className="space-y-1.5">{Object.entries(PLATFORM_ROLE_NAMES).map(([v, l]) => <label key={v} className="flex items-center gap-2 text-body"><input type="checkbox" name="platformRoles" value={v} defaultChecked={a.platformRoles.includes(v as never)} />{l}</label>)}</div>
                   <ReasonField />
                   <PasswordField />
                   <button className={pxSecondary}>Save platform roles</button>
                 </form>
               </div>
               <div className="grid grid-cols-1 gap-3 pt-4 md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] md:gap-8">
-                <div><p className="text-[13.5px] font-medium text-px-ink">{a.deactivatedAt ? "Reactivate account" : "Deactivate account"}</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{a.deactivatedAt ? `Deactivated ${fmtDate(a.deactivatedAt, true)}. Reactivating restores sign-in with the same memberships.` : "Stops sign-in to every organisation and ends all sessions and links. Memberships and history are kept."}</p></div>
+                <div><p className="text-body font-medium text-px-ink">{a.deactivatedAt ? "Reactivate account" : "Deactivate account"}</p><p className="mt-0.5 text-meta leading-[18px] text-px-muted">{a.deactivatedAt ? `Deactivated ${fmtDate(a.deactivatedAt, true)}. Reactivating restores sign-in with the same memberships.` : "Stops sign-in to every organisation and ends all sessions and links. Memberships and history are kept."}</p></div>
                 <div>
                   {a.deactivatedAt ? (
                     <form action={reactivateAccountAction} className="space-y-2"><Back value={here} />{uid}<ReasonField /><button className={pxPrimary}>Reactivate account</button></form>
-                  ) : self ? <p className="text-[13px] text-px-muted">You cannot deactivate your own account.</p> : (
+                  ) : self ? <p className="text-meta text-px-muted">You cannot deactivate your own account.</p> : (
                     <Confirm label="Deactivate account" tone="danger">
                       <form action={deactivateAccountAction} className="space-y-2"><Back value={here} />{uid}<ReasonField /><PasswordField /><button className={pxDanger}>Deactivate account</button></form>
                     </Confirm>
@@ -178,7 +178,7 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
       </div>
       {editing ? (
         <PxDrawer closeHref={here} title={`Access to ${editing.organisation.name}`} description={<>{a.name}. Changes apply to this organisation only and take effect at their next click.</>}>
-          {editing.deactivatedAt ? <p className="text-[13.5px] text-px-muted">This membership is removed. Reactivate it first.</p> : (
+          {editing.deactivatedAt ? <p className="text-body text-px-muted">This membership is removed. Reactivate it first.</p> : (
             <>
               <form action={platformMemberAction} className="space-y-3">
                 <Back value={here} /><input type="hidden" name="organisationId" value={editing.organisation.id} /><input type="hidden" name="membershipId" value={editing.id} />
@@ -186,13 +186,13 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                 <div className="sticky bottom-0 -mx-5 mt-5 flex justify-end gap-2 border-t border-px-line bg-white px-5 py-3"><Link href={here} scroll={false} className={pxSecondary}>Cancel</Link><button className={pxPrimary}>Save access</button></div>
               </form>
               <div className="mt-6 border-t border-px-line pt-4">
-                <h3 className="text-[13.5px] font-semibold text-px-ink">Remove from {editing.organisation.name}</h3>
-                <p className="mb-2 mt-0.5 text-[12.5px] text-px-muted">Their roles are kept so the membership can be reactivated.</p>
+                <h3 className="text-body font-semibold text-px-ink">Remove from {editing.organisation.name}</h3>
+                <p className="mb-2 mt-0.5 text-meta text-px-muted">Their roles are kept so the membership can be reactivated.</p>
                 <Confirm label="Remove access" tone="danger">
                   <form action={platformDeactivateMemberAction} className="space-y-2"><Back value={here} /><input type="hidden" name="organisationId" value={editing.organisation.id} /><input type="hidden" name="membershipId" value={editing.id} /><ReasonField /><button className={pxDanger}>Remove access</button></form>
                 </Confirm>
               </div>
-              <p className="mt-4 text-[12.5px]"><Link href={`/platform-admin/clients/${editing.organisation.id}?tab=users`} className={pxLink}>Open {editing.organisation.name}&apos;s people</Link></p>
+              <p className="mt-4 text-meta"><Link href={`/platform-admin/clients/${editing.organisation.id}?tab=users`} className={pxLink}>Open {editing.organisation.name}&apos;s people</Link></p>
             </>
           )}
         </PxDrawer>

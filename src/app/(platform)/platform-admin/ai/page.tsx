@@ -18,7 +18,7 @@ export default async function AiPage() {
   return (
     <>
       <PxHeader title="AI" description={`Usage since ${fmtDate(u.since)}. Each request is recorded with its client, feature, outcome, tokens and duration only. Allowances per client are set on the client's Modules tab.`} actions={<Link href="/platform-admin/settings?section=ai" className={pxSecondary}>AI settings</Link>} />
-      {problem ? <p role="status" className="mb-5 rounded-[8px] border border-px-warn/30 bg-px-warn-bg px-4 py-2.5 text-[13.5px] text-px-ink"><strong className="font-semibold">AI provider needs attention.</strong> {problem}</p> : null}
+      {problem ? <p role="status" className="mb-5 rounded-[8px] border border-px-warn/30 bg-px-warn-bg px-4 py-2.5 text-body text-px-ink"><strong className="font-semibold">AI provider needs attention.</strong> {problem}</p> : null}
       <MetricStrip label="AI figures" cols={4}>
         <Indicator label="Requests" value={fmtNumber(u.requests)} note={ceiling ? `Platform ceiling ${fmtNumber(ceiling)}` : "No platform ceiling"} />
         <Indicator label="Failed requests" value={fmtNumber(u.failed)} alert={u.failed > 0} note={u.failedBackgroundJobs ? `${fmtNumber(u.failedBackgroundJobs)} failed background jobs` : undefined} href={u.failedBackgroundJobs ? "/platform-admin/jobs" : undefined} />
@@ -36,14 +36,14 @@ export default async function AiPage() {
         <PxPanel title="Usage by feature" flush>
           <div className="px-4">
             <Table label="AI usage by feature" minWidth={480} head={["Feature", "Requests", "Tokens", "Estimated cost"]} align={["left", "right", "right", "right"]} empty={u.byFeature.length ? null : <EmptyRow>No AI requests this month.</EmptyRow>}>
-              {u.byFeature.map((f) => <tr key={f.feature}><td className="font-mono text-[12.5px]">{f.feature}</td><td className="text-right tabular-nums">{fmtNumber(f.requests)}</td><td className="text-right tabular-nums">{fmtNumber(f.tokens)}</td><td className="text-right">{cost(f.costPence)}</td></tr>)}
+              {u.byFeature.map((f) => <tr key={f.feature}><td className="font-mono text-meta">{f.feature}</td><td className="text-right tabular-nums">{fmtNumber(f.requests)}</td><td className="text-right tabular-nums">{fmtNumber(f.tokens)}</td><td className="text-right">{cost(f.costPence)}</td></tr>)}
             </Table>
           </div>
         </PxPanel>
         <PxPanel title="Recent failures" flush>
           <div className="px-4">
             <Table label="Recent AI failures" minWidth={480} head={["When", "Feature", "Reason", "Duration"]} empty={u.recentFailures.length ? null : <EmptyRow>No failures this month.</EmptyRow>}>
-              {u.recentFailures.map((f) => <tr key={f.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(f.createdAt, true)}</td><td className="font-mono text-[12.5px]">{f.feature}</td><td>{f.errorReason ?? "—"}</td><td className="tabular-nums">{(f.durationMs / 1000).toFixed(1)} s</td></tr>)}
+              {u.recentFailures.map((f) => <tr key={f.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(f.createdAt, true)}</td><td className="font-mono text-meta">{f.feature}</td><td>{f.errorReason ?? "—"}</td><td className="tabular-nums">{(f.durationMs / 1000).toFixed(1)} s</td></tr>)}
             </Table>
           </div>
         </PxPanel>

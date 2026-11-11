@@ -184,7 +184,7 @@ function Completion({ value }: { value: number | null }) {
       <span className="h-2 flex-1 overflow-hidden rounded-full bg-[#f2f4f7]" role="img" aria-label={`${value}% acknowledged`}>
         <span className={`block h-full rounded-full ${value >= 90 ? "bg-[#12b76a]" : value >= 60 ? "bg-[#7a5af8]" : "bg-[#f79009]"}`} style={{ width: `${value}%` }} />
       </span>
-      <span className="w-10 text-right text-[13px] font-semibold text-[#344054]">{value}%</span>
+      <span className="w-10 text-right text-meta font-semibold text-[#344054]">{value}%</span>
     </span>
   );
 }

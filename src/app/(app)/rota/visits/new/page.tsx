@@ -43,7 +43,7 @@ export default async function NewVisitPage({ searchParams }: { searchParams: Pro
             <label><span className="label">Start (UK time)</span><input type="time" name="start" className="input" required defaultValue="08:00" /></label>
             <label><span className="label">Length (minutes)</span><input type="number" name="durationMin" className="input" required min={5} max={1440} step={5} defaultValue={30} /></label>
             <CarersNeededField />
-            <div className="flex flex-col gap-2 pt-6 text-[14px]">
+            <div className="flex flex-col gap-2 pt-6 text-body">
               <label className="flex items-center gap-2"><input type="checkbox" name="medicationRequired" value="on" /> Medication prompt on this visit</label>
               <label className="flex items-center gap-2"><input type="checkbox" name="timeLocked" value="on" /> Time locked (cannot be moved without unlocking)</label>
               <label className="flex items-center gap-2"><input type="checkbox" name="publish" value="on" defaultChecked /> Publish now (visible to the allocated carer)</label>

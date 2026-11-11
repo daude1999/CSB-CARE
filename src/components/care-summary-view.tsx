@@ -45,7 +45,7 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
         <section aria-label="Period" className="card flex flex-wrap items-end gap-x-4 gap-y-2">
           <nav aria-label="Period" className="flex flex-wrap gap-1.5">
             {(["7", "14", "30"] as const).map((p) => (
-              <Link key={p} href={`${base}&period=${p}`} aria-current={range.period === p ? "page" : undefined} className={`rounded-[4px] border px-3 py-1.5 text-[14px] no-underline ${range.period === p ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900 hover:bg-slate-50"}`}>Last {p} days</Link>
+              <Link key={p} href={`${base}&period=${p}`} aria-current={range.period === p ? "page" : undefined} className={`rounded-[4px] border px-3 py-1.5 text-body no-underline ${range.period === p ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900 hover:bg-slate-50"}`}>Last {p} days</Link>
             ))}
           </nav>
           <form className="flex flex-wrap items-end gap-2" aria-label="Custom period">
@@ -55,7 +55,7 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
             <label><span className="label">To</span><input type="date" name="to" defaultValue={range.to} className="input" required /></label>
             <button className={range.period === "custom" ? "btn-primary" : "btn-secondary"}>Show</button>
           </form>
-          <p className="basis-full text-[13px] text-slate-600" data-testid="care-facts">
+          <p className="basis-full text-meta text-slate-600" data-testid="care-facts">
             {fmtLondonDate(range.from)} to {fmtLondonDate(range.to)}: {facts.scheduled} visits scheduled, {facts.completed} completed, {facts.late} started more than 10 minutes late, {facts.missed} recorded as missed, {facts.notDelivered} not delivered, {facts.cancelled} cancelled.
           </p>
         </section>
@@ -66,10 +66,10 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
           <div data-testid="care-summary">
             {chosen ? (
               <>
-                <p className="mb-3 rounded-[3px] border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-[13.5px] text-amber-900">
+                <p className="mb-3 rounded-[3px] border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-body text-amber-900">
                   {chosen.status === "UNREVIEWED" ? "Draft for a manager to check against the records. It has not changed the care plan, any incident or any safeguarding record." : chosen.status === "REVIEWED" ? `Checked against the records by ${who(chosen.reviewedById)}${chosen.reviewedAt ? ` on ${fmtDate(chosen.reviewedAt)}` : ""}. It is still a summary, not part of the care plan.` : `Dismissed by ${who(chosen.reviewedById)}: ${chosen.reviewNote ?? ""}`}
                 </p>
-                <p className="mb-3 text-[12.5px] text-slate-600">
+                <p className="mb-3 text-meta text-slate-600">
                   Created by {who(chosen.requestedById)} on {fmtDate(chosen.createdAt, true)} for {fmtLondonDate(chosen.fromDate.toISOString().slice(0, 10))} to {fmtLondonDate(chosen.toDate.toISOString().slice(0, 10))}, from {chosen.sources.length} records. Provider: {chosen.isSimulated ? "simulated (rule-based, no AI)" : `${chosen.provider}${chosen.model ? ` (${chosen.model})` : ""}`}.
                 </p>
                 <SummaryBody output={chosen.output} sources={chosen.sources} />
@@ -90,34 +90,34 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
                   <form action={startReviewFromSummaryAction} className="mt-3 flex flex-wrap items-center gap-2">
                     <input type="hidden" name="back" value={here} /><input type="hidden" name="summaryId" value={chosen.id} />
                     <button className="btn-secondary">Start a care plan review</button>
-                    <span className="text-[12.5px] text-slate-500">Opens a new draft copied from the current plan. The summary text is not copied in, and a second person still approves.</span>
+                    <span className="text-meta text-slate-500">Opens a new draft copied from the current plan. The summary text is not copied in, and a second person still approves.</span>
                   </form>
                 ) : null}
               </>
             ) : (
-              <p className="text-[14px] text-slate-700">No Care Summary yet. The records for the period are listed below.</p>
+              <p className="text-body text-slate-700">No Care Summary yet. The records for the period are listed below.</p>
             )}
             <Generate avail={avail} serviceUserId={serviceUserId} range={range} back={here} hasRecords={records.length > 0} again={!!chosen} />
           </div>
         </Card>
 
         <Card title={`Recent records (${records.length})`}>
-          <p className="mb-2 text-[13px] text-slate-600">Straight from the records: visit notes, tasks not done or refused, incidents (and any still open), risk assessments, and care plan changes{medicationIncluded ? ", plus refused or not-given medicines" : ""}. No AI is used here.</p>
+          <p className="mb-2 text-meta text-slate-600">Straight from the records: visit notes, tasks not done or refused, incidents (and any still open), risk assessments, and care plan changes{medicationIncluded ? ", plus refused or not-given medicines" : ""}. No AI is used here.</p>
           {kinds.length > 1 ? (
             <nav aria-label="Record type" className="mb-2 flex flex-wrap gap-1.5">
-              <Link href={`${base}&${periodQs}`} aria-current={!kind ? "page" : undefined} className={`rounded-full border px-2.5 py-0.5 text-[13px] no-underline ${!kind ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900"}`}>All</Link>
-              {kinds.map((k) => <Link key={k} href={`${base}&${periodQs}&kind=${encodeURIComponent(k)}`} aria-current={kind === k ? "page" : undefined} className={`rounded-full border px-2.5 py-0.5 text-[13px] no-underline ${kind === k ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900"}`}>{k} ({records.filter((r) => r.kind === k).length})</Link>)}
+              <Link href={`${base}&${periodQs}`} aria-current={!kind ? "page" : undefined} className={`rounded-full border px-2.5 py-0.5 text-meta no-underline ${!kind ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900"}`}>All</Link>
+              {kinds.map((k) => <Link key={k} href={`${base}&${periodQs}&kind=${encodeURIComponent(k)}`} aria-current={kind === k ? "page" : undefined} className={`rounded-full border px-2.5 py-0.5 text-meta no-underline ${kind === k ? "border-navy-900 bg-navy-900 text-white" : "border-slate-300 text-navy-900"}`}>{k} ({records.filter((r) => r.kind === k).length})</Link>)}
             </nav>
           ) : null}
           {shown.length ? (
             <ul className="divide-y divide-slate-100" data-testid="care-records">
               {shown.map((r) => (
-                <li key={r.sid} id={`rec-${r.sid}`} className="grid grid-cols-[52px_84px_minmax(0,1fr)] items-baseline gap-2 py-2 text-[14px] sm:grid-cols-[52px_90px_130px_minmax(0,1fr)_auto]">
-                  <span className="font-mono text-[12.5px] text-slate-500">{r.sid}</span>
-                  <span className="text-[13px] text-slate-600">{short(r.date)}</span>
+                <li key={r.sid} id={`rec-${r.sid}`} className="grid grid-cols-[52px_84px_minmax(0,1fr)] items-baseline gap-2 py-2 text-body sm:grid-cols-[52px_90px_130px_minmax(0,1fr)_auto]">
+                  <span className="font-mono text-meta text-slate-500">{r.sid}</span>
+                  <span className="text-meta text-slate-600">{short(r.date)}</span>
                   <span className="hidden sm:block"><Badge tone={KIND_TONE[r.kind] ?? "slate"}>{r.kind}</Badge></span>
                   <span className="min-w-0 break-words">{r.text}</span>
-                  <Link href={r.href} className="col-start-3 text-[13px] sm:col-start-auto">Open</Link>
+                  <Link href={r.href} className="col-start-3 text-meta sm:col-start-auto">Open</Link>
                 </li>
               ))}
             </ul>
@@ -128,7 +128,7 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
       <aside className="space-y-3" aria-label="Earlier summaries">
         <Card title="Earlier summaries">
           {summaries.length ? (
-            <ul className="rows text-[14px]">
+            <ul className="rows text-body">
               {summaries.map((s) => (
                 <li key={s.id} className="flex items-center justify-between gap-2 py-1.5">
                   <Link href={`${base}&${periodQs}&summary=${s.id}`} aria-current={chosen?.id === s.id ? "page" : undefined} className={chosen?.id === s.id ? "font-semibold" : ""}>{fmtDate(s.createdAt)}</Link>
@@ -137,10 +137,10 @@ export async function CareSummaryView({ ctx, serviceUserId, sp }: { ctx: Ctx; se
               ))}
             </ul>
           ) : <Empty>None yet.</Empty>}
-          <p className="mt-2 text-[12.5px] text-slate-500">Summaries are kept as created, with the records they used. They cannot be edited.</p>
+          <p className="mt-2 text-meta text-slate-500">Summaries are kept as created, with the records they used. They cannot be edited.</p>
         </Card>
         <Card title="How this works">
-          <ul className="list-disc space-y-1 pl-4 text-[13px] text-slate-700">
+          <ul className="list-disc space-y-1 pl-4 text-meta text-slate-700">
             <li>Every point links to the record it came from. Points without a record are removed before saving.</li>
             <li>The summary never changes the care plan, a diagnosis, an incident or a safeguarding record.</li>
             <li>Names and addresses are not sent to the AI provider.</li>
@@ -159,30 +159,30 @@ function SummaryBody({ output, sources }: { output: StoredOutput; sources: Store
         const pts = output[sec.key] ?? [];
         return (
           <section key={sec.key} aria-label={sec.title}>
-            <h3 className="text-[15px] font-semibold text-navy-900">{sec.title}</h3>
-            <p className="mb-1 text-[12.5px] text-slate-500">{sec.hint}</p>
+            <h3 className="text-lead font-semibold text-navy-900">{sec.title}</h3>
+            <p className="mb-1 text-meta text-slate-500">{sec.hint}</p>
             {pts.length ? (
               <ul className="space-y-1.5">
                 {pts.map((p, i) => (
-                  <li key={i} className="text-[14px]">
+                  <li key={i} className="text-body">
                     {p.text}{" "}
                     <span className="inline-flex flex-wrap gap-1 align-baseline">
                       {p.sources.map((sid) => {
                         const s = bySid.get(sid);
-                        return s ? <Link key={sid} href={s.href} title={`${s.kind}, ${s.date}`} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11.5px] text-slate-700 no-underline hover:bg-slate-200">{sid}</Link> : null;
+                        return s ? <Link key={sid} href={s.href} title={`${s.kind}, ${s.date}`} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-caption text-slate-700 no-underline hover:bg-slate-200">{sid}</Link> : null;
                       })}
                     </span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-[13.5px] text-slate-500">Nothing in the records for this.</p>}
+            ) : <p className="text-body text-slate-500">Nothing in the records for this.</p>}
           </section>
         );
       })}
       {output.gaps?.length ? (
         <section aria-label="What the records do not show">
-          <h3 className="text-[15px] font-semibold text-navy-900">What the records do not show</h3>
-          <ul className="list-disc pl-5 text-[13.5px] text-slate-600">{output.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
+          <h3 className="text-lead font-semibold text-navy-900">What the records do not show</h3>
+          <ul className="list-disc pl-5 text-body text-slate-600">{output.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
         </section>
       ) : null}
     </div>
@@ -195,13 +195,13 @@ function Generate({ avail, serviceUserId, range, back, hasRecords, again }: { av
     not_configured: "No AI provider is configured, so a summary cannot be created. The records below are complete without it.",
     no_permission: "Care coordinators and managers can create a Care Summary.",
   } as const;
-  if (avail.state !== "ready") return <p className="mt-3 border-t border-slate-200 pt-3 text-[13px] text-slate-600" data-testid="care-summary-state">{why[avail.state]}</p>;
+  if (avail.state !== "ready") return <p className="mt-3 border-t border-slate-200 pt-3 text-meta text-slate-600" data-testid="care-summary-state">{why[avail.state]}</p>;
   return (
     <form action={generateCareSummaryAction} className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
       <input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={serviceUserId} />
       <input type="hidden" name="period" value={range.period} /><input type="hidden" name="from" value={range.from} /><input type="hidden" name="to" value={range.to} />
       <button className={again ? "btn-secondary" : "btn-primary"} disabled={!hasRecords}>{again ? "Create a new summary for this period" : "Create Care Summary"}</button>
-      <span className="text-[12.5px] text-slate-500">{avail.isSimulated ? "Simulated provider: rule-based keyword counts, clearly labelled. Nothing leaves the platform." : `Sends the record text to ${avail.providerName}. Names and addresses are not sent.`}</span>
+      <span className="text-meta text-slate-500">{avail.isSimulated ? "Simulated provider: rule-based keyword counts, clearly labelled. Nothing leaves the platform." : `Sends the record text to ${avail.providerName}. Names and addresses are not sent.`}</span>
     </form>
   );
 }

@@ -127,9 +127,9 @@ export function QuickSearch() {
               }
             }}
             placeholder="Search clients, people, plans"
-            className="h-9 w-full rounded-[8px] border border-px-line bg-px-field pl-9 pr-12 text-[13.5px] text-px-ink placeholder:text-px-faint focus:border-px-focus focus:bg-white focus:outline-none focus:ring-2 focus:ring-px-accent-soft"
+            className="h-9 w-full rounded-[8px] border border-px-line bg-px-field pl-9 pr-12 text-body text-px-ink placeholder:text-px-faint focus:border-px-focus focus:bg-white focus:outline-none focus:ring-2 focus:ring-px-accent-soft"
           />
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-[4px] border border-px-line bg-white px-1.5 font-sans text-[11px] text-px-subtle lg:block">Ctrl K</kbd>
+          <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-[4px] border border-px-line bg-white px-1.5 font-sans text-micro text-px-subtle lg:block">Ctrl K</kbd>
         </label>
       </form>
       {open && q.trim() ? (
@@ -142,16 +142,16 @@ export function QuickSearch() {
                   <button type="button" onMouseEnter={() => setCursor(i)} onClick={() => go(h.href)} className={`flex w-full items-center gap-3 px-3 py-2 text-left ${i === cursor ? "bg-px-accent-tint" : ""}`}>
                     <Ico size={16} className="shrink-0 text-px-muted" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-medium text-px-ink">{h.title}</span>
-                      <span className="block truncate text-[12px] text-px-muted">{h.kind === "Page" ? `Go to page · ${h.detail}` : h.detail}</span>
+                      <span className="block truncate text-body font-medium text-px-ink">{h.title}</span>
+                      <span className="block truncate text-caption text-px-muted">{h.kind === "Page" ? `Go to page · ${h.detail}` : h.detail}</span>
                     </span>
-                    <span className="shrink-0 text-[11px] uppercase tracking-[0.04em] text-px-faint">{h.kind}</span>
+                    <span className="shrink-0 text-micro uppercase tracking-[0.04em] text-px-faint">{h.kind}</span>
                   </button>
                 </li>
               );
             })}
           </ul>
-          <div className="flex items-center justify-between border-t border-px-divider bg-px-field px-3 py-1.5 text-[12px] text-px-muted" aria-live="polite">
+          <div className="flex items-center justify-between border-t border-px-divider bg-px-field px-3 py-1.5 text-caption text-px-muted" aria-live="polite">
             <span>{error ?? (busy ? "Searching…" : hits.length ? `${hits.length} result${hits.length === 1 ? "" : "s"}` : q.trim().length < 2 ? "Keep typing" : "No matches")}</span>
             <span className="flex items-center gap-1"><ArrowElbowDownLeft size={12} aria-hidden="true" /> all results</span>
           </div>

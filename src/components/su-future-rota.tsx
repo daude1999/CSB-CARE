@@ -9,10 +9,10 @@ import { confirmServiceUserRotaAction } from "@/app/rota-actions";
 type Preview = Awaited<ReturnType<typeof previewServiceUserRota>>;
 
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
-const TH = "whitespace-nowrap px-2 py-2 text-left text-[13.5px] font-bold text-[#101828]";
+const TH = "whitespace-nowrap px-2 py-2 text-left text-body font-bold text-[#101828]";
 const TD = "px-2 py-2 align-top";
-const BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-semibold text-[#101828] no-underline hover:bg-slate-50 ${FOCUS}`;
-const PRIMARY = `inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-[#4b1f9e] px-4 text-[14px] font-semibold text-white hover:bg-[#3d1883] ${FOCUS}`;
+const BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body font-semibold text-[#101828] no-underline hover:bg-slate-50 ${FOCUS}`;
+const PRIMARY = `inline-flex h-9 items-center gap-1.5 rounded-[8px] bg-[#4b1f9e] px-4 text-body font-semibold text-white hover:bg-[#3d1883] ${FOCUS}`;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
@@ -24,17 +24,17 @@ export function ServiceUserFutureRota({ base, from, weeks, thisMonday, preview, 
   return (
     <section aria-labelledby="su-future-h" className="mb-4 rounded-[12px] border border-[#d6cbf2] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]" data-testid="future-rota">
       <div className="flex flex-wrap items-center gap-2 border-b border-[#eaecf0] px-4 py-3">
-        <h2 id="su-future-h" className="mr-2 flex items-center gap-2 text-[18px] font-bold text-[#101828]"><CalendarPlus size={20} aria-hidden />Create Future Rota</h2>
+        <h2 id="su-future-h" className="mr-2 flex items-center gap-2 text-subtitle font-bold text-[#101828]"><CalendarPlus size={20} aria-hidden />Create Future Rota</h2>
         <form method="get" action={base} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="tab" value="rota" />
           <input type="hidden" name="future" value="1" />
-          <label className="text-[13px] text-[#344054]">
+          <label className="text-meta text-[#344054]">
             <span className="block font-semibold">First week</span>
-            <input type="date" name="from" defaultValue={from} min={thisMonday} required className={`h-9 rounded-[8px] border border-[#d0d5dd] px-2 text-[14px] ${FOCUS}`} />
+            <input type="date" name="from" defaultValue={from} min={thisMonday} required className={`h-9 rounded-[8px] border border-[#d0d5dd] px-2 text-body ${FOCUS}`} />
           </label>
-          <label className="text-[13px] text-[#344054]">
+          <label className="text-meta text-[#344054]">
             <span className="block font-semibold">Number of weeks</span>
-            <select name="nweeks" defaultValue={String(weeks)} className={`h-9 rounded-[8px] border border-[#d0d5dd] bg-white px-2 text-[14px] ${FOCUS}`}>
+            <select name="nweeks" defaultValue={String(weeks)} className={`h-9 rounded-[8px] border border-[#d0d5dd] bg-white px-2 text-body ${FOCUS}`}>
               {Array.from({ length: FUTURE_ROTA_MAX_WEEKS }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{plural(n, "week")}</option>)}
             </select>
           </label>
@@ -42,8 +42,8 @@ export function ServiceUserFutureRota({ base, from, weeks, thisMonday, preview, 
         </form>
         <Link href={close} className={`${BTN} ml-auto`}>Close</Link>
       </div>
-      <div className="px-4 py-3 text-[14.5px]">
-        <p className="text-[13.5px] text-[#475467]">Visits are created from this person&apos;s active templates only, with the same checks as Build Rota. A visit that is already on the rota is never duplicated or changed, absences are skipped, and every carer is checked first. New visits are not published until you publish them.</p>
+      <div className="px-4 py-3 text-body">
+        <p className="text-body text-[#475467]">Visits are created from this person&apos;s active templates only, with the same checks as Build Rota. A visit that is already on the rota is never duplicated or changed, absences are skipped, and every carer is checked first. New visits are not published until you publish them.</p>
         {error ? (
           <p role="alert" className="mt-3 flex items-start gap-2 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[#b42318]"><WarningCircle size={18} weight="fill" aria-hidden className="mt-0.5 shrink-0" />{error}</p>
         ) : preview ? (
@@ -67,7 +67,7 @@ function PreviewBody({ base, preview, close }: { base: string; preview: Preview;
       </p>
       {!preview.activeTemplates ? <p className="mt-2 text-[#475467]">{preview.serviceUser.name} has no active templates. <Link href={`${base}?tab=template`}>Open the Template tab</Link> to add one.</p> : null}
       <div className="relative mt-3 overflow-x-auto">
-        <table className="w-full border-collapse text-[14px]" data-testid="future-table">
+        <table className="w-full border-collapse text-body" data-testid="future-table">
           <caption className="sr-only">Visits that Create Future Rota will add, {span}</caption>
           <thead>
             <tr className="border-y border-[#eaecf0] bg-[#fcfcfd]">
@@ -92,7 +92,7 @@ function PreviewBody({ base, preview, close }: { base: string; preview: Preview;
                   <td className={TD}>
                     <ul className="space-y-0.5">
                       {v.slots.map((s) => (
-                        <li key={s.slot} className="text-[13.5px]">
+                        <li key={s.slot} className="text-body">
                           <span className="text-[#667085]">{placeLabel(s.slot)}:</span>{" "}
                           {s.state === "UNASSIGNED" ? <span className="font-semibold text-[#b42318]">Open{s.reason ? ` (${s.reason})` : ""}</span> : <>{s.staffName}{s.state === "FLAGGED" ? <span className="text-[#93370d]"> (needs review{s.reason ? `: ${s.reason}` : ""})</span> : null}</>}
                         </li>
@@ -124,7 +124,7 @@ function PreviewBody({ base, preview, close }: { base: string; preview: Preview;
           <input type="hidden" name="weeks" value={preview.weeks} />
           <input type="hidden" name="fingerprint" value={preview.fingerprint} />
           <input type="hidden" name="back" value={`${base}?tab=rota&future=1&from=${preview.weekStart}&nweeks=${preview.weeks}`} />
-          <label className="flex items-center gap-2 text-[14px]">
+          <label className="flex items-center gap-2 text-body">
             <input type="checkbox" name="publish" value="1" className={`h-4 w-4 accent-[#4b1f9e] ${FOCUS}`} />
             Publish to carers now (linked carers are told in the app)
           </label>

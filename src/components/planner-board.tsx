@@ -72,12 +72,12 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
           <input type="hidden" name="lockVersion" value={pending?.chip.lockVersion ?? ""} />
         </form>
       ) : null}
-      <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-[12.5px]">
+      <table className="w-full min-w-[1100px] border-separate border-spacing-0 text-meta">
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 z-10 w-[190px] bg-white px-2 py-2 text-left text-[13px] font-normal text-slate-600">{rowLabel}</th>
+            <th scope="col" className="sticky left-0 z-10 w-[190px] bg-white px-2 py-2 text-left text-meta font-normal text-slate-600">{rowLabel}</th>
             {days.map((d) => (
-              <th key={d.date} scope="col" className={`px-1 py-2 text-left text-[13px] font-medium ${d.today ? "text-[#1d4f91]" : "text-slate-700"}`}>{d.label}</th>
+              <th key={d.date} scope="col" className={`px-1 py-2 text-left text-meta font-medium ${d.today ? "text-[#1d4f91]" : "text-slate-700"}`}>{d.label}</th>
             ))}
           </tr>
         </thead>
@@ -85,8 +85,8 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
           {rows.map((r) => (
             <tr key={r.id}>
               <th scope="row" className="sticky left-0 z-10 border-t border-slate-200 bg-white px-2 py-1.5 text-left align-top font-normal">
-                {r.href ? <a href={r.href} className="text-[13.5px] font-medium text-[#1d4f91] no-underline hover:underline">{r.name}</a> : <span className="text-[13.5px] font-medium text-[#a3242c]">{r.name}</span>}
-                <span className={`block text-[12px] ${r.over ? "font-medium text-[#a3242c]" : "text-slate-500"}`}>{r.sub}{r.over ? " · over limit" : ""}</span>
+                {r.href ? <a href={r.href} className="text-body font-medium text-[#1d4f91] no-underline hover:underline">{r.name}</a> : <span className="text-body font-medium text-[#a3242c]">{r.name}</span>}
+                <span className={`block text-caption ${r.over ? "font-medium text-[#a3242c]" : "text-slate-500"}`}>{r.sub}{r.over ? " · over limit" : ""}</span>
               </th>
               {r.cells.map((cell, di) => {
                 const key = `${r.id}:${di}`;
@@ -119,7 +119,7 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
                     }}
                   >
                     <div className="flex min-h-[28px] flex-col gap-[3px]">
-                      {shade ? <span className={`text-[11.5px] font-medium ${SHADE_TEXT[shade.tone]}`}>{shade.label}</span> : null}
+                      {shade ? <span className={`text-caption font-medium ${SHADE_TEXT[shade.tone]}`}>{shade.label}</span> : null}
                       {cell.map((c) => (
                         <a
                           key={`${c.visitId}-${c.slot}`}
@@ -144,21 +144,21 @@ export function PlannerBoard({ days, rows, action, moveAction, back, canEdit, id
           ))}
         </tbody>
       </table>
-      {pending && !asking ? <p role="status" className="mt-2 text-[13px] text-slate-600">Checking and saving the move…</p> : null}
+      {pending && !asking ? <p role="status" className="mt-2 text-meta text-slate-600">Checking and saving the move…</p> : null}
       {confirmTemplate ? (
         <dialog ref={confirmDialog} onClose={() => { setAsking(null); if (confirmedMove.current) { confirmedMove.current = false; setTimeout(() => form.current?.requestSubmit(), 0); } else setPending(null); }} aria-labelledby="planner-confirm-title" data-testid="template-carer-confirm" className="m-auto w-[min(520px,calc(100vw-24px))] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40">
           {asking ? (
             <>
-              <div className="px-5 py-4 text-[14.5px]">
-                <h2 id="planner-confirm-title" className="text-[19px] font-bold">Confirm Template Changes</h2>
-                <p className="mt-2 text-[15px]">Are you sure you want to save this change to the template?</p>
+              <div className="px-5 py-4 text-body">
+                <h2 id="planner-confirm-title" className="text-title font-bold">Confirm Template Changes</h2>
+                <p className="mt-2 text-lead">Are you sure you want to save this change to the template?</p>
                 <p className="mt-2 font-semibold">{asking.chip.label} · {asking.day} {asking.chip.time}</p>
                 <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1"><dt className="font-medium">Carer (previous)</dt><dd className="text-[#667085]">{asking.from}</dd><dt className="font-medium">Carer (new)</dt><dd className="font-semibold">{asking.to}</dd></dl>
-                <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-[14px] text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed.</p>
+                <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-body text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed.</p>
               </div>
               <div className="flex justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
-                <button type="button" onClick={() => confirmDialog.current?.close()} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold">Cancel</button>
-                <button type="button" onClick={() => { confirmedMove.current = true; confirmDialog.current?.close(); }} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white">Continue</button>
+                <button type="button" onClick={() => confirmDialog.current?.close()} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold">Cancel</button>
+                <button type="button" onClick={() => { confirmedMove.current = true; confirmDialog.current?.close(); }} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-body font-semibold text-white">Continue</button>
               </div>
             </>
           ) : null}

@@ -36,7 +36,7 @@ export default async function OptimisePage({ searchParams }: { searchParams: Pro
       <Flash searchParams={sp} />
       {canBuild ? (
         <section aria-labelledby="gen-h" className="panel mb-4">
-          <h2 id="gen-h" className="text-[16px] font-medium text-navy-900">New plan</h2>
+          <h2 id="gen-h" className="text-lead font-medium text-navy-900">New plan</h2>
           <form action={generatePlanAction} className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
             <input type="hidden" name="back" value="/rota/optimise" />
             <label><span className="label">From</span><input type="date" name="from" defaultValue={sp.from ?? tomorrow} min={londonDate()} required className="input w-full" /></label>
@@ -45,22 +45,22 @@ export default async function OptimisePage({ searchParams }: { searchParams: Pro
             <label><span className="label">Minimum gap between visits (min)</span><input type="number" name="gapMinutes" min={0} max={120} defaultValue={DEFAULT_GAP_MINUTES} className="input w-full" /></label>
             <label><span className="label">Largest time change (min)</span><select name="maxShiftMinutes" defaultValue={String(DEFAULT_MAX_SHIFT)} className="input w-full">{[0, 5, 10, 15, 20, 30].map((m) => <option key={m} value={m}>{m ? `Up to ${m} minutes` : "Never move visits"}</option>)}</select></label>
             <button className="btn-primary">Generate plan</button>
-            <label className="flex items-center gap-2 text-[14px] sm:col-span-2 lg:col-span-6">
+            <label className="flex items-center gap-2 text-body sm:col-span-2 lg:col-span-6">
               <input type="checkbox" name="respectWeeklyLimits" defaultChecked /> Keep carers within their weekly hours limit
             </label>
           </form>
-          <p className="mt-3 text-[13px] text-slate-600">
+          <p className="mt-3 text-meta text-slate-600">
             Gaps are judged in <strong className="font-medium">time-gap mode</strong>: a fixed number of minutes between one visit ending and the next starting. The platform has no routing service, so it does not know distances or driving times and never shows them. Time-locked visits and visits that already have a carer are never moved.
           </p>
         </section>
       ) : (
-        <p className="panel mb-4 text-[14px] text-slate-700">Your role can view plans but not generate or apply them.</p>
+        <p className="panel mb-4 text-body text-slate-700">Your role can view plans but not generate or apply them.</p>
       )}
 
       <Card title="Recent plans">
         {plans.length ? (
           <div className="overflow-x-auto">
-            <table className="table min-w-[720px] text-[14px]">
+            <table className="table min-w-[720px] text-body">
               <thead><tr><th scope="col">Dates</th><th scope="col">Area</th><th scope="col">Proposed</th><th scope="col">Left open</th><th scope="col">Status</th><th scope="col">Made by</th></tr></thead>
               <tbody>
                 {plans.map((p) => {

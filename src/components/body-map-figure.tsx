@@ -267,15 +267,15 @@ export function BodyMapWorkspace(props: WorkspaceProps) {
                 <span className="min-w-0 flex-1">{region}</span>
                 <button type="button" aria-label="Clear the selected area" className="text-slate-500 hover:text-slate-900" onClick={() => pickRegion("")}><X size={14} aria-hidden /></button>
               </p>
-            ) : <p className="px-1 text-[12.5px] text-slate-500">None yet. Click the outline.</p>}
+            ) : <p className="px-1 text-meta text-slate-500">None yet. Click the outline.</p>}
           </div>
           {mode === "browse" && props.canRecord && props.recordHref ? (
-            <a href={`${props.recordHref}&view=${view}${pin ? `&x=${pin.x}&y=${pin.y}` : ""}${region ? `&region=${encodeURIComponent(region)}` : ""}${only ? `&category=${encodeURIComponent(only)}` : ""}`} className="bm-primary mt-3 w-full justify-center gap-1.5 px-1.5 text-[12.5px]"><Plus size={14} weight="bold" aria-hidden /> Record Observation</a>
+            <a href={`${props.recordHref}&view=${view}${pin ? `&x=${pin.x}&y=${pin.y}` : ""}${region ? `&region=${encodeURIComponent(region)}` : ""}${only ? `&category=${encodeURIComponent(only)}` : ""}`} className="bm-primary mt-3 w-full justify-center gap-1.5 px-1.5 text-meta"><Plus size={14} weight="bold" aria-hidden /> Record Observation</a>
           ) : null}
         </div>
       </div>
       {sites.length || markers.some((m) => !m.open) ? (
-        <p className="mt-2 flex flex-wrap justify-center gap-x-3 text-[11.5px] text-slate-500">
+        <p className="mt-2 flex flex-wrap justify-center gap-x-3 text-caption text-slate-500">
           {markers.some((m) => !m.open) ? <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#98a2b3]" />resolved</span> : null}
           {sites.length ? <span><span className="mr-1 inline-block h-2 w-2 rounded-[2px] bg-[#0e7490]" />medication site</span> : null}
         </p>
@@ -296,7 +296,7 @@ export function BodyMapWorkspace(props: WorkspaceProps) {
         </select>
         <Crosshair size={20} className="shrink-0 text-slate-500" aria-hidden />
       </span>
-      <span id="bm-loc-hint" className="mt-0.5 block text-[11.5px] text-slate-500">{VIEW_LABEL[view]} view ({VIEW_LONG[view]})</span>
+      <span id="bm-loc-hint" className="mt-0.5 block text-caption text-slate-500">{VIEW_LABEL[view]} view ({VIEW_LONG[view]})</span>
     </label>
   );
 
@@ -310,14 +310,14 @@ export function BodyMapWorkspace(props: WorkspaceProps) {
   ) : mode === "site" && props.site ? (
     <section className="bm-card" aria-labelledby="bm-site-h">
       <div className="flex items-start justify-between gap-3">
-        <div><h3 id="bm-site-h" className="bm-h3">Record medication application site</h3><p className="text-[13px] text-slate-600">Where a cream, ointment or patch is applied, as documented by a manager. This is not a skin observation and not a record that a dose was given.</p></div>
+        <div><h3 id="bm-site-h" className="bm-h3">Record medication application site</h3><p className="text-meta text-slate-600">Where a cream, ointment or patch is applied, as documented by a manager. This is not a skin observation and not a record that a dose was given.</p></div>
         <a href={props.site.cancelHref} aria-label="Close" className="text-slate-500 hover:text-slate-900"><X size={20} aria-hidden /></a>
       </div>
       <div className="mt-4 space-y-3">
         {location}
         <label className="block"><span className="bm-label">Medicine <Req /></span><select name="medicationId" required className="input" defaultValue=""><option value="">Choose…</option>{props.site.medicines.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
         <label className="block"><span className="bm-label">Note (optional)</span><input name="note" maxLength={500} className="input" placeholder="e.g. Rotate patch site weekly, as on the label" /></label>
-        <p className="text-[12.5px] text-slate-500">A new patch site ends the previous one. Creams may have several sites. The MAR and its approvals are unchanged.</p>
+        <p className="text-meta text-slate-500">A new patch site ends the previous one. Creams may have several sites. The MAR and its approvals are unchanged.</p>
         <div className="flex justify-between gap-2 border-t border-[#eaecf0] pt-3"><a href={props.site.cancelHref} className="bm-secondary">Cancel</a><button className="bm-primary">Save application site</button></div>
       </div>
     </section>
@@ -409,10 +409,10 @@ function RecordForm({ f, location, category, setCategory, formRef, restore, stat
     <section className="bm-card bm-raised" aria-labelledby="bm-new-h" onInput={save}>
       <div className="flex items-start gap-3 border-b border-[#eaecf0] pb-3">
         <span className="bm-icon"><NotePencil size={20} aria-hidden /></span>
-        <div className="min-w-0 flex-1"><h3 id="bm-new-h" className="bm-h3">Record Observation</h3><p className="text-[13px] text-slate-600">Add a new body map observation for {f.personName}.</p></div>
+        <div className="min-w-0 flex-1"><h3 id="bm-new-h" className="bm-h3">Record Observation</h3><p className="text-meta text-slate-600">Add a new body map observation for {f.personName}.</p></div>
         <a href={f.cancelHref} onClick={clearDraft} aria-label="Close without saving" className="text-slate-500 hover:text-slate-900"><X size={20} aria-hidden /></a>
       </div>
-      {restored ? <p className="mt-3 rounded-[8px] bg-[#f4f3ff] px-3 py-2 text-[12.5px] text-[#4a2196]" role="status">Your unsaved entries were kept. Photographs must be added again.</p> : null}
+      {restored ? <p className="mt-3 rounded-[8px] bg-[#f4f3ff] px-3 py-2 text-meta text-[#4a2196]" role="status">Your unsaved entries were kept. Photographs must be added again.</p> : null}
       <div className="mt-3 grid gap-x-3 gap-y-3 md:grid-cols-6">
         <div className="md:col-span-3">{location}</div>
         <label className="md:col-span-3"><span className="bm-label">Observation Type <Req /></span>
@@ -425,7 +425,7 @@ function RecordForm({ f, location, category, setCategory, formRef, restore, stat
         <label className="md:col-span-6"><span className="bm-label">Colour / Appearance</span><input name="appearance" maxLength={300} className="input" placeholder="e.g. purple / blue, starting to fade at edges" /></label>
         <label className="md:col-span-6"><span className="bm-label">Description (manual entry) <Req /></span>
           <textarea name="description" required minLength={10} maxLength={4000} rows={3} className="input" placeholder="What you saw, in plain words. Describe it; do not diagnose." onChange={(e) => setDesc(e.currentTarget.value.length)} />
-          <span className="mt-0.5 block text-right text-[11.5px] text-slate-500">{desc} / 4000</span>
+          <span className="mt-0.5 block text-right text-caption text-slate-500">{desc} / 4000</span>
         </label>
         <label className="md:col-span-3"><span className="bm-label">Pain / Discomfort <Req /></span><select name="pain" required className="input" defaultValue=""><option value="">Choose…</option>{f.pain.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></label>
         <label className="md:col-span-3"><span className="bm-label">Action Taken</span><textarea name="actionTaken" maxLength={2000} rows={2} className="input" placeholder="e.g. Monitored, informed care coordinator, photograph taken" /></label>
@@ -435,7 +435,7 @@ function RecordForm({ f, location, category, setCategory, formRef, restore, stat
           <span className="bm-label" id="bm-fu-l">Follow-up Required</span>
           <input type="hidden" name="followUpRequired" value={followUp ? "yes" : "no"} />
           <button type="button" role="switch" aria-checked={followUp} aria-labelledby="bm-fu-l" className="bm-switch" onClick={() => setFollowUp((v) => !v)}><span /></button>
-          <span className="ml-2 text-[13px] text-slate-600">{followUp ? "Yes" : "No"}</span>
+          <span className="ml-2 text-meta text-slate-600">{followUp ? "Yes" : "No"}</span>
         </div>
         <label className="md:col-span-2"><span className="bm-label">Follow-up Date{followUp ? <> <Req /></> : null}</span><input type="date" name="followUpOn" min={f.today} required={followUp} disabled={!followUp} className="input" /></label>
         <label className="md:col-span-2"><span className="bm-label">Assign To</span><select name="reviewerId" className="input" defaultValue=""><option value="">No reviewer yet</option>{f.reviewers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
@@ -458,13 +458,13 @@ function RecordForm({ f, location, category, setCategory, formRef, restore, stat
                   setPhotos(files.map((x) => ({ name: x.name, url: URL.createObjectURL(x) })));
                 }} />
               </label>
-              <p className={`max-w-[230px] text-[11.5px] ${photoError ? "font-medium text-[#a3242c]" : "text-slate-500"}`} role={photoError ? "alert" : undefined}>{photoError ?? `JPG, PNG, GIF or WebP · up to ${Math.round(f.maxBytes / 1048576)} MB each · up to ${f.maxPhotos} photos. Only with the person's consent; kept privately.`}</p>
+              <p className={`max-w-[230px] text-caption ${photoError ? "font-medium text-[#a3242c]" : "text-slate-500"}`} role={photoError ? "alert" : undefined}>{photoError ?? `JPG, PNG, GIF or WebP · up to ${Math.round(f.maxBytes / 1048576)} MB each · up to ${f.maxPhotos} photos. Only with the person's consent; kept privately.`}</p>
             </div>
             {photos.length ? <label className="mt-2 block"><span className="bm-label">Photo caption (optional)</span><input name="caption" maxLength={200} className="input" /></label> : null}
           </div>
         ) : null}
       </div>
-      <p className="mt-3 text-[12px] text-slate-500">Saved exactly as entered and cannot be edited afterwards; later findings are added as notes and follow-ups. Managers are told in the app.</p>
+      <p className="mt-3 text-caption text-slate-500">Saved exactly as entered and cannot be edited afterwards; later findings are added as notes and follow-ups. Managers are told in the app.</p>
       <div className="mt-3 flex justify-between gap-2 border-t border-[#eaecf0] pt-3">
         <a href={f.cancelHref} onClick={clearDraft} className="bm-secondary">Cancel</a>
         <button className="bm-primary" data-testid="body-map-save"><NotePencil size={16} aria-hidden /> Save Observation</button>

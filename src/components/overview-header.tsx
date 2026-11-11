@@ -31,7 +31,7 @@ export function LondonClock({ initial }: { initial: number }) {
   const { date, time } = londonClock(at);
   const iso = at.toISOString();
   return (
-    <div className="flex items-center text-[14px] font-medium text-white" data-testid="overview-clock">
+    <div className="flex items-center text-body font-medium text-white" data-testid="overview-clock">
       <span className="hidden items-center gap-2 pr-4 lg:flex">
         <CalendarBlank size={20} aria-hidden="true" className="text-white/85" />
         <time dateTime={iso.slice(0, 10)} data-testid="overview-date">{date}</time>
@@ -60,26 +60,26 @@ export function AccountMenu({ name, initials, role, branch, sample, mode: initia
   return (
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-[8px] py-1 pl-1 pr-1.5 hover:bg-white/10 [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
-        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a]">{initials}</span>
+        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#dbe7f8] text-meta font-semibold text-[#0b2a4a]">{initials}</span>
         <span className="hidden min-w-0 text-left lg:block">
-          <span className="block max-w-[180px] truncate text-[14px] font-semibold leading-[18px] text-white" data-testid="overview-user">{name}</span>
-          <span className="block max-w-[180px] truncate text-[12px] leading-[15px] text-white/80" data-testid="overview-role">{role}</span>
+          <span className="block max-w-[180px] truncate text-body font-semibold leading-[18px] text-white" data-testid="overview-user">{name}</span>
+          <span className="block max-w-[180px] truncate text-caption leading-[15px] text-white/80" data-testid="overview-role">{role}</span>
         </span>
         <CaretDown size={14} weight="bold" aria-hidden="true" className="hidden text-white/85 lg:block" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[250px] overflow-hidden rounded-[8px] border border-slate-200 bg-white py-1 text-[#0b1530] shadow-lg">
         <div className="border-b border-slate-100 px-3 pb-2.5 pt-2">
-          <p className="truncate text-[14px] font-semibold">{name}</p>
-          <p className="truncate text-[12.5px] text-slate-600">{role}</p>
-          {branch ? <p className="mt-1 truncate text-[12.5px] text-slate-600">Branch: {branch}</p> : null}
-          {sample ? <p className="mt-1.5 w-fit rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600">Sample workspace</p> : null}
+          <p className="truncate text-body font-semibold">{name}</p>
+          <p className="truncate text-meta text-slate-600">{role}</p>
+          {branch ? <p className="mt-1 truncate text-meta text-slate-600">Branch: {branch}</p> : null}
+          {sample ? <p className="mt-1.5 w-fit rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-micro uppercase tracking-[0.08em] text-slate-600">Sample workspace</p> : null}
         </div>
         <div className="border-b border-slate-100 py-1">
-          <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Appearance</p>
+          <p className="px-3 pb-1 pt-1.5 text-micro font-semibold uppercase tracking-[0.06em] text-slate-500">Appearance</p>
           <ColourModeOptions mode={mode} onChange={changeMode} />
         </div>
         <form action={signOutAction}>
-          <button type="submit" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[14px] hover:bg-slate-100">
+          <button type="submit" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-body hover:bg-slate-100">
             <SignOut size={18} aria-hidden="true" className="text-slate-600" />Sign out
           </button>
         </form>

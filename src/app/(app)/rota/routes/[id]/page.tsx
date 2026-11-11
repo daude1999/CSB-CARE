@@ -38,10 +38,10 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
                 key={d}
                 title={fmtLondonDate(d, { weekday: "long", day: "numeric", month: "long" })}
                 actions={canEdit && g.outOfOrder ? (
-                  <form action={orderRouteByTimeAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="date" value={d} /><button className="btn-secondary px-2 py-0.5 text-[13px]">Put in time order</button></form>
+                  <form action={orderRouteByTimeAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="date" value={d} /><button className="btn-secondary px-2 py-0.5 text-meta">Put in time order</button></form>
                 ) : null}
               >
-                <p className={`mb-1 text-[13px] ${g.overlaps || g.outOfOrder ? "text-[#a3242c]" : g.tight ? "text-[#8a5a00]" : "text-slate-600"}`}>
+                <p className={`mb-1 text-meta ${g.overlaps || g.outOfOrder ? "text-[#a3242c]" : g.tight ? "text-[#8a5a00]" : "text-slate-600"}`}>
                   Time-gap check: {problems.length ? problems.join(", ") : "no overlaps or tight gaps"}. Scheduled times only; travel time is not worked out.
                 </p>
                 <ol className="rows">
@@ -49,8 +49,8 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
                     const gap = gaps.find((x) => x.visitId === v.id);
                     const bad = gap?.kinds.some((k) => k === "OVERLAP" || k === "OUT_OF_ORDER");
                     return (
-                      <li key={v.id} className="py-2 text-[14px]">
-                        {gap ? <p className={`mb-1 text-[12.5px] ${bad ? "font-medium text-[#a3242c]" : gap.kinds.includes("TIGHT") ? "text-[#8a5a00]" : "text-slate-500"}`}>{gap.text}</p> : null}
+                      <li key={v.id} className="py-2 text-body">
+                        {gap ? <p className={`mb-1 text-meta ${bad ? "font-medium text-[#a3242c]" : gap.kinds.includes("TIGHT") ? "text-[#8a5a00]" : "text-slate-500"}`}>{gap.text}</p> : null}
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="w-6 text-right font-semibold tabular-nums">{i + 1}.</span>
                           <Link href={`/rota/visits/${v.id}`} className="font-medium">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)} {suName(v.serviceUser)}</Link>
@@ -64,7 +64,7 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
                               {others.length ? (
                                 <form action={moveToRouteAction} className="flex gap-1">
                                   <input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} /><input type="hidden" name="id" value={v.id} />
-                                  <select name="toRouteId" required className="input py-0.5 text-[13px]" aria-label={`Move ${suName(v.serviceUser)} to another route`}>
+                                  <select name="toRouteId" required className="input py-0.5 text-meta" aria-label={`Move ${suName(v.serviceUser)} to another route`}>
                                     <option value="">Move to…</option>
                                     {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                                   </select>
@@ -88,7 +88,7 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
               {candidates.length ? (
                 <form action={addToRouteAction} className="space-y-2">
                   <input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} />
-                  <ul className="max-h-[420px] space-y-1 overflow-y-auto text-[13.5px]">
+                  <ul className="max-h-[420px] space-y-1 overflow-y-auto text-body">
                     {candidates.map((v) => <li key={v.id}><label className="flex items-center gap-2"><input type="checkbox" name="ids" value={v.id} />{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric" })} {londonTime(v.scheduledStart)} {suName(v.serviceUser)}</label></li>)}
                   </ul>
                   <button className="btn-primary">Add to route</button>
@@ -98,7 +98,7 @@ export default async function LiveRoutePage({ params, searchParams }: { params: 
             <Card title="Remove route">
               <form action={removeRouteAction} className="space-y-2">
                 <input type="hidden" name="back" value="/rota/routes" /><input type="hidden" name="kind" value="LIVE" /><input type="hidden" name="routeId" value={route.id} />
-                <p className="text-[13.5px] text-slate-600">The visits stay on the rota with their carers; only the route goes.</p>
+                <p className="text-body text-slate-600">The visits stay on the rota with their carers; only the route goes.</p>
                 <button className="btn-danger">Remove this route</button>
               </form>
             </Card>

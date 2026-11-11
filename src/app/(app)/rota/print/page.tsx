@@ -23,7 +23,7 @@ export default async function PrintRotaPage({ searchParams }: { searchParams: Pr
         <label><span className="label">To</span><input type="date" name="to" defaultValue={to} required className="input" /></label>
         <label><span className="label">Font size</span><select name="fontSize" defaultValue="10" className="input">{[8, 9, 10, 11, 12, 14].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
       </div>
-      <fieldset className="grid grid-cols-2 gap-1 text-[13.5px]">
+      <fieldset className="grid grid-cols-2 gap-1 text-body">
         <legend className="label">Include</legend>
         <label className="flex items-center gap-1.5"><input type="checkbox" name="includeCancelled" value="1" />Cancelled visits</label>
         {kind === "CARER" ? <label className="flex items-center gap-1.5"><input type="checkbox" name="includeShadow" value="1" defaultChecked />Shadow visits</label> : null}

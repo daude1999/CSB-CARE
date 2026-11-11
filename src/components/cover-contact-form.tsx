@@ -60,8 +60,8 @@ const OUTCOMES = [
 
 type Draft = Required<Defaults> & { token: string; earlier: boolean; contactedDate: string; contactedTime: string; followUp: boolean; followUpOwnerId: string; followUpDate: string; followUpTime: string; reason: string };
 
-const FIELD = "h-9 w-full rounded-[6px] border border-[#d0d5dd] bg-white px-2 text-[14px] text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-module";
-const LABEL = "mb-0.5 block text-[12.5px] font-medium text-[#344054]";
+const FIELD = "h-9 w-full rounded-[6px] border border-[#d0d5dd] bg-white px-2 text-body text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-module";
+const LABEL = "mb-0.5 block text-meta font-medium text-[#344054]";
 
 export function CoverContactForm(props: Props) {
   const { recipients, correction } = props;
@@ -187,15 +187,15 @@ export function CoverContactForm(props: Props) {
       {props.caseId ? <input type="hidden" name="caseId" value={props.caseId} /> : null}
       <input type="hidden" name="clientToken" value={f.token} />
       {correction ? <input type="hidden" name="attemptId" value={correction.attemptId} /> : null}
-      {restored ? <p role="status" className="rounded-[6px] bg-[#fdf3dc] px-2.5 py-1.5 text-[13px] text-[#7a5200]">Your unsaved entry was kept. Check it and save again, or <button type="button" onClick={discard} className="font-semibold underline">discard it</button>.</p> : null}
+      {restored ? <p role="status" className="rounded-[6px] bg-[#fdf3dc] px-2.5 py-1.5 text-meta text-[#7a5200]">Your unsaved entry was kept. Check it and save again, or <button type="button" onClick={discard} className="font-semibold underline">discard it</button>.</p> : null}
 
       <fieldset>
         <legend className={LABEL}>Who did you contact?</legend>
         <div className="space-y-1">
           {[...recipients, { value: "other", label: "Someone else", detail: "Not recorded on the profile", vias: [] }].map((o) => (
-            <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded-[6px] border border-[#e4e7ec] px-2.5 py-1.5 text-[13.5px] has-[:checked]:border-module has-[:checked]:bg-[#f6f3fd]">
+            <label key={o.value} className="flex cursor-pointer items-start gap-2 rounded-[6px] border border-[#e4e7ec] px-2.5 py-1.5 text-body has-[:checked]:border-module has-[:checked]:bg-[#f6f3fd]">
               <input type="radio" name="recipient" value={o.value} checked={f.recipient === o.value} onChange={() => set("recipient", o.value)} className="mt-0.5 h-4 w-4 accent-module" />
-              <span><b className="font-semibold text-[#101828]">{o.label}</b><span className="block text-[12.5px] text-[#475467]">{o.detail}</span></span>
+              <span><b className="font-semibold text-[#101828]">{o.label}</b><span className="block text-meta text-[#475467]">{o.detail}</span></span>
             </label>
           ))}
         </div>
@@ -216,36 +216,36 @@ export function CoverContactForm(props: Props) {
           <select id={id("v")} name="via" value={via} onChange={(e) => set("via", e.target.value)} className={FIELD}>{vias.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}</select>
         </label>
       </div>
-      {noneRecorded ? <p className="text-[12.5px] text-[#8a5a00]">Nothing suitable is recorded for {r?.label ?? "them"} for this method. Enter what you used below.</p> : null}
+      {noneRecorded ? <p className="text-meta text-[#8a5a00]">Nothing suitable is recorded for {r?.label ?? "them"} for this method. Enter what you used below.</p> : null}
       {via === "other" ? <label htmlFor={id("oa")} className="block"><span className={LABEL}>Number or address you used</span><input id={id("oa")} name="otherAddress" required maxLength={200} value={f.otherAddress} onChange={(e) => set("otherAddress", e.target.value)} className={FIELD} /></label> : null}
 
       <fieldset>
         <legend className={LABEL}>Outcome</legend>
         <div className="flex flex-wrap gap-1.5">
           {OUTCOMES.map(([v, l]) => (
-            <label key={v} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d0d5dd] px-2.5 py-1 text-[13px] has-[:checked]:border-module has-[:checked]:bg-module has-[:checked]:text-white has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-module">
+            <label key={v} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d0d5dd] px-2.5 py-1 text-meta has-[:checked]:border-module has-[:checked]:bg-module has-[:checked]:text-white has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-module">
               <input type="radio" name="outcome" value={v} required checked={f.outcome === v} onChange={() => set("outcome", v)} className="sr-only" />{l}
             </label>
           ))}
         </div>
-        {f.outcome === "MESSAGE_LEFT" ? <p className="mt-1 text-[12.5px] text-[#475467]">A message left is not confirmation: this stays &ldquo;awaiting confirmation&rdquo; until someone is successfully informed.</p> : null}
+        {f.outcome === "MESSAGE_LEFT" ? <p className="mt-1 text-meta text-[#475467]">A message left is not confirmation: this stays &ldquo;awaiting confirmation&rdquo; until someone is successfully informed.</p> : null}
       </fieldset>
       {f.outcome === "NOT_APPLICABLE" ? <label htmlFor={id("na")} className="block"><span className={LABEL}>Why contact is not applicable</span><input id={id("na")} name="notApplicableReason" required minLength={5} maxLength={500} value={f.notApplicableReason} onChange={(e) => set("notApplicableReason", e.target.value)} placeholder="For example: in hospital, family managing visits this week" className={FIELD} /></label> : null}
 
       <label htmlFor={id("n")} className="block"><span className={LABEL}>What was communicated (optional)</span><textarea id={id("n")} name="notes" rows={2} maxLength={2000} value={f.notes} onChange={(e) => set("notes", e.target.value)} className={`${FIELD} h-auto py-1.5`} /></label>
 
       <div className="rounded-[6px] bg-[#f9fafb] px-2.5 py-2">
-        <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="earlier" checked={f.earlier} onChange={(e) => set("earlier", e.target.checked)} className="h-4 w-4 accent-module" />The contact happened earlier</label>
+        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="earlier" checked={f.earlier} onChange={(e) => set("earlier", e.target.checked)} className="h-4 w-4 accent-module" />The contact happened earlier</label>
         {f.earlier ? (
           <div className="mt-1.5 flex flex-wrap gap-2">
             <label htmlFor={id("cd")}><span className={LABEL}>Date</span><input id={id("cd")} type="date" name="contactedDate" required value={f.contactedDate} max={props.today} onChange={(e) => set("contactedDate", e.target.value)} className={`${FIELD} w-[150px]`} /></label>
             <label htmlFor={id("ct")}><span className={LABEL}>Time</span><input id={id("ct")} type="time" name="contactedTime" required value={f.contactedTime} onChange={(e) => set("contactedTime", e.target.value)} className={`${FIELD} w-[110px]`} /></label>
           </div>
-        ) : <p className="mt-0.5 text-[12px] text-[#667085]">Otherwise the time you save is used. The time you saved it is always recorded too.</p>}
+        ) : <p className="mt-0.5 text-caption text-[#667085]">Otherwise the time you save is used. The time you saved it is always recorded too.</p>}
       </div>
 
       <div className="rounded-[6px] bg-[#f9fafb] px-2.5 py-2">
-        <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="followUp" checked={f.followUp} onChange={(e) => set("followUp", e.target.checked)} className="h-4 w-4 accent-module" />A follow-up is needed</label>
+        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="followUp" checked={f.followUp} onChange={(e) => set("followUp", e.target.checked)} className="h-4 w-4 accent-module" />A follow-up is needed</label>
         {f.followUp ? (
           <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
             <label htmlFor={id("fo")}><span className={LABEL}>Responsible coordinator</span><select id={id("fo")} name="followUpOwnerId" value={f.followUpOwnerId} onChange={(e) => set("followUpOwnerId", e.target.value)} className={FIELD}>{props.owners.map((o) => <option key={o.id} value={o.id}>{o.name}{o.id === props.me ? " (you)" : ""}</option>)}</select></label>
@@ -258,10 +258,10 @@ export function CoverContactForm(props: Props) {
       {correction ? <label htmlFor={id("cr")} className="block"><span className={LABEL}>Reason for the correction</span><input id={id("cr")} name="reason" required minLength={5} maxLength={1000} value={f.reason} onChange={(e) => set("reason", e.target.value)} className={FIELD} /></label> : null}
 
       <div className="flex flex-wrap items-center gap-2 pt-0.5">
-        <button className="inline-flex h-9 items-center rounded-[6px] border border-module bg-white px-3.5 text-[14px] font-semibold text-[#4b2f9a] hover:bg-[#f6f3fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module">{correction ? "Save correction" : "Save communication"}</button>
-        {dirty ? <button type="button" onClick={discard} className="text-[13px] font-medium text-[#475467] underline">Discard</button> : null}
+        <button className="inline-flex h-9 items-center rounded-[6px] border border-module bg-white px-3.5 text-body font-semibold text-[#4b2f9a] hover:bg-[#f6f3fd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module">{correction ? "Save correction" : "Save communication"}</button>
+        {dirty ? <button type="button" onClick={discard} className="text-meta font-medium text-[#475467] underline">Discard</button> : null}
       </div>
-      <p className="text-[12px] text-[#667085]">{correction ? "The original entry is kept and shown as corrected." : "This only records what you did. It does not book cover, and the platform does not phone, text or email anyone."}</p>
+      <p className="text-caption text-[#667085]">{correction ? "The original entry is kept and shown as corrected." : "This only records what you did. It does not book cover, and the platform does not phone, text or email anyone."}</p>
     </form>
   );
 }

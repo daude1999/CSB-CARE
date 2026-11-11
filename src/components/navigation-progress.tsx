@@ -169,7 +169,7 @@ function SlowNotice({ phase, href }: { phase: State["phase"]; href: string | nul
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-[64px] z-30 flex justify-center px-4">
       {show ? (
-        <div data-testid="nav-slow" className="nav-notice pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border border-[#e3e0d9] bg-white px-4 py-2 text-[13.5px] text-[#1f2d42] shadow-[0_6px_24px_rgb(11_21_48/0.12)]">
+        <div data-testid="nav-slow" className="nav-notice pointer-events-auto flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[8px] border border-[#e3e0d9] bg-white px-4 py-2 text-body text-[#1f2d42] shadow-[0_6px_24px_rgb(11_21_48/0.12)]">
           {phase === "slow" ? (
             <span>Still loading. This page is taking longer than usual.</span>
           ) : (

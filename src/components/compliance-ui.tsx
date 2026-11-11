@@ -81,7 +81,7 @@ export function PcFoot({ shown, total, page = 1, pages = 1, href, children }: { 
       {href && pages > 1 ? (
         <span className="flex items-center gap-2">
           {page > 1 ? <Link href={href(page - 1)} className="pc-btn-secondary pc-btn-sm"><CaretLeft size={13} aria-hidden="true" />Previous</Link> : <span className="pc-btn-secondary pc-btn-sm opacity-50" aria-disabled="true"><CaretLeft size={13} aria-hidden="true" />Previous</span>}
-          <span className="text-[13px]">Page {page} of {pages}</span>
+          <span className="text-meta">Page {page} of {pages}</span>
           {page < pages ? <Link href={href(page + 1)} className="pc-btn-secondary pc-btn-sm">Next<CaretRight size={13} aria-hidden="true" /></Link> : <span className="pc-btn-secondary pc-btn-sm opacity-50" aria-disabled="true">Next<CaretRight size={13} aria-hidden="true" /></span>}
         </span>
       ) : null}

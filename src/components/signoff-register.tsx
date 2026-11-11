@@ -54,13 +54,13 @@ export function SignoffRegister({ rows, canManage, back }: { rows: RegisterRow[]
           <button type="submit" name="op" value="remind" formNoValidate className="pc-btn-secondary pc-btn-sm">Send reminder</button>
           <button type="button" className="pc-btn-secondary pc-btn-sm" aria-expanded={op === "extend"} onClick={() => setOp(op === "extend" ? null : "extend")}>Extend due date</button>
           <button type="button" className="pc-btn-secondary pc-btn-sm" aria-expanded={op === "exempt"} onClick={() => setOp(op === "exempt" ? null : "exempt")}>Exempt</button>
-          <button type="button" className="ml-auto text-[13px] font-semibold text-module" onClick={() => { setPicked(new Set()); setOp(null); }}>Clear selection</button>
+          <button type="button" className="ml-auto text-meta font-semibold text-module" onClick={() => { setPicked(new Set()); setOp(null); }}>Clear selection</button>
           {op ? (
             <div className="flex w-full flex-wrap items-end gap-2 border-t border-[#e4dcf8] pt-2">
               {op === "extend" ? (
-                <label className="text-[13px] font-medium text-[#344054]">New due date<input type="date" name="dueAt" required min={today} className="input mt-1 h-[34px] py-0" /></label>
+                <label className="text-meta font-medium text-[#344054]">New due date<input type="date" name="dueAt" required min={today} className="input mt-1 h-[34px] py-0" /></label>
               ) : null}
-              <label className="min-w-[240px] flex-1 text-[13px] font-medium text-[#344054]">Reason (kept on each record)<input name="reason" required minLength={5} maxLength={500} placeholder={op === "extend" ? "For example: on annual leave until 20 Nov" : "For example: on long-term leave, not working"} className="input mt-1 h-[34px] py-0" /></label>
+              <label className="min-w-[240px] flex-1 text-meta font-medium text-[#344054]">Reason (kept on each record)<input name="reason" required minLength={5} maxLength={500} placeholder={op === "extend" ? "For example: on annual leave until 20 Nov" : "For example: on long-term leave, not working"} className="input mt-1 h-[34px] py-0" /></label>
               <button type="submit" name="op" value={op} className="pc-btn pc-btn-sm">{op === "extend" ? `Set new date for ${picked.size}` : `Exempt ${picked.size}`}</button>
             </div>
           ) : null}

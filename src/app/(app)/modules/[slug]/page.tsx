@@ -25,24 +25,24 @@ export default async function ModulePage({ params, searchParams }: { params: Pro
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
             <div>
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-900 text-white"><ModuleIcon slug={m.slug} size={30} /></span>
-              <p className="mt-4 max-w-2xl text-[16px] leading-7 text-slate-800">{m.summary}</p>
+              <p className="mt-4 max-w-2xl text-lead leading-7 text-slate-800">{m.summary}</p>
               <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-                {m.features.map((f) => <li key={f} className="flex gap-2 text-[14.5px] text-slate-700"><Check size={18} weight="bold" className="mt-0.5 shrink-0 text-teal-600" aria-hidden="true" />{f}</li>)}
+                {m.features.map((f) => <li key={f} className="flex gap-2 text-body text-slate-700"><Check size={18} weight="bold" className="mt-0.5 shrink-0 text-teal-600" aria-hidden="true" />{f}</li>)}
               </ul>
             </div>
             {m.opens ? (
               <div className="self-start rounded-[4px] border-[1.5px] border-teal-400 bg-teal-100 p-5">
-                <p className="text-[16px] font-medium text-navy-900">Included in your plan</p>
-                {ctx.organisationId ? <p className="mt-1 text-[13.5px] text-slate-700">Open it from here:</p> : <p className="mt-1 text-[13.5px] text-slate-700">These screens open inside a provider organisation; CSB staff accounts have none.</p>}
+                <p className="text-lead font-medium text-navy-900">Included in your plan</p>
+                {ctx.organisationId ? <p className="mt-1 text-body text-slate-700">Open it from here:</p> : <p className="mt-1 text-body text-slate-700">These screens open inside a provider organisation; CSB staff accounts have none.</p>}
                 <ul className="mt-3 space-y-2">
-                  {(ctx.organisationId ? m.opens : []).map((o) => <li key={o.href}><Link href={o.href} className="flex items-center justify-between rounded-[4px] bg-white px-3 py-2 text-[14.5px] text-navy-900 no-underline shadow-[0_1px_2px_rgb(0_0_0/0.06)] hover:bg-teal-50">{o.label}<ArrowRight size={16} aria-hidden="true" /></Link></li>)}
+                  {(ctx.organisationId ? m.opens : []).map((o) => <li key={o.href}><Link href={o.href} className="flex items-center justify-between rounded-[4px] bg-white px-3 py-2 text-body text-navy-900 no-underline shadow-[0_1px_2px_rgb(0_0_0/0.06)] hover:bg-teal-50">{o.label}<ArrowRight size={16} aria-hidden="true" /></Link></li>)}
                 </ul>
               </div>
             ) : (
               <div className="self-start rounded-[4px] border border-slate-300 bg-[#f5f9fc] p-5 text-center" data-testid="module-locked">
                 <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fdf0d8] text-[#8a5a00]"><LockSimple size={28} weight="fill" aria-hidden="true" /></span>
-                <p className="mt-3 text-[16px] font-medium text-slate-900">This module is locked</p>
-                <p className="mt-1 text-[13.5px] text-slate-600">It is not part of your current plan. Ask us and we will show you a demo and the cost.</p>
+                <p className="mt-3 text-lead font-medium text-slate-900">This module is locked</p>
+                <p className="mt-1 text-body text-slate-600">It is not part of your current plan. Ask us and we will show you a demo and the cost.</p>
                 <form action={requestModuleAction} className="mt-4">
                   <input type="hidden" name="module" value={m.slug} />
                   <input type="hidden" name="back" value={`/modules/${m.slug}`} />
