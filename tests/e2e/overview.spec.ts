@@ -76,6 +76,74 @@ test.describe("Overview", () => {
     }
   });
 
+  // Owner's layout fix of 11 Nov 2026 (reference: the Overview mock-up of 10 Nov): on wide screens the content is capped
+  // at 1320px and centred beside the side panel, with the specified sizes.
+  for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
+    test(`at ${width} by ${height} nothing is wider than 1320px, the page does not scroll sideways and the sizes are as specified`, async ({ page }, testInfo) => {
+      await signIn(page, "manager@care-solution.demo");
+      await page.setViewportSize({ width, height });
+      await page.goto("/overview");
+      await expect(page.getByTestId("module-tiles")).toBeVisible();
+
+      const layout = await page.evaluate(() => {
+        const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+        const content = document.querySelector('[data-testid="overview-content"]')!;
+        const widest = Math.max(...[content, ...content.querySelectorAll("*")].map((el) => el.getBoundingClientRect().width));
+        const px = (sel: string, prop: "fontSize" | "fontWeight" | "padding" | "borderRadius" | "columnGap") => getComputedStyle(document.querySelector(sel)!)[prop];
+        const rounds = [...document.querySelectorAll('[data-testid^="round-"]')].map((el) => el.getBoundingClientRect());
+        return {
+          sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          widest,
+          content: box('[data-testid="overview-content"]'),
+          main: box("main"),
+          rota: box('[data-testid="tile-rota"]'),
+          attention: box('[data-testid="needs-attention"]'),
+          roundsList: box('ul[aria-label="Today\'s call rounds"]'),
+          rounds: rounds.map((r) => ({ left: r.left, width: r.width, bottom: r.bottom })),
+          cover: box('[data-testid="rota-cover"]'),
+          tileHeights: [...document.querySelectorAll('[data-testid="module-tiles"] .ovx-tile')].map((el) => el.getBoundingClientRect().height),
+          greeting: [px('[data-testid="overview-greeting"]', "fontSize"), px('[data-testid="overview-greeting"]', "fontWeight")],
+          headline: [px('[data-testid="rota-headline"] > span:first-child', "fontSize"), px('[data-testid="rota-headline"] > span:first-child', "fontWeight"), px('[data-testid="rota-headline"] > span:nth-child(2)', "fontSize")],
+          figure: [px('[data-testid="tile-hr"] .tabular-nums', "fontSize"), px('[data-testid="tile-hr"] .tabular-nums', "fontWeight")],
+          title: [px('[data-testid="tile-hr"] .ovx-title', "fontSize"), px('[data-testid="tile-hr"] .ovx-title', "fontWeight")],
+          rotaPadding: px('[data-testid="tile-rota"]', "padding"),
+          tilePadding: px('[data-testid="tile-hr"]', "padding"),
+          radius: [px('[data-testid="tile-rota"]', "borderRadius"), px('[data-testid="tile-hr"]', "borderRadius")],
+          gaps: [px('[data-testid="module-tiles"]', "columnGap"), px('[data-testid="tile-rota"]', "columnGap")],
+        };
+      });
+      await testInfo.attach(`overview-${width}x${height}`, { body: await page.screenshot(), contentType: "image/png" });
+
+      expect(layout.sideways, "no sideways scroll").toBeLessThanOrEqual(0);
+      expect(layout.widest, "nothing wider than 1320px").toBeLessThanOrEqual(1320);
+      // Centred in the space to the right of the side panel.
+      expect(Math.abs(layout.content.left - layout.main.left - (layout.main.right - layout.content.right))).toBeLessThanOrEqual(2);
+      if (width === 1920) expect(layout.content.width).toBe(1320);
+
+      expect(layout.greeting).toEqual(["26px", "600"]);
+      expect(layout.headline).toEqual(["68px", "700", "19px"]);
+      expect(layout.figure).toEqual(["46px", "700"]);
+      expect(layout.title).toEqual(["15px", "600"]);
+      expect(layout.rotaPadding).toBe("22px");
+      expect(layout.tilePadding).toBe("18px 20px");
+      expect(layout.radius).toEqual(["18px", "18px"]);
+      expect(layout.gaps).toEqual(["16px", "20px"]);
+      for (const h of layout.tileHeights) expect(h).toBe(224);
+
+      // Call rounds: fixed width between 150 and 220px, packed from the left.
+      expect(layout.rounds.length).toBeGreaterThan(0);
+      expect(Math.abs(layout.rounds[0]!.left - layout.roundsList.left)).toBeLessThanOrEqual(1);
+      for (const r of layout.rounds) {
+        expect(r.width).toBeGreaterThanOrEqual(150);
+        expect(r.width).toBeLessThanOrEqual(220);
+      }
+      // The cover bar follows the rounds with a 20px gap, and the Rota tile matches Needs your attention in height.
+      expect(Math.abs(layout.cover.top - layout.roundsList.bottom - 20)).toBeLessThanOrEqual(1);
+      expect(Math.abs(layout.rota.height - layout.attention.height)).toBeLessThanOrEqual(1);
+      expect(Math.abs(layout.rota.top - layout.attention.top)).toBeLessThanOrEqual(2);
+    });
+  }
+
   test("every module's page banner uses its Overview tile colour", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     const banners: [string, string][] = [
