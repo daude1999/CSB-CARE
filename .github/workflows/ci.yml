@@ -44,11 +44,11 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_ci?schema=public
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -96,11 +96,11 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/csb_test?schema=public
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
