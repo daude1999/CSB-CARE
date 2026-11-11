@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { coverAlert, greeting, overviewRounds, type RoundVisit } from "@/lib/overview-rounds";
+import { coverAlert, greeting, overviewRounds, policySummary, type RoundVisit } from "@/lib/overview-rounds";
+import { renderToStaticMarkup } from "react-dom/server";
+import { WeekBars } from "@/components/overview-week-bars";
 
 const v = (callType: string, start: number, status = "SCHEDULED", needsCarer = false): RoundVisit => ({ callType, start, end: start + 45, status, needsCarer });
 const H = 60;
@@ -44,5 +46,36 @@ describe("Overview greeting", () => {
     expect(greeting(12 * H)).toBe("Good afternoon");
     expect(greeting(17 * H + 59)).toBe("Good afternoon");
     expect(greeting(18 * H)).toBe("Good evening");
+  });
+});
+
+describe("Overview Policy tile detail line", () => {
+  const p = (count: number, text: string) => ({ count, text: `${count} ${text}` });
+
+  it("lists one or two items in full", () => {
+    expect(policySummary([p(2, "sign-offs")])).toBe("2 sign-offs");
+    expect(policySummary([p(2, "sign-offs"), p(1, "review overdue")])).toBe("2 sign-offs, 1 review overdue");
+  });
+
+  it("shows the two largest and how many more when there are three or more", () => {
+    expect(policySummary([p(2, "sign-offs"), p(1, "review overdue"), p(1, "action past due"), p(4, "changes to review")])).toBe(
+      "4 changes to review, 2 sign-offs +\u00a02\u00a0more",
+    );
+  });
+});
+
+describe("Overview Reporting tile chart", () => {
+  const week = (values: number[]) => values.map((value, i) => ({ date: `2026-11-0${i + 1}`, value }));
+
+  it('says "No visits yet" instead of flat bars when no visits were completed in the last seven days', () => {
+    const html = renderToStaticMarkup(WeekBars({ days: week([0, 0, 0, 0, 0, 0, 0]) }));
+    expect(html).toContain("No visits yet");
+    expect(html).not.toContain("reporting-bars");
+  });
+
+  it("draws seven bars when there are visits", () => {
+    const html = renderToStaticMarkup(WeekBars({ days: week([3, 0, 5, 2, 4, 1, 2]) }));
+    expect(html).toContain('data-testid="reporting-bars"');
+    expect(html.match(/ovx-bar/g)).toHaveLength(7);
   });
 });

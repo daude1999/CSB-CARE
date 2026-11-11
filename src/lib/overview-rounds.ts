@@ -72,3 +72,14 @@ export function coverAlert(rounds: CallRound[]): string | null {
 export function greeting(minute: number) {
   return minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening";
 }
+
+/**
+ * The Policy tile's detail line: every item when there are one or two, otherwise the two largest and "+ n more", so the
+ * line is never cut off part-way through a word.
+ */
+export function policySummary(parts: { count: number; text: string }[]): string {
+  if (parts.length <= 2) return parts.map((p) => p.text).join(", ");
+  const top = [...parts].sort((a, b) => b.count - a.count).slice(0, 2);
+  // Non-breaking spaces keep "+ n more" together when the line wraps.
+  return `${top.map((p) => p.text).join(", ")} +\u00a0${parts.length - 2}\u00a0more`;
+}

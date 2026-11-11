@@ -303,3 +303,21 @@ The owner found the merged Overview a little big. Everything is about 20% smalle
 - the loading skeleton matches the new sizes
 
 All text stays at least 12.5px. White text on the module colours keeps the contrast in the PR 5 table, which does not depend on size. Pictures are in `docs/design/colour-redesign/pr5-compact/`.
+
+### Wide-screen fix (11 Nov 2026)
+
+The owner found the Overview stretched on wide screens and the compact sizes too small. Content and colours are unchanged.
+
+- The content is capped at 1320px and centred in the space beside the side panel; narrower screens use the full width.
+- Sizes are back to the specification: module tiles 224px high with 18px × 20px padding, Rota tile padding 22px, 18px
+  corners, 16px gaps; greeting 26px/600, Rota figure 68px/700 with a 19px label, module figures 46px/700, tile titles
+  15px/600. Gaps use pixels, not rem, because the app's root font size is 18px.
+- Call rounds have a fixed width (150px, or 172px at 1600px and wider) and sit from the left, so one or two rounds
+  never stretch across the tile.
+- The Rota tile stacks from the top with a 20px gap; the "needs a carer" bar follows the rounds instead of sitting at
+  the bottom. The tile and Needs your attention stay the same height.
+- Policy tile: with three or more items the detail line shows the two largest and "+ n more" (full list as tooltip),
+  and wraps at word boundaries instead of being cut off.
+- Reporting tile: with no completed visits in the last seven days it says "No visits yet" instead of flat bars.
+- `tests/e2e/overview.spec.ts` checks 1440 × 900 and 1920 × 1080: nothing wider than 1320px, no sideways scroll,
+  centring and the sizes above. Pictures are in `docs/design/colour-redesign/pr5-wide/`.

@@ -59,7 +59,7 @@ export function ModuleGrid({ items, arranging, saveAction, columns }: { items: A
         </div>
       ) : null}
       <p aria-live="polite" className="sr-only">{announce}</p>
-      <div className={`grid grid-cols-1 gap-4 [&>*]:min-w-0 ${COLUMNS[columns] ?? COLUMNS[4]}`} data-testid="module-tiles">
+      <div className={`grid grid-cols-1 gap-[16px] [&>*]:min-w-0 ${COLUMNS[columns] ?? COLUMNS[4]}`} data-testid="module-tiles">
         {shown.map((item, i) =>
           arranging ? (
             <div
