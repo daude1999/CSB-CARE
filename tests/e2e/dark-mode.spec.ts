@@ -37,7 +37,7 @@ test.describe("Dark and light appearance", () => {
 
     // Back to normal.
     await page.getByTestId("colour-mode-menu").locator("summary").click();
-    await page.getByTestId("colour-mode-light").click();
+    await page.getByTestId("colour-mode-menu").getByTestId("colour-mode-light").click();
     expect(await mode(page)).toBe("light");
     expect(await background(page, "body")).toBe(lightPanel);
     await page.reload();
@@ -51,7 +51,7 @@ test.describe("Dark and light appearance", () => {
     await page.goto("/rota");
     expect(await mode(page)).toBe("light");
     await page.getByTestId("colour-mode-menu").locator("summary").click();
-    await page.getByTestId("colour-mode-system").click();
+    await page.getByTestId("colour-mode-menu").getByTestId("colour-mode-system").click();
     expect(await mode(page)).toBe("dark");
     await page.reload();
     expect(await mode(page)).toBe("dark");

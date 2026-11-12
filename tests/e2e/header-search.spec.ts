@@ -6,7 +6,7 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("DemoPassword!2026");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByTestId("current-user")).toBeVisible();
+  await expect(page.getByTestId("current-user")).toBeAttached(); // below 1024px the name sits in the folded menu
 }
 
 async function overflow(page: Page) {
@@ -22,13 +22,13 @@ test.describe("Top bar search", () => {
     const search = page.getByRole("searchbox", { name: "Search rostering" });
     await expect(search).toHaveAttribute("placeholder", "Search service users, staff, references...");
     await expect(header.locator("kbd")).toHaveCount(0);
-    await expect(header).not.toContainText(/sample workspace/i);
+    await expect(header).not.toContainText(/sample workspace/i, { useInnerText: true }); // the closed account menu may hold it
     await expect(header).not.toContainText(/ctrl\s*k|⌘/i);
 
     // Tall, wide and centred between the history arrows and the alerts, help and profile controls.
     const pill = (await header.locator(".shell-search").boundingBox())!;
     expect(pill.height).toBeGreaterThanOrEqual(44);
-    expect(pill.width).toBeGreaterThanOrEqual(700);
+    expect(pill.width).toBeGreaterThanOrEqual(320); // ClearCare: the top bar also holds the organisation, branch and person
     const arrows = (await page.getByRole("navigation", { name: "Page history" }).boundingBox())!;
     const bell = (await header.getByTestId("notifications-link").boundingBox())!;
     const gapLeft = pill.x - (arrows.x + arrows.width);
@@ -44,7 +44,7 @@ test.describe("Top bar search", () => {
     // Off the rota, the same box searches the policy library.
     await page.goto("/policies");
     await expect(page.getByRole("searchbox", { name: "Search policies" }).first()).toBeVisible();
-    await expect(page.locator("header.shell-topbar")).not.toContainText(/sample workspace/i);
+    await expect(page.locator("header.shell-topbar")).not.toContainText(/sample workspace/i, { useInnerText: true });
   });
 
   test("tablet and phone: no overflow, phone opens search from an icon", async ({ page }) => {

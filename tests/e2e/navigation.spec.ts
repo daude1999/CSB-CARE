@@ -46,7 +46,8 @@ test.describe("Portal switching", () => {
       await expect(portal(page, m.id)).toHaveClass(/shell-portal-current/);
       await expect(page).toHaveURL(new RegExp(`${m.home === "/" ? "/$" : m.home + "$"}`));
       await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(m.title);
-      await expect(portal(page, m.id)).toHaveCSS("background-color", m.colour);
+      // ClearCare: the current module is a white row whose icon tile carries the module colour.
+      await expect(portal(page, m.id).locator(".shell-portal-icon")).toHaveCSS("background-color", m.colour);
       await expect(page.getByTestId("portal-pages")).toHaveCount(1);
       // Once inside, the module's own name leads back to the Overview; its dashboard is the page marked current.
       await expect(portal(page, m.id)).toHaveAttribute("href", "/overview");

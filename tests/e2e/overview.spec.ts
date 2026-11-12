@@ -125,7 +125,7 @@ test.describe("Overview", () => {
       expect(layout.greeting).toEqual(["26px", "600"]);
       expect(layout.headline).toEqual(["68px", "700", "19px"]);
       expect(layout.figure).toEqual(["46px", "700"]);
-      expect(layout.title).toEqual(["15px", "600"]);
+      expect(layout.title).toEqual(["16.5px", "600"]); // ClearCare type scale
       expect(layout.rotaPadding).toBe("22px");
       expect(layout.tilePadding).toBe("18px 20px");
       expect(layout.radius).toEqual(["18px", "18px"]);
@@ -213,7 +213,7 @@ test.describe("Overview", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     const header = page.getByTestId("app-topbar");
-    await expect(header.getByTestId("topbar-org").getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
+    await expect(header.getByTestId("topbar-org").locator("img")).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);

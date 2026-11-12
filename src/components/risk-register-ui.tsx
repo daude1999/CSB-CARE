@@ -17,12 +17,12 @@ export function RatingChip({ score }: { score: number }) {
  */
 export function RiskMatrix({ cells }: { cells: Map<string, number> }) {
   return (
-    <figure>
+    <figure className="max-w-full overflow-x-auto">
       <table className="w-full border-separate border-spacing-[3px] text-center text-caption" aria-label="Open risks by residual likelihood and impact">
         <tbody>
           {[5, 4, 3, 2, 1].map((l) => (
             <tr key={l}>
-              <th scope="row" className="w-[86px] pr-1 text-right font-normal text-slate-600">{LIKELIHOOD[l - 1]} ({l})</th>
+              <th scope="row" className="w-[76px] pr-1 text-right font-normal text-slate-600">{LIKELIHOOD[l - 1]} ({l})</th>
               {[1, 2, 3, 4, 5].map((i) => {
                 const n = cells.get(`${l}:${i}`) ?? 0;
                 const band = riskBand(l * i);
@@ -32,7 +32,7 @@ export function RiskMatrix({ cells }: { cells: Map<string, number> }) {
           ))}
           <tr>
             <td />
-            {[1, 2, 3, 4, 5].map((i) => <th key={i} scope="col" className="pt-1 align-top text-micro font-normal leading-tight text-slate-600">{IMPACT[i - 1]} ({i})</th>)}
+            {[1, 2, 3, 4, 5].map((i) => <th key={i} scope="col" className="hyphens-auto break-words pt-1 align-top text-micro font-normal leading-tight text-slate-600" lang="en-GB">{IMPACT[i - 1]} ({i})</th>)}
           </tr>
         </tbody>
       </table>
