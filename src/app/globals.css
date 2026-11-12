@@ -644,7 +644,7 @@
    * Sub-modules (ClearCare, 12 Nov 2026): a row of 40px buttons with 9px corners directly under the band. Inactive
    * ones are white with a hairline border; the active one is filled in the module colour. Same links, same keys.
    */
-  .tabs-line { @apply relative flex flex-wrap gap-2 py-0.5; }
+  .tabs-line { @apply relative flex gap-2 overflow-x-auto px-0.5 py-0.5; scrollbar-width: thin; /* one row that scrolls sideways, as before; room for a tab of fractional width at the end */ padding-inline-end: 4px; }
   .tab-line { @apply relative inline-flex h-tab shrink-0 items-center gap-2 whitespace-nowrap rounded-[9px] border border-cc-line bg-white px-3.5 text-tab font-semibold text-ink no-underline hover:border-cc-control hover:text-ink; }
   .tab-line:is([aria-current="page"], [data-state="active"]) { border-color: var(--module); background-color: var(--module); color: #fff; }
   .tab-line:is([aria-current="page"], [data-state="active"]):hover { color: #fff; }

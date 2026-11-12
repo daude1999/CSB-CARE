@@ -93,7 +93,7 @@ test.describe.serial("Call Notes", () => {
     await search.getByLabel("Type").selectOption("EMAIL");
     await search.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByText("No Call Notes match these filters.")).toBeVisible();
-    await page.getByRole("link", { name: "Clear" }).click();
+    await page.getByRole("link", { name: "Clear", exact: true }).click();
     await expect(page.getByTestId("call-note")).toHaveCount(1);
   });
 

@@ -48,7 +48,8 @@ test("every module renders its text in Figtree Variable", async ({ page }) => {
         if (!ownText && !el.matches("input, select, textarea, button")) continue;
         if (!el.getClientRects().length || el.closest("canvas, svg, .textLayer")) continue;
         const first = getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
-        const allowed = el.closest(".cs") ? ["Figtree Variable", "Inter Variable"] : ["Figtree Variable"];
+        // ClearCare (12 Nov 2026): references in code tags use the approved IBM Plex Mono; the HR Hub keeps Inter until Phase 6.
+        const allowed = el.closest(".cs") ? ["Figtree Variable", "Inter Variable"] : el.matches("code, kbd, samp, pre") ? ["IBM Plex Mono"] : ["Figtree Variable"];
         if (!allowed.includes(first)) found.add(`${el.tagName.toLowerCase()}: ${first}`);
       }
       return [...found];
