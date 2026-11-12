@@ -224,7 +224,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           <AutoRefresh seconds={60} />
           <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
             <div className="min-w-0 flex-1">
-              <h2 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
+              <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h1>
               <p className="mt-0.5 text-[15px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
             </div>
             {!arranging && ctx.organisationId && ordered.length > 1 ? (

@@ -44,15 +44,22 @@ export default {
           late: "#d97706",
           missed: "#dc2626",
           unassigned: "#0369d5",
-          ink: "#475467",
+          ink: "#4a5a63",
         },
         // Rota Dashboard call tiles (PR 2). Each is the tile's own status colour, chosen so the figure and percentage
         // pass WCAG AA (4.5 : 1) on the tile's 7% tint and white passes on the solid icon chip.
         tile: { completed: "#15803d", late: "#b45309", missed: "#c42b2f", unassigned: "#0a72b5" },
         // The page frame: one light grey page behind white cards, with one hairline rule colour.
-        page: "#f6f7fa",
-        rule: "#e4e7ec",
-        ink: "#101828",
+        page: "#f4f6f7",
+        rule: "#dfe5e8",
+        ink: "#16242b",
+        // ClearCare "Recommended mix" (owner's decision, 12 Nov 2026). Shell, surfaces, borders and status tints.
+        cc: {
+          surface: "#ffffff", muted: "#4a5a63", line: "#dfe5e8", "line-soft": "#e9eef0", control: "#c9d3d8",
+          sidebar: "#e9f3f1", "sidebar-line": "#cfe3df", primary: "#0f766e", "primary-strong": "#0b5f58", brand: "#0b5f58",
+          "red-bg": "#fde8e4", red: "#8c2410", "amber-bg": "#fff3d6", amber: "#7a4b00",
+          "green-bg": "#e6f4f1", green: "#0b5f58", "neutral-bg": "#eef1f3", neutral: "#33424a",
+        },
         // The AI CSB Coordinator launcher in the top bar.
         coordinator: { DEFAULT: "#0a4f57", strong: "#073f46" },
       },
@@ -65,7 +72,7 @@ export default {
         "header-x": "20px",
         "header-gap": "14px",
         chip: "44px",
-        tab: "38px",
+        tab: "40px",
         topbar: "34px",
         "page-top": "16px",
         "page-x": "24px",
@@ -76,21 +83,22 @@ export default {
         // One text-size scale for the whole platform (the HR Hub keeps its own). Sizes only: line height stays with
         // each element, so changing a size never changes spacing. The Overview's 52px figure and the CQC rating's 34px
         // stay as written.
-        micro: "11px",
-        caption: "12px",
-        meta: "13px",
-        body: "14px",
-        lead: "16px",
+        // ClearCare (12 Nov 2026): 15px body, nothing below 12.5px.
+        micro: "12.5px",
+        caption: "13px",
+        meta: "14px",
+        body: "15px",
+        lead: "16.5px",
         subtitle: "18px",
         title: "20px",
         heading: "22px",
         display: "24px",
         figure: "28px",
         "figure-lg": "36px",
-        crumb: ["12px", { lineHeight: "16px", fontWeight: "500" }],
-        "header-title": ["22px", { lineHeight: "28px", fontWeight: "600" }],
-        "header-desc": ["14px", { lineHeight: "19px" }],
-        tab: ["14px", { lineHeight: "20px" }],
+        crumb: ["12.5px", { lineHeight: "16px", fontWeight: "500" }],
+        "header-title": ["28px", { lineHeight: "34px", fontWeight: "700" }],
+        "header-desc": ["15px", { lineHeight: "21px" }],
+        tab: ["14.5px", { lineHeight: "20px" }],
       },
       maxWidth: { "header-desc": "78ch" },
       fontFamily: {
@@ -101,7 +109,7 @@ export default {
         label: ["var(--font-label)"],
         mono: ["var(--font-mono)"],
       },
-      borderRadius: { sm: "var(--radius-sm)", DEFAULT: "var(--radius-md)", md: "var(--radius-md)", lg: "var(--radius-lg)", xl: "var(--radius-lg)", "2xl": "var(--radius-lg)", header: "12px", chip: "11px" },
+      borderRadius: { sm: "var(--radius-sm)", DEFAULT: "var(--radius-md)", md: "var(--radius-md)", lg: "var(--radius-lg)", xl: "var(--radius-lg)", "2xl": "var(--radius-lg)", header: "14px", chip: "11px", panel: "14px", control: "10px" },
     },
   },
   plugins: [],

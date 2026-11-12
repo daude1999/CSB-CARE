@@ -1,8 +1,8 @@
 "use client";
-import type { ReactNode } from "react";
+import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Link from "@/components/link";
-import { CaretRight, CalendarDots, ChartBar, GearSix, House, ShieldCheck, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, CaretRight, CalendarDots, ChartBar, GearSix, House, ShieldCheck, UsersThree } from "@phosphor-icons/react/dist/ssr";
 import { portalById, portalForPath, type PortalId } from "@/lib/portals";
 
 export type Crumb = { label: string; href?: string };
@@ -67,7 +67,7 @@ export function ModuleHeader({ title, page, crumbs = [], description, actions, c
           <h1 className="mh-title" id={titleId}>{title}</h1>
           {description ? <p className="mh-desc">{description}</p> : null}
         </div>
-        {actions ? <div className="mh-actions">{actions}</div> : null}
+        {actions ? <div className="mh-actions"><BandActions>{actions}</BandActions></div> : null}
         {children ? <div className="mh-row">{children}</div> : null}
       </div>
       {tabs ? <div className="mt-2">{tabs}</div> : null}
@@ -81,5 +81,43 @@ function Crumbed({ children }: { children: ReactNode }) {
       {children}
       <CaretRight size={10} weight="bold" aria-hidden="true" />
     </li>
+  );
+}
+
+/** The page's own buttons, flattened out of fragments so they can be counted. */
+function flatten(node: ReactNode): ReactNode[] {
+  return Children.toArray(node).flatMap((child) => (isValidElement(child) && child.type === Fragment ? flatten((child as ReactElement<{ children?: ReactNode }>).props.children) : [child]));
+}
+
+function isMain(node: ReactNode): boolean {
+  if (!isValidElement(node)) return false;
+  const cls = (node.props as { className?: unknown }).className;
+  return typeof cls === "string" && /\b(btn-primary|btn-teal|pc-btn|pl-btn-primary|module-primary|mh-btn-primary)\b/.test(cls);
+}
+
+/**
+ * ClearCare header band (owner's design, 12 Nov 2026): up to four of the page's buttons sit in the band; when a page
+ * has more, the main ones stay and the rest move into a "More" menu. They are the same buttons, not copies, so each
+ * keeps its link, form and permission check.
+ */
+function BandActions({ children }: { children: ReactNode }) {
+  const items = flatten(children);
+  if (items.length <= 4) return <>{children}</>;
+  const keep = new Set<number>();
+  items.forEach((n, i) => { if (isMain(n)) keep.add(i); });
+  for (let i = 0; i < items.length && keep.size < 3; i++) keep.add(i);
+  const shown = items.filter((_, i) => keep.has(i));
+  const more = items.filter((_, i) => !keep.has(i));
+  return (
+    <>
+      {items.map((n, i) => (keep.has(i) && !isMain(n) ? <Fragment key={i}>{n}</Fragment> : null))}
+      <details className="mh-more relative" data-testid="band-more">
+        <summary className="mh-btn list-none [&::-webkit-details-marker]:hidden">More <CaretDown size={13} weight="bold" aria-hidden="true" /></summary>
+        <div className="mh-more-menu menu-pop absolute right-0 top-[calc(100%+6px)] z-40 flex min-w-[220px] flex-col gap-1 rounded-[12px] border border-cc-line bg-white p-2 shadow-lg">
+          {more.map((n, i) => <Fragment key={i}>{n}</Fragment>)}
+        </div>
+      </details>
+      {shown.map((n, i) => (isMain(n) ? <Fragment key={`m${i}`}>{n}</Fragment> : null))}
+    </>
   );
 }

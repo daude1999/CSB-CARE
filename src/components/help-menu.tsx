@@ -14,7 +14,7 @@ export function HelpMenu({ assistant, dark = false }: { assistant: boolean; dark
   const row = "flex items-start gap-3 px-3 py-2.5 text-body text-[#0b1530] no-underline hover:bg-slate-100 hover:text-[#0b1530]";
   return (
     <details ref={ref} className="relative" data-testid="help-menu">
-      <summary aria-label="Help and resources" title="Help and resources" className={`flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
+      <summary aria-label="Help and resources" title="Help and resources" className={`flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-[10px] [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
         <Question size={23} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[290px] overflow-hidden rounded-[8px] border border-slate-200 bg-white py-1 shadow-lg">

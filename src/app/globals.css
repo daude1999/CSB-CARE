@@ -32,9 +32,9 @@
  * rules and the few class names both use stop at its edge. `:where()` adds no specificity, so nothing else changes.
  */
 @layer base {
-  body { @apply bg-paper font-sans text-slate-800 antialiased; font-feature-settings: "ss02"; }
-  h1:where(:not(.cs *)) { @apply font-serif leading-tight text-navy-900; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
-  h2:where(:not(.cs *)) { @apply font-serif leading-snug text-slate-800; font-weight: 400; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
+  body { @apply bg-paper font-sans text-body text-ink antialiased; }
+  h1:where(:not(.cs *)) { @apply font-sans leading-tight text-ink; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--h1-size, 1.75rem); }
+  h2:where(:not(.cs *)) { @apply font-sans leading-snug text-ink; font-weight: 600; letter-spacing: 0; font-size: var(--h2-size, 1.125rem); }
   h3:where(:not(.cs *)) { @apply text-base font-semibold text-navy-900; }
   a:where(:not(.cs *)) { @apply text-teal-700 underline-offset-2 transition-colors hover:text-teal-600; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -44,33 +44,39 @@
 @layer components {
   /* The compliance-centre look shared by every page: white panels on a soft grey canvas under a navy title bar. */
   .page-canvas { @apply min-h-full; }
-  .panel:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
-  .card:where(:not(.cs *)) { @apply min-w-0 rounded-[3px] bg-white px-[15px] pb-4 pt-3; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-[6px] px-3.5 py-[7px] text-body font-normal no-underline disabled:opacity-50; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
+  /* ClearCare panels: white, a 1px border, 14px corners. */
+  .panel:where(:not(.cs *)) { @apply min-w-0 rounded-panel border border-cc-line bg-white px-[18px] pb-4 pt-3.5; }
+  .card:where(:not(.cs *)) { @apply min-w-0 rounded-panel border border-cc-line bg-white px-[18px] pb-4 pt-3.5; }
+  /* ClearCare buttons: 44px high, 10px corners, semibold. */
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-4 py-[9px] text-body font-semibold no-underline disabled:opacity-50; transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); }
   .btn:active:not(:disabled) { transform: translateY(1px); }
   /* The main action takes the module colour (owner's colour rule); outside a module --module is the platform navy. */
-  .btn-primary { @apply btn border-[1.5px] border-module bg-module text-white hover:border-module-strong hover:bg-module-strong hover:text-white; }
-  .btn-teal { @apply btn border-[1.5px] border-teal-600 bg-teal-600 text-white hover:bg-teal-700 hover:text-white; }
-  .btn-secondary { @apply btn border-[1.5px] border-slate-500 bg-white text-slate-800 hover:border-navy-900 hover:text-navy-900; }
-  .btn-danger { @apply btn border-[1.5px] border-rose-700 bg-rose-700 text-white hover:bg-rose-800 hover:text-white; }
-  .input { @apply w-full rounded-[4px] border border-slate-300 bg-white px-3 py-2 text-lead text-slate-800 focus:border-navy-700 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-  .label:where(:not(.cs *)) { @apply mb-1 block text-meta font-medium text-slate-700; }
+  /* The main action is ClearCare teal (owner's design of 12 Nov 2026); inside a header band it turns white. */
+  .btn-primary { @apply btn border border-cc-primary bg-cc-primary text-white hover:border-cc-primary-strong hover:bg-cc-primary-strong hover:text-white; }
+  .btn-teal { @apply btn border border-cc-primary bg-cc-primary text-white hover:bg-cc-primary-strong hover:text-white; }
+  .btn-secondary { @apply btn border border-cc-control bg-white text-ink hover:border-cc-muted hover:bg-page hover:text-ink; }
+  .btn-danger { @apply btn border border-[#b42318] bg-[#b42318] text-white hover:bg-[#8c2410] hover:text-white; }
+  /* Inputs and filters: 44px, 10px corners, control border, teal focus. */
+  .input { @apply min-h-[44px] w-full rounded-control border border-cc-control bg-white px-3 py-2 text-body text-ink focus:border-cc-primary focus:outline-none focus:ring-2 focus:ring-teal-100; }
+  textarea.input { min-height: 88px; }
+  .label:where(:not(.cs *)) { @apply mb-1 block text-meta font-semibold text-slate-700; }
   .eyebrow { @apply text-meta font-normal text-slate-600; }
   .figure { @apply font-sans tabular-nums; font-weight: 400; }
   /* Registers read like the dashboard's policy table: plain headings, soft blue rows. */
-  .table { @apply w-full min-w-[720px] text-left text-body; border-collapse: separate; border-spacing: 0 3px; }
-  .table th { @apply h-[38px] px-3 py-1 text-left align-bottom text-meta font-normal text-slate-700; }
-  .table td { @apply bg-[#f5f9fc] px-3 py-2.5 align-middle text-slate-800; }
-  .table td:first-child { @apply rounded-l-[2px]; }
-  .table td:last-child { @apply rounded-r-[2px]; }
+  /* ClearCare tables: a header row tinted in the module colour with bold text, 44px rows, hairline row rules. */
+  .table { @apply w-full min-w-[720px] text-left text-body; border-collapse: separate; border-spacing: 0; }
+  .table th { @apply h-[44px] px-3 py-1 text-left align-middle text-meta font-bold text-ink; background: color-mix(in srgb, var(--module, #0f766e) 8%, #fff); white-space: nowrap; }
+  .table th:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+  .table th:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+  .table td { @apply h-[48px] border-b border-cc-line-soft px-3 py-2 align-middle text-ink; }
   .table td { transition: background-color var(--motion-fast) var(--ease-standard); }
-  .table tbody tr:hover td { @apply bg-[#eaf2fa]; }
-  .table td a { @apply font-medium text-[#1d4f91] no-underline hover:underline; }
+  .table tbody tr:hover td { background: color-mix(in srgb, var(--module, #0f766e) 4%, #fff); }
+  .table td a { @apply font-semibold text-cc-brand no-underline hover:underline; }
   .table td[class~="font-mono"] { white-space: nowrap; }
   /* A list of records: one soft blue row each, same as the dashboard table. */
-  .rows:where(:not(.cs *)) > li { @apply rounded-[2px] bg-[#f5f9fc] px-4; }
+  .rows:where(:not(.cs *)) > li { @apply rounded-[8px] border border-cc-line-soft bg-white px-4; }
   .rows:where(:not(.cs *)) > li + li { @apply mt-[3px]; }
-  .row-title { @apply font-medium text-[#1d4f91] no-underline hover:text-[#1d4f91] hover:underline; }
+  .row-title { @apply font-semibold text-cc-brand no-underline hover:text-cc-brand hover:underline; }
   .muted:where(:not(.cs *)) { @apply text-sm text-slate-500; }
   .prose-policy { @apply whitespace-pre-wrap text-lead leading-7 text-slate-800; font-family: var(--font-prose); }
 
@@ -79,18 +85,20 @@
    * flat deep-navy sidebar, warm off-white top bar. Colours are fixed here rather than themed so the shell
    * matches the reference in every theme; page content keeps using the theme tokens.
    */
-  .shell-sidebar { background: #0b2340; color: #fff; font-family: "Inter Variable", var(--font-sans); }
+  /* ClearCare sidebar (owner's design, 12 Nov 2026): mint, ink text, a 28px coloured tile per module. */
+  .shell-sidebar { background: #e9f3f1; color: #16242b; border-right: 1px solid #cfe3df; font-family: var(--font-sans); }
   .shell-sidebar a { text-decoration: none; }
-  /* On the navy sidebar the focus ring is white, inset, so it never clips against the scroll edge. */
-  .shell-sidebar :focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
-  .shell-portal { @apply flex min-h-[40px] py-[6px] items-center gap-[12px] rounded-[7px] px-[11px] text-meta tracking-[-0.005em] leading-none text-white hover:bg-white/[0.06] hover:text-white; transition: background-color var(--motion-slow) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
-  .shell-portal-current { background: #17527b; }
-  .shell-portal-current:hover { filter: brightness(1.08); }
+  .shell-sidebar :focus-visible { outline: 2px solid #0f766e; outline-offset: -2px; }
+  .shell-portal { @apply flex min-h-[44px] items-center gap-[11px] rounded-[10px] px-[8px] py-[6px] text-body font-semibold leading-none text-ink hover:bg-white/70 hover:text-ink; transition: background-color var(--motion-slow) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
+  .shell-portal-icon { display: flex; height: 28px; width: 28px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 8px; background: var(--portal, #0f766e); color: #fff; }
+  .shell-portal-icon svg { width: 17px; height: 17px; }
+  .shell-portal-current { background: #fff; box-shadow: 0 0 0 1px #cfe3df; }
+  .shell-portal-current:hover { background: #fff; }
   .shell-portal-marker { transition: opacity var(--motion-slow) var(--ease-standard); }
-  .shell-page { @apply flex h-[29px] items-center gap-[8px] rounded-[6px] px-[7px] text-caption leading-none text-[#d6e0ea] hover:bg-white/[0.06] hover:text-white; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
-  .shell-page-active { background: #0d385e; color: #fff; }
+  .shell-page { @apply flex min-h-[34px] items-center gap-[8px] rounded-[8px] px-[8px] text-meta leading-none text-cc-neutral hover:bg-white/70 hover:text-ink; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
+  .shell-page-active { background: #fff; color: #16242b; font-weight: 700; box-shadow: 0 1px 2px rgb(22 36 43 / 0.06); }
   /* One marker on the guide line glides to the active page (transform only, so nothing reflows). */
-  .shell-marker { position: absolute; left: -1.5px; top: 0; margin: 0 !important; width: 2px; height: 0; border-radius: 2px; opacity: 0; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard), height var(--motion-base) var(--ease-standard), opacity var(--motion-fast) linear; }
+  .shell-marker { position: absolute; left: -2px; top: 0; margin: 0 !important; width: 2px; height: 0; border-radius: 2px; opacity: 0; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard), height var(--motion-base) var(--ease-standard), opacity var(--motion-fast) linear; }
   /* A module's pages open and fold with the grid-rows technique: no measuring, and only during the change. */
   .shell-section { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); }
   .shell-section > div { min-height: 0; }
@@ -104,13 +112,15 @@
   .shell-drawer::backdrop { background: rgb(0 0 0 / 0); transition: background-color var(--motion-base) linear, overlay var(--motion-base) allow-discrete, display var(--motion-base) allow-discrete; }
   .shell-drawer[open]::backdrop { background: rgb(0 0 0 / 0.4); }
   @starting-style { .shell-drawer[open]::backdrop { background: rgb(0 0 0 / 0); } }
-  .shell-scroll { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.2) transparent; }
-  .shell-main { background: #f8f7f4; }
-  .shell-topbar { background: #f6f5f3; font-family: "Inter Variable", var(--font-sans); }
+  .shell-scroll { scrollbar-width: thin; scrollbar-color: rgb(22 36 43 / 0.2) transparent; }
+  .shell-main { background: #f4f6f7; }
+  /* ClearCare top bar: white with a hairline rule. */
+  .shell-topbar { background: #fff; border-bottom: 1px solid #dfe5e8; font-family: var(--font-sans); }
   /* The top bar's search: a wide white pill with a hairline lavender border, a soft shadow and a purple focus ring. */
-  .shell-search { @apply flex h-[42px] cursor-text items-center gap-[12px] rounded-full border border-[#e4dcf6] bg-white pl-[16px] pr-[16px] md:h-[46px] lg:pl-[18px] lg:pr-[20px]; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 14px rgb(91 43 181 / 0.06); transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
-  .shell-search:hover { border-color: #d2c3f1; }
-  .shell-search:focus-within { border-color: #5b2bb5; box-shadow: 0 0 0 3px rgb(91 43 181 / 0.14), 0 4px 14px rgb(91 43 181 / 0.08); }
+  /* The top bar's search: a 44px field with 10px corners, a control border and a teal focus ring. */
+  .shell-search { @apply flex h-[44px] cursor-text items-center gap-[10px] rounded-control border border-cc-control bg-white px-[14px]; transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard); }
+  .shell-search:hover { border-color: #8a9aa2; }
+  .shell-search:focus-within { border-color: #0f766e; box-shadow: 0 0 0 3px rgb(15 118 110 / 0.16); }
 
   /* Navigation progress: a thin bar in the colour of the module being opened, under the top bar. */
   .nav-progress { position: absolute; inset: auto 0 0 0; height: 2px; overflow: hidden; pointer-events: none; }
@@ -154,11 +164,11 @@
    * so the other pages and themes are unchanged. Serif display face, Inter for the interface, warm neutrals.
    */
   /* Overview (owner's redesign of 10 Nov 2026): greeting, the Rota lead tile, Needs your attention, module tiles. */
-  .ov-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; background: #f3f5f9; min-height: 100%; }
+  .ov-root { font-family: var(--font-sans); color: #2f3d52; background: #f3f5f9; min-height: 100%; }
   .ov-root a { text-decoration: none; }
   .ov-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
   .ov-tile { @apply flex flex-col overflow-hidden rounded-[10px] border border-[#e6e9ef] bg-white; box-shadow: 0 1px 2px rgb(11 21 48 / 0.05), 0 6px 20px rgb(11 21 48 / 0.05); }
-  .ov-topbar { background: #0b2a4a; font-family: "Inter Variable", var(--font-sans); box-shadow: 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 8px rgb(11 21 48 / 0.18); }
+  .ov-topbar { background: #0b2a4a; font-family: var(--font-sans); box-shadow: 0 1px 0 rgb(255 255 255 / 0.06), 0 2px 8px rgb(11 21 48 / 0.18); }
   .ovx-attention { box-shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 24px rgb(16 24 40 / 0.05); }
   .ovx-act { @apply ml-auto inline-flex h-9 shrink-0 items-center rounded-[8px] bg-[#f2f4f7] px-3.5 text-[14px] font-semibold text-[#344054] hover:bg-[#e4e7ec]; }
   /* The most urgent row's action takes its module colour (set as --tile). */
@@ -170,7 +180,7 @@
    * with counts, 42px table headers and 58px rows, pill badges. Scoped to the Policy & Compliance pages through
    * main[data-module="policy"] (src/components/main-area.tsx) so no other module changes.
    */
-  main[data-module="policy"] { @apply bg-page px-page-phone pb-page-bottom pt-page-top sm:px-page-x; font-family: "Inter Variable", var(--font-sans); color: #344054; font-variant-numeric: tabular-nums; }
+  main[data-module="policy"] { @apply bg-page px-page-phone pb-page-bottom pt-page-top sm:px-page-x; font-family: var(--font-sans); color: #344054; font-variant-numeric: tabular-nums; }
   main[data-module="policy"] .page-canvas { background: transparent; border-radius: 0; }
   main[data-module="policy"] :focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
   main[data-module="policy"] :is(.card, .panel):where(:not(.cs *)) { border: 1px solid #eaecf0; border-radius: 12px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); padding: 16px 20px; }
@@ -239,9 +249,9 @@
   .pc-check { height: 16px; width: 16px; accent-color: var(--module); cursor: pointer; }
   .pc-note { font-size: 13px; color: #667085; }
   .pc-empty { padding: 40px 16px; text-align: center; font-size: 14px; color: #475467; }
-  .pc-root { font-family: "Inter Variable", var(--font-sans); color: #344054; background: theme("colors.page"); min-height: 100%; padding: 12px 16px 20px; font-variant-numeric: tabular-nums; }
+  .pc-root { font-family: var(--font-sans); color: #344054; background: theme("colors.page"); min-height: 100%; padding: 12px 16px 20px; font-variant-numeric: tabular-nums; }
   .pc-root :focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
-  .pl-root { font-family: "Inter Variable", var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
+  .pl-root { font-family: var(--font-sans); color: #2f3d52; font-size: 14px; line-height: 1.45; background: #f8f7f4; min-height: 100%; padding-bottom: 20px; }
   .pl-root a { text-decoration: none; }
   .pl-root :focus-visible { outline: 2px solid #0369d5; outline-offset: 2px; }
   .pl-serif { font-family: inherit; }
@@ -414,7 +424,7 @@
  */
 @layer components {
 .ai-csb-panel {
-  font-family: "Inter Variable", var(--font-sans);
+  font-family: var(--font-sans);
   inset: 0; width: 100vw; height: 100dvh; border-radius: 0;
   padding-top: env(safe-area-inset-top);
   animation: ai-csb-in var(--motion-base) var(--ease-out) backwards;
@@ -598,7 +608,7 @@
   .mh :focus-visible { outline: 2px solid theme("colors.white"); outline-offset: 2px; }
   /* Buttons inside the band. Other actions: white at 14% with a white-at-38% border. Main action: white, module text. */
   .mh .mh-band :is(.btn, .pc-btn, .pc-btn-secondary, .pl-btn-primary, .pl-btn-secondary, .hx-btn, .cs-btn, .module-primary, .module-secondary, .mh-btn, .mh-band-btn) {
-    @apply inline-flex min-h-[36px] items-center gap-1.5 whitespace-nowrap rounded-[8px] border border-white/38 bg-white/8 px-3 text-body font-semibold text-white no-underline shadow-none hover:border-white hover:bg-white/8;
+    @apply inline-flex min-h-[40px] items-center gap-1.5 whitespace-nowrap rounded-control border border-white/38 bg-white/14 px-3.5 text-body font-semibold text-white no-underline shadow-none hover:border-white hover:bg-white/16;
     color: theme("colors.white") !important;
   }
   .mh .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary) {
@@ -607,6 +617,13 @@
     color: var(--module) !important;
   }
   .mh .mh-band :is(select, input:not([type="checkbox"]):not([type="radio"])) { @apply border-transparent bg-white text-ink; }
+  /* The band's "More" menu is a white pop-over, so the buttons inside it read as plain menu rows. */
+  .mh .mh-band .mh-more-menu :is(.btn, .btn-primary, .btn-secondary, .pc-btn, .pc-btn-secondary, .pl-btn-primary, .pl-btn-secondary, .hx-btn, .cs-btn, .module-primary, .module-secondary, .mh-btn, .mh-band-btn) {
+    @apply w-full justify-start border-transparent bg-white text-ink hover:bg-page;
+    color: theme("colors.ink") !important;
+  }
+  .mh .mh-band .mh-more-menu form { display: block; }
+  .mh-more > summary { cursor: pointer; }
   .mh .mh-band :is(.pc-select, .pl-select, .pc-search) { @apply border-transparent bg-white text-ink; }
   /*
    * Night mode (10 Nov 2026). The generated dark twins turn the band's white main action into a dark box with
@@ -623,15 +640,27 @@
   }
 
   /* One tab style: underline, 38px high, 14px, grey when inactive, module colour and a 2px underline when active. */
-  .tabs-line { @apply relative flex overflow-x-auto border-b border-rule; scrollbar-width: thin; /* room for a tab of fractional width at the end of a scrolled row */ padding-inline-end: 2px; }
-  .tab-line { @apply relative inline-flex h-tab shrink-0 items-center gap-2 whitespace-nowrap px-3 text-tab font-medium text-status-ink no-underline hover:text-ink; }
-  .tab-line:is([aria-current="page"], [data-state="active"]) { @apply font-semibold; color: var(--module); }
-  .tab-line:is([aria-current="page"], [data-state="active"])::after { content: ""; @apply absolute inset-x-1 -bottom-px h-[2px] rounded-t-[2px]; background-color: var(--module); }
-  .tab-line:focus-visible { outline: 2px solid var(--module); outline-offset: -2px; border-radius: 6px; }
+  /*
+   * Sub-modules (ClearCare, 12 Nov 2026): a row of 40px buttons with 9px corners directly under the band. Inactive
+   * ones are white with a hairline border; the active one is filled in the module colour. Same links, same keys.
+   */
+  .tabs-line { @apply relative flex flex-wrap gap-2 py-0.5; }
+  .tab-line { @apply relative inline-flex h-tab shrink-0 items-center gap-2 whitespace-nowrap rounded-[9px] border border-cc-line bg-white px-3.5 text-tab font-semibold text-ink no-underline hover:border-cc-control hover:text-ink; }
+  .tab-line:is([aria-current="page"], [data-state="active"]) { border-color: var(--module); background-color: var(--module); color: #fff; }
+  .tab-line:is([aria-current="page"], [data-state="active"]):hover { color: #fff; }
+  .tab-line:is([aria-current="page"], [data-state="active"]) :is(.pc-count, span[class*="bg-slate-100"]) { background: rgb(255 255 255 / 0.22) !important; color: #fff !important; }
+  .tab-line:focus-visible { outline: 2px solid var(--module); outline-offset: 2px; }
+  /* Titled panels: a tinted strip across the top (module tint; red for things needing attention, amber for due). */
+  .panel-head { @apply -mx-[18px] -mt-3.5 mb-3 flex min-h-[48px] flex-wrap items-center justify-between gap-3 rounded-t-panel border-b border-cc-line-soft px-[18px] py-2; background: color-mix(in srgb, var(--module, #0f766e) 7%, #fff); }
+  .panel-head[data-tone="alert"] { background: #fde8e4; }
+  .panel-head[data-tone="due"] { background: #fff3d6; }
+  .panel-title:where(:not(.cs *)) { @apply m-0 font-sans text-lead font-bold text-ink; }
 
   /* The AI CSB Coordinator launcher, now in the top bar to the left of the notifications bell. */
-  .topbar-coordinator { @apply inline-flex h-topbar shrink-0 items-center gap-1.5 rounded-[9px] bg-coordinator px-3 text-meta font-semibold text-white hover:bg-coordinator-strong; }
-  .topbar-coordinator:focus-visible { outline: 2px solid theme("colors.coordinator.DEFAULT"); outline-offset: 2px; }
+  /* ClearCare: an outlined 40px button with the teal sparkle. */
+  .topbar-coordinator { @apply inline-flex h-[40px] shrink-0 items-center gap-1.5 rounded-control border border-cc-control bg-white px-3 text-meta font-semibold text-ink hover:border-cc-primary hover:text-cc-brand; }
+  .topbar-coordinator svg { color: #0f766e; }
+  .topbar-coordinator:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
   .ov-topbar .topbar-coordinator:focus-visible { outline-color: theme("colors.white"); }
 }
 @layer components {
