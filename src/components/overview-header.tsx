@@ -60,7 +60,7 @@ export function AccountMenu({ name, initials, role, branch, sample, mode: initia
   return (
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-[10px] py-1 pl-1 pr-1.5 hover:bg-page [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
-        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cc-primary text-meta font-semibold text-white">{initials}</span>
+        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cc-primary xl:hidden text-meta font-semibold text-white">{initials}</span>
         <span className="hidden min-w-0 text-left xl:block">
           <span className="block max-w-[180px] truncate text-body font-semibold leading-[18px] text-ink" data-testid="overview-user">{name}</span>
           <span className="block max-w-[180px] truncate text-caption leading-[15px] text-cc-muted" data-testid="overview-role">{role}</span>

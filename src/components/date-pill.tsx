@@ -6,15 +6,16 @@ import { CalendarBlank } from "@phosphor-icons/react";
  * own date input laid invisibly over it, so a click anywhere opens the picker and keyboard users type a date as before.
  * It changes nothing about how the date is chosen: the input keeps its name and label and submits its form.
  */
-export function DatePill({ value, label, name = "date" }: { value: string; label: string; name?: string }) {
+export function DatePill({ value, label, short, name = "date" }: { value: string; label: string; short: string; name?: string }) {
   return (
     <label className="mh-date-pill">
-      <span aria-hidden="true">{label}</span>
+      <span aria-hidden="true" className="hidden sm:inline">{label}</span>
+      <span aria-hidden="true" className="sm:hidden">{short}</span>
       <CalendarBlank size={19} aria-hidden="true" />
-      <span className="sr-only">Date</span>
       <input
         type="date"
         name={name}
+        aria-label="Date"
         defaultValue={value}
         className="mh-date-input"
         onClick={(e) => {

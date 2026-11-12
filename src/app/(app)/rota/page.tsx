@@ -165,7 +165,7 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
         <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2.5">
           <nav aria-label="Change day" className="flex items-center gap-2.5">
             <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-square"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
-            <DatePill value={date} label={fmtLondonDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(",", "")} />
+            <DatePill value={date} label={fmtLondonDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(",", "")} short={fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).replace(",", "")} />
             <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-square"><CaretRight size={18} weight="bold" aria-hidden /></Link>
           </nav>
           {d.branches.length > 1 ? (
