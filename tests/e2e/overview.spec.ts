@@ -122,7 +122,7 @@ test.describe("Overview", () => {
       expect(Math.abs(layout.content.left - layout.main.left - (layout.main.right - layout.content.right))).toBeLessThanOrEqual(2);
       if (width === 1920) expect(layout.content.width).toBe(1320);
 
-      expect(layout.greeting).toEqual(["26px", "600"]);
+      expect(layout.greeting).toEqual(["28px", "700"]); // ClearCare: the greeting is the header band title
       expect(layout.headline).toEqual(["68px", "700", "19px"]);
       expect(layout.figure).toEqual(["46px", "700"]);
       expect(layout.title).toEqual(["16.5px", "600"]); // ClearCare type scale
