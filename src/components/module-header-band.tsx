@@ -29,6 +29,10 @@ export type ModuleHeaderProps = {
   actions?: ReactNode;
   /** A second row inside the band, for a page's own controls (the Rota's date navigation). */
   children?: ReactNode;
+  /** Puts `children` on the right of the title, in the same row, wrapping below it only when there is no room. */
+  inline?: boolean;
+  /** Replaces the module's icon in the chip (the Rota Dashboard shows the home icon, as its sidebar entry does). */
+  icon?: ReactNode;
   /** Shown under the band, on the page: the page's tabs. */
   tabs?: ReactNode;
   /** Overrides the module worked out from the address. */
@@ -43,7 +47,7 @@ export type ModuleHeaderProps = {
  * actions. It replaces the centred title bar with its Back link, the Policy breadcrumb header, the HR heading and the
  * Rota headers. The breadcrumb and the top bar's history arrows do the job of the old Back link.
  */
-export function ModuleHeader({ title, page, crumbs = [], description, actions, children, tabs, module, testId = "module-header", titleId }: ModuleHeaderProps) {
+export function ModuleHeader({ title, page, crumbs = [], description, actions, children, inline = false, icon, tabs, module, testId = "module-header", titleId }: ModuleHeaderProps) {
   const path = usePathname() ?? "/";
   const portal = portalById(module ?? portalForPath(path));
   const pageName = page ?? (typeof title === "string" ? title : undefined);
@@ -51,7 +55,7 @@ export function ModuleHeader({ title, page, crumbs = [], description, actions, c
   return (
     <header className="mh" data-testid={testId} data-module-header={portal.id}>
       <div className="mh-band" data-testid="title-bar">
-        <span className="mh-chip" aria-hidden="true">{MODULE_ICON[portal.id]({ size: 22 })}</span>
+        <span className="mh-chip" aria-hidden="true">{icon ?? MODULE_ICON[portal.id]({ size: 22 })}</span>
         <div className="mh-main">
           <nav aria-label="Breadcrumb">
             <ol className="mh-crumbs">
@@ -68,7 +72,7 @@ export function ModuleHeader({ title, page, crumbs = [], description, actions, c
           {description ? <p className="mh-desc">{description}</p> : null}
         </div>
         {actions ? <div className="mh-actions"><BandActions>{actions}</BandActions></div> : null}
-        {children ? <div className="mh-row">{children}</div> : null}
+        {children ? <div className={inline ? "mh-row mh-row-inline" : "mh-row"}>{children}</div> : null}
       </div>
       {tabs ? <div className="mt-2">{tabs}</div> : null}
     </header>

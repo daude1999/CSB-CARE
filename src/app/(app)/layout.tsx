@@ -166,7 +166,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <ShellSearch />
             <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
               {me?.branch?.name ? (
-                <span className="hidden h-[40px] items-center gap-2 rounded-[10px] border border-cc-control bg-white px-3 text-meta font-semibold text-ink 2xl:flex" title="Your branch" data-testid="topbar-branch">
+                <span className="hidden h-[40px] items-center gap-2 rounded-[10px] border border-cc-control bg-white px-3 text-meta font-semibold text-ink xl:flex" title="Your branch" data-testid="topbar-branch">
                   <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                 </span>
               ) : null}

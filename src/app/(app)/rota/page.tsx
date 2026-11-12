@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { Alarm, Cake, CalendarBlank, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
+import { Alarm, Cake, CalendarBlank, House, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { ModuleHeader } from "@/components/module-header-band";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
@@ -13,7 +13,7 @@ import { NotBuiltNotice } from "@/components/rota-ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { AutoSubmitForm } from "@/components/auto-submit";
 import { DashTable } from "@/components/dash-table";
-import { ordinalDate } from "@/components/rota-dashboard";
+import { DatePill } from "@/components/date-pill";
 import { LiveLondonTime } from "@/components/live-london-time";
 
 export const dynamic = "force-dynamic";
@@ -160,21 +160,20 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
 
   return (
     <div className="rota-home space-y-3">
-      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>}>
-        <nav aria-label="Change day" className="flex items-center gap-2.5">
-          <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-round"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
-          <p className="flex items-center gap-2.5 text-heading font-bold text-white sm:text-display"><CalendarBlank size={24} aria-hidden /><span>{ordinalDate(date)}</span></p>
-          <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-round"><CaretRight size={20} weight="bold" aria-hidden /></Link>
-        </nav>
-        <p className="text-lead font-semibold leading-6 tabular-nums text-white sm:border-l sm:border-white/38 sm:pl-3" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
-        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2">
+      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>} icon={<House size={22} />} inline>
+        <p className="text-subtitle font-bold leading-6 tabular-nums text-white" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
+        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2.5">
+          <nav aria-label="Change day" className="flex items-center gap-2.5">
+            <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-square"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
+            <DatePill value={date} label={fmtLondonDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(",", "")} />
+            <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-square"><CaretRight size={18} weight="bold" aria-hidden /></Link>
+          </nav>
           {d.branches.length > 1 ? (
             <label><span className="sr-only">Branch</span>
-              <select name="branch" defaultValue={branch ?? ""} className="mh-field"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+              <select name="branch" defaultValue={branch ?? ""} className="mh-field font-semibold"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
             </label>
           ) : null}
-          <label className="mh-field flex items-center gap-2"><CalendarBlank size={17} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-body" /></label>
-          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn mh-btn-primary">Today</Link>
+          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn">Today</Link>
         </AutoSubmitForm>
       </ModuleHeader>
       <Flash searchParams={sp} />
