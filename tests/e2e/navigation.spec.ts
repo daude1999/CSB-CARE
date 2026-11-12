@@ -71,9 +71,10 @@ test.describe("Portal switching", () => {
     await expect(currentPage(page)).toHaveText("HR Dashboard");
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
     await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
-    // The HR Hub's styles stop at its own root: the HR heading uses exactly the platform's typeface, as on Rostering.
-    expect(rotaTitleFont.split(",")[0]).toBe('"Inter Variable"');
-    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Inter Variable"');
+    // The HR Hub's styles stop at its own root. ClearCare (12 Nov 2026): the platform is in Figtree; the HR Hub keeps
+    // its own Inter until its restyle (Phase 6), which waits for the owner's approval.
+    expect(rotaTitleFont.split(",")[0]).toBe('"Figtree Variable"');
+    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toMatch(/^"(Figtree|Inter) Variable"$/);
 
     // Between HR screens the page is not reloaded.
     await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));

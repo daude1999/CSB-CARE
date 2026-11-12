@@ -60,10 +60,11 @@ test.describe("Dark and light appearance", () => {
     await context.close();
   });
 
-  test("the Overview offers the same choice in the account menu, without changing its header", async ({ page }) => {
+  test("the Overview offers the same choice in the account menu as well as the top bar", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    await expect(page.getByTestId("overview-header").getByTestId("colour-mode-menu")).toHaveCount(0);
+    // ClearCare (12 Nov 2026): the Overview uses the same top bar as every page, so the appearance button is there too.
+    await expect(page.getByTestId("app-topbar").getByTestId("colour-mode-menu")).toHaveCount(1);
     await page.getByTestId("account-menu").locator("summary").click();
     await page.getByTestId("account-menu").getByTestId("colour-mode-dark").click();
     expect(await mode(page)).toBe("dark");

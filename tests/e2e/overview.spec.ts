@@ -16,7 +16,9 @@ test.describe("Overview", () => {
   test("greets the person and shows today's rota, what needs attention and a solid tile per module", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Care Solution Bureau CIC");
+    // ClearCare (12 Nov 2026): the organisation is named in the top bar; the greeting is the page's heading.
+    await expect(page.getByTestId("topbar-org-name")).toHaveText("Care Solution Bureau");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Good (morning|afternoon|evening), \S+$/);
     // Owner's redesign of 10 Nov 2026: a greeting with the organisation and today's date, then the Rota tile beside
     // Needs your attention, then one solid tile for each other module.
     await expect(page.getByTestId("overview-greeting")).toHaveText(/^Good (morning|afternoon|evening), \S+$/);
@@ -207,11 +209,11 @@ test.describe("Overview", () => {
     for (const id of ["hr", "admin", "reporting", "rota"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
   });
 
-  test("the header shows the CSB logo, today's London date and time, and the signed-in person, with no search box", async ({ page }) => {
+  test("the top bar shows the organisation's CSB logo, today's London date and time, and the signed-in person", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    const header = page.getByTestId("overview-header");
-    await expect(header.getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
+    const header = page.getByTestId("app-topbar");
+    await expect(header.getByTestId("topbar-org").getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);
@@ -222,12 +224,13 @@ test.describe("Overview", () => {
     // The same signed-in person the shell names in the sidebar.
     await expect(page.getByTestId("overview-user")).toHaveText(await page.getByTestId("current-user").innerText());
     await expect(page.getByTestId("overview-role")).not.toBeEmpty();
-    await expect(page.locator("#global-search")).toHaveCount(0);
-    // The account menu offers sign out; other pages keep the standard top bar and its search.
+    // ClearCare: one top bar on every page, so the Overview has the search too.
+    await expect(page.locator("#global-search")).toBeVisible();
+    // The account menu offers sign out; other pages keep the same top bar without the clock.
     await page.getByTestId("account-menu").locator("summary").click();
     await expect(page.getByTestId("account-menu").getByRole("button", { name: "Sign out" })).toBeVisible();
     await page.goto("/policies");
-    await expect(page.getByTestId("overview-header")).toHaveCount(0);
+    await expect(page.getByTestId("overview-clock")).toHaveCount(0);
     await expect(page.locator("#global-search")).toBeVisible();
   });
 });

@@ -2,7 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 /**
  * One typeface across the platform: every module's headings, body text, tables, buttons, form controls, sidebar and
- * panels render in Inter Variable (owner's request, 1 Nov 2026). Checks computed styles in the browser, not pixels.
+ * panels render in Figtree Variable (ClearCare design, owner's decision of 12 Nov 2026; Inter before that). The HR
+ * Hub's own screens (inside `.cs`) keep Inter until its restyle, which waits for the owner's approval. Checks computed
+ * styles in the browser, not pixels.
  */
 const PASSWORD = "DemoPassword!2026";
 
@@ -31,7 +33,7 @@ const PAGES = [
   "/settings",
 ];
 
-test("every module renders its text in Inter Variable", async ({ page }) => {
+test("every module renders its text in Figtree Variable", async ({ page }) => {
   test.setTimeout(240_000);
   await page.setViewportSize({ width: 1672, height: 941 });
   await signIn(page);
@@ -46,11 +48,12 @@ test("every module renders its text in Inter Variable", async ({ page }) => {
         if (!ownText && !el.matches("input, select, textarea, button")) continue;
         if (!el.getClientRects().length || el.closest("canvas, svg, .textLayer")) continue;
         const first = getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
-        if (first !== "Inter Variable") found.add(`${el.tagName.toLowerCase()}: ${first}`);
+        const allowed = el.closest(".cs") ? ["Figtree Variable", "Inter Variable"] : ["Figtree Variable"];
+        if (!allowed.includes(first)) found.add(`${el.tagName.toLowerCase()}: ${first}`);
       }
       return [...found];
     });
-    expect(offenders, `fonts other than Inter Variable on ${path}`).toEqual([]);
-    expect(await page.evaluate(() => document.fonts.check('16px "Inter Variable"')), `Inter Variable loaded on ${path}`).toBe(true);
+    expect(offenders, `fonts other than Figtree Variable on ${path}`).toEqual([]);
+    expect(await page.evaluate(() => document.fonts.check('16px "Figtree Variable"')), `Figtree Variable loaded on ${path}`).toBe(true);
   }
 });
