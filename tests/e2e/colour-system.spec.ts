@@ -35,7 +35,7 @@ test.describe("shared page frame", () => {
       await expect(header, path).toBeVisible();
       const band = header.getByTestId("title-bar");
       expect(await band.evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe(colour);
-      expect(await band.evaluate((el) => getComputedStyle(el).borderRadius), path).toBe("12px");
+      expect(await band.evaluate((el) => getComputedStyle(el).borderRadius), path).toBe("14px");
       const crumbs = header.getByRole("navigation", { name: "Breadcrumb" });
       await expect(crumbs, path).toContainText(module);
       await expect(header.getByRole("heading", { level: 1 }), path).toContainText(title);
