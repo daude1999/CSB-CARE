@@ -167,7 +167,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       />
       <Flash searchParams={sp} />
       {su.archivedAt ? (
-        <p role="status" className="mb-3 rounded-[8px] border border-slate-300 bg-slate-50 px-4 py-2.5 text-[14px] text-slate-800" data-testid="archived-banner">
+        <p role="status" className="mb-3 rounded-[8px] border border-slate-300 bg-slate-50 px-4 py-2.5 text-body text-slate-800" data-testid="archived-banner">
           {suName(su)} was archived on {fmtDate(su.archivedAt)}. The record is read-only and hidden from the active lists; every record is kept.{canArchive ? <> <Link href={`${base}/archive`}>Restore</Link></> : null}
         </p>
       ) : null}
@@ -175,7 +175,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {group.tabs.length > 1 ? (
         <nav aria-label={`${group.label} sections`} className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
           {group.tabs.map((t) => (
-            <Link key={t} href={`${base}?tab=${t}`} aria-current={t === tab ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${t === tab ? "bg-[#1d4f91] font-medium text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{tabLabel.get(t)}</Link>
+            <Link key={t} href={`${base}?tab=${t}`} aria-current={t === tab ? "page" : undefined} className={`rounded-full px-3 py-1 text-body no-underline ${t === tab ? "bg-[#1d4f91] font-medium text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{tabLabel.get(t)}</Link>
           ))}
         </nav>
       ) : null}
@@ -193,24 +193,24 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 <Field label="Risk">{su.riskLevel ? <Badge tone={su.riskLevel === "HIGH" ? "rose" : su.riskLevel === "MEDIUM" ? "amber" : "slate"}>{su.riskLevel.toLowerCase()}</Badge> : "Not assessed"}</Field>
                 <Field label="Care started">{su.startDate ? fmtDate(su.startDate) : "—"}</Field>
               </dl>
-              {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
-              {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
-              {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
+              {su.riskSummary ? <p className="mt-3 text-body"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
+              {su.carePreferences ? <p className="mt-2 text-body"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
+              {su.communicationNeeds ? <p className="mt-2 text-body"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
             </Card>
             <ServiceUserCompliance rows={compliance} />
             {glance ? (
               <section aria-labelledby="glance-h" className="card" data-testid="recent-care">
-                <h2 id="glance-h" className="mb-3 text-[17px]">Recent care</h2>
+                <h2 id="glance-h" className="mb-3 text-subtitle">Recent care</h2>
                 <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Carers who visit most (28 days)">{glance.carers.length ? <span className="block text-[14px]">{glance.carers.map((c) => `${c.name} (${c.visits})`).join(", ")}</span> : "No visits booked"}</Field>
-                  <Field label="Medication">{glance.medication.on ? <><Link href={`${base}?tab=medication`}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={`block text-[13px] ${glance.medication.exceptions7d ? "text-[#a3242c]" : "text-slate-600"}`}>{glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-slate-600">Medication records are switched off</span>}</Field>
+                  <Field label="Carers who visit most (28 days)">{glance.carers.length ? <span className="block text-body">{glance.carers.map((c) => `${c.name} (${c.visits})`).join(", ")}</span> : "No visits booked"}</Field>
+                  <Field label="Medication">{glance.medication.on ? <><Link href={`${base}?tab=medication`}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={`block text-meta ${glance.medication.exceptions7d ? "text-[#a3242c]" : "text-slate-600"}`}>{glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-slate-600">Medication records are switched off</span>}</Field>
                   <Field label="Care Summary">{glance.summary ? <Link href={`/rota/care-plans/${su.id}?view=summary&summary=${glance.summary.id}`}>{fmtDate(glance.summary.createdAt)}, {glance.summary.status === "UNREVIEWED" ? "not yet reviewed" : glance.summary.status === "REVIEWED" ? "reviewed" : "dismissed"}</Link> : <Link href={`/rota/care-plans/${su.id}?view=summary`}>Recent records</Link>}</Field>
                 </dl>
                 {glance.notes.length ? (
                   <div className="mt-3 border-t border-slate-100 pt-2">
-                    <h3 className="text-[13px] font-medium text-slate-700">Latest visit notes</h3>
-                    <ul className="mt-1 space-y-1 text-[14px]">
-                      {glance.notes.map((n) => <li key={n.id} className="flex gap-2"><span className="w-[132px] shrink-0 text-[13px] text-slate-500">{fmtDate(n.createdAt, true)}</span><Link href={`/rota/visits/${n.visitId}`} className="min-w-0 truncate text-slate-800 no-underline hover:underline" title={n.text}>{n.text}</Link></li>)}
+                    <h3 className="text-meta font-medium text-slate-700">Latest visit notes</h3>
+                    <ul className="mt-1 space-y-1 text-body">
+                      {glance.notes.map((n) => <li key={n.id} className="flex gap-2"><span className="w-[132px] shrink-0 text-meta text-slate-500">{fmtDate(n.createdAt, true)}</span><Link href={`/rota/visits/${n.visitId}`} className="min-w-0 truncate text-slate-800 no-underline hover:underline" title={n.text}>{n.text}</Link></li>)}
                     </ul>
                   </div>
                 ) : null}
@@ -220,7 +220,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               {visits.length ? (
                 <ul className="rows">
                   {visits.filter((v) => v.scheduledEnd > new Date()).slice(0, 8).map((v) => (
-                    <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-[14px]">
+                    <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-body">
                       <span className="w-[150px] tabular-nums">{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric", month: "short" })} {londonTime(v.scheduledStart)}</span>
                       <Link href={`/rota/visits/${v.id}`} className="row-title">{v.callType.name}</Link>
                       <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} cancelled={v.status === "CANCELLED"} />
@@ -252,28 +252,28 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             <CarePackageSummaryCard summary={carePackageSummary({ pkg: active, coverage, templates: su.templates, openQueries: pkgReviews?.open ?? 0, today })} href={`${base}?tab=package`} canEdit={canEdit} />
             <Card title="Key contacts" actions={<Link href={`${base}?tab=people`} className="btn-secondary py-1">All contacts</Link>}>
               {su.contacts.length ? (
-                <ul className="space-y-2 text-[14px]">
+                <ul className="space-y-2 text-body">
                   {su.contacts.slice(0, 3).map((c) => (
                     <li key={c.id}>
                       <span className="font-medium">{c.name}</span> {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null}
-                      <span className="block text-[12.5px] text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}</span>
+                      <span className="block text-meta text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}</span>
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-[14px] text-slate-600">No contacts recorded.</p>}
+              ) : <p className="text-body text-slate-600">No contacts recorded.</p>}
             </Card>
             <Card title="Getting in">
-              <p className="text-[14px]">{su.accessNotes ?? "No access notes."}</p>
+              <p className="text-body">{su.accessNotes ?? "No access notes."}</p>
               {su.hasKeySafe ? (
                 canKeySafe ? (
                   keySafe ? (
-                    <p className="mt-2 text-[14px]">Key safe code: <span className="font-mono text-[16px] font-semibold">{keySafe}</span> <span className="block text-[12.5px] text-slate-500">This view has been recorded.</span></p>
+                    <p className="mt-2 text-body">Key safe code: <span className="font-mono text-lead font-semibold">{keySafe}</span> <span className="block text-meta text-slate-500">This view has been recorded.</span></p>
                   ) : (
-                    <form method="get" className="mt-2"><input type="hidden" name="reveal" value="keysafe" /><button className="btn-secondary py-1">Show key safe code</button><span className="ml-2 text-[12.5px] text-slate-500">Each view is recorded.</span></form>
+                    <form method="get" className="mt-2"><input type="hidden" name="reveal" value="keysafe" /><button className="btn-secondary py-1">Show key safe code</button><span className="ml-2 text-meta text-slate-500">Each view is recorded.</span></form>
                   )
-                ) : <p className="mt-2 text-[13px] text-slate-500">A key safe code is recorded. Your role cannot view it.</p>
-              ) : <p className="mt-2 text-[13px] text-slate-500">No key safe code recorded.</p>}
-              {keySafeError ? <p role="alert" className="text-[13px] text-[#a3242c]">{keySafeError}</p> : null}
+                ) : <p className="mt-2 text-meta text-slate-500">A key safe code is recorded. Your role cannot view it.</p>
+              ) : <p className="mt-2 text-meta text-slate-500">No key safe code recorded.</p>}
+              {keySafeError ? <p role="alert" className="text-meta text-[#a3242c]">{keySafeError}</p> : null}
               {canKeySafe && canEdit ? (
                 <form action={keySafeAction} className="mt-3 flex gap-2">
                   <input type="hidden" name="back" value={back} />
@@ -285,15 +285,15 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             </Card>
             <Card title="Away">
               {su.absences.length ? (
-                <ul className="space-y-2 text-[14px]">
+                <ul className="space-y-2 text-body">
                   {su.absences.map((a) => (
                     <li key={a.id} className="flex items-center justify-between gap-2">
                       <span>{a.reason.toLowerCase()} · {fmtDate(a.startsAt)}{a.endsAt ? ` to ${fmtDate(new Date(a.endsAt.getTime() - 1))}` : " onwards"}</span>
-                      {canEdit ? <form action={cancelAbsenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="absenceId" value={a.id} /><button className="btn-secondary py-0.5 text-[13px]">End now</button></form> : null}
+                      {canEdit ? <form action={cancelAbsenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="absenceId" value={a.id} /><button className="btn-secondary py-0.5 text-meta">End now</button></form> : null}
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-[14px] text-slate-600">No current or planned absences.</p>}
+              ) : <p className="text-body text-slate-600">No current or planned absences.</p>}
               {canEdit && su.status !== "ENDED" ? (
                 <details className="mt-3 border-t border-slate-200 pt-3">
                 <summary className="btn-secondary inline-block cursor-pointer py-1">Record an absence</summary>
@@ -305,7 +305,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   <label><span className="label">Last day</span><input type="date" name="to" className="input" /></label>
                   <label className="col-span-2"><span className="label">Note</span><input name="note" className="input" /></label>
                   <button className="btn-secondary col-span-2">Record absence</button>
-                  <p className="col-span-2 text-[12.5px] text-slate-500">Built visits in the period that have not started are cancelled. No last day means until further notice.</p>
+                  <p className="col-span-2 text-meta text-slate-500">Built visits in the period that have not started are cancelled. No last day means until further notice.</p>
                 </form>
                 </details>
               ) : null}
@@ -319,7 +319,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                   <label className="block"><span className="label">Reason</span><input name="reason" required minLength={3} className="input" /></label>
                   <label className="block"><span className="label">End date (when ending care)</span><input type="date" name="endDate" className="input" /></label>
                   <button className="btn-secondary">Change status</button>
-                  <p className="text-[12.5px] text-slate-500">Ending care switches off their repeating visits and cancels future visits that have not started.</p>
+                  <p className="text-meta text-slate-500">Ending care switches off their repeating visits and cancels future visits that have not started.</p>
                 </form>
               </Card>
             ) : null}
@@ -330,7 +330,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
 
       {tab === "care-plans" ? (
         <Card title="Care plans" actions={<Link href={`/rota/care-plans/${su.id}`} className="btn-primary">View or manage care plan</Link>}>
-          <p className="mb-3 text-[13.5px] text-slate-600">Care plans for {suName(su)}. Review the current plan, its status and earlier versions here.</p>
+          <p className="mb-3 text-body text-slate-600">Care plans for {suName(su)}. Review the current plan, its status and earlier versions here.</p>
           {plans.length ? (
             <div className="relative min-w-0 overflow-x-auto">
               <table className="table">
@@ -354,7 +354,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
 
       {tab === "risks" ? (
         <Card title="Risk assessments" actions={hasOrgPermission(ctx, "care.plan.edit") ? <Link href={`/rota/risks/new?su=${su.id}`} className="btn-primary">New assessment</Link> : null}>
-          <p className="mb-3 text-[13.5px] text-slate-600">Active risk assessments for {suName(su)}, soonest review first. Open one to read its hazards, controls, actions still required and every saved version.</p>
+          <p className="mb-3 text-body text-slate-600">Active risk assessments for {suName(su)}, soonest review first. Open one to read its hazards, controls, actions still required and every saved version.</p>
           {risks.length ? (
             <div className="relative min-w-0 overflow-x-auto">
               <table className="table">
@@ -379,12 +379,12 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           ) : <Empty>No active risk assessments for this person.</Empty>}
           {archivedRisks.length ? (
             <details className="mt-3">
-              <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Archived assessments ({archivedRisks.length})</summary>
-              <ul className="rows mt-1 text-[14px]">
-                {archivedRisks.map((r) => <li key={r.id} className="py-1.5"><Link href={`/rota/risks/${r.id}`}>{r.title}</Link> <span className="text-[13px] text-slate-600">{RISK_TYPE_LABEL[r.type]}{r.archivedAt ? ` · archived ${fmtDate(r.archivedAt)}` : ""}</span></li>)}
+              <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Archived assessments ({archivedRisks.length})</summary>
+              <ul className="rows mt-1 text-body">
+                {archivedRisks.map((r) => <li key={r.id} className="py-1.5"><Link href={`/rota/risks/${r.id}`}>{r.title}</Link> <span className="text-meta text-slate-600">{RISK_TYPE_LABEL[r.type]}{r.archivedAt ? ` · archived ${fmtDate(r.archivedAt)}` : ""}</span></li>)}
               </ul>
             </details>
-          ) : <p className="mt-3 text-[13px] text-slate-600">No archived assessments.</p>}
+          ) : <p className="mt-3 text-meta text-slate-600">No archived assessments.</p>}
         </Card>
       ) : null}
 
@@ -401,8 +401,8 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           {notes.notes.length ? (
             <ul className="rows">
               {notes.notes.map((n) => (
-                <li key={n.id} className="py-3 text-[14.5px]">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-slate-600">
+                <li key={n.id} className="py-3 text-body">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-slate-600">
                     <Badge tone={n.category === "CONCERN" ? "rose" : n.category === "HANDOVER" ? "violet" : "slate"}>{NOTE_LABEL[n.category] ?? n.category}</Badge>
                     <Link href={`/rota/visits/${n.visit.id}`} className="row-title">{fmtLondonDate(londonDate(n.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} · {n.visit.callType}</Link>
                     <span className="tabular-nums">planned {londonTime(n.visit.scheduledStart)}–{londonTime(n.visit.scheduledEnd)}</span>
@@ -414,14 +414,14 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               ))}
             </ul>
           ) : <Empty>No visit notes for this person in this period.</Empty>}
-          {notes.notes.length === 300 ? <p className="mt-2 text-[13px] text-slate-600">Showing the newest 300. Narrow the period or kind to see older notes.</p> : null}
-          <p className="mt-2 text-[12.5px] text-slate-500">Notes are written on visits by carers and the office and cannot be edited or deleted.</p>
+          {notes.notes.length === 300 ? <p className="mt-2 text-meta text-slate-600">Showing the newest 300. Narrow the period or kind to see older notes.</p> : null}
+          <p className="mt-2 text-meta text-slate-500">Notes are written on visits by carers and the office and cannot be edited or deleted.</p>
         </Card>
       ) : null}
 
       {tab === "incidents" && canReportIncident ? (
         <Card title="Incidents" actions={<Link href={`/rota/incidents/new?su=${su.id}`} className="btn-primary">Report an incident</Link>}>
-          <p className="mb-3 text-[13.5px] text-slate-600">Incidents linked to {suName(su)}, including open and closed reports. Records are shown according to your incident permissions.</p>
+          <p className="mb-3 text-body text-slate-600">Incidents linked to {suName(su)}, including open and closed reports. Records are shown according to your incident permissions.</p>
           {incidents?.length ? (
             <div className="relative min-w-0 overflow-x-auto">
               <table className="table">
@@ -440,7 +440,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               </table>
             </div>
           ) : <Empty>No incidents recorded for this person that you have permission to view.</Empty>}
-          {incidents && incidents.length === 100 ? <p className="mt-2 text-[12.5px] text-slate-600">Showing the latest 100 incidents.</p> : null}
+          {incidents && incidents.length === 100 ? <p className="mt-2 text-meta text-slate-600">Showing the latest 100 incidents.</p> : null}
         </Card>
       ) : null}
 
@@ -481,10 +481,10 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 {visits.map((v) => (
                   <tr key={v.id} className={v.status === "CANCELLED" ? "opacity-60" : undefined}>
                     <td><Link href={`/rota/visits/${v.id}`}>{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric", month: "short" })}</Link></td>
-                    <td className="tabular-nums">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)}{v.actualStart ? <span className="block text-[12px] text-slate-500">actual {londonTime(v.actualStart)}–{v.actualEnd ? londonTime(v.actualEnd) : "…"}</span> : null}</td>
+                    <td className="tabular-nums">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)}{v.actualStart ? <span className="block text-caption text-slate-500">actual {londonTime(v.actualStart)}–{v.actualEnd ? londonTime(v.actualEnd) : "…"}</span> : null}</td>
                     <td>{v.callType.name}</td>
                     <td><CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} cancelled={v.status === "CANCELLED"} /></td>
-                    <td><VisitStatusBadge status={v.status} />{v.cancelReason ? <span className="block text-[12px] text-slate-500">{v.cancelReason}</span> : null}</td>
+                    <td><VisitStatusBadge status={v.status} />{v.cancelReason ? <span className="block text-caption text-slate-500">{v.cancelReason}</span> : null}</td>
                   </tr>
                 ))}
               </tbody>
@@ -499,19 +499,19 @@ export default async function ServiceUserPage({ params, searchParams }: { params
             {su.contacts.length ? (
               <ul className="rows">
                 {su.contacts.map((c) => (
-                  <li key={c.id} className="py-2.5 text-[14px]">
+                  <li key={c.id} className="py-2.5 text-body">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <div className="font-medium">{c.name} {c.isPrimary ? <Badge tone="violet">Primary contact</Badge> : null} {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null} {c.canReceiveUpdates ? <Badge tone="teal">Can receive updates</Badge> : null}</div>
                         <div className="text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}{c.altPhone ? ` · alt. ${c.altPhone}` : ""}{c.email ? ` · ${c.email}` : ""}</div>
-                        {c.authorityType ? <div className="text-[13px] text-slate-600">Authority: {AUTHORITY_LABEL[c.authorityType as keyof typeof AUTHORITY_LABEL] ?? c.authorityType}{c.authorityScope ? ` (${c.authorityScope})` : ""}</div> : null}
-                        {c.preferredContactMethod ? <div className="text-[13px] text-slate-600">Prefers: {PREFERRED_LABEL[c.preferredContactMethod] ?? c.preferredContactMethod}</div> : null}
+                        {c.authorityType ? <div className="text-meta text-slate-600">Authority: {AUTHORITY_LABEL[c.authorityType as keyof typeof AUTHORITY_LABEL] ?? c.authorityType}{c.authorityScope ? ` (${c.authorityScope})` : ""}</div> : null}
+                        {c.preferredContactMethod ? <div className="text-meta text-slate-600">Prefers: {PREFERRED_LABEL[c.preferredContactMethod] ?? c.preferredContactMethod}</div> : null}
                       </div>
-                      {canEdit ? <form action={removeContactAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="contactId" value={c.id} /><button className="btn-secondary py-0.5 text-[13px]">Remove</button></form> : null}
+                      {canEdit ? <form action={removeContactAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="contactId" value={c.id} /><button className="btn-secondary py-0.5 text-meta">Remove</button></form> : null}
                     </div>
                     {canEdit ? (
                       <details className="mt-1.5">
-                        <summary className="cursor-pointer text-[13px] font-medium text-[#1d4f91]">Edit {c.name}</summary>
+                        <summary className="cursor-pointer text-meta font-medium text-[#1d4f91]">Edit {c.name}</summary>
                         <form action={updateContactAction} className="mt-2 grid gap-2 md:grid-cols-2">
                           <input type="hidden" name="back" value={back} />
                           <input type="hidden" name="serviceUserId" value={su.id} />
@@ -533,18 +533,18 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 <button className="btn-secondary md:col-span-2">Add contact</button>
               </form>
             ) : null}
-            <p className="mt-2 text-[12.5px] text-slate-500">Emergency contact, permission to receive updates and authority to act are recorded separately. Being next of kin does not give authority. Communication already recorded keeps the number used at the time.</p>
+            <p className="mt-2 text-meta text-slate-500">Emergency contact, permission to receive updates and authority to act are recorded separately. Being next of kin does not give authority. Communication already recorded keeps the number used at the time.</p>
           </Card>
           <Card title="Carer preferences">
             {su.carerPreferences.length ? (
               <ul className="rows">
                 {su.carerPreferences.map((p) => (
-                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[14px]">
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-body">
                     <div>
                       <Link href={`/rota/staff/${p.staff.id}`} className="row-title">{p.staff.displayName}</Link> {p.blocked ? <Badge tone="rose">Must not visit</Badge> : null} {p.rating ? <Badge tone={p.rating >= 4 ? "green" : p.rating <= 2 ? "amber" : "slate"}>Rating {p.rating} of 5</Badge> : null}
                       {p.reason ? <div className="text-slate-600">{p.reason}</div> : null}
                     </div>
-                    {canEdit ? <form action={removeCarerPreferenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="staffId" value={p.staff.id} /><button className="btn-secondary py-0.5 text-[13px]">Remove</button></form> : null}
+                    {canEdit ? <form action={removeCarerPreferenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="staffId" value={p.staff.id} /><button className="btn-secondary py-0.5 text-meta">Remove</button></form> : null}
                   </li>
                 ))}
               </ul>
@@ -555,10 +555,10 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                 <input type="hidden" name="serviceUserId" value={su.id} />
                 <label className="md:col-span-2"><span className="label">Carer</span><select name="staffId" required className="input"><option value="">Choose…</option>{lk.carers.map((s) => <option key={s.id} value={s.id}>{s.displayName}</option>)}</select></label>
                 <label><span className="label">Rating</span><select name="rating" className="input"><option value="">No rating</option>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-                <label className="flex items-center gap-2 pt-6 text-[14px]"><input type="checkbox" name="blocked" className="h-4 w-4" /> Must not visit</label>
+                <label className="flex items-center gap-2 pt-6 text-body"><input type="checkbox" name="blocked" className="h-4 w-4" /> Must not visit</label>
                 <label className="md:col-span-2"><span className="label">Reason</span><input name="reason" className="input" placeholder="Required when a carer must not visit" /></label>
                 <button className="btn-secondary md:col-span-2">Save preference</button>
-                <p className="text-[12.5px] text-slate-500 md:col-span-2">A carer who must not visit is never offered for this person, and visits already booked with them are flagged for review.</p>
+                <p className="text-meta text-slate-500 md:col-span-2">A carer who must not visit is never offered for this person, and visits already booked with them are flagged for review.</p>
               </form>
             ) : null}
           </Card>
@@ -591,7 +591,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           <nav aria-label="Document sections" className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
             {([["council", "Council Documents"], ["other", "Other Documents"], ["forms", "Forms"]] as const).map(([k, label]) => {
               const on = (sp.section === "other" || sp.section === "forms" ? sp.section : "council") === k;
-              return <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={on ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${on ? "bg-[#1d4f91] font-medium text-white hover:text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{label}</Link>;
+              return <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={on ? "page" : undefined} className={`rounded-full px-3 py-1 text-body no-underline ${on ? "bg-[#1d4f91] font-medium text-white hover:text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{label}</Link>;
             })}
           </nav>
           {suForms ? (
@@ -609,11 +609,11 @@ export default async function ServiceUserPage({ params, searchParams }: { params
       {tab === "history" ? (
         <Card title="Record history">
           {history.length ? (
-            <ol className="space-y-2 text-[14px]">
+            <ol className="space-y-2 text-body">
               {history.map((h) => (
                 <li key={h.id} className="border-l-2 border-slate-200 pl-3">
                   <div className="font-medium">{h.action.replace("serviceUser.", "").replace(/\./g, " ")}</div>
-                  <div className="text-[13px] text-slate-500">{names.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</div>
+                  <div className="text-meta text-slate-500">{names.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</div>
                 </li>
               ))}
             </ol>
@@ -639,9 +639,9 @@ function ContactFields({ c }: { c?: ContactRow }) {
       <label><span className="label">Prefers to be contacted by</span><select name="preferredContactMethod" defaultValue={c?.preferredContactMethod ?? ""} className="input"><option value="">Not recorded</option><option value="PHONE">Telephone</option><option value="SMS">Text message</option><option value="EMAIL">Email</option><option value="OTHER">Other</option></select></label>
       <label><span className="label">Recorded authority to act</span><select name="authorityType" defaultValue={c?.authorityType ?? ""} className="input"><option value="">None recorded</option>{Object.entries(AUTHORITY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
       <label className="md:col-span-2"><span className="label">What the authority covers (optional)</span><input name="authorityScope" maxLength={500} defaultValue={c?.authorityScope ?? ""} className="input" placeholder="For example: health and welfare decisions, registered with the OPG" /></label>
-      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="isPrimary" defaultChecked={c?.isPrimary} className="h-4 w-4" /> Primary contact</label>
-      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="isEmergency" defaultChecked={c?.isEmergency} className="h-4 w-4" /> Emergency contact</label>
-      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="canReceiveUpdates" defaultChecked={c?.canReceiveUpdates} className="h-4 w-4" /> Can receive updates</label>
+      <label className="flex items-center gap-2 text-body"><input type="checkbox" name="isPrimary" defaultChecked={c?.isPrimary} className="h-4 w-4" /> Primary contact</label>
+      <label className="flex items-center gap-2 text-body"><input type="checkbox" name="isEmergency" defaultChecked={c?.isEmergency} className="h-4 w-4" /> Emergency contact</label>
+      <label className="flex items-center gap-2 text-body"><input type="checkbox" name="canReceiveUpdates" defaultChecked={c?.canReceiveUpdates} className="h-4 w-4" /> Can receive updates</label>
     </>
   );
 }

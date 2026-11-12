@@ -15,8 +15,8 @@ export function CarersNeededField({ name = "carersRequired", defaultValue = 1, l
   const startsCustom = defaultValue > PRESETS.length;
   const [custom, setCustom] = useState(startsCustom);
   const id = useId();
-  const labelClass = compact ? "text-[12.5px] text-slate-600" : "label";
-  const inputClass = compact ? "input py-1.5 text-[13.5px]" : "input";
+  const labelClass = compact ? "text-meta text-slate-600" : "label";
+  const inputClass = compact ? "input py-1.5 text-body" : "input";
   return (
     <div className="min-w-0">
       <label htmlFor={`${id}-n`} className={labelClass}>{label}</label>
@@ -48,7 +48,7 @@ export function CarersNeededField({ name = "carersRequired", defaultValue = 1, l
           />
         ) : null}
       </div>
-      {custom ? <p className="mt-1 text-[12px] text-slate-500">Enter the exact number of carers, from 1 to {MAX_CARERS}.</p> : null}
+      {custom ? <p className="mt-1 text-caption text-slate-500">Enter the exact number of carers, from 1 to {MAX_CARERS}.</p> : null}
     </div>
   );
 }

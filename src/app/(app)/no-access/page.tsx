@@ -26,9 +26,9 @@ export default async function NoAccess({ searchParams }: { searchParams: Promise
       <TitleBar title="No access" />
       <div className="bg-[#f1f2f5] px-4 py-10">
         <section className="mx-auto max-w-[640px] rounded-[3px] bg-white px-8 py-9 text-center" data-testid="no-access">
-          <span aria-hidden="true" className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fde1e3] text-[26px] font-bold text-[#a3242c]">!</span>
-          <h2 className="mt-4 font-sans text-[22px] font-medium text-navy-900">You don&apos;t have access to {portal?.name ?? "that portal"}</h2>
-          <p className="mt-2 text-[15px] text-slate-600">Your role{org ? ` at ${org.name.replace(/\s+\(DEMO\)$/i, "")}` : ""} is {roles}. Ask your manager if you need this portal.</p>
+          <span aria-hidden="true" className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#fde1e3] text-display font-bold text-[#a3242c]">!</span>
+          <h2 className="mt-4 font-sans text-heading font-medium text-navy-900">You don&apos;t have access to {portal?.name ?? "that portal"}</h2>
+          <p className="mt-2 text-lead text-slate-600">Your role{org ? ` at ${org.name.replace(/\s+\(DEMO\)$/i, "")}` : ""} is {roles}. Ask your manager if you need this portal.</p>
           <Link href="/overview" className="btn-primary mt-5">Go to Overview</Link>
         </section>
       </div>

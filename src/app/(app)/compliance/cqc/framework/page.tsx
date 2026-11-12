@@ -34,7 +34,7 @@ export default async function FrameworkPage({ searchParams }: { searchParams: Pr
                     <tr key={c.id}>
                       <td className="min-w-[240px]"><span className="pc-strong"><span className="mr-1.5 font-normal text-[#667085]">{c.code}</span>{c.title}</span>{c.essential ? <PcBadge tone="purple">Essential</PcBadge> : null}<span className="pc-sub">{c.guidance}</span></td>
                       <td className="min-w-[160px]">{c.qualityStatement}</td>
-                      <td className="min-w-[160px] text-[13px]">{c.regulations.join("; ")}</td>
+                      <td className="min-w-[160px] text-meta">{c.regulations.join("; ")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -43,7 +43,7 @@ export default async function FrameworkPage({ searchParams }: { searchParams: Pr
           </section>
           <div className="space-y-4">
             <Panel title="About this framework">
-              <div className="space-y-2 px-5 py-4 text-[13.5px] text-[#344054]">
+              <div className="space-y-2 px-5 py-4 text-body text-[#344054]">
                 <p>{fw.basis}</p>
                 {fw.notes ? <p>{fw.notes}</p> : null}
                 <p>Source: <a href={fw.sourceUrl ?? "https://www.cqc.org.uk/assessment"} className="pc-link" target="_blank" rel="noreferrer">CQC assessment framework</a></p>
@@ -51,8 +51,8 @@ export default async function FrameworkPage({ searchParams }: { searchParams: Pr
               </div>
             </Panel>
             <Panel title={<span id="method">How readiness is worked out</span>} testId="scoring-method">
-              <div className="space-y-2 px-5 py-4 text-[13.5px] text-[#344054]">
-                <p className="text-[12.5px] text-[#667085]">Method {SCORING_METHOD}. The same records always give the same figures.</p>
+              <div className="space-y-2 px-5 py-4 text-body text-[#344054]">
+                <p className="text-meta text-[#667085]">Method {SCORING_METHOD}. The same records always give the same figures.</p>
                 <ol className="list-decimal space-y-1.5 pl-5">
                   <li>Each area gets a result: Met (100 points), Partially met (50) or Not met (0). Not applicable needs a reason and is left out.</li>
                   <li>An area with no verified, in-date evidence counts for half. Suggested, awaiting, rejected, outdated or superseded evidence never counts.</li>

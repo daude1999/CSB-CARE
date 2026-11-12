@@ -25,12 +25,12 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                 <li key={n.id} className={`border-l-4 py-3 ${n.readAt ? "border-transparent" : "border-[#f06a4d]"}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     {!n.readAt ? <Badge tone="rose">new</Badge> : null}
-                    <span className="text-[15.5px] font-medium text-[#1d4f91]">{n.title}</span>
-                    <span className="text-[12.5px] text-slate-500">{fmtDate(n.createdAt, true)}</span>
+                    <span className="text-lead font-medium text-[#1d4f91]">{n.title}</span>
+                    <span className="text-meta text-slate-500">{fmtDate(n.createdAt, true)}</span>
                   </div>
-                  <p className="mt-1 text-[14px] text-slate-800">{n.body}</p>
-                  <p className="mt-0.5 text-[13px] text-slate-600">Why you received this: {n.reason}{n.dueAt ? ` · due ${fmtDate(n.dueAt)}` : ""}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">{links.filter((l) => l.url.startsWith("/")).map((l, i) => <Link key={i} href={l.url} className="btn-secondary py-1 text-[13px]">{l.label}</Link>)}</div>
+                  <p className="mt-1 text-body text-slate-800">{n.body}</p>
+                  <p className="mt-0.5 text-meta text-slate-600">Why you received this: {n.reason}{n.dueAt ? ` · due ${fmtDate(n.dueAt)}` : ""}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">{links.filter((l) => l.url.startsWith("/")).map((l, i) => <Link key={i} href={l.url} className="btn-secondary py-1 text-meta">{l.label}</Link>)}</div>
                 </li>
               );
             })}

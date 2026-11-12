@@ -16,7 +16,7 @@ export function Panel({ title, actions, children, className = "", label }: { tit
     <section aria-label={label} className={`panel ${className}`}>
       {title || actions ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
+          {title ? <h2 className="text-subtitle">{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
@@ -38,7 +38,7 @@ export type Tone = keyof typeof TONES;
 
 export function Badge({ children, tone = "slate", title }: { children: ReactNode; tone?: Tone; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-normal leading-4 ${TONES[tone]}`}>
+    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-caption font-normal leading-4 ${TONES[tone]}`}>
       {/* Sentence case on screen; the text itself stays as written. */}
       <span className="inline-block first-letter:uppercase">{children}</span>
     </span>
@@ -77,7 +77,7 @@ export function SegmentNav({ items, label, alert = false }: { items: { href: str
       {items.map((i) => (
         <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className="tab-line">
           {i.label}
-          {i.count !== undefined ? <span className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-status-missed text-white" : "bg-slate-100 text-slate-700"}`}>{i.count}</span> : null}
+          {i.count !== undefined ? <span className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-caption font-medium ${alert && i.count ? "bg-status-missed text-white" : "bg-slate-100 text-slate-700"}`}>{i.count}</span> : null}
         </Link>
       ))}
     </nav>
@@ -90,7 +90,7 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
     <section className={`card ${className}`}>
       {title || actions ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
+          {title ? <h2 className="text-subtitle">{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
@@ -105,7 +105,7 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-6 text-center text-[15px] text-slate-600">{children}</p>;
+  return <p className="px-4 py-6 text-center text-lead text-slate-600">{children}</p>;
 }
 
 const RINGS = {
@@ -120,10 +120,10 @@ const RINGS = {
 export function Stat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: keyof typeof RINGS; hint?: string }) {
   const body = (
     <>
-      <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[16px] ${RINGS[tone]}`}>{value}</span>
+      <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border-2 px-1 text-lead ${RINGS[tone]}`}>{value}</span>
       <span className="min-w-0">
-        <span className="block text-[15px] leading-[19px] text-slate-900 sm:text-[18px] sm:leading-[22px]">{label}</span>
-        {hint ? <span className="hidden text-[13.5px] leading-[18px] text-slate-600 sm:block">{hint}</span> : null}
+        <span className="block text-lead leading-[19px] text-slate-900 sm:text-subtitle sm:leading-[22px]">{label}</span>
+        {hint ? <span className="hidden text-body leading-[18px] text-slate-600 sm:block">{hint}</span> : null}
       </span>
     </>
   );

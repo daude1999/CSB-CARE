@@ -75,7 +75,7 @@ export default async function RevisionPage({ params, searchParams }: { params: P
               <div className="space-y-4">
                 {v.sections.map((s) => (
                   <details key={s.key} className="border-b border-slate-200 py-3 [&[open]]:pb-5">
-                    <summary className="cursor-pointer font-serif text-[16px] font-semibold text-navy-900">{s.heading} {s.isLocal ? <Badge tone="teal">local</Badge> : null}</summary>
+                    <summary className="cursor-pointer font-serif text-lead font-semibold text-navy-900">{s.heading} {s.isLocal ? <Badge tone="teal">local</Badge> : null}</summary>
                     <form action={editSectionAction} className="mt-3 space-y-2">
                       <input type="hidden" name="revisionId" value={r.id} />
                       <input type="hidden" name="key" value={s.key} />

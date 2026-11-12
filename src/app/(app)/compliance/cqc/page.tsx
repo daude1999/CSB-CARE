@@ -56,8 +56,8 @@ export default async function CqcOverviewPage({ searchParams }: { searchParams: 
           <PcSelect name="branch" label="Branch" defaultValue={f.branch ?? ""} options={[{ value: "", label: ctx.branchIds ? "My branches" : "Organisation-wide" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]} />
           <PcSelect name="service" label="Service" defaultValue={f.service ?? ""} options={[{ value: "", label: "All services" }, ...services.map((s) => ({ value: s.code, label: s.name }))]} />
           <PcSelect name="manager" label="Responsible manager" defaultValue={f.manager ?? ""} options={[{ value: "", label: "Anyone" }, ...managers.map((m) => ({ value: m.id, label: m.name }))]} />
-          <label className="pc-select pr-3"><span>From</span><input type="date" name="from" defaultValue={f.from} className="border-0 bg-transparent text-[13.5px]" aria-label="Period from" /></label>
-          <label className="pc-select pr-3"><span>To</span><input type="date" name="to" defaultValue={f.to} className="border-0 bg-transparent text-[13.5px]" aria-label="Period to" /></label>
+          <label className="pc-select pr-3"><span>From</span><input type="date" name="from" defaultValue={f.from} className="border-0 bg-transparent text-body" aria-label="Period from" /></label>
+          <label className="pc-select pr-3"><span>To</span><input type="date" name="to" defaultValue={f.to} className="border-0 bg-transparent text-body" aria-label="Period to" /></label>
           <button className="pc-btn-secondary pc-btn-sm" type="submit">Apply</button>
           {filtered ? <Link href="/compliance/cqc" className="pc-link">Clear filters</Link> : null}
         </form>
@@ -76,10 +76,10 @@ export default async function CqcOverviewPage({ searchParams }: { searchParams: 
               <>
                 <div className="flex flex-wrap items-end gap-x-6 gap-y-2 border-b border-[#eaecf0] px-5 py-4">
                   <div>
-                    <span className="block text-[13px] font-medium text-[#475467]">Overall CQC readiness</span>
+                    <span className="block text-meta font-medium text-[#475467]">Overall CQC readiness</span>
                     <ScoreValue g={r.overall} big />
                   </div>
-                  <p className="max-w-[460px] pb-1 text-[13px] text-[#475467]"><ConfidenceNote g={r.overall} />. Evidence coverage {Math.round(r.overall.evidenceCoverage * 100)}% ({r.overall.withVerifiedEvidence} of {r.overall.applicable} areas have verified, in-date evidence). Coverage is shown apart from the score: having evidence is not the same as being compliant.</p>
+                  <p className="max-w-[460px] pb-1 text-meta text-[#475467]"><ConfidenceNote g={r.overall} />. Evidence coverage {Math.round(r.overall.evidenceCoverage * 100)}% ({r.overall.withVerifiedEvidence} of {r.overall.applicable} areas have verified, in-date evidence). Coverage is shown apart from the score: having evidence is not the same as being compliant.</p>
                 </div>
                 <table className="pc-table">
                   <thead><tr><th>Key question</th><th className="w-[38%]">Readiness</th><th>Assessed</th><th>Evidence coverage</th></tr></thead>

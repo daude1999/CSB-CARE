@@ -61,7 +61,7 @@ export function DailyChart({ series, height = 168 }: { series: { label: string; 
           </g>
         ))}
       </svg>
-      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#5b6478]">
+      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-caption text-[#5b6478]">
         {series.map((s) => (
           <span key={s.label} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ background: s.color }} />

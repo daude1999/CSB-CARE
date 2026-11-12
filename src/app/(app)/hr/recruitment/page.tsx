@@ -204,15 +204,15 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
                     <tr key={c.id}>
                       <td>
                         <Link href={`/hr/recruitment/${c.id}`} className="hx-person"><HrAvatar name={`${c.firstName} ${c.lastName}`} size="sm" /><span>{c.firstName} {c.lastName}</span></Link>
-                        <span className="block text-[12.5px] text-[#5d6676]">{c.reference}{!c.applicationComplete ? " · application incomplete" : ""}</span>
+                        <span className="block text-meta text-[#5d6676]">{c.reference}{!c.applicationComplete ? " · application incomplete" : ""}</span>
                       </td>
-                      <td><span className="block max-w-[220px] truncate" title={c.roleApplied}>{c.roleApplied}</span><span className="block text-[12.5px] text-[#5d6676]">{branchName.get(c.branchId) ?? "—"}</span></td>
-                      <td><StageBadge stage={c.stage} /><span className="mt-0.5 block text-[12px] text-[#5d6676]">since {fmtLondonDate(londonDate(c.stageChangedAt), { day: "numeric", month: "short" })}</span></td>
+                      <td><span className="block max-w-[220px] truncate" title={c.roleApplied}>{c.roleApplied}</span><span className="block text-meta text-[#5d6676]">{branchName.get(c.branchId) ?? "—"}</span></td>
+                      <td><StageBadge stage={c.stage} /><span className="mt-0.5 block text-caption text-[#5d6676]">since {fmtLondonDate(londonDate(c.stageChangedAt), { day: "numeric", month: "short" })}</span></td>
                       <td><RtwBadge status={c.rightToWork} /></td>
                       <td className="whitespace-nowrap">{c.recruiterId ? name.get(c.recruiterId) ?? "Former member" : <span className="text-[#8a93a3]">Not assigned</span>}</td>
                       <td>
                         <span className={`block max-w-[260px] ${c.waiting ? "" : "font-semibold text-[#161b26]"}`}>{c.next}</span>
-                        {c.nextActionDue ? <span className={`block text-[12.5px] tabular-nums ${fromDbDate(c.nextActionDue) < today ? "font-semibold text-[#b42318]" : "text-[#5d6676]"}`}>{fromDbDate(c.nextActionDue) < today ? "Overdue: " : "By "}{fmtLondonDate(fromDbDate(c.nextActionDue), { day: "numeric", month: "short" })}</span> : c.waiting ? <span className="block text-[12.5px] text-[#5d6676]">Waiting on the applicant</span> : null}
+                        {c.nextActionDue ? <span className={`block text-meta tabular-nums ${fromDbDate(c.nextActionDue) < today ? "font-semibold text-[#b42318]" : "text-[#5d6676]"}`}>{fromDbDate(c.nextActionDue) < today ? "Overdue: " : "By "}{fmtLondonDate(fromDbDate(c.nextActionDue), { day: "numeric", month: "short" })}</span> : c.waiting ? <span className="block text-meta text-[#5d6676]">Waiting on the applicant</span> : null}
                       </td>
                     </tr>
                   ))}
@@ -246,12 +246,12 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
             <div className="flex items-center gap-3 px-[18px] py-3">
               <HrAvatar name={`${chosen.candidate.firstName} ${chosen.candidate.lastName}`} size="lg" />
               <div className="min-w-0">
-                <p className="truncate text-[16px] font-semibold text-[#161b26]">{chosen.candidate.firstName} {chosen.candidate.lastName}</p>
-                <p className="truncate text-[13.5px] text-[#5d6676]">{chosen.candidate.roleApplied} · {branchName.get(chosen.candidate.branchId) ?? "—"}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-2"><StageBadge stage={chosen.candidate.stage} /><span className="text-[12.5px] text-[#5d6676]">{chosen.candidate.reference}</span></p>
+                <p className="truncate text-lead font-semibold text-[#161b26]">{chosen.candidate.firstName} {chosen.candidate.lastName}</p>
+                <p className="truncate text-body text-[#5d6676]">{chosen.candidate.roleApplied} · {branchName.get(chosen.candidate.branchId) ?? "—"}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-2"><StageBadge stage={chosen.candidate.stage} /><span className="text-meta text-[#5d6676]">{chosen.candidate.reference}</span></p>
               </div>
             </div>
-            <dl className="grid gap-1.5 border-t border-[#eef0f3] px-[18px] py-3 text-[13.5px]">
+            <dl className="grid gap-1.5 border-t border-[#eef0f3] px-[18px] py-3 text-body">
               <div className="flex items-center gap-2"><dt className="sr-only">Phone</dt><Phone size={15} aria-hidden className="text-[#5d6676]" /><dd>{chosen.candidate.phone ?? "Phone not recorded"}</dd></div>
               <div className="flex items-center gap-2"><dt className="sr-only">Email</dt><Envelope size={15} aria-hidden className="text-[#5d6676]" /><dd className="truncate">{chosen.candidate.email ?? "Email not recorded"}</dd></div>
               <div className="flex items-center gap-2"><dt className="text-[#5d6676]">Source:</dt><dd>{chosen.candidate.source ?? "Not recorded"}</dd></div>
@@ -261,23 +261,23 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
             {(() => {
               const upcoming = chosen.candidate.interviews.filter((i) => i.startsAt > now && i.status !== "CANCELLED").sort((x, y) => +x.startsAt - +y.startsAt)[0];
               return upcoming ? (
-                <p className="mx-[18px] mb-3 flex items-center gap-2 rounded-[8px] border border-[#e6e8ec] px-3 py-2 text-[13.5px]"><CalendarCheck size={18} aria-hidden className="text-[#c2410c]" /><span><strong className="block">Interview</strong>{fmtLondonDate(londonDate(upcoming.startsAt), { weekday: "short", day: "numeric", month: "short" })} at {londonTime(upcoming.startsAt)}</span></p>
+                <p className="mx-[18px] mb-3 flex items-center gap-2 rounded-[8px] border border-[#e6e8ec] px-3 py-2 text-body"><CalendarCheck size={18} aria-hidden className="text-[#c2410c]" /><span><strong className="block">Interview</strong>{fmtLondonDate(londonDate(upcoming.startsAt), { weekday: "short", day: "numeric", month: "short" })} at {londonTime(upcoming.startsAt)}</span></p>
               ) : null;
             })()}
             <div className="border-t border-[#eef0f3] px-[18px] py-3">
-              <p className="text-[12.5px] font-semibold text-[#5d6676]">Next step</p>
-              <p className="text-[15px] font-semibold text-[#161b26]">{chosen.next}</p>
+              <p className="text-meta font-semibold text-[#5d6676]">Next step</p>
+              <p className="text-lead font-semibold text-[#161b26]">{chosen.next}</p>
               {chosen.candidate.outstandingDocuments.length ? (
                 <>
-                  <p className="mt-2.5 text-[12.5px] font-semibold text-[#5d6676]">Documents still needed</p>
-                  <ul className="mt-1 list-disc pl-5 text-[13.5px] text-[#344054]">{chosen.candidate.outstandingDocuments.map((d) => <li key={d}>{d}</li>)}</ul>
+                  <p className="mt-2.5 text-meta font-semibold text-[#5d6676]">Documents still needed</p>
+                  <ul className="mt-1 list-disc pl-5 text-body text-[#344054]">{chosen.candidate.outstandingDocuments.map((d) => <li key={d}>{d}</li>)}</ul>
                 </>
               ) : null}
             </div>
             <div className="grid gap-2 border-t border-[#eef0f3] p-[14px]">
               <Link href={`/hr/recruitment/${chosen.candidate.id}`} className={HX_PRIMARY}>Open full record</Link>
               {a.canEdit && manualMoves(chosen.candidate.stage).length ? (
-                <form action={moveStageAction} className="flex flex-wrap items-center gap-1.5 text-[13px]" aria-label="Move stage">
+                <form action={moveStageAction} className="flex flex-wrap items-center gap-1.5 text-meta" aria-label="Move stage">
                   <input type="hidden" name="back" value={boardUrl(chosen.candidate.id)} />
                   <input type="hidden" name="candidateId" value={chosen.candidate.id} />
                   <input type="hidden" name="lockVersion" value={chosen.candidate.lockVersion} />
@@ -285,7 +285,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
                   {manualMoves(chosen.candidate.stage).map((st) => <button key={st} name="to" value={st} className={`${HX_SECONDARY} hx-btn--sm`}>{STAGE_LABEL[st]}</button>)}
                 </form>
               ) : null}
-              <p className="text-[12px] text-[#5d6676]">Screening, interviews, offers and onboarding are recorded on the full record, where each step&apos;s checks apply.</p>
+              <p className="text-caption text-[#5d6676]">Screening, interviews, offers and onboarding are recorded on the full record, where each step&apos;s checks apply.</p>
             </div>
           </aside>
         ) : null}
@@ -300,11 +300,11 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
                 <li key={i.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <span className="min-w-0">
                     <Link href={`/hr/recruitment/${i.candidate.id}`} className="font-semibold text-[#161b26] no-underline hover:underline">{i.candidate.firstName} {i.candidate.lastName}</Link>
-                    <span className="block text-[13px] text-[#5d6676]">{i.candidate.roleApplied} · with {name.get(i.interviewerId) ?? "a former member"}</span>
+                    <span className="block text-meta text-[#5d6676]">{i.candidate.roleApplied} · with {name.get(i.interviewerId) ?? "a former member"}</span>
                   </span>
-                  <span className="text-right text-[13.5px]">
+                  <span className="text-right text-body">
                     {shortDate(londonDate(i.startsAt))}, <span className="tabular-nums">{londonTime(i.startsAt)}</span>
-                    <span className={`block text-[12.5px] ${i.status === "CONFIRMED" ? "text-[#067647]" : "text-[#b54708]"}`}>{i.status === "CONFIRMED" ? "Confirmed" : "Not confirmed yet"}</span>
+                    <span className={`block text-meta ${i.status === "CONFIRMED" ? "text-[#067647]" : "text-[#b54708]"}`}>{i.status === "CONFIRMED" ? "Confirmed" : "Not confirmed yet"}</span>
                   </span>
                 </li>
               ))}
@@ -318,9 +318,9 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
             <ul className="hx-list" data-testid="rc-reminders">
               {reminders.slice(0, 10).map((r) => (
                 <li key={r.key}>
-                  <span className="block text-[12.5px] font-semibold text-[#b54708]">{REMINDER_LABEL[r.kind]}</span>
-                  <Link href={`/hr/recruitment/${r.candidateId}`} className="font-semibold text-[#161b26] no-underline hover:underline">{r.name}</Link> <span className="text-[13px] text-[#5d6676]">{r.reference}</span>
-                  <span className="block text-[13px] text-[#344054]">{r.text}</span>
+                  <span className="block text-meta font-semibold text-[#b54708]">{REMINDER_LABEL[r.kind]}</span>
+                  <Link href={`/hr/recruitment/${r.candidateId}`} className="font-semibold text-[#161b26] no-underline hover:underline">{r.name}</Link> <span className="text-meta text-[#5d6676]">{r.reference}</span>
+                  <span className="block text-meta text-[#344054]">{r.text}</span>
                 </li>
               ))}
             </ul>
@@ -330,7 +330,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
       </div>
 
       {b.erasable && a.canErase ? (
-        <p className="mt-[14px] rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-[13.5px] text-[#7a2e0e]"><strong>{b.erasable}</strong> closed application{b.erasable === 1 ? " is" : "s are"} past {b.erasable === 1 ? "its" : "their"} retention date. <Link href={url({ show: "closed" })} className="font-semibold">Review closed applications</Link> to remove personal details.</p>
+        <p className="mt-[14px] rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-body text-[#7a2e0e]"><strong>{b.erasable}</strong> closed application{b.erasable === 1 ? " is" : "s are"} past {b.erasable === 1 ? "its" : "their"} retention date. <Link href={url({ show: "closed" })} className="font-semibold">Review closed applications</Link> to remove personal details.</p>
       ) : null}
     </div>
   );

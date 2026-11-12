@@ -46,9 +46,9 @@ export default async function NewRcaPage({ searchParams }: { searchParams: Promi
       <CompliancePageHeader back="/compliance/cqc/rca" title="New RCA Investigation" subtitle="Record the basics now. The investigator then works through the seven steps on the investigation page." />
       <Flash searchParams={sp} />
       <div className="mx-auto max-w-[860px] space-y-4">
-        {param && !s ? <p className="rounded-[10px] border border-[#fecdca] bg-[#fef3f2] px-4 py-2.5 text-[13.5px] text-[#b42318]" role="alert">That record could not be found, or you do not have access to it. You can still open an investigation without it.</p> : null}
+        {param && !s ? <p className="rounded-[10px] border border-[#fecdca] bg-[#fef3f2] px-4 py-2.5 text-body text-[#b42318]" role="alert">That record could not be found, or you do not have access to it. You can still open an investigation without it.</p> : null}
         {draft?.existing ? (
-          <p className="rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-[14px] text-[#93370d]" role="alert" data-testid="rca-duplicate">
+          <p className="rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-body text-[#93370d]" role="alert" data-testid="rca-duplicate">
             <strong>{draft.existing.reference}</strong> is already investigating {s?.ref}. Add to that investigation instead of starting another. <Link href={`/compliance/cqc/rca/${draft.existing.id}`} className="pc-link">Open {draft.existing.reference}</Link>
           </p>
         ) : null}
@@ -58,7 +58,7 @@ export default async function NewRcaPage({ searchParams }: { searchParams: Promi
           {s?.serviceUserId ? <input type="hidden" name="serviceUserId" value={s.serviceUserId} /> : null}
           {s ? (
             <Panel title="Investigating">
-              <p className="px-5 py-3 text-[14px]"><strong>{SOURCE_KINDS[s.type]}</strong> {s.ref}. It stays as it is and keeps its own reference; the investigation links to it.</p>
+              <p className="px-5 py-3 text-body"><strong>{SOURCE_KINDS[s.type]}</strong> {s.ref}. It stays as it is and keeps its own reference; the investigation links to it.</p>
             </Panel>
           ) : null}
           <Panel title="The event">
@@ -77,13 +77,13 @@ export default async function NewRcaPage({ searchParams }: { searchParams: Promi
               <label><span className="label">Investigator</span><select name="ownerId" className="input" required defaultValue=""><option value="" disabled>Choose…</option>{people.investigators.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               <label><span className="label">Responsible manager</span><select name="managerId" className="input" required defaultValue=""><option value="" disabled>Choose…</option>{people.managers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               <label><span className="label">Investigation due</span><input type="date" name="dueDate" className="input" required min={today} defaultValue={due} /></label>
-              <p className="text-[12.5px] text-[#667085] md:col-span-3">The responsible manager reviews the findings, so choose someone other than the investigator. Suggested due date: 7 days for critical, 14 for high, 28 otherwise.</p>
+              <p className="text-meta text-[#667085] md:col-span-3">The responsible manager reviews the findings, so choose someone other than the investigator. Suggested due date: 7 days for critical, 14 for high, 28 otherwise.</p>
             </div>
           </Panel>
           <Panel title="Confidentiality">
-            <label className="flex items-start gap-3 px-5 py-4 text-[14px]">
+            <label className="flex items-start gap-3 px-5 py-4 text-body">
               <input type="checkbox" name="restricted" className="mt-1" defaultChecked={s?.restricted || s?.category === "Safeguarding concern"} />
-              <span><strong>Restricted (safeguarding or confidential)</strong><span className="block text-[13px] text-[#475467]">Only safeguarding leads and the people on this case will see its details. Safeguarding concerns are always restricted. Notifications never include personal details.</span></span>
+              <span><strong>Restricted (safeguarding or confidential)</strong><span className="block text-meta text-[#475467]">Only safeguarding leads and the people on this case will see its details. Safeguarding concerns are always restricted. Notifications never include personal details.</span></span>
             </label>
           </Panel>
           <div className="flex gap-2"><button className="pc-btn" type="submit">Open investigation</button><Link href="/compliance/cqc/rca" className="pc-btn-secondary">Cancel</Link></div>

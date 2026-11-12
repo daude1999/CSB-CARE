@@ -210,8 +210,8 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
           <header className="flex items-center gap-2.5 border-b border-[#e6edf0] pb-3.5 pl-4 pr-2.5 pt-4">
             <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#0b6b74] text-white shadow-[0_4px_12px_rgba(11,107,116,.28)]"><Sparkle size={24} weight="fill" /></span>
             <span className="min-w-0 flex-1 pr-1">
-              <strong id="ai-csb-title" className="block whitespace-nowrap text-[16px] font-semibold leading-[21px] text-[#13303b]">AI CSB Coordinator</strong>
-              <span className="block truncate text-[12px] leading-[17px] text-[#5d717c]">Your AI care coordination assistant</span>
+              <strong id="ai-csb-title" className="block whitespace-nowrap text-lead font-semibold leading-[21px] text-[#13303b]">AI CSB Coordinator</strong>
+              <span className="block truncate text-caption leading-[17px] text-[#5d717c]">Your AI care coordination assistant</span>
             </span>
             <button type="button" onClick={() => setExpanded((x) => !x)} aria-label={expanded ? "Make the panel smaller" : "Expand the panel"} aria-pressed={expanded} title={expanded ? "Smaller" : "Expand"} data-testid="ai-expand" className="ai-csb-icon-btn hidden sm:flex">
               {expanded ? <ArrowsInSimple size={18} aria-hidden="true" /> : <ArrowsOutSimple size={18} aria-hidden="true" />}
@@ -219,24 +219,24 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
             <button type="button" onClick={() => hide(false)} aria-label="Minimise AI CSB Coordinator" title="Minimise (keeps the conversation)" data-testid="ai-minimise" className="ai-csb-icon-btn"><Minus size={18} aria-hidden="true" /></button>
             <button type="button" onClick={() => hide(true)} aria-label="Close AI CSB Coordinator" title="Close (clears the conversation)" data-testid="ai-close" className="ai-csb-icon-btn"><X size={18} aria-hidden="true" /></button>
           </header>
-          <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-[12px]" data-testid="ai-status">
+          <div className="flex items-center gap-2 border-b border-[#eef2f4] bg-[#fbfcfd] px-5 py-2 text-caption" data-testid="ai-status">
             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#16a34a] shadow-[0_0_0_3px_rgba(22,163,74,.15)]" />
             <span className="whitespace-nowrap font-medium text-[#15803d]">Online</span>
             <span className="min-w-0 truncate text-[#5d717c]">{aiOn ? "· Claude AI, using your CRM records" : "· Answers from your CRM records only"}</span>
           </div>
-          {context ? <p className="border-b border-[#e3eff0] bg-[#f2f9f9] px-5 py-1.5 text-[12px] font-medium text-[#0b6b74]" data-testid="ai-context">{context}</p> : null}
+          {context ? <p className="border-b border-[#e3eff0] bg-[#f2f9f9] px-5 py-1.5 text-caption font-medium text-[#0b6b74]" data-testid="ai-context">{context}</p> : null}
 
           <div role="log" aria-label="Conversation with AI CSB Coordinator" aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "assistant" ? <span aria-hidden="true" className="mr-2 mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[#e3f1f1] text-[#0b6b74]"><Sparkle size={15} weight="fill" /></span> : null}
-                <div className={`max-w-[86%] whitespace-pre-wrap px-4 py-3 text-[13.5px] leading-[21px] ${m.role === "user" ? "rounded-[18px] rounded-br-[6px] bg-[#0b6b74] text-white" : "rounded-[18px] rounded-tl-[6px] bg-[#eff4f8] text-[#22404d]"}`}>
+                <div className={`max-w-[86%] whitespace-pre-wrap px-4 py-3 text-body leading-[21px] ${m.role === "user" ? "rounded-[18px] rounded-br-[6px] bg-[#0b6b74] text-white" : "rounded-[18px] rounded-tl-[6px] bg-[#eff4f8] text-[#22404d]"}`}>
                   <span className="sr-only">{m.role === "user" ? "You: " : "AI CSB Coordinator: "}</span>{m.content}
-                  {m.notice ? <span className="mt-2 block whitespace-normal rounded-[10px] border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[12px] leading-[17px] text-amber-900" data-testid="ai-notice">{m.notice}</span> : null}
+                  {m.notice ? <span className="mt-2 block whitespace-normal rounded-[10px] border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-caption leading-[17px] text-amber-900" data-testid="ai-notice">{m.notice}</span> : null}
                   {m.links?.length ? (
                     <span className="mt-2.5 flex flex-wrap gap-1.5 whitespace-normal">
                       {m.links.map((l) => (
-                        <Link key={l.href + l.label} href={l.href} onClick={afterAction} className="inline-flex items-center gap-1 rounded-full border border-[#b9d8da] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#0b6b74] no-underline hover:bg-[#e3f1f1]">
+                        <Link key={l.href + l.label} href={l.href} onClick={afterAction} className="inline-flex items-center gap-1 rounded-full border border-[#b9d8da] bg-white px-2.5 py-1 text-caption font-semibold text-[#0b6b74] no-underline hover:bg-[#e3f1f1]">
                           {l.label}<CaretRight size={12} weight="bold" aria-hidden="true" />
                         </Link>
                       ))}
@@ -247,37 +247,37 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
             ))}
             {messages.length === 1 && actions.length ? (
               <nav aria-label="Suggested actions" data-testid="ai-suggested-actions">
-                <p className="mb-2.5 text-[13px] font-semibold text-[#13303b]">Try one of these:</p>
+                <p className="mb-2.5 text-meta font-semibold text-[#13303b]">Try one of these:</p>
                 <ul className="space-y-2">
                   {actions.map((a) => (
                     <li key={a.key}>
                       <Link href={a.href} onClick={afterAction} data-testid={`ai-action-${a.key}`} className="ai-csb-action group">
                         <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border-[1.5px] border-[#a9d3d4] bg-white text-[#0b6b74]"><a.icon size={21} /></span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[13.5px] font-semibold leading-[18px] text-[#13303b]">{a.title}</span>
-                          <span className="block text-[12px] leading-[16px] text-[#5d717c]">{a.subtitle}</span>
+                          <span className="block text-body font-semibold leading-[18px] text-[#13303b]">{a.title}</span>
+                          <span className="block text-caption leading-[16px] text-[#5d717c]">{a.subtitle}</span>
                         </span>
                         <CaretRight size={15} aria-hidden="true" className="shrink-0 text-[#8aa1ab] group-hover:text-[#0b6b74]" />
                       </Link>
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2.5 text-[11.5px] leading-[16px] text-[#6b7f89]">Shortcuts open existing screens. Attachments are read and set up by CSB AI; visits are never published automatically.</p>
+                <p className="mt-2.5 text-caption leading-[16px] text-[#6b7f89]">Shortcuts open existing screens. Attachments are read and set up by CSB AI; visits are never published automatically.</p>
               </nav>
             ) : null}
             {sending ? (
-              <div role="status" className="flex items-center gap-2 pl-9 text-[12.5px] text-[#5d717c]">
+              <div role="status" className="flex items-center gap-2 pl-9 text-meta text-[#5d717c]">
                 <span aria-hidden="true" className="flex gap-1"><span className="ai-csb-dot" /><span className="ai-csb-dot [animation-delay:120ms]" /><span className="ai-csb-dot [animation-delay:240ms]" /></span>
                 {busyLabel}
               </div>
             ) : null}
-            {error ? <div role="alert" className="rounded-[12px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-[12.5px] text-rose-800">{error}</div> : null}
+            {error ? <div role="alert" className="rounded-[12px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-meta text-rose-800">{error}</div> : null}
             <div ref={scrollBottom} />
           </div>
 
           <form onSubmit={submit} className="ai-csb-input border-t border-[#e6edf0] bg-white px-4 pt-3">
             {attachment ? (
-              <div data-testid="ai-pending-attachment" className="mb-2 space-y-2 rounded-lg border border-[#b9d8da] bg-[#f2f9f9] p-2 text-[12px] text-[#22404d]">
+              <div data-testid="ai-pending-attachment" className="mb-2 space-y-2 rounded-lg border border-[#b9d8da] bg-[#f2f9f9] p-2 text-caption text-[#22404d]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="min-w-0 truncate font-semibold">{attachment.name} ({attachment.size < 1024 * 1024 ? `${Math.max(1, Math.round(attachment.size / 1024))} KB` : `${(attachment.size / 1024 / 1024).toFixed(1)} MB`})</span>
                   <button type="button" disabled={uploading} onClick={() => { setAttachment(null); if (attachmentInput.current) attachmentInput.current.value = ""; }} aria-label="Remove attachment" className="rounded p-1 hover:bg-[#dceeee]"><X size={15} /></button>
@@ -291,7 +291,7 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
                     </select>
                   </label>
                 ) : <p>Attach to {intakeId ? "the intake on this page" : "the draft intake in this conversation"}.</p>}
-                <p className="text-[11px]">If your organisation has AI document reading enabled, the PDF may be processed by its configured AI provider. A Care Coordinator still reviews and confirms everything.</p>
+                <p className="text-micro">If your organisation has AI document reading enabled, the PDF may be processed by its configured AI provider. A Care Coordinator still reviews and confirms everything.</p>
                 <button data-testid="ai-upload-confirm" type="button" disabled={uploading || sending} onClick={() => void uploadAttachment()} className="rounded-lg bg-[#0b6b74] px-3 py-1.5 font-semibold text-white disabled:opacity-40">
                   {uploading ? "Saving and reading…" : "Upload to intake for review"}
                 </button>
@@ -316,13 +316,13 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void ask(query); } }}
                 placeholder="Ask AI CSB Coordinator anything..."
-                className={`max-h-32 min-h-[36px] min-w-0 flex-1 resize-none bg-transparent ${query ? "" : "overflow-hidden whitespace-nowrap"} px-1.5 py-[7px] text-[14px] leading-[22px] text-[#13303b] outline-none placeholder:text-[#7c8f99]`}
+                className={`max-h-32 min-h-[36px] min-w-0 flex-1 resize-none bg-transparent ${query ? "" : "overflow-hidden whitespace-nowrap"} px-1.5 py-[7px] text-body leading-[22px] text-[#13303b] outline-none placeholder:text-[#7c8f99]`}
               />
               <button type="submit" aria-label="Send message" data-testid="ai-send" disabled={sending || uploading || query.trim().length < 2} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#0b6b74] text-white hover:bg-[#08545b] disabled:opacity-40">
                 <PaperPlaneRight size={18} weight="fill" aria-hidden="true" />
               </button>
             </div>
-            <p className="px-1 pb-3 pt-1.5 text-[11px] text-[#6b7f89]">Enter to send; attach documents with the paperclip. Nothing is published or sent to carers automatically.</p>
+            <p className="px-1 pb-3 pt-1.5 text-micro text-[#6b7f89]">Enter to send; attach documents with the paperclip. Nothing is published or sent to carers automatically.</p>
           </form>
         </section>
       ) : null}

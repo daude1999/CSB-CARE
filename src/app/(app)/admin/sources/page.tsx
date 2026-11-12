@@ -20,7 +20,7 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
       <PageHeader eyebrow="Administration · monitored sources" title="Source Monitoring" subtitle="Registry of monitored regulatory sources. A source is only shown as monitored when it has been successfully checked within its freshness window." />
       <Flash searchParams={sp} />
       {workerStale ? (
-        <div role="alert" className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-[#fde1e3] px-4 py-3 text-[14px] text-[#a3242c]">
+        <div role="alert" className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-[#fde1e3] px-4 py-3 text-body text-[#a3242c]">
           The background worker has not reported in the last 30 minutes (last heartbeat: {fmtDate(workerBeat?.finishedAt, true)}). Scheduled monitoring is not running. Start it with <code>npm run worker</code>.
         </div>
       ) : null}
@@ -38,14 +38,14 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
               const f = freshness(s);
               return (
                 <tr key={s.id}>
-                  <td><Link href={`/admin/sources/${s.id}`} className="font-medium">{s.name}</Link> <SimulatedBadge show={s.isSimulated} />{!s.active ? <Badge>inactive</Badge> : null}<div className="text-[12px] text-slate-500">{s.key}</div></td>
-                  <td className="text-[13px]">{s.monitoringMethod.replace(/_/g, " ").toLowerCase()}</td>
+                  <td><Link href={`/admin/sources/${s.id}`} className="font-medium">{s.name}</Link> <SimulatedBadge show={s.isSimulated} />{!s.active ? <Badge>inactive</Badge> : null}<div className="text-caption text-slate-500">{s.key}</div></td>
+                  <td className="text-meta">{s.monitoringMethod.replace(/_/g, " ").toLowerCase()}</td>
                   <td><StatusBadge status={s.coverage} /></td>
-                  <td><StatusBadge status={s.retrievalStatus} />{s.consecutiveFailures ? <div className="mt-1 text-[12px] text-[#a3242c]">{s.consecutiveFailures} consecutive failure(s)</div> : null}</td>
+                  <td><StatusBadge status={s.retrievalStatus} />{s.consecutiveFailures ? <div className="mt-1 text-caption text-[#a3242c]">{s.consecutiveFailures} consecutive failure(s)</div> : null}</td>
                   <td><Badge tone={f.state === "fresh" ? "green" : f.state === "stale" || f.state === "never" ? "rose" : "slate"}>{f.label}</Badge></td>
-                  <td className="text-[13px]">{fmtDate(s.lastSuccessAt, true)}</td>
-                  <td className="text-[13px]">{s.coverage === "MANUAL_REVIEW_ONLY" ? "—" : fmtDate(s.nextCheckAt, true)}</td>
-                  <td className="text-[13px]">{s._count.documents} / {s._count.changes}</td>
+                  <td className="text-meta">{fmtDate(s.lastSuccessAt, true)}</td>
+                  <td className="text-meta">{s.coverage === "MANUAL_REVIEW_ONLY" ? "—" : fmtDate(s.nextCheckAt, true)}</td>
+                  <td className="text-meta">{s._count.documents} / {s._count.changes}</td>
                 </tr>
               );
             })}

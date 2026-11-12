@@ -9,7 +9,7 @@ import { assignCarerAction } from "@/app/rota-actions";
 export function MoveConfirm({ move, back }: { move: { visitId: string; slot: string; staffId: string; lockVersion: string; label: string; staff: string }; back: string }) {
   return (
     <section aria-label="Confirm move" className="panel mb-3 border-l-4 border-[#e3934a]">
-      <p className="text-[14px]">Move <span className="font-medium">{move.label}</span> to <span className="font-medium">{move.staff}</span> anyway? The warnings above will be recorded on the allocation.</p>
+      <p className="text-body">Move <span className="font-medium">{move.label}</span> to <span className="font-medium">{move.staff}</span> anyway? The warnings above will be recorded on the allocation.</p>
       <form action={assignCarerAction} className="mt-2 flex gap-2">
         <input type="hidden" name="back" value={back} />
         <input type="hidden" name="visitId" value={move.visitId} />

@@ -59,7 +59,7 @@ export default async function CompareVersionsPage({ params, searchParams }: { pa
           </form>
           {diff && from && to ? (
             <section className="pc-panel p-5" aria-label="Differences" data-testid="version-compare">
-              <p className="mb-3 flex flex-wrap items-center gap-2 text-[14px] text-slate-700">
+              <p className="mb-3 flex flex-wrap items-center gap-2 text-body text-slate-700">
                 Comparing <strong>Version {from.label}</strong> <StatusBadge status={from.status} /> with <strong>Version {to.label}</strong> <StatusBadge status={to.status} />
               </p>
               <PolicyDiffView diff={diff} />

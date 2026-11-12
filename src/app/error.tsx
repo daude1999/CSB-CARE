@@ -13,8 +13,8 @@ export default function AppShellError({ error }: { error: Error & { digest?: str
     <main className="flex min-h-screen items-center justify-center bg-[#f6f5f3] px-4 py-10">
       <div role="alert" className="w-full max-w-[480px] rounded-[10px] border border-[#e3e6ec] bg-white p-6 shadow-sm">
         <Logo className="h-10" />
-        <h1 className="mt-5 text-[20px] font-semibold text-[#0b1530]">The platform couldn&apos;t load just now</h1>
-        <p className="mt-2 text-[15px] leading-[22px] text-slate-700">
+        <h1 className="mt-5 text-title font-semibold text-[#0b1530]">The platform couldn&apos;t load just now</h1>
+        <p className="mt-2 text-lead leading-[22px] text-slate-700">
           This is usually a brief connection problem on our side, for example straight after an update. Nothing you entered
           has been lost. Please try again in a few seconds.
         </p>

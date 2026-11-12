@@ -12,7 +12,7 @@ import { Badge, Card, Empty, Flash, PageHeader, fmtDate } from "@/components/ui"
 
 export const dynamic = "force-dynamic";
 
-const CHOICE = "flex min-h-[48px] items-center rounded-[10px] border border-[#d0d5dd] bg-white px-3.5 py-2.5 text-[15px] font-medium text-[#101828] no-underline hover:border-module hover:bg-[#f6f2fd] hover:text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+const CHOICE = "flex min-h-[48px] items-center rounded-[10px] border border-[#d0d5dd] bg-white px-3.5 py-2.5 text-lead font-medium text-[#101828] no-underline hover:border-module hover:bg-[#f6f2fd] hover:text-[#101828] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
 
 /**
  * Missed Visit Confirmation, inside My Visits. The carer picks what happened, then sees only the questions that answer
@@ -41,37 +41,37 @@ export default async function MissedConfirmationPage({ params, searchParams }: {
       <PageHeader title="Missed visit" back="/carer" />
       <Flash searchParams={sp} />
       <Card className="mb-3">
-        <dl className="grid grid-cols-[5.5rem_1fr] gap-y-1 text-[15px]">
+        <dl className="grid grid-cols-[5.5rem_1fr] gap-y-1 text-lead">
           <dt className="text-slate-600">Visit</dt><dd className="font-semibold tabular-nums">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)} · {v.callType.name}</dd>
           <dt className="text-slate-600">Date</dt><dd>{fmtLondonDate(visitDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</dd>
           <dt className="text-slate-600">For</dt><dd>{carerFacingName(v.serviceUser)}</dd>
-          <dt className="text-slate-600">Status</dt><dd>{c.status === "RESPONDED" ? <Badge tone="green">Answer sent</Badge> : c.status === "WITHDRAWN" || c.case.stage === "CLOSED" ? <Badge tone="slate">Closed by the office</Badge> : <Badge tone="amber">Confirmation requested</Badge>}{c.responseDueAt && c.status === "REQUESTED" ? <span className="ml-2 text-[13.5px] text-slate-600">Please answer by {londonTime(c.responseDueAt)}</span> : null}</dd>
+          <dt className="text-slate-600">Status</dt><dd>{c.status === "RESPONDED" ? <Badge tone="green">Answer sent</Badge> : c.status === "WITHDRAWN" || c.case.stage === "CLOSED" ? <Badge tone="slate">Closed by the office</Badge> : <Badge tone="amber">Confirmation requested</Badge>}{c.responseDueAt && c.status === "REQUESTED" ? <span className="ml-2 text-body text-slate-600">Please answer by {londonTime(c.responseDueAt)}</span> : null}</dd>
         </dl>
-        <p className="mt-2 text-[13.5px] text-slate-600">No clock-in was recorded for this visit. Tell us what happened. Your answer goes to the office as your statement; it does not change your clock times or your pay.</p>
+        <p className="mt-2 text-body text-slate-600">No clock-in was recorded for this visit. Tell us what happened. Your answer goes to the office as your statement; it does not change your clock times or your pay.</p>
       </Card>
 
       {c.responses.length ? (
         <Card title="What you have told us" className="mb-3">
-          <ul className="space-y-2 text-[14.5px]">
+          <ul className="space-y-2 text-body">
             {c.responses.map((r) => (
               <li key={r.id} className="border-l-2 border-[#e3dff0] pl-2">
-                <p className="text-[12.5px] text-slate-600">{r.supplementsId ? "Further statement" : "Statement"} sent {fmtDate(r.submittedAt, true)}</p>
+                <p className="text-meta text-slate-600">{r.supplementsId ? "Further statement" : "Statement"} sent {fmtDate(r.submittedAt, true)}</p>
                 <p className="font-semibold">{ANSWER_LABEL[r.answer]}</p>
                 <p className="text-slate-700">{[r.reportedArrival ? `Arrived ${londonTime(r.reportedArrival)}` : null, r.reportedDeparture ? `left ${londonTime(r.reportedDeparture)}` : null].filter(Boolean).join(", ")}</p>
                 {r.explanation ? <p className="whitespace-pre-wrap text-slate-800">{r.explanation}</p> : null}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[13px] text-slate-600">Statements cannot be changed once sent. If something is wrong or missing, add a further statement below.</p>
+          <p className="mt-2 text-meta text-slate-600">Statements cannot be changed once sent. If something is wrong or missing, add a further statement below.</p>
         </Card>
       ) : null}
 
       {reported && last ? (
         <Card title="Your clock times" className="mb-3">
-          {pendingKinds.length ? <p className="mb-2 text-[14px]">You have asked the office to correct your {pendingKinds.map((k) => (k === "IN" ? "clock-in" : "clock-out")).join(" and ")}. They will decide it.</p> : null}
+          {pendingKinds.length ? <p className="mb-2 text-body">You have asked the office to correct your {pendingKinds.map((k) => (k === "IN" ? "clock-in" : "clock-out")).join(" and ")}. They will decide it.</p> : null}
           {correctionOpen ? (
             <div className="space-y-3">
-              <p className="text-[14px] text-slate-700">Your statement does not record your attendance. If you were there, ask the office to correct your times. Someone else checks and decides every correction.</p>
+              <p className="text-body text-slate-700">Your statement does not record your attendance. If you were there, ask the office to correct your times. Someone else checks and decides every correction.</p>
               {(["IN", "OUT"] as const).filter((k) => !pendingKinds.includes(k)).map((k) => {
                 const at = k === "IN" ? last.reportedArrival : last.reportedDeparture;
                 return (
@@ -89,7 +89,7 @@ export default async function MissedConfirmationPage({ params, searchParams }: {
                 );
               })}
             </div>
-          ) : <p className="text-[14px] text-slate-700">You can no longer ask for a correction here (you are not on this visit now, or it was more than a day ago). Ask your office to enter the times.</p>}
+          ) : <p className="text-body text-slate-700">You can no longer ask for a correction here (you are not on this visit now, or it was more than a day ago). Ask your office to enter the times.</p>}
         </Card>
       ) : null}
 
@@ -97,7 +97,7 @@ export default async function MissedConfirmationPage({ params, searchParams }: {
         <Card title={c.responses.length ? "Add a further statement" : "What happened with this visit?"}>
           {!answer ? (
             <ul className="grid gap-2" aria-label="Choose what happened">
-              {ANSWERS.map((a, i) => <li key={a}><Link href={`${back}?answer=${a}`} className={CHOICE}><span className="mr-2.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f2f4f7] text-[13px] font-bold text-[#344054]" aria-hidden>{i + 1}</span>{ANSWER_LABEL[a]}</Link></li>)}
+              {ANSWERS.map((a, i) => <li key={a}><Link href={`${back}?answer=${a}`} className={CHOICE}><span className="mr-2.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f2f4f7] text-meta font-bold text-[#344054]" aria-hidden>{i + 1}</span>{ANSWER_LABEL[a]}</Link></li>)}
             </ul>
           ) : (
             <form action={carerMissedResponseAction} className="space-y-3">
@@ -105,7 +105,7 @@ export default async function MissedConfirmationPage({ params, searchParams }: {
               <input type="hidden" name="confirmationId" value={c.id} />
               <input type="hidden" name="answer" value={answer} />
               <input type="hidden" name="submissionKey" value={randomUUID()} />
-              <p className="flex flex-wrap items-center gap-2 text-[15px]"><b>{ANSWER_LABEL[answer]}</b><Link href={back} className="text-[13.5px]">Change</Link></p>
+              <p className="flex flex-wrap items-center gap-2 text-lead"><b>{ANSWER_LABEL[answer]}</b><Link href={back} className="text-body">Change</Link></p>
               {answer === "ATTENDED_NO_CLOCK" ? (
                 <>
                   <div className="grid grid-cols-2 gap-2">
@@ -155,7 +155,7 @@ function Radios({ name, options }: { name: string; options: [string, string][] }
   return (
     <div className="grid gap-1.5">
       {options.map(([value, label], i) => (
-        <label key={value} className="flex min-h-[44px] items-center gap-2.5 rounded-[8px] border border-[#d0d5dd] px-3 text-[15px] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd]">
+        <label key={value} className="flex min-h-[44px] items-center gap-2.5 rounded-[8px] border border-[#d0d5dd] px-3 text-lead has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd]">
           <input type="radio" name={name} value={value} required={i === 0} className="h-4 w-4 accent-module" />{label}
         </label>
       ))}

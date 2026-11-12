@@ -26,9 +26,9 @@ const BASE = "/rota/attention";
 type Filter = "now" | AttentionType;
 type Keep = Record<string, string | undefined>;
 
-const PRIMARY = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-module px-3.5 text-[14px] font-semibold text-white no-underline hover:bg-[#4c2398] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
-const OUTLINE = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-white px-3.5 text-[14px] font-semibold text-module no-underline hover:bg-[#f6f2fd] hover:text-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
-const TEXT_LINK = "text-[14.5px] font-semibold text-module no-underline hover:text-[#4c2398] hover:underline";
+const PRIMARY = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-module px-3.5 text-body font-semibold text-white no-underline hover:bg-[#4c2398] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+const OUTLINE = "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border border-module bg-white px-3.5 text-body font-semibold text-module no-underline hover:bg-[#f6f2fd] hover:text-[#4c2398] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
+const TEXT_LINK = "text-body font-semibold text-module no-underline hover:text-[#4c2398] hover:underline";
 
 const qs = (p: Keep) => {
   const u = new URLSearchParams(Object.entries(p).filter((e): e is [string, string] => !!e[1]));
@@ -70,7 +70,7 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
         description="One queue for every visit that needs a decision, most urgent first."
         actions={
           <>
-            <span className="text-[14px] tabular-nums text-white/88" data-testid="attention-updated">Updated {londonTime(queue.now)}</span>
+            <span className="text-body tabular-nums text-white/88" data-testid="attention-updated">Updated {londonTime(queue.now)}</span>
             <Link href={qs(sp.item ? keep : listKeep)} scroll={false} className="mh-btn"><ArrowClockwise size={16} aria-hidden />Refresh</Link>
           </>
         }
@@ -94,7 +94,7 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
         />
         <aside aria-label="Selected item" className="hidden xl:sticky xl:top-4 xl:block">
           <div aria-live="polite">
-            {selected && detail ? <Detail item={selected} data={detail} keep={keep} can={can} today={queue.today} idPrefix="attn-d" /> : <div className="rounded-[14px] border border-[#eaecf0] bg-white px-5 py-10 text-center text-[15px] text-[#475467]">Nothing needs attention here.</div>}
+            {selected && detail ? <Detail item={selected} data={detail} keep={keep} can={can} today={queue.today} idPrefix="attn-d" /> : <div className="rounded-[14px] border border-[#eaecf0] bg-white px-5 py-10 text-center text-lead text-[#475467]">Nothing needs attention here.</div>}
           </div>
         </aside>
       </div>
@@ -103,8 +103,8 @@ export default async function AttentionPage({ searchParams }: { searchParams: Pr
         <NarrowOnly>
           <DrawerShell closeHref={qs(listKeep)} labelledBy="attn-m-title" step={picked.key}>
             <div className="flex items-center justify-between border-b border-[#eaecf0] px-5 py-3">
-              <span className="text-[14px] font-semibold text-[#475467]">Selected item</span>
-              <Link href={qs(listKeep)} scroll={false} aria-label="Close details" className="inline-flex h-9 w-9 items-center justify-center rounded-[6px] text-[20px] leading-none text-slate-600 no-underline hover:bg-slate-100">×</Link>
+              <span className="text-body font-semibold text-[#475467]">Selected item</span>
+              <Link href={qs(listKeep)} scroll={false} aria-label="Close details" className="inline-flex h-9 w-9 items-center justify-center rounded-[6px] text-title leading-none text-slate-600 no-underline hover:bg-slate-100">×</Link>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto" data-scroll aria-live="polite">
               <Detail item={picked} data={detail} keep={keep} can={can} today={queue.today} idPrefix="attn-m" bare />
@@ -132,10 +132,10 @@ function Tile({ href, current, tone, icon, label, value, hint, testId }: { href:
     <Link href={href} scroll={false} aria-current={current ? "true" : undefined} data-testid={testId} className={`flex items-center gap-3.5 rounded-[14px] border px-4 py-4 text-inherit no-underline hover:border-[#c7b8ee] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module ${current ? t.on : "border-[#eaecf0] bg-white"}`}>
       <span aria-hidden className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] ${t.icon}`}>{icon}</span>
       <span className="shrink-0">
-        <span className="block whitespace-nowrap text-[15px] font-semibold text-[#101828]">{label}</span>
-        <span className={`block text-[28px] font-bold leading-8 tabular-nums ${value ? t.value : "text-[#101828]"}`} data-testid={`${testId}-count`}>{value}</span>
+        <span className="block whitespace-nowrap text-lead font-semibold text-[#101828]">{label}</span>
+        <span className={`block text-figure font-bold leading-8 tabular-nums ${value ? t.value : "text-[#101828]"}`} data-testid={`${testId}-count`}>{value}</span>
       </span>
-      <span className="ml-auto min-w-0 max-w-[140px] text-right text-[13px] leading-snug text-[#475467]">{hint}</span>
+      <span className="ml-auto min-w-0 max-w-[140px] text-right text-meta leading-snug text-[#475467]">{hint}</span>
     </Link>
   );
 }
@@ -155,7 +155,7 @@ function Toolbar({ queue, filter, listKeep }: { queue: AttentionQueue; filter: F
         {tabs.map((t) => {
           const on = filter === t.key;
           return (
-            <Link key={t.label} href={qs({ ...listKeep, type: t.key ?? undefined })} scroll={false} aria-current={on ? "page" : undefined} className={`rounded-[8px] px-3 py-1.5 text-[14.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module ${on ? "bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.08)]" : "text-[#475467] hover:text-[#101828]"}`}>
+            <Link key={t.label} href={qs({ ...listKeep, type: t.key ?? undefined })} scroll={false} aria-current={on ? "page" : undefined} className={`rounded-[8px] px-3 py-1.5 text-body font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module ${on ? "bg-white text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.08)]" : "text-[#475467] hover:text-[#101828]"}`}>
               {t.label} <span className="font-normal tabular-nums text-[#667085]">{t.n}</span>
             </Link>
           );
@@ -171,7 +171,7 @@ function BranchFilter({ queue, listKeep }: { queue: AttentionQueue; listKeep: Ke
           {listKeep.type ? <input type="hidden" name="type" value={listKeep.type} /> : null}
           <label>
             <span className="sr-only">Branch</span>
-            <select name="branch" defaultValue={queue.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#344054] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
+            <select name="branch" defaultValue={queue.branch ?? ""} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body text-[#344054] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
               <option value="">All branches</option>
               {queue.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
@@ -183,7 +183,7 @@ function BranchFilter({ queue, listKeep }: { queue: AttentionQueue; listKeep: Ke
 function QueueFooter({ queue }: { queue: AttentionQueue }) {
   const { can } = queue;
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[#eaecf0] px-4 py-3 text-[14px]">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[#eaecf0] px-4 py-3 text-body">
       <span className="mr-auto text-[#475467]">Unassigned visits and carer-off bookings for the next 7 days; open missed calls from the last 30 days; open visit problems.</span>
       {can.unassigned ? <Link href="/rota/unassigned?when=week" className="font-semibold">Open Unassigned Visits</Link> : null}
       {can.absent ? <Link href="/rota/cover" className="font-semibold">Open Sickness &amp; Holiday Cover</Link> : null}
@@ -253,12 +253,12 @@ function Detail({ item, data, keep, can, today, idPrefix, bare = false }: { item
     <section aria-labelledby={`${idPrefix}-title`} className={bare ? "" : "overflow-hidden rounded-[14px] border border-[#eaecf0] bg-white"} data-testid="attention-detail" data-item={item.key}>
       <div className="border-b border-[#eaecf0] px-5 pb-4 pt-4">
         <p className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-medium ${s.chip}`}>{s.label}</span>
-          <span className="text-[13.5px] font-semibold tracking-[0.02em] text-[#475467]">{item.reference}</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-meta font-medium ${s.chip}`}>{s.label}</span>
+          <span className="text-body font-semibold tracking-[0.02em] text-[#475467]">{item.reference}</span>
         </p>
-        <h2 id={`${idPrefix}-title`} className="mt-2 text-[22px] font-bold leading-tight text-[#1b1340]">{item.serviceUser}</h2>
-        <p className="mt-1 text-[14.5px] text-[#475467]">{[dayLabel(item.date, today), londonTime(item.start), item.callType, item.area].filter(Boolean).join(" · ")}</p>
-        <p className={`mt-3 flex gap-2 rounded-[10px] px-3.5 py-2.5 text-[14px] leading-snug ${WHY_TONE[item.type]}`}><Info size={18} aria-hidden className="mt-px shrink-0" /><span>{why}</span></p>
+        <h2 id={`${idPrefix}-title`} className="mt-2 text-heading font-bold leading-tight text-[#1b1340]">{item.serviceUser}</h2>
+        <p className="mt-1 text-body text-[#475467]">{[dayLabel(item.date, today), londonTime(item.start), item.callType, item.area].filter(Boolean).join(" · ")}</p>
+        <p className={`mt-3 flex gap-2 rounded-[10px] px-3.5 py-2.5 text-body leading-snug ${WHY_TONE[item.type]}`}><Info size={18} aria-hidden className="mt-px shrink-0" /><span>{why}</span></p>
       </div>
       {item.type === "unassigned" && data.type === "unassigned" ? <UnassignedDetail item={item} data={data} keep={keep} canEdit={can.edit} /> : null}
       {item.type === "absent" ? <AbsentDetail item={item} keep={keep} canEdit={can.edit} /> : null}
@@ -276,33 +276,33 @@ function Detail({ item, data, keep, can, today, idPrefix, bare = false }: { item
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
 
 function UnassignedDetail({ item, data, keep, canEdit }: { item: UnassignedEntry; data: Extract<DetailData, { type: "unassigned" }>; keep: Keep; canEdit: boolean }) {
-  if (!canEdit) return <p className="px-5 py-4 text-[14px] text-[#475467]">You can see this visit, but booking a carer needs rota editing access.</p>;
+  if (!canEdit) return <p className="px-5 py-4 text-body text-[#475467]">You can see this visit, but booking a carer needs rota editing access.</p>;
   const cover = coverHref(BASE, keep, { id: item.id });
   return (
     <div className="px-5 py-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-[16px] font-bold text-[#1b1340]">Recommended carers</h3>
-        <span className="text-[13.5px] text-[#475467]">Eligible, best match first</span>
+        <h3 className="text-lead font-bold text-[#1b1340]">Recommended carers</h3>
+        <span className="text-body text-[#475467]">Eligible, best match first</span>
       </div>
-      {data.blocked ? <p role="status" className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-[14px] text-[#344054]">{data.blocked}</p> : data.recommended.length ? (
+      {data.blocked ? <p role="status" className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-body text-[#344054]">{data.blocked}</p> : data.recommended.length ? (
         <ul className="space-y-2.5" aria-label="Recommended carers">
           {data.recommended.map((c, rank) => {
             const area = c.explain.some((e) => e.text === "works in this area");
             const facts = [c.state === "REQUIRES_REVIEW" ? "Check warnings first" : "Free at this time", area ? "works in this area" : null, c.continuity ? `knows ${item.serviceUser.split(" ")[0]}` : null, `${c.weekHours} h this week`].filter(Boolean).join(" · ");
             return (
               <li key={c.id} className="flex items-center gap-3 rounded-[12px] border border-[#eaecf0] px-3.5 py-3" data-testid="attention-carer">
-                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efeafc] text-[13.5px] font-bold text-module">{initials(c.name)}</span>
+                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#efeafc] text-body font-bold text-module">{initials(c.name)}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-semibold text-[#3b1f99]">{c.name}</span>
-                  <span className="block text-[13px] leading-snug text-[#475467]">{facts}</span>
+                  <span className="block truncate text-lead font-semibold text-[#3b1f99]">{c.name}</span>
+                  <span className="block text-meta leading-snug text-[#475467]">{facts}</span>
                 </span>
-                {c.score !== null ? <span title={`${RANK_LABEL[rank] ?? "Suitable"}: match score from the eligibility ranking`} className="rounded-full bg-[#e3f6ea] px-2 py-0.5 text-[13px] font-semibold tabular-nums text-[#1e6b2c]">{c.score}%<span className="sr-only"> match</span></span> : null}
+                {c.score !== null ? <span title={`${RANK_LABEL[rank] ?? "Suitable"}: match score from the eligibility ranking`} className="rounded-full bg-[#e3f6ea] px-2 py-0.5 text-meta font-semibold tabular-nums text-[#1e6b2c]">{c.score}%<span className="sr-only"> match</span></span> : null}
                 <Link href={`${cover}&fcStep=review&fcStaff=${c.id}&fcSrc=RECOMMENDED`} scroll={false} className={`${OUTLINE} h-8 px-3`} aria-label={`Assign ${c.name} to ${item.serviceUser} at ${londonTime(item.start)}: review and confirm`}>Assign</Link>
               </li>
             );
           })}
         </ul>
-      ) : <p className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-[14px] text-[#344054]">No eligible carer is free at this time. Choose a carer by hand to see everyone and why.</p>}
+      ) : <p className="rounded-[8px] bg-[#f2f4f7] px-3 py-2 text-body text-[#344054]">No eligible carer is free at this time. Choose a carer by hand to see everyone and why.</p>}
       <div className="mt-3.5 flex flex-wrap items-center gap-x-5 gap-y-2">
         <Link href={`${cover}&fcStep=manual`} scroll={false} className={TEXT_LINK} aria-label={`Choose a carer by hand for ${item.serviceUser} at ${londonTime(item.start)}`}>Choose a carer by hand</Link>
         <Link href={cover} scroll={false} className={TEXT_LINK}>Open Find Cover</Link>
@@ -323,14 +323,14 @@ function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; 
   return (
     <div className="px-5 py-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-[16px] font-bold text-[#1b1340]">Investigation</h3>
-        <span className="text-[13.5px] text-[#475467]">{STAGE_LABEL[item.stage]}</span>
+        <h3 className="text-lead font-bold text-[#1b1340]">Investigation</h3>
+        <span className="text-body text-[#475467]">{STAGE_LABEL[item.stage]}</span>
       </div>
       <ol className="space-y-2" aria-label="Investigation stages">
         {steps.map((st) => (
-          <li key={st.label} className="flex items-start gap-2.5 text-[14px]">
-            <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${st.done ? "bg-[#e3f6ea] text-[#1e6b2c]" : "border border-[#d0d5dd] bg-white text-transparent"}`}>✓</span>
-            <span><span className="sr-only">{st.done ? "Done: " : "To do: "}</span><b className="font-semibold text-[#101828]">{st.label}</b><span className="block text-[13px] text-[#475467]">{st.meta}</span></span>
+          <li key={st.label} className="flex items-start gap-2.5 text-body">
+            <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-caption font-bold ${st.done ? "bg-[#e3f6ea] text-[#1e6b2c]" : "border border-[#d0d5dd] bg-white text-transparent"}`}>✓</span>
+            <span><span className="sr-only">{st.done ? "Done: " : "To do: "}</span><b className="font-semibold text-[#101828]">{st.label}</b><span className="block text-meta text-[#475467]">{st.meta}</span></span>
           </li>
         ))}
       </ol>
@@ -338,9 +338,9 @@ function MissedDetail({ item, keep, canEdit }: { item: MissedEntry; keep: Keep; 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href={`/rota/missed/${item.id}`} className={PRIMARY} aria-label={`${c.reasonRecorded ? "Open the case" : "Record reason"} for ${item.reference}`}>{c.reasonRecorded ? "Open the case" : "Record reason"}</Link>
         {item.cover?.canFind && canEdit ? <Link href={coverHref(BASE, keep, { id: item.id, mode: "recovery" })} scroll={false} className={OUTLINE} aria-label={`Find recovery cover for ${item.reference}`}><UserPlus size={16} aria-hidden />Find recovery cover</Link> : null}
-        {item.cover?.kind === "booked" ? <span className="rounded-full bg-[#e3f6ea] px-2.5 py-0.5 text-[13px] font-semibold text-[#1e6b2c]">Cover booked</span> : null}
+        {item.cover?.kind === "booked" ? <span className="rounded-full bg-[#e3f6ea] px-2.5 py-0.5 text-meta font-semibold text-[#1e6b2c]">Cover booked</span> : null}
       </div>
-      {item.cover && !item.cover.canFind && item.cover.kind !== "booked" ? <p className="mt-2 text-[13px] text-[#475467]">{item.cover.text}</p> : null}
+      {item.cover && !item.cover.canFind && item.cover.kind !== "booked" ? <p className="mt-2 text-meta text-[#475467]">{item.cover.text}</p> : null}
     </div>
   );
 }
@@ -351,10 +351,10 @@ function AutoBlock({ item }: { item: MissedEntry }) {
   return (
     <section className="mt-4 rounded-[10px] border border-[#e4e7ec] bg-[#fcfcfd] px-3.5 py-3" aria-labelledby={`auto-${item.id}`} data-testid="attention-auto">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h4 id={`auto-${item.id}`} className="mr-auto text-[14.5px] font-bold text-[#1b1340]">Automated investigation</h4>
+        <h4 id={`auto-${item.id}`} className="mr-auto text-body font-bold text-[#1b1340]">Automated investigation</h4>
         <AutoStatusBadge status={a.status} label={a.label} />
       </div>
-      <dl className="grid grid-cols-[minmax(0,9.5rem)_1fr] gap-x-3 gap-y-1 text-[13.5px]">
+      <dl className="grid grid-cols-[minmax(0,9.5rem)_1fr] gap-x-3 gap-y-1 text-body">
         <dt className="text-[#475467]">Carer confirmation</dt><dd className="text-[#101828]">{a.carer}</dd>
         <dt className="text-[#475467]">Suggested reason</dt><dd className="text-[#101828]">{a.suggestion ? CLASSIFICATION_LABEL[a.suggestion] : "None yet"}</dd>
         <dt className="text-[#475467]">Missing information</dt><dd className="text-[#101828]">{a.missing ? `${a.missing} item${a.missing === 1 ? "" : "s"} to check` : "None listed"}</dd>
@@ -366,11 +366,11 @@ function AutoBlock({ item }: { item: MissedEntry }) {
 }
 
 function AbsentDetail({ item, keep, canEdit }: { item: AbsentEntry; keep: Keep; canEdit: boolean }) {
-  if (!canEdit) return <p className="px-5 py-4 text-[14px] text-[#475467]">You can see this booking, but choosing a replacement needs rota editing access.</p>;
+  if (!canEdit) return <p className="px-5 py-4 text-body text-[#475467]">You can see this booking, but choosing a replacement needs rota editing access.</p>;
   return (
     <div className="px-5 py-4">
-      <h3 className="mb-2 text-[16px] font-bold text-[#1b1340]">Replacement</h3>
-      <p className="text-[14px] text-[#344054]">{item.carerName} is booked{item.doubleUp ? " on this double-up" : ""}. Nothing moves by itself: choose a replacement and the full eligibility check runs again.</p>
+      <h3 className="mb-2 text-lead font-bold text-[#1b1340]">Replacement</h3>
+      <p className="text-body text-[#344054]">{item.carerName} is booked{item.doubleUp ? " on this double-up" : ""}. Nothing moves by itself: choose a replacement and the full eligibility check runs again.</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href={coverHref(BASE, keep, { id: item.visitId, mode: "replace", slot: item.slot })} scroll={false} className={PRIMARY} aria-label={`Find replacement cover for ${item.carerName} on ${item.serviceUser}'s visit at ${londonTime(item.start)}`}><UserPlus size={16} aria-hidden />Find replacement</Link>
         <Link href={`/rota/staff/${item.staffId}`} className={TEXT_LINK}>{item.carerName}&apos;s rota record</Link>
@@ -383,10 +383,10 @@ function ProblemDetail({ item }: { item: ProblemEntry }) {
   return (
     <div className="px-5 py-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-[16px] font-bold text-[#1b1340]">{item.kindLabel}</h3>
-        <span className="text-[13.5px] text-[#475467]">{item.deadline ? `Deadline ${fmtLondonDate(londonDate(item.deadline), { day: "numeric", month: "short" })} ${londonTime(item.deadline)}${item.overdue ? " (passed)" : ""}` : "No deadline"}</span>
+        <h3 className="text-lead font-bold text-[#1b1340]">{item.kindLabel}</h3>
+        <span className="text-body text-[#475467]">{item.deadline ? `Deadline ${fmtLondonDate(londonDate(item.deadline), { day: "numeric", month: "short" })} ${londonTime(item.deadline)}${item.overdue ? " (passed)" : ""}` : "No deadline"}</span>
       </div>
-      <p className="text-[14px] text-[#344054]">Give it an owner and record how it was resolved in the Exceptions register. Anything past its deadline goes to the care managers inside the platform.</p>
+      <p className="text-body text-[#344054]">Give it an owner and record how it was resolved in the Exceptions register. Anything past its deadline goes to the care managers inside the platform.</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href={problemHref(item)} className={PRIMARY} aria-label={`Resolve ${item.kindLabel.toLowerCase()} for ${item.serviceUser}, ${item.reference}`}>Resolve</Link>
       </div>
@@ -399,15 +399,15 @@ function CommsDetail({ item, data, keep }: { item: CommsEntry; data: Extract<Det
   const sms = tel ? tel.replace(/^tel:/, "sms:") : null;
   return (
     <div className="px-5 py-4">
-      <h3 className="mb-2 text-[16px] font-bold text-[#1b1340]">Replacement</h3>
-      <p className="text-[14px] text-[#344054]">{data.arrangement ?? "The arrangements could not be loaded."}</p>
-      <p className="mt-1 text-[13.5px] text-[#475467]">{item.followUp ? "Follow-up due" : "Due"} {fmtLondonDate(londonDate(item.dueAt), { day: "numeric", month: "short" })} {londonTime(item.dueAt)}{item.overdue ? " (overdue)" : ""}</p>
+      <h3 className="mb-2 text-lead font-bold text-[#1b1340]">Replacement</h3>
+      <p className="text-body text-[#344054]">{data.arrangement ?? "The arrangements could not be loaded."}</p>
+      <p className="mt-1 text-body text-[#475467]">{item.followUp ? "Follow-up due" : "Due"} {fmtLondonDate(londonDate(item.dueAt), { day: "numeric", month: "short" })} {londonTime(item.dueAt)}{item.overdue ? " (overdue)" : ""}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {tel ? <a href={tel} className={OUTLINE} aria-label={`Call ${data.phoneName}`}>Call</a> : null}
         {sms ? <a href={sms} className={OUTLINE} aria-label={`Text ${data.phoneName}`}>Text</a> : null}
         <Link href={coverHref(BASE, keep, item.caseId ? { id: item.caseId, mode: "recovery", tab: "comms" } : { id: item.visitId, tab: "comms" })} scroll={false} className={PRIMARY} aria-label={`Record communication for ${item.serviceUser}, ${item.reference}`}>Record communication</Link>
       </div>
-      <p className="mt-2 text-[13px] text-[#475467]">{tel ? `Calling or texting ${data.phoneName} happens on your phone; record what was said here.` : "No dialable phone number is recorded for the service user or their main contact."}</p>
+      <p className="mt-2 text-meta text-[#475467]">{tel ? `Calling or texting ${data.phoneName} happens on your phone; record what was said here.` : "No dialable phone number is recorded for the service user or their main contact."}</p>
     </div>
   );
 }

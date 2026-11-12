@@ -55,17 +55,17 @@ export function SettingsDirectory({ ctx }: { ctx: Ctx }) {
   const groups = settingsDirectory(ctx);
   return (
     <section aria-labelledby="all-settings-heading" className="mb-4 rounded-[3px] bg-white px-5 pb-4 pt-4" data-testid="settings-directory">
-      <h2 id="all-settings-heading" className="text-[19px] font-normal tracking-normal text-slate-800">All settings</h2>
-      <p className="mb-3 text-[13px] text-slate-600">Every settings screen in the platform, in one place. Each module&apos;s gear icon opens the same screen.</p>
+      <h2 id="all-settings-heading" className="text-title font-normal tracking-normal text-slate-800">All settings</h2>
+      <p className="mb-3 text-meta text-slate-600">Every settings screen in the platform, in one place. Each module&apos;s gear icon opens the same screen.</p>
       <div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
         {groups.map((g) => (
           <div key={g.name}>
-            <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{g.name}</h3>
+            <h3 className="mb-1 text-micro font-semibold uppercase tracking-[0.06em] text-slate-500">{g.name}</h3>
             <ul className="divide-y divide-slate-100">
               {g.entries.map((e) => {
                 const body = (
                   <>
-                    <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium text-[#0b1530]">{e.label}</span><span className="block text-[12.5px] text-slate-600">{e.detail}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block text-body font-medium text-[#0b1530]">{e.label}</span><span className="block text-meta text-slate-600">{e.detail}</span></span>
                     <CaretRight size={14} aria-hidden="true" className="shrink-0 text-slate-400" />
                   </>
                 );

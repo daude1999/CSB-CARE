@@ -91,7 +91,7 @@ export default async function ReferenceLibraryPage({ searchParams }: { searchPar
       <Flash searchParams={sp} />
       <section aria-label="Local and safeguarding references" className="pc-panel">
         <div className="pc-panel-head">
-          <p className="text-[14px] text-[#344054]" data-testid="reference-summary">
+          <p className="text-body text-[#344054]" data-testid="reference-summary">
             <strong className="tabular-nums">{counts.verified}</strong> verified · <strong className={`tabular-nums ${counts.attention ? "text-[#b54708]" : ""}`}>{counts.attention}</strong> not verified, due for review or failing · each branch policy cites only the sources for its own area
           </p>
         </div>
@@ -120,7 +120,7 @@ export default async function ReferenceLibraryPage({ searchParams }: { searchPar
                         <span className="pc-sub">{automatic ? (s.lastSuccessAt ? `Automatic check: last succeeded ${fmtDate(s.lastSuccessAt)}` : "Automatic check: not yet succeeded") : "Reviewed by hand"}{s._count.changes ? <> · <Link href={`/changes?group=all&source=${s.id}`}>{s._count.changes} change{s._count.changes === 1 ? "" : "s"}</Link></> : null}</span>
                       </td>
                       <td><LevelBadge level={s.geoLevel} /></td>
-                      <td className="max-w-[220px] text-[13px]">{s.areas || "Not set"}</td>
+                      <td className="max-w-[220px] text-meta">{s.areas || "Not set"}</td>
                       <td><TrustBadge trust={s.trust} />{s.review?.note ? <span className="pc-sub max-w-[200px] truncate" title={s.review.note}>{s.review.note}</span> : null}</td>
                       <td className="whitespace-nowrap">{s.review?.lastCheckedAt ? fmtDate(s.review.lastCheckedAt) : "Never"}</td>
                       <td className="whitespace-nowrap">{s.review?.nextReviewDate ? fmtDate(s.review.nextReviewDate) : "Not set"}</td>
@@ -166,7 +166,7 @@ export default async function ReferenceLibraryPage({ searchParams }: { searchPar
                                 <form action={supersedeSourceAction} className="mt-5 space-y-3 border-t border-[#eaecf0] pt-4">
                                   <input type="hidden" name="back" value={back} />
                                   <input type="hidden" name="sourceId" value={s.id} />
-                                  <p className="text-[14px] font-semibold text-[#101828]">Replaced by a newer source?</p>
+                                  <p className="text-body font-semibold text-[#101828]">Replaced by a newer source?</p>
                                   <label className="block"><span className="label">Replacement</span>
                                     <select name="replacementId" required className="input" defaultValue="">
                                       <option value="" disabled>Choose the replacement</option>

@@ -85,7 +85,7 @@ export default async function ChangePage({ params, searchParams }: { params: Pro
                       <h3>{s.heading}</h3>
                       <Badge tone={s.kind === "added" ? "green" : s.kind === "removed" ? "rose" : "amber"}>{s.kind}</Badge>
                       {s.editorialOnly ? <Badge>formatting or punctuation only</Badge> : null}
-                      <span className="text-[12px] text-slate-500">{s.ref}</span>
+                      <span className="text-caption text-slate-500">{s.ref}</span>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>

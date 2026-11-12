@@ -59,13 +59,13 @@ export default async function AssessmentPage({ params, searchParams }: { params:
       <Flash searchParams={sp} />
       <div className="space-y-4">
         <NotOfficialBanner>Recalculated now from current records. <Link href="/compliance/cqc/framework#method" className="pc-link">How it is worked out</Link></NotOfficialBanner>
-        {a.returnedReason && a.status === "IN_PROGRESS" ? <p className="rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-2.5 text-[13.5px] text-[#93370d]" role="status"><strong>Returned by the approver:</strong> {a.returnedReason}</p> : null}
+        {a.returnedReason && a.status === "IN_PROGRESS" ? <p className="rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-2.5 text-body text-[#93370d]" role="status"><strong>Returned by the approver:</strong> {a.returnedReason}</p> : null}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <section className="pc-panel" aria-label="Assessment areas" data-testid="assessment-areas">
             <div className="px-5 pt-2">
               <PcTabs label="Key questions" testId="kq-tabs" active={resultFilter ? "" : q} items={KEY_QUESTIONS.map((k) => ({ key: k, label: KQ_LABEL[k], href: `/compliance/cqc/assessments/${a.id}?q=${k}`, count: g.criteria.filter((c) => c.keyQuestion === k).length }))} />
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-[#eaecf0] px-5 py-2.5 text-[13px] text-[#475467]">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-[#eaecf0] px-5 py-2.5 text-meta text-[#475467]">
               {resultFilter ? <span>Showing areas {resultFilter === "NONE" ? "not yet assessed" : `marked ${RESULT_LABEL[resultFilter] ?? resultFilter}`} across all key questions. <Link href={`/compliance/cqc/assessments/${a.id}?q=${q}`} className="pc-link">Show by key question</Link></span> : <span>{KQ_LABEL[q]}: <ScoreValue g={r.byQuestion[q]} /> · <ConfidenceNote g={r.byQuestion[q]} /></span>}
               <span className="ml-auto flex gap-3"><Link href={`?result=NONE`} className="pc-link">{notRecorded} not assessed</Link><Link href={`?result=NOT_MET`} className="pc-link">Not met</Link></span>
             </div>
@@ -101,21 +101,21 @@ export default async function AssessmentPage({ params, searchParams }: { params:
 
           <div className="space-y-4">
             <Panel title="Readiness" testId="assessment-readiness">
-              <div className="border-b border-[#eaecf0] px-5 py-3"><span className="block text-[13px] text-[#475467]">Overall</span><ScoreValue g={r.overall} big /><span className="block text-[12.5px] text-[#667085]"><ConfidenceNote g={r.overall} /></span></div>
+              <div className="border-b border-[#eaecf0] px-5 py-3"><span className="block text-meta text-[#475467]">Overall</span><ScoreValue g={r.overall} big /><span className="block text-meta text-[#667085]"><ConfidenceNote g={r.overall} /></span></div>
               <ul className="divide-y divide-[#eaecf0]">
-                {KEY_QUESTIONS.map((k) => <li key={k} className="flex items-center justify-between px-5 py-2 text-[13.5px]"><Link href={`?q=${k}`} className="pc-link">{KQ_LABEL[k]}</Link><ScoreValue g={r.byQuestion[k]} /></li>)}
+                {KEY_QUESTIONS.map((k) => <li key={k} className="flex items-center justify-between px-5 py-2 text-body"><Link href={`?q=${k}`} className="pc-link">{KQ_LABEL[k]}</Link><ScoreValue g={r.byQuestion[k]} /></li>)}
               </ul>
-              <p className="border-t border-[#eaecf0] px-5 py-2.5 text-[12.5px] text-[#475467]">Evidence coverage {Math.round(r.overall.evidenceCoverage * 100)}% · {r.criteria.filter((c) => c.essentialGap).length} essential areas without verified evidence</p>
+              <p className="border-t border-[#eaecf0] px-5 py-2.5 text-meta text-[#475467]">Evidence coverage {Math.round(r.overall.evidenceCoverage * 100)}% · {r.criteria.filter((c) => c.essentialGap).length} essential areas without verified evidence</p>
             </Panel>
 
             <Panel title="Approval" testId="assessment-approval">
-              <div className="space-y-3 px-5 py-4 text-[13.5px]">
+              <div className="space-y-3 px-5 py-4 text-body">
                 <p>Assessor: <strong>{users.get(a.assessorId) ?? "—"}</strong>{a.submittedAt ? <> · submitted {fmtDate(a.submittedAt)}</> : null}</p>
                 {a.approvedById ? <p>Approved by <strong>{users.get(a.approvedById)}</strong> on {fmtDate(a.approvedAt)}</p> : null}
                 {g.canEdit ? (
                   <form action={submitAssessmentAction}>
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="assessmentId" value={a.id} /><input type="hidden" name="lockVersion" value={a.lockVersion} />
-                    {notRecorded ? <p className="mb-2 text-[12.5px] text-[#667085]">{notRecorded} areas still need a result before it can be submitted.</p> : null}
+                    {notRecorded ? <p className="mb-2 text-meta text-[#667085]">{notRecorded} areas still need a result before it can be submitted.</p> : null}
                     <button className="pc-btn w-full" type="submit">Submit for approval</button>
                   </form>
                 ) : null}
@@ -125,11 +125,11 @@ export default async function AssessmentPage({ params, searchParams }: { params:
                     <label><span className="label">Approval note</span><textarea name="note" className="input" rows={2} /></label>
                     <div className="flex gap-2"><button className="pc-btn flex-1" type="submit" name="decision" value="APPROVE">Approve</button><button className="pc-btn-secondary flex-1" type="submit" name="decision" value="RETURN">Return</button></div>
                   </form>
-                ) : a.status === "AWAITING_APPROVAL" ? <p className="text-[12.5px] text-[#667085]">Waiting for approval by someone other than the assessor.</p> : null}
+                ) : a.status === "AWAITING_APPROVAL" ? <p className="text-meta text-[#667085]">Waiting for approval by someone other than the assessor.</p> : null}
                 {hasOrgPermission(ctx, "cqc.assess") ? (
                   <form action={snapshotAction} className="flex gap-2 border-t border-[#eaecf0] pt-3">
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="assessmentId" value={a.id} />
-                    <input name="reason" className="input h-9 py-0 text-[13.5px]" placeholder="Reason, e.g. board pack" aria-label="Snapshot reason" />
+                    <input name="reason" className="input h-9 py-0 text-body" placeholder="Reason, e.g. board pack" aria-label="Snapshot reason" />
                     <button className="pc-btn-secondary pc-btn-sm" type="submit">Save snapshot</button>
                   </form>
                 ) : null}
@@ -144,11 +144,11 @@ export default async function AssessmentPage({ params, searchParams }: { params:
                   <label><span className="label">Next assessment due</span><input type="date" name="nextDueAt" className="input" defaultValue={a.nextDueAt?.toISOString().slice(0, 10)} /></label>
                   <button className="pc-btn-secondary pc-btn-sm" type="submit">Save comments</button>
                 </form>
-              ) : <p className="px-5 py-4 text-[13.5px]">{a.managementComment || "None recorded."}</p>}
+              ) : <p className="px-5 py-4 text-body">{a.managementComment || "None recorded."}</p>}
             </Panel>
 
             <Panel title="Snapshots">
-              {g.snapshots.length ? <ul className="divide-y divide-[#eaecf0]">{g.snapshots.map((s) => <li key={s.id} className="flex justify-between px-5 py-2 text-[13px]"><span>{fmtDate(s.takenAt, true)}<span className="block text-[12px] text-[#667085]">{s.reason}</span></span><strong>{s.overall ?? (s.confidence === "LOW" ? "Low confidence" : "Not assessed")}</strong></li>)}</ul> : <p className="px-5 py-3 text-[13px] text-[#667085]">A snapshot is saved on approval, or whenever you save one.</p>}
+              {g.snapshots.length ? <ul className="divide-y divide-[#eaecf0]">{g.snapshots.map((s) => <li key={s.id} className="flex justify-between px-5 py-2 text-meta"><span>{fmtDate(s.takenAt, true)}<span className="block text-caption text-[#667085]">{s.reason}</span></span><strong>{s.overall ?? (s.confidence === "LOW" ? "Low confidence" : "Not assessed")}</strong></li>)}</ul> : <p className="px-5 py-3 text-meta text-[#667085]">A snapshot is saved on approval, or whenever you save one.</p>}
             </Panel>
 
             <Panel title="History">
@@ -156,7 +156,7 @@ export default async function AssessmentPage({ params, searchParams }: { params:
                 {g.history.slice(0, 40).map((h) => {
                   const d = h.data as { criterion?: string; from?: { result?: string } | string | null; to?: { result?: string } | string };
                   const change = typeof d.to === "object" && d.to ? `${d.criterion}: ${typeof d.from === "object" && d.from?.result ? `${RESULT_LABEL[d.from.result]} → ` : ""}${RESULT_LABEL[d.to.result ?? ""] ?? ""}` : d.criterion ?? "";
-                  return <li key={h.id} className="px-5 py-2 text-[12.5px]"><span className="font-medium text-[#101828]">{HISTORY_LABEL[h.action] ?? h.action}</span>{change ? <> · {change}</> : null}<span className="block text-[#667085]">{users.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</span></li>;
+                  return <li key={h.id} className="px-5 py-2 text-meta"><span className="font-medium text-[#101828]">{HISTORY_LABEL[h.action] ?? h.action}</span>{change ? <> · {change}</> : null}<span className="block text-[#667085]">{users.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</span></li>;
                 })}
               </ol>
             </Panel>

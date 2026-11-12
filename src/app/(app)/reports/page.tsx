@@ -35,15 +35,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <section aria-label="Trends" className="mb-3 grid gap-3 lg:grid-cols-2">
         <div className="panel">
           <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h2 className="text-[17px]">Versions published</h2>
-            <span className="text-[13px] text-slate-600">Last 12 months · {published12}</span>
+            <h2 className="text-subtitle">Versions published</h2>
+            <span className="text-meta text-slate-600">Last 12 months · {published12}</span>
           </div>
           <MonthChart data={trends.publications} unit="versions published" label="Policy versions published per month, last 12 months. The current month is highlighted." />
         </div>
         <div className="panel">
           <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h2 className="text-[17px]">Review calendar</h2>
-            <span className="text-[13px] text-slate-600">{overdue ? <span className="text-[#a3242c]">{overdue} overdue</span> : "None overdue"} · {due12} due in 12 months</span>
+            <h2 className="text-subtitle">Review calendar</h2>
+            <span className="text-meta text-slate-600">{overdue ? <span className="text-[#a3242c]">{overdue} overdue</span> : "None overdue"} · {due12} due in 12 months</span>
           </div>
           <MonthChart data={trends.reviewCalendar} unit="policies due for review" label="Policies due for review by month, for the next 12 months, with overdue reviews in the first column." />
         </div>
@@ -54,7 +54,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <div className="relative overflow-x-auto">
             <table className="table">
               <thead><tr>{columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-              <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} className={`py-2 text-[13px] ${String(v).length < 24 ? "whitespace-nowrap" : ""}`}>{String(v)}</td>)}</tr>)}</tbody>
+              <tbody>{rows.slice(0, 200).map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} className={`py-2 text-meta ${String(v).length < 24 ? "whitespace-nowrap" : ""}`}>{String(v)}</td>)}</tr>)}</tbody>
             </table>
             {rows.length > 200 ? <p className="muted mt-2">Showing 200 of {rows.length} rows. Export for the full report.</p> : null}
           </div>

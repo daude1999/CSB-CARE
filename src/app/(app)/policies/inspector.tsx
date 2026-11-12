@@ -53,7 +53,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
       content: v ? (
         <div className="px-[14px] pt-[16px]">
           <DocumentViewer src={`${pdfHref}&disposition=inline`} downloadHref={pdfHref} wordHref={`/api/policies/${p.id}/download?format=docx`} title={p.title} headings={v.sections.filter((s) => s.key !== "framework" && s.key !== "related").map((s) => s.heading)} />
-          <p className="mt-2 text-[12px] text-[#646e7f]">
+          <p className="mt-2 text-caption text-[#646e7f]">
             {isTemplate && ctx.organisationId ? "CSB central document, kept up to date by CSB. " : ""}
             <Link href={`/policies/${p.id}?view=text`}>Read as accessible text</Link>
           </p>
@@ -70,7 +70,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
       label: "Overview",
       content: (
         <div className="space-y-4 px-[20px] py-[18px]">
-          <p className="text-[13.5px] leading-6 text-[#2f3d52]">{p.description}</p>
+          <p className="text-body leading-6 text-[#2f3d52]">{p.description}</p>
           <dl className="pl-dl">
             <dt>Type</dt><dd>{typeName}</dd>
             <dt>Category</dt><dd>{category}</dd>
@@ -94,10 +94,10 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
             <li key={h.id} className="py-3">
               <div className="flex flex-wrap items-baseline gap-x-3">
                 <Link href={`/policies/${p.id}/versions/${h.id}`} className="font-semibold text-[#0b1530] hover:text-[#0646b1]">Version {h.label.replace(/^v/i, "")}</Link>
-                <span className="text-[12.5px] text-[#646e7f]">{fmtShort(h.publishedAt)} · {ORIGIN[h.origin] ?? h.origin}{h.status === "PUBLISHED" ? " · current" : ""}</span>
+                <span className="text-meta text-[#646e7f]">{fmtShort(h.publishedAt)} · {ORIGIN[h.origin] ?? h.origin}{h.status === "PUBLISHED" ? " · current" : ""}</span>
               </div>
-              {h.changeSummary ? <p className="mt-1 text-[13px] text-[#2f3d52]">{h.changeSummary}</p> : null}
-              <p className="mt-1 text-[12.5px] text-[#646e7f]">{h.publishedBy ? `Published by ${h.publishedBy}` : "Published"}{h.approvers.length ? ` · reviewed by ${h.approvers.join(", ")}` : ""}</p>
+              {h.changeSummary ? <p className="mt-1 text-meta text-[#2f3d52]">{h.changeSummary}</p> : null}
+              <p className="mt-1 text-meta text-[#646e7f]">{h.publishedBy ? `Published by ${h.publishedBy}` : "Published"}{h.approvers.length ? ` · reviewed by ${h.approvers.join(", ")}` : ""}</p>
             </li>
           ))}
         </ol>
@@ -190,7 +190,7 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
 
   return (
     <section aria-label={`Policy: ${p.title}`} className="pc-panel flex flex-col bg-white" data-testid="policy-inspector">
-      <div className="flex h-[48px] items-center gap-2 border-b border-[#eaecf0] px-4 text-[13px] text-[#475467]">
+      <div className="flex h-[48px] items-center gap-2 border-b border-[#eaecf0] px-4 text-meta text-[#475467]">
         <span data-testid="inspector-position">{nav.index && nav.total ? <>Policy <b className="font-semibold text-[#101828]">{nav.index}</b> of {nav.total}</> : "Policy"}</span>
         <span className="ml-auto flex items-center gap-1">
           {nav.prevHref ? <Link href={nav.prevHref} scroll={false} data-inspector-close="" className="pc-btn-secondary pc-btn-sm" aria-label="Previous policy"><CaretLeft size={14} aria-hidden="true" />Previous</Link> : <span className="pc-btn-secondary pc-btn-sm opacity-50" aria-disabled="true"><CaretLeft size={14} aria-hidden="true" />Previous</span>}
@@ -201,8 +201,8 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
       <header className="flex items-start gap-3.5 px-[18px] pb-[12px] pt-[16px]">
         <DocTile status={data.status} size={44} />
         <div className="min-w-0 flex-1">
-          <h2 className="text-[18px] font-semibold leading-6 text-[#101828]">{p.title}</h2>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#475467]">
+          <h2 className="text-subtitle font-semibold leading-6 text-[#101828]">{p.title}</h2>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-[#475467]">
             <span>{p.ref}</span>
             <StatusPill status={data.status} />
             {v ? <span>Version {v.label.replace(/^v/i, "")}</span> : null}
@@ -232,8 +232,8 @@ export async function PolicyInspector({ ctx, query, policyId, nav }: { ctx: Ctx;
       <InspectorTabs key={`${p.id}:${query.pane}`} value={query.pane} panes={panes} />
 
       <div className="mx-[14px] my-[14px] rounded-[10px] border border-[#eaecf0] px-[16px] py-[14px]">
-        <h3 className="mb-3 text-[14px] font-semibold text-[#101828]">Key information</h3>
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-[9px] text-[12.5px] sm:grid-cols-2" data-testid="key-information">
+        <h3 className="mb-3 text-body font-semibold text-[#101828]">Key information</h3>
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-[9px] text-meta sm:grid-cols-2" data-testid="key-information">
           <KeyRow label="Owner" value={data.owner ?? "Not recorded"} />
           <KeyRow label="Next review" value={p.nextReviewDate ? `${fmtShort(p.nextReviewDate)} (${relative(p.nextReviewDate)})` : "Not scheduled"} />
           <KeyRow label="Category" value={<span title={category}>{p.category.name}</span>} />
@@ -270,7 +270,7 @@ function KeyRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function EmptyPane({ children }: { children: React.ReactNode }) {
-  return <p className="mx-[20px] my-[24px] rounded-[8px] border border-dashed border-[#dcd9d2] px-4 py-6 text-center text-[13px] text-[#4a5564]">{children}</p>;
+  return <p className="mx-[20px] my-[24px] rounded-[8px] border border-dashed border-[#dcd9d2] px-4 py-6 text-center text-meta text-[#4a5564]">{children}</p>;
 }
 
 function SignOffPane({ data, back }: { data: PolicyInspection; back: string }) {
@@ -278,21 +278,21 @@ function SignOffPane({ data, back }: { data: PolicyInspection; back: string }) {
   if (!s) return <EmptyPane>This policy hasn&apos;t been published to staff yet, so there is nothing to sign.</EmptyPane>;
   return (
     <div className="space-y-4 px-[20px] py-[18px]" data-testid="inspector-signoff">
-      <p className="text-[13px] text-[#4a5564]">Published {fmtShort(s.publishedAt)}{s.dueAt ? `, sign by ${fmtShort(s.dueAt)}` : ""}.</p>
+      <p className="text-meta text-[#4a5564]">Published {fmtShort(s.publishedAt)}{s.dueAt ? `, sign by ${fmtShort(s.dueAt)}` : ""}.</p>
       {s.own?.acknowledgedAt ? (
-        <p className="flex items-center gap-2 text-[13px] font-medium text-[#157a3e]"><CheckCircle size={16} weight="fill" aria-hidden="true" />You read and signed this on {fmtShort(s.own.acknowledgedAt)}</p>
+        <p className="flex items-center gap-2 text-meta font-medium text-[#157a3e]"><CheckCircle size={16} weight="fill" aria-hidden="true" />You read and signed this on {fmtShort(s.own.acknowledgedAt)}</p>
       ) : data.policy.organisationId ? (
         <form action={logReadAndSignAction} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="policyId" value={data.policy.id} />
           <input type="hidden" name="back" value={back} />
-          <span className="text-[13px] text-[#4a5564]">You haven&apos;t signed this version yet.</span>
+          <span className="text-meta text-[#4a5564]">You haven&apos;t signed this version yet.</span>
           <button type="submit" className="pl-btn-primary"><Signature size={16} aria-hidden="true" />Log Read &amp; Sign</button>
         </form>
       ) : null}
       {s.coverage ? (
         <div>
-          <p className="text-[13px] text-[#2f3d52]"><strong className="font-semibold">{s.coverage.signed}</strong> of {s.coverage.assigned} signed · {s.coverage.outstanding} outstanding{s.coverage.overdue ? <> · <span className="text-[#b42318]">{s.coverage.overdue} overdue</span></> : null}</p>
-          <ul className="mt-2 max-h-[180px] divide-y divide-[#efece6] overflow-y-auto rounded-[6px] border border-[#ebe8e2] text-[12.5px]">
+          <p className="text-meta text-[#2f3d52]"><strong className="font-semibold">{s.coverage.signed}</strong> of {s.coverage.assigned} signed · {s.coverage.outstanding} outstanding{s.coverage.overdue ? <> · <span className="text-[#b42318]">{s.coverage.overdue} overdue</span></> : null}</p>
+          <ul className="mt-2 max-h-[180px] divide-y divide-[#efece6] overflow-y-auto rounded-[6px] border border-[#ebe8e2] text-meta">
             {s.coverage.people.map((person, i) => (
               <li key={i} className="flex items-center justify-between gap-3 px-3 py-1.5">
                 <span>{person.name}</span>
@@ -300,7 +300,7 @@ function SignOffPane({ data, back }: { data: PolicyInspection; back: string }) {
               </li>
             ))}
           </ul>
-          <Link href="/staff" className="mt-2 inline-block text-[12.5px]">Open Staff Sign-off</Link>
+          <Link href="/staff" className="mt-2 inline-block text-meta">Open Staff Sign-off</Link>
         </div>
       ) : null}
     </div>
@@ -312,7 +312,7 @@ function LinkedPane({ data, query }: { data: PolicyInspection; query: LibraryQue
   const empty = !l.requirements.length && !l.changes.length && !l.assessments.length && !l.related.length && !data.template;
   if (empty) return <EmptyPane>Nothing is linked to this policy yet.</EmptyPane>;
   return (
-    <div className="max-h-[420px] space-y-4 overflow-y-auto px-[20px] py-[16px] text-[13px]" data-testid="inspector-linked">
+    <div className="max-h-[420px] space-y-4 overflow-y-auto px-[20px] py-[16px] text-meta" data-testid="inspector-linked">
       {l.requirements.length ? (
         <LinkGroup title={`Regulatory requirements (${l.requirements.length})`} note={l.inherited ? "Mapped on the CSB template this policy is based on." : undefined}>
           {l.requirements.map((r) => <li key={r.id}><Link href={`/requirements/${r.id}`}>{r.ref}</Link> <span className="text-[#4a5564]">{r.title}</span></li>)}
@@ -345,8 +345,8 @@ function LinkedPane({ data, query }: { data: PolicyInspection; query: LibraryQue
 function LinkGroup({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
     <section>
-      <h4 className="mb-1.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-[#646e7f]">{title}</h4>
-      {note ? <p className="mb-1.5 text-[12px] text-[#646e7f]">{note}</p> : null}
+      <h4 className="mb-1.5 text-meta font-semibold uppercase tracking-[0.04em] text-[#646e7f]">{title}</h4>
+      {note ? <p className="mb-1.5 text-caption text-[#646e7f]">{note}</p> : null}
       <ul className="space-y-1">{children}</ul>
     </section>
   );
@@ -355,8 +355,8 @@ function LinkGroup({ title, note, children }: { title: string; note?: string; ch
 function InspectorMessage({ closeHref, title, body }: { closeHref: string; title: string; body: string }) {
   return (
     <section aria-label="Policy" className="pc-panel bg-white px-6 py-10 text-center" data-testid="policy-inspector">
-      <h2 className="text-[18px] font-semibold text-[#101828]">{title}</h2>
-      <p className="mt-2 text-[13px] text-[#475467]">{body}</p>
+      <h2 className="text-subtitle font-semibold text-[#101828]">{title}</h2>
+      <p className="mt-2 text-meta text-[#475467]">{body}</p>
       <Link href={closeHref} scroll={false} data-inspector-close="" className="pc-btn-secondary mt-4">Back to the list</Link>
     </section>
   );

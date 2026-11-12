@@ -98,7 +98,7 @@ function ModuleTile({ tile }: { tile: Tile }) {
       {tile.ghost}
       <span className="relative flex items-center gap-3">
         <span aria-hidden="true" className="ovx-chip">{tile.icon}</span>
-        <span className="ovx-title text-[15px] font-semibold leading-tight">{tile.name}</span>
+        <span className="ovx-title text-lead font-semibold leading-tight">{tile.name}</span>
       </span>
       <span className="relative mt-auto block">
         <span className="flex items-baseline gap-2.5 whitespace-nowrap">

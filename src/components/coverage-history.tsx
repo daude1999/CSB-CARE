@@ -42,9 +42,9 @@ const dur = (m: number | null) => (m === null ? "—" : m < 60 ? `${m}m` : `${Ma
 function Figure({ label, value, note, tone = "text-[#101828]", href }: { label: string; value: number; note?: ReactNode; tone?: string; href?: string }) {
   const inner = (
     <>
-      <span className={`block text-[24px] font-bold leading-tight tabular-nums ${tone}`}>{value.toLocaleString("en-GB")}</span>
-      <span className="block text-[14px] font-semibold text-[#101828]">{label}</span>
-      {note ? <span className="block text-[12.5px] text-[#475467]">{note}</span> : null}
+      <span className={`block text-display font-bold leading-tight tabular-nums ${tone}`}>{value.toLocaleString("en-GB")}</span>
+      <span className="block text-body font-semibold text-[#101828]">{label}</span>
+      {note ? <span className="block text-meta text-[#475467]">{note}</span> : null}
     </>
   );
   const cls = "min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white px-4 py-2.5 no-underline";
@@ -104,27 +104,27 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
     <>
       <div className="mb-3 flex flex-wrap items-end gap-x-4 gap-y-2.5">
         <div className="mr-auto min-w-0">
-          <h2 className="text-[20px] font-bold text-[#101828]">{heading}</h2>
-          <p className="text-[14px] text-[#344054]">{periodLabel(f, f.partial)}. Read-only: corrections are made on the visit or in Missed Calls.</p>
+          <h2 className="text-title font-bold text-[#101828]">{heading}</h2>
+          <p className="text-body text-[#344054]">{periodLabel(f, f.partial)}. Read-only: corrections are made on the visit or in Missed Calls.</p>
         </div>
         <nav aria-label="Reporting period" className="inline-flex rounded-[8px] border border-[#d0d5dd] bg-white p-0.5">
           {(["7", "14", "30", "90"] as const).map((n) => (
-            <Link key={n} href={url({ range: n === "7" ? undefined : n, from: undefined, to: undefined, day: undefined, page: undefined, hv: undefined })} aria-current={f.range === n ? "page" : undefined} className={`flex h-9 items-center rounded-[6px] px-3.5 text-[14px] font-semibold no-underline ${f.range === n ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>{n} days</Link>
+            <Link key={n} href={url({ range: n === "7" ? undefined : n, from: undefined, to: undefined, day: undefined, page: undefined, hv: undefined })} aria-current={f.range === n ? "page" : undefined} className={`flex h-9 items-center rounded-[6px] px-3.5 text-body font-semibold no-underline ${f.range === n ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>{n} days</Link>
           ))}
         </nav>
         <details className="relative">
-          <summary className={`flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border bg-white px-4 text-[14.5px] font-semibold hover:bg-slate-50 [&::-webkit-details-marker]:hidden ${f.range === "custom" ? "border-module text-module" : "border-[#d0d5dd] text-[#101828]"}`}><CalendarBlank size={18} aria-hidden />Custom dates</summary>
+          <summary className={`flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border bg-white px-4 text-body font-semibold hover:bg-slate-50 [&::-webkit-details-marker]:hidden ${f.range === "custom" ? "border-module text-module" : "border-[#d0d5dd] text-[#101828]"}`}><CalendarBlank size={18} aria-hidden />Custom dates</summary>
           <form method="get" className={`${MENU} grid w-[280px] gap-2.5 p-3`} aria-label="Custom period">
             {hiddenExcept(["range", "from", "to", "day", "page", "hv"])}
             <input type="hidden" name="range" value="custom" />
             <label><span className="label">From</span><input type="date" name="from" max={today} defaultValue={f.from} className="input" /></label>
             <label><span className="label">To</span><input type="date" name="to" max={today} defaultValue={f.to} className="input" /></label>
-            <p className="text-[12.5px] text-[#475467]">Up to 92 days, ending today at the latest. Today counts as a partial day.</p>
+            <p className="text-meta text-[#475467]">Up to 92 days, ending today at the latest. Today counts as a partial day.</p>
             <button className="btn-primary">Show period</button>
           </form>
         </details>
       </div>
-      {error ? <p role="alert" className="mb-3 rounded-[8px] bg-[#fdecec] px-3 py-2 text-[14px] text-[#a3242c]">{error}. Showing the last 7 days instead.</p> : null}
+      {error ? <p role="alert" className="mb-3 rounded-[8px] bg-[#fdecec] px-3 py-2 text-body text-[#a3242c]">{error}. Showing the last 7 days instead.</p> : null}
 
       <div className="mb-3 flex flex-col gap-2.5 lg:flex-row lg:items-start">
       <AutoSubmitForm label="Report filters" className="grid w-full min-w-0 flex-1 grid-cols-1 gap-2.5 sm:grid-cols-3 lg:max-w-[760px]">
@@ -145,22 +145,22 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
         <Figure label="Without recorded attendance" value={s.uncovered} tone={s.uncovered ? "text-[#b42318]" : "text-[#101828]"} note={`${s.missed} missed · ${s.notDelivered} not delivered · ${s.noRecord} no record`} href={url({ view: "uncovered", day: undefined, page: undefined }) + "#coverage-visits"} />
         <Figure label="Cancelled" value={s.cancelled} note="In the total, not in the rate" href={url({ view: "cancelled", day: undefined, page: undefined }) + "#coverage-visits"} />
       </section>
-      <div className="mb-4 text-[13px] text-[#475467]" data-testid="coverage-reconcile">
+      <div className="mb-4 text-meta text-[#475467]" data-testid="coverage-reconcile">
         {s.attended} attended + {s.uncovered} without recorded attendance + {s.cancelled} cancelled{s.notDue ? ` + ${s.notDue} not yet due` : ""} = {s.total} visits. {s.reassigned} reassigned, <Link href={url({ view: "late", page: undefined }) + "#coverage-visits"}>{s.late} late reassignment{s.late === 1 ? "" : "s"}</Link> (under {f.late} minutes before the start).{" "}
         <details className="inline"><summary className="inline cursor-pointer font-semibold text-module">Definitions</summary><dl className="mt-2 grid gap-1 rounded-[8px] border border-[#e4e7ec] bg-white p-3 sm:grid-cols-[200px_1fr]">{DEFINITIONS.map(([t, d]) => <div key={t} className="contents"><dt className="font-semibold text-[#101828]">{t}</dt><dd>{d}</dd></div>)}</dl></details>
       </div>
 
       <section aria-labelledby="daily-h" className={`${PANEL} mb-4`}>
-        <h3 id="daily-h" className="px-3.5 pb-2 pt-3 text-[16px] font-bold text-[#101828]">Daily Visit Coverage</h3>
+        <h3 id="daily-h" className="px-3.5 pb-2 pt-3 text-lead font-bold text-[#101828]">Daily Visit Coverage</h3>
         <div className="overflow-x-auto border-t border-[#eaecf0]">
-          <table className="w-full border-collapse whitespace-nowrap text-[14px]">
+          <table className="w-full border-collapse whitespace-nowrap text-body">
             <thead className="bg-[#f9fafb]"><tr className="border-b border-[#eaecf0]">{["Day", "Scheduled", "Attended", "Completed", "Without recorded attendance", "Cancelled"].map((h, i) => <th key={h} scope="col" className={`${TH} ${i ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
             <tbody>
               {r.days.map(({ date, t }) => {
                 const cell = (n: number, view: CoverageView, tone = "") => <td className={`${TD} text-right tabular-nums`}>{n ? <Link href={dayLink(date, view)} className={`no-underline hover:underline ${tone}`} aria-label={`${n} ${VIEW_LABEL[view].toLowerCase()} visits on ${day(date)}`}>{n}</Link> : <span className="text-[#98a2b3]">0</span>}</td>;
                 return (
                   <tr key={date} className={`border-b border-[#f2f4f7] last:border-0 ${f.day === date ? "bg-[#eef4ff]" : ""}`}>
-                    <th scope="row" className={`${TD} text-left font-semibold text-[#101828]`}>{day(date)}{date === today ? <span className="ml-1.5 text-[12px] font-normal text-[#8a5a00]">partial day</span> : null}</th>
+                    <th scope="row" className={`${TD} text-left font-semibold text-[#101828]`}>{day(date)}{date === today ? <span className="ml-1.5 text-caption font-normal text-[#8a5a00]">partial day</span> : null}</th>
                     {cell(t.total, "all", "text-[#101828]")}
                     {cell(t.attended, "attended", "text-[#14713a]")}
                     {cell(t.completed, "completed", "text-[#101828]")}
@@ -177,9 +177,9 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
 
       {r.compare ? (
         <details className={`${PANEL} mb-4`} open={sp.compare === "1"}>
-          <summary className="cursor-pointer px-3.5 py-3 text-[16px] font-bold text-[#101828]">Branch Comparison <span className="text-[13px] font-normal text-[#475467]">· by the service user&apos;s branch</span></summary>
+          <summary className="cursor-pointer px-3.5 py-3 text-lead font-bold text-[#101828]">Branch Comparison <span className="text-meta font-normal text-[#475467]">· by the service user&apos;s branch</span></summary>
           <div className="overflow-x-auto border-t border-[#eaecf0]">
-            <table className="w-full border-collapse whitespace-nowrap text-[14px]">
+            <table className="w-full border-collapse whitespace-nowrap text-body">
               <thead className="bg-[#f9fafb]"><tr className="border-b border-[#eaecf0]">{["Branch", "Total visits", "Attended", "Completed", "No recorded attendance", "Cancelled", "Reassigned", "Late reassignments"].map((h, i) => <th key={h} scope="col" className={`${TH} ${i ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
               <tbody>
                 {r.compare.map((b: { id: string | null; name: string; t: Tally }) => (
@@ -197,29 +197,29 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
       <div id="coverage-visits" className={`grid grid-cols-1 items-start gap-4 ${hist ? "xl:grid-cols-[minmax(0,1fr)_380px]" : ""}`}>
         <section aria-labelledby="visits-h" className={PANEL}>
           <div className="flex flex-wrap items-center gap-2 px-3.5 pb-2 pt-3">
-            <h3 id="visits-h" className="mr-2 text-[16px] font-bold text-[#101828]">Visit Records{f.day ? <span className="font-normal text-[#475467]"> · {day(f.day)} <Link href={url({ day: undefined, page: undefined })} aria-label="Show every day" className="inline-flex align-middle"><X size={14} aria-hidden /></Link></span> : null}</h3>
+            <h3 id="visits-h" className="mr-2 text-lead font-bold text-[#101828]">Visit Records{f.day ? <span className="font-normal text-[#475467]"> · {day(f.day)} <Link href={url({ day: undefined, page: undefined })} aria-label="Show every day" className="inline-flex align-middle"><X size={14} aria-hidden /></Link></span> : null}</h3>
             <AutoSubmitForm label="Search visit records" className="relative min-w-[200px] flex-1 sm:max-w-[280px]">
               {hiddenExcept(["q", "page", "hv"])}
               <span className="sr-only">Search by service user, carer or reference</span>
               <MagnifyingGlass size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
-              <input type="search" name="q" defaultValue={f.q ?? ""} placeholder="Search visits…" aria-label="Search by service user, carer or reference" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-[14px] placeholder:text-[#667085]" />
+              <input type="search" name="q" defaultValue={f.q ?? ""} placeholder="Search visits…" aria-label="Search by service user, carer or reference" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-body placeholder:text-[#667085]" />
             </AutoSubmitForm>
             <details className="relative ml-auto">
-              <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-module">+{cols.size}</span> : null}</summary>
+              <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-caption font-semibold text-module">+{cols.size}</span> : null}</summary>
               <form method="get" className={`${MENU} z-30 w-[250px] p-3`}>
                 {hiddenExcept(["cols"])}
                 <fieldset>
-                  <legend className="mb-1.5 text-[13px] font-semibold text-[#101828]">Extra columns</legend>
-                  {OPTIONAL.map(([k, label]) => <label key={k} className="flex items-center gap-2 py-0.5 text-[14px]"><input type="checkbox" name="cols" value={k} defaultChecked={cols.has(k)} className="h-4 w-4" />{label}</label>)}
+                  <legend className="mb-1.5 text-meta font-semibold text-[#101828]">Extra columns</legend>
+                  {OPTIONAL.map(([k, label]) => <label key={k} className="flex items-center gap-2 py-0.5 text-body"><input type="checkbox" name="cols" value={k} defaultChecked={cols.has(k)} className="h-4 w-4" />{label}</label>)}
                 </fieldset>
                 <div className="mt-2 flex gap-2"><button className="btn-primary py-1">Apply</button><Link href={url({ cols: undefined })} className="btn-secondary py-1">Default</Link></div>
               </form>
             </details>
           </div>
           <nav aria-label="Report view" className="flex flex-wrap items-center gap-1.5 px-3.5 pb-3">
-            {VIEWS.map((k) => <Link key={k} href={url({ view: k === "all" ? undefined : k, page: undefined, cols: undefined })} aria-current={f.view === k ? "page" : undefined} className={`rounded-full border px-3 py-1 text-[13.5px] font-semibold no-underline ${f.view === k ? "border-module bg-module text-white" : "border-[#d0d5dd] bg-white text-[#344054] hover:bg-slate-50"}`}>{VIEW_LABEL[k]}</Link>)}
+            {VIEWS.map((k) => <Link key={k} href={url({ view: k === "all" ? undefined : k, page: undefined, cols: undefined })} aria-current={f.view === k ? "page" : undefined} className={`rounded-full border px-3 py-1 text-body font-semibold no-underline ${f.view === k ? "border-module bg-module text-white" : "border-[#d0d5dd] bg-white text-[#344054] hover:bg-slate-50"}`}>{VIEW_LABEL[k]}</Link>)}
             {f.view === "late" ? (
-              <AutoSubmitForm label="Late threshold" className="ml-1 flex items-center gap-1.5 text-[13.5px]">
+              <AutoSubmitForm label="Late threshold" className="ml-1 flex items-center gap-1.5 text-body">
                 {hiddenExcept(["late", "page"])}
                 <label htmlFor="late-min" className="text-[#475467]">Reassigned under</label>
                 <select id="late-min" name="late" defaultValue={String(f.late)} className="h-8 rounded-[6px] border border-[#d0d5dd] bg-white px-2">{LATE_THRESHOLDS.map((n) => <option key={n} value={n}>{n} min</option>)}</select>
@@ -227,11 +227,11 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
               </AutoSubmitForm>
             ) : null}
           </nav>
-          {f.view === "late" ? <p className="px-3.5 pb-2 text-[13px] text-[#475467]">Late reassignment is a reporting rule (the replacement was saved less than {f.late} minutes before the scheduled start, or after it). It is not evidence that care started late.</p> : null}
-          {f.view === "uncovered" ? <p className="px-3.5 pb-2 text-[13px] text-[#475467]">Visits recorded as missed or not delivered, and visits with no clock-in and no recorded outcome. A missing clock is not proof that nobody attended. A later recovery visit never changes the original visit&apos;s outcome.</p> : null}
+          {f.view === "late" ? <p className="px-3.5 pb-2 text-meta text-[#475467]">Late reassignment is a reporting rule (the replacement was saved less than {f.late} minutes before the scheduled start, or after it). It is not evidence that care started late.</p> : null}
+          {f.view === "uncovered" ? <p className="px-3.5 pb-2 text-meta text-[#475467]">Visits recorded as missed or not delivered, and visits with no clock-in and no recorded outcome. A missing clock is not proof that nobody attended. A later recovery visit never changes the original visit&apos;s outcome.</p> : null}
           {r.rows.length ? (
             <div className="overflow-x-auto border-t border-[#eaecf0]">
-              <table className="w-full border-collapse text-[14px]">
+              <table className="w-full border-collapse text-body">
                 <caption className="sr-only">Visit records, {periodLabel(f, f.partial)}</caption>
                 <thead className="bg-[#f9fafb]">
                   <tr className="border-b border-[#eaecf0]">
@@ -272,7 +272,7 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
                         {cols.has("area") ? <td className={`${TD} whitespace-nowrap`}>{x.area}</td> : null}
                         {cols.has("call") ? <td className={`${TD} whitespace-nowrap`}>{x.serviceCall}</td> : null}
                         <td className={TD}>{x.original.length ? x.original.join(", ") : <span className="text-[#98a2b3]">None assigned</span>}</td>
-                        <td className={TD}>{x.attendance.some((a) => a.in) ? x.attendance.filter((a) => a.in).map((a) => <span key={a.name} className="block whitespace-nowrap">{a.name}{x.attendance.length > 1 ? <span className="text-[12.5px] text-[#475467]"> {a.in}–{a.out ?? "…"}</span> : null}{a.corrected ? <span className="text-[12px] text-[#8a5a00]" title="A clock for this carer was corrected"> (corrected)</span> : null}</span>) : <span className="text-[#98a2b3]">No clock-in</span>}</td>
+                        <td className={TD}>{x.attendance.some((a) => a.in) ? x.attendance.filter((a) => a.in).map((a) => <span key={a.name} className="block whitespace-nowrap">{a.name}{x.attendance.length > 1 ? <span className="text-meta text-[#475467]"> {a.in}–{a.out ?? "…"}</span> : null}{a.corrected ? <span className="text-caption text-[#8a5a00]" title="A clock for this carer was corrected"> (corrected)</span> : null}</span>) : <span className="text-[#98a2b3]">No clock-in</span>}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{x.scheduled}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{x.actualIn ?? "—"}</td>
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{x.actualOut ?? "—"}</td>
@@ -280,13 +280,13 @@ export async function CoverageHistory({ ctx, sp }: { ctx: Ctx; sp: Record<string
                         <td className={TD}>{x.reassigned ? <span className="font-semibold text-module">Yes</span> : "No"}</td>
                         {cols.has("reason") ? <td className={`${TD} max-w-[200px]`}>{lr ? lr.reason : "—"}</td> : null}
                         {cols.has("by") ? <td className={`${TD} whitespace-nowrap`}>{lr ? lr.by : "—"}</td> : null}
-                        {cols.has("at") ? <td className={`${TD} whitespace-nowrap tabular-nums`}>{lr ? <>{fmtLondonDate(londonDate(lr.at), { day: "2-digit", month: "2-digit" })} {londonTime(lr.at)}<span className="block text-[12.5px] text-[#475467]">{lr.minutesBefore >= 0 ? `${lr.minutesBefore} min before start` : `${-lr.minutesBefore} min after start`}</span></> : "—"}</td> : null}
+                        {cols.has("at") ? <td className={`${TD} whitespace-nowrap tabular-nums`}>{lr ? <>{fmtLondonDate(londonDate(lr.at), { day: "2-digit", month: "2-digit" })} {londonTime(lr.at)}<span className="block text-meta text-[#475467]">{lr.minutesBefore >= 0 ? `${lr.minutesBefore} min before start` : `${-lr.minutesBefore} min after start`}</span></> : "—"}</td> : null}
                         {cols.has("changes") ? <td className={`${TD} tabular-nums`}>{x.changes}</td> : null}
                         {cols.has("lateflag") ? <td className={TD}>{x.late ? <span className="font-semibold text-[#b54708]">Yes</span> : "No"}</td> : null}
                         {cols.has("ack") ? <td className={`${TD} whitespace-nowrap`}>{x.acknowledged}</td> : null}
                         {cols.has("inv") ? <td className={`${TD} whitespace-nowrap`}>{x.investigation ? <Link href={`/rota/missed/${x.investigation.id}`}>{x.investigation.stage.charAt(0) + x.investigation.stage.slice(1).toLowerCase().replace(/_/g, " ")}{x.investigation.escalated ? " · escalated" : ""}</Link> : "—"}</td> : null}
-                        <td className={`${TD} whitespace-nowrap`}><span className={`inline-flex rounded-full px-2 py-0.5 text-[13px] font-semibold ${OUTCOME_BADGE[x.outcome]}`}>{OUTCOME_LABEL[x.outcome]}</span></td>
-                        <td className={`${TD} whitespace-nowrap`}><Link href={url({ hv: x.id }) + "#coverage-visits"} aria-label={`View history of visit ${x.reference}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-module px-2.5 text-[13.5px] font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ClockCounterClockwise size={16} aria-hidden />View History</Link></td>
+                        <td className={`${TD} whitespace-nowrap`}><span className={`inline-flex rounded-full px-2 py-0.5 text-meta font-semibold ${OUTCOME_BADGE[x.outcome]}`}>{OUTCOME_LABEL[x.outcome]}</span></td>
+                        <td className={`${TD} whitespace-nowrap`}><Link href={url({ hv: x.id }) + "#coverage-visits"} aria-label={`View history of visit ${x.reference}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-module px-2.5 text-body font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ClockCounterClockwise size={16} aria-hidden />View History</Link></td>
                       </tr>
                     );
                   })}
@@ -310,33 +310,33 @@ function HistoryPanel({ hist, closeHref }: { hist: Awaited<ReturnType<typeof cov
     <aside aria-labelledby="hist-title" className="flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] xl:sticky xl:top-2 xl:max-h-[calc(100vh-40px)]">
       <div className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
         <ClockCounterClockwise size={22} weight="duotone" className="text-module" aria-hidden />
-        <h3 id="hist-title" className="text-[18px] font-bold text-[#101828]">Visit History</h3>
+        <h3 id="hist-title" className="text-subtitle font-bold text-[#101828]">Visit History</h3>
         <Link href={closeHref} aria-label="Close visit history" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100"><X size={19} weight="bold" aria-hidden /></Link>
       </div>
       <div className="px-4 pb-2">
-        <p className="text-[16px] font-bold text-[#101828]">{x.serviceUser}</p>
-        <p className="text-[13px] text-[#475467]">Ref {x.reference} · {fmtLondonDate(x.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {x.scheduled}</p>
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[13.5px]">
+        <p className="text-lead font-bold text-[#101828]">{x.serviceUser}</p>
+        <p className="text-meta text-[#475467]">Ref {x.reference} · {fmtLondonDate(x.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {x.scheduled}</p>
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-body">
           <dt className="text-[#475467]">Original</dt><dd>{x.original.join(", ") || "None assigned"}</dd>
           <dt className="text-[#475467]">Now booked</dt><dd>{x.current.join(", ") || "Nobody"}</dd>
           <dt className="text-[#475467]">Attendance</dt><dd>{x.attendance.length ? x.attendance.map((a) => <span key={a.name} className="block">{a.name}: in {a.in ?? "—"}, out {a.out ?? "—"}{a.corrected ? " (corrected)" : ""}</span>) : "No clock records"}</dd>
-          <dt className="text-[#475467]">Outcome</dt><dd><span className={`inline-flex rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${OUTCOME_BADGE[x.outcome]}`}>{OUTCOME_LABEL[x.outcome]}</span></dd>
+          <dt className="text-[#475467]">Outcome</dt><dd><span className={`inline-flex rounded-full px-2 py-0.5 text-meta font-semibold ${OUTCOME_BADGE[x.outcome]}`}>{OUTCOME_LABEL[x.outcome]}</span></dd>
         </dl>
       </div>
-      <ol className="flex-1 space-y-2.5 overflow-y-auto border-t border-[#eef0f3] px-4 py-3 text-[13.5px]" aria-label="Timeline">
+      <ol className="flex-1 space-y-2.5 overflow-y-auto border-t border-[#eef0f3] px-4 py-3 text-body" aria-label="Timeline">
         {hist.items.length ? hist.items.map((it, i) => (
           <li key={i} className={`border-l-[3px] pl-3 ${TONE[it.tone]}`}>
-            <span className="block text-[12.5px] tabular-nums text-[#475467]">{fmtLondonDate(londonDate(it.at), { day: "2-digit", month: "2-digit" })} {londonTime(it.at)} · {it.actor}</span>
+            <span className="block text-meta tabular-nums text-[#475467]">{fmtLondonDate(londonDate(it.at), { day: "2-digit", month: "2-digit" })} {londonTime(it.at)} · {it.actor}</span>
             <span className="block font-semibold text-[#101828]">{it.title}</span>
             {it.detail ? <span className="block text-[#344054]">{it.detail}</span> : null}
           </li>
         )) : <li className="text-slate-600">No history recorded for this visit.</li>}
       </ol>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-[#eef0f3] px-4 py-3 text-[13.5px]">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-[#eef0f3] px-4 py-3 text-body">
         <Link href={`/rota/visits/${x.id}`} className="inline-flex items-center gap-1.5 font-semibold"><ArrowSquareOut size={16} aria-hidden />Full visit (clock corrections)</Link>
         {hist.missedCaseId ? <Link href={`/rota/missed/${hist.missedCaseId}`} className="inline-flex items-center gap-1.5 font-semibold"><ArrowSquareOut size={16} aria-hidden />Missed call case</Link> : null}
       </div>
-      <p className="px-4 pb-3 text-[12px] text-[#667085]">Built from the visit&apos;s stored assignments, events, clocks and investigation. Anything not recorded shows as Not recorded. Notifications are not listed because the platform does not record their delivery.</p>
+      <p className="px-4 pb-3 text-caption text-[#667085]">Built from the visit&apos;s stored assignments, events, clocks and investigation. Anything not recorded shows as Not recorded. Notifications are not listed because the platform does not record their delivery.</p>
     </aside>
   );
 }

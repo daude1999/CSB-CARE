@@ -42,23 +42,23 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                   <tr key={u.id}>
                     <td>
                       <span className="flex items-center gap-2.5">
-                        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-px-row text-[11px] font-semibold text-px-body">{u.name.replace(/\(.*?\)/g, "").split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</span>
+                        <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-px-row text-micro font-semibold text-px-body">{u.name.replace(/\(.*?\)/g, "").split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</span>
                         <span className="min-w-0">
                           <Link href={`/platform-admin/users/${u.id}?back=${back}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{u.name}</Link>
-                          {u.isDemo ? <span className="ml-1.5 rounded-[4px] bg-px-row px-1 text-[11px] text-px-muted">Demo</span> : null}
+                          {u.isDemo ? <span className="ml-1.5 rounded-[4px] bg-px-row px-1 text-micro text-px-muted">Demo</span> : null}
                         </span>
                       </span>
                     </td>
                     <td className="max-w-[240px] truncate text-px-body">{u.email}</td>
-                    <td className="max-w-[220px] text-[13px]">
+                    <td className="max-w-[220px] text-meta">
                       {u.platformRoles.length ? <Tone tone="violet">Evantix</Tone> : first ? <span className={first.deactivatedAt ? "text-px-subtle line-through" : ""}>{first.organisation.name}</span> : <span className="text-px-subtle">None</span>}
-                      {live.length > 1 ? <span className="ml-1 text-[12px] text-px-muted">+{live.length - 1} more</span> : null}
+                      {live.length > 1 ? <span className="ml-1 text-caption text-px-muted">+{live.length - 1} more</span> : null}
                     </td>
-                    <td className="max-w-[220px] text-[13px] text-px-body">
+                    <td className="max-w-[220px] text-meta text-px-body">
                       {u.platformRoles.length ? u.platformRoles.map((r) => PLATFORM_ROLE_NAMES[r as keyof typeof PLATFORM_ROLE_NAMES]).join(", ") : first ? (first.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") || <span className="text-px-subtle">No roles</span>) : "—"}
                     </td>
                     <td>{u.deactivatedAt ? <Pill value="SUSPENDED" label="Deactivated" /> : u.passwordResetRequired ? <Pill value="REQUESTED" label="Password change due" /> : <Pill value="ACTIVE" />}</td>
-                    <td className="whitespace-nowrap text-[13px] tabular-nums text-px-body">{u.lastSignIn ? fmtDate(u.lastSignIn, true) : <span className="text-px-subtle">Never</span>}</td>
+                    <td className="whitespace-nowrap text-meta tabular-nums text-px-body">{u.lastSignIn ? fmtDate(u.lastSignIn, true) : <span className="text-px-subtle">Never</span>}</td>
                     <td className="text-right"><Link href={`/platform-admin/users/${u.id}?back=${back}`} className={`${pxSecondary} ${pxSm}`} aria-label={`Manage ${u.name}`}>Manage</Link></td>
                   </tr>
                 );
@@ -68,7 +68,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         ) : <EmptyState title={filtered ? "No one matches these filters" : "No users yet"} action={filtered ? <Link href="/platform-admin/users" className={pxSecondary}>Clear filters</Link> : undefined}>{filtered ? "Search by part of a name or email address." : "People appear here once a client's administrator accepts their invitation."}</EmptyState>}
         <PxPagination page={page} pageSize={PAGE_SIZE} total={total} base="/platform-admin/users" params={filters} noun="user" />
       </PxPanel>
-      <p className="mt-3 text-[12px] text-px-subtle">Multi-factor sign-in is not available on the platform yet, so no MFA status is shown.</p>
+      <p className="mt-3 text-caption text-px-subtle">Multi-factor sign-in is not available on the platform yet, so no MFA status is shown.</p>
     </>
   );
 }

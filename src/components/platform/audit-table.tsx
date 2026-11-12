@@ -12,11 +12,11 @@ export function AuditTable({ entries }: { entries: Entries }) {
       {entries.map((e) => (
         <tr key={e.id}>
           <td className="whitespace-nowrap tabular-nums">{fmtDate(e.at, true)}</td>
-          <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="block text-[12.5px]"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
+          <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="block text-meta"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
           <td>{e.organisationId ? <Link href={`/platform-admin/clients/${e.organisationId}`}>{e.organisation}</Link> : <span className="text-px-muted">Platform</span>}</td>
           <td>{e.actorId ? <Link href={`/platform-admin/users/${e.actorId}`}>{e.actor}</Link> : e.actor}</td>
-          <td className="max-w-[340px] text-[12.5px] text-px-muted">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-[11.5px]">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}</td>
-          <td>{e.outcome === "Done" ? <span className="text-[12.5px] text-px-ok">Done</span> : <span className="text-[12.5px] text-px-danger">{e.outcome}</span>}</td>
+          <td className="max-w-[340px] text-meta text-px-muted">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-caption">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}</td>
+          <td>{e.outcome === "Done" ? <span className="text-meta text-px-ok">Done</span> : <span className="text-meta text-px-danger">{e.outcome}</span>}</td>
         </tr>
       ))}
     </Table>

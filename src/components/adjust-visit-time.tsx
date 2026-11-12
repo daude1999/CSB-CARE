@@ -17,8 +17,8 @@ interface Preview {
 const CHIPS = [30, 40, 45, 60];
 const SHORTEN: [string, string][] = [["SU_REQUEST", "Service user or family request"], ["APPOINTMENT", "Hospital or appointment"], ["CARE_PLAN", "Approved care plan change"]];
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
-const PRIMARY = `inline-flex h-10 items-center rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white hover:bg-[#3d1880] disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
-const SECONDARY = `inline-flex h-10 items-center rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 ${FOCUS}`;
+const PRIMARY = `inline-flex h-10 items-center rounded-[8px] bg-[#4b1f9e] px-4 text-body font-semibold text-white hover:bg-[#3d1880] disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
+const SECONDARY = `inline-flex h-10 items-center rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold text-[#101828] hover:bg-slate-50 ${FOCUS}`;
 
 const addMinutes = (hhmm: string, n: number) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
@@ -125,38 +125,38 @@ export function AdjustVisitTime({ visitId, lockVersion, start, durationMin, labe
 
   return (
     <>
-      <button type="button" onClick={() => { setDone(null); setOpen(true); }} aria-haspopup="dialog" className={className ?? `inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}>
+      <button type="button" onClick={() => { setDone(null); setOpen(true); }} aria-haspopup="dialog" className={className ?? `inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-meta font-semibold text-module hover:bg-[#f6f2fd] ${FOCUS}`}>
         <Clock size={16} aria-hidden />{label}
       </button>
-      {done ? <p role="status" data-testid="adjust-done" className="fixed bottom-4 left-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 rounded-[10px] bg-[#101828] px-4 py-3 text-[14px] text-white shadow-lg">{done} <button type="button" onClick={() => setDone(null)} className="ml-2 underline">Close</button></p> : null}
+      {done ? <p role="status" data-testid="adjust-done" className="fixed bottom-4 left-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 rounded-[10px] bg-[#101828] px-4 py-3 text-body text-white shadow-lg">{done} <button type="button" onClick={() => setDone(null)} className="ml-2 underline">Close</button></p> : null}
       <dialog ref={dialog} onCancel={(e) => { e.preventDefault(); close(); }} onClick={(e) => { if (e.target === e.currentTarget) close(); }} aria-labelledby={titleId} data-testid="adjust-time" className="m-auto whitespace-normal w-[min(600px,calc(100vw-24px))] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-left text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40">
         {open ? (
           <div className="flex max-h-[calc(100vh-32px)] flex-col">
             <header className="border-b border-[#eaecf0] px-5 py-4">
-              <h2 id={titleId} className="text-[19px] font-bold">{phase === "confirm" || phase === "saving" ? "Confirm Visit Time Adjustment" : "Adjust Visit Time"}</h2>
-              <p className="mt-0.5 text-[14px] text-[#475467]">This visit only. The repeating template is not changed.</p>
+              <h2 id={titleId} className="text-title font-bold">{phase === "confirm" || phase === "saving" ? "Confirm Visit Time Adjustment" : "Adjust Visit Time"}</h2>
+              <p className="mt-0.5 text-body text-[#475467]">This visit only. The repeating template is not changed.</p>
             </header>
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 text-[14.5px] [overflow-wrap:anywhere]">
-              {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#b42318]">{error}</p> : null}
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4 text-body [overflow-wrap:anywhere]">
+              {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-body text-[#b42318]">{error}</p> : null}
               {phase === "edit" || phase === "checking" ? (
                 <form id={`${titleId}-f`} onSubmit={check} className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="block"><span className="block text-[13.5px] font-semibold">Start time</span><input type="time" required value={newStart} onChange={(e) => setNewStart(e.target.value)} className={`input mt-1 ${FOCUS}`} /></label>
-                    <label className="block"><span className="block text-[13.5px] font-semibold">Duration (minutes)</span><input type="number" min={5} max={1440} required value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`input mt-1 ${FOCUS}`} /></label>
-                    <div><span className="block text-[13.5px] font-semibold">Finish time</span><output className="mt-1 flex h-10 items-center text-[15px] font-semibold tabular-nums" data-testid="adjust-finish">{finish || "–"}</output></div>
+                    <label className="block"><span className="block text-body font-semibold">Start time</span><input type="time" required value={newStart} onChange={(e) => setNewStart(e.target.value)} className={`input mt-1 ${FOCUS}`} /></label>
+                    <label className="block"><span className="block text-body font-semibold">Duration (minutes)</span><input type="number" min={5} max={1440} required value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`input mt-1 ${FOCUS}`} /></label>
+                    <div><span className="block text-body font-semibold">Finish time</span><output className="mt-1 flex h-10 items-center text-lead font-semibold tabular-nums" data-testid="adjust-finish">{finish || "–"}</output></div>
                   </div>
                   <div role="group" aria-label="Duration" className="flex flex-wrap gap-1.5">
                     {CHIPS.map((c) => (
-                      <button key={c} type="button" aria-pressed={n === c} onClick={() => setMinutes(String(c))} className={`h-8 rounded-full border px-3 text-[13.5px] ${FOCUS} ${n === c ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white hover:bg-module/[.08]"}`}>{c} min</button>
+                      <button key={c} type="button" aria-pressed={n === c} onClick={() => setMinutes(String(c))} className={`h-8 rounded-full border px-3 text-body ${FOCUS} ${n === c ? "border-[#4b1f9e] bg-[#4b1f9e] font-semibold text-white" : "border-[#d0d5dd] bg-white hover:bg-module/[.08]"}`}>{c} min</button>
                     ))}
                   </div>
-                  <label className="block"><span className="block text-[13.5px] font-semibold">Reason for the change</span><input required minLength={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: GP appointment at 10:00" className={`input mt-1 ${FOCUS}`} /></label>
-                  <p className="text-[13px] text-[#475467]">Currently {start}–{addMinutes(start, durationMin)} ({durationMin} min). Each carer is checked at the new time before anything is saved.</p>
+                  <label className="block"><span className="block text-body font-semibold">Reason for the change</span><input required minLength={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: GP appointment at 10:00" className={`input mt-1 ${FOCUS}`} /></label>
+                  <p className="text-meta text-[#475467]">Currently {start}–{addMinutes(start, durationMin)} ({durationMin} min). Each carer is checked at the new time before anything is saved.</p>
                 </form>
               ) : preview ? (
                 <div className="space-y-4">
                   <p className="font-semibold">{preview.reference} · {preview.serviceUser} · {dayLabel(preview.date)}</p>
-                  <table className="w-full border-collapse text-[14.5px]" data-testid="adjust-compare">
+                  <table className="w-full border-collapse text-body" data-testid="adjust-compare">
                     <caption className="sr-only">Original and revised time</caption>
                     <thead><tr className="border-b border-[#eaecf0] text-left"><th scope="col" className="py-2 pr-3" /><th scope="col" className="py-2 pr-3 font-semibold">Original</th><th scope="col" className="py-2 font-semibold">Revised</th></tr></thead>
                     <tbody>
@@ -166,42 +166,42 @@ export function AdjustVisitTime({ visitId, lockVersion, start, durationMin, labe
                     </tbody>
                   </table>
                   {preview.blocking.length ? (
-                    <ul role="alert" className="space-y-1 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#b42318]" data-testid="adjust-blocking">
+                    <ul role="alert" className="space-y-1 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-body text-[#b42318]" data-testid="adjust-blocking">
                       {preview.blocking.map((b) => <li key={b}>{b}</li>)}
                     </ul>
                   ) : null}
                   {preview.warnings.length ? (
-                    <ul className="space-y-1 rounded-[8px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-[14px] text-[#93370d]" data-testid="adjust-warnings">
+                    <ul className="space-y-1 rounded-[8px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-body text-[#93370d]" data-testid="adjust-warnings">
                       {preview.warnings.map((w) => <li key={w}>{w}</li>)}
                     </ul>
                   ) : null}
                   <div>
-                    <p className="text-[14px] font-semibold">Carers</p>
+                    <p className="text-body font-semibold">Carers</p>
                     {preview.carers.length ? (
-                      <ul className="mt-1 divide-y divide-[#f2f4f7] text-[14px]" data-testid="adjust-carers">
+                      <ul className="mt-1 divide-y divide-[#f2f4f7] text-body" data-testid="adjust-carers">
                         {preview.carers.map((c) => (
                           <li key={c.staffId} className="py-1.5">
                             <span className="font-medium">{c.name}</span> <span className="text-[#667085]">({c.place})</span>{" "}
                             <span className={c.state === "ELIGIBLE" ? "text-[#067647]" : c.state === "REQUIRES_REVIEW" ? "text-[#93370d]" : "font-semibold text-[#b42318]"}>{c.state === "ELIGIBLE" ? "can do the new time" : c.state === "REQUIRES_REVIEW" ? `can do it, with warnings: ${c.warnings.join("; ")}` : "cannot do the new time"}</span>
-                            <span className="block text-[13px] text-[#475467]">
+                            <span className="block text-meta text-[#475467]">
                               Before: {c.previous ? `${c.previous.reference} ${c.previous.start}–${c.previous.end} (${c.previous.serviceUser}), ${c.previous.gap} min gap` : "no earlier visit"} · After: {c.next ? `${c.next.reference} ${c.next.start}–${c.next.end} (${c.next.serviceUser}), ${c.next.gap} min gap` : "no later visit"}
                             </span>
                           </li>
                         ))}
                       </ul>
-                    ) : <p className="mt-1 text-[14px] text-[#475467]">No carer is booked on this visit yet.</p>}
+                    ) : <p className="mt-1 text-body text-[#475467]">No carer is booked on this visit yet.</p>}
                   </div>
                   {needsShortenReason ? (
                     <fieldset className="rounded-[8px] border border-[#d0d5dd] p-3">
-                      <legend className="px-1 text-[14px] font-semibold">Why is the visit shorter than planned?</legend>
+                      <legend className="px-1 text-body font-semibold">Why is the visit shorter than planned?</legend>
                       <div className="mt-1 grid gap-1">
-                        {SHORTEN.map(([k, l]) => <label key={k} className="flex items-center gap-2 text-[14px]"><input type="radio" name={`${titleId}-shorten`} value={k} checked={shorten === k} onChange={() => setShorten(k)} className="h-4 w-4" />{l}</label>)}
+                        {SHORTEN.map(([k, l]) => <label key={k} className="flex items-center gap-2 text-body"><input type="radio" name={`${titleId}-shorten`} value={k} checked={shorten === k} onChange={() => setShorten(k)} className="h-4 w-4" />{l}</label>)}
                       </div>
-                      <p className="mt-2 text-[13px] text-[#475467]">Carer availability is not a reason to shorten someone&apos;s care. A permanent change must go through the care plan.</p>
+                      <p className="mt-2 text-meta text-[#475467]">Carer availability is not a reason to shorten someone&apos;s care. A permanent change must go through the care plan.</p>
                     </fieldset>
                   ) : null}
-                  <p className="text-[13.5px] text-[#475467]" data-testid="adjust-reason">Reason: {reason}</p>
-                  {preview.published ? <p className="text-[13.5px] text-[#475467]">This visit is published. {preview.carersToTell ? `${preview.carersToTell} linked carer${preview.carersToTell === 1 ? " will be" : "s will be"} told in the app.` : "No carer on it has a sign-in, so nobody can be told in the app."}</p> : <p className="text-[13.5px] text-[#475467]">This visit is not published yet, so carers are not told.</p>}
+                  <p className="text-body text-[#475467]" data-testid="adjust-reason">Reason: {reason}</p>
+                  {preview.published ? <p className="text-body text-[#475467]">This visit is published. {preview.carersToTell ? `${preview.carersToTell} linked carer${preview.carersToTell === 1 ? " will be" : "s will be"} told in the app.` : "No carer on it has a sign-in, so nobody can be told in the app."}</p> : <p className="text-body text-[#475467]">This visit is not published yet, so carers are not told.</p>}
                 </div>
               ) : null}
             </div>

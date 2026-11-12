@@ -50,13 +50,13 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
       </ModuleStatRow>
       {needsDraft.length ? (
         <section className="mb-3 rounded-[3px] border-l-4 border-[#e4544f] bg-white px-[15px] py-3" aria-labelledby="needs-draft">
-          <h2 id="needs-draft" className="flex items-center gap-2 text-[17px]">Revision required, no draft started <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#f06a4d] px-1.5 text-[12px] font-medium text-white">{needsDraft.length}</span></h2>
-          <ul className="rows mt-2 text-[14px]">
+          <h2 id="needs-draft" className="flex items-center gap-2 text-subtitle">Revision required, no draft started <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#f06a4d] px-1.5 text-caption font-medium text-white">{needsDraft.length}</span></h2>
+          <ul className="rows mt-2 text-body">
             {needsDraft.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
                 <span className="w-[86px] shrink-0 text-slate-700">{a.policy.ref.replace(/^CSB-/, "")}</span>
                 <Link href={`/changes/${a.change.id}`} className="row-title">{a.policy.title}</Link>
-                <span className="text-[13px] text-slate-600">because of “{a.change.title.replace(/^SIMULATED:\s*/, "")}”</span>
+                <span className="text-meta text-slate-600">because of “{a.change.title.replace(/^SIMULATED:\s*/, "")}”</span>
                 <SimulatedBadge show={a.change.isSimulated} />
               </li>
             ))}
@@ -67,20 +67,20 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
         {columns.map((col, n) => (
           <li key={col.title} className="panel min-w-0">
             <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
-              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-[17px] ${["border-[#e3934a] text-[#b35e14]", "border-[#4a7fc9] text-[#2f5fa3]", "border-[#3fae6a] text-[#1c7a43]"][n]}`}>{col.items.length}</span>
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-subtitle ${["border-[#e3934a] text-[#b35e14]", "border-[#4a7fc9] text-[#2f5fa3]", "border-[#3fae6a] text-[#1c7a43]"][n]}`}>{col.items.length}</span>
               <div>
 
-                <h2 className="text-[17px] leading-snug">{col.title}</h2>
+                <h2 className="text-subtitle leading-snug">{col.title}</h2>
               </div>
             </div>
             {col.items.length ? (
               <ul className="rows mt-3">
                 {col.items.map((r) => (
                   <li key={r.id} className={`border-l-4 py-3 ${["HIGH", "URGENT"].includes(r.urgency) ? "border-[#e4544f]" : r.urgency === "MEDIUM" ? "border-[#f0a92e]" : "border-slate-300"}`} data-testid={`queue-${r.policy.ref}`}>
-                    <div className="text-[12.5px] text-slate-600">{r.policy.ref} · {r.draftVersion.label}</div>
-                    <Link href={`/revisions/${r.id}`} className="row-title mt-0.5 block text-[15.5px] leading-snug">{r.policy.title}</Link>
-                    <p className="mt-1 text-[13px] text-slate-700">{r.title}</p>
-                    {r.impactAssessment ? <p className="mt-1 text-[12.5px] text-slate-600">Prompted by: {r.impactAssessment.change.title.replace(/^SIMULATED:\s*/, "")}</p> : null}
+                    <div className="text-meta text-slate-600">{r.policy.ref} · {r.draftVersion.label}</div>
+                    <Link href={`/revisions/${r.id}`} className="row-title mt-0.5 block text-lead leading-snug">{r.policy.title}</Link>
+                    <p className="mt-1 text-meta text-slate-700">{r.title}</p>
+                    {r.impactAssessment ? <p className="mt-1 text-meta text-slate-600">Prompted by: {r.impactAssessment.change.title.replace(/^SIMULATED:\s*/, "")}</p> : null}
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                       {r.draftVersion.status === "UNDER_REVIEW" || r.draftVersion.status === "APPROVED" ? <Badge tone="slate">Sent for review earlier · can publish</Badge> : <StatusBadge status={r.draftVersion.status} />}
                       <Badge>{r.kind.replace(/_/g, " ").toLowerCase()}</Badge>
@@ -88,12 +88,12 @@ export default async function QueuePage({ searchParams }: { searchParams: Promis
                       <SimulatedBadge show={r.isSimulated} />
                       {mine.has(r.id) ? <Badge tone="teal">Assigned to you</Badge> : null}
                     </div>
-                    <div className="mt-2 text-[12px] text-slate-500">Opened {fmtDate(r.createdAt)}{r.dueAt ? ` · due ${fmtDate(r.dueAt)}` : ""}</div>
+                    <div className="mt-2 text-caption text-slate-500">Opened {fmtDate(r.createdAt)}{r.dueAt ? ` · due ${fmtDate(r.dueAt)}` : ""}</div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="py-6 text-center text-[14px] text-slate-500">Nothing at this step.</p>
+              <p className="py-6 text-center text-body text-slate-500">Nothing at this step.</p>
             )}
           </li>
         ))}

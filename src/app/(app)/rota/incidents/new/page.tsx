@@ -24,7 +24,7 @@ export default async function NewIncidentPage({ searchParams }: { searchParams: 
         <form action={reportIncidentAction} className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <input type="hidden" name="back" value={back} />
           {visit ? <input type="hidden" name="visitId" value={visit} /> : null}
-          {draft ? <p className="rounded-[6px] bg-[#f0f5ff] px-3 py-2 text-[13.5px] text-[#1d4f91] md:col-span-2" data-testid="incident-from-note">Filled in from the visit note. Check the details, choose a category and how serious it was, then send.</p> : null}
+          {draft ? <p className="rounded-[6px] bg-[#f0f5ff] px-3 py-2 text-body text-[#1d4f91] md:col-span-2" data-testid="incident-from-note">Filled in from the visit note. Check the details, choose a category and how serious it was, then send.</p> : null}
           <label className="md:col-span-2"><span className="label">Who was involved (optional)</span>
             <select name="serviceUserId" defaultValue={su ?? ""} className="input"><option value="">Not about a particular person</option>{people.map((p) => <option key={p.id} value={p.id}>{suName(p)}</option>)}</select>
           </label>
@@ -35,7 +35,7 @@ export default async function NewIncidentPage({ searchParams }: { searchParams: 
           <label className="md:col-span-2"><span className="label">What happened</span><textarea name="description" rows={6} required minLength={20} defaultValue={draft?.description} className="input" /></label>
           <label className="md:col-span-2"><span className="label">What you did straight away (optional)</span><textarea name="immediateAction" rows={3} className="input" /></label>
           <label className="md:col-span-2"><span className="label">Who was told (optional)</span><input name="peopleNotified" maxLength={1000} className="input" placeholder="e.g. Daughter by phone at 10:15; GP surgery; the office" /></label>
-          <label className="flex items-center gap-2 text-[14px] md:col-span-2"><input type="checkbox" name="safeguarding" className="h-4 w-4" /> I think this is a safeguarding concern (abuse or neglect)</label>
+          <label className="flex items-center gap-2 text-body md:col-span-2"><input type="checkbox" name="safeguarding" className="h-4 w-4" /> I think this is a safeguarding concern (abuse or neglect)</label>
           <div className="md:col-span-2"><button className="btn-primary">Send report</button></div>
         </form>
       </Card>

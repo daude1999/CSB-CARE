@@ -16,11 +16,11 @@ export function ScanBadge({ status }: { status: string }) {
 
 /** Evidence attached to a record. Downloads go through /api/evidence, which checks permission and logs the download. */
 export function EvidenceList({ docs }: { docs: { id: string; filename: string; scanStatus: string; createdAt: Date; sizeBytes: number }[] }) {
-  if (!docs.length) return <p className="text-[13.5px] text-slate-600">No evidence attached yet.</p>;
+  if (!docs.length) return <p className="text-body text-slate-600">No evidence attached yet.</p>;
   return (
     <ul className="rows">
       {docs.map((d) => (
-        <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13.5px]">
+        <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-body">
           <span className="min-w-0"><a href={`/api/evidence/${d.id}`} className="break-all" data-no-progress="">{d.filename}</a> <span className="text-slate-600">· {Math.max(1, Math.ceil(d.sizeBytes / 1024))} KB · {fmtDate(d.createdAt)}</span></span>
           <ScanBadge status={d.scanStatus} />
         </li>
@@ -34,10 +34,10 @@ export function EvidenceUpload({ action, back, linkedType, linkedId, compact = f
   return (
     <form action={action} className={`${compact ? "mt-2" : "mt-3 border-t border-slate-200 pt-3"} space-y-2`}>
       <input type="hidden" name="back" value={back} /><input type="hidden" name="linkedType" value={linkedType} /><input type="hidden" name="linkedId" value={linkedId} />
-      <label className="block"><span className="label">Attach a file</span><input type="file" name="file" required accept=".pdf,.docx,.png,.jpg,.jpeg,.txt,.csv" className="block w-full text-[13px]" /></label>
+      <label className="block"><span className="label">Attach a file</span><input type="file" name="file" required accept=".pdf,.docx,.png,.jpg,.jpeg,.txt,.csv" className="block w-full text-meta" /></label>
       <label className="block"><span className="label">What it shows (optional)</span><input name="description" maxLength={300} className="input" /></label>
       <button className="btn-secondary py-1">Upload</button>
-      <p className="text-[12px] text-slate-500">PDF, Word, images, text or CSV up to 10 MB.</p>
+      <p className="text-caption text-slate-500">PDF, Word, images, text or CSV up to 10 MB.</p>
     </form>
   );
 }

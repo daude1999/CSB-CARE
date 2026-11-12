@@ -215,7 +215,7 @@ function PdfPane({ pdf, error, downloadHref, wordHref, title, headings, variant,
         <button type="button" className="pl-tool max-[420px]:hidden" onClick={() => zoomBy(-1)} aria-label="Zoom out" title="Zoom out"><Minus size={15} /></button>
         <label className="relative flex items-center">
           <span className="sr-only">Zoom level</span>
-          <select value={zoom === "fit" ? "fit" : String(zoom)} onChange={(e) => setZoom(e.target.value === "fit" ? "fit" : Number(e.target.value))} className="h-[28px] cursor-pointer appearance-none rounded-[5px] border border-[#e3e0d9] bg-white pl-2.5 pr-6 text-[12.5px] text-[#1f2d42]">
+          <select value={zoom === "fit" ? "fit" : String(zoom)} onChange={(e) => setZoom(e.target.value === "fit" ? "fit" : Number(e.target.value))} className="h-[28px] cursor-pointer appearance-none rounded-[5px] border border-[#e3e0d9] bg-white pl-2.5 pr-6 text-meta text-[#1f2d42]">
             <option value="fit">{zoom === "fit" ? `${Math.round(scale * 100)}%` : "Fit width"}</option>
             {ZOOMS.map((z) => <option key={z} value={z}>{z}%</option>)}
           </select>
@@ -235,7 +235,7 @@ function PdfPane({ pdf, error, downloadHref, wordHref, title, headings, variant,
       </div>
       <div className="relative flex min-h-0 flex-1">
         {outline ? (
-          <nav aria-label="Sections" className="w-[190px] shrink-0 overflow-y-auto border-r border-[#e3e0d9] bg-white py-2 text-[12.5px] max-sm:absolute max-sm:inset-y-0 max-sm:left-0 max-sm:z-10 max-sm:shadow-lg">
+          <nav aria-label="Sections" className="w-[190px] shrink-0 overflow-y-auto border-r border-[#e3e0d9] bg-white py-2 text-meta max-sm:absolute max-sm:inset-y-0 max-sm:left-0 max-sm:z-10 max-sm:shadow-lg">
             {headings.map((h) => {
               const n = pagesOf?.get(h);
               return (
@@ -250,9 +250,9 @@ function PdfPane({ pdf, error, downloadHref, wordHref, title, headings, variant,
         ) : null}
         <div ref={scroller} className="pl-viewer-page min-w-0 flex-1" tabIndex={0} onKeyDown={onKey} aria-label="Document pages">
           {error ? (
-            <p role="alert" className="m-6 rounded-[6px] bg-white p-4 text-[13px] text-[#b42318]">{error} <a href={downloadHref} download className="underline">Download PDF</a></p>
+            <p role="alert" className="m-6 rounded-[6px] bg-white p-4 text-meta text-[#b42318]">{error} <a href={downloadHref} download className="underline">Download PDF</a></p>
           ) : !pdf || !base ? (
-            <p className="pt-8 text-center text-[12.5px] text-[#6b7586]">Loading document…</p>
+            <p className="pt-8 text-center text-meta text-[#6b7586]">Loading document…</p>
           ) : (
             Array.from({ length: total }, (_, i) => (
               <PdfPage key={i} pdf={pdf} n={i + 1} scale={scale} base={base} root={scroller} ref={(el) => { pageEls.current[i] = el; }} />

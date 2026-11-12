@@ -24,7 +24,7 @@ export function PhotoButton({ name, accept, maxBytes }: { name: string; accept: 
           setFile(f?.name ?? null);
         }} />
       </label>
-      {error ? <span role="alert" className="text-[12px] font-medium text-[#a3242c]">{error}</span> : file ? <span className="max-w-[180px] truncate text-[12px] text-slate-600">{file}</span> : <span className="text-[12px] text-slate-500">Optional</span>}
+      {error ? <span role="alert" className="text-caption font-medium text-[#a3242c]">{error}</span> : file ? <span className="max-w-[180px] truncate text-caption text-slate-600">{file}</span> : <span className="text-caption text-slate-500">Optional</span>}
     </span>
   );
 }

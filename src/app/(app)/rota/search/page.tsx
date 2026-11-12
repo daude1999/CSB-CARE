@@ -31,17 +31,17 @@ export default async function RotaSearchPage({ searchParams }: { searchParams: P
           <div className="grid gap-4 lg:grid-cols-3">
             {groups.map((g) => (
               <section key={g.title} aria-label={g.title}>
-                <h2 className="mb-2 text-[16px] font-semibold">{g.title} <span className="font-normal text-slate-500">({g.rows.length})</span></h2>
+                <h2 className="mb-2 text-lead font-semibold">{g.title} <span className="font-normal text-slate-500">({g.rows.length})</span></h2>
                 {g.rows.length ? (
                   <ul className="rows">
-                    {g.rows.map((x) => <li key={x.key} className="py-2"><Link href={x.href} className="font-medium">{x.name}</Link><span className="block text-[13px] text-slate-600">{x.detail}</span></li>)}
+                    {g.rows.map((x) => <li key={x.key} className="py-2"><Link href={x.href} className="font-medium">{x.name}</Link><span className="block text-meta text-slate-600">{x.detail}</span></li>)}
                   </ul>
-                ) : <p className="text-[13.5px] text-slate-500">None.</p>}
+                ) : <p className="text-body text-slate-500">None.</p>}
               </section>
             ))}
           </div>
         )}
-        <p className="mt-4 text-[13px] text-slate-600">This box searches Rostering & Care Management only. Looking for a policy? <Link href={`/policies?q=${encodeURIComponent(r.q)}`}>Search policies</Link>.</p>
+        <p className="mt-4 text-meta text-slate-600">This box searches Rostering & Care Management only. Looking for a policy? <Link href={`/policies?q=${encodeURIComponent(r.q)}`}>Search policies</Link>.</p>
       </section>
     </>
   );

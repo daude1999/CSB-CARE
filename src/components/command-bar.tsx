@@ -180,9 +180,9 @@ function CommandDialog({ pages, actions, onClose }: { pages: CommandPage[]; acti
             maxLength={100}
             autoComplete="off"
             spellCheck={false}
-            className="h-9 min-w-0 flex-1 bg-transparent text-[18px] text-ink caret-module placeholder:text-[#667085] focus:outline-none"
+            className="h-9 min-w-0 flex-1 bg-transparent text-subtitle text-ink caret-module placeholder:text-[#667085] focus:outline-none"
           />
-          <button type="button" tabIndex={-1} onClick={() => onClose(true)} aria-label="Close search" className="rounded-[6px] border border-rule px-2 py-0.5 text-[12px] text-status-ink hover:bg-[#f2f4f7]">Esc</button>
+          <button type="button" tabIndex={-1} onClick={() => onClose(true)} aria-label="Close search" className="rounded-[6px] border border-rule px-2 py-0.5 text-caption text-status-ink hover:bg-[#f2f4f7]">Esc</button>
         </div>
         <div ref={list} id="command-list" role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {GROUPS.map((g) => {
@@ -190,29 +190,29 @@ function CommandDialog({ pages, actions, onClose }: { pages: CommandPage[]; acti
             if (!mine.length) return null;
             return (
               <div key={g} role="group" aria-labelledby={`command-group-${g.replace(/\s+/g, "-")}`}>
-                <div id={`command-group-${g.replace(/\s+/g, "-")}`} className="px-3 pb-1.5 pt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-status-ink">{g}</div>
+                <div id={`command-group-${g.replace(/\s+/g, "-")}`} className="px-3 pb-1.5 pt-4 text-caption font-semibold uppercase tracking-[0.06em] text-status-ink">{g}</div>
                 {mine.map((r) => {
                   index += 1;
                   const i = index;
                   const on = i === active;
                   return (
                     <div key={r.key} id={`command-row-${i}`} data-index={i} role="option" aria-selected={on} data-testid="command-row" data-active={on ? "" : undefined} onMouseMove={() => setActive(i)} onClick={() => go(r.href)} className={`flex cursor-pointer items-center gap-3 rounded-[8px] px-3 py-2.5 ${on ? "bg-module/10" : ""}`}>
-                      <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-[11.5px] font-semibold tabular-nums ${"text" in r.chip && r.chip.solid ? "bg-module text-white" : "bg-[#f2f4f7] text-ink"}`}>
+                      <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-caption font-semibold tabular-nums ${"text" in r.chip && r.chip.solid ? "bg-module text-white" : "bg-[#f2f4f7] text-ink"}`}>
                         {"text" in r.chip ? r.chip.text : r.chip.icon === "plus" ? <Plus size={13} weight="bold" /> : <ArrowUpRight size={13} weight="bold" />}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{r.title}</span>
-                      <span className="max-w-[45%] shrink-0 truncate text-[13px] text-status-ink">{r.detail}</span>
+                      <span className="min-w-0 flex-1 truncate text-lead text-ink">{r.title}</span>
+                      <span className="max-w-[45%] shrink-0 truncate text-meta text-status-ink">{r.detail}</span>
                     </div>
                   );
                 })}
               </div>
             );
           })}
-          <p role="status" className={rows.length && state !== "failed" && !results?.referenceProblem ? "sr-only" : "px-3 py-4 text-[14px] text-status-ink"}>
+          <p role="status" className={rows.length && state !== "failed" && !results?.referenceProblem ? "sr-only" : "px-3 py-4 text-body text-status-ink"}>
             {state === "failed" ? "People and visits could not be searched just now. Pages and actions still work." : results?.referenceProblem ? results.referenceProblem : rows.length ? `${rows.length} result${rows.length === 1 ? "" : "s"}` : state === "loading" ? "Searching…" : typed.length < 2 ? "Type at least two letters to search people and visits." : `Nothing you are allowed to see matches “${typed}”.`}
           </p>
         </div>
-        <div className="flex items-center gap-4 border-t border-rule bg-[#fafbfc] px-5 py-2.5 text-[12.5px] text-status-ink">
+        <div className="flex items-center gap-4 border-t border-rule bg-[#fafbfc] px-5 py-2.5 text-meta text-status-ink">
           <span><span aria-hidden>↑↓</span> to move</span>
           <span>Enter to open</span>
           <span className="ml-auto">{mac ? "⌘K" : "Ctrl K"} from any page</span>

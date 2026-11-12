@@ -73,9 +73,23 @@ export default {
         "page-bottom": "24px",
       },
       fontSize: {
+        // One text-size scale for the whole platform (the HR Hub keeps its own). Sizes only: line height stays with
+        // each element, so changing a size never changes spacing. The Overview's 52px figure and the CQC rating's 34px
+        // stay as written.
+        micro: "11px",
+        caption: "12px",
+        meta: "13px",
+        body: "14px",
+        lead: "16px",
+        subtitle: "18px",
+        title: "20px",
+        heading: "22px",
+        display: "24px",
+        figure: "28px",
+        "figure-lg": "36px",
         crumb: ["12px", { lineHeight: "16px", fontWeight: "500" }],
         "header-title": ["22px", { lineHeight: "28px", fontWeight: "600" }],
-        "header-desc": ["13.5px", { lineHeight: "19px" }],
+        "header-desc": ["14px", { lineHeight: "19px" }],
         tab: ["14px", { lineHeight: "20px" }],
       },
       maxWidth: { "header-desc": "78ch" },
