@@ -234,7 +234,7 @@ function SuspendedNotice({ orgName, email, phone }: { orgName: string; email: st
 function OrgTile({ name, csb }: { name: string; csb: boolean }) {
   const letters = name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="flex min-w-0 shrink items-center gap-2.5" data-testid="topbar-org">
+    <div className="hidden min-w-0 shrink items-center gap-2.5 sm:flex" data-testid="topbar-org">
       <span aria-hidden="true" className="flex h-[40px] w-[52px] shrink-0 items-center justify-center rounded-[10px] bg-[#0f2a4f]">
         {csb ? <Monogram className="h-[24px]" /> : <span className="text-meta font-bold text-white">{letters}</span>}
       </span>
