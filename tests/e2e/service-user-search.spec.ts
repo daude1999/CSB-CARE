@@ -26,6 +26,7 @@ test.describe("Service user search", () => {
     await signIn(page);
     const p = await demoPerson(page);
     await page.goto("/rota");
+    await page.getByTestId("top-search").click();
     const search = page.getByRole("searchbox", { name: "Search rostering" });
     await search.fill(`  ${p.name.toUpperCase()} `);
     await search.press("Enter");

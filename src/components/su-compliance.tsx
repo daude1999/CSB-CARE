@@ -8,11 +8,11 @@ const TEXT: Record<ComplianceRow["tone"], string> = { green: "text-[#1f6b45]", a
  * "Records and compliance" on a service user's Overview: one line per kind of record, with its status in words and a
  * link to the section. Rows come from real records only (see serviceUserCompliance); nothing here is a fixed figure.
  */
-export function ServiceUserCompliance({ rows }: { rows: ComplianceRow[] }) {
+export function ServiceUserCompliance({ rows, className = "" }: { rows: ComplianceRow[]; className?: string }) {
   return (
-    <section aria-labelledby="su-compliance-h" className="card" data-testid="care-at-a-glance">
-      <h2 id="su-compliance-h" className="mb-2 text-[17px]">Records and compliance</h2>
-      <ul className="divide-y divide-slate-100">
+    <section aria-labelledby="su-compliance-h" className={`hb-pn hb-c-cyan ${className}`} data-testid="care-at-a-glance">
+      <div className="hb-pn-h"><h2 id="su-compliance-h">Records and compliance</h2></div>
+      <ul className="divide-y divide-slate-100 px-3.5 py-1">
         {rows.map((r) => (
           <li key={r.key} data-row={r.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
             <span className="text-[14px] font-medium text-[#101828]">{r.label}</span>

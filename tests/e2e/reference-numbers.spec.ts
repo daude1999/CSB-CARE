@@ -19,7 +19,8 @@ test.describe("Reference Numbers", () => {
     await page.waitForURL(/\/rota\/service-users\/[^/?]+/);
     const base = page.url().split("?")[0]!;
     const nav = page.getByRole("navigation", { name: "Service user sections" });
-    const labels = (await nav.getByRole("link").allInnerTexts()).map((s) => s.trim());
+    // Harbour record tabs (13 Nov 2026) show a count beside some labels.
+    const labels = (await nav.getByRole("link").allInnerTexts()).map((s) => s.replace(/\s*\d+$/, "").trim());
     expect(labels.slice(0, 4)).toEqual(["Overview", "Personal details", "Reference Numbers", "Care"]);
     expect(labels).toEqual(expect.arrayContaining(["Health and safety", "Visits", "Documents", "Contacts & carers", "History"]));
 

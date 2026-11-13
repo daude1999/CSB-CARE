@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { Alarm, Cake, CalendarBlank, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
+import { Alarm, ArrowRight, Cake, CalendarBlank, CalendarDots, CaretLeft, CaretRight, Check, Clock, CurrencyGbp, EnvelopeSimple, FirstAidKit, IdentificationCard, Note, Plus, ShieldCheck, SquaresFour, Stack, TreePalm, User, Users, UsersThree, Warning, WarningOctagon, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
-import { ModuleHeader } from "@/components/module-header-band";
+import { PageHeader, Panel, StatTiles } from "@/components/harbour/ui";
+import { HowThisWorks } from "@/components/harbour/how-this-works";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
 import { requirePortal, rotaHome } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -23,55 +24,6 @@ const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : "0
 const ddmmyyyy = (iso: string) => fmtLondonDate(iso, { day: "2-digit", month: "2-digit", year: "numeric" });
 const ddmm = (d: Date) => `${d.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "2-digit" })} ${londonTime(d)}`;
 
-/**
- * The four call tiles (approved redesign, 10 Nov 2026): a white card with a 7% tint and a 28% border of the tile's
- * status colour, a solid status-colour icon chip, the figure and percentage in the status colour, supporting text in
- * grey, and a 5px bar along the bottom filled to the tile's share of the day's visits.
- */
-const CARD = {
-  green: { card: "bg-tile-completed/[.07] border-tile-completed/[.28]", chip: "bg-tile-completed", text: "text-tile-completed", bar: "bg-tile-completed", track: "bg-tile-completed/[.14]" },
-  orange: { card: "bg-tile-late/[.07] border-tile-late/[.28]", chip: "bg-tile-late", text: "text-tile-late", bar: "bg-tile-late", track: "bg-tile-late/[.14]" },
-  red: { card: "bg-tile-missed/[.07] border-tile-missed/[.28]", chip: "bg-tile-missed", text: "text-tile-missed", bar: "bg-tile-missed", track: "bg-tile-missed/[.14]" },
-  blue: { card: "bg-tile-unassigned/[.07] border-tile-unassigned/[.28]", chip: "bg-tile-unassigned", text: "text-tile-unassigned", bar: "bg-tile-unassigned", track: "bg-tile-unassigned/[.14]" },
-} as const;
-
-function CallCard({ tone, icon, label, value, share, fraction, note, href, testId, title }: { tone: keyof typeof CARD; icon: ReactNode; label: string; value: number | string; share: string | null; fraction: number; note: string; href: string | null; testId: string; title?: string }) {
-  const t = CARD[tone];
-  const width = `${Math.max(0, Math.min(100, fraction * 100)).toFixed(1)}%`;
-  const body = (
-    <>
-      <span className="flex items-center gap-4 px-4 pb-3.5 pt-3">
-        <span aria-hidden className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] text-white ${t.chip}`}>{icon}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-semibold text-ink">{label}</span>
-          <span className={`mt-0.5 flex items-center ${t.text}`}>
-            <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
-            {share ? <span className="ml-auto border-l border-rule pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
-          </span>
-          <span className="mt-1.5 block truncate text-[12.5px] text-status-ink">{note}</span>
-        </span>
-      </span>
-      <span aria-hidden data-tile-bar className={`absolute inset-x-0 bottom-0 h-[5px] ${t.track}`}><span className={`block h-full ${t.bar}`} style={{ width }} /></span>
-    </>
-  );
-  const cls = `relative flex min-w-0 flex-col overflow-hidden rounded-[10px] border bg-white no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${t.card}`;
-  return href ? <Link href={href} title={title} data-testid={testId} className={`${cls} hover:shadow-[0_2px_6px_rgba(16,24,40,0.12)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module`}>{body}</Link> : <div data-testid={testId} className={cls}>{body}</div>;
-}
-
-function Panel({ id, icon, title, count, aside, children, className = "" }: { id: string; icon: ReactNode; title: string; count?: number; aside?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <section aria-labelledby={id} className={`flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${className}`}>
-      <div className="flex flex-wrap items-center gap-2 px-3.5 pb-2 pt-2.5">
-        <span aria-hidden className="text-module">{icon}</span>
-        <h2 id={id} className="text-[16.5px] font-bold text-[#101828]">{title}</h2>
-        {count !== undefined ? <span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-[#344054]">{count.toLocaleString("en-GB")}</span> : null}
-        {aside ? <span className="ml-auto flex items-center gap-2">{aside}</span> : null}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 const ICON_LINK = "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module";
 function RowActions({ items }: { items: { href: string; label: string; icon: ReactNode; tone: "green" | "blue" | "violet" }[] }) {
   const tone = { green: "bg-[#e7f6ec] text-[#15803d]", blue: "bg-[#e6f1fb] text-[#0a72b5]", violet: "bg-[#efeafc] text-module" };
@@ -89,20 +41,6 @@ const STATUS_PILL: Record<TeamDayStatus, string> = {
   "Off sick": "bg-[#fdecec] text-[#a3242c]",
   "Not ready": "bg-[#fdf3e2] text-[#8a5a00]",
 };
-
-function Issue({ href, icon, value, label, tone, testId }: { href: string; icon: ReactNode; value: number; label: string; tone: string; testId: string }) {
-  return (
-    <li className="min-w-0 flex-1">
-      <Link href={href} data-testid={testId} className="flex items-center justify-center gap-4 rounded-[8px] px-3 py-1.5 no-underline hover:bg-[#fafafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
-        <span aria-hidden style={{ color: tone }}>{icon}</span>
-        <span className="min-w-0">
-          <span data-value className="block text-[19px] font-bold leading-tight tabular-nums text-[#101828]">{value}</span>
-          <span className="block truncate text-[15px] font-semibold" style={{ color: tone }}>{label}</span>
-        </span>
-      </Link>
-    </li>
-  );
-}
 
 function BirthdayTable({ who, rows, unavailable }: { who: string; rows: Birthday[] | null; unavailable: string }) {
   if (rows === null) return <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">{unavailable}</p>;
@@ -127,20 +65,38 @@ function BirthdayTable({ who, rows, unavailable }: { who: string; rows: Birthday
   );
 }
 
-function QuickAction({ href, icon, label, badge, tone = "#5b2bb5" }: { href: string; icon: ReactNode; label: string; badge?: number; tone?: string }) {
+type Tone = "bad" | "warn" | "n" | "ok";
+type Todo = { key: string; tone: Tone; icon: ReactNode; title: string; sub: string; action: string; href: string; testId?: string; count?: number };
+const RANK: Record<Tone, number> = { bad: 0, warn: 1, n: 2, ok: 3 };
+
+/** One row of "What needs doing": what it is, one line of detail, and the button to the screen that deals with it. */
+function TodoRow({ t }: { t: Todo }) {
   return (
-    <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-[14px] font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-module/[.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
-      <span aria-hidden style={{ color: tone }}>{icon}</span>
-      <span className="line-clamp-2 min-w-0 flex-1 leading-[1.2]">{label}</span>
-      {badge ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12.5px] font-bold tabular-nums text-white" style={{ background: tone }}>{badge}</span> : null}
+    <div className={`hb-todo hb-t-${t.tone}`} data-testid={`todo-${t.key}`}>
+      <span className="hb-todo-ic" aria-hidden="true">{t.icon}</span>
+      <span className="min-w-0"><b>{t.title}</b><small>{t.sub}</small></span>
+      <Link href={t.href} data-testid={t.testId} data-count={t.count} className={t.tone === "bad" ? "hb-btn hb-btn-p" : "hb-btn"} aria-label={`${t.action}: ${t.title}`}>{t.action}</Link>
+    </div>
+  );
+}
+
+function GoLink({ href, icon, title, sub, badge }: { href: string; icon: ReactNode; title: string; sub: string; badge?: number }) {
+  return (
+    <Link href={href} className="hb-gol" data-count={badge}>
+      <span className="hb-gol-ic" aria-hidden="true">{icon}</span>
+      <span className="min-w-0"><b>{title}{badge ? <span className="hb-gol-n" aria-label={`${badge} open`}>{badge}</span> : null}</b><small>{sub}</small></span>
+      <CaretRight size={16} aria-hidden="true" className="text-[var(--hb-ink-4)]" />
     </Link>
   );
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;
+
 /**
- * Rota Dashboard, laid out to the owner's approved reference (31 Oct 2026, modernised OnePlan style): one date drives
- * the page; the day's call outcomes; service users, team members and reminders; the conflict and holiday counters;
- * upcoming birthdays and quick actions. Every figure is counted from live records and opens the list behind it. No money.
+ * Rota Home (Harbour module home, owner's decision of 13 Nov 2026; docs/design/harbour/screens/rota-home-1440.png):
+ * the header with the day's controls, a tip, the four call counts, a red "What needs doing" list (most urgent first)
+ * and a navy "Go to" panel; the people, reminders and birthday tables follow underneath, unchanged. One date drives
+ * the page. Every figure is counted from live records and opens the list behind it. No money.
  */
 export default async function RotaDashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -153,47 +109,114 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
   const branchName = branch ? d.branches.find((b) => b.id === branch)?.name : d.branches.length === 1 ? d.branches[0]!.name : "All branches";
   const keep = (extra: Record<string, string | undefined>) => new URLSearchParams(Object.entries({ date, branch, ...extra }).filter((e): e is [string, string] => !!e[1])).toString();
   const day = (extra: Record<string, string | undefined> = {}) => `/rota/visits?${keep(extra)}`;
-  const icon = { size: 30, weight: "bold" as const };
   const unlinked = d.team.filter((t) => !t.userId).length;
   const canBuild = hasOrgPermission(ctx, "rota.build");
+  const canAdd = hasOrgPermission(ctx, "rota.edit");
+  const canFinance = hasOrgPermission(ctx, "finance.view");
   const statuses: TeamDayStatus[] = ["On rota", "Off rota", "On leave", "Off sick", "Not ready"];
+  const isToday = date === d.today;
+  const when = isToday ? "today" : `on ${fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short" })}`;
+  const ti = { size: 18 } as const;
+  const share = (n: number) => `${pct(n, c.total)} of the day's ${c.total} scheduled visits`;
+
+  const todos: Todo[] = [
+    c.unassigned
+      ? { key: "unassigned", tone: "bad", icon: <UsersThree {...ti} />, title: `${plural(c.unassigned, "visit")} ${c.unassigned === 1 ? "needs" : "need"} a carer ${when}`, sub: "Each open place is filled through the eligibility check", action: "Find cover", href: `/rota/unassigned?from=${date}&days=1`, testId: "todo-unassigned-link", count: c.unassigned }
+      : { key: "unassigned", tone: "ok", icon: <Check {...ti} />, title: `Every visit has a carer ${when}`, sub: "No open carer places", action: "Unassigned Visits", href: `/rota/unassigned?from=${date}&days=1`, testId: "todo-unassigned-link", count: 0 },
+    ...(d.exceptions
+      ? [d.exceptions.open
+          ? { key: "exceptions", tone: "bad" as const, icon: <Warning {...ti} />, title: `${plural(d.exceptions.open, "open exception")}`, sub: "Visits that did not go to plan", action: "Review", href: "/rota/exceptions", testId: "todo-exceptions-link", count: d.exceptions.open }
+          : { key: "exceptions", tone: "ok" as const, icon: <Check {...ti} />, title: "No open exceptions", sub: "Visits that did not go to plan appear here", action: "Exceptions", href: "/rota/exceptions", testId: "todo-exceptions-link", count: 0 }]
+      : []),
+    d.counters.rotaConflicts
+      ? { key: "rota", tone: "warn", icon: <Warning {...ti} />, title: `${plural(d.counters.rotaConflicts, "rota conflict")} ${when}`, sub: "Visits to check on the Daily Rota", action: "Check", href: day({ view: "review" }), testId: "issue-rota", count: d.counters.rotaConflicts }
+      : { key: "rota", tone: "ok", icon: <Check {...ti} />, title: `No rota conflicts ${when}`, sub: "Nobody is booked in two places", action: "Check again", href: day({ view: "review" }), testId: "issue-rota", count: 0 },
+    d.counters.templateConflicts
+      ? { key: "template", tone: "warn", icon: <Stack {...ti} />, title: plural(d.counters.templateConflicts, "template conflict"), sub: "Repeating visits with an open slot, or a carer who has left", action: "Review", href: "/rota/templates/planner", testId: "issue-template", count: d.counters.templateConflicts }
+      : { key: "template", tone: "ok", icon: <Check {...ti} />, title: "No template conflicts", sub: "Every repeating visit has its carers", action: "Templates", href: "/rota/templates/planner", testId: "issue-template", count: 0 },
+    d.reminders.length
+      ? { key: "reminders", tone: d.reminders.some((r) => r.overdueDays) ? "bad" : "warn", icon: <Alarm {...ti} />, title: `${plural(d.reminders.length, "reminder")} due`, sub: `${d.reminders.filter((r) => r.overdueDays).length} overdue · due in the next 14 days`, action: "See reminders", href: "/rota/reminders", count: d.reminders.length }
+      : { key: "reminders", tone: "ok", icon: <Check {...ti} />, title: "No reminders due", sub: "Nothing due in the next 14 days", action: "Reminders", href: "/rota/reminders", count: 0 },
+    { key: "holidays", tone: "n", icon: <TreePalm {...ti} />, title: `${plural(d.counters.holidaysDue, "holiday")} coming up`, sub: "Approved time off starting in the next 14 days", action: "Holidays", href: "/workforce/absences", testId: "issue-holidays", count: d.counters.holidaysDue },
+    { key: "notes", tone: "n", icon: <Note {...ti} />, title: `${plural(d.counters.notes, "visit note")} ${when}`, sub: "What carers wrote at each visit", action: "Read notes", href: `/rota/notes?from=${date}&to=${date}`, testId: "issue-notes", count: d.counters.notes },
+  ];
+  todos.sort((x, y) => RANK[x.tone] - RANK[y.tone]);
+  const needing = todos.filter((t) => t.tone === "bad" || t.tone === "warn").length;
 
   return (
-    <div className="rota-home space-y-3">
-      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>}>
-        <nav aria-label="Change day" className="flex items-center gap-2.5">
-          <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-round"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
-          <p className="flex items-center gap-2.5 text-[21px] font-bold text-white sm:text-[24px]"><CalendarBlank size={24} aria-hidden /><span>{ordinalDate(date)}</span></p>
-          <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-round"><CaretRight size={20} weight="bold" aria-hidden /></Link>
-        </nav>
-        <p className="text-[16px] font-semibold leading-6 tabular-nums text-white sm:border-l sm:border-white/38 sm:pl-3" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
-        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2">
-          {d.branches.length > 1 ? (
-            <label><span className="sr-only">Branch</span>
-              <select name="branch" defaultValue={branch ?? ""} className="mh-field"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
-            </label>
-          ) : null}
-          <label className="mh-field flex items-center gap-2"><CalendarBlank size={17} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px]" /></label>
-          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn mh-btn-primary">Today</Link>
-        </AutoSubmitForm>
-      </ModuleHeader>
-      <Flash searchParams={sp} />
-      {d.notBuilt ? <NotBuiltNotice date={date} canBuild={canBuild} /> : null}
-      {date === d.today ? <AutoRefresh seconds={60} /> : null}
+    <div className="rota-home hb-ws" data-hb-module="rota">
+      <PageHeader
+        module="rota"
+        moduleName="Care & Rostering"
+        icon={<CalendarBlank size={21} />}
+        title="Rota Home"
+        description={<>How {isToday ? "today" : "the day"} is going, and the quickest way to everything you need for the rota · {branchName}</>}
+        actions={
+          <>
+            {canAdd ? <Link href={`/rota/visits/new?date=${date}`} className="hb-btn hb-btn-p"><Plus size={15} weight="bold" aria-hidden="true" />Add a visit</Link> : null}
+            <Link href={day()} className="hb-btn">Open Daily Rota</Link>
+          </>
+        }
+      >
+        <div className="hb-dayctl" data-testid="title-bar">
+          <nav aria-label="Change day" className="flex items-center gap-1.5">
+            <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" title="Previous day" className="hb-sq"><CaretLeft size={15} weight="bold" aria-hidden /></Link>
+            <span className="hb-dayctl-d px-1">{ordinalDate(date)}</span>
+            <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" title="Next day" className="hb-sq"><CaretRight size={15} weight="bold" aria-hidden /></Link>
+          </nav>
+          <span className="text-[13px] font-semibold tabular-nums text-[var(--hb-ink-2)]" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></span>
+          <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2">
+            {d.branches.length > 1 ? (
+              <label><span className="sr-only">Branch</span>
+                <select name="branch" defaultValue={branch ?? ""} className="hb-field"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+              </label>
+            ) : null}
+            <label className="hb-field flex items-center gap-2"><CalendarBlank size={15} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[13px]" /></label>
+            <Link href={`/rota?${keep({ date: undefined })}`} aria-current={isToday ? "date" : undefined} className="hb-btn">Today</Link>
+          </AutoSubmitForm>
+        </div>
+      </PageHeader>
 
-      <section aria-label="Calls on this day" className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-        <CallCard tone="green" testId="card-completed" fraction={c.total ? c.complete / c.total : 0} icon={<Check {...icon} />} label="Completed Calls" value={c.complete} share={pct(c.complete, c.total)} note={`${c.complete} of ${c.total} scheduled visits completed`} href={day({ status: "COMPLETED" })} />
-        <CallCard tone="orange" testId="card-late" fraction={c.total ? c.late / c.total : 0} icon={<Clock {...icon} />} label="Late Calls" value={c.late} share={pct(c.late, c.total)} note={`${c.late} calls ${c.lateAfterMin}+ minutes late`} href={day({ view: "late" })} />
-        <CallCard tone="red" testId="card-missed" fraction={c.total ? c.missed / c.total : 0} icon={<X {...icon} />} label="Missed Calls" value={c.missed} share={pct(c.missed, c.total)} note={`${c.missed} scheduled visits not clocked into`} href={`/rota/missed?period=day&date=${date}`} />
-        {c.missedMeds === null ? (
-          <CallCard tone="blue" testId="card-unassigned" fraction={c.total ? c.unassigned / c.total : 0} icon={<UsersThree {...icon} />} label="Unassigned Calls" value={c.unassigned} share={pct(c.unassigned, c.total)} note={`${c.unassigned} visits short of a carer`} title="Shown in place of missed medication while medication records are switched off in Rota Settings" href={day({ view: "unassigned" })} />
-        ) : (
-          <CallCard tone="blue" testId="card-missed-meds" fraction={c.total ? c.missedMeds / c.total : 0} icon={<FirstAidKit {...icon} />} label="Calls with Missed Meds" value={c.missedMeds} share={pct(c.missedMeds, c.total)} note={`${c.missedMeds} visits with a missed medication alert`} href="/rota/exceptions?kind=MISSED_MEDICATION&state=all" />
-        )}
-      </section>
+      <div className="hb-ws-b">
+        <Flash searchParams={sp} />
+        {d.notBuilt ? <NotBuiltNotice date={date} canBuild={canBuild} /> : null}
+        {isToday ? <AutoRefresh seconds={60} /> : null}
+        <HowThisWorks userId={ctx.userId} page="rota-home">Start your shift here. Anything in red needs doing before the next call round.</HowThisWorks>
 
-      <section aria-label="People and reminders" className="grid grid-cols-1 gap-3.5 xl:grid-cols-3">
-        <Panel id="su-h" icon={<Users size={24} weight="fill" />} title="All Service Users" count={d.canPeople ? d.serviceUsers.length : undefined}>
+        <section aria-label="Calls on this day">
+          <StatTiles
+            label="Calls on this day"
+            tiles={[
+              { key: "completed", testId: "card-completed", label: "Completed calls", value: c.complete, icon: <Check size={18} weight="bold" />, colour: "var(--hb-ok-fill)", numberColour: "var(--hb-ok)", href: day({ status: "COMPLETED" }), note: `${c.complete} of ${c.total} scheduled visits completed (${pct(c.complete, c.total)})` },
+              { key: "late", testId: "card-late", label: "Running late", value: c.late, icon: <Clock size={18} weight="bold" />, colour: "var(--hb-warn-fill)", numberColour: "var(--hb-warn)", href: day({ view: "late" }), note: `${c.late} calls ${c.lateAfterMin}+ minutes late (${share(c.late)})` },
+              { key: "missed", testId: "card-missed", label: "Missed calls", value: c.missed, icon: <X size={18} weight="bold" />, colour: c.missed ? "var(--hb-bad-fill)" : "#8a8f97", numberColour: c.missed ? "var(--hb-bad)" : undefined, href: `/rota/missed?period=day&date=${date}`, note: `${c.missed} scheduled visits not clocked into (${share(c.missed)})` },
+              c.missedMeds === null
+                ? { key: "unassigned", testId: "card-unassigned", label: "Need a carer", value: c.unassigned, icon: <Warning size={18} weight="bold" />, colour: "var(--hb-bad-fill)", numberColour: c.unassigned ? "var(--hb-bad)" : undefined, href: day({ view: "unassigned" }), note: `${c.unassigned} visits short of a carer (${share(c.unassigned)})` }
+                : { key: "missed-meds", testId: "card-missed-meds", label: "Calls with missed meds", value: c.missedMeds, icon: <FirstAidKit size={18} weight="bold" />, colour: "var(--hb-bad-fill)", numberColour: c.missedMeds ? "var(--hb-bad)" : undefined, href: "/rota/exceptions?kind=MISSED_MEDICATION&state=all", note: `${c.missedMeds} visits with a missed medication alert (${share(c.missedMeds)})` },
+            ]}
+          />
+        </section>
+
+        <div className="hb-hgrid">
+          <Panel id="todo" colour="red" icon={<Warning size={15} weight="bold" />} title="What needs doing" count={needing} action={<span className="text-[12px] font-medium opacity-90">Most urgent first</span>} fullHref="/rota/attention" flush testId="what-needs-doing">
+            {todos.map((t) => <TodoRow key={t.key} t={t} />)}
+          </Panel>
+          <Panel id="goto" colour="navy" icon={<ArrowRight size={15} weight="bold" />} title="Go to" flush className="self-start" testId="go-to">
+            <nav aria-label="Go to" className="hb-golinks" data-hb-module="rota">
+              <GoLink href={day()} icon={<CalendarDots size={20} />} title="Daily Rota" sub={isToday ? "Today's visits, live" : "This day's visits"} />
+              <GoLink href="/rota/attention" icon={<WarningOctagon size={20} />} title="Visits Needing Attention" sub="Everything that could stop a visit" />
+              <GoLink href={`/rota/planner?week=${mondayOf(date)}`} icon={<SquaresFour size={20} />} title="Weekly Planner" sub="Plan the week by dragging visits" />
+              {canBuild ? <GoLink href={`/rota/build?week=${mondayOf(date)}`} icon={<CalendarBlank size={20} />} title="Build Rota" sub="Turn templates into next week's rota" /> : null}
+              {d.canPeople ? <GoLink href="/rota/service-users" icon={<User size={20} />} title="Service users" sub={`${plural(d.serviceUsers.length, "person", "people")} we support`} /> : null}
+              {d.canStaff ? <GoLink href="/rota/staff" icon={<ShieldCheck size={20} />} title="Staff & Eligibility" sub={unlinked ? `Who can work and where · ${unlinked} without a sign-in` : "Who can work and where"} /> : null}
+              {canFinance ? <GoLink href="/rota/finance" icon={<CurrencyGbp size={20} />} title="Finance" sub="This week's timesheets and invoices" /> : null}
+            </nav>
+          </Panel>
+        </div>
+
+        <section aria-label="People and reminders" className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Panel id="su-h" colour="rose" icon={<Users size={15} weight="bold" />} title="All Service Users" count={d.canPeople ? d.serviceUsers.length : undefined} fullHref="/rota/service-users" flush>
+            <div className="pt-2.5">
           {d.canPeople ? (
             <DashTable
               label="service users"
@@ -221,9 +244,10 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
               })}
             />
           ) : <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">Your role does not include service-user records.</p>}
-        </Panel>
-
-        <Panel id="team-h" icon={<UsersThree size={24} weight="fill" />} title="All Team Members" count={d.canStaff ? d.team.length : undefined} aside={d.canStaff && unlinked ? <Link href="/rota/staff" title="Team members with no app sign-in linked yet" className="inline-flex items-center gap-1 rounded-[6px] border border-[#f5d9a8] bg-[#fdf6e8] px-2 py-0.5 text-[12px] font-semibold text-[#8a5a00] no-underline"><EnvelopeSimple size={14} aria-hidden />{unlinked} without a sign-in</Link> : null}>
+            </div>
+          </Panel>
+          <Panel id="team-h" colour="purple" icon={<UsersThree size={15} weight="bold" />} title="All Team Members" count={d.canStaff ? d.team.length : undefined} fullHref="/rota/staff" flush action={d.canStaff && unlinked ? <Link href="/rota/staff" title="Team members with no app sign-in linked yet" className="hb-pn-act"><EnvelopeSimple size={13} aria-hidden />{unlinked} without a sign-in</Link> : null}>
+            <div className="pt-2.5">
           {d.canStaff ? (
             <DashTable
               label="team members"
@@ -253,9 +277,10 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
               })}
             />
           ) : <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">Your role does not include the staff directory.</p>}
-        </Panel>
-
-        <Panel id="rem-h" icon={<Alarm size={24} weight="bold" />} title="All Active Reminders" aside={<><span className="hidden whitespace-nowrap text-[12px] text-[#475467] 2xl:inline" title="Due in the next 14 days, or overdue">14 days + overdue</span><Link href="/rota/reminders" className="rounded-[7px] bg-[#15803d] px-3 py-1.5 text-[13px] font-semibold text-white no-underline hover:bg-[#116a32]">View All</Link></>}>
+            </div>
+          </Panel>
+          <Panel id="rem-h" colour="amber" icon={<Alarm size={15} weight="bold" />} title="All Active Reminders" count={d.reminders.length} flush action={<Link href="/rota/reminders" className="hb-pn-act">View All</Link>}>
+            <div className="pt-2.5">
           <DashTable
             label="reminders"
             columns={[{ key: "text", label: "Reminder", sortable: true }, { key: "due", label: "Due", sortable: true }, { key: "account", label: "Account", sortable: true }, { key: "type", label: "Type", sortable: true }, { key: "over", label: "Overdue", sortable: true }]}
@@ -277,34 +302,19 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
               ],
             }))}
           />
-        </Panel>
-      </section>
+            </div>
+          </Panel>
+        </section>
 
-      <section aria-label="Rota issues" className="rounded-[10px] border border-[#e4e7ec] bg-white px-2 py-1 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
-        <ul className="grid grid-cols-2 gap-1 md:flex md:divide-x md:divide-[#eaecf0]">
-          <Issue testId="issue-rota" href={day({ view: "review" })} icon={<Warning size={34} />} value={d.counters.rotaConflicts} label="Rota Conflicts" tone="#c42b2f" />
-          <Issue testId="issue-template" href="/rota/templates/planner" icon={<Stack size={34} />} value={d.counters.templateConflicts} label="Template Conflicts" tone="#15803d" />
-          <Issue testId="issue-holidays" href="/workforce/absences" icon={<TreePalm size={34} />} value={d.counters.holidaysDue} label="Holidays Due" tone="#15803d" />
-          <Issue testId="issue-notes" href={`/rota/notes?from=${date}&to=${date}`} icon={<Note size={34} />} value={d.counters.notes} label="Visit Notes" tone="#c42b2f" />
-        </ul>
-      </section>
-
-      <section aria-label="Birthdays and quick actions" className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.88fr)]">
-        <Panel id="sub-h" icon={<Cake size={24} weight="fill" />} title="Service User Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12px] font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
-          <BirthdayTable who="Service User" rows={d.birthdays.serviceUsers} unavailable="Your role does not include service-user records." />
-        </Panel>
-        <Panel id="tmb-h" icon={<Cake size={24} weight="fill" />} title="Team Member Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12px] font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
-          <BirthdayTable who="Team Member" rows={d.birthdays.team} unavailable="Dates of birth are kept in HR & Workforce, so only people with HR access see team birthdays." />
-        </Panel>
-        <Panel id="qa-h" icon={<Lightning size={24} weight="fill" />} title="Quick Actions" className="lg:col-span-2 xl:col-span-1">
-          <div className="grid grid-cols-1 gap-2.5 px-3.5 pb-3.5 sm:grid-cols-2">
-            {canBuild ? <QuickAction href={`/rota/build?week=${mondayOf(date)}`} icon={<CalendarBlank size={22} />} label="Build Rota" /> : null}
-            <QuickAction href={`/rota/planner?week=${mondayOf(date)}`} icon={<CalendarDots size={22} />} label="Weekly Planner" />
-            <QuickAction href={`/rota/unassigned?from=${date}&days=1`} icon={<UsersThree size={22} weight="fill" />} label="Unassigned Visits" badge={c.unassigned} />
-            {d.exceptions ? <QuickAction href="/rota/exceptions" icon={<Warning size={22} />} label="Exceptions" badge={d.exceptions.open} tone="#c42b2f" /> : null}
-          </div>
-        </Panel>
-      </section>
+        <section aria-label="Birthdays" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Panel id="sub-h" colour="cyan" icon={<Cake size={15} weight="bold" />} title="Service User Upcoming Birthdays" action={<span className="text-[12px] font-medium opacity-90">Next {BIRTHDAY_WINDOW_DAYS} days</span>} flush>
+            <div className="pt-2.5"><BirthdayTable who="Service User" rows={d.birthdays.serviceUsers} unavailable="Your role does not include service-user records." /></div>
+          </Panel>
+          <Panel id="tmb-h" colour="purple" icon={<Cake size={15} weight="bold" />} title="Team Member Upcoming Birthdays" action={<span className="text-[12px] font-medium opacity-90">Next {BIRTHDAY_WINDOW_DAYS} days</span>} flush>
+            <div className="pt-2.5"><BirthdayTable who="Team Member" rows={d.birthdays.team} unavailable="Dates of birth are kept in HR & Workforce, so only people with HR access see team birthdays." /></div>
+          </Panel>
+        </section>
+      </div>
     </div>
   );
 }

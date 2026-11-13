@@ -1,17 +1,23 @@
+import { fmtLondonDate } from "@/lib/london";
+
 /**
- * The Overview Reporting tile's chart: visits completed on each of the last seven days, as small white bars, with today
- * (so far) at half strength. With no visits at all it says "No visits yet" instead of a row of flat bars.
+ * The Overview's "This week" chart: visits completed on each of the last seven days, one navy bar a day with its
+ * count above and the day below; today (so far) is the pale bar. With no visits at all it says "No visits yet".
  */
 export function WeekBars({ days }: { days: { date: string; value: number }[] }) {
   if (days.every((d) => d.value === 0)) {
-    return <span className="ovx-soft absolute right-5 top-[64px] text-[13px] font-medium" data-testid="reporting-no-visits">No visits yet</span>;
+    return <p className="text-[13.5px] text-[var(--hb-ink-3)]" data-testid="reporting-no-visits">No visits yet</p>;
   }
   const max = Math.max(1, ...days.map((d) => d.value));
   return (
-    <span aria-hidden="true" className="absolute right-5 top-[64px] flex h-[70px] items-end gap-[7px]" data-testid="reporting-bars">
+    <ul className="hb-ov-week" data-testid="reporting-bars">
       {days.map((d, i) => (
-        <span key={d.date} className={`ovx-bar w-[10px] ${i === days.length - 1 ? "opacity-50" : ""}`} style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }} />
+        <li key={d.date} data-today={i === days.length - 1 ? "" : undefined}>
+          <b className="tabular-nums">{d.value}</b>
+          <span className="hb-ov-wb"><span className="ovx-bar" style={{ height: `${Math.max(4, (d.value / max) * 100)}%` }} /></span>
+          <small>{fmtLondonDate(d.date, { weekday: "short" })}</small>
+        </li>
       ))}
-    </span>
+    </ul>
   );
 }

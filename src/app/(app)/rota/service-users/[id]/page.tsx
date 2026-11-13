@@ -31,7 +31,10 @@ import { ServiceUserRotaTab } from "@/components/su-rota-tab";
 import { futureRotaDefaults, ServiceUserFutureRota } from "@/components/su-future-rota";
 import { previewServiceUserRota } from "@/server/rota/build";
 import { addAbsenceAction, addContactAction, cancelAbsenceAction, carerPreferenceAction, keySafeAction, removeCarerPreferenceAction, removeContactAction, updateContactAction, serviceUserStatusAction, updateServiceUserAction } from "@/app/rota-actions";
-import { Badge, Card, Empty, Field, Flash, fmtDate, PageHeader, SegmentNav, StatusBadge } from "@/components/ui";
+import { Badge, Card, Empty, Field, Flash, fmtDate } from "@/components/ui";
+import { DataTable, Panel as HbPanel, PanelAction, StatusPill } from "@/components/harbour/ui";
+import { KeyValueList, Masked, QuickLinks, RecordContextBar, RecordHeader, RecordTabs, Timeline, type RecordAlert, type TimelineEntry } from "@/components/harbour/record";
+import { Archive, ArrowsClockwise, CalendarBlank, ChatText, Check, CheckCircle, ClipboardText, ClockCounterClockwise, FileText, Heart, House, IdentificationCard, Key, MagnifyingGlass, PencilSimple, PersonSimple, Phone, Pill, Plus, ShieldWarning, UploadSimple, User, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
 import { CarerSlots, VisitStatusBadge } from "@/components/rota-ui";
 import { MissedHistory } from "@/components/missed-history";
 import { ServiceUserForm } from "@/components/service-user-form";
@@ -41,6 +44,7 @@ import { DischargeReviews } from "@/components/discharge-reviews";
 import { listDischargeReviews } from "@/server/care/discharge-review";
 import { BodyMapSection } from "@/components/body-map";
 import { CallNotesSection } from "@/components/call-notes";
+import { listCallNotes } from "@/server/care/call-notes";
 import { ServiceUserReferenceNumbers } from "@/components/su-reference-numbers";
 
 import { PersonForms } from "@/components/forms/person-forms";
@@ -105,13 +109,15 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const [lk, visits, history, coverage, funders] = await Promise.all([
     rotaLookups(ctx),
     tab === "visits" || tab === "overview"
-      ? db.visit.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, date: { gte: dbDate(addDays(today, tab === "visits" ? -14 : 0)), lte: dbDate(addDays(today, tab === "visits" ? 14 : 2)) } }, orderBy: { scheduledStart: "asc" }, include: { callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, position: true, reviewReason: true, staff: { select: { id: true, displayName: true } } } } } })
+      ? db.visit.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId, date: { gte: dbDate(tab === "visits" ? addDays(today, -14) : [mondayOf(today), addDays(today, -7)].sort()[0]!), lte: dbDate(addDays(today, 14)) } }, orderBy: { scheduledStart: "asc" }, include: { callType: { select: { name: true } }, assignments: { where: { removedAt: null }, select: { slot: true, position: true, reviewReason: true, staff: { select: { id: true, displayName: true } } } } } })
       : Promise.resolve([]),
-    tab === "history" ? db.auditLog.findMany({ where: { organisationId: su.organisationId, entityType: "ServiceUser", entityId: su.id }, orderBy: { createdAt: "desc" }, take: 50 }) : Promise.resolve([]),
+    tab === "history" || tab === "overview" ? db.auditLog.findMany({ where: { organisationId: su.organisationId, entityType: "ServiceUser", entityId: su.id }, orderBy: { createdAt: "desc" }, take: tab === "history" ? 50 : 8 }) : Promise.resolve([]),
     tab === "overview" || tab === "package" ? packageCoverage(su.organisationId, su.id) : Promise.resolve(null),
     tab === "package" && canFund ? db.funder.findMany({ where: { organisationId: su.organisationId, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
   ]);
   const discharge = tab === "overview" ? await listDischargeReviews(ctx, su.id) : null;
+  // The Overview's timeline shows the newest Call Notes the viewer may open (the Call Notes tab's own list, page 1).
+  const callNotes = tab === "overview" && canCallNotes ? await listCallNotes(ctx, su.id) : null;
   const [glance, compliance] = tab === "overview" ? await Promise.all([serviceUserGlance(ctx, su), serviceUserCompliance(ctx, su)]) : [null, []];
   // Care package: the Overview card needs only the open-question count; the tab needs the questions, sources and history.
   const [pkgReviews, pkgSources, pkgHistory] = await Promise.all([
@@ -121,12 +127,12 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   ]);
   // The person owns these records. Only load what the selected profile section needs.
   const [plans, risks, archivedRisks, incidents, notes] = await Promise.all([
-    tab === "care-plans"
+    tab === "care-plans" || tab === "overview"
       ? db.carePlan.findMany({ where: { serviceUserId: su.id, organisationId: su.organisationId }, select: { id: true, version: true, status: true, reviewDue: true, approvedAt: true }, orderBy: { version: "desc" } })
       : Promise.resolve([]),
-    tab === "risks" ? listRisks(ctx, { serviceUserId: su.id }) : Promise.resolve([]),
+    tab === "risks" || tab === "overview" ? listRisks(ctx, { serviceUserId: su.id }) : Promise.resolve([]),
     tab === "risks" ? listRisks(ctx, { serviceUserId: su.id, archived: true }) : Promise.resolve([]),
-    tab === "incidents" ? recentIncidentsFor(ctx, su.id, 100) : Promise.resolve(null),
+    tab === "incidents" ? recentIncidentsFor(ctx, su.id, 100) : tab === "overview" ? recentIncidentsFor(ctx, su.id, 5) : Promise.resolve(null),
     tab === "notes" ? serviceUserVisitNotes(ctx, su.id, { category: sp.category, days: Number(sp.days) || undefined, q: sp.q?.trim().slice(0, 100) || undefined }) : Promise.resolve(null),
   ]);
   // Visits -> Template and Rota read the same template and visit records as Daily Templates and the Daily Rota.
@@ -157,82 +163,266 @@ export default async function ServiceUserPage({ params, searchParams }: { params
   const staffName = new Map(lk.staff.map((s) => [s.id, s.displayName]));
   const active = su.packages.find((p) => p.status === "ACTIVE") ?? null;
 
+  const fullName = `${su.firstName} ${su.lastName}`;
+  const initials = `${su.firstName.charAt(0)}${su.lastName.charAt(0)}`.toUpperCase();
+  const ref = su.csbReference ?? su.reference;
+  // Sensitive identifiers: only for people with sensitive access (the server sends nothing otherwise), and even then
+  // only in the page after "Show" (?show=dob, nhs or address). Nothing masked is written into the HTML.
+  const shown = new Set((sp.show ?? "").split(",").filter(Boolean));
+  const showHref = (k: string) => { const q = new URLSearchParams({ tab, show: [...shown, k].join(",") }); return `${base}?${q}`; };
+  const hideHref = (k: string) => { const rest = [...shown].filter((x) => x !== k); const q = new URLSearchParams(rest.length ? { tab, show: rest.join(",") } : { tab }); return `${base}?${q}`; };
+  const dobYear = su.dateOfBirth ? su.dateOfBirth.getUTCFullYear() : null;
+  const age = su.dateOfBirth ? Math.floor((Date.parse(`${today}T00:00:00Z`) - su.dateOfBirth.getTime()) / (365.2425 * 86_400_000)) : null;
+  const dob = su.sensitiveHidden ? <span className="text-[var(--hb-ink-3)]">Restricted</span>
+    : su.dateOfBirth ? <Masked shown={shown.has("dob")} value={<>{fmtDate(su.dateOfBirth)} ({age} years)</>} mask={<>•• •• {dobYear} ({age} years)</>} showHref={showHref("dob")} hideHref={hideHref("dob")} label="date of birth" /> : "—";
+  const nhs = su.sensitiveHidden ? <span className="text-[var(--hb-ink-3)]">Restricted</span>
+    : su.nhsNumber ? <Masked shown={shown.has("nhs")} value={su.nhsNumber} mask={<>••• ••• {su.nhsNumber.replace(/\s/g, "").slice(-4)}</>} showHref={showHref("nhs")} hideHref={hideHref("nhs")} label="NHS number" /> : "—";
+  const addressText = [su.addressLine1, su.addressLine2, su.town, su.postcode].filter(Boolean).join(", ");
+  const address = !addressText ? "—" : su.sensitiveHidden ? addressText
+    : <Masked shown={shown.has("address")} value={addressText} mask={<>•••• {su.postcode ?? ""}</>} showHref={showHref("address")} hideHref={hideHref("address")} label="home address" />;
+  const statusTone = su.status === "ACTIVE" ? "ok" : su.status === "PAUSED" ? "warn" : su.status === "ENDED" ? "neutral" : "progress";
+  const statusLabel = su.status.charAt(0) + su.status.slice(1).toLowerCase().replaceAll("_", " ");
+  const tabHref = (t: string) => `${base}?tab=${t}`;
+
+  // Visits on the Overview: this week (Monday to Sunday), the last seven days and the next fourteen.
+  const monday = mondayOf(today);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const dayOf = (v: (typeof visits)[number]) => fromDbDate(v.date);
+  const placesFilled = (v: (typeof visits)[number]) => v.assignments.filter((a) => a.slot !== "SHADOW").length;
+  const ini = (n: string) => n.split(/\s+/).filter(Boolean).map((w) => w.charAt(0)).join("").slice(0, 2).toUpperCase();
+  const completed = visits.filter((v) => v.status === "COMPLETED" && dayOf(v) <= today).sort((a, b) => b.scheduledStart.getTime() - a.scheduledStart.getTime());
+  const upcoming = visits.filter((v) => dayOf(v) >= today && v.status !== "CANCELLED");
+  const upcomingDays = [...new Set(upcoming.map(dayOf))].sort();
+  const weekVisits = visits.filter((v) => weekDays.includes(dayOf(v)) && v.status !== "CANCELLED");
+  const weekCalls = [...new Map(weekVisits.slice().sort((a, b) => (a.scheduledStart.getTime() % 86_400_000) - (b.scheduledStart.getTime() % 86_400_000)).map((v) => [v.callType.name, v.callType.name])).keys()];
+  const activePlan = plans.find((pl) => pl.status === "ACTIVE") ?? plans[0] ?? null;
+
+  // The timeline: visit notes, Call Notes, incidents and changes to the record, newest first, filtered by ?tl=.
+  const tl = ["notes", "calls", "incidents", "changes"].includes(sp.tl ?? "") ? sp.tl! : "all";
+  const stamp = (d: Date) => `${fmtLondonDate(londonDate(d), { day: "2-digit", month: "2-digit", year: "numeric" })} ${londonTime(d)}`;
+  const entries: (TimelineEntry & { at: string; date: Date; kind: string })[] = [
+    ...(glance?.notes ?? []).map((n) => ({ kind: "notes", id: `n-${n.id}`, date: n.createdAt, icon: <CheckCircle size={18} aria-hidden="true" />, title: "Visit note", href: `/rota/visits/${n.visitId}`, when: fmtDate(n.createdAt, true), text: n.text, at: stamp(n.createdAt) })),
+    ...(callNotes?.notes.slice(0, 5) ?? []).map((c) => ({ kind: "calls", id: `c-${c.id}`, date: c.communicationAt, icon: <Phone size={18} aria-hidden="true" />, title: `Call note ${c.reference}`, href: tabHref("call-notes"), when: fmtDate(c.communicationAt, true), text: c.summary ?? undefined, by: c.recordedBy, at: stamp(c.communicationAt) })),
+    ...(incidents ?? []).map((i) => ({ kind: "incidents", id: `i-${i.id}`, date: i.occurredAt, icon: <Warning size={18} aria-hidden="true" />, title: `Incident ${i.reference} ${i.status.toLowerCase().replaceAll("_", " ")}`, href: `/rota/incidents/${i.id}`, when: fmtDate(i.occurredAt, true), text: `${i.category}${i.safeguarding ? " · safeguarding" : ""}`, at: stamp(i.occurredAt) })),
+    ...history.map((h) => ({ kind: "changes", id: `h-${h.id}`, date: h.createdAt, icon: <ClockCounterClockwise size={18} aria-hidden="true" />, title: humanAction(h.action), href: tabHref("history"), when: fmtDate(h.createdAt, true), by: names.get(h.actorId ?? "") ?? "System", at: stamp(h.createdAt) })),
+  ].filter((e) => tl === "all" || e.kind === tl).sort((a, b) => b.date.getTime() - a.date.getTime());
+  const months = [...new Map(entries.map((e) => [fmtLondonDate(londonDate(e.date), { month: "short", year: "numeric" }).toUpperCase(), [] as TimelineEntry[]])).entries()];
+  for (const e of entries) months.find(([m]) => m === fmtLondonDate(londonDate(e.date), { month: "short", year: "numeric" }).toUpperCase())![1].push(e);
+  const tlHref = (k: string) => `${base}?tab=overview${k === "all" ? "" : `&tl=${k}`}`;
+
+  const tabs = groups.map((g) => {
+    const key = g.tabs[0]!;
+    const count = key === "people" ? su.contacts.length : undefined;
+    return { key, label: g.label, href: tabHref(key), current: g === group, count };
+  });
+  const menu = [
+    ...(canEdit && hasOrgPermission(ctx, "serviceUser.documents") && su.status !== "ENDED" && !su.archivedAt ? [{ label: "Upload documents", href: `/rota/coordinator?mode=EXISTING&person=${su.id}#start`, icon: <UploadSimple size={16} aria-hidden="true" /> }] : []),
+    ...(canEdit ? [{ label: "Change status", href: `${base}?tab=overview#status`, icon: <ArrowsClockwise size={16} aria-hidden="true" /> }] : []),
+    ...(canEdit ? [{ label: "Edit personal details", href: tabHref("details"), icon: <PencilSimple size={16} aria-hidden="true" /> }] : []),
+    ...(canArchive ? [{ label: su.archivedAt ? "Restore or delete" : "Archive or delete", href: `${base}/archive`, testId: "open-archive", icon: <Archive size={16} aria-hidden="true" /> }] : []),
+    { label: "Record history", href: tabHref("history"), icon: <ClockCounterClockwise size={16} aria-hidden="true" /> },
+  ];
+  const alerts: RecordAlert[] = [
+    ...(su.riskLevel === "HIGH" ? [{ label: "High risk", tone: "bad" as const, icon: <Warning size={14} weight="bold" />, href: tabHref("risks") }] : su.riskLevel === "MEDIUM" ? [{ label: "Medium risk", tone: "warn" as const, icon: <Warning size={14} weight="bold" />, href: tabHref("risks") }] : []),
+    ...(su.hasKeySafe ? [{ label: "Key safe recorded", tone: "info" as const, icon: <Key size={14} weight="bold" />, href: `${base}?tab=overview#before-visit` }] : []),
+    ...(su.carerGenderPreference !== "ANY" ? [{ label: `Prefers ${su.carerGenderPreference.toLowerCase()} carers`, tone: "prog" as const, icon: <Heart size={14} weight="bold" />, href: `${base}?tab=overview#before-visit` }] : []),
+    ...(su.status === "ACTIVE" ? [{ label: "Receiving care", tone: "ok" as const, icon: <Check size={14} weight="bold" /> }] : []),
+  ];
+
   return (
-    <>
-      <PageHeader
-        title={suName(su)}
-        back="/rota/service-users"
-        subtitle={`${su.csbReference ?? su.reference} · ${su.area?.name ?? "no area"} · ${su.postcode ?? "no postcode"}${su.organisation.isDemo ? ". Fictional demonstration person." : ""}`}
-        actions={<div className="flex flex-wrap items-center gap-2">{su.archivedAt ? <Badge tone="slate">Archived</Badge> : null}<StatusBadge status={su.status} />{canEdit && hasOrgPermission(ctx, "serviceUser.documents") && su.status !== "ENDED" && !su.archivedAt ? <Link href={`/rota/coordinator?mode=EXISTING&person=${su.id}#start`} className="btn-secondary py-1">Upload documents</Link> : null}{canArchive ? <Link href={`${base}/archive`} className="btn-secondary py-1" data-testid="open-archive">{su.archivedAt ? "Restore or delete" : "Archive or delete"}</Link> : null}</div>}
+    <div className="hb-rec" data-hb-module="rota">
+      <RecordContextBar
+        backHref="/rota/service-users"
+        backLabel="Back to service users"
+        kind="Service user"
+        name={suName(su)}
+        tools={[
+          ...(canEdit ? [{ label: "Edit personal details", href: tabHref("details"), icon: <PencilSimple size={16} aria-hidden="true" /> }] : []),
+          ...(canCallNotes ? [{ label: "Call notes", href: tabHref("call-notes"), icon: <ChatText size={16} aria-hidden="true" /> }] : []),
+          ...(canReportIncident ? [{ label: "Report an incident", href: `/rota/incidents/new?su=${su.id}`, icon: <Warning size={16} aria-hidden="true" /> }] : []),
+          ...(canNotes ? [{ label: "Visits", href: tabHref("visits"), icon: <CalendarBlank size={16} aria-hidden="true" /> }] : []),
+        ]}
+        actions={<>
+          {canCallNotes ? <Link href={tabHref("call-notes")} className="hb-btn">Call notes</Link> : null}
+          {canEdit && hasOrgPermission(ctx, "rota.edit") ? <Link href={`/rota/visits/new?serviceUserId=${su.id}`} className="hb-btn hb-btn-p"><Plus size={14} weight="bold" aria-hidden="true" />Add visit</Link> : null}
+        </>}
       />
+      <RecordHeader
+        initials={initials}
+        title={<><span className="uppercase">{su.lastName}</span>, {su.firstName} (Ref: {ref})</>}
+        status={<>{su.archivedAt ? <StatusPill tone="neutral">Archived</StatusPill> : null}<StatusPill tone={statusTone}>{statusLabel}</StatusPill></>}
+        meta={<>
+          <div>Known as: <b>{su.preferredName ?? su.firstName}</b></div>
+          <div>{su.branch?.name ? <>Branch: <b>{su.branch.name}</b> · </> : null}{su.area?.name ?? "No area"} · {su.postcode ?? "no postcode"}{su.organisation.isDemo ? ". Fictional demonstration person." : ""}</div>
+        </>}
+        ids={<>
+          <span>Born: <b>{dob}</b></span>
+          <span>First language: <b>{su.firstLanguage ?? "—"}</b></span>
+          <span>NHS No: <b>{nhs}</b></span>
+        </>}
+        alerts={alerts}
+      />
+      <RecordTabs label="Service user sections" tabs={tabs} menu={menu} subTabs={group.tabs.map((t) => ({ key: t, label: tabLabel.get(t) ?? t, href: tabHref(t), current: t === tab }))} subLabel={`${group.label} sections`} />
+      <div className="hb-rec-b">
       <Flash searchParams={sp} />
       {su.archivedAt ? (
-        <p role="status" className="mb-3 rounded-[8px] border border-slate-300 bg-slate-50 px-4 py-2.5 text-[14px] text-slate-800" data-testid="archived-banner">
+        <p role="status" className="rounded-[4px] border border-slate-300 bg-slate-50 px-4 py-2.5 text-[14px] text-slate-800" data-testid="archived-banner">
           {suName(su)} was archived on {fmtDate(su.archivedAt)}. The record is read-only and hidden from the active lists; every record is kept.{canArchive ? <> <Link href={`${base}/archive`}>Restore</Link></> : null}
         </p>
       ) : null}
-      <SegmentNav label="Service user sections" items={groups.map((g) => ({ href: `${base}?tab=${g.tabs[0]}`, label: g.label, active: g === group }))} />
-      {group.tabs.length > 1 ? (
-        <nav aria-label={`${group.label} sections`} className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
-          {group.tabs.map((t) => (
-            <Link key={t} href={`${base}?tab=${t}`} aria-current={t === tab ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${t === tab ? "bg-[#1d4f91] font-medium text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{tabLabel.get(t)}</Link>
-          ))}
-        </nav>
-      ) : null}
 
       {tab === "overview" ? (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-3">
-            {discharge?.length ? <DischargeReviews reviews={discharge} back={`${base}?tab=overview`} serviceUserId={su.id} /> : null}
-            <Card title="About">
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3">
-                <Field label="Known as">{su.preferredName ?? su.firstName}</Field>
-                <Field label="Date of birth">{su.sensitiveHidden ? <span className="text-slate-500">Restricted</span> : su.dateOfBirth ? fmtDate(su.dateOfBirth) : "—"}</Field>
-                <Field label="First language">{su.firstLanguage ?? "—"}</Field>
-                <Field label="Carer preference">{su.carerGenderPreference === "ANY" ? "No preference" : `${su.carerGenderPreference.toLowerCase()} carers`}</Field>
-                <Field label="Risk">{su.riskLevel ? <Badge tone={su.riskLevel === "HIGH" ? "rose" : su.riskLevel === "MEDIUM" ? "amber" : "slate"}>{su.riskLevel.toLowerCase()}</Badge> : "Not assessed"}</Field>
-                <Field label="Care started">{su.startDate ? fmtDate(su.startDate) : "—"}</Field>
-              </dl>
-              {su.riskSummary ? <p className="mt-3 text-[14px]"><span className="font-medium">Risk summary:</span> {su.riskSummary}</p> : null}
-              {su.carePreferences ? <p className="mt-2 text-[14px]"><span className="font-medium">What matters to them:</span> {su.carePreferences}</p> : null}
-              {su.communicationNeeds ? <p className="mt-2 text-[14px]"><span className="font-medium">Communication:</span> {su.communicationNeeds}</p> : null}
-            </Card>
-            <ServiceUserCompliance rows={compliance} />
-            {glance ? (
-              <section aria-labelledby="glance-h" className="card" data-testid="recent-care">
-                <h2 id="glance-h" className="mb-3 text-[17px]">Recent care</h2>
-                <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Carers who visit most (28 days)">{glance.carers.length ? <span className="block text-[14px]">{glance.carers.map((c) => `${c.name} (${c.visits})`).join(", ")}</span> : "No visits booked"}</Field>
-                  <Field label="Medication">{glance.medication.on ? <><Link href={`${base}?tab=medication`}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={`block text-[13px] ${glance.medication.exceptions7d ? "text-[#a3242c]" : "text-slate-600"}`}>{glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-slate-600">Medication records are switched off</span>}</Field>
-                  <Field label="Care Summary">{glance.summary ? <Link href={`/rota/care-plans/${su.id}?view=summary&summary=${glance.summary.id}`}>{fmtDate(glance.summary.createdAt)}, {glance.summary.status === "UNREVIEWED" ? "not yet reviewed" : glance.summary.status === "REVIEWED" ? "reviewed" : "dismissed"}</Link> : <Link href={`/rota/care-plans/${su.id}?view=summary`}>Recent records</Link>}</Field>
-                </dl>
-                {glance.notes.length ? (
-                  <div className="mt-3 border-t border-slate-100 pt-2">
-                    <h3 className="text-[13px] font-medium text-slate-700">Latest visit notes</h3>
-                    <ul className="mt-1 space-y-1 text-[14px]">
-                      {glance.notes.map((n) => <li key={n.id} className="flex gap-2"><span className="w-[132px] shrink-0 text-[13px] text-slate-500">{fmtDate(n.createdAt, true)}</span><Link href={`/rota/visits/${n.visitId}`} className="min-w-0 truncate text-slate-800 no-underline hover:underline" title={n.text}>{n.text}</Link></li>)}
-                    </ul>
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
-            <Card title="Next visits" actions={<Link href={`${base}?tab=visits`} className="btn-secondary py-1">All visits</Link>}>
-              {visits.length ? (
-                <ul className="rows">
-                  {visits.filter((v) => v.scheduledEnd > new Date()).slice(0, 8).map((v) => (
-                    <li key={v.id} className="flex flex-wrap items-center gap-3 py-2 text-[14px]">
-                      <span className="w-[150px] tabular-nums">{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric", month: "short" })} {londonTime(v.scheduledStart)}</span>
-                      <Link href={`/rota/visits/${v.id}`} className="row-title">{v.callType.name}</Link>
-                      <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} cancelled={v.status === "CANCELLED"} />
-                      <span className="ml-auto"><VisitStatusBadge status={v.status} /></span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <Empty>No visits in the next two days.</Empty>}
-            </Card>
-            <Card title="Repeating visits" actions={canEdit ? <Link href={`/rota/templates/new?su=${su.id}`} className="btn-secondary py-1">New template</Link> : null}>
-              {su.templates.length ? (
-                <table className="table">
+        <div className="hb-cl">
+          <div className="hb-cl-l">
+            <QuickLinks items={[
+              { label: "Before you visit", href: "#before-visit", icon: <Warning size={12} weight="bold" />, colour: "#b3261e" },
+              { label: "Care plan", href: tabHref("care-plans"), icon: <ClipboardText size={12} weight="bold" />, colour: "#0f766e", count: plans.length },
+              { label: "Risk assessments", href: tabHref("risks"), icon: <ShieldWarning size={12} weight="bold" />, colour: "#8c5200", count: risks.length },
+              { label: "Medication", href: tabHref("medication"), icon: <Pill size={12} weight="bold" />, colour: "#5b3cc4" },
+              { label: "Visits", href: tabHref("visits"), icon: <CalendarBlank size={12} weight="bold" />, colour: "#1f3a68", count: upcoming.length },
+              ...(canNotes ? [{ label: "Visit notes", href: tabHref("notes"), icon: <CheckCircle size={12} weight="bold" />, colour: "#16784a" }] : []),
+              ...(canCallNotes ? [{ label: "Call notes", href: tabHref("call-notes"), icon: <Phone size={12} weight="bold" />, colour: "#2e5bcf", count: callNotes?.total }] : []),
+              ...(canReportIncident ? [{ label: "Incidents", href: tabHref("incidents"), icon: <Warning size={12} weight="bold" />, colour: "#b3261e", count: incidents?.length }] : []),
+              { label: "Body map", href: tabHref("bodymap"), icon: <PersonSimple size={12} weight="bold" />, colour: "#b8336a" },
+              { label: "Documents", href: tabHref("documents"), icon: <FileText size={12} weight="bold" />, colour: "#0e7490" },
+              { label: "Contacts & carers", href: tabHref("people"), icon: <UsersThree size={12} weight="bold" />, colour: "#b8336a", count: su.contacts.length },
+              { label: "References", href: tabHref("references"), icon: <IdentificationCard size={12} weight="bold" />, colour: "#b4532a" },
+              ...(canAiAudit ? [{ label: "Audit & exceptions", href: tabHref("ai-audit"), icon: <MagnifyingGlass size={12} weight="bold" />, colour: "#8c5200" }] : []),
+              { label: "History", href: tabHref("history"), icon: <ClockCounterClockwise size={12} weight="bold" />, colour: "#1f3a68" },
+            ]} />
+            <HbPanel id="person-details" title="Person details" icon={<User size={15} weight="bold" />} colour="blue" className="hb-cl-first" fullHref={tabHref("details")}
+              footer={canEdit ? <Link href={tabHref("details")} className="hb-btn hb-btn-p">Edit</Link> : undefined}>
+              <KeyValueList items={[
+                ["Full name", fullName],
+                ["Known as", su.preferredName ?? su.firstName],
+                ["Address", address],
+                ["Phone", su.phone ?? "—"],
+                ["Date of birth", dob],
+                ["NHS number", nhs],
+                ["First language", su.firstLanguage ?? "—"],
+                ["Carer preference", su.carerGenderPreference === "ANY" ? "No preference" : `${su.carerGenderPreference.toLowerCase()} carers`],
+                ["Risk", su.riskLevel ? su.riskLevel.toLowerCase() : "Not assessed"],
+                ["Status", `${statusLabel}${su.startDate ? ` since ${fmtDate(su.startDate)}` : ""}`],
+              ]} />
+              {su.carePreferences ? <p className="mt-2 text-[13px] text-[var(--hb-ink-2)]"><b className="font-semibold text-[var(--hb-ink)]">What matters to them:</b> {su.carePreferences}</p> : null}
+            </HbPanel>
+            <HbPanel id="key-contacts" title="Key contacts" icon={<UsersThree size={15} weight="bold" />} colour="rose" count={su.contacts.length} fullHref={tabHref("people")} flush
+              tools={canEdit ? [{ label: "Add a contact", href: `${tabHref("people")}#add-contact`, icon: <Plus size={16} /> }] : undefined}>
+              {su.contacts.length ? (
+                <DataTable caption="Key contacts" rowKey={(c) => c.id} rows={su.contacts.slice(0, 5)} columns={[
+                  { key: "name", header: "Name", cell: (c) => <>{c.name}{c.isEmergency ? <span className="mt-0.5 block"><span className="hb-tag">Emergency</span></span> : c.kind === "NEXT_OF_KIN" ? <span className="mt-0.5 block"><span className="hb-tag">Next of kin</span></span> : null}</> },
+                  { key: "rel", header: "Relationship", cell: (c) => c.relationship ?? CONTACT_LABEL[c.kind] },
+                  { key: "phone", header: "Phone", cell: (c) => <span className="tabular-nums">{c.phone ?? "—"}</span> },
+                ]} />
+              ) : <p className="px-3.5 py-4 text-[13.5px] text-[var(--hb-ink-3)]">No contacts recorded.</p>}
+            </HbPanel>
+            <HbPanel id="risks-safety" title="Risks and safety" icon={<Warning size={15} weight="bold" />} colour="red" count={risks.length} fullHref={tabHref("risks")} flush
+              tools={hasOrgPermission(ctx, "care.plan.edit") ? [{ label: "New risk assessment", href: `/rota/risks/new?su=${su.id}`, icon: <Plus size={16} /> }] : undefined}>
+              {risks.length ? (
+                <DataTable caption="Risk assessments" rowKey={(r) => r.id} rows={risks.slice(0, 5)} columns={[
+                  { key: "risk", header: "Risk", cell: (r) => <Link href={`/rota/risks/${r.id}`}>{r.title}</Link> },
+                  { key: "level", header: "Level", cell: (r) => <StatusPill tone={r.level === "HIGH" ? "bad" : r.level === "MEDIUM" ? "warn" : "ok"}>{LEVEL[r.level].label}</StatusPill> },
+                  { key: "review", header: "Review", cell: (r) => <span className="tabular-nums">{fmtLondonDate(fromDbDate(r.reviewDue), { day: "numeric", month: "short" })}</span> },
+                ]} />
+              ) : <p className="px-3.5 py-4 text-[13.5px] text-[var(--hb-ink-3)]">No active risk assessments.</p>}
+            </HbPanel>
+            <HbPanel id="before-visit" title="Before you visit" icon={<Warning size={15} weight="bold" />} colour="amber" flush action={<PanelAction href={tabHref("incidents")}>Health and safety</PanelAction>}>
+              <ul className="hb-bv">
+                <li><span className="hb-bv-i" aria-hidden="true"><House size={15} /></span><span className="min-w-0"><b>Getting in</b><small>{su.accessNotes ?? "No access notes."}</small></span></li>
+                <li>
+                  <span className="hb-bv-i" aria-hidden="true"><Key size={15} /></span>
+                  <span className="min-w-0 flex-1">
+                    <b>Key safe</b>
+                    {su.hasKeySafe ? (
+                      canKeySafe ? (
+                        keySafe ? <small>Key safe code: <span className="font-mono text-[15px] font-semibold text-[var(--hb-ink)]">{keySafe}</span> This view has been recorded.</small>
+                        : <small>Each view of the code is recorded.</small>
+                      ) : <small>A key safe code is recorded. Your role cannot view it.</small>
+                    ) : <small>No key safe code recorded.</small>}
+                    {keySafeError ? <small role="alert" className="text-[#a3242c]">{keySafeError}</small> : null}
+                    {canKeySafe && canEdit ? (
+                      <form action={keySafeAction} className="mt-2 flex gap-2">
+                        <input type="hidden" name="back" value={back} />
+                        <input type="hidden" name="serviceUserId" value={su.id} />
+                        <input name="code" autoComplete="off" className="input py-1" placeholder="New code (blank clears)" aria-label="New key safe code" />
+                        <button className="hb-btn">Save</button>
+                      </form>
+                    ) : null}
+                  </span>
+                  {su.hasKeySafe && canKeySafe && !keySafe ? <form method="get" className="flex-none"><input type="hidden" name="reveal" value="keysafe" /><button className="hb-btn" aria-label="Show key safe code">Show code</button></form> : null}
+                </li>
+                {su.communicationNeeds ? <li><span className="hb-bv-i" aria-hidden="true"><ChatText size={15} /></span><span className="min-w-0"><b>Communication</b><small>{su.communicationNeeds}</small></span></li> : null}
+                {su.riskSummary ? <li><span className="hb-bv-i" aria-hidden="true"><Warning size={15} /></span><span className="min-w-0"><b>Risk summary</b><small>{su.riskSummary}</small></span></li> : null}
+                {su.carerGenderPreference !== "ANY" ? <li><span className="hb-bv-i" aria-hidden="true"><Heart size={15} /></span><span className="min-w-0"><b>Prefers {su.carerGenderPreference.toLowerCase()} carers</b><small>Carer preference</small></span></li> : null}
+              </ul>
+            </HbPanel>
+            <HbPanel id="care-plan" title="Care plan" icon={<ClipboardText size={15} weight="bold" />} colour="teal" fullHref={tabHref("care-plans")} action={activePlan ? <PanelAction href={`/rota/care-plans/${su.id}`}>Open</PanelAction> : undefined}>
+              {activePlan ? (
+                <KeyValueList items={[
+                  ["Version", `${activePlan.version}, ${activePlan.status === "ACTIVE" ? "in use" : activePlan.status === "IN_REVIEW" ? "in review" : activePlan.status.toLowerCase().replaceAll("_", " ")}`],
+                  ["Review due", activePlan.reviewDue ? <span className={activePlan.reviewDue < todayDb && activePlan.status === "ACTIVE" ? "text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(activePlan.reviewDue))}</span> : "—"],
+                  ["Approved", activePlan.approvedAt ? fmtDate(activePlan.approvedAt) : "—"],
+                ]} />
+              ) : <p className="text-[13.5px] text-[var(--hb-ink-3)]">No care plan recorded for this person.</p>}
+              {glance ? (
+                <div className="mt-2 space-y-1 text-[13px]" data-testid="recent-care">
+                  <p><span className="text-[var(--hb-ink-3)]">Medication:</span> {glance.medication.on ? <><Link href={tabHref("medication")}>{glance.medication.active} {glance.medication.active === 1 ? "medicine" : "medicines"} in use</Link><span className={glance.medication.exceptions7d ? " text-[#a3242c]" : " text-[var(--hb-ink-3)]"}> · {glance.medication.exceptions7d} refused or not given in 7 days</span></> : <span className="text-[var(--hb-ink-3)]">Medication records are switched off</span>}</p>
+                  <p><span className="text-[var(--hb-ink-3)]">Care Summary:</span> {glance.summary ? <Link href={`/rota/care-plans/${su.id}?view=summary&summary=${glance.summary.id}`}>{fmtDate(glance.summary.createdAt)}, {glance.summary.status === "UNREVIEWED" ? "not yet reviewed" : glance.summary.status === "REVIEWED" ? "reviewed" : "dismissed"}</Link> : <Link href={`/rota/care-plans/${su.id}?view=summary`}>Recent records</Link>}</p>
+                </div>
+              ) : null}
+            </HbPanel>
+            {discharge?.length ? <div className="hb-cl-wide"><DischargeReviews reviews={discharge} back={`${base}?tab=overview`} serviceUserId={su.id} /></div> : null}
+            <ServiceUserCompliance rows={compliance} className="hb-cl-wide" />
+          </div>
+          <Timeline
+            filters={[["all", "All"], ["notes", "Visit notes"], ...(canCallNotes ? [["calls", "Call notes"]] : []), ...(canReportIncident ? [["incidents", "Incidents"]] : []), ["changes", "Record changes"]].map(([k, l]) => ({ label: l!, href: tlHref(k!), current: tl === k }))}
+            groups={months.map(([label, list]) => ({ label, entries: list }))}
+            empty="Nothing recorded yet."
+          />
+          <HbPanel id="completed-visits" title="Completed visits with staff" icon={<CheckCircle size={15} weight="bold" />} colour="green" count={completed.length} className="hb-cl-half" flush fullHref={tabHref("visits")}>
+            {completed.length ? (
+              <DataTable caption="Completed visits" rowKey={(v) => v.id} rows={completed.slice(0, 5)} columns={[
+                { key: "date", header: "Date", cell: (v) => <Link href={`/rota/visits/${v.id}`}>{fmtLondonDate(fromDbDate(v.date), { weekday: "short", day: "numeric", month: "short" })}</Link> },
+                { key: "call", header: "Call", cell: (v) => v.callType.name },
+                { key: "staff", header: "Staff", cell: (v) => v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staff.displayName).join(", ") || "—" },
+                { key: "times", header: "Times", cell: (v) => <span className="tabular-nums">{v.actualStart ? `${londonTime(v.actualStart)} to ${v.actualEnd ? londonTime(v.actualEnd) : "…"}` : `${londonTime(v.scheduledStart)} to ${londonTime(v.scheduledEnd)}`}</span> },
+              ]} />
+            ) : <p className="px-3.5 py-4 text-[13.5px] text-[var(--hb-ink-3)]">No completed visits in the last seven days.</p>}
+          </HbPanel>
+          <HbPanel id="next-visits" title="Visits for the next 14 days" icon={<CalendarBlank size={15} weight="bold" />} colour="blue" count={upcoming.length} className="hb-cl-half" flush fullHref={tabHref("visits")} action={canNotes ? <PanelAction href={`/rota/visits?date=${today}`}>Daily Rota</PanelAction> : undefined}>
+            {upcomingDays.length ? (
+              <DataTable caption="Visits for the next 14 days" rowKey={(d) => d} rows={upcomingDays.slice(0, 7)} columns={[
+                { key: "day", header: "Day", cell: (d) => fmtLondonDate(d, { weekday: "short", day: "numeric", month: "short" }) },
+                { key: "calls", header: "Calls", cell: (d) => upcoming.filter((v) => dayOf(v) === d).map((v) => <Link key={v.id} href={`/rota/visits/${v.id}`} className="mr-1.5">{v.callType.name.toLowerCase()} {londonTime(v.scheduledStart)}</Link>) },
+                { key: "carers", header: "Carers", cell: (d) => { const day = upcoming.filter((v) => dayOf(v) === d); const need = day.reduce((n, v) => n + v.carersRequired, 0); const have = day.reduce((n, v) => n + Math.min(placesFilled(v), v.carersRequired), 0); return have >= need ? <StatusPill tone="ok">All booked</StatusPill> : <StatusPill tone="bad">{have} of {need} carers</StatusPill>; } },
+              ]} />
+            ) : <p className="px-3.5 py-4 text-[13.5px] text-[var(--hb-ink-3)]">No visits in the next 14 days.</p>}
+          </HbPanel>
+          <HbPanel id="week-visits" title="This week's visits" icon={<CalendarBlank size={15} weight="bold" />} colour="navy" className="hb-cl-half" fullHref={tabHref("rota")} action={canEdit ? <PanelAction href={`/rota/templates/new?su=${su.id}`}>New template</PanelAction> : undefined}>
+            {weekCalls.length ? (
+              <div className="overflow-x-auto">
+                <table className="hb-wk">
+                  <caption className="sr-only">Visits this week by call and day</caption>
+                  <thead><tr><td />{weekDays.map((d) => <th key={d} scope="col" data-today={d === today ? "" : undefined}>{fmtLondonDate(d, { weekday: "short", day: "numeric" })}</th>)}</tr></thead>
+                  <tbody>
+                    {weekCalls.map((call) => (
+                      <tr key={call}>
+                        <th scope="row">{call}</th>
+                        {weekDays.map((d) => {
+                          const vs = weekVisits.filter((v) => v.callType.name === call && dayOf(v) === d);
+                          return <td key={d}>{vs.map((v) => { const open = Math.max(0, v.carersRequired - placesFilled(v)); return <Link key={v.id} href={`/rota/visits/${v.id}`} className="hb-wk-c" data-s={open ? "open" : v.status === "COMPLETED" ? "done" : undefined} aria-label={`${call} ${fmtLondonDate(d, { weekday: "long" })}: ${v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => a.staff.displayName).join(", ") || "no carer"}${open ? `, ${open} place open` : ""}`}>{v.assignments.filter((a) => a.slot !== "SHADOW").map((a) => ini(a.staff.displayName)).join(" ") || "—"}{open ? ` +${open}` : ""}</Link>; })}</td>;
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--hb-ink-3)]"><span><span className="hb-wk-c" data-s="done" aria-hidden="true">AB</span> Completed</span><span><span className="hb-wk-c" aria-hidden="true">AB</span> Booked</span><span><span className="hb-wk-c" data-s="open" aria-hidden="true">+1</span> A carer place is open</span></p>
+              </div>
+            ) : <p className="text-[13.5px] text-[var(--hb-ink-3)]">No visits this week.</p>}
+            {su.templates.length ? (
+              <details className="mt-3 border-t border-[var(--hb-line-2)] pt-2">
+                <summary className="cursor-pointer text-[13px] font-semibold text-[var(--hb-link)]">Repeating visits ({su.templates.length})</summary>
+                <table className="table mt-2">
                   <thead><tr><th>Call</th><th>Time</th><th>Days</th><th>Carers</th></tr></thead>
                   <tbody>
                     {su.templates.map((t) => (
@@ -245,88 +435,60 @@ export default async function ServiceUserPage({ params, searchParams }: { params
                     ))}
                   </tbody>
                 </table>
-              ) : <Empty>No repeating visits.</Empty>}
-            </Card>
-          </div>
-          <div className="space-y-3">
-            <CarePackageSummaryCard summary={carePackageSummary({ pkg: active, coverage, templates: su.templates, openQueries: pkgReviews?.open ?? 0, today })} href={`${base}?tab=package`} canEdit={canEdit} />
-            <Card title="Key contacts" actions={<Link href={`${base}?tab=people`} className="btn-secondary py-1">All contacts</Link>}>
-              {su.contacts.length ? (
-                <ul className="space-y-2 text-[14px]">
-                  {su.contacts.slice(0, 3).map((c) => (
-                    <li key={c.id}>
-                      <span className="font-medium">{c.name}</span> {c.isEmergency ? <Badge tone="rose">Emergency</Badge> : null}
-                      <span className="block text-[12.5px] text-slate-600">{CONTACT_LABEL[c.kind]}{c.relationship ? ` · ${c.relationship}` : ""}{c.phone ? ` · ${c.phone}` : ""}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="text-[14px] text-slate-600">No contacts recorded.</p>}
-            </Card>
-            <Card title="Getting in">
-              <p className="text-[14px]">{su.accessNotes ?? "No access notes."}</p>
-              {su.hasKeySafe ? (
-                canKeySafe ? (
-                  keySafe ? (
-                    <p className="mt-2 text-[14px]">Key safe code: <span className="font-mono text-[16px] font-semibold">{keySafe}</span> <span className="block text-[12.5px] text-slate-500">This view has been recorded.</span></p>
-                  ) : (
-                    <form method="get" className="mt-2"><input type="hidden" name="reveal" value="keysafe" /><button className="btn-secondary py-1">Show key safe code</button><span className="ml-2 text-[12.5px] text-slate-500">Each view is recorded.</span></form>
-                  )
-                ) : <p className="mt-2 text-[13px] text-slate-500">A key safe code is recorded. Your role cannot view it.</p>
-              ) : <p className="mt-2 text-[13px] text-slate-500">No key safe code recorded.</p>}
-              {keySafeError ? <p role="alert" className="text-[13px] text-[#a3242c]">{keySafeError}</p> : null}
-              {canKeySafe && canEdit ? (
-                <form action={keySafeAction} className="mt-3 flex gap-2">
-                  <input type="hidden" name="back" value={back} />
-                  <input type="hidden" name="serviceUserId" value={su.id} />
-                  <input name="code" autoComplete="off" className="input py-1.5" placeholder="New code (blank clears)" aria-label="New key safe code" />
-                  <button className="btn-secondary py-1">Save</button>
-                </form>
-              ) : null}
-            </Card>
-            <Card title="Away">
+              </details>
+            ) : <p className="mt-2 text-[12.5px] text-[var(--hb-ink-3)]">No repeating visits.</p>}
+          </HbPanel>
+          <CarePackageSummaryCard className="hb-cl-q" summary={carePackageSummary({ pkg: active, coverage, templates: su.templates, openQueries: pkgReviews?.open ?? 0, today })} href={`${base}?tab=package`} canEdit={canEdit} />
+          <HbPanel id="care-team" title="Care team" icon={<Heart size={15} weight="bold" />} colour="purple" className="hb-cl-q" flush fullHref={tabHref("people")} action={<PanelAction href={tabHref("people")}>Contacts & carers</PanelAction>}>
+            {glance?.carers.length ? (
+              <DataTable caption="Carers who visit most" rowKey={(c) => c.id} rows={glance.carers} columns={[
+                { key: "carer", header: "Carer", cell: (c) => <span className="inline-flex items-center gap-2"><span className="hb-av" aria-hidden="true">{ini(c.name)}</span>{c.name}</span> },
+                { key: "visits", header: "Visits, 28 days", cell: (c) => <span className="tabular-nums">{c.visits}</span> },
+              ]} />
+            ) : <p className="px-3.5 py-4 text-[13.5px] text-[var(--hb-ink-3)]">No visits booked in the last 28 days.</p>}
+            <div className="border-t border-[var(--hb-line-2)] px-3.5 py-3">
+              <p className="text-[12.5px] font-semibold text-[var(--hb-ink-2)]">Away</p>
               {su.absences.length ? (
-                <ul className="space-y-2 text-[14px]">
+                <ul className="mt-1 space-y-2 text-[13px]">
                   {su.absences.map((a) => (
                     <li key={a.id} className="flex items-center justify-between gap-2">
                       <span>{a.reason.toLowerCase()} · {fmtDate(a.startsAt)}{a.endsAt ? ` to ${fmtDate(new Date(a.endsAt.getTime() - 1))}` : " onwards"}</span>
-                      {canEdit ? <form action={cancelAbsenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="absenceId" value={a.id} /><button className="btn-secondary py-0.5 text-[13px]">End now</button></form> : null}
+                      {canEdit ? <form action={cancelAbsenceAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="absenceId" value={a.id} /><button className="hb-btn">End now</button></form> : null}
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-[14px] text-slate-600">No current or planned absences.</p>}
+              ) : <p className="mt-1 text-[13px] text-[var(--hb-ink-3)]">Not away, nothing planned.</p>}
               {canEdit && su.status !== "ENDED" ? (
-                <details className="mt-3 border-t border-slate-200 pt-3">
-                <summary className="btn-secondary inline-block cursor-pointer py-1">Record an absence</summary>
-                <form action={addAbsenceAction} className="mt-3 grid grid-cols-2 gap-2">
-                  <input type="hidden" name="back" value={back} />
-                  <input type="hidden" name="serviceUserId" value={su.id} />
-                  <label className="col-span-2"><span className="label">Reason</span><select name="reason" className="input"><option value="HOSPITAL">Hospital</option><option value="RESPITE">Respite</option><option value="HOLIDAY">Holiday</option><option value="OTHER">Other</option></select></label>
-                  <label><span className="label">First day</span><input type="date" name="from" required defaultValue={today} className="input" /></label>
-                  <label><span className="label">Last day</span><input type="date" name="to" className="input" /></label>
-                  <label className="col-span-2"><span className="label">Note</span><input name="note" className="input" /></label>
-                  <button className="btn-secondary col-span-2">Record absence</button>
-                  <p className="col-span-2 text-[12.5px] text-slate-500">Built visits in the period that have not started are cancelled. No last day means until further notice.</p>
-                </form>
+                <details className="mt-2">
+                  <summary className="hb-btn cursor-pointer">Record an absence</summary>
+                  <form action={addAbsenceAction} className="mt-3 grid grid-cols-2 gap-2">
+                    <input type="hidden" name="back" value={back} />
+                    <input type="hidden" name="serviceUserId" value={su.id} />
+                    <label className="col-span-2"><span className="label">Reason</span><select name="reason" className="input"><option value="HOSPITAL">Hospital</option><option value="RESPITE">Respite</option><option value="HOLIDAY">Holiday</option><option value="OTHER">Other</option></select></label>
+                    <label><span className="label">First day</span><input type="date" name="from" required defaultValue={today} className="input" /></label>
+                    <label><span className="label">Last day</span><input type="date" name="to" className="input" /></label>
+                    <label className="col-span-2"><span className="label">Note</span><input name="note" className="input" /></label>
+                    <button className="btn-secondary col-span-2">Record absence</button>
+                    <p className="col-span-2 text-[12.5px] text-slate-500">Built visits in the period that have not started are cancelled. No last day means until further notice.</p>
+                  </form>
                 </details>
               ) : null}
-            </Card>
-            {canEdit ? (
-              <Card title="Status">
-                <form action={serviceUserStatusAction} className="space-y-2">
-                  <input type="hidden" name="back" value={back} />
-                  <input type="hidden" name="serviceUserId" value={su.id} />
-                  <label className="block"><span className="label">Move to</span><select name="to" className="input">{nextStatuses(su.status).map((s) => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}</select></label>
-                  <label className="block"><span className="label">Reason</span><input name="reason" required minLength={3} className="input" /></label>
-                  <label className="block"><span className="label">End date (when ending care)</span><input type="date" name="endDate" className="input" /></label>
-                  <button className="btn-secondary">Change status</button>
-                  <p className="text-[12.5px] text-slate-500">Ending care switches off their repeating visits and cancels future visits that have not started.</p>
-                </form>
-              </Card>
-            ) : null}
-          </div>
+            </div>
+          </HbPanel>
+          {canEdit ? (
+            <HbPanel id="status" title="Status" icon={<ArrowsClockwise size={15} weight="bold" />} colour="navy" className="hb-cl-half">
+              <form action={serviceUserStatusAction} className="grid gap-2 sm:grid-cols-2">
+                <input type="hidden" name="back" value={back} />
+                <input type="hidden" name="serviceUserId" value={su.id} />
+                <label className="block"><span className="label">Move to</span><select name="to" className="input">{nextStatuses(su.status).map((s) => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}</select></label>
+                <label className="block"><span className="label">End date (when ending care)</span><input type="date" name="endDate" className="input" /></label>
+                <label className="block sm:col-span-2"><span className="label">Reason</span><input name="reason" required minLength={3} className="input" /></label>
+                <div className="flex flex-wrap items-center gap-3 sm:col-span-2"><button className="btn-secondary">Change status</button><p className="text-[12.5px] text-slate-500">Ending care switches off their repeating visits and cancels future visits that have not started.</p></div>
+              </form>
+            </HbPanel>
+          ) : null}
         </div>
       ) : null}
-
 
       {tab === "care-plans" ? (
         <Card title="Care plans" actions={<Link href={`/rota/care-plans/${su.id}`} className="btn-primary">View or manage care plan</Link>}>
@@ -526,7 +688,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
               </ul>
             ) : <Empty>No contacts recorded.</Empty>}
             {canEdit ? (
-              <form action={addContactAction} className="mt-3 grid gap-2 border-t border-slate-200 pt-3 md:grid-cols-2">
+              <form id="add-contact" action={addContactAction} className="mt-3 grid gap-2 border-t border-slate-200 pt-3 md:grid-cols-2">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="serviceUserId" value={su.id} />
                 <ContactFields />
@@ -588,7 +750,7 @@ export default async function ServiceUserPage({ params, searchParams }: { params
 
       {tab === "documents" ? (
         <>
-          <nav aria-label="Document sections" className="mb-3 flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
+          <nav aria-label="Document sections" className="flex flex-wrap gap-1.5 border-b border-slate-200 bg-white px-3 py-2">
             {([["council", "Council Documents"], ["other", "Other Documents"], ["forms", "Forms"]] as const).map(([k, label]) => {
               const on = (sp.section === "other" || sp.section === "forms" ? sp.section : "council") === k;
               return <Link key={k} href={`${base}?tab=documents&section=${k}`} aria-current={on ? "page" : undefined} className={`rounded-full px-3 py-1 text-[13.5px] no-underline ${on ? "bg-[#1d4f91] font-medium text-white hover:text-white" : "bg-[#eef1f5] text-[#1d2939] hover:bg-[#e1e6ee]"}`}>{label}</Link>;
@@ -620,8 +782,15 @@ export default async function ServiceUserPage({ params, searchParams }: { params
           ) : <Empty>No changes recorded since this record was created.</Empty>}
         </Card>
       ) : null}
-    </>
+      </div>
+    </div>
   );
+}
+
+/** An audit entry's action as a short sentence ("serviceUser.keysafe.viewed" → "Keysafe viewed"). */
+function humanAction(action: string) {
+  const t = action.replace(/^serviceUser\./, "").replace(/[._]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Record changed";
 }
 
 type ContactRow = { kind: string; name: string; relationship: string | null; phone: string | null; altPhone: string | null; email: string | null; isEmergency: boolean; canReceiveUpdates: boolean; isPrimary: boolean; preferredContactMethod: string | null; authorityType: string | null; authorityScope: string | null };

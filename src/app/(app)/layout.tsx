@@ -7,9 +7,9 @@ import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
 import { type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { Breadcrumb, HarbourMenuProvider, IconRail, MenuButton, MenuFlyout, SearchButton, ShellSubTabs } from "@/components/harbour/shell";
-import { HarbourAccountMenu, TopBarClock, TopBarColourMode } from "@/components/harbour/account-menu";
+import { HarbourAccountMenu, TopBarClock } from "@/components/harbour/account-menu";
 import { hrItems } from "@/components/hr-nav";
-import { AppHistory, HistoryButtons } from "@/components/history-nav";
+import { AppHistory, RecentMenu } from "@/components/history-nav";
 import { MainArea } from "@/components/main-area";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
@@ -20,7 +20,6 @@ import { cookies } from "next/headers";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
-import { COORDINATOR_SLOT } from "@/lib/shell-slots";
 import { CommandBar, type CommandPage } from "@/components/command-bar";
 import { commandActions } from "@/server/search/command";
 import { coordinatorAiStatus } from "@/server/care/coordinator/agent";
@@ -167,18 +166,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <header className="hb-hd print:hidden">
               <NavigationProgress renderKey={String(Date.now())} />
               <MenuButton />
-              <div className="hidden sm:block"><HistoryButtons /></div>
               <Breadcrumb portals={portals} items={items} />
               <span className="flex-1" />
-              <SearchButton />
               <TopBarClock initial={Date.now()} />
               {org?.isDemo ? <span className="hb-demo hidden sm:inline">Demo data</span> : null}
-              {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
               <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="hb-ib">
                 <Bell size={18} aria-hidden="true" />
                 {unread ? <span className="hb-dot"><span className="sr-only">{unread} unread</span></span> : null}
               </Link>
-              <TopBarColourMode initial={colourMode} />
+              <SearchButton />
+              <div className="hidden sm:block"><RecentMenu /></div>
               <HelpMenu assistant={can.assistant} />
               <span aria-hidden="true" className="hb-hd-v hidden sm:block" />
               <HarbourAccountMenu name={ctx.userName} initials={initials} role={roleName} place={place} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />

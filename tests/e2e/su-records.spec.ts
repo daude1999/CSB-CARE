@@ -26,7 +26,8 @@ test.describe("Service user records", () => {
     await signIn(page);
     await openFirstPerson(page);
     const groups = page.getByRole("navigation", { name: "Service user sections" });
-    for (const name of ["Overview", "Personal details", "Care", "Health and safety", "Visits", "Contacts & carers", "History"]) await expect(groups.getByRole("link", { name, exact: true })).toBeVisible();
+    // Harbour record tabs (13 Nov 2026) may show a count after the label.
+    for (const name of ["Overview", "Personal details", "Care", "Health and safety", "Visits", "Contacts & carers", "History"]) await expect(groups.getByRole("link", { name: new RegExp(`^${name}\\s*\\d*$`) })).toBeVisible();
     await expect(page.getByTestId("care-at-a-glance")).toContainText("Records and compliance");
     for (const row of ["care-plan", "risks", "incidents", "notes"]) await expect(page.locator(`[data-testid=care-at-a-glance] li[data-row=${row}]`)).toBeVisible();
     await groups.getByRole("link", { name: "Care", exact: true }).click();
@@ -70,7 +71,8 @@ test.describe("Service user records", () => {
     await signIn(page);
     const base = await openFirstPerson(page);
     await page.goto(`${base}?tab=incidents`);
-    await page.getByRole("link", { name: "Report an incident" }).click();
+    // The record's context bar has the same link as an icon.
+    await page.getByRole("link", { name: "Report an incident" }).first().click();
     await page.getByLabel("Category").selectOption("Fall");
     await page.getByLabel("How serious").selectOption("LOW");
     await page.getByLabel(/What happened/).fill("Found sitting on the floor by the bed. No injury seen; helped up with the frame.");

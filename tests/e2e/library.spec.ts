@@ -18,7 +18,8 @@ test.describe("Policy Library", () => {
     await page.goto("/policies");
     await expect(page.getByRole("heading", { level: 1, name: "Policy Library" })).toBeVisible();
     const register = page.getByTestId("policy-register");
-    await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^Policies \(\d+\)$/);
+    // Harbour list panel (13 Nov 2026): titled with the category (all of them here) and its count.
+    await expect(register.getByRole("heading", { level: 2 })).toHaveText(/^All Policies \(\d+\)$/);
     await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Upload policy" })).toBeVisible();
 
@@ -46,7 +47,7 @@ test.describe("Policy Library", () => {
     // Category explorer and status filter narrow the register and agree on counts.
     await page.getByRole("navigation", { name: "Categories" }).getByRole("link", { name: /^Safeguarding/ }).first().click();
     await expect(page).toHaveURL(/area=safeguarding/);
-    const n = Number((await register.getByRole("heading", { level: 2 }).innerText()).match(/\((\d+)\)/)![1]);
+    const n = Number((await register.getByRole("heading", { level: 2 }).textContent())!.match(/\((\d+)\)/)![1]);
     expect(n).toBeGreaterThan(0);
     await page.getByLabel("Status").selectOption("current");
     await expect(page).toHaveURL(/status=current/);
@@ -167,7 +168,9 @@ test.describe("Policy Library", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/policies");
     // Ctrl+K opens the command bar since 10 Nov 2026 (tests/e2e/command-bar.spec.ts); the box is reached with Tab.
-    await page.locator("#global-search").focus();
+    // Harbour (13 Nov 2026): the top bar's search icon opens the box, focused.
+    await page.getByTestId("top-search").focus();
+    await page.keyboard.press("Enter");
     await expect(page.locator("#global-search")).toBeFocused();
     await page.keyboard.type("medicines");
     await page.keyboard.press("Enter");

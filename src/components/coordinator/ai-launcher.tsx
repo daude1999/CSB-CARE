@@ -70,9 +70,9 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
   const input = useRef<HTMLTextAreaElement>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
-  // The launcher sits in the top bar, to the left of the notifications bell (owner's colour redesign, 10 Nov 2026).
-  // The panel and its conversation live here, outside the top bar, so they survive moving between pages; only the
-  // button is drawn into the top bar's slot, which is found again whenever the page (and so the top bar) changes.
+  // The launcher is the icon rail's AI button (Harbour, 13 Nov 2026). The panel and its conversation live here, outside
+  // the rail, so they survive moving between pages; only the button is drawn into the rail's slot, which is found again
+  // whenever the page changes. Below 1024px the rail hides and the menu's own AI CSB Coordinator button opens the panel.
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => { setSlot(document.getElementById(COORDINATOR_SLOT)); }, [pathname]);
 
@@ -341,11 +341,12 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
               aria-haspopup="dialog"
               aria-expanded={open}
               aria-label="AI CSB Coordinator"
+              title="AI CSB Coordinator"
               data-testid="ai-launcher-button"
-              className="topbar-coordinator"
+              className="hb-rail-b"
             >
-              <Sparkle size={16} weight="fill" aria-hidden="true" />
-              <span className="hidden sm:inline">AI CSB Coordinator</span>
+              <span className="hb-rail-i" aria-hidden="true"><Sparkle size={20} /></span>
+              <span className="hb-rail-t" aria-hidden="true">AI</span>
             </button>,
             slot,
           )

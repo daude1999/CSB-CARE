@@ -1,5 +1,6 @@
 import Link from "@/components/link";
-import { Badge, fmtDate } from "@/components/ui";
+import { Money } from "@phosphor-icons/react/dist/ssr";
+import { fmtDate } from "@/components/ui";
 import { hoursPerWeek, type CarePackageSummary } from "@/server/care/package-view";
 
 /**
@@ -7,16 +8,19 @@ import { hoursPerWeek, type CarePackageSummary } from "@/server/care/package-vie
  * visits and stored review items. The package's requirements text is not passed in; it is shown in full on the
  * Care Package tab instead.
  */
-export function CarePackageSummaryCard({ summary, href, canEdit }: { summary: CarePackageSummary | null; href: string; canEdit: boolean }) {
+export function CarePackageSummaryCard({ summary, href, canEdit, className = "" }: { summary: CarePackageSummary | null; href: string; canEdit: boolean; className?: string }) {
   return (
-    <section aria-labelledby="pkg-summary-h" className="card" data-testid="care-package-summary">
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="pkg-summary-h" className="text-[17px]">Care package</h2>
-        {summary ? <Badge tone={summary.status === "ACTIVE" ? "green" : "slate"}>{summary.status === "ACTIVE" ? "Active" : "Ended"}</Badge> : null}
+    <section aria-labelledby="pkg-summary-h" className={`hb-pn hb-c-orange ${className}`} data-testid="care-package-summary">
+      <div className="hb-pn-h">
+        <Money size={15} weight="bold" aria-hidden="true" />
+        <h2 id="pkg-summary-h">Care package</h2>
+        <span className="hb-sp" />
+        {summary ? <span className="hb-pn-act">{summary.status === "ACTIVE" ? "Active" : "Ended"}</span> : null}
       </div>
+      <div className="hb-pn-b">
       {summary ? (
         <>
-          <p className="mt-1.5 break-words text-[15px] font-semibold text-[#1d2939]" data-testid="package-reference">
+          <p className="break-words text-[15px] font-semibold text-[#1d2939]" data-testid="package-reference">
             {summary.reference ?? <span className="font-normal text-slate-500">Reference not recorded</span>}
           </p>
           <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-3 text-[14px] min-[400px]:grid-cols-2">
@@ -59,7 +63,8 @@ export function CarePackageSummaryCard({ summary, href, canEdit }: { summary: Ca
           ) : null}
         </>
       ) : <p className="mt-2 text-[14px] text-slate-600">No active care package.</p>}
-      <Link href={href} className="btn-secondary mt-3 w-full justify-center py-1.5">{summary ? "View full package" : canEdit ? "Record a package" : "Package history"}</Link>
+      </div>
+      <div className="hb-pn-f"><Link href={href} className="hb-btn">{summary ? "View full package" : canEdit ? "Record a package" : "Package history"}</Link></div>
     </section>
   );
 }

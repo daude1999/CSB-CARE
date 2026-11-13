@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { HUB_SEARCH_EVENT, isHubPath, portalForPath, type PortalId } from "@/lib/portals";
 import { activeEntryHref, splitHref } from "@/lib/navigation";
-import { OPEN_COMMAND_EVENT, OPEN_COORDINATOR_EVENT } from "@/lib/shell-slots";
+import { COORDINATOR_SLOT, OPEN_COMMAND_EVENT, OPEN_COORDINATOR_EVENT } from "@/lib/shell-slots";
 import { usePendingHref } from "@/components/navigation-progress";
 import { groupPages, type ShellItem, type ShellOrganisation, type ShellPerson, type ShellPortal } from "@/components/portal-switcher";
 
@@ -101,11 +101,8 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
   const overview = portals.find((p) => p.id === "overview");
   return (
     <nav aria-label="Modules" className="hb-rail print:hidden" data-testid="icon-rail">
-      <Link href="/overview" className="hb-rail-logo" aria-label="CSB All in One Platform home" title="Home">
-        {/* The official CSB monogram (public/brand), never a redrawn logo. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/csb-monogram-on-dark.png" alt="" width={34} height={17} />
-      </Link>
+      {/* The ClearCare mark from the approved reference (a navy 40px square with "CC"). */}
+      <Link href="/overview" className="hb-rail-logo" aria-label="Overview" title="ClearCare home" data-testid="rail-logo">CC</Link>
       {overview ? (
         <Link href="/overview" className="hb-rail-b" data-on={on === "overview" && !menu.open ? "" : undefined} aria-current={path === "/overview" ? "page" : undefined} title="Home" onClick={() => menu.open && menu.close()}>
           <span className="hb-rail-i"><House size={20} aria-hidden="true" /></span><span className="hb-rail-t">Home</span>
@@ -149,11 +146,8 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
         <span className="hb-rail-i" aria-hidden="true"><SquaresFour size={20} /></span><span className="hb-rail-t" aria-hidden="true">All pages</span>
       </button>
       <span className="flex-1" />
-      {coordinator ? (
-        <button type="button" className="hb-rail-b" title="AI CSB Coordinator" aria-label="Open the AI CSB Coordinator" onClick={() => window.dispatchEvent(new Event(OPEN_COORDINATOR_EVENT))}>
-          <span className="hb-rail-i" aria-hidden="true"><Sparkle size={20} /></span><span className="hb-rail-t" aria-hidden="true">AI</span>
-        </button>
-      ) : null}
+      {/* The AI CSB Coordinator launcher draws its rail button here (src/components/coordinator/ai-launcher.tsx). */}
+      {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
       {settingsHref ? (
         <Link href={settingsHref} className="hb-rail-b" title="Settings" aria-label="Settings" onClick={() => menu.open && menu.close()}>
           <span className="hb-rail-i" aria-hidden="true"><GearSix size={20} /></span><span className="hb-rail-t" aria-hidden="true">Settings</span>
@@ -440,42 +434,49 @@ export function Breadcrumb({ portals, items }: Pick<HarbourShellProps, "portals"
 }
 
 /**
- * The top bar's search, as before the redesign: on HR pages it opens the HR Hub's own search; on rostering pages it
- * searches service users, team members and visit references; everywhere else the policy library. Enter submits it.
- * On a phone it opens from an icon so it never squeezes the top bar.
+ * The top bar's search icon (Harbour reference: a plain icon between the bell and Recent). It opens the existing search
+ * in a small box under the bar: on HR pages the HR Hub's own search; on rostering pages service users, team members
+ * and visit references; everywhere else the policy library. Enter submits it; Escape or a click elsewhere closes it.
  */
 export function SearchButton() {
   const path = usePathname();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); button.current?.focus(); } };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
   if (isHubPath(path)) {
-    const open = () => window.dispatchEvent(new Event(HUB_SEARCH_EVENT));
     return (
-      <>
-        <button type="button" onClick={open} className="hb-search hidden text-left sm:flex" aria-label="Search people or documents">
-          <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-[var(--hb-ink-4)]">Search people or documents…</span>
-        </button>
-        <button type="button" className="hb-ib sm:hidden" aria-label="Search people or documents" title="Search people or documents" onClick={open}>
-          <MagnifyingGlass size={18} aria-hidden="true" />
-        </button>
-      </>
+      <button type="button" className="hb-ib" aria-label="Search people or documents" title="Search people or documents" onClick={() => window.dispatchEvent(new Event(HUB_SEARCH_EVENT))}>
+        <MagnifyingGlass size={18} aria-hidden="true" />
+      </button>
     );
   }
   const rota = path === "/rota" || path.startsWith("/rota/");
   const action = rota ? "/rota/search" : "/policies";
   const label = rota ? "Search rostering" : "Search policies";
   return (
-    <>
-      <form action={action} method="get" role="search" className="hidden min-w-0 sm:block">
-        <label htmlFor="global-search" className="hb-search">
-          <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0" />
-          <span className="sr-only">{label}</span>
-          <input id="global-search" name="q" type="search" placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[var(--hb-ink)] placeholder:text-[var(--hb-ink-4)] focus:outline-none" />
-        </label>
-      </form>
-      <Link href={action} className="hb-ib sm:hidden" aria-label={label} title={label}>
+    <div ref={box} className="relative">
+      <button ref={button} type="button" className="hb-ib" aria-label={label} title={label} aria-expanded={open} aria-controls="hb-search-pop" data-testid="top-search" onClick={() => setOpen((o) => !o)}>
         <MagnifyingGlass size={18} aria-hidden="true" />
-      </Link>
-    </>
+      </button>
+      {open ? (
+        <form id="hb-search-pop" action={action} method="get" role="search" className="hb-search-pop">
+          <label htmlFor="global-search" className="hb-search">
+            <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0" />
+            <span className="sr-only">{label}</span>
+            <input id="global-search" name="q" type="search" autoFocus placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[var(--hb-ink)] placeholder:text-[var(--hb-ink-4)] focus:outline-none" />
+          </label>
+        </form>
+      ) : null}
+    </div>
   );
 }
 

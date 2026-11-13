@@ -50,7 +50,7 @@ async function slowNavigations(page: Page, ms: number) {
 
 const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
   { id: "policy", home: "/", title: /Compliance Dashboard/, colour: "rgb(46, 91, 207)" },
-  { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(15, 118, 110)" },
+  { id: "rota", home: "/rota", title: /Rota Home/, colour: "rgb(15, 118, 110)" },
   { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(14, 116, 144)" },
   { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(91, 94, 150)" },
 ];
@@ -112,7 +112,7 @@ test.describe("Portal switching", () => {
     // HR to Rostering: a fresh page without the HR sheet.
     await go(page, "Rota Home", "rota");
     await expect(page).toHaveURL(/\/rota$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(0);
     expect(await page.evaluate(() => (window as unknown as { stay?: number }).stay)).toBeUndefined();
 
@@ -120,7 +120,7 @@ test.describe("Portal switching", () => {
     await page.goBack();
     await expect(page).toHaveURL(/\/hr\/people/);
     await page.goForward();
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     await expect(page.getByTestId("nav-progress")).toHaveAttribute("data-phase", /idle|done/);
   });
 
@@ -460,11 +460,11 @@ test.describe("Loading and slow pages", () => {
     // The chosen page is shown as selected at once; assistive technology still hears about the page on screen.
     await expect(sidebar(page).locator('[data-nav-active="true"]')).toHaveText("Daily Rota");
     await expect(currentPage(page)).toHaveText("Rota Home");
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     // After a moment a placeholder in the page's shape takes over; the old page is hidden, not thrown away.
     await expect(page.getByTestId("page-skeleton")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeHidden();
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard", includeHidden: true })).toHaveCount(1);
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeHidden();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home", includeHidden: true })).toHaveCount(1);
     await expect(page.getByTestId("nav-slow")).toContainText("taking longer than usual", { timeout: 9_000 });
     await expect(page).toHaveURL(/\/rota\/visits/, { timeout: 15_000 });
     await expect(page.getByTestId("nav-slow")).toHaveCount(0);
@@ -483,7 +483,7 @@ test.describe("Loading and slow pages", () => {
     await expect(page.getByTestId("nav-slow").getByRole("button", { name: "Load it again" })).toBeVisible();
     await page.getByTestId("nav-slow").getByRole("button", { name: "Dismiss" }).click();
     await expect(page.getByTestId("nav-slow")).toHaveCount(0);
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     await expect(currentPage(page)).toHaveText("Rota Home");
   });
 
@@ -516,7 +516,7 @@ test.describe("Loading and slow pages", () => {
     await page.goto("/overview");
     await page.locator('[data-rail="rota"]').click();
     await expect(page).toHaveURL(/\/rota$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     await page.getByTestId("rota-tabs-home").getByRole("link", { name: "The Monitor" }).click();
     await expect(page).toHaveURL(/\/rota\/monitor/);
     await expect(page.locator("#main-content")).toHaveCSS("opacity", "1");

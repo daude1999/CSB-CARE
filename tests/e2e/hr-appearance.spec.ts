@@ -50,28 +50,28 @@ for (const mode of ["light", "dark"] as const) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     });
 
-    test("employee Overview: key checks never overlap and the cards follow the appearance", async ({ page }) => {
+    test("employee Overview: the checks chart never overlaps and the cards follow the appearance", async ({ page }) => {
       await signIn(page, mode);
       await page.goto("/hr/people/emp-1?branch=all");
-      const checks = page.getByTestId("key-checks").locator("li");
-      await expect(checks).toHaveCount(4);
+      // Harbour employee record (13 Nov 2026): one row per required check, with its name, a bar and its status.
+      const rows = page.getByTestId("record-checks").getByTestId("record-check");
+      await expect(rows.first()).toBeVisible();
       for (const width of [1440, 1024, 834, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        for (let i = 0; i < 4; i++) {
-          const li = await checks.nth(i).boundingBox();
-          const label = await checks.nth(i).locator("> span").nth(1).boundingBox();
-          const chip = await checks.nth(i).locator("> span").last().boundingBox();
-          expect(li && label && chip).toBeTruthy();
-          // The status sits inside its card and never covers the label.
-          expect(chip!.x + chip!.width).toBeLessThanOrEqual(li!.x + li!.width + 0.5);
-          const overlaps = chip!.x < label!.x + label!.width && chip!.y < label!.y + label!.height && chip!.y + chip!.height > label!.y;
-          expect(overlaps, `card ${i} at ${width}px`).toBe(false);
+        const n = await rows.count();
+        for (let i = 0; i < n; i++) {
+          const [name, track, status] = await Promise.all([0, 1, 2].map((k) => rows.nth(i).locator("> div").nth(k).boundingBox()));
+          expect(name && track && status).toBeTruthy();
+          // Name, bar and status sit side by side and never cover each other.
+          expect(name!.x + name!.width, `row ${i} name at ${width}px`).toBeLessThanOrEqual(track!.x + 0.5);
+          expect(track!.x + track!.width, `row ${i} status at ${width}px`).toBeLessThanOrEqual(status!.x + 0.5);
         }
+        // The chart scrolls inside its own box; the page never scrolls sideways.
         expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
       }
       await page.setViewportSize({ width: 1440, height: 900 });
-      const header = await luminance(page, ".h-prof", "backgroundColor");
-      const nameInk = await luminance(page, ".h-id h1", "color");
+      const header = await luminance(page, ".hb-pid", "backgroundColor");
+      const nameInk = await luminance(page, ".hb-pid-n", "color");
       expect(contrast(header, nameInk)).toBeGreaterThanOrEqual(4.5);
       if (mode === "dark") expect(header).toBeLessThan(0.1);
     });

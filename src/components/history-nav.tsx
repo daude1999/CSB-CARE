@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, ClockCounterClockwise } from "@phosphor-icons/react";
+import { useDismissableDetails } from "@/components/help-menu";
 import { STATE_KEY, afterPush, arrive, canBack, canForward, idxOf, parsePos, type NavPos } from "@/lib/app-history";
 
 /**
@@ -198,5 +199,24 @@ export function HistoryButtons() {
         <CaretRight size={18} weight="bold" aria-hidden="true" />
       </button>
     </nav>
+  );
+}
+
+/**
+ * "Recent" in the Harbour top bar: one clock icon (as in the approved reference) that opens Back and Forward through
+ * this tab's platform pages. The buttons and their rules are exactly those of {@link HistoryButtons}.
+ */
+export function RecentMenu() {
+  const ref = useDismissableDetails();
+  return (
+    <details ref={ref} className="relative" data-testid="recent-menu">
+      <summary aria-label="Recent pages" title="Recent pages" className="hb-ib cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <ClockCounterClockwise size={18} aria-hidden="true" />
+      </summary>
+      <div className="absolute right-0 z-40 mt-2 flex items-center gap-2 rounded-[8px] border border-[var(--hb-line)] bg-white px-2 py-1.5" style={{ boxShadow: "var(--hb-sh-menu)" }}>
+        <span className="pl-1 text-[12.5px] font-semibold text-[var(--hb-ink-3)]">Recent</span>
+        <HistoryButtons />
+      </div>
+    </details>
   );
 }

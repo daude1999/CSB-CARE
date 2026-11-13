@@ -82,7 +82,7 @@ test.describe("HR & Workforce, approved design", () => {
     await expect(page).toHaveURL(/q=Amelia/);
     await table.getByRole("button", { name: /Open Amelia Hart's record/ }).first().click();
     await expect(page).toHaveURL(/\/hr\/people\/.+returnTo=/);
-    await expect(page.getByTestId("key-checks")).toContainText("Right to work");
+    await expect(page.getByTestId("record-checks")).toContainText("Right to work");
     await page.goBack();
     await expect(page.getByRole("searchbox", { name: "Search employees" })).toHaveValue("Amelia Hart");
     // The actions menu: quick view and edit, reachable from the keyboard.

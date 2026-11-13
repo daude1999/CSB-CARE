@@ -109,7 +109,6 @@ Expect the database to reject invalid transitions, and update the triggers in a 
   - Actions & Risks: ownership, deadlines and verification.
   - Staff Sign-off: reading assignments and overdue acknowledgements.
   - Evidence Library: secure files linked to compliance records.
-- The approved Policy Library reference is `docs/design/policy-library-reference.png` (1536 × 1024). It is the visual source of truth, not just inspiration, so match its layout, proportions, type, spacing and components as closely as practical. Use real, authorised data, never the sample names in the image. Keep its craftsmanship elsewhere without copying its three-column layout. Always use the official CSB logo assets in `public/brand/` and `public/csb-logo*`, never a redrawn logo.
 - A feature is done only when it has its full workflow:
   - create, read, update and complete actions, with real persistence
   - search, filters and navigation

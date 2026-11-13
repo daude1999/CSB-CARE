@@ -54,7 +54,7 @@ export function ModuleHeader({ title, page, crumbs = [], description, actions, c
   const pageName = page ?? (typeof title === "string" ? title : undefined);
   const home = portal.id === "overview" ? null : portal;
   return (
-    <header className="mh" data-testid={testId} data-module-header={portal.id} data-variant={variant === "plain" ? "plain" : undefined}>
+    <header className="mh" data-testid={testId} data-module-header={portal.id} data-hb-module={portal.id} data-variant={variant === "plain" ? "plain" : undefined}>
       <div className="mh-band" data-testid="title-bar">
         <span className="mh-chip" aria-hidden="true">{MODULE_ICON[portal.id]({ size: 22 })}</span>
         <div className="mh-main">

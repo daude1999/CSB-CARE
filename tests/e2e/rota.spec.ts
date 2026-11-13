@@ -209,13 +209,13 @@ test.describe("Rostering & Care Management", () => {
     await expect(page.getByRole("heading", { level: 2, name: "Money this week (estimate)" })).toHaveCount(0);
   });
 
-  test("Rota Dashboard: call cards, people, reminders, issues, birthdays and quick actions, all from real records", async ({ page }) => {
+  test("Rota Home: call tiles, what needs doing, go to, people, reminders and birthdays, all from real records", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     for (const id of ["card-completed", "card-late", "card-missed"]) await expect(page.getByTestId(id)).toBeVisible();
     await expect(page.getByTestId("card-missed-meds").or(page.getByTestId("card-unassigned"))).toBeVisible();
-    for (const name of ["All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays", "Quick Actions"]) await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
+    for (const name of ["All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays", "What needs doing", "Go to"]) await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     // Percentages use the day's scheduled visits as the denominator, as the card says.
     await expect(page.getByTestId("card-completed")).toContainText(/\d+ of \d+ scheduled visits completed/);
     // No money on the operational dashboard.
@@ -229,14 +229,14 @@ test.describe("Rostering & Care Management", () => {
     await su.getByRole("link", { name: /: record$/ }).first().click();
     await expect(page).toHaveURL(/\/rota\/service-users\//);
     await page.goBack();
-    // Issue strip and quick actions open the real screens.
+    // "What needs doing" and "Go to" open the real screens.
     await expect(page.getByTestId("issue-rota")).toHaveAttribute("href", /\/rota\/visits\?.*view=review/);
     await expect(page.getByTestId("issue-template")).toHaveAttribute("href", "/rota/templates/planner");
     await expect(page.getByTestId("issue-holidays")).toHaveAttribute("href", "/workforce/absences");
-    const quick = page.getByRole("region", { name: "Quick Actions" });
-    await expect(quick.getByRole("link", { name: "Build Rota" })).toHaveAttribute("href", /\/rota\/build\?week=/);
-    await expect(quick.getByRole("link", { name: "Weekly Planner" })).toHaveAttribute("href", /\/rota\/planner\?week=/);
-    await expect(quick.getByRole("link", { name: /Exceptions/ })).toHaveAttribute("href", "/rota/exceptions");
+    const quick = page.getByRole("region", { name: "Go to" });
+    await expect(quick.getByRole("link", { name: /Build Rota/ })).toHaveAttribute("href", /\/rota\/build\?week=/);
+    await expect(quick.getByRole("link", { name: /Weekly Planner/ })).toHaveAttribute("href", /\/rota\/planner\?week=/);
+    await expect(page.getByTestId("todo-exceptions-link")).toHaveAttribute("href", "/rota/exceptions");
     // The date drives the page.
     await page.getByRole("link", { name: "Next day" }).click();
     await expect(page).toHaveURL(/date=/);
@@ -425,6 +425,7 @@ test.describe("Rostering & Care Management", () => {
   test("the top bar searches rostering on rota pages", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
+    await page.getByTestId("top-search").click();
     const search = page.getByPlaceholder("Search service users, staff, references...");
     await search.fill("V-2");
     await search.press("Enter");

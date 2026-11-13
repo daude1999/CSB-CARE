@@ -382,9 +382,9 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
 
             <aside className="reader-aside reader-noprint" aria-label="Policy management">
               <ReaderProgress />
-              <section className="reader-panel !px-2" aria-labelledby="reader-actions-title" data-testid="policy-actions">
-                <h2 id="reader-actions-title" className="reader-panel-title px-2.5">Policy Actions</h2>
-                <ul className="mt-1.5 space-y-0.5">
+              <section className="hb-pn hb-c-navy" aria-labelledby="reader-actions-title" data-testid="policy-actions">
+                <div className="hb-pn-h"><h2 id="reader-actions-title">Policy Actions</h2></div>
+                <ul className="space-y-0.5 p-1.5">
                   {ctx.organisationId ? (
                     <>
                       <li><BookmarkToggle policyId={p.id} kind="IMPORTANT" initial={marks.IMPORTANT} /></li>
@@ -404,11 +404,12 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   <li><Link className="reader-action" href={`${back}?view=history`}><ClockCounterClockwise size={18} aria-hidden="true" />View Version History</Link></li>
                 </ul>
               </section>
-              <section className="reader-panel" aria-labelledby="reader-forms-title" data-testid="linked-resources">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h2 id="reader-forms-title" className="reader-panel-title">Linked Forms &amp; Resources</h2>
-                  {forms.length ? <span className="text-[12px] text-[#667085]">{forms.length}</span> : null}
+              <section className="hb-pn hb-c-purple" aria-labelledby="reader-forms-title" data-testid="linked-resources">
+                <div className="hb-pn-h">
+                  <h2 id="reader-forms-title">Linked Forms &amp; Resources</h2>
+                  {forms.length ? <span className="hb-pn-cnt">{forms.length}</span> : null}
                 </div>
+                <div className="px-3.5 pb-3 pt-1">
                 {forms.length ? (
                   <ul className="mt-2 divide-y divide-[#f2f4f7]">
                     {forms.slice(0, 6).map((f) => (
@@ -433,6 +434,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                     <ul className="mt-1">{workflows.map((w) => <li key={w.href}><Link className="reader-action !px-1.5 !py-1.5 text-[13.5px]" href={w.href}><ClipboardText size={17} aria-hidden="true" />{w.label}</Link></li>)}</ul>
                   </div>
                 ) : null}
+                </div>
               </section>
             </aside>
           </div>

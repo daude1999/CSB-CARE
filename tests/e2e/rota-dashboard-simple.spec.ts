@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Simplified Rota Dashboard (owner's request, 1 Nov 2026): the header keeps its date controls and gains the live UK time;
- * the four call cards sit directly beneath it with no "Coming up" panel in between.
+ * Rota Home (Harbour, 13 Nov 2026; first simplified 1 Nov 2026): the header keeps its date controls and the live UK time;
+ * the four call tiles sit under it, with no "Coming up" panel.
  */
 const PASSWORD = "DemoPassword!2026";
 
@@ -33,14 +33,13 @@ test.describe("Rota Dashboard header and cards", () => {
     expect(ids.slice(0, 3)).toEqual(["card-completed", "card-late", "card-missed"]);
     expect(["card-unassigned", "card-missed-meds"]).toContain(ids[3]);
     await expect(page.getByTestId("coming-up")).toHaveCount(0);
-    // Nothing between the header and the cards except the notices that were always there (flash, week not built).
-    const gap = await page.evaluate(() => {
-      const header = document.querySelector("main .rota-home > header")!.getBoundingClientRect();
-      const cardsBox = document.querySelector('main section[aria-label="Calls on this day"]')!.getBoundingClientRect();
-      return cardsBox.top - header.bottom;
+    // Harbour Rota Home (13 Nov 2026): header, then the tip (until dismissed), then the tiles, then "What needs doing".
+    const tops = await page.evaluate(() => {
+      const top = (sel: string) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+      return { header: top("main .rota-home > header"), cards: top('main section[aria-label="Calls on this day"]'), todo: top('[data-testid="what-needs-doing"]') };
     });
-    const notice = await page.getByText(/not been built/i).count();
-    if (!notice) expect(gap).toBeLessThanOrEqual(16);
+    expect(tops.header).toBeLessThan(tops.cards);
+    expect(tops.cards).toBeLessThan(tops.todo);
   });
 
   test("previous, next, date picker, branch and Today still drive the selected date", async ({ page }) => {
