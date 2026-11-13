@@ -9,8 +9,8 @@ the owner's "merge".
 
 | Phase | Scope | Branch | State |
 |---|---|---|---|
-| 1 | Shared pieces: tokens, Figtree, sidebar, top bar, header band, sub-module buttons, buttons, inputs, panels, tables, tags | `design/clearcare-reskin-1` | Draft PR |
-| 2 | Overview, Rota Dashboard, Daily Rota | | Not started |
+| 1 | Shared pieces: tokens, Figtree, sidebar, top bar, header band, sub-module buttons, buttons, inputs, panels, tables, tags | `design/clearcare-reskin-1` | Draft PR #154 |
+| 2 | Overview, Rota Dashboard, Daily Rota | `design/clearcare-reskin-2` | Draft PR #155 |
 | 3 | Rest of Rostering & Care Management | | Not started |
 | 4 | Policy & Compliance | | Not started |
 | 5 | Reporting & Analytics, Administration & Settings, Platform Admin Centre | | Not started |
@@ -61,3 +61,14 @@ the owner's "merge".
   phase, so some panels still use the earlier greys until then.
 - The HR Hub keeps its own fonts, colours and controls until Phase 6.
 - The Platform Admin Centre has its own shell and is restyled in Phase 5.
+
+## Phase 2: what changed
+
+- **Rota Dashboard** (owner's picture, 12 Nov 2026): one band row with the title on the left and the live time, day
+  arrows, a white date pill (the date input laid over the written-out date), branch picker and Today on the right.
+  `ModuleHeader` gained optional `inline` and `icon` props.
+- **Overview**: greeting, date line and Rearrange in a blue header band; the top-bar clock shows from 1536px and the live
+  time is in the band below that.
+- **Daily Rota**: day arrows are rounded squares (`.mh-round`), as everywhere in bands.
+- Top bar: name and role (and branch) from 1280px; the organisation tile no longer overlaps the search.
+- Tests: new one-row header test in `rota-dashboard-simple.spec.ts`; Overview greeting size now 28px/700.

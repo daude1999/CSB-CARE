@@ -1,3 +1,5 @@
+import { ModuleHeader } from "@/components/module-header-band";
+import { LiveLondonTime } from "@/components/live-london-time";
 import Link from "@/components/link";
 import { db } from "@/lib/db";
 import { fmtLondonDate, londonDate, londonMinute } from "@/lib/london";
@@ -222,15 +224,14 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         <div className="mx-auto w-full max-w-[1320px] space-y-[16px]" data-testid="overview-content">
           <Flash searchParams={sp} />
           <AutoRefresh seconds={60} />
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h1>
-              <p className="mt-0.5 text-[15px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
-            </div>
-            {!arranging && ctx.organisationId && ordered.length > 1 ? (
-              <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-[14px] text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
-            ) : null}
-          </div>
+          {/* ClearCare (12 Nov 2026): the greeting sits in the Overview's own header band, as on every module page. */}
+          <ModuleHeader
+            module="overview"
+            page="Overview"
+            title={<span data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</span>}
+            description={<><span>Here is {org?.name ?? "your organisation"} today, {today}.</span> <span className="2xl:hidden">· <LiveLondonTime initial={Date.now()} testId="overview-band-time" /></span></>}
+            actions={!arranging && ctx.organisationId && ordered.length > 1 ? <a href="/overview?arrange=1" className="mh-btn" data-testid="arrange-modules">Rearrange</a> : undefined}
+          />
 
           <div className={`grid grid-cols-1 gap-[16px] [&>*]:min-w-0 ${showRota ? "min-[1100px]:grid-cols-[minmax(0,60fr)_minmax(0,40fr)]" : ""}`}>
             {rotaPortal && rota ? (

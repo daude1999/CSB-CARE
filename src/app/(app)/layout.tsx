@@ -166,13 +166,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <ShellSearch />
             <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
               {me?.branch?.name ? (
-                <span className="hidden h-[40px] items-center gap-2 rounded-[10px] border border-cc-control bg-white px-3 text-meta font-semibold text-ink 2xl:flex" title="Your branch" data-testid="topbar-branch">
+                <span className="hidden h-[40px] items-center gap-2 rounded-[10px] border border-cc-control bg-white px-3 text-meta font-semibold text-ink xl:flex" title="Your branch" data-testid="topbar-branch">
                   <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
                 </span>
               ) : null}
               {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
               {org?.isDemo ? <span className="hidden h-[28px] items-center rounded-full bg-cc-amber-bg px-3 text-caption font-semibold text-cc-amber lg:inline-flex" data-testid="demo-pill" title="This organisation holds demonstration data">Demo data</span> : null}
-              <TopbarSwitch overview={<span className="hidden lg:contents"><LondonClock initial={Date.now()} /></span>}>{null}</TopbarSwitch>
+              <TopbarSwitch overview={<span className="hidden 2xl:contents"><LondonClock initial={Date.now()} /></span>}>{null}</TopbarSwitch>
               <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-[10px] text-ink no-underline hover:bg-page hover:text-ink">
                 <Bell size={21} aria-hidden="true" />
                 {unread ? <span className="absolute right-[7px] top-[7px] h-[9px] w-[9px] rounded-full border-2 border-white bg-[#d92d20]"><span className="sr-only">{unread} unread</span></span> : null}
@@ -234,7 +234,7 @@ function SuspendedNotice({ orgName, email, phone }: { orgName: string; email: st
 function OrgTile({ name, csb }: { name: string; csb: boolean }) {
   const letters = name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   return (
-    <div className="hidden min-w-0 shrink items-center gap-2.5 sm:flex" data-testid="topbar-org">
+    <div className="hidden min-w-0 shrink items-center gap-2.5 overflow-hidden sm:flex" data-testid="topbar-org">
       <span aria-hidden="true" className="flex h-[40px] w-[52px] shrink-0 items-center justify-center rounded-[10px] bg-[#0f2a4f]">
         {csb ? <Monogram className="h-[24px]" /> : <span className="text-meta font-bold text-white">{letters}</span>}
       </span>

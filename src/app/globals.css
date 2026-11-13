@@ -665,7 +665,15 @@
 }
 @layer components {
   /* Controls a page puts in its header band's second row (the Rota's date navigation). */
-  .mh-round { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/38 bg-white/8 text-white no-underline hover:border-white hover:text-white; }
+  /* A band whose controls share the title's row (Rota Dashboard): controls on the right, wrapping under the title only
+     when the row is too narrow; the icon chip centres on the row. */
+  .mh-row-inline { @apply w-full justify-start gap-x-4 sm:ml-auto sm:w-auto sm:justify-end; }
+  .mh-band:has(> .mh-row-inline) > .mh-chip { align-self: center; }
+  .mh-square { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-white/[0.45] bg-white/10 text-white no-underline hover:border-white hover:bg-white/[0.18] hover:text-white; }
+  .mh-date-pill { @apply relative flex h-10 cursor-pointer items-center gap-2.5 whitespace-nowrap rounded-control bg-white px-4 text-body font-semibold text-ink; }
+  .mh-date-pill:focus-within { outline: 2px solid theme("colors.white"); outline-offset: 2px; }
+  .mh .mh-band .mh-date-pill .mh-date-input { @apply absolute inset-0 h-full w-full cursor-pointer border-0 p-0 opacity-0; }
+  .mh-round { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-white/[0.45] bg-white/10 text-white no-underline hover:border-white hover:text-white; }
   .mh-field { @apply h-10 rounded-[8px] border border-transparent bg-white px-3 text-body text-ink; }
   .mh-field input { @apply text-ink; }
   .mh .mh-band .mh-field input { @apply border-0 bg-transparent p-0; }

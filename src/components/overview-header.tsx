@@ -60,12 +60,12 @@ export function AccountMenu({ name, initials, role, branch, sample, mode: initia
   return (
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-[10px] py-1 pl-1 pr-1.5 hover:bg-page [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
-        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cc-primary text-meta font-semibold text-white">{initials}</span>
-        <span className="hidden min-w-0 text-left 2xl:block">
+        <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cc-primary xl:hidden text-meta font-semibold text-white">{initials}</span>
+        <span className="hidden min-w-0 text-left xl:block">
           <span className="block max-w-[180px] truncate text-body font-semibold leading-[18px] text-ink" data-testid="overview-user">{name}</span>
           <span className="block max-w-[180px] truncate text-caption leading-[15px] text-cc-muted" data-testid="overview-role">{role}</span>
         </span>
-        <CaretDown size={14} weight="bold" aria-hidden="true" className="hidden text-cc-muted 2xl:block" />
+        <CaretDown size={14} weight="bold" aria-hidden="true" className="hidden text-cc-muted xl:block" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[250px] overflow-hidden rounded-[12px] border border-cc-line bg-white py-1 text-ink shadow-lg">
         <div className="border-b border-slate-100 px-3 pb-2.5 pt-2">
