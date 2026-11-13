@@ -207,28 +207,27 @@ test.describe("Overview", () => {
     for (const id of ["hr", "admin", "reporting", "rota"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
   });
 
-  test("the header shows the CSB logo, today's London date and time, and the signed-in person, with no search box", async ({ page }) => {
+  test("the top bar shows today's London date and time on the Overview, the rail the CSB logo, and the account menu the signed-in person", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    const header = page.getByTestId("overview-header");
-    await expect(header.getByRole("img", { name: "CSB" })).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
+    // The official CSB monogram (public/brand), never a redrawn logo.
+    await expect(page.getByTestId("icon-rail").locator("img")).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);
-    const time = (await page.getByTestId("overview-time").innerText()).slice(-5);
+    const time = (await page.getByTestId("overview-time").textContent())!.slice(-5);
     const [h, m] = london({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).split(":").map(Number);
     const [sh, sm] = time.split(":").map(Number);
     expect(Math.abs((h! * 60 + m!) - (sh! * 60 + sm!)) % 1440).toBeLessThanOrEqual(1);
-    // The same signed-in person the shell names in the sidebar.
+    // The same signed-in person the top bar names.
     await expect(page.getByTestId("overview-user")).toHaveText(await page.getByTestId("current-user").innerText());
     await expect(page.getByTestId("overview-role")).not.toBeEmpty();
-    await expect(page.locator("#global-search")).toHaveCount(0);
-    // The account menu offers sign out; other pages keep the standard top bar and its search.
+    // The account menu offers sign out; other pages keep the same top bar without the clock.
     await page.getByTestId("account-menu").locator("summary").click();
     await expect(page.getByTestId("account-menu").getByRole("button", { name: "Sign out" })).toBeVisible();
     await page.goto("/policies");
-    await expect(page.getByTestId("overview-header")).toHaveCount(0);
-    await expect(page.locator("#global-search")).toBeVisible();
+    await expect(page.getByTestId("overview-clock")).toHaveCount(0);
+    await expect(page.getByTestId("account-menu")).toBeVisible();
   });
 });
 

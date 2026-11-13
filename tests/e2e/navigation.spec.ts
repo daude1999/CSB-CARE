@@ -15,9 +15,30 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Main" });
-const portal = (page: Page, id: string) => sidebar(page).locator(`[data-portal="${id}"]`);
-const currentPage = (page: Page) => sidebar(page).locator('a.shell-page[aria-current="page"]');
+/** The Harbour menu (owner's decision of 13 Nov 2026): closed by default, opened from the icon rail or, below 1024px, the top bar. */
+const menu = (page: Page) => page.getByTestId("harbour-menu");
+const sidebar = (page: Page) => menu(page).locator('nav[aria-label="Main"]');
+const portal = (page: Page, id: string) => menu(page).locator(`[data-portal="${id}"]`);
+const currentPage = (page: Page) => menu(page).locator('a.hb-ti[aria-current="page"]');
+const rail = (page: Page, id: string) => page.locator(`[data-rail="${id}"]`);
+
+/** Opens the menu (at a module's pages, or the current module's), unless it is already open. */
+async function openMenu(page: Page, id?: string) {
+  const phone = (page.viewportSize()?.width ?? 1440) < 1024;
+  const current = await page.getByTestId("main-content").getAttribute("data-module");
+  const trigger = phone ? page.getByRole("button", { name: "Open menu" }) : page.locator(`[data-rail="${id ?? (current && current !== "overview" ? current : "all")}"]`);
+  // A click that lands before the page is interactive follows the rail link instead; try again once it is.
+  await expect(async () => {
+    if ((await menu(page).getAttribute("data-open")) === null) await trigger.click();
+    await expect(menu(page)).toHaveAttribute("data-open", "", { timeout: 1_500 });
+  }).toPass({ timeout: 15_000 });
+}
+
+/** Opens the menu and follows one of its links. */
+async function go(page: Page, name: string, id?: string) {
+  await openMenu(page, id);
+  await sidebar(page).getByRole("link", { name, exact: true }).click();
+}
 
 /** Slows every client navigation (React Server Component request) by `ms`. */
 async function slowNavigations(page: Page, ms: number) {
@@ -28,31 +49,35 @@ async function slowNavigations(page: Page, ms: number) {
 }
 
 const MODULES: { id: string; home: string; title: RegExp; colour: string }[] = [
-  { id: "policy", home: "/", title: /Compliance Dashboard/, colour: "rgb(31, 95, 209)" },
-  { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(107, 70, 201)" },
-  { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(11, 111, 153)" },
-  { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(75, 86, 102)" },
+  { id: "policy", home: "/", title: /Compliance Dashboard/, colour: "rgb(46, 91, 207)" },
+  { id: "rota", home: "/rota", title: /Rota Dashboard/, colour: "rgb(15, 118, 110)" },
+  { id: "reporting", home: "/analytics", title: /Analytics/, colour: "rgb(14, 116, 144)" },
+  { id: "admin", home: "/settings", title: /^Settings$/, colour: "rgb(91, 94, 150)" },
 ];
 
 test.describe("Portal switching", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("Overview to each permitted module, in the module's colour, with its pages open in the sidebar", async ({ page }) => {
+  test("Overview to each permitted module through the rail, in the module's colour, with its pages in the menu", async ({ page }) => {
     await signIn(page);
     for (const m of MODULES) {
       await page.goto("/overview");
-      await portal(page, m.id).click();
-      // Immediate feedback: the module lights up and its pages open before the page has arrived.
-      await expect(portal(page, m.id)).toHaveClass(/shell-portal-current/);
+      await openMenu(page, m.id);
+      // The rail button opens the menu at that module's pages; its first page is the module's home.
+      await expect(rail(page, m.id)).toHaveAttribute("aria-expanded", "true");
+      const first = menu(page).locator(`#hb-tree-${m.id} a.hb-ti`).first();
+      await expect(first).toHaveAttribute("href", m.home);
+      await first.click();
       await expect(page).toHaveURL(new RegExp(`${m.home === "/" ? "/$" : m.home + "$"}`));
+      await expect(menu(page)).not.toHaveAttribute("data-open", "");
       await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(m.title);
-      await expect(portal(page, m.id)).toHaveCSS("background-color", m.colour);
+      // The rail marks the module you are in; the menu marks one page.
+      await expect(rail(page, m.id)).toHaveAttribute("data-on", "");
+      await openMenu(page);
       await expect(page.getByTestId("portal-pages")).toHaveCount(1);
-      // Once inside, the module's own name leads back to the Overview; its dashboard is the page marked current.
-      await expect(portal(page, m.id)).toHaveAttribute("href", "/overview");
-      await expect(portal(page, m.id)).not.toHaveAttribute("aria-current");
       await expect(currentPage(page)).toHaveCount(1);
-      // The content area settles on the module colour (it blends there from the previous one).
+      await page.keyboard.press("Escape");
+      // The content area settles on the module colour.
       await expect(page.getByTestId("main-content")).toHaveCSS("--module", m.colour);
     }
   });
@@ -62,29 +87,30 @@ test.describe("Portal switching", () => {
     // The Rota Dashboard, Daily Rota and Unassigned Visits use their own approved header, so read the title bar on another rota page.
     await page.goto("/rota/service-users");
     const rotaTitleFont = await page.getByTestId("title-bar").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily);
-    await portal(page, "hr").click();
+    await openMenu(page, "hr");
+    await menu(page).locator("#hb-tree-hr a.hb-ti").first().click();
     await expect(page).toHaveURL(/\/hr\/dashboard/);
-    // The same sidebar and top bar as every other module, with the HR Hub's screens in the menu. The HR overview has
+    // The same rail, menu and top bar as every other module, with the HR Hub's screens in the menu. The HR overview has
     // the approved light heading instead of a coloured title bar.
     await expect(page.getByRole("heading", { level: 1, name: "HR overview" })).toBeVisible();
-    await expect(portal(page, "hr")).toHaveClass(/shell-portal-current/);
+    await expect(rail(page, "hr")).toHaveAttribute("data-on", "");
     await expect(currentPage(page)).toHaveText("HR Dashboard");
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
     await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
     // The HR Hub's styles stop at its own root: the HR heading uses exactly the platform's typeface, as on Rostering.
-    expect(rotaTitleFont.split(",")[0]).toBe('"Inter Variable"');
-    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Inter Variable"');
+    expect(rotaTitleFont.split(",")[0]).toBe('"Instrument Sans"');
+    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Instrument Sans"');
 
     // Between HR screens the page is not reloaded.
     await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));
-    await sidebar(page).getByRole("link", { name: "People", exact: true }).click();
+    await go(page, "People");
     await expect(page).toHaveURL(/\/hr\/people/);
     await expect(page.getByTestId("hr-heading").getByRole("heading", { level: 1, name: "People" })).toBeVisible();
     await expect(currentPage(page)).toHaveText("People");
     expect(await page.evaluate(() => (window as unknown as { stay?: number }).stay)).toBe(1);
 
     // HR to Rostering: a fresh page without the HR sheet.
-    await portal(page, "rota").click();
+    await go(page, "Rota Home", "rota");
     await expect(page).toHaveURL(/\/rota$/);
     await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(0);
@@ -108,7 +134,7 @@ test.describe("Portal switching", () => {
     await dialog.getByPlaceholder("Search people, documents or actions…").fill("Amelia");
     await dialog.getByPlaceholder("Search people, documents or actions…").press("Escape");
     await expect(dialog).toHaveCount(0);
-    // Ctrl+K means the same on every page since the command bar (10 Nov 2026); the HR search stays on the top-bar box.
+    // Ctrl+K means the same on every page since the command bar (10 Nov 2026); the HR search stays on the top-bar button.
     await page.keyboard.press("Control+k");
     await expect(page.getByTestId("command-bar")).toBeVisible();
     await expect(dialog).toHaveCount(0);
@@ -121,17 +147,15 @@ test.describe("Portal switching", () => {
     await expect(page.getByRole("combobox", { name: "Branch scope" })).toHaveValue("all");
   });
 
-  test("clicking the name of the module you are in goes back to the Overview, from every module and from the HR Hub", async ({ page }) => {
+  test("Home on the rail goes back to the Overview, from every module and from the HR Hub", async ({ page }) => {
     await signIn(page);
+    const home = page.getByTestId("icon-rail").getByRole("link", { name: "Home", exact: true });
     for (const start of ["/policies", "/rota/visits", "/analytics", "/settings", "/hr/people"]) {
       await page.goto(start);
-      // The other modules' names still open those modules.
-      const others = await sidebar(page).locator('[data-portal]:not(.shell-portal-current):not([data-portal="overview"])').evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-      expect(others.length, start).toBeGreaterThan(0);
-      expect(others, start).not.toContain("/overview");
-      await sidebar(page).locator(".shell-portal-current").click();
+      await expect(home, start).not.toHaveAttribute("aria-current", "page");
+      await home.click();
       await expect(page, start).toHaveURL(/\/overview$/);
-      await expect(portal(page, "overview")).toHaveClass(/shell-portal-current/);
+      await expect(home, start).toHaveAttribute("aria-current", "page");
       await expect(portal(page, "overview")).toHaveAttribute("aria-current", "page");
     }
   });
@@ -139,8 +163,11 @@ test.describe("Portal switching", () => {
   test("people only see and reach the modules they may use", async ({ page }) => {
     await signIn(page, "carer1@care-solution.demo");
     await page.goto("/overview");
-    await expect(sidebar(page).locator("[data-portal]")).toHaveCount(2);
-    for (const id of ["rota", "hr", "reporting", "admin"]) await expect(portal(page, id)).toHaveCount(0);
+    await expect(menu(page).locator("[data-portal]")).toHaveCount(2);
+    for (const id of ["rota", "hr", "reporting", "admin"]) {
+      await expect(portal(page, id)).toHaveCount(0);
+      await expect(rail(page, id)).toHaveCount(0);
+    }
     // A typed address is checked on the server too.
     await page.goto("/settings");
     await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Settings");
@@ -149,95 +176,93 @@ test.describe("Portal switching", () => {
   });
 });
 
-test.describe("Sidebar", () => {
+test.describe("Menu", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("one active page, marked for assistive technology, with the marker on it; direct URLs, refresh, Back and Forward agree", async ({ page }) => {
+  test("one active page, marked for assistive technology; sub-tabs, direct URLs, refresh, Back and Forward agree", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota/visits");
     await expect(currentPage(page)).toHaveText("Daily Rota");
     await expect(sidebar(page).locator('[data-nav-active="true"]')).toHaveCount(1);
-    const markerOnRow = async () =>
-      sidebar(page).evaluate((nav) => {
-        const row = nav.querySelector<HTMLElement>('[data-nav-active="true"]')!;
-        const marker = nav.querySelector<HTMLElement>(".shell-marker")!;
-        const a = row.getBoundingClientRect();
-        const b = marker.getBoundingClientRect();
-        return Math.abs(a.top - b.top) < 1.5 && Math.abs(a.height - b.height) < 1.5 && getComputedStyle(marker).opacity === "1";
-      });
-    await expect.poll(markerOnRow).toBe(true);
+    await expect(page.getByTestId("breadcrumb")).toContainText("Daily Rota");
 
-    await sidebar(page).getByRole("link", { name: "The Monitor" }).click();
+    await go(page, "Rota Home");
+    await expect(page).toHaveURL(/\/rota$/);
+    await expect(currentPage(page)).toHaveText("Rota Home");
+    const tabs = page.getByTestId("rota-tabs-home");
+    await expect(tabs.getByRole("link", { name: "Today" })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: "The Monitor" }).click();
     await expect(page).toHaveURL(/\/rota\/monitor/);
-    await expect(currentPage(page)).toHaveText("The Monitor");
-    await expect.poll(markerOnRow).toBe(true);
+    await expect(currentPage(page)).toHaveText("Rota Home");
+    await expect(tabs.getByRole("link", { name: "The Monitor" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByTestId("breadcrumb")).toContainText("Rota Home · The Monitor");
 
     await page.reload();
-    await expect(currentPage(page)).toHaveText("The Monitor");
-    // The marker is placed by the browser once the page is interactive. Back pressed before that (possible only for
-    // a fraction of a second after a reload) is not seen by the router, so wait as a person effectively does.
-    await expect.poll(markerOnRow).toBe(true);
+    await expect(currentPage(page)).toHaveText("Rota Home");
+    await expect(tabs.getByRole("link", { name: "The Monitor" })).toHaveAttribute("aria-current", "page");
+    await page.goBack();
+    await expect(page).toHaveURL(/\/rota$/);
     await page.goBack();
     await expect(page).toHaveURL(/\/rota\/visits/);
     await expect(currentPage(page)).toHaveText("Daily Rota");
+    await expect(page.getByTestId("rota-tabs-home")).toHaveCount(0);
     await page.goForward();
-    await expect(currentPage(page)).toHaveText("The Monitor");
+    await expect(currentPage(page)).toHaveText("Rota Home");
   });
 
-  test("the Rota menu is eight destinations and Settings; nested pages light their destination and every old page is a tab", async ({ page }) => {
+  test("Care & Rostering is nine entries; nested pages light their entry and every grouped page is a sub-tab", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    const nav = sidebar(page);
-    const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
-    expect(labels).toEqual(["Rota Home", "Daily Rota", "Visits Needing Attention", "The Monitor", "Daily Templates", "Service Users", "Finance", "Reports", "Settings"]);
-    await expect(nav.locator("[data-nav-group], [data-nav-more]")).toHaveCount(0);
-    await expect(nav.getByText("Planned")).toHaveCount(0);
-    await expect(nav.locator("[data-nav-separated]")).toHaveText("Settings");
+    const labels = await menu(page).locator("#hb-tree-rota a.hb-ti").allTextContents();
+    expect(labels).toEqual(["Rota Home", "Daily Rota", "Needs attention", "Plan the rota", "Templates & runs", "Service users", "Carers", "Finance", "Rota Settings"]);
 
-    // Deep links light the parent destination.
+    // Deep links light the parent entry.
     for (const [href, label] of [
-      ["/rota/missed", "Visits Needing Attention"],
-      ["/rota/unassigned", "Visits Needing Attention"],
-      ["/rota/incidents", "Service Users"],
-      ["/rota/care-plans", "Service Users"],
-      ["/rota/readiness", "Daily Rota"],
-      ["/rota/staff", "Daily Rota"],
+      ["/rota/monitor", "Rota Home"],
+      ["/rota/missed", "Needs attention"],
+      ["/rota/unassigned", "Needs attention"],
+      ["/rota/exceptions", "Needs attention"],
+      ["/rota/cover", "Needs attention"],
+      ["/rota/incidents", "Service users"],
+      ["/rota/care-plans", "Service users"],
+      ["/rota/risks", "Service users"],
+      ["/rota/readiness", "Carers"],
+      ["/rota/staff", "Carers"],
       ["/rota/finance/payroll", "Finance"],
-      ["/rota/insights", "Rota Insights"],
-      ["/rota/planner", "Daily Rota"],
-      ["/rota/exceptions", "Visits Needing Attention"],
-      ["/rota/cover", "Visits Needing Attention"],
-      ["/rota/routes/templates", "Daily Templates"],
+      ["/rota/planner", "Plan the rota"],
+      ["/rota/routes", "Templates & runs"],
+      ["/rota/routes/templates", "Templates & runs"],
     ] as const) {
       await page.goto(href);
       await expect(currentPage(page), href).toHaveText(label);
     }
 
-    // Pages that were menu entries are tabs of their workspace, reachable by keyboard.
+    // Pages that were menu entries are sub-tabs of their entry, reachable by keyboard.
     await page.goto("/rota/planner");
-    const tabs = page.getByTestId("rota-tabs-daily");
-    for (const name of ["Daily Rota", "Advanced Rota", "Weekly Planner", "Build Rota", "Generate & Optimise", "Live Run Routes", "Printable Rota"]) await expect(tabs.getByRole("link", { name, exact: true })).toBeVisible();
-    await expect(tabs.getByRole("link", { name: "Weekly Planner" })).toHaveAttribute("aria-current", "page");
-    await tabs.getByRole("link", { name: "Live Run Routes" }).focus();
+    const plan = page.getByTestId("rota-tabs-plan");
+    for (const name of ["Weekly Planner", "Advanced Rota", "Build Rota", "Generate & Optimise", "Printable Rota"]) await expect(plan.getByRole("link", { name, exact: true })).toBeVisible();
+    await expect(plan.getByRole("link", { name: "Weekly Planner" })).toHaveAttribute("aria-current", "page");
+    await plan.getByRole("link", { name: "Printable Rota" }).focus();
     await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/rota\/routes$/);
-    await expect(currentPage(page)).toHaveText("Daily Rota");
+    await expect(page).toHaveURL(/\/rota\/print/);
+    await expect(currentPage(page)).toHaveText("Plan the rota");
     await page.goto("/rota/care-plans");
-    for (const name of ["All Service Users", "Care Coordinator", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
-    // Care plans and risk assessments now open inside each service user's profile.
-    await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name: "Care Plans", exact: true })).toHaveCount(0);
+    for (const name of ["All service users", "Care Coordinator", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]) await expect(page.getByTestId("rota-tabs-people").getByRole("link", { name, exact: true })).toBeVisible();
     await page.goto("/rota/finance");
-    for (const name of ["Finance Overview", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
-    // Staff administration lives in HR & Workforce; the rota keeps its operational staff pages as Daily Rota tabs.
+    for (const name of ["This week", "Invoicing", "Wages", "Timesheets", "Mileage", "Tariffs & Funders", "Bank Holidays"]) await expect(page.getByTestId("rota-tabs-finance").getByRole("link", { name, exact: true })).toBeVisible();
+    // Staff administration lives in HR & Workforce; the rota keeps its operational staff pages under Carers.
     await page.goto("/rota/staff");
-    for (const name of ["Staff & Eligibility", "Staff Readiness"]) await expect(page.getByTestId("rota-tabs-daily").getByRole("link", { name, exact: true })).toBeVisible();
-    await expect(page.getByTestId("rota-tabs-daily").getByRole("link", { name: "Staff & Eligibility" })).toHaveAttribute("aria-current", "page");
+    for (const name of ["Staff & Eligibility", "Staff Readiness"]) await expect(page.getByTestId("rota-tabs-carers").getByRole("link", { name, exact: true })).toBeVisible();
+    await expect(page.getByTestId("rota-tabs-carers").getByRole("link", { name: "Staff & Eligibility" })).toHaveAttribute("aria-current", "page");
+    // A page with one entry and no group has no sub-tabs.
+    await page.goto("/rota/visits");
+    await expect(page.locator(".hb-stabs")).toHaveCount(0);
   });
 
   test("Visits Needing Attention lists unassigned visits and missed calls in one queue, each leading into its own workflow", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    await sidebar(page).getByRole("link", { name: "Visits Needing Attention" }).click();
+    await go(page, "Needs attention");
     await expect(page.getByRole("heading", { level: 1, name: "Visits Needing Attention" })).toBeVisible();
     const queue = page.getByTestId("attention-queue");
     await expect(page.getByTestId("attention-unassigned")).toBeVisible();
@@ -249,7 +274,7 @@ test.describe("Sidebar", () => {
     await queue.getByRole("link", { name: "Open Unassigned Visits" }).click();
     await expect(page).toHaveURL(/\/rota\/unassigned\?when=week/);
     await expect(page.getByTestId("sum-visits")).toHaveText(String(unCount));
-    await expect(currentPage(page)).toHaveText("Visits Needing Attention");
+    await expect(currentPage(page)).toHaveText("Needs attention");
     await page.goBack();
     await queue.getByRole("link", { name: "Open Missed Calls" }).click();
     await expect(page).toHaveURL(/\/rota\/missed\?period=custom/);
@@ -273,7 +298,7 @@ test.describe("Sidebar", () => {
     if (mcCount > 0) {
       await queue.getByRole("link", { name: /^Investigate/ }).first().click();
       await expect(page).toHaveURL(/\/rota\/missed\/[^/?]+$/);
-      await expect(currentPage(page)).toHaveText("Visits Needing Attention");
+      await expect(currentPage(page)).toHaveText("Needs attention");
       await page.goBack();
     }
     await queue.getByRole("link", { name: "Coverage History" }).click();
@@ -283,31 +308,43 @@ test.describe("Sidebar", () => {
   test("a carer sees only their own pages, and cannot open the attention page", async ({ page }) => {
     await signIn(page, "carer@care-solution.demo");
     await page.goto("/carer");
-    const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
+    const labels = await page.getByTestId("portal-pages").locator("a.hb-ti").allTextContents();
     expect(labels).toEqual(["Incidents", "My Visits"]);
     await page.goto("/rota/attention");
     await expect(page).not.toHaveURL(/\/rota\/attention/);
   });
 
-  test("switching module folds the old pages and opens the new ones; the old list is unreachable while it folds", async ({ page }) => {
+  test("another module's rail button opens its pages; the menu closes on Escape, on the scrim and when a page is chosen", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    await portal(page, "policy").click();
-    const closing = sidebar(page).locator('.shell-section[data-state="closing"]');
-    // While it folds, the old list is inert (no focus, no clicks, hidden from assistive technology).
-    if (await closing.count()) await expect(closing).toHaveAttribute("inert", "");
-    await expect(page).toHaveURL(/\/$/);
-    await expect(closing).toHaveCount(0);
+    await openMenu(page, "policy");
     await expect(sidebar(page).getByRole("link", { name: "Policy Library" })).toBeVisible();
-    await expect(sidebar(page).getByRole("link", { name: "Daily Rota" })).toHaveCount(0);
+    await expect(menu(page).locator("#hb-tree-rota")).toHaveCount(0);
+    // Pressing the same rail button again folds the menu away.
+    await rail(page, "policy").click();
+    await expect(menu(page)).not.toHaveAttribute("data-open", "");
+    await expect(menu(page)).toHaveAttribute("inert", "");
+    await openMenu(page, "policy");
+    await page.locator(".hb-scrim").click({ position: { x: 900, y: 400 } });
+    await expect(menu(page)).not.toHaveAttribute("data-open", "");
+    await openMenu(page, "policy");
+    await page.keyboard.press("Escape");
+    await expect(menu(page)).not.toHaveAttribute("data-open", "");
+    await expect(rail(page, "policy")).toBeFocused();
+    await go(page, "Policy Library", "policy");
+    await expect(page).toHaveURL(/\/policies/);
+    await expect(menu(page)).not.toHaveAttribute("data-open", "");
   });
 
-  test("is keyboard operable with a visible focus ring, and its width never changes", async ({ page }) => {
+  test("is keyboard operable with a visible focus ring, and the rail's width never changes", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    const width = async () => (await page.locator(".shell-sidebar").first().boundingBox())!.width;
-    const before = await width();
-    const link = sidebar(page).getByRole("link", { name: "Daily Rota" });
+    const width = async () => (await page.getByTestId("icon-rail").boundingBox())!.width;
+    expect(await width()).toBe(76);
+    await rail(page, "rota").focus();
+    await page.keyboard.press("Enter");
+    await expect(menu(page)).toHaveAttribute("data-open", "");
+    const link = sidebar(page).getByRole("link", { name: "Daily Rota", exact: true });
     await link.focus();
     await page.keyboard.press("Tab");
     await page.keyboard.press("Shift+Tab");
@@ -315,9 +352,9 @@ test.describe("Sidebar", () => {
     expect(await link.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/rota\/visits/);
-    await portal(page, "reporting").click();
+    await go(page, "Analytics", "reporting");
     await expect(page).toHaveURL(/\/analytics/);
-    expect(await width()).toBe(before);
+    expect(await width()).toBe(76);
   });
 });
 
@@ -327,8 +364,8 @@ test.describe("Page transitions", () => {
   test("only the content area animates, on a new page but not on a filter or tab change, and the shell is never remounted", async ({ page }) => {
     await signIn(page);
     await page.goto("/policies");
-    // Something typed in the shell (the search box) survives every navigation, because the shell is never remounted.
-    await page.locator("#global-search").fill("safeguarding");
+    // The shell is never remounted: a mark left on the top bar survives every navigation.
+    await page.locator("header.hb-hd").evaluate((el) => ((el as HTMLElement & { _mark?: boolean })._mark = true));
     await page.evaluate(() => ((document.getElementById("main-content") as HTMLElement & { _mark?: boolean })._mark = true));
 
     // A query-string change (a library tab): no entrance, no skeleton, same content element.
@@ -356,14 +393,15 @@ test.describe("Page transitions", () => {
     await expect(page).toHaveURL(/tab=/);
     expect(await seen).toEqual({ animated: false, skeleton: false });
 
-    // A new page: the content area fades up; the sidebar and top bar do not move.
+    // A new page: the content area fades up; the rail and top bar do not move.
+    await openMenu(page);
     seen = watch();
     await sidebar(page).getByRole("link", { name: "Regulatory Monitoring" }).click();
     await expect(page).toHaveURL(/\/changes/);
     expect((await seen).animated).toBe(true);
     expect(await page.evaluate(() => (document.getElementById("main-content") as HTMLElement & { _mark?: boolean })._mark)).toBe(true);
-    await expect(page.locator("#global-search")).toHaveValue("safeguarding");
-    expect(await page.locator("header.shell-topbar").evaluate((el) => el.getAnimations().length)).toBe(0);
+    expect(await page.locator("header.hb-hd").evaluate((el) => (el as HTMLElement & { _mark?: boolean })._mark)).toBe(true);
+    expect(await page.locator("header.hb-hd").evaluate((el) => el.getAnimations().length)).toBe(0);
     // The page's heading is there for screen readers, and the new page is announced by the router.
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   });
@@ -371,6 +409,7 @@ test.describe("Page transitions", () => {
   test("large rota registers are not animated row by row", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
+    await openMenu(page);
     const counts = page.evaluate(
       () =>
         new Promise<{ most: number; inRegister: number }>((resolve) => {
@@ -388,13 +427,14 @@ test.describe("Page transitions", () => {
           }, 1500);
         }),
     );
-    await sidebar(page).getByRole("link", { name: "Daily Rota" }).click();
+    await sidebar(page).getByRole("link", { name: "Daily Rota", exact: true }).click();
     await expect(page.locator("main table").first()).toBeVisible();
-    // Nothing inside the register animates; the few that run (page entrance, sidebar marker, progress bar,
-    // module colour) are on the frame, however many visits are on the page.
+    // Nothing inside the register animates; the few that run are on the frame, however many visits are on the page:
+    // the page entrance, progress bar and module colour, the menu folding away, and Harbour's panel entrance (pnIn,
+    // one per panel, at most eight staggered).
     const { most, inRegister } = await counts;
     expect(inRegister).toBe(0);
-    expect(most).toBeLessThanOrEqual(8);
+    expect(most).toBeLessThanOrEqual(14);
     const shift = await page.evaluate(
       () =>
         new Promise<number>((resolve) => {
@@ -415,7 +455,7 @@ test.describe("Loading and slow pages", () => {
     await signIn(page);
     await page.goto("/rota");
     await slowNavigations(page, 7_500);
-    await sidebar(page).getByRole("link", { name: "Daily Rota" }).click();
+    await go(page, "Daily Rota");
     await expect(page.getByTestId("nav-progress")).toHaveAttribute("data-phase", "loading");
     // The chosen page is shown as selected at once; assistive technology still hears about the page on screen.
     await expect(sidebar(page).locator('[data-nav-active="true"]')).toHaveText("Daily Rota");
@@ -438,7 +478,7 @@ test.describe("Loading and slow pages", () => {
     await signIn(page);
     await page.goto("/rota");
     await slowNavigations(page, 40_000);
-    await sidebar(page).getByRole("link", { name: "The Monitor" }).click();
+    await page.getByTestId("rota-tabs-home").getByRole("link", { name: "The Monitor" }).click();
     await expect(page.getByTestId("nav-slow")).toContainText("not responding", { timeout: 25_000 });
     await expect(page.getByTestId("nav-slow").getByRole("button", { name: "Load it again" })).toBeVisible();
     await page.getByTestId("nav-slow").getByRole("button", { name: "Dismiss" }).click();
@@ -472,10 +512,13 @@ test.describe("Loading and slow pages", () => {
     await signedIn.close();
     const ctx = await browser.newContext({ storageState: state, javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.goto("/rota");
-    await sidebar(page).getByRole("link", { name: "Daily Rota" }).click();
-    await expect(page).toHaveURL(/\/rota\/visits/);
-    await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
+    // The rail's module buttons are links to the module's home, and sub-tabs are plain links.
+    await page.goto("/overview");
+    await page.locator('[data-rail="rota"]').click();
+    await expect(page).toHaveURL(/\/rota$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await page.getByTestId("rota-tabs-home").getByRole("link", { name: "The Monitor" }).click();
+    await expect(page).toHaveURL(/\/rota\/monitor/);
     await expect(page.locator("#main-content")).toHaveCSS("opacity", "1");
     await ctx.close();
   });
@@ -504,23 +547,28 @@ test.describe("Dialogs and the phone menu", () => {
     await page.goto("/rota");
     const open = page.getByRole("button", { name: "Open menu" });
     await open.click();
-    const menu = page.getByRole("dialog", { name: "Menu" });
-    await expect(menu).toBeVisible();
+    const drawer = page.getByRole("dialog", { name: "Menu" });
+    await expect(drawer).toBeVisible();
     await expect(page.getByRole("button", { name: "Close menu" })).toBeFocused();
+    // Tabbing round the menu never leaves it.
+    for (const key of ["Shift+Tab", "Tab", "Tab"]) {
+      await page.keyboard.press(key);
+      expect(await page.evaluate(() => Boolean(document.activeElement?.closest("#hb-menu")))).toBe(true);
+    }
     await page.keyboard.press("Escape");
-    await expect(menu).toBeHidden();
+    await expect(drawer).toBeHidden();
     await expect(open).toBeFocused();
 
     await open.click();
-    await menu.getByRole("link", { name: "Daily Rota" }).click();
-    await expect(menu).toBeHidden();
+    await drawer.getByRole("link", { name: "Daily Rota", exact: true }).click();
+    await expect(drawer).toBeHidden();
     await expect(page).toHaveURL(/\/rota\/visits/);
     await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
 
-    // The module's name in the menu goes back to the Overview on a phone too.
+    // The Overview is at the top of the menu on a phone too.
     await open.click();
-    await menu.getByRole("link", { name: /Rostering & Care Management, back to Overview/ }).click();
-    await expect(menu).toBeHidden();
+    await drawer.getByRole("link", { name: "Overview", exact: true }).click();
+    await expect(drawer).toBeHidden();
     await expect(page).toHaveURL(/\/overview$/);
   });
 });
@@ -543,10 +591,10 @@ test.describe("Reduced motion", () => {
           }, 1200);
         }),
     );
-    await sidebar(page).getByRole("link", { name: "Daily Rota" }).click();
+    await go(page, "Daily Rota");
     await expect(page.getByRole("heading", { level: 1, name: "Daily Rota" })).toBeVisible();
     expect(await anyMoving).toBe(false);
-    const duration = await portal(page, "rota").evaluate((el) => getComputedStyle(el).transitionDuration);
+    const duration = await menu(page).evaluate((el) => getComputedStyle(el).transitionDuration);
     expect(duration.split(",").every((d) => parseFloat(d) <= 0.001)).toBe(true);
     await expect(currentPage(page)).toHaveText("Daily Rota");
   });

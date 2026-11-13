@@ -10,7 +10,7 @@ import { HUB_SEARCH_EVENT, isHubPath, portalForPath, type PortalId } from "@/lib
 import { activeEntryHref, splitHref } from "@/lib/navigation";
 import { OPEN_COMMAND_EVENT, OPEN_COORDINATOR_EVENT } from "@/lib/shell-slots";
 import { usePendingHref } from "@/components/navigation-progress";
-import type { ShellItem, ShellOrganisation, ShellPerson, ShellPortal } from "@/components/portal-switcher";
+import { groupPages, type ShellItem, type ShellOrganisation, type ShellPerson, type ShellPortal } from "@/components/portal-switcher";
 
 /**
  * The Harbour application shell (docs/design/harbour, owner's decision of 13 Nov 2026): a 76px icon rail, the full
@@ -115,9 +115,35 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
         <span className="hb-rail-i"><Bell size={20} aria-hidden="true" />{unread ? <i className="hb-rail-bd" aria-hidden="true">{unread > 99 ? "99+" : unread}</i> : null}</span><span className="hb-rail-t" aria-hidden="true">Alerts</span>
       </Link>
       {RAIL.filter((r) => has.has(r.id)).map((r) => (
-        <button key={r.id} type="button" className="hb-rail-b" data-on={on === r.id ? "" : undefined} aria-expanded={menu.open && menu.expanded === r.id} aria-controls="hb-menu" title={MODULE_NAME[r.id]} aria-label={`${MODULE_NAME[r.id]} menu`} data-rail={r.id} onClick={(e) => menu.show(r.id, e.currentTarget)}>
+        // A link to the module's home, so the rail still navigates with scripts switched off; with scripts it opens
+        // the menu at that module's pages instead (a modified click still opens the home page in a new tab).
+        <a
+          key={r.id}
+          href={portals.find((p) => p.id === r.id)!.home}
+          role="button"
+          className="hb-rail-b"
+          data-on={on === r.id ? "" : undefined}
+          aria-expanded={menu.open && menu.expanded === r.id}
+          aria-controls="hb-menu"
+          title={MODULE_NAME[r.id]}
+          aria-label={`${MODULE_NAME[r.id]} menu`}
+          data-rail={r.id}
+          // With scripts on, the click opens the menu rather than the page, so the page-loading signal must not start.
+          data-no-progress=""
+          onKeyDown={(e) => {
+            if (e.key === " ") {
+              e.preventDefault();
+              menu.show(r.id, e.currentTarget);
+            }
+          }}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+            e.preventDefault();
+            menu.show(r.id, e.currentTarget);
+          }}
+        >
           <span className="hb-rail-i" aria-hidden="true">{r.icon}</span><span className="hb-rail-t" aria-hidden="true">{r.label}</span>
-        </button>
+        </a>
       ))}
       <button type="button" className="hb-rail-b" data-on={on === "all" ? "" : undefined} aria-expanded={menu.open && menu.expanded === "all"} aria-controls="hb-menu" title="All pages" aria-label="All pages" data-rail="all" onClick={(e) => menu.show("all", e.currentTarget)}>
         <span className="hb-rail-i" aria-hidden="true"><SquaresFour size={20} /></span><span className="hb-rail-t" aria-hidden="true">All pages</span>
@@ -176,6 +202,23 @@ export function MenuFlyout(props: HarbourShellProps) {
       if (e.key === "Escape") {
         e.stopPropagation();
         close();
+        return;
+      }
+      // Focus stays inside the open menu, as in any dialog.
+      if (e.key !== "Tab" || !panel.current) return;
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), summary, select, input")].filter((el) => el.offsetParent !== null || el === document.activeElement);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (!panel.current.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -190,8 +233,9 @@ export function MenuFlyout(props: HarbourShellProps) {
   const overview = portals.find((p) => p.id === "overview");
   return (
     <>
-      <button type="button" className="hb-scrim print:hidden" data-open={open ? "" : undefined} aria-label="Close menu" tabIndex={-1} onClick={close} />
-      <aside ref={panel} id="hb-menu" className="hb-fly print:hidden" data-open={open ? "" : undefined} aria-label="Menu" inert={!open} data-testid="harbour-menu">
+      {/* Clicking outside closes the menu; keyboard users have Escape and the menu's own Close button. */}
+      <div className="hb-scrim print:hidden" data-open={open ? "" : undefined} aria-hidden="true" onClick={close} />
+      <aside ref={panel} id="hb-menu" className="hb-fly print:hidden" data-open={open ? "" : undefined} role={open ? "dialog" : undefined} aria-modal={open ? "true" : undefined} aria-label="Menu" inert={!open} data-testid="harbour-menu">
         <div className="hb-fly-top">
           <div className="flex items-start gap-1">
             {org ? <OrgSwitcher org={org} switchAction={switchAction} /> : <p className="hb-org"><span className="hb-org-t">CSB</span><span className="min-w-0"><b>CSB platform</b><small>Administration</small></span></p>}
@@ -226,13 +270,13 @@ export function MenuFlyout(props: HarbourShellProps) {
                     <Link href={p.home} className="sr-only focus:not-sr-only focus:rounded-[6px] focus:px-2 focus:text-[12px]" data-portal-home="" data-portal={p.id}>Open {MODULE_NAME[p.id]} home</Link>
                   </div>
                   {expanded ? (
-                    <ul id={treeId} className="hb-tree" data-testid={p.id === currentPortal ? "portal-pages" : undefined}>
-                      {pages.length ? pages.map((i) => (
-                        <TreeItem key={i.href} item={i} on={i.href === active.href} shown={i.href === activeEntryHref(active.entries, active.shownPath, new URLSearchParams())} />
-                      )) : (
+                    pages.length ? (
+                      <PageTree id={treeId} testId={p.id === currentPortal ? "portal-pages" : undefined} pages={items[p.id] ?? []} activeHref={active.href} shownHref={activeEntryHref(active.entries, active.shownPath, new URLSearchParams())} />
+                    ) : (
+                      <ul id={treeId} className="hb-tree" data-testid={p.id === currentPortal ? "portal-pages" : undefined}>
                         <li><Link href={p.home} className="hb-ti" data-on={active.path === p.home ? "" : undefined}>{MODULE_NAME[p.id]} home</Link></li>
-                      )}
-                    </ul>
+                      </ul>
+                    )
                   ) : null}
                 </li>
               );
@@ -258,17 +302,81 @@ export function MenuFlyout(props: HarbourShellProps) {
   );
 }
 
-function TreeItem({ item, on, shown }: { item: ShellItem; on: boolean; shown: boolean }) {
-  return (
-    <>
-      {item.group ? <li className="hb-tg" aria-hidden="true">{item.group}</li> : null}
-      <li>
-        <Link href={item.href} className="hb-ti" data-on={on ? "" : undefined} data-nav-active={on ? "true" : undefined} aria-current={shown ? "page" : undefined} title={item.label}>
-          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{item.icon}</span>
-          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+const hasPage = (rows: ShellItem[], href?: string) => Boolean(href) && rows.some((r) => !r.planned && r.href === href);
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/**
+ * One module's pages in the menu, keeping the page list's existing behaviour: group headings, groups that fold
+ * (opening on their own pages), a folded "More" list, planned pages labelled as not built yet, and a separated foot entry.
+ */
+function PageTree({ id, testId, pages, activeHref, shownHref }: { id: string; testId?: string; pages: ShellItem[]; activeHref?: string; shownHref?: string }) {
+  const groups = groupPages(pages);
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const isOpen = (key: string, byDefault: boolean, holdsActive: boolean) => toggled[key] ?? (byDefault || holdsActive);
+  const flip = (key: string, now: boolean) => setToggled((t) => ({ ...t, [key]: !now }));
+
+  const item = (i: ShellItem) => {
+    if (i.planned)
+      return (
+        <li key={i.label}>
+          <span className="hb-ti cursor-default opacity-60" title={`${i.label}: planned, not built yet`}>
+            <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+            <span className="min-w-0 flex-1 truncate">{i.label}</span><small className="text-[11px]">Planned</small>
+          </span>
+        </li>
+      );
+    const on = i.href === activeHref;
+    return (
+      <li key={i.href} className={i.separated ? "mt-1.5 border-t border-[var(--hb-line)] pt-1.5" : undefined} data-nav-separated={i.separated ? "" : undefined}>
+        <Link href={i.href} className="hb-ti" data-on={on ? "" : undefined} data-nav-active={on ? "true" : undefined} aria-current={i.href === shownHref ? "page" : undefined} title={i.label}>
+          <span aria-hidden="true" className="flex w-[14px] shrink-0 justify-center">{i.icon}</span>
+          <span className={i.wrap ? "min-w-0 flex-1 leading-[15px]" : "min-w-0 flex-1 truncate"}>{i.label}</span>
         </Link>
       </li>
-    </>
+    );
+  };
+  const more = (group: string, m: { name: string; rows: ShellItem[] }) => {
+    const key = `${group}/more`;
+    const open = isOpen(key, false, hasPage(m.rows, activeHref));
+    const listId = `${id}-more-${slug(group)}`;
+    return (
+      <li key={key}>
+        <button type="button" className="hb-ti w-full italic" aria-expanded={open} aria-controls={listId} data-nav-more={m.name} onClick={() => flip(key, open)}>
+          {open ? <CaretDown size={12} aria-hidden="true" className="w-[14px] shrink-0" /> : <CaretRight size={12} aria-hidden="true" className="w-[14px] shrink-0" />}
+          <span className="min-w-0 flex-1 truncate">{m.name} ({m.rows.length})</span>
+        </button>
+        <ul id={listId} hidden={!open}>{m.rows.map(item)}</ul>
+      </li>
+    );
+  };
+
+  return (
+    <ul id={id} className="hb-tree" data-testid={testId}>
+      {groups.map((g, n) => {
+        if (!g.fold) {
+          return [
+            g.name ? <li key={`g-${g.name}`} className="hb-tg" aria-hidden="true">{g.name}</li> : null,
+            ...g.rows.map(item),
+            g.more && g.more.rows.length ? more(g.name ?? `group-${n}`, g.more) : null,
+          ];
+        }
+        const name = g.name ?? `group-${n}`;
+        const open = isOpen(name, g.fold === "open", hasPage([...g.rows, ...(g.more?.rows ?? [])], activeHref));
+        const listId = `${id}-group-${slug(name)}`;
+        return (
+          <li key={`g-${name}`}>
+            <button type="button" className="hb-tg flex w-full items-center text-left" aria-expanded={open} aria-controls={listId} data-nav-group={name} onClick={() => flip(name, open)}>
+              <span className="min-w-0 flex-1 truncate">{g.name}</span>
+              {open ? <CaretDown size={11} aria-hidden="true" /> : <CaretRight size={11} aria-hidden="true" />}
+            </button>
+            <ul id={listId} hidden={!open}>
+              {g.rows.map(item)}
+              {g.more && g.more.rows.length ? more(name, g.more) : null}
+            </ul>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -307,6 +415,14 @@ export function Breadcrumb({ portals, items }: Pick<HarbourShellProps, "portals"
   const tab = entry?.tabs ? activeEntryHref(entry.tabs, active.path, active.params) : undefined;
   const tabLabel = tab ? entry!.tabs!.find((t) => t.href === tab)?.label : undefined;
   const page = entry ? (tabLabel && tabLabel !== entry.label ? `${entry.label} · ${tabLabel}` : entry.label) : null;
+  // The Overview's page heading is the company name in the top bar, as it was in the Overview's own header.
+  if (id === "overview" && active.shownPath === "/overview")
+    return (
+      <div className="hb-crumbs" data-testid="breadcrumb">
+        {portal ? <span className="hb-mt" style={{ "--mc": portal.colour } as React.CSSProperties} aria-hidden="true">{portal.icon}</span> : null}
+        <h1 className="truncate text-[14px] font-semibold text-[var(--hb-ink)] max-sm:sr-only">Care Solution Bureau CIC</h1>
+      </div>
+    );
   return (
     <div className="hb-crumbs" data-testid="breadcrumb">
       {portal ? <span className="hb-mt" style={{ "--mc": portal.colour } as React.CSSProperties} aria-hidden="true">{portal.icon}</span> : null}
@@ -323,22 +439,43 @@ export function Breadcrumb({ portals, items }: Pick<HarbourShellProps, "portals"
   );
 }
 
-/** The top bar's search button: the HR Hub's own search on HR pages; rostering search on rota pages; the policy library elsewhere. */
+/**
+ * The top bar's search, as before the redesign: on HR pages it opens the HR Hub's own search; on rostering pages it
+ * searches service users, team members and visit references; everywhere else the policy library. Enter submits it.
+ * On a phone it opens from an icon so it never squeezes the top bar.
+ */
 export function SearchButton() {
   const path = usePathname();
   if (isHubPath(path)) {
+    const open = () => window.dispatchEvent(new Event(HUB_SEARCH_EVENT));
     return (
-      <button type="button" className="hb-ib" aria-label="Search people or documents" title="Search people or documents" onClick={() => window.dispatchEvent(new Event(HUB_SEARCH_EVENT))}>
-        <MagnifyingGlass size={18} aria-hidden="true" />
-      </button>
+      <>
+        <button type="button" onClick={open} className="hb-search hidden text-left sm:flex" aria-label="Search people or documents">
+          <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-[var(--hb-ink-4)]">Search people or documents…</span>
+        </button>
+        <button type="button" className="hb-ib sm:hidden" aria-label="Search people or documents" title="Search people or documents" onClick={open}>
+          <MagnifyingGlass size={18} aria-hidden="true" />
+        </button>
+      </>
     );
   }
   const rota = path === "/rota" || path.startsWith("/rota/");
+  const action = rota ? "/rota/search" : "/policies";
   const label = rota ? "Search rostering" : "Search policies";
   return (
-    <Link href={rota ? "/rota/search" : "/policies"} className="hb-ib" aria-label={label} title={label}>
-      <MagnifyingGlass size={18} aria-hidden="true" />
-    </Link>
+    <>
+      <form action={action} method="get" role="search" className="hidden min-w-0 sm:block">
+        <label htmlFor="global-search" className="hb-search">
+          <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0" />
+          <span className="sr-only">{label}</span>
+          <input id="global-search" name="q" type="search" placeholder={rota ? "Search service users, staff, references..." : "Search policies, categories, keywords…"} className="h-full min-w-0 flex-1 bg-transparent text-[var(--hb-ink)] placeholder:text-[var(--hb-ink-4)] focus:outline-none" />
+        </label>
+      </form>
+      <Link href={action} className="hb-ib sm:hidden" aria-label={label} title={label}>
+        <MagnifyingGlass size={18} aria-hidden="true" />
+      </Link>
+    </>
   );
 }
 

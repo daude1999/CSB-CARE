@@ -1,3 +1,4 @@
+import { openMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -65,6 +66,8 @@ test("every module's main screen fits desktop, tablet and phone", async ({ page 
 test("the main menu and portal switcher work from the keyboard", async ({ page }) => {
   await signIn(page, "manager");
   await page.goto("/rota");
+  // Harbour: the menu opens from the icon rail; its first link is the Overview.
+  await openMenu(page, "rota");
   const first = page.locator('aside nav[aria-label="Main"] a').first();
   await first.focus();
   await expect(first).toBeFocused();

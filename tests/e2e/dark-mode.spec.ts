@@ -74,11 +74,12 @@ test.describe("Dark and light appearance", () => {
 
   test("the header band's main action stays a white button with readable text in the dark", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "csb-mode", value: "dark", url: baseURL! }]);
-    await signIn(page);
-    await page.goto("/rota/visits");
+    await signIn(page, "manager@care-solution.demo");
+    // Daily Rota has a plain header under Harbour (13 Nov 2026), so read a page that keeps the coloured band.
+    await page.goto("/");
     expect(await mode(page)).toBe("dark");
-    // The current view (Board) is the band's main action: white, with the module colour as its text.
-    const current = page.locator('.mh-band nav[aria-label="Rota view"] [aria-current="page"]');
+    // Create policy is the band's main action: white, with the module colour as its text.
+    const current = page.getByTestId("title-bar").getByRole("link", { name: "Create policy" });
     await expect(current).toHaveCSS("background-color", "rgb(255, 255, 255)");
     const text = await current.evaluate((el) => getComputedStyle(el).color);
     const moduleColour = await page.locator("main").evaluate((el) => getComputedStyle(el).getPropertyValue("--module").trim());

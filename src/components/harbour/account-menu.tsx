@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SignOut } from "@phosphor-icons/react";
 import { useDismissableDetails } from "@/components/help-menu";
-import { ColourModeOptions, useColourMode } from "@/components/colour-mode-menu";
+import { ColourModeMenu, ColourModeOptions, useColourMode } from "@/components/colour-mode-menu";
 import { londonClock } from "@/lib/london";
 import type { ColourMode } from "@/lib/colour-mode";
 
@@ -23,6 +23,8 @@ export function HarbourAccountMenu({ name, initials, role, place, sample, mode: 
 }) {
   const ref = useDismissableDetails();
   const [mode, changeMode] = useColourMode(initialMode);
+  // As before: the Overview offers the appearance choice here; every other page has it on the top bar's own button.
+  const overview = usePathname() === "/overview";
   return (
     <details ref={ref} className="relative" data-testid="account-menu">
       <summary className="hb-hd-me cursor-pointer list-none [&::-webkit-details-marker]:hidden" aria-label={`Account: ${name}, ${role}`}>
@@ -39,10 +41,12 @@ export function HarbourAccountMenu({ name, initials, role, place, sample, mode: 
           <p className="mt-1 truncate text-[12.5px] text-[var(--hb-ink-3)]">{place}</p>
           {sample ? <p className="mt-1.5 w-fit rounded-[3px] border border-dashed border-slate-400 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.08em] text-slate-600">Sample workspace</p> : null}
         </div>
-        <div className="border-b border-[var(--hb-line-2)] py-1">
-          <p className="px-3 pb-1 pt-1.5 text-[11.5px] font-semibold text-[var(--hb-ink-3)]">Appearance</p>
-          <ColourModeOptions mode={mode} onChange={changeMode} />
-        </div>
+        {overview ? (
+          <div className="border-b border-[var(--hb-line-2)] py-1">
+            <p className="px-3 pb-1 pt-1.5 text-[11.5px] font-semibold text-[var(--hb-ink-3)]">Appearance</p>
+            <ColourModeOptions mode={mode} onChange={changeMode} />
+          </div>
+        ) : null}
         <form action={signOutAction}>
           <button type="submit" className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[14px] hover:bg-[var(--hb-sunken)]">
             <SignOut size={18} aria-hidden="true" className="text-[var(--hb-ink-3)]" />Sign out
@@ -70,7 +74,14 @@ export function TopBarClock({ initial }: { initial: number }) {
     <span className="hb-clock hidden md:inline" data-testid="overview-clock">
       <time dateTime={iso.slice(0, 10)} data-testid="overview-date">{date}</time>
       <span aria-hidden="true"> · </span>
-      <time dateTime={iso}><span className="sr-only">UK time </span>{time}</time>
+      <time dateTime={iso} data-testid="overview-time"><span className="sr-only">UK time </span>{time}</time>
     </span>
   );
+}
+
+/** The top bar's light / dark button, on every page except the Overview (where the account menu offers it). */
+export function TopBarColourMode({ initial }: { initial: ColourMode }) {
+  const path = usePathname();
+  if (path === "/overview") return null;
+  return <ColourModeMenu initial={initial} />;
 }

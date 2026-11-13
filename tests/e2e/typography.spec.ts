@@ -1,9 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * One typeface across the platform: every module's headings, body text, tables, buttons, form controls, sidebar and
- * panels render in Inter Variable (owner's request, 1 Nov 2026). Checks computed styles in the browser, not pixels.
+ * One interface typeface across the platform: every module's headings, body text, tables, buttons, form controls, menu
+ * and panels render in Instrument Sans (Harbour, owner's decision of 13 Nov 2026; Inter Variable before). References in
+ * code and keyboard hints may use the Harbour mono face. Checks computed styles in the browser, not pixels.
  */
+const FACE = "Instrument Sans";
 const PASSWORD = "DemoPassword!2026";
 
 async function signIn(page: Page) {
@@ -31,26 +33,26 @@ const PAGES = [
   "/settings",
 ];
 
-test("every module renders its text in Inter Variable", async ({ page }) => {
+test("every module renders its text in Instrument Sans", async ({ page }) => {
   test.setTimeout(240_000);
   await page.setViewportSize({ width: 1672, height: 941 });
   await signIn(page);
   for (const path of PAGES) {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
-    const offenders = await page.evaluate(async () => {
+    const offenders = await page.evaluate(async (face) => {
       await document.fonts.ready;
       const found = new Set<string>();
       for (const el of document.querySelectorAll<HTMLElement>("body *")) {
         const ownText = [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
         if (!ownText && !el.matches("input, select, textarea, button")) continue;
-        if (!el.getClientRects().length || el.closest("canvas, svg, .textLayer")) continue;
+        if (!el.getClientRects().length || el.closest("canvas, svg, .textLayer, code, kbd, pre")) continue;
         const first = getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
-        if (first !== "Inter Variable") found.add(`${el.tagName.toLowerCase()}: ${first}`);
+        if (first !== face) found.add(`${el.tagName.toLowerCase()}: ${first}`);
       }
       return [...found];
-    });
-    expect(offenders, `fonts other than Inter Variable on ${path}`).toEqual([]);
-    expect(await page.evaluate(() => document.fonts.check('16px "Inter Variable"')), `Inter Variable loaded on ${path}`).toBe(true);
+    }, FACE);
+    expect(offenders, `fonts other than ${FACE} on ${path}`).toEqual([]);
+    expect(await page.evaluate(() => document.fonts.check('16px "Instrument Sans"')), `${FACE} loaded on ${path}`).toBe(true);
   }
 });

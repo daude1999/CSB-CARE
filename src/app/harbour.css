@@ -227,3 +227,17 @@
 .hb-hd .topbar-coordinator { height: 32px; gap: 6px; padding: 0 10px; border-radius: 6px; background: var(--hb-ink); font-size: 12.5px; }
 .hb-hd .topbar-coordinator:hover { background: #262a31; }
 @media (max-width: 1279.98px) { .hb-hd .topbar-coordinator span { display: none; } }
+
+/* Top-bar search (the existing search, kept): a compact field, 32px like the other top-bar controls. */
+.hb-search { display: flex; align-items: center; gap: 8px; width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--hb-ctl); border-radius: 6px; background: #fff; color: var(--hb-ink-3); font-size: 13px; cursor: text; }
+.hb-search:hover { border-color: var(--hb-ctl-h); }
+.hb-search:focus-within { border-color: var(--hb-link); box-shadow: 0 0 0 3px rgba(31, 79, 180, 0.15); }
+@media (min-width: 1280px) { .hb-search { width: 320px; } }
+.hb-hd [data-testid="colour-mode-menu"] > summary { width: 32px; height: 32px; border-radius: 6px; color: var(--hb-ink-2); }
+/* Sticky strips sit directly under the 51px Harbour top bar. */
+.hb-shell .reader-strip { top: 51px; }
+
+/* One interface typeface under Harbour: module roots that named Inter Variable directly, and the HR Hub's own
+   font token (its style sheet sets --font-sans inside .cs), follow the Harbour face. */
+[data-theme="harbour"] :is(.ov-root, .pc-root, .pl-root, .ai-csb-panel, main[data-module="policy"]) { font-family: var(--font-sans); }
+[data-theme="harbour"] .cs { --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-family: var(--font-sans); }

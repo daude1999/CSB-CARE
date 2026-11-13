@@ -1,3 +1,4 @@
+import { openMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -101,6 +102,7 @@ test.describe("usability improvements", () => {
     await page.goto("/settings");
     const advanced = page.locator('button[data-nav-group="Advanced"]');
     await expect(advanced).toHaveAttribute("aria-expanded", "false");
+    await openMenu(page);
     await advanced.click();
     await page.getByTestId("portal-pages").getByRole("link", { name: "Activity Log", exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/audit/);

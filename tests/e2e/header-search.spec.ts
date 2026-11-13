@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** The redesigned top bar: a wide centred search pill, no shortcut badge, no sample-workspace badge. */
+/** The top bar search: the same search in a compact Harbour field, no shortcut badge, no sample-workspace badge. */
 async function signIn(page: Page, email = "manager@care-solution.demo") {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
@@ -14,26 +14,21 @@ async function overflow(page: Page) {
 }
 
 test.describe("Top bar search", () => {
-  test("desktop: centred pill, no badges, and Enter still searches", async ({ page }) => {
+  // Harbour (owner's decision, 13 Nov 2026) keeps the existing search in a compact 32px field beside the top bar's
+  // controls, replacing the wide centred pill of 4 Nov 2026. What it searches and how is unchanged.
+  test("desktop: the field searches as before, with no badges, and Enter still searches", async ({ page }) => {
     await page.setViewportSize({ width: 1672, height: 941 });
     await signIn(page);
     await page.goto("/rota");
-    const header = page.locator("header.shell-topbar");
+    const header = page.locator("header.hb-hd");
     const search = page.getByRole("searchbox", { name: "Search rostering" });
     await expect(search).toHaveAttribute("placeholder", "Search service users, staff, references...");
-    await expect(header.locator("kbd")).toHaveCount(0);
-    await expect(header).not.toContainText(/sample workspace/i);
+    // No sample-workspace badge on the bar itself (the closed account menu still names the workspace inside it).
+    await expect(header.getByText(/sample workspace/i)).toBeHidden();
     await expect(header).not.toContainText(/ctrl\s*k|⌘/i);
-
-    // Tall, wide and centred between the history arrows and the alerts, help and profile controls.
-    const pill = (await header.locator(".shell-search").boundingBox())!;
-    expect(pill.height).toBeGreaterThanOrEqual(44);
-    expect(pill.width).toBeGreaterThanOrEqual(700);
-    const arrows = (await page.getByRole("navigation", { name: "Page history" }).boundingBox())!;
-    const bell = (await header.getByTestId("notifications-link").boundingBox())!;
-    const gapLeft = pill.x - (arrows.x + arrows.width);
-    expect(gapLeft).toBeGreaterThanOrEqual(16);
-    expect(bell.x - (pill.x + pill.width)).toBeGreaterThanOrEqual(16);
+    const field = (await header.locator(".hb-search").boundingBox())!;
+    expect(field.height).toBe(32);
+    expect(field.width).toBeGreaterThanOrEqual(300);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
 
     // Enter runs the rostering search. Ctrl+K opens the command bar instead (tests/e2e/command-bar.spec.ts).
@@ -41,10 +36,10 @@ test.describe("Top bar search", () => {
     await search.press("Enter");
     await expect(page).toHaveURL(/\/rota\/search\?q=V-2/);
 
-    // Off the rota, the same box searches the policy library.
+    // Off the rota, the same field searches the policy library.
     await page.goto("/policies");
     await expect(page.getByRole("searchbox", { name: "Search policies" }).first()).toBeVisible();
-    await expect(page.locator("header.shell-topbar")).not.toContainText(/sample workspace/i);
+    await expect(page.locator("header.hb-hd").getByText(/sample workspace/i)).toBeHidden();
   });
 
   test("tablet and phone: no overflow, phone opens search from an icon", async ({ page }) => {
@@ -57,7 +52,7 @@ test.describe("Top bar search", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/rota");
     await expect(page.locator("#global-search")).toBeHidden();
-    const header = page.locator("header.shell-topbar");
+    const header = page.locator("header.hb-hd");
     await expect(header.getByTestId("notifications-link")).toBeVisible();
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     await header.getByRole("link", { name: "Search rostering" }).click();

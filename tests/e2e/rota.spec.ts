@@ -1,3 +1,4 @@
+import { followMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 const PASSWORD = "DemoPassword!2026";
@@ -194,8 +195,8 @@ test.describe("Rostering & Care Management", () => {
   test("Rota Insights shows the week's figures, links to the records, and money estimates for finance roles", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/rota");
-    // Reports opens Rota Reports; Rota Insights is its second tab.
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Reports", exact: true }).click();
+    // Rota Reports sits in Reporting & Analytics; Rota Insights is its second tab.
+    await followMenu(page, "Rota Reports", "reporting");
     await page.getByTestId("rota-tabs-reports").getByRole("link", { name: "Rota Insights" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Rota Insights" })).toBeVisible();
     for (const name of ["Visits", "Workforce", "Care hours", "Needs action", "Money this week (estimate)"]) await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();

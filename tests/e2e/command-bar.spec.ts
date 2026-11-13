@@ -71,10 +71,10 @@ test.describe("Command bar", () => {
     const wanted = ["SERVICE USERS", "STAFF", "VISITS TODAY", "PAGES", "ACTIONS"].filter((g) => order.map((o) => o.toUpperCase()).includes(g));
     expect(order.map((o) => o.toUpperCase())).toEqual(wanted);
 
-    // The first row is highlighted with a 10% tint of the module colour (Rota purple on white), and arrows move it.
+    // The first row is highlighted with a 10% tint of the module colour (Care teal on white, Harbour), and arrows move it.
     const rows = bar.getByTestId("command-row");
     await expect(rows.first()).toHaveAttribute("aria-selected", "true");
-    const [r, g, b] = rgb("#6b46c9", 0.1);
+    const [r, g, b] = rgb("#0f766e", 0.1);
     const tint = await rows.first().evaluate((el) => {
       const c = document.createElement("canvas").getContext("2d")!;
       c.fillStyle = "#fff";
@@ -121,7 +121,7 @@ test.describe("Command bar", () => {
 
   test("opens on every module, in that module's colour, and finds pages and actions by name", async ({ page }) => {
     await signIn(page);
-    for (const [path, colour] of [["/policies", "#1f5fd1"], ["/rota/visits", "#6b46c9"], ["/hr/dashboard", "#c2410c"], ["/analytics", "#0b6f99"], ["/settings", "#4b5666"], ["/overview", "#1565c0"]] as const) {
+    for (const [path, colour] of [["/policies", "#2e5bcf"], ["/rota/visits", "#0f766e"], ["/hr/dashboard", "#b4532a"], ["/analytics", "#0e7490"], ["/settings", "#5b5e96"], ["/overview", "#1f3a68"]] as const) {
       await page.goto(path);
       const bar = await openBar(page);
       // The dialog's wrapper carries the page's module colour, which the highlighted row tints.

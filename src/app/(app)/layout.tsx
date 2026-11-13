@@ -7,7 +7,7 @@ import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
 import { type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { Breadcrumb, HarbourMenuProvider, IconRail, MenuButton, MenuFlyout, SearchButton, ShellSubTabs } from "@/components/harbour/shell";
-import { HarbourAccountMenu, TopBarClock } from "@/components/harbour/account-menu";
+import { HarbourAccountMenu, TopBarClock, TopBarColourMode } from "@/components/harbour/account-menu";
 import { hrItems } from "@/components/hr-nav";
 import { AppHistory, HistoryButtons } from "@/components/history-nav";
 import { MainArea } from "@/components/main-area";
@@ -170,6 +170,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <div className="hidden sm:block"><HistoryButtons /></div>
               <Breadcrumb portals={portals} items={items} />
               <span className="flex-1" />
+              <SearchButton />
               <TopBarClock initial={Date.now()} />
               {org?.isDemo ? <span className="hb-demo hidden sm:inline">Demo data</span> : null}
               {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
@@ -177,7 +178,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Bell size={18} aria-hidden="true" />
                 {unread ? <span className="hb-dot"><span className="sr-only">{unread} unread</span></span> : null}
               </Link>
-              <SearchButton />
+              <TopBarColourMode initial={colourMode} />
               <HelpMenu assistant={can.assistant} />
               <span aria-hidden="true" className="hb-hd-v hidden sm:block" />
               <HarbourAccountMenu name={ctx.userName} initials={initials} role={roleName} place={place} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
