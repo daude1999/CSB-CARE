@@ -52,7 +52,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             <button className="btn-primary">Search</button>
             <Link href="/admin/users" className="btn-secondary">Clear</Link>
           </form>
-          <Card>
+          <Card title={<>Office users <span className="hb-pn-cnt">{members.length}</span></>} colour="purple" actions={<span>People who sign in to ClearCare</span>}>
             {members.length ? (
               <ul className="rows">
                 {members.map((m) => (
@@ -99,7 +99,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           </Card>
         </div>
         <aside className="space-y-3">
-          <Card title="Invite someone">
+          <Card title="Invite someone" colour="navy">
             <form action={inviteMemberAction} className="space-y-2">
               <input type="hidden" name="back" value={back} />
               <label className="block"><span className="label">Name</span><input name="name" required minLength={2} className="input" /></label>
@@ -109,7 +109,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               <p className="text-[12.5px] text-slate-600">The link lasts seven days. The person chooses their own password.</p>
             </form>
           </Card>
-          <Card title="Open invitations">
+          <Card title={<>Open invitations <span className="hb-pn-cnt">{invites.length}</span></>} colour="blue">
             {invites.length ? (
               <ul className="rows text-[14px]">
                 {invites.map((i) => (

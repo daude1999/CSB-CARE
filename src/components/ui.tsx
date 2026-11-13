@@ -10,17 +10,27 @@ export function PageHeader({ title, subtitle, actions, tabs }: { title: ReactNod
   return <ModuleHeader title={title} description={subtitle} actions={actions} tabs={tabs} />;
 }
 
-/** A white panel on the grey canvas, titled like "My Reading List" on the dashboard. */
-export function Panel({ title, actions, children, className = "", label }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; label?: string }) {
+/** A Harbour panel colour for a title bar (docs/design/harbour): "module" follows the page's module. */
+export type BarColour = "module" | "blue" | "rose" | "red" | "amber" | "teal" | "green" | "navy" | "cyan" | "orange" | "purple";
+const barClass = (c: BarColour) => (c === "module" ? "" : `hb-c-${c}`);
+
+/** The Harbour title bar shared by Card and Panel: the title in white on a solid bar, the actions on the right. */
+function TitleBar({ title, actions }: { title?: ReactNode; actions?: ReactNode }) {
   return (
-    <section aria-label={label} className={`panel ${className}`}>
-      {title || actions ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
-          {actions}
-        </div>
-      ) : null}
-      {children}
+    <div className="hb-pn-h">
+      {title ? <h2>{title}</h2> : null}
+      {actions ? <div className="hb-card-a">{actions}</div> : null}
+    </div>
+  );
+}
+
+/** A white panel on the page; with a title it takes a Harbour title bar in its colour. */
+export function Panel({ title, actions, children, className = "", label, colour = "module" }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; label?: string; colour?: BarColour }) {
+  if (!title && !actions) return <section aria-label={label} className={`panel hb-card-plain ${className}`}>{children}</section>;
+  return (
+    <section aria-label={label} className={`panel hb-card ${barClass(colour)} ${className}`}>
+      <TitleBar title={title} actions={actions} />
+      <div className="hb-card-b">{children}</div>
     </section>
   );
 }
@@ -84,22 +94,19 @@ export function SegmentNav({ items, label, alert = false }: { items: { href: str
   );
 }
 
-export function Card({ title, children, actions, className = "" }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; className?: string }) {
+export function Card({ title, children, actions, className = "", colour = "module" }: { title?: ReactNode; children: ReactNode; actions?: ReactNode; className?: string; colour?: BarColour }) {
   const isTable = isValidElement(children) && children.type === "table";
+  const body = isTable ? (
+    <>
+      <p className="mb-2 px-3 pt-2 text-xs text-slate-500 md:hidden">Swipe sideways to view all columns.</p>
+      <div className="relative min-w-0 overflow-x-auto">{children}</div>
+    </>
+  ) : children;
+  if (!title && !actions) return <section className={`card hb-card-plain ${className}`}>{body}</section>;
   return (
-    <section className={`card ${className}`}>
-      {title || actions ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
-          {actions}
-        </div>
-      ) : null}
-      {isTable ? (
-        <>
-          <p className="mb-2 px-1 text-xs text-slate-400 md:hidden">Swipe sideways to view all columns.</p>
-          <div className="relative min-w-0 overflow-x-auto">{children}</div>
-        </>
-      ) : children}
+    <section className={`card hb-card ${barClass(colour)} ${className}`}>
+      <TitleBar title={title} actions={actions} />
+      <div className="hb-card-b" data-flush={isTable ? "" : undefined}>{body}</div>
     </section>
   );
 }

@@ -277,12 +277,20 @@ function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; sele
   const { query } = view;
   const noun = query.tab === "templates" ? "CSB Central Library" : query.tab === "archived" ? "Archived policies" : "Policies";
   const grid = query.layout === "grid";
+  // The panel is titled with the category or area being shown, as in the Harbour library.
+  const area = query.area ? view.tree.find((a) => a.key === query.area) : undefined;
+  const category = query.category ? view.tree.flatMap((a) => a.categories).find((c) => c.code === query.category) : undefined;
+  const listTitle = category?.label ?? area?.label ?? (query.tab === "templates" || query.tab === "archived" ? noun : "All Policies");
   return (
-    <section aria-labelledby="register-title" className="pc-panel min-w-0" data-testid="policy-register" data-keep-inspector="">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-[18px] pb-[10px] pt-[14px]">
-        <h2 id="register-title" className="text-[16px] font-semibold text-[#101828]">
-          {noun} <span className="font-normal text-[#667085]">({view.total})</span>
+    <section aria-labelledby="register-title" className="hb-pn hb-c-blue min-w-0" data-testid="policy-register" data-keep-inspector="">
+      <div className="hb-pn-h">
+        <h2 id="register-title">
+          {listTitle} <span className="sr-only">(</span><span className="hb-pn-cnt">{view.total}</span><span className="sr-only">)</span>
         </h2>
+        <span className="hb-sp" />
+        <span className="hidden text-[12px] font-medium text-white/85 xl:inline">Click a policy to read it</span>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2 border-b border-[var(--hb-line-2)] bg-[#fcfcfb] px-3 py-1.5">
         <div className="flex items-center gap-2">
           <form action="/policies" className="flex items-center gap-2">
             <KeepState query={query} keys={["tab", "q", "area", "category", "status", "owner", "type", "service", "quick", "layout", "selected", "insp"]} />

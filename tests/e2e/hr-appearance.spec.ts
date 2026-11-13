@@ -70,8 +70,8 @@ for (const mode of ["light", "dark"] as const) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
       }
       await page.setViewportSize({ width: 1440, height: 900 });
-      const header = await luminance(page, ".h-prof", "backgroundColor");
-      const nameInk = await luminance(page, ".h-id h1", "color");
+      const header = await luminance(page, ".hb-pid", "backgroundColor");
+      const nameInk = await luminance(page, ".hb-pid-n", "color");
       expect(contrast(header, nameInk)).toBeGreaterThanOrEqual(4.5);
       if (mode === "dark") expect(header).toBeLessThan(0.1);
     });

@@ -35,7 +35,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-3">
-          <Card title="Linked sign-ins">
+          <Card title="Carer app logins: linked sign-ins" colour="teal">
             {linked.length ? (
               <table className="table">
                 <thead><tr><th>Staff member</th><th>Sign-in</th><th>Linked</th><th /></tr></thead>
@@ -62,7 +62,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
               </table>
             ) : <Empty>No sign-ins are linked to staff yet.</Empty>}
           </Card>
-          <Card title="Staff without a sign-in">
+          <Card title="Staff without a sign-in" colour="amber">
             {freeStaff.length ? (
               <ul className="grid gap-x-6 gap-y-1 text-[14px] md:grid-cols-2">
                 {freeStaff.map((s) => <li key={s.id}>{s.displayName} <span className="text-slate-500">· {s.jobTitle}</span>{hint.get(s.id) ? <span className="text-[12.5px] text-[#1d4f91]"> · same e-mail as {hint.get(s.id)}</span> : null}</li>)}
@@ -71,7 +71,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
           </Card>
         </div>
         <div className="space-y-3">
-          <Card title="Link a sign-in">
+          <Card title="Link a sign-in" colour="navy">
             <form action={linkLoginAction} className="space-y-2.5">
               <input type="hidden" name="back" value={back} />
               <label className="block"><span className="label">Member of staff (from HR)</span><select name="staffId" required className="input"><option value="">Choose…</option>{freeStaff.map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle}</option>)}</select></label>
@@ -82,7 +82,7 @@ export default async function WorkforceAdminPage({ searchParams }: { searchParam
               <p className="text-[12.5px] text-slate-500">Matching e-mail addresses are never linked automatically. Every link and unlink is recorded.</p>
             </form>
           </Card>
-          <Card title="HR sync">
+          <Card title="HR sync" colour="orange">
             <p className="text-[14px]">{staff.length} staff records from HR{missing.length ? <>, <span className="text-[#a3242c]">{missing.length} no longer in HR</span></> : ""}.</p>
             <p className="text-[13px] text-slate-600">Last update from HR: {lastRun ? fmtDate(lastRun.createdAt, true) : "never"}.</p>
             {missing.length ? <p className="mt-1 text-[13px]">{missing.map((s) => s.displayName).join(", ")} <Badge tone="rose">cannot be booked</Badge></p> : null}

@@ -12,66 +12,73 @@ import { rotaSnapshot } from "@/server/overview/snapshot";
 import { ModuleGrid } from "@/components/overview-ui";
 import { WeekBars } from "@/components/overview-week-bars";
 import { arrange, overviewOrder } from "@/server/overview/layout";
-import { saveOverviewOrderAction } from "@/app/actions";
-import { Flash } from "@/components/ui";
+import { markNotificationsReadAction, saveOverviewOrderAction } from "@/app/actions";
+import { Flash, fmtDate } from "@/components/ui";
+import { Panel as HbPanel, PanelAction } from "@/components/harbour/ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 import type { Portal, PortalId } from "@/lib/portals";
-import { ArrowRight, CalendarDots, Check, ChartBar, ClipboardText, FileText, GearSix, UsersThree, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import { Bell, CalendarDots, CaretRight, Check, ChartBar, ClipboardText, FileText, GearSix, UsersThree, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
-/* ── Rota lead tile ─────────────────────────────────────────────────────── */
+/* ── Today's care delivery (navy) ─────────────────────────────────────── */
 
-/** One call round: a fixed-width block (150px, or 172px on screens 1600px and wider), so one or two rounds never stretch across the tile. */
-function RoundBlock({ round }: { round: CallRound }) {
-  return (
-    <li className="ovx-round w-[150px] shrink-0 min-[1600px]:w-[172px]" data-state={round.state} data-testid={`round-${round.label.toLowerCase()}`}>
-      <span className="flex items-center justify-between gap-2 text-[14px] font-semibold leading-[18px]">
-        <span className="truncate">{round.label}</span>
-        {round.state === "done" ? <span className="ovx-round-tag flex items-center gap-0.5"><Check size={12} weight="bold" aria-hidden="true" />Done</span> : null}
-        {round.state === "now" ? <span className="ovx-round-tag">Now</span> : null}
-      </span>
-      <span className="mt-1 block leading-none">
-        <span className="text-[21px] font-bold tabular-nums">{round.done}</span>
-        <span className="ovx-round-of text-[14px] tabular-nums"> / {round.total}</span>
-        <span className="sr-only"> visits done{round.state === "now" ? ", in progress now" : round.state === "done" ? ", round finished" : ""}</span>
-      </span>
-    </li>
-  );
-}
-
-function RotaTile({ portal, done, total, carers, missed, rounds }: { portal: Portal; done: number; total: number; carers: number; missed: number; rounds: CallRound[] }) {
+function CareDelivery({ done, total, pending, missed, carers, rounds }: { done: number; total: number; pending: number; missed: number; carers: number; rounds: CallRound[] }) {
   const alert = coverAlert(rounds);
+  const needsCarer = rounds.reduce((n, r) => n + r.needsCarer, 0);
+  const other = Math.max(0, total - done - pending - missed);
+  const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`;
+  const legend: [string, number, string][] = [["Completed", done, "#2e9a63"], ["In progress or other", other, "#7b5fda"], ["Needs a carer", needsCarer, "#d14336"], ["Still to come", pending, "#d6dde8"], ["Missed", missed, "#ffffff"]];
+  const max = Math.max(1, ...rounds.map((r) => r.total));
   return (
-    <section aria-labelledby="ov-rota-title" className="ovx-solid dm-fixed flex flex-col gap-[20px] p-[22px]" style={{ "--tile": portal.colour } as React.CSSProperties} data-testid="tile-rota">
-      <CalendarDots aria-hidden="true" className="ovx-ghost -right-10 -top-12 opacity-[.06]" size={300} weight="regular" />
-      <div className="relative flex items-center gap-3">
-        <span aria-hidden="true" className="ovx-chip"><CalendarDots size={22} /></span>
-        <h2 id="ov-rota-title" className="ovx-title min-w-0 flex-1 text-[17px] font-semibold leading-tight">{portal.name}</h2>
-        <Link href="/rota/visits" className="ovx-pill">Open rota <ArrowRight size={15} weight="bold" aria-hidden="true" /></Link>
+    <HbPanel
+      id="care-delivery"
+      title="Today's care delivery"
+      icon={<CalendarDots size={15} weight="bold" />}
+      colour="navy"
+      testId="tile-rota"
+      action={<><PanelAction href="/rota/monitor">The Monitor</PanelAction><Link href="/rota/visits" className="hb-ov-open">Open Daily Rota <CaretRight size={12} weight="bold" aria-hidden="true" /></Link></>}
+      flush
+    >
+      <div className="hb-ov-cd">
+        <div className="hb-ov-cd-l">
+          <p className="flex items-baseline gap-2.5" data-testid="rota-headline">
+            <span className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums">{done}</span>
+            <span className="text-[14.5px] text-[var(--hb-ink-2)]">of {total} {plural(total, "visit", "visits")} done today</span>
+          </p>
+          <span className="hb-ov-meter" aria-hidden="true">
+            <i style={{ width: pct(done), background: "#2e9a63" }} /><i style={{ width: pct(other), background: "#7b5fda" }} /><i style={{ width: pct(missed), background: "#d14336" }} />
+          </span>
+          <ul className="hb-ov-legend">
+            {legend.map(([label, n, c]) => <li key={label}><i style={{ background: c }} aria-hidden="true" />{label}<b className="tabular-nums">{n}</b></li>)}
+          </ul>
+          <p className="mt-3 text-[13px] text-[var(--hb-ink-3)]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
+        </div>
+        <div className="hb-ov-cd-r">
+          {rounds.length ? (
+            <ul className="hb-ov-rounds" aria-label="Today's call rounds">
+              {rounds.map((r) => (
+                <li key={r.name} data-state={r.state} data-testid={`round-${r.label.toLowerCase()}`}>
+                  <span className="hb-ov-rh"><b>{r.label}</b>{r.state === "now" ? <span className="hb-ov-now">Now</span> : r.state === "done" ? <span className="hb-ov-done"><Check size={11} weight="bold" aria-hidden="true" />Done</span> : null}</span>
+                  <span className="hb-ov-col" aria-hidden="true" style={{ height: `${(r.total / max) * 100}%` }}>
+                    {r.needsCarer ? <i data-s="bad" style={{ height: `${(r.needsCarer / r.total) * 100}%` }} /> : null}
+                    <i data-s="done" style={{ height: `${(r.done / r.total) * 100}%` }} />
+                  </span>
+                  <span className="hb-ov-rn tabular-nums">{r.done}<span> / {r.total}</span><span className="sr-only"> visits done{r.state === "now" ? ", in progress now" : r.state === "done" ? ", round finished" : ""}{r.needsCarer ? `, ${r.needsCarer} need a carer` : ""}</span></span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="py-10 text-center text-[14px] text-[var(--hb-ink-3)]">No visits are booked for today.</p>}
+        </div>
       </div>
-      <div className="relative flex flex-wrap items-end gap-x-4 gap-y-1">
-        <p className="flex items-baseline gap-3" data-testid="rota-headline">
-          <span className="text-[68px] font-bold leading-[0.95] tracking-[-0.02em] tabular-nums">{done}</span>
-          <span className="text-[19px] font-medium">of {total} {plural(total, "visit", "visits")} done today</span>
-        </p>
-        <p className="ovx-soft ml-auto pb-1 text-[14.5px]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
+      <div className="hb-ov-cover" data-testid="rota-cover">
+        <span aria-hidden="true" className={`h-[9px] w-[9px] shrink-0 rounded-full ${alert ? "bg-[#d14336]" : "bg-[#2e9a63]"}`} />
+        <p className="min-w-0 flex-1 text-[14px] font-semibold">{alert ?? "All visits covered"}</p>
+        {alert ? <Link href="/rota/visits?view=unassigned" className="hb-btn hb-btn-p">Find cover</Link> : null}
       </div>
-      {rounds.length ? (
-        <ul className="relative flex flex-wrap justify-start gap-[8px] sm:gap-[12px]" aria-label="Today's call rounds">
-          {rounds.map((r) => <RoundBlock key={r.name} round={r} />)}
-        </ul>
-      ) : (
-        <p className="ovx-soft relative text-[14px]">No visits are booked for today.</p>
-      )}
-      <div className="ovx-alert relative flex min-h-[56px] items-center gap-3 px-4 py-2" data-testid="rota-cover">
-        <span aria-hidden="true" className={`h-[9px] w-[9px] shrink-0 rounded-full ${alert ? "bg-[#dc2626]" : "bg-[#16a34a]"}`} />
-        <p className="min-w-0 flex-1 text-[15px] font-semibold">{alert ?? "All visits covered"}</p>
-        {alert ? <Link href="/rota/visits?view=unassigned" className="ovx-cover">Find cover <ArrowRight size={15} weight="bold" aria-hidden="true" /></Link> : null}
-      </div>
-    </section>
+    </HbPanel>
   );
 }
 
@@ -82,7 +89,6 @@ interface Tile {
   portal: Portal;
   name: string;
   icon: React.ReactNode;
-  ghost: React.ReactNode;
   figure: number;
   label: string;
   detail: string;
@@ -95,22 +101,16 @@ interface Tile {
 function ModuleTile({ tile }: { tile: Tile }) {
   const body = (
     <>
-      {tile.ghost}
-      <span className="relative flex items-center gap-3">
-        <span aria-hidden="true" className="ovx-chip">{tile.icon}</span>
-        <span className="ovx-title text-[15px] font-semibold leading-tight">{tile.name}</span>
+      <span aria-hidden="true" className="hb-tile-ic">{tile.icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="ovx-title block text-[13px] font-semibold text-[var(--hb-ink-2)]">{tile.name}</span>
+        <span className="flex items-baseline gap-2 whitespace-nowrap"><b className="tabular-nums">{tile.figure}</b><span className="text-[13.5px] text-[var(--hb-ink)]">{tile.label}</span></span>
+        <span className="mt-0.5 line-clamp-1 block text-[12.5px] text-[var(--hb-ink-3)]" title={tile.fullDetail ?? tile.detail}>{tile.detail}</span>
       </span>
-      <span className="relative mt-auto block">
-        <span className="flex items-baseline gap-2.5 whitespace-nowrap">
-          <span className="text-[46px] font-bold leading-none tracking-[-0.02em] tabular-nums">{tile.figure}</span>
-          <span className="text-[15px] font-medium">{tile.label}</span>
-        </span>
-        <span className="ovx-soft mt-2 line-clamp-2 block pr-[46px] text-[13px]" title={tile.fullDetail ?? tile.detail}>{tile.detail}</span>
-      </span>
-      <span aria-hidden="true" className="ovx-arrow"><ArrowRight size={17} weight="bold" /></span>
+      <CaretRight size={14} weight="bold" aria-hidden="true" className="shrink-0 text-[var(--hb-ink-3)]" />
     </>
   );
-  const props = { className: "ovx-solid ovx-tile dm-fixed", style: { "--tile": tile.portal.colour } as React.CSSProperties, "data-testid": `tile-${tile.key}` };
+  const props = { className: "hb-tile hb-ov-tile", style: { "--t": tile.portal.colour } as React.CSSProperties, "data-testid": `tile-${tile.key}` };
   return tile.external ? <a href={tile.portal.home} {...props}>{body}</a> : <Link href={tile.portal.home} {...props}>{body}</Link>;
 }
 
@@ -132,7 +132,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const portals = new Map(portalsFor(ctx).map((p) => [p.id, p] as const));
   const has = (id: PortalId) => portals.has(id);
   const orgId = ctx.organisationId;
-  const [org, m, hr, branches, users, rotaFigures, rota] = await Promise.all([
+  const [org, m, hr, branches, users, rotaFigures, rota, notes] = await Promise.all([
     orgId ? db.organisation.findUnique({ where: { id: orgId }, select: { name: true } }) : null,
     has("policy") ? dashboardMetrics(ctx) : null,
     has("hr") ? hrHeadline(ctx) : null,
@@ -140,6 +140,8 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     has("admin") && orgId ? db.membership.count({ where: { organisationId: orgId, deactivatedAt: null } }) : null,
     has("rota") ? rotaHeadline(ctx) : null,
     has("rota") ? rotaSnapshot(ctx, now) : null,
+    // The newest notifications for the person signed in (the bell's own records).
+    db.notification.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "desc" }, take: 4, select: { id: true, title: true, body: true, readAt: true, createdAt: true, links: true } }),
   ]);
   const can = (p: Parameters<typeof hasOrgPermission>[1]) => hasOrgPermission(ctx, p);
 
@@ -173,13 +175,11 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     add("changes", 5, m.newChanges + m.awaitingAssessment, ["Regulatory change to review", "Regulatory changes to review"], ["change to review", "changes to review"], "Review", "/changes", <ClipboardText size={18} />);
   }
   attention.sort((a, b) => a.rank - b.rank);
-  const SHOWN = 5;
 
   const tiles: Tile[] = [];
   if (policy && m) {
     tiles.push({
       key: "policy", portal: policy, name: policy.name, icon: <FileText size={21} />,
-      ghost: <FileText aria-hidden="true" className="ovx-ghost -right-6 -top-6 opacity-10" size={190} />,
       figure: policyTotal, label: "to action", detail: policyParts.length ? policySummary(policyParts) : "Nothing overdue",
       fullDetail: policyParts.length > 2 ? policyParts.map((p) => p.text).join(", ") : undefined,
     });
@@ -188,7 +188,6 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     const detail = [hr ? `${hr.employees} ${plural(hr.employees, "employee", "employees")}` : null, rota ? `${rota.staffOnRota} on rota today` : null].filter(Boolean).join(" · ");
     tiles.push({
       key: "hr", portal: hrPortal, name: hrPortal.name, icon: <UsersThree size={21} />, external: true,
-      ghost: <UsersThree aria-hidden="true" className="ovx-ghost -right-8 -top-8 opacity-10" size={200} />,
       figure: hr?.overdue ?? 0, label: "checks overdue", detail: detail || "Opens your HR Hub",
     });
   }
@@ -197,14 +196,12 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     const week = rota ? rota.completedSeries.days.reduce((n, d) => n + d.value, 0) : null;
     tiles.push({
       key: "reporting", portal: reporting, name: reporting.name, icon: <ChartBar size={21} />,
-      ghost: rota ? <WeekBars days={rota.completedSeries.days} /> : <ChartBar aria-hidden="true" className="ovx-ghost -right-6 -top-6 opacity-10" size={190} />,
       figure: week ?? Object.keys(REPORTS).length, label: week !== null ? "visits, 7 days" : "report exports", detail: week !== null ? exportsReady : "Reports and CSV exports",
     });
   }
   if (admin) {
     tiles.push({
       key: "admin", portal: admin, name: "Administration", icon: <GearSix size={21} />,
-      ghost: <GearSix aria-hidden="true" className="ovx-ghost -right-10 -top-10 opacity-10" size={210} />,
       figure: branches ?? 0, label: plural(branches ?? 0, "branch", "branches"), detail: users !== null ? `${users} ${plural(users, "user", "users")} · activity log` : "Settings and activity log",
     });
   }
@@ -212,11 +209,21 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   const minute = londonMinute(now);
   const firstName = ctx.userName.trim().split(/\s+/)[0] ?? "";
-  const today = fmtLondonDate(londonDate(now), { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
-  const showRota = Boolean(rotaPortal && rota);
+  const todayLong = fmtLondonDate(londonDate(now), { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+  const unread = notes.filter((n) => !n.readAt).length;
+  const areaOf = (a: Attention) => (["unassigned", "missed", "alerts"].includes(a.key) ? rotaPortal?.name : a.key === "hr" ? hrPortal?.name : policy?.name) ?? "";
+  const unassigned = rotaFigures?.unassignedToday ?? 0;
+  const days = rota?.completedSeries.days ?? [];
+  const goTo: { label: string; href: string; colour: string; icon: React.ReactNode; external?: boolean }[] = [
+    ...(rotaPortal ? [{ label: "Daily Rota", href: "/rota/visits", colour: rotaPortal.colour, icon: <CalendarDots size={14} /> }, ...(can("serviceUser.view") ? [{ label: "Service users", href: "/rota/service-users", colour: rotaPortal.colour, icon: <UsersThree size={14} /> }] : [])] : []),
+    ...(hrPortal ? [{ label: "HR Hub", href: hrPortal.home, colour: hrPortal.colour, icon: <UsersThree size={14} />, external: true }] : []),
+    ...(policy ? [{ label: "Policies", href: "/policies", colour: policy.colour, icon: <FileText size={14} /> }] : []),
+    ...(reporting ? [{ label: "Reports and CSV exports", href: reporting.home, colour: reporting.colour, icon: <ChartBar size={14} /> }] : []),
+    ...(admin ? [{ label: "Settings and activity log", href: admin.home, colour: admin.colour, icon: <GearSix size={14} /> }] : []),
+  ];
 
   return (
-    <div className="ov-root">
+    <div className="ov-root hb-ov">
       {/* Capped at 1320px and centred in the space beside the side panel; narrower screens use the full width. */}
       <div className="px-4 pb-6 pt-5">
         <div className="mx-auto w-full max-w-[1320px] space-y-[16px]" data-testid="overview-content">
@@ -224,45 +231,84 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           <AutoRefresh seconds={60} />
           <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
             <div className="min-w-0 flex-1">
-              <h2 className="text-[26px] font-semibold leading-tight tracking-[-0.01em] text-ink" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
-              <p className="mt-0.5 text-[15px] text-[#475467]">Here is {org?.name ?? "your organisation"} today, {today}.</p>
+              <p className="text-[12.5px] font-semibold text-[var(--hb-ink-3)]">{todayLong}{org?.name ? ` · ${org.name}` : ""}</p>
+              <h2 className="text-[24px] font-semibold leading-tight tracking-[-0.01em] text-[var(--hb-ink)]" data-testid="overview-greeting">{greeting(minute)}{firstName ? `, ${firstName}` : ""}</h2>
+              {rota ? (
+                <p className="mt-0.5 text-[14.5px] text-[var(--hb-ink-2)]" data-testid="overview-summary">
+                  {unassigned ? <b className="font-semibold text-[#b3261e]">{unassigned} {plural(unassigned, "visit has", "visits have")} no carer</b> : <span>Every visit today has a carer</span>}
+                  {rota.missedToday ? <> and <b className="font-semibold text-[#8c5200]">{rota.missedToday} {plural(rota.missedToday, "was", "were")} missed</b></> : null}. {rota.completedToday} of {rota.visitsToday} done so far.
+                </p>
+              ) : <p className="mt-0.5 text-[14.5px] text-[var(--hb-ink-2)]">Here is {org?.name ?? "your organisation"} today.</p>}
             </div>
             {!arranging && ctx.organisationId && ordered.length > 1 ? (
-              <a href="/overview?arrange=1" className="rounded-[6px] px-1.5 py-0.5 text-[14px] text-[#475467] hover:bg-black/5 hover:text-ink" data-testid="arrange-modules">Rearrange</a>
+              <a href="/overview?arrange=1" className="hb-btn" data-testid="arrange-modules">Rearrange</a>
             ) : null}
           </div>
 
-          <div className={`grid grid-cols-1 gap-[16px] [&>*]:min-w-0 ${showRota ? "min-[1100px]:grid-cols-[minmax(0,60fr)_minmax(0,40fr)]" : ""}`}>
-            {rotaPortal && rota ? (
-              <RotaTile portal={rotaPortal} done={rota.completedToday} total={rota.visitsToday} carers={rota.staffOnRota} missed={rota.missedToday} rounds={rota.rounds} />
-            ) : null}
-            <section aria-labelledby="attention-title" className="ovx-attention flex flex-col rounded-[18px] border border-[#eaecf0] bg-white px-6 pb-3 pt-5" data-testid="needs-attention">
-              <div className="flex items-center justify-between gap-3 border-b border-[#eaecf0] pb-3">
-                <h2 id="attention-title" className="text-[17px] font-semibold text-ink">Needs your attention</h2>
-                {attention.length ? (
-                  <Link href="/notifications" className="flex items-center gap-1 text-[14px] font-semibold text-[#1565c0]">View all {attention.length} <ArrowRight size={14} weight="bold" aria-hidden="true" /></Link>
-                ) : null}
-              </div>
+          {rotaPortal && rota ? <CareDelivery done={rota.completedToday} total={rota.visitsToday} pending={rota.pendingToday} missed={rota.missedToday} carers={rota.staffOnRota} rounds={rota.rounds} /> : null}
+
+          <div className="hb-ov-grid">
+            <HbPanel id="needs-action" title="Needs action" icon={<WarningCircle size={15} weight="bold" />} colour="red" count={attention.length} testId="needs-attention" flush
+              action={attention.length ? <PanelAction href="/notifications">View all</PanelAction> : undefined}
+              footer={<span className="mr-auto text-[12.5px] text-[var(--hb-ink-3)]">Showing what your role can act on, most urgent first.</span>}>
               {attention.length ? (
-                <ul>
-                  {attention.slice(0, SHOWN).map((a, i) => {
-                    const cls = i === 0 ? "ovx-act ovx-act-primary" : "ovx-act";
-                    const style = i === 0 ? ({ "--tile": a.colour } as React.CSSProperties) : undefined;
+                <ul className="hb-ov-act">
+                  {attention.map((a, i) => {
                     const label = <>{a.action}<span className="sr-only">: {a.count} {a.text.toLowerCase()}</span></>;
+                    const cls = i === 0 ? "hb-btn hb-btn-p" : "hb-btn";
                     return (
-                      <li key={a.key} className="flex min-h-[59px] items-center gap-4 border-b border-[#f0f1f4] py-2 last:border-b-0" data-testid={`attention-${a.key}`}>
-                        <span aria-hidden="true" className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] text-white" style={{ background: a.colour }}>{a.icon}</span>
-                        <span className="w-[28px] shrink-0 text-[17px] font-bold tabular-nums text-ink">{a.count}</span>
-                        <span className="min-w-0 flex-1 text-[15px] text-ink">{a.text}</span>
-                        {a.external ? <a href={a.href} className={cls} style={style}>{label}</a> : <Link href={a.href} className={cls} style={style}>{label}</Link>}
+                      <li key={a.key} data-testid={`attention-${a.key}`} data-first={i === 0 ? "" : undefined}>
+                        <span aria-hidden="true" className="hb-ov-ai" style={{ background: a.colour }}>{a.icon}</span>
+                        <span className="min-w-0 flex-1"><b className="block text-[14px] font-semibold"><span className="tabular-nums">{a.count}</span> {/^[A-Z][a-z]/.test(a.text) ? a.text.charAt(0).toLowerCase() + a.text.slice(1) : a.text}</b></span>
+                        <span className="hb-ov-area hidden sm:inline-flex"><i style={{ background: a.colour }} aria-hidden="true" />{areaOf(a)}</span>
+                        {a.external ? <a href={a.href} className={cls}>{label}</a> : <Link href={a.href} className={cls}>{label}</Link>}
                       </li>
                     );
                   })}
                 </ul>
               ) : (
-                <p className="py-4 text-[14px] text-[#475467]">Nothing needs your attention right now.</p>
+                <p className="px-4 py-6 text-[14px] text-[var(--hb-ink-3)]">Nothing needs your attention right now.</p>
               )}
-            </section>
+            </HbPanel>
+            <div className="flex min-w-0 flex-col gap-4">
+              <HbPanel id="notifications" title="Notifications" icon={<Bell size={15} weight="bold" />} colour="blue" count={unread} flush testId="overview-notifications"
+                action={unread ? <form action={markNotificationsReadAction}><input type="hidden" name="back" value="/overview" /><button className="hb-pn-act" type="submit">Mark all read</button></form> : <PanelAction href="/notifications">All</PanelAction>}>
+                {notes.length ? (
+                  <ul className="hb-ov-notes">
+                    {notes.map((n) => {
+                      const link = ((n.links as { label: string; url: string }[] | null) ?? []).find((l) => l.url.startsWith("/"));
+                      return (
+                        <li key={n.id}>
+                          <span className="min-w-0 flex-1">
+                            <Link href={link?.url ?? "/notifications"} className="block text-[13.5px] font-semibold text-[var(--hb-ink)]">{!n.readAt ? <span className="hb-ov-dot" aria-label="Unread" /> : null}{n.title}</Link>
+                            <span className="line-clamp-2 text-[12.5px] text-[var(--hb-ink-3)]">{n.body}</span>
+                          </span>
+                          <span className="shrink-0 text-[12px] text-[var(--hb-ink-3)]">{fmtDate(n.createdAt)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : <p className="px-4 py-5 text-[13.5px] text-[var(--hb-ink-3)]">No notifications.</p>}
+              </HbPanel>
+              {rota ? (
+                <HbPanel id="this-week" title="This week" icon={<ChartBar size={15} weight="bold" />} colour="green" testId="overview-week">
+                  <p className="-mt-1 mb-2 text-[12.5px] text-[var(--hb-ink-3)]">Visits completed each day, the last seven days</p>
+                  <WeekBars days={days} />
+                </HbPanel>
+              ) : null}
+              {goTo.length ? (
+                <HbPanel id="go-to" title="Go to" colour="teal" flush testId="overview-go-to">
+                  <nav aria-label="Go to">
+                    <ul className="hb-golinks">
+                      {goTo.map((g) => {
+                        const inner = <><span className="hb-gol-i" style={{ background: g.colour }} aria-hidden="true">{g.icon}</span><span className="min-w-0 flex-1">{g.label}</span><CaretRight size={13} aria-hidden="true" /></>;
+                        return <li key={g.label}>{g.external ? <a href={g.href} className="hb-gol">{inner}</a> : <Link href={g.href} className="hb-gol">{inner}</Link>}</li>;
+                      })}
+                    </ul>
+                  </nav>
+                </HbPanel>
+              ) : null}
+            </div>
           </div>
 
           {ordered.length ? (
