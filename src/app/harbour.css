@@ -588,3 +588,25 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 .hb-ov-tile span.flex { display: flex; }
 .hb-ov-tile .hb-tile-ic { display: grid; }
 .hb-ov-rounds { min-height: 170px; }
+
+/* ---------- Policy & Compliance panels (.pc-panel) ----------
+   A panel head that holds a heading becomes a Harbour title bar in the module's colour; a head that is only a
+   summary line stays a light tool row. Markup is unchanged. */
+.hb-shell .pc-panel { border: 1px solid var(--hb-panel-border); border-radius: 4px; box-shadow: var(--hb-sh1); overflow: hidden; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) { min-height: 34px; padding: 5px 8px 5px 12px; gap: 4px 10px; border-bottom: 0; background: var(--hb-mod, #2e5bcf); color: #fff; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) > :is(h2, h3) { margin: 0; font-family: var(--font-ui); font-size: 13.5px !important; line-height: 18px !important; font-weight: 600 !important; color: #fff !important; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) > :is(h2, h3) :is(span, .font-normal) { color: rgba(255, 255, 255, 0.85) !important; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) :is(.pc-note, p, span:not([class*="badge"]), dt, dd) { color: rgba(255, 255, 255, 0.92); }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) :is(a:not(.pc-btn):not(.btn), .pc-link) { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) :is(.pc-btn, .pc-btn-secondary, .btn, .btn-secondary) { min-height: 24px; height: auto; padding: 2px 9px; border: 0; border-radius: 4px; background: rgba(255, 255, 255, 0.16); box-shadow: none; color: #fff !important; font-size: 12px; font-weight: 600; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) :focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.hb-shell .pc-panel > .pc-panel-head:not(:has(> :is(h2, h3))) { min-height: 40px; padding: 8px 14px; background: #f7f8fa; border-bottom: 1px solid var(--hb-line, #e4e7ec); }
+@media (max-width: 639px) { .hb-shell .mh:not([data-variant="plain"]) .mh-band, .hb-fh { padding-left: 16px; padding-right: 16px; } }
+
+/* Dark mode: the lightened dark-mode colours are too pale for white text, so title bars and main buttons take a
+   deeper shade of the same colour (white text at 7:1 or better). */
+:root[data-mode="dark"] .hb-pn-h { background: color-mix(in srgb, var(--pb) 62%, #000); }
+:root[data-mode="dark"] .hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) { background: color-mix(in srgb, var(--hb-mod, #4c7ef5) 62%, #000); }
+:root[data-mode="dark"] :is(.hb-btn-p, .hb-btn-p:hover),
+:root[data-mode="dark"] .hb-shell .mh:not([data-variant="plain"]) .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary) { border-color: color-mix(in srgb, var(--hb-brand) 62%, #000); background: color-mix(in srgb, var(--hb-brand) 62%, #000); color: #fff !important; }
+:root[data-mode="dark"] .cs :is(.hb-hr-rec, .hb-cl) .hb-btn-p { border-color: color-mix(in srgb, var(--hb-brand) 62%, #000); background: color-mix(in srgb, var(--hb-brand) 62%, #000); color: #fff; }

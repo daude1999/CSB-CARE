@@ -110,7 +110,8 @@ function ModuleTile({ tile }: { tile: Tile }) {
       <CaretRight size={14} weight="bold" aria-hidden="true" className="shrink-0 text-[var(--hb-ink-3)]" />
     </>
   );
-  const props = { className: "hb-tile hb-ov-tile", style: { "--t": tile.portal.colour } as React.CSSProperties, "data-testid": `tile-${tile.key}` };
+  // The icon square takes the module's Harbour colour, the same as the chip in that module's page header.
+  const props = { className: "hb-tile hb-ov-tile", "data-hb-module": tile.key, style: { "--t": "var(--hb-mod)" } as React.CSSProperties, "data-testid": `tile-${tile.key}` };
   return tile.external ? <a href={tile.portal.home} {...props}>{body}</a> : <Link href={tile.portal.home} {...props}>{body}</Link>;
 }
 

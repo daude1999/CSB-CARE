@@ -156,9 +156,9 @@ export function HarbourRecordHeader({ data, employee: e, tab, setTab, editable, 
   );
 }
 
-function Bar({ title, colour, icon, count, action, onFull, children, className = "", footer, flush }: { title: string; colour: string; icon: ReactNode; count?: number; action?: ReactNode; onFull?: () => void; children: ReactNode; className?: string; footer?: ReactNode; flush?: boolean }) {
+function Bar({ title, colour, icon, count, action, onFull, children, className = "", footer, flush, testId }: { title: string; colour: string; icon: ReactNode; count?: number; action?: ReactNode; onFull?: () => void; children: ReactNode; className?: string; footer?: ReactNode; flush?: boolean; testId?: string }) {
   return (
-    <section className={`hb-pn hb-c-${colour} ${className}`} aria-label={title}>
+    <section className={`hb-pn hb-c-${colour} ${className}`} aria-label={title} data-testid={testId}>
       <div className="hb-pn-h">
         <span aria-hidden="true" className="flex">{icon}</span>
         <h2>{title}</h2>
@@ -301,7 +301,7 @@ export function HarbourRecordOverview({ data, employee: e, checks, docs, events,
           </div>
         )) : <p className="px-4 py-8 text-center text-[13.5px] text-[var(--hb-ink-3)]">No recorded activity.</p>}
       </section>
-      <Bar title="Checks and training" colour="navy" icon={<BadgeCheck size={15} />} count={required.length} className="hb-cl-full" flush onFull={() => setTab("Compliance")}>
+      <Bar title="Checks and training" colour="navy" icon={<BadgeCheck size={15} />} count={required.length} className="hb-cl-full" flush onFull={() => setTab("Compliance")} testId="record-checks">
         <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-[var(--hb-line-2)] px-3.5 py-2 text-[12px] text-[var(--hb-ink-2)]">
           <span className="inline-flex items-center gap-1.5"><i className="hb-gk" data-s="ok" aria-hidden="true" />In date</span>
           <span className="inline-flex items-center gap-1.5"><i className="hb-gk" data-s="warn" aria-hidden="true" />Due within 30 days</span>
@@ -326,7 +326,7 @@ export function HarbourRecordOverview({ data, employee: e, checks, docs, events,
                 const l = pos(start);
                 const w = Math.max(1, pos(end) - l);
                 return (
-                  <div key={c.id} className="hb-gantt-row">
+                  <div key={c.id} className="hb-gantt-row" data-testid="record-check">
                     <div className="min-w-0"><button type="button" className="text-left text-[13px] font-semibold text-[var(--hb-ink)] hover:underline" onClick={() => onReview(c)}>{c.name}</button><small className="block text-[11.5px] text-[var(--hb-ink-3)]">{c.category || (c.recurring ? "Renewed" : "One-off")}</small></div>
                     <div className="hb-gantt-track">
                       <i className="hb-gantt-bar" data-s={TONE[s] ?? "neutral"} style={{ left: `${l}%`, width: `${w}%` }} />

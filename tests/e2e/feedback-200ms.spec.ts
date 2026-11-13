@@ -69,7 +69,7 @@ const PAGES: { title: string; path: string; actions: Action[] }[] = [
     title: "Overview",
     path: "/overview",
     actions: [
-      { name: "open the rota", press: (p) => p.getByTestId("tile-rota").getByRole("link", { name: /Open rota/ }) },
+      { name: "open the rota", press: (p) => p.getByTestId("tile-rota").getByRole("link", { name: /Open Daily Rota/ }) },
       { name: "open the HR module (a full page load)", press: (p) => p.getByTestId("tile-hr") },
       { name: "view all notifications", press: (p) => main(p).getByRole("link", { name: /^View all/ }) },
     ],

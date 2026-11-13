@@ -72,20 +72,19 @@ test.describe("Dark and light appearance", () => {
     expect(await mode(page)).toBe("light");
   });
 
-  test("the header band's main action stays a white button with readable text in the dark", async ({ page, context, baseURL }) => {
+  test("the page header's main action keeps white text on a deep navy button in the dark", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "csb-mode", value: "dark", url: baseURL! }]);
     await signIn(page, "manager@care-solution.demo");
-    // Daily Rota has a plain header under Harbour (13 Nov 2026), so read a page that keeps the coloured band.
     await page.goto("/");
     expect(await mode(page)).toBe("dark");
-    // Create policy is the band's main action: white, with the module colour as its text.
+    // Harbour (13 Nov 2026): Create policy is the header's navy main action; in the dark it is a deeper navy so the
+    // white text stays readable (at least 4.5:1).
     const current = page.getByTestId("title-bar").getByRole("link", { name: "Create policy" });
-    await expect(current).toHaveCSS("background-color", "rgb(255, 255, 255)");
-    const text = await current.evaluate((el) => getComputedStyle(el).color);
-    const moduleColour = await page.locator("main").evaluate((el) => getComputedStyle(el).getPropertyValue("--module").trim());
-    expect(text).not.toBe("rgb(255, 255, 255)");
-    expect(moduleColour).not.toBe("");
-    // The band is toned down towards the dark page, so it is not the full-strength light-mode colour.
+    await expect(current).toHaveCSS("color", "rgb(255, 255, 255)");
+    const bg = await current.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const lum = (c: string) => { const [r, g, b] = c.match(/[\d.]+/g)!.map(Number).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!; };
+    expect(1.05 / (lum(bg) + 0.05)).toBeGreaterThanOrEqual(4.5);
+    // The header strip is toned down towards the dark page, so it is not the light-mode colour.
     const band = await background(page, ".mh-band");
     await context.addCookies([{ name: "csb-mode", value: "light", url: baseURL! }]);
     await page.reload();
