@@ -62,7 +62,7 @@ test.describe("Rota Dashboard header and cards", () => {
       await expect(page).toHaveURL(new RegExp(`branch=${value}`));
       await expect(page).toHaveURL(new RegExp(`date=${shift(today, 5)}`));
     }
-    await page.getByRole("link", { name: "Today" }).click();
+    await page.getByTestId("title-bar").getByRole("link", { name: "Today" }).click();
     await expect(page).not.toHaveURL(/date=/);
   });
 

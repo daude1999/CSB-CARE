@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Policy and Compliance pages</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div><dc-import name="Workspace" spec="{{spec}}" go="{{go}}" hint-size="100%,900px"></dc-import></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pkey":{"editor":"enum","options":["comp-home","forms","drafts","updates","generator","coverage","branches","changes","requirements","sources","references","signoff","rules","reading","audits","actions","risk-register","evidence","cqc","cqc-assess","cqc-evidence","rca","improve","cqc-reports","comp-reports"],"default":"comp-home"},"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const Q = (o) => Object.assign({ mod: 'pol' }, o);
+    const P = {
+      'comp-home': Q({ key: 'comp-home', title: 'Compliance Home', icon: 'shield', kind: 'home', purpose: 'Your policies, staff sign-off, audits and CQC readiness, and what needs your attention this week.', actions: [['Start audit'], ['Create action'], ['Add a risk']],
+        tip: 'Work from the top of "What needs doing". Everything here is kept as evidence for CQC.',
+        strip: [['Policies in date', 86, 'ok', 'doc'], ['Reviews overdue', 2, 'bad', 'alert'], ['Sign-offs outstanding', 7, 'warn', 'sign'], ['Regulatory changes', 3, 'info', 'scale']],
+        todos: [['bad', '2 policy reviews overdue', 'Safeguarding Adults, Medication Management', 'Open', 'Policies'], ['info', 'Regulatory change to assess', 'CQC guidance on medicines in home care, 9 Nov', 'Assess', 'P:changes', 'scale'], ['warn', '3 staff sign-offs overdue', 'Safeguarding Adults v6', 'Chase', 'P:signoff', 'sign'], ['warn', '2 corrective actions past their date', 'From the August audit', 'Open', 'P:actions']],
+        links: [['My Policies', '92 policies and procedures', 'doc', 'Policies'], ['Regulatory Updates', 'Changes from the sources you watch', 'scale', 'P:changes'], ['Staff Sign-off', 'Who has read what', 'sign', 'P:signoff'], ['Audits & Inspections', 'Audits, findings and outcomes', 'clip', 'P:audits'], ['CQC Readiness', 'The five key questions', 'shield', 'P:cqc']] }),
+
+      forms: Q({ key: 'forms', title: 'Forms & Resources', icon: 'clip', kind: 'docs', purpose: 'Forms staff fill in and resources linked to your policies. Many can be filled in on screen.', actions: ['Add form'],
+        dgroups: [['Safeguarding', [['FORM', 'Safeguarding concern record', 'Linked to Safeguarding Adults · v2', 'Fill in on screen', 'ok'], ['FORM', 'Body map', 'Linked to 3 policies · v3', 'Fill in on screen', 'ok'], ['DOC', 'Local authority contact sheet', 'Liverpool and Wirral', 'Open']]],
+          ['Medicines', [['FORM', 'Medication error report', 'Linked to Medication Management · v4', 'Fill in on screen', 'ok'], ['PDF', 'Medicines competency checklist', 'For senior carers', 'PDF']]],
+          ['Health and safety', [['FORM', 'Accident and incident form', 'Linked to 2 policies', 'Fill in on screen', 'ok'], ['PDF', 'Lone working check-in card', 'Pocket card for carers', 'PDF']]]] }),
+
+      drafts: Q({ key: 'drafts', title: 'Drafts', icon: 'doc', kind: 'list', purpose: 'Policies being revised. Anyone allowed to publish can publish a draft directly; review is optional.', actions: ['Start a revision'],
+        strip: [['In progress', 3, 'prog', 'doc'], ['Reviewed', 1, 'ok', 'check'], ['From a regulatory change', 1, 'info', 'scale']],
+        cols: ['Draft', 'Policy', 'Started by', 'Sections changed', 'Status', 'Updated', ''],
+        rows: [['*Lone Working v3', '#POL-027', '@CB|Chloe Barton', '4', '!prog|In progress', 'Today', '>Open draft'], ['*Medication Management v5', '#POL-022', '@TK|Tom Keane', '2', '!info|From regulatory change', 'Yesterday', '>Open draft'], ['*Complaints v4', '#POL-019', '@LM|Leah Morris', '1', '!ok|Reviewed', '5 Nov', '>Publish']] }),
+
+      updates: Q({ key: 'updates', title: 'Monthly Updates', icon: 'history', kind: 'list', purpose: 'Everything published this month, what changed and how many staff have read it.', actions: ['Previous month', 'Next month'], noPlus: true,
+        cols: ['Document', 'Change', 'Version', 'Summary of changes', 'Published', 'Staff reading'],
+        rows: [['*Safeguarding Adults', '!info|Updated', 'v6', '~Report risk of immediate harm within one hour', '4 Nov', '%83|35 of 42'], ['*Infection Prevention and Control', '!info|Updated', 'v3', '~New guidance on gloves and aprons', '2 Nov', '%100|42 of 42'], ['*Lone Working', '!ok|New', 'v1', '~New procedure for evening calls', '1 Nov', '%95|40 of 42']] }),
+
+      generator: Q({ key: 'generator', title: 'Policy Generator', icon: 'spark', kind: 'steps', purpose: 'Create a first draft from the CSB library and your branch details. A person always checks it before publishing.', actions: ['Generate draft'],
+        steps: [['Choose the policy', 'Safeguarding Adults selected', 'done'], ['Review requirements', '12 requirements, 2 critical gaps', 'now'], ['Generate the draft', 'Uses your branch and local authority details', 'todo'], ['Open and check', 'Edit, then publish when ready', 'todo']],
+        tableTitle: 'Recent drafts', cols: ['Policy', 'Approach', 'Branches', 'Critical gaps', 'Draft status', 'Generated', ''],
+        rows: [['*Safeguarding Adults', 'From CSB library', 'Liverpool, Wirral', '!warn|2', '!prog|Requirements', 'Today', '>Continue'], ['*Lone Working', 'From scratch', 'All', '!ok|0', '!ok|Draft ready', '1 Nov', '>Open draft']] }),
+
+      coverage: Q({ key: 'coverage', title: 'Branch Coverage', icon: 'pin', kind: 'matrix', purpose: 'Which policies are in place and current for each branch.', actions: ['Cross-boundary safeguarding'], noPlus: true, rowsHead: 'Policy',
+        mcols: ['Liverpool', 'Wirral', 'Head office'],
+        mrows: [['Safeguarding Adults', 'POL-014', 'xxo'], ['Medication Management', 'POL-022', 'xxn'], ['Infection Prevention', 'POL-031', 'ddo'], ['Moving and Handling', 'POL-008', 'ddn'], ['Lone Working', 'POL-027', 'ovo'], ['Complaints', 'POL-019', 'ooo']] }),
+
+      branches: Q({ key: 'branches', title: 'Branch Configuration', icon: 'org', kind: 'list', purpose: 'Local authority, safeguarding board and local contacts for each branch, used in your policies.', actions: ['Add local authority'],
+        cols: ['Branch', 'Local authority', 'Safeguarding Adults Board', 'Configuration', 'Local contacts', 'Next review', ''],
+        rows: [['*Liverpool', 'Liverpool City Council', 'Liverpool SAB', '!ok|Verified', '!ok|Confirmed', '1 Mar 2027', '>Save branch'], ['*Wirral', 'Wirral Council', 'Wirral SAP', '!warn|Needs checking', '!warn|Confirm contacts', '20 Nov 2026', '>Verify configuration']] }),
+
+      changes: Q({ key: 'changes', title: 'Regulatory Updates', icon: 'scale', kind: 'queue', purpose: 'Changes found in the sources you watch. Decide whether each one applies, then draft the policy change.', actions: ['Source Status'], noPlus: true,
+        strip: [['To triage', 1, 'bad'], ['Being assessed', 2, 'warn'], ['Applied this month', 4, 'ok']],
+        items: [['bad', 'High impact', '9 Nov', 'Medicines in home care guidance updated', 'Care Quality Commission · awaiting triage', 'scale'], ['warn', 'Medium', '5 Nov', 'Safeguarding referral form changed', 'Liverpool Safeguarding Adults Board', 'scale'], ['n', 'Low', '3 Nov', 'Statutory sick pay guidance reworded', 'GOV.UK', 'scale'], ['warn', 'Medium', '28 Oct', 'Fit and proper persons guidance clarified', 'Care Quality Commission', 'scale']],
+        detail: { open: ['Open the source page'], tone: 'info', note: 'Simulated demonstration data. The wording quoted when you open it comes word for word from the stored source.', lt: 'Policies this may affect',
+          list: [['MM', 'Medication Management', 'POL-022 · section 5, Training and competence', 'Likely', 'warn', 'Open policy'], ['ST', 'Staff Training and Development', 'POL-052 · section 3', 'Possible', 'n', 'Open policy']], acts: ['Applies: draft a change', 'Does not apply', 'Assign to someone'] } }),
+
+      requirements: Q({ key: 'requirements', title: 'Requirements Register', icon: 'list', kind: 'list', purpose: 'Every regulatory requirement you must meet, the policies that cover it and the evidence that proves it.', actions: ['Add requirement'],
+        strip: [['Covered', 112, 'ok', 'check'], ['Partly covered', 9, 'warn', 'alert'], ['No policy yet', 2, 'bad', 'x']],
+        cols: ['Requirement', 'Source', 'Policies linked', 'Evidence', 'Checked against source'],
+        rows: [['~Staff giving medicines are trained and competent', 'CQC Regulation 12', '2', '!ok|Yes', '!ok|Verified'], ['~Abuse is reported to the local authority promptly', 'Care Act 2014', '1', '!ok|Yes', '!ok|Verified'], ['~Fit and proper persons checks for directors', 'CQC Regulation 5', '0', '!bad|None', '!warn|Not checked']] }),
+
+      sources: Q({ key: 'sources', title: 'Source Status', icon: 'globe', kind: 'list', purpose: 'The official sources ClearCare watches for changes, and when each was last checked.', actions: ['Manage sources'], noPlus: true,
+        cols: ['Source', 'Verified or simulated', 'Last checked', 'Last successful check', 'Status'],
+        rows: [['*Care Quality Commission', '!ok|Verified', 'Today 06:00', 'Today 06:00', '!ok|Working'], ['*legislation.gov.uk', '!ok|Verified', 'Today 06:00', 'Today 06:00', '!ok|Working'], ['*GOV.UK guidance', '!ok|Verified', 'Today 06:00', 'Yesterday 06:00', '!warn|One failed check'], ['*Liverpool SAB', '!warn|Simulated', '—', '—', '!n|Demonstration']] }),
+
+      references: Q({ key: 'references', title: 'Local & Safeguarding References', icon: 'pin', kind: 'list', purpose: 'Local authority and safeguarding board pages your policies refer to, checked by hand.', actions: ['Add source'],
+        cols: ['Source', 'Level', 'Applies to', 'Last checked here', 'Next review', 'Policies', ''],
+        rows: [['*Liverpool SAB procedures', 'Local', 'Liverpool', '2 Sep 2026', '!warn|1 Dec', '3', '>Check now'], ['*Wirral SAP referral form', 'Local', 'Wirral', '5 Nov 2026', '!ok|5 Feb', '2', '>Check now']] }),
+
+      signoff: Q({ key: 'signoff', title: 'Sign-off Overview', icon: 'sign', kind: 'list', purpose: 'Who has read and signed each policy assigned to them.', actions: ['Export CSV', 'Staff readiness'], noPlus: true,
+        strip: [['Fully signed', 31, 'ok', 'check', '100'], ['Outstanding', 9, 'warn', 'clock'], ['Overdue', 3, 'bad', 'alert', 'Overdue']],
+        cols: ['Employee', 'Branch', 'Assigned', 'Acknowledged', 'Overdue', 'Completion', ''],
+        rows: [['@JE|Jordan Ellis', 'Liverpool', '14', '12', '!bad|2 Overdue', '%86|86%', '>Chase'], ['@MR|Marcus Reid', 'Wirral', '14', '13', '!bad|1 Overdue', '%93|93%', '>Chase'], ['@DW|Daniel Webb', 'Liverpool', '14', '14', '!ok|0', '%100|100%', ''], ['@LT|Lucy Tran', 'Liverpool', '9', '4', '!warn|0', '%44|44%', '>Remind']] }),
+
+      rules: Q({ key: 'rules', title: 'Assignment Rules', icon: 'users', kind: 'list', purpose: 'Which policies each group of staff must read, and how long they have.', actions: ['Add rule'],
+        cols: ['Policy', 'Who must read it', 'Due', 'Assigned', ''],
+        rows: [['*Safeguarding Adults', 'Everyone', '14 days after publishing', '42', '>Withdraw'], ['*Medication Management', 'Carers who give medicines', '7 days', '28', '>Withdraw'], ['*Lone Working', 'Carers doing evening calls', '14 days', '19', '>Withdraw']] }),
+
+      reading: Q({ key: 'reading', title: 'My Reading List', icon: 'book', kind: 'docs', purpose: 'Policies you have been asked to read and sign.', actions: ['Open next'], noPlus: true,
+        dgroups: [['To read', [['DOC', 'Safeguarding Adults v6', 'Due 18 Nov · about 12 minutes', 'Due in 5 days', 'warn'], ['DOC', 'Lone Working v1', 'Due 15 Nov · about 6 minutes', 'Due in 2 days', 'warn']]], ['Signed', [['DOC', 'Infection Prevention v3', 'Signed 4 Nov', 'Signed', 'ok']]]] }),
+
+      audits: Q({ key: 'audits', title: 'Audits & Inspections', icon: 'clip', kind: 'list', purpose: 'Audits you have planned or completed, with findings and what happened next.', actions: ['Start audit'],
+        strip: [['Planned', 2, 'info', 'cal'], ['In progress', 1, 'prog', 'refresh'], ['Completed this year', 9, 'ok']],
+        cols: ['Audit', 'Type', 'Date', 'Findings', 'Outcome', 'Status'],
+        rows: [['*Care records audit', 'Internal', '14 Aug 2026', '6', 'Actions raised', '!ok|Completed'], ['*Medication audit', 'Internal', '20 Nov 2026', '—', '—', '!info|Planned'], ['*Infection control', 'Internal', '11 Nov 2026', '2 so far', '—', '!prog|In progress'], ['*Local authority monitoring visit', 'External', '3 Jun 2026', '3', 'Good', '!ok|Completed']] }),
+
+      actions: Q({ key: 'actions', title: 'Corrective Actions', icon: 'check', kind: 'board', purpose: 'Things to put right, who owns them, and proof they are done.', actions: ['Create action'],
+        stages: [['To do', [['Update care record template', 'From care records audit · Chloe Barton', 'Due 1 Dec', 'n'], ['Refresher on body maps', 'From incident INC-0418 · Owen Price', 'Due 30 Nov', 'n']], ''],
+          ['In progress', [['Re-check MAR training records', 'From medication audit · Tom Keane', '19 days overdue', 'bad'], ['Fix missing visit notes', 'From care records audit · Chloe Barton', '4 days overdue', 'bad']], 'prog'],
+          ['Waiting to verify', [['New key safe process', 'Evidence uploaded · Demo Manager', 'Verify', 'info']], 'brand'],
+          ['Done', [['Lone working check-in calls', 'Verified 2 Nov', 'Done', 'ok']], 'ok']] }),
+
+      'risk-register': Q({ key: 'risk-register', title: 'Risk Register', icon: 'alert', kind: 'list', purpose: 'Risks to the organisation, how likely and serious they are, and how you control them.', actions: ['Add a risk', 'Closed risks'],
+        strip: [['High', 2, 'bad', 'alert', 'High'], ['Medium', 6, 'warn', 'alert', 'Medium'], ['Low', 9, 'ok', 'check', 'Low']],
+        cols: ['Risk', 'Score', 'Controls', 'Owner', 'Next review'],
+        rows: [['~Not enough carers for winter demand', '!bad|High 16', '~Recruitment drive, bank staff', '@DM|Demo Manager', '1 Dec 2026'], ['~Missed calls during bad weather', '!bad|High 12', '~Weather plan, priority list', '@CB|Chloe Barton', '20 Nov 2026'], ['~Loss of a council contract', '!warn|Medium 8', '~Quality monitoring, early warning', '@DM|Demo Manager', '1 Feb 2027'], ['~Data breach from lost phone', '!ok|Low 4', '~Phone lock, remote wipe', '@LM|Leah Morris', '1 Mar 2027']] }),
+
+      evidence: Q({ key: 'evidence', title: 'Evidence Library', icon: 'folder', kind: 'docs', purpose: 'Files that prove what you do, linked to audits, actions, requirements and CQC.', actions: ['Upload'],
+        dgroups: [['Recently added', [['PDF', 'Governance meeting minutes, October', 'Linked to Well-led', 'Verified', 'ok'], ['PDF', 'Medication audit report', 'Linked to Safe · 2 actions', 'Waiting to verify', 'prog'], ['XLS', 'Training matrix export', 'Linked to Effective', 'Verified', 'ok']]], ['Needs attention', [['PDF', 'Fire risk assessment', 'Expired 1 Oct', 'Expired', 'bad']]]] }),
+
+      cqc: Q({ key: 'cqc', title: 'CQC Readiness', icon: 'shield', kind: 'home', purpose: 'How ready you are for each of the five key questions, and what is holding you back.', actions: [['Start assessment'], ['New RCA Investigation']],
+        strip: [['Evidence records', 212, 'mod', 'folder'], ['Missing evidence', 15, 'bad'], ['Waiting to verify', 21, 'prog', 'eye'], ['Overdue actions', 3, 'warn']],
+        kqTitle: 'The five key questions', kq: [['Safe', 81, 'Mostly ready', 'ok'], ['Effective', 78, 'Mostly ready', 'ok'], ['Caring', 88, 'Ready', 'ok'], ['Responsive', 72, 'Some gaps', 'warn'], ['Well-led', 54, 'Big gaps', 'bad']],
+        todos: [['bad', '15 pieces of evidence missing', 'Most are for Well-led: meeting minutes and audit follow-up', 'See gaps', 'P:cqc-evidence'], ['prog', '21 waiting to be verified', 'Uploaded but not yet checked by a manager', 'Verify', 'P:cqc-evidence', 'eye'], ['warn', '3 improvement actions overdue', 'Oldest 19 days past its date', 'Open', 'P:improve']],
+        links: [['CQC Assessment', 'Score yourself against each area', 'clip', 'P:cqc-assess'], ['CQC Evidence', 'Link and verify evidence', 'folder', 'P:cqc-evidence'], ['Root Cause Analysis', 'Investigations after incidents', 'flag', 'P:rca'], ['Improvement Actions', 'What you are putting right', 'check', 'P:improve'], ['CQC Reports', 'Packs to download', 'download', 'P:cqc-reports']] }),
+
+      'cqc-assess': Q({ key: 'cqc-assess', title: 'CQC Assessment', icon: 'clip', kind: 'list', purpose: 'Self-assessments against the CQC framework. An approver cannot approve one they assessed.', actions: ['Start assessment'],
+        cols: ['Assessment', 'Branch and service', 'Period', 'Assessor', 'Progress', 'Status'],
+        rows: [['*Autumn self-assessment', 'Liverpool · domiciliary care', 'Aug to Nov 2026', '@CB|Chloe Barton', '%62|62%', '!prog|In progress'], ['*Summer self-assessment', 'Liverpool · domiciliary care', 'May to Aug 2026', '@CB|Chloe Barton', '%100|100%', '!ok|Approved'], ['*Wirral first assessment', 'Wirral · domiciliary care', 'Nov 2026', '@OP|Owen Price', '%10|10%', '!prog|In progress']] }),
+
+      'cqc-evidence': Q({ key: 'cqc-evidence', title: 'CQC Evidence', icon: 'folder', kind: 'queue', purpose: 'Evidence offered for each assessment area, waiting for a manager to verify, reject or retire it.', actions: ['Find possible evidence'], noPlus: true,
+        strip: [['Waiting', 21, 'prog', 'eye'], ['Missing', 15, 'bad'], ['Verified', 168, 'ok']],
+        items: [['prog', 'Waiting', 'Well-led', 'Governance meeting minutes, October', 'Uploaded by Demo Manager · 2 Nov', 'doc'], ['prog', 'Waiting', 'Safe', 'Medication audit report', 'Uploaded by Tom Keane · 20 Oct', 'doc'], ['bad', 'Missing', 'Well-led', 'Audit follow-up log', 'Nothing linked yet', 'alert'], ['bad', 'Missing', 'Responsive', 'Complaints review, Q3', 'Nothing linked yet', 'alert']],
+        detail: { open: ['Open file'], tone: 'info', note: 'Check the file matches what the area asks for. Your decision is recorded with your name and the time.', lt: 'Assessment areas it could support',
+          list: [['WL', 'Well-led: governance and management', 'Quality statement · leadership', 'Best fit', 'ok', 'Link'], ['WL', 'Well-led: learning and improvement', 'Quality statement · learning', 'Possible', 'n', 'Link']], acts: ['Verify', 'Send for review', 'Reject'] } }),
+
+      rca: Q({ key: 'rca', title: 'Root Cause Analysis', icon: 'flag', kind: 'list', purpose: 'Investigations into serious incidents, to find out why they happened and stop them happening again.', actions: ['New RCA Investigation', 'CSV'],
+        cols: ['Reference', 'Investigation', 'Severity', 'Status', 'Investigator', 'Due', 'Actions done'],
+        rows: [['#RCA-007', '~Missed call, Arthur Pell, 10 Nov', '!warn|Moderate', '!prog|Investigating', '@CB|Chloe Barton', '24 Nov', '%0|0 of 3'], ['#RCA-006', '~Medication error, Edith Marsh, 22 Oct', '!bad|Serious', '!warn|Actions open', '@TK|Tom Keane', '5 Nov', '%50|2 of 4'], ['#RCA-005', '~Fall, Walter Brennan, 1 Sep', '!warn|Moderate', '!ok|Closed', '@CB|Chloe Barton', '—', '%100|3 of 3']] }),
+
+      improve: Q({ key: 'improve', title: 'Improvement Actions', icon: 'check', kind: 'list', purpose: 'Every action from assessments, audits and investigations, with who owns it and how far it has got.', actions: ['Export PDF', 'My actions'], noPlus: true,
+        strip: [['Overdue', 3, 'bad', 'alert', 'Overdue'], ['Due this month', 5, 'warn', 'clock'], ['Done this quarter', 18, 'ok']],
+        cols: ['Reference', 'Action', 'From', 'Priority', 'Responsible', 'Due', 'Progress'],
+        rows: [['#IA-031', '~Hold monthly governance meetings with minutes', 'Assessment', '!bad|High', '@DM|Demo Manager', '!bad|Overdue', '%30|30%'], ['#IA-029', '~Re-check MAR training records', 'Audit', '!warn|Medium', '@TK|Tom Keane', '!bad|Overdue', '%60|60%'], ['#IA-027', '~Add travel time to evening runs', 'RCA-007', '!warn|Medium', '@CB|Chloe Barton', '30 Nov', '%20|20%']] }),
+
+      'cqc-reports': Q({ key: 'cqc-reports', title: 'CQC Reports', icon: 'download', kind: 'docs', purpose: 'Ready-made packs to share with an inspector or your board.', actions: ['Make a new pack'],
+        dgroups: [['Packs', [['PDF', 'Readiness summary', 'All five key questions · Liverpool', 'Made 14 Aug'], ['PDF', 'Evidence index', '212 records with links', 'Made 2 Nov'], ['CSV', 'Improvement actions', 'All open and closed actions', 'CSV']]]] }),
+
+      'comp-reports': Q({ key: 'comp-reports', title: 'Compliance Reports', icon: 'chart', kind: 'report', purpose: 'Staff sign-off, policy reviews and audit results over time.', actions: ['Run report', 'Download CSV'], noPlus: true,
+        chartTitle: 'Staff sign-off by month', barLabels: ['Signed on time', 'Assigned'], bars: [['Jun', 38, 42], ['Jul', 40, 42], ['Aug', 36, 41], ['Sep', 39, 42], ['Oct', 41, 42], ['Nov', 35, 42]],
+        tableTitle: 'Policy reviews', cols: ['Month', 'Reviews due', 'Done on time', 'Late', 'Still overdue'],
+        rows: [['November', '6', '3', '1', '!bad|2'], ['October', '5', '5', '0', '!ok|0'], ['September', '7', '6', '1', '!ok|0']] })
+    };
+    const key = this.props.pkey || 'comp-home';
+    return { spec: P[key] || P['comp-home'], go: this.props.go || (() => {}) };
+  }
+}
+</script>
+</body>
+</html>

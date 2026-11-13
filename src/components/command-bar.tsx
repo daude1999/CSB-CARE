@@ -5,6 +5,7 @@ import { ArrowUpRight, Plus } from "@phosphor-icons/react";
 import { initials } from "@/lib/day-board";
 import { crossesHubEdge, portalById, portalForPath } from "@/lib/portals";
 import type { CommandLink, CommandResults } from "@/server/search/command";
+import { OPEN_COMMAND_EVENT } from "@/lib/shell-slots";
 
 /**
  * The command bar (approved redesign, 10 Nov 2026): Ctrl+K, or Cmd+K on a Mac, opens a centred search dialog from any
@@ -71,8 +72,17 @@ export function CommandBar({ pages, actions }: { pages: CommandPage[]; actions: 
         return true;
       });
     };
+    // The Harbour menu's "Search or jump to" opens the same bar.
+    const onOpen = () => setOpen((was) => {
+      if (!was) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      return true;
+    });
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener(OPEN_COMMAND_EVENT, onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener(OPEN_COMMAND_EVENT, onOpen);
+    };
   }, []);
 
   return open ? <CommandDialog pages={pages} actions={actions} onClose={close} /> : null;

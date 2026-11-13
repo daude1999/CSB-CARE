@@ -5,9 +5,9 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
-import { Logo, Monogram } from "@/components/brand";
-import { MobileMenu, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
-import { ShellSearch } from "@/components/shell-search";
+import { type ShellItem, type ShellPortal } from "@/components/portal-switcher";
+import { Breadcrumb, HarbourMenuProvider, IconRail, MenuButton, MenuFlyout, SearchButton, ShellSubTabs } from "@/components/harbour/shell";
+import { HarbourAccountMenu, TopBarClock, TopBarColourMode } from "@/components/harbour/account-menu";
 import { hrItems } from "@/components/hr-nav";
 import { AppHistory, HistoryButtons } from "@/components/history-nav";
 import { MainArea } from "@/components/main-area";
@@ -15,10 +15,8 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { rotaItems } from "@/components/rota-nav";
 import { complianceItems } from "@/components/compliance-nav";
 import { HelpMenu } from "@/components/help-menu";
-import { ColourModeMenu } from "@/components/colour-mode-menu";
 import { MODE_COOKIE, parseMode } from "@/lib/colour-mode";
 import { cookies } from "next/headers";
-import { AccountMenu, LondonClock, TopbarSwitch } from "@/components/overview-header";
 import { setupChecklist } from "@/server/setup/checklist";
 import { JobKicker } from "@/components/job-kicker";
 import { AiCsbCoordinatorLauncher } from "@/components/coordinator/ai-launcher";
@@ -99,22 +97,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ],
     ),
   };
+  // Drawn white inside the module's 20px colour square in the menu and the breadcrumb.
   const portalIcon: Record<string, React.ReactNode> = {
-    overview: <House size={20} />,
-    policy: <ShieldCheck size={20} />,
-    rota: <CalendarDots size={20} />,
-    hr: <UsersThree size={20} />,
-    reporting: <ChartBar size={20} />,
-    admin: <GearSix size={20} />,
+    overview: <House size={13} weight="bold" />,
+    policy: <ShieldCheck size={13} weight="bold" />,
+    rota: <CalendarDots size={13} weight="bold" />,
+    hr: <UsersThree size={13} weight="bold" />,
+    reporting: <ChartBar size={13} weight="bold" />,
+    admin: <GearSix size={13} weight="bold" />,
   };
+
   const portals: ShellPortal[] = portalsFor(ctx).map((p) => ({ ...p, icon: portalIcon[p.id] }));
   const canManage = Boolean(ctx.organisationId) && hasOrgPermission(ctx, "org.manage");
   const setupLeft = canManage ? (await setupChecklist(ctx.organisationId!)).filter((step) => !step.done).length : 0;
   const initials = ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("");
   const me = memberships.find((m) => m.organisationId === ctx.organisationId);
   const roleName = me?.jobTitle ?? (me?.roles[0] ? ROLE_NAMES[me.roles[0]] : ctx.platformRoles[0] ? ROLE_NAMES[ctx.platformRoles[0]] : "Member");
-  // The CSB brand leads the Overview header; a customer organisation's own name sits beneath it.
-  const overviewSubtitle = org && !/^care solution bureau\b/i.test(orgName) ? orgName : "Integrated care management";
   // The AI CSB Coordinator (Claude with CRM tools when switched on, built-in CRM search otherwise), for employees who may use it.
   const coordinator = ctx.organisationId && hasOrgPermission(ctx, "serviceUser.documents") && portalsFor(ctx).some((p) => p.id === "rota")
     ? {
@@ -134,16 +132,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(items[p.id] ?? []).filter((x) => !x.planned && x.href !== p.home).map((x) => ({ label: x.label, href: x.href, hint: p.name })),
   ]);
   const shell = {
-    portals,
-    items,
     org: org ? { name: orgName, branch: me?.branch?.name ?? null, currentId: ctx.organisationId, options: memberships.map((m) => ({ id: m.organisationId, name: m.organisation.name })) } : null,
     person: { name: ctx.userName, initials, role: roleName },
+  };
+
+  const place = org ? (me?.branch?.name ? `${orgName} · ${me.branch.name}` : orgName) : "CSB platform administration";
+  const harbour = {
+    portals,
+    items,
+    org: shell.org,
+    person: shell.person,
+    unread,
+    coordinator: Boolean(coordinator),
+    settingsHref: can.settings ? "/settings" : null,
     switchAction: switchOrgAction,
     signOutAction: logoutAction,
-    logo: <Monogram className="h-[42px]" />,
   };
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="hb-shell flex min-h-screen flex-col">
       <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-[14px] text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       {setupLeft ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
@@ -152,67 +158,41 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/" className="rounded-[4px] bg-emerald-500 px-4 py-1 font-medium text-white no-underline hover:bg-emerald-600 hover:text-white">Complete Setup</Link>
         </div>
       ) : null}
-      <div className="flex flex-1">
-        <ShellSidebar {...shell} />
-        <div className="shell-main flex min-w-0 flex-1 flex-col">
-          <TopbarSwitch
-            overview={
-              // The Overview's own header, as in the owner's approved design: logo and organisation on the left; the
-              // date and time in London, alerts, help and the signed-in person on the right. No search box here.
-              <header className="ov-topbar sticky top-0 z-[35] flex h-[64px] items-center gap-3 px-[16px] text-white md:h-[72px] md:px-[24px]" data-testid="overview-header">
-                <NavigationProgress renderKey={String(Date.now())} />
-                <MobileMenu {...shell} light />
-                <Monogram className="h-[30px] sm:h-[36px] lg:h-[46px]" />
-                <div className="min-w-0">
-                  <h1 className="truncate text-[16px] font-semibold max-sm:sr-only leading-[22px] text-white md:text-[18px] lg:text-[20px] lg:leading-[26px]">Care Solution Bureau CIC</h1>
-                  <p className="hidden truncate text-[13px] leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
-                </div>
-                <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
-                  <LondonClock initial={Date.now()} />
-                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 lg:block" />
-                  {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
-                  <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-white no-underline hover:bg-white/10 hover:text-white">
-                    <Bell size={22} aria-hidden="true" />
-                    {unread ? <span className="absolute right-[6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#0b2a4a] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
-                  </Link>
-                  <HelpMenu assistant={can.assistant} dark />
-                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 sm:block" />
-                  <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
-                </div>
-              </header>
-            }
-          >
-            <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:h-[68px] md:gap-[16px] md:px-[24px] lg:gap-[24px] lg:px-[32px]">
+      <HarbourMenuProvider>
+        <div className="flex flex-1">
+          <IconRail {...harbour} />
+          <MenuFlyout {...harbour} />
+          <div className="shell-main hb-main flex min-w-0 flex-1 flex-col">
+            {/* The Harbour top bar: breadcrumb on the left; demo badge, alerts, search, history, help and the person on the right. */}
+            <header className="hb-hd print:hidden">
               <NavigationProgress renderKey={String(Date.now())} />
-              <MobileMenu {...shell} />
+              <MenuButton />
               <div className="hidden sm:block"><HistoryButtons /></div>
-              <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
-              <ShellSearch />
-              <div className="flex shrink-0 items-center gap-2 md:gap-3 lg:gap-4">
-                {me?.branch?.name ? (
-                  <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
-                    <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
-                  </span>
-                ) : null}
-                {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
-                <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
-                  <Bell size={21} aria-hidden="true" />
-                  {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
-                </Link>
-                <ColourModeMenu initial={colourMode} />
-                <HelpMenu assistant={can.assistant} />
-                <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
-              </div>
+              <Breadcrumb portals={portals} items={items} />
+              <span className="flex-1" />
+              <SearchButton />
+              <TopBarClock initial={Date.now()} />
+              {org?.isDemo ? <span className="hb-demo hidden sm:inline">Demo data</span> : null}
+              {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
+              <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="hb-ib">
+                <Bell size={18} aria-hidden="true" />
+                {unread ? <span className="hb-dot"><span className="sr-only">{unread} unread</span></span> : null}
+              </Link>
+              <TopBarColourMode initial={colourMode} />
+              <HelpMenu assistant={can.assistant} />
+              <span aria-hidden="true" className="hb-hd-v hidden sm:block" />
+              <HarbourAccountMenu name={ctx.userName} initials={initials} role={roleName} place={place} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
             </header>
-          </TopbarSwitch>
-          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
-          <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
-          {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
-          <CommandBar pages={commandPages} actions={commandActions(ctx)} />
-          <AppHistory />
-          {inlineJobsEnabled() ? <JobKicker /> : null}
+            {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
+            <ShellSubTabs items={items} />
+            <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
+            {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
+            <CommandBar pages={commandPages} actions={commandActions(ctx)} />
+            <AppHistory />
+            {inlineJobsEnabled() ? <JobKicker /> : null}
+          </div>
         </div>
-      </div>
+      </HarbourMenuProvider>
     </div>
   );
 }

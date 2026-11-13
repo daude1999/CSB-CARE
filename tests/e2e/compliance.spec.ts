@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { currentMenuPage, followMenu, menuPages } from "./harbour-menu";
 
 /**
  * Policy & Compliance as six workspaces: the sidebar entries, each workspace's tabs, the old addresses that still
@@ -14,16 +15,15 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Main" });
-const current = (page: Page) => sidebar(page).locator('a.shell-page[aria-current="page"]');
+const current = currentMenuPage;
 // The six workspaces, then CQC Inspection & Evidence (owner's brief of 4 Nov 2026).
 const SIX = ["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports", "CQC Inspection & Evidence"];
 
 test.describe("Policy & Compliance workspaces", () => {
-  test("the sidebar has exactly the six entries, and each opens its workspace", async ({ page }) => {
+  test("the menu has exactly the six entries, and each opens its workspace", async ({ page }) => {
     await signIn(page);
     await page.goto("/");
-    const pages = page.getByTestId("portal-pages").locator("a.shell-page");
+    const pages = menuPages(page);
     await expect(pages).toHaveText(SIX);
     await expect(page.getByTestId("needs-attention")).toBeVisible();
     await expect(page.getByTestId("dashboard-figures")).toBeVisible();
@@ -36,7 +36,7 @@ test.describe("Policy & Compliance workspaces", () => {
       ["Compliance Reports", /\/compliance\/reports/, null],
     ];
     for (const [label, url, tabs] of opens) {
-      await sidebar(page).getByRole("link", { name: label, exact: true }).click();
+      await followMenu(page, label);
       await expect(page).toHaveURL(url);
       await expect(current(page)).toHaveText(label);
       if (tabs) await expect(page.getByTestId(tabs)).toBeVisible();
@@ -99,7 +99,7 @@ test.describe("Policy & Compliance workspaces", () => {
   test("a carer sees only their own reading and no reports", async ({ page }) => {
     await signIn(page, "carer@care-solution.demo");
     await page.goto("/");
-    const labels = await page.getByTestId("portal-pages").locator("a.shell-page").allTextContents();
+    const labels = await menuPages(page).allTextContents();
     expect(labels).not.toContain("Compliance Reports");
     expect((await page.goto("/compliance/reports"))?.status()).toBe(404);
     expect((await page.request.get("/api/compliance-reports/policies?format=csv")).status()).not.toBe(200);

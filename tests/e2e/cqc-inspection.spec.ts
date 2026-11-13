@@ -1,3 +1,4 @@
+import { followMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -20,7 +21,7 @@ test.describe("CQC Inspection & Evidence", () => {
   test("overview: sidebar entry, six tabs, warnings and the not-official label", async ({ page }) => {
     await signIn(page);
     await page.goto("/policies");
-    await page.getByRole("link", { name: "CQC Inspection & Evidence" }).first().click();
+    await followMenu(page, "CQC Inspection & Evidence");
     await expect(page).toHaveURL(/\/compliance\/cqc$/);
     const tabs = page.getByTestId("ws-tabs-cqc");
     for (const name of ["Overview", "CQC Assessment", "Evidence", "Root Cause Analysis", "Improvement Actions", "Reports"]) await expect(tabs.getByRole("link", { name: new RegExp(`^${name}`) })).toBeVisible();

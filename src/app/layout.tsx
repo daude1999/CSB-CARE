@@ -6,6 +6,14 @@ import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
 import "@fontsource-variable/source-serif-4/opsz.css";
 import "@fontsource-variable/inter/wght.css";
+// Harbour type: Instrument Sans for the interface, Newsreader for long document text (self-hosted, never fetched at runtime).
+import "@fontsource/instrument-sans/latin-400.css";
+import "@fontsource/instrument-sans/latin-500.css";
+import "@fontsource/instrument-sans/latin-600.css";
+import "@fontsource/instrument-sans/latin-700.css";
+import "@fontsource/newsreader/latin-400.css";
+import "@fontsource/newsreader/latin-500.css";
+import "@fontsource/newsreader/latin-400-italic.css";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, parseTheme } from "@/lib/themes";
 import { MODE_BOOT_SCRIPT, MODE_COOKIE, initialAppearance, parseMode } from "@/lib/colour-mode";

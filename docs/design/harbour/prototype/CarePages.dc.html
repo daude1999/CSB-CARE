@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Care and Rostering pages</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div><dc-import name="Workspace" spec="{{spec}}" go="{{go}}" hint-size="100%,900px"></dc-import></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pkey":{"editor":"enum","options":["rota-home","monitor","attention","unassigned","cover","missed","exceptions","advanced","planner","build","optimise","routes","print","templates","adv-templates","route-templates","service-users","coordinator","care-plans","risks","incidents","notes","staff","readiness","carer","finance","invoices","wages","timesheets","mileage","rates","rota-settings"],"default":"rota-home"},"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = (o) => Object.assign({ mod: 'care' }, o);
+    const P = {
+      'rota-home': C({ key: 'rota-home', title: 'Rota Home', icon: 'cal', kind: 'home', purpose: 'How today is going, and the quickest way to everything you need for the rota.', actions: [['Add a visit'], ['Open Daily Rota', 'DailyRota']],
+        tip: 'Start your shift here. Anything in red needs doing before the next call round.',
+        strip: [['Completed calls', 47, 'ok'], ['Running late', 2, 'warn'], ['Missed calls', 0, 'n', 'x'], ['Need a carer', 3, 'bad']],
+        todos: [['bad', '3 visits need a carer today', 'Rita Lowe 12:00 · Harold Finch 18:00 · Edith Marsh 20:30', 'Find cover', 'P:attention'], ['warn', '9 template conflicts', 'Repeating visits that overlap next week', 'Review', 'P:templates'], ['warn', '5 reminders due', '2 care plan reviews and 3 staff renewals in the next 14 days', 'See reminders'], ['ok', 'No rota conflicts today', 'Nobody is booked in two places', 'Check again']],
+        links: [['Daily Rota', "Today's visits, live", 'cal', 'DailyRota'], ['Visits Needing Attention', 'Everything that could stop a visit', 'alert', 'P:attention'], ['Weekly Planner', 'Plan the week by dragging visits', 'grid', 'P:planner'], ['Service users', '64 people we support', 'user', 'P:service-users'], ['Staff & Eligibility', 'Who can work and where', 'shield', 'P:staff'], ['Finance', "This week's timesheets and invoices", 'pound', 'P:finance']] }),
+
+      monitor: C({ key: 'monitor', title: 'The Monitor', icon: 'eye', kind: 'monitor', purpose: 'Who is out on a visit right now, and anything that has gone wrong since the last check.', actions: ['Check now', 'Exceptions'], noPlus: true,
+        tip: 'People in red have a visit that has started but they have not clocked in. Ring them first.',
+        groups: [['Should be on a visit, not clocked in', 'bad', [['FJ', 'Freya James', 'Walter Brennan 09:30 · 70 min late'], ['AK', 'Alice King', 'Ivy Doherty 09:00 · 40 min late']]],
+          ['On a visit now', 'prog', [['AH', 'Amelia Hart', 'Doreen Whitlock · since 10:15'], ['OB', 'Oliver Bennett', 'Joan Haverford · since 10:15'], ['MA', 'Matilda Allen', 'Rose Doyle · since 10:31'], ['JM', 'Jacob Morris', 'Margaret Hale · since 10:34']]],
+          ['Between visits', 'ok', [['OP', 'Oscar Patel', 'Next: Harold Pryce 12:30'], ['AP', 'Archie Phillips', 'Next: Ronald Quayle 12:30'], ['DW', 'Daniel Webb', 'Next: Cyril Mbeki 11:15']]]],
+        tableTitle: 'Alerts since 07:00', cols: ['What', 'Who', 'When', 'Why', 'Visit now', 'Owner'],
+        rows: [['!bad|Not clocked in', '@FJ|Freya James', '09:45', '~Visit to Walter Brennan started at 09:30', '!warn|Late', '@CB|Chloe Barton'], ['!bad|Not clocked in', '@AK|Alice King', '09:15', '~Visit to Ivy Doherty started at 09:00', '!warn|Late', '@CB|Chloe Barton'], ['!warn|Short visit', '@OP|Oscar Patel', '09:58', '~Clocked out after 18 of 30 minutes at Stanley Okafor', '!ok|Completed', 'Unassigned'], ['!info|Carer changed', '@MA|Matilda Allen', '08:02', '~Swapped with Owen Price for Rose Doyle', '!ok|Completed', '@DM|Demo Manager']] }),
+
+      attention: C({ key: 'attention', title: 'Visits Needing Attention', icon: 'alert', kind: 'queue', purpose: 'One list of everything that could stop a visit happening today. Start at the top.', actions: ['Unassigned Visits', 'Missed Calls'], noPlus: true,
+        strip: [['All', 9, 'mod', 'list'], ['Need a carer', 3, 'bad'], ['Running late', 2, 'warn'], ['One of two carers', 2, 'prog', 'users'], ['Carer not ready', 2, 'info', 'shield']],
+        items: [['bad', 'No carer', '12:00', 'Rita Lowe', 'Lunch call · 30 minutes · 1 carer needed', 'user'], ['warn', 'Late', '09:30', 'Walter Brennan', 'Morning call · 70 minutes past, not started', 'clock'], ['prog', '1 of 2', '17:00', 'Harold Pryce', 'Tea call · double-up with one carer', 'users'], ['bad', 'No carer', '18:00', 'Harold Finch', 'Tea call · Priya Nair off sick', 'user'], ['bad', 'No carer', '20:30', 'Edith Marsh', 'Bed call · Priya Nair off sick', 'user'], ['info', 'Not ready', 'Today', 'Marcus Reid', 'Medication training has run out · 2 visits', 'shield']],
+        detail: { open: ['Open visit', 'Open record'], tone: 'warn', note: 'Nobody is booked. The visit starts in 1 hour 20 minutes.', lt: 'Who can cover', lsub: 'Checked by the eligibility service. People who are not eligible cannot be picked.',
+          list: [['FJ', 'Freya James', 'Free 11:30 to 13:00 · has visited before', 'Eligible', 'ok', 'Assign'], ['AH', 'Amelia Hart', 'Free 12:00 to 12:45', 'Eligible', 'ok', 'Assign'], ['OP', 'Oscar Patel', 'Free from 11:45 · refresher due 20 Nov', 'Eligible with warning', 'warn', 'Assign'], ['MR', 'Marcus Reid', 'Medication training has run out', 'Not eligible', 'bad', 'Assign']],
+          acts: ['Contact carers about cover', 'Move visit', 'Swap shift', 'Cancel visit'] } }),
+
+      unassigned: C({ key: 'unassigned', title: 'Unassigned Visits', icon: 'user', kind: 'queue', purpose: 'Visits with an open carer place, with suggestions for who could take them.', actions: ['Create Visit', 'Find cover for all'],
+        strip: [['Today', 3, 'bad'], ['Tomorrow', 5, 'warn'], ['This week', 11, 'info', 'cal']],
+        items: [['bad', 'Today', '12:00', 'Rita Lowe', 'Lunch call · Liverpool South'], ['bad', 'Today', '18:00', 'Harold Finch', 'Tea call · Liverpool North'], ['bad', 'Today', '20:30', 'Edith Marsh', 'Bed call · Liverpool South'], ['warn', 'Friday', '07:30', 'Joan Carrow', 'Morning call · Priya Nair off sick'], ['warn', 'Friday', '12:30', 'Joan Carrow', 'Lunch call · Priya Nair off sick'], ['warn', 'Friday', '17:00', 'Arthur Pell', 'Tea call · Priya Nair off sick']],
+        detail: { open: ['Open visit'], tone: 'info', note: 'Suggestions are ranked by free time, distance on the rota and whether the carer knows the person. Every choice is checked again before it is saved.', lt: 'Suggested carers',
+          list: [['FJ', 'Freya James', 'Free 11:30 to 13:00 · knows Rita', 'Best match', 'ok', 'Assign'], ['AH', 'Amelia Hart', 'Free 12:00 to 12:45', 'Good match', 'ok', 'Assign'], ['JM', 'Jacob Morris', 'Free from 11:45 · 2 visits nearby', 'Good match', 'ok', 'Assign']], acts: ['Contact carers about cover', 'Change the time'] } }),
+
+      cover: C({ key: 'cover', title: 'Sickness & Holiday Cover', icon: 'heart', kind: 'list', purpose: "Visits left open by someone who is off, and who could cover them.", actions: ['Record an absence', 'Unassigned Visits'],
+        strip: [['People off today', 3, 'info', 'users'], ['Visits affected', 12, 'warn', 'cal'], ['Covered', 7, 'ok', 'check', 'Covered'], ['Still to cover', 5, 'bad', 'alert', 'To cover']],
+        filters: ['Dates: Today to Sunday', 'Branch: All my branches'], cols: ['Team member', 'Absence', 'Dates', 'Visits affected', 'Covered', 'Status', ''],
+        rows: [['@PN|Priya Nair', '!bad|Sick', 'Fri 13 to Sun 15 Nov', '5', '%0|0 of 5', '!bad|To cover', '>Find replacement'], ['@GO|Grace Oduya', '!bad|Sick', 'Thu 12 Nov', '4', '%100|4 of 4', '!ok|Covered', '>Show'], ['@OP|Owen Price', '!info|Holiday', 'Thu 12 to Mon 16 Nov', '3', '%100|3 of 3', '!ok|Covered', '>Show']] }),
+
+      missed: C({ key: 'missed', title: 'Missed Calls', icon: 'x', kind: 'list', purpose: 'Every missed visit is investigated, signed off by a manager who did not investigate it, and kept for CQC.', actions: ['Export Excel', 'Export PDF'], noPlus: true,
+        strip: [['Open investigations', 2, 'warn', 'clock', 'Investigating'], ['Waiting for sign-off', 1, 'info', 'sign', 'sign-off'], ['Closed this month', 4, 'ok', 'check', 'Closed']],
+        filters: ['Reason: Any', 'Status: Any', 'Coordinator: Anyone'], cols: ['Ref', 'Care worker', 'Service user', 'Scheduled', 'Reason', 'Status', 'Deadline'],
+        rows: [['#MC-0112', '@JE|Jordan Ellis', 'Arthur Pell', '10 Nov 17:00', 'Carer did not attend', '!warn|Investigating', '!bad|Today'], ['#MC-0111', 'Unassigned', 'Joan Carrow', '8 Nov 12:30', 'Left open after cover failed', '!warn|Investigating', 'Mon 16 Nov'], ['#MC-0109', '@MR|Marcus Reid', 'Stanley Okafor', '3 Nov 20:00', 'Person was out', '!info|Waiting for sign-off', 'Fri 13 Nov'], ['#MC-0106', '@FJ|Freya James', 'Elsie Varga', '1 Nov 07:15', 'Car broke down', '!ok|Closed', '—']] }),
+
+      exceptions: C({ key: 'exceptions', title: 'Exceptions', icon: 'flag', kind: 'queue', purpose: 'Visits that did not go to plan: short, very late, no clock-out or a change of carer on the day.', actions: ['The Monitor'], noPlus: true,
+        strip: [['Open', 6, 'warn'], ['Escalated', 1, 'bad'], ['Resolved this week', 14, 'ok']],
+        items: [['warn', 'Short visit', 'Today 09:58', 'Stanley Okafor', 'Clocked out after 18 of 30 minutes · Oscar Patel'], ['bad', 'No clock-out', 'Yesterday 21:10', 'Ronald Quayle', 'Oliver Bennett did not clock out'], ['warn', 'Very late', 'Yesterday 17:52', 'Doreen Whitlock', 'Started 47 minutes late · Amelia Hart'], ['info', 'Carer changed', 'Today 08:02', 'Rose Doyle', 'Matilda Allen swapped with Owen Price']],
+        detail: { open: ['Open visit'], tone: 'warn', note: 'Oscar recorded "Stanley asked me to leave early, family visiting". Check the note and decide whether to charge and pay the full visit.', lt: 'Decide', lsub: 'Each decision is written to the audit log.',
+          list: [['OP', 'Pay and charge in full', 'The person asked the carer to leave early', 'Most common', 'ok', 'Choose'], ['OP', 'Pay and charge actual time', '18 minutes', 'Option', 'n', 'Choose']], acts: ['Assign to someone', 'Escalate', 'Resolve'] } }),
+
+      advanced: C({ key: 'advanced', title: 'Advanced Rota', icon: 'grid', kind: 'week', purpose: 'Every carer’s week at a glance, with hours booked against hours they want.', actions: ['Add visit', 'To Daily Rota', 'View holidays'], rowsHead: 'Team member',
+        legend: [['Booked', 'mod'], ['Holiday', 'info'], ['Sick', 'bad'], ['Over hours', 'warn']],
+        wrows: [['Oscar Patel', '37.5 h · 38 booked', ['7h 10m|mod', '7h|mod', '6h 30m|mod', '6h 15m|mod', '6h 45m|mod', '', '4h|warn']], ['Amelia Hart', '24 h · 22 booked', ['5h|mod', '', '5h 30m|mod', '5h 30m|mod', '', '6h|mod', '']], ['Freya James', '30 h · 29 booked', ['6h|mod', '6h|mod', '', '5h 15m|mod', '6h|mod', '5h 45m|mod', '']], ['Priya Nair', '37.5 h', ['7h|mod', '7h|mod', '7h|mod', '', 'Sick|bad', 'Sick|bad', 'Sick|bad']], ['Owen Price', '20 h', ['', '', '', 'Holiday|info', 'Holiday|info', 'Holiday|info', 'Holiday|info']], ['Jacob Morris', '24 h · 24 booked', ['', '4h 15m|mod', '4h 15m|mod', '4h 15m|mod', '5h|mod', '6h|mod', '']]] }),
+
+      planner: C({ key: 'planner', title: 'Weekly Planner', icon: 'cal', kind: 'week', purpose: 'Plan the week by dragging visits between carers. Open slots are shown in red.', actions: ['Plan rota', 'Roll forward', 'Fill open slots', 'Cover'], rowsHead: 'Service user',
+        tip: 'Drag a visit onto a carer. If they are not eligible, ClearCare tells you why and does not move it.',
+        legend: [['Booked', 'mod'], ['Open slot', 'bad'], ['Done', 'ok']],
+        wrows: [['Harold Pryce', '4 calls a day, double-up', ['OP AH ×4|ok', 'OP AH ×4|ok', 'OP AH ×4|ok', '07:30 OP AH|ok;Bed 1 of 2|bad', 'OP AH ×4|mod', 'Bed 1 of 2|bad', 'OP AH ×4|mod']], ['Rita Lowe', '2 calls a day', ['FJ ×2|ok', 'FJ ×2|ok', 'FJ ×2|ok', '12:00 open|bad', 'FJ ×2|mod', 'JM ×2|mod', 'JM ×2|mod']], ['Margaret Ellison', '3 calls a day', ['AH ×3|ok', 'AH ×3|ok', 'AH ×3|ok', 'AH ×3|mod', 'AH ×3|mod', 'OB ×3|mod', 'OB ×3|mod']], ['Joan Carrow', '3 calls a day', ['PN ×3|ok', 'PN ×3|ok', 'PN ×3|ok', 'In hospital|info', '3 open|bad', 'PN ×3|mod', 'PN ×3|mod']], ['Walter Brennan', '4 calls a day', ['FJ OB ×4|ok', 'FJ OB ×4|ok', 'FJ OB ×4|ok', 'FJ OB ×4|mod', 'FJ OB ×4|mod', 'AK ×4|mod', 'AK ×4|mod']]] }),
+
+      build: C({ key: 'build', title: 'Build Rota', icon: 'tpl', kind: 'steps', purpose: 'Turn repeating visits into next week’s rota, check it, then publish it to carers.', actions: ['Build New Rota', 'Check this week'],
+        steps: [['Roll forward templates', 'Week of 16 November · 986 visits made', 'done'], ['Check the week', '9 template conflicts to look at', 'now'], ['Fill open slots', '11 visits with an open place', 'todo'], ['Publish to carers', 'Carers see it in the app', 'todo']],
+        tableTitle: 'Conflicts to check before publishing', cols: ['Time', 'Service user', 'Call', 'Carers', 'Problem', ''],
+        rows: [['Mon 07:30', '*Harold Pryce', 'Morning', '@OP|Oscar Patel', '!warn|Overlaps George Ashdown 07:30', '>Fix'], ['Mon 12:00', '*Rita Lowe', 'Lunch', '@FJ|Freya James', '!warn|Freya on holiday Monday', '>Fix'], ['Tue 17:00', '*Arthur Pell', 'Tea', 'Unassigned', '!bad|No carer', '>Fix'], ['Wed 20:30', '*Edith Marsh', 'Bed', '@AH|Amelia Hart', '!warn|Over contracted hours', '>Fix']] }),
+
+      optimise: C({ key: 'optimise', title: 'Generate & Optimise', icon: 'spark', kind: 'list', purpose: 'Ask ClearCare to suggest a plan for open visits. Nothing changes until you accept a plan.', actions: ['Generate plan', 'Unassigned Visits'],
+        tip: 'A plan is a suggestion. Accepting it runs every visit through the eligibility check again.',
+        cols: ['Dates', 'Area', 'Proposed', 'Left open', 'Status', 'Made by'],
+        rows: [['16 to 22 Nov', 'Liverpool South', '41 visits', '3', '!info|Ready to review', '@DM|Demo Manager'], ['9 to 15 Nov', 'All areas', '18 visits', '0', '!ok|Accepted', '@CB|Chloe Barton'], ['9 to 15 Nov', 'Wirral', '7 visits', '2', '!n|Rejected', '@CB|Chloe Barton']] }),
+
+      routes: C({ key: 'routes', title: 'Live Run Routes', icon: 'route', kind: 'list', purpose: 'Visits grouped into runs a carer works in order, for this week and next.', actions: ['Template Run Routes'], noPlus: true,
+        cols: ['Run route', 'Run type', 'Week commencing', 'Week ending', 'Visits', ''],
+        rows: [['*South morning run', 'Morning', '9 Nov 2026', '15 Nov 2026', '42', '>View'], ['*South lunch run', 'Lunch', '9 Nov 2026', '15 Nov 2026', '35', '>View'], ['*North bed run', 'Bed', '9 Nov 2026', '15 Nov 2026', '28', '>View'], ['*Wirral morning run', 'Morning', '9 Nov 2026', '15 Nov 2026', '21', '>View']] }),
+
+      print: C({ key: 'print', title: 'Printable Rota', icon: 'print', kind: 'docs', purpose: 'Paper copies for carers who prefer them, or for the office wall.', actions: ['Download PDF'], noPlus: true,
+        dgroups: [['This week', [['PDF', 'Rota by carer', 'One page per carer · 9 to 15 Nov', 'Ready'], ['PDF', 'Rota by service user', 'One page per person · 9 to 15 Nov', 'Ready'], ['PDF', 'Rota by area', 'Liverpool South, North and Wirral', 'Ready']]], ['Next week', [['PDF', 'Rota by carer', '16 to 22 Nov · not published yet', 'Draft', 'warn']]]] }),
+
+      templates: C({ key: 'templates', title: 'Daily Templates', icon: 'tpl', kind: 'list', purpose: 'Repeating visits that build each week’s rota. Change a template and every future week follows.', actions: ['Add Template'],
+        strip: [['Active', 412, 'ok', 'check', 'Active'], ['Conflicts', 9, 'warn', 'alert', 'Conflict'], ['Inactive', 23, 'n', 'x', 'Inactive']],
+        filters: ['Area: All Areas', 'Service user: All', 'Pattern: Any'], cols: ['Ref', 'Service user', 'Service Call', 'Time', 'Carers', 'Team Member(s)', 'Pattern', 'Status'],
+        rows: [['#T-0418', '*Harold Pryce', 'Morning call', '07:30 · 45m', '2', 'Oscar Patel, Amelia Hart', 'Every day', '!ok|Active'], ['#T-0419', '*Harold Pryce', 'Bed call', '20:30 · 30m', '2', 'Oscar Patel', 'Every day', '!warn|Conflict'], ['#T-0502', '*Rita Lowe', 'Lunch call', '12:00 · 30m', '1', 'Freya James', 'Mon to Fri', '!ok|Active'], ['#T-0377', '*Margaret Ellison', 'Morning call', '07:00 · 45m', '1', 'Amelia Hart', 'Every day', '!ok|Active'], ['#T-0391', '*Joan Carrow', 'Tea call', '17:00 · 30m', '1', 'Priya Nair', 'Week 1 of 2', '!n|Inactive']] }),
+
+      'adv-templates': C({ key: 'adv-templates', title: 'Advanced Templates', icon: 'grid', kind: 'week', purpose: 'The repeating pattern for each person across a two-week cycle.', actions: ['Template Run Routes', 'Show'], noPlus: true, rowsHead: 'Service user', weekLabel: 'Week 2 of 2', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], today: -1,
+        legend: [['Template', 'mod'], ['Conflict', 'warn']],
+        wrows: [['Harold Pryce', '4 calls · double-up', ['07:30;12:30;17:00;20:30|mod', '07:30;12:30;17:00;20:30|mod', '07:30;12:30;17:00;20:30|mod', '07:30;12:30;17:00;20:30|mod', '07:30;12:30;17:00;20:30|mod', '07:30;20:30 conflict|warn', '07:30;12:30;17:00;20:30|mod']], ['Rita Lowe', '2 calls', ['08:00;12:00|mod', '08:00;12:00|mod', '08:00;12:00|mod', '08:00;12:00|mod', '08:00;12:00|mod', '09:00|mod', '09:00|mod']], ['Joan Carrow', '3 calls', ['07:30;12:30;17:00|mod', '07:30;12:30;17:00|mod', '', '07:30;12:30;17:00|mod', '07:30;12:30;17:00|mod', '', '']]] }),
+
+      'route-templates': C({ key: 'route-templates', title: 'Template Run Routes', icon: 'route', kind: 'list', purpose: 'The runs your templates are grouped into before each week is built.', actions: ['Live Run Routes'], noPlus: true,
+        cols: ['Run route', 'Run type', 'Templates', 'State', ''], rows: [['*South morning run', 'Morning', '42', '!ok|In use', '>View'], ['*South lunch run', 'Lunch', '35', '!ok|In use', '>View'], ['*North tea run', 'Tea', '19', '!warn|Needs a carer', '>View']] }),
+
+      'service-users': C({ key: 'service-users', title: 'Service users', icon: 'user', kind: 'list', purpose: 'The people we support. Open someone to see their care, visits, documents and contacts in one place.', actions: ['Add service user', 'Set up from support plan'], rowGo: 'ServiceUser', total: 64,
+        strip: [['Active', 52, 'ok', 'heart', 'Active'], ['Being assessed', 4, 'info', 'clip', 'Assessment'], ['Paused or in hospital', 3, 'warn', 'clock', 'hospital'], ['Ended', 5, 'n', 'x', 'Ended']],
+        search: 'Search by name, CSB reference or council reference', filters: ['Area: All areas', 'Care package: Any'],
+        cols: ['Service user', 'CSB Reference', 'Council / Frameworki Ref', 'Area', 'Care package', 'Status', 'Next visit'],
+        rows: [['@HP|Harold Pryce', '#SU-102', '#LCC-448120', 'Liverpool North', '4 calls a day, double-up', '!ok|Active', 'Today 12:30'], ['@ME|Margaret Ellison', '#SU-087', '#LCC-431907', 'Liverpool South', '3 calls a day', '!ok|Active', 'Today 12:00'], ['@RL|Rita Lowe', '#SU-140', '#LCC-460018', 'Liverpool South', '2 calls a day', '!ok|Active', 'Today 12:00 · no carer'], ['@JC|Joan Carrow', '#SU-099', '#LCC-440277', 'Liverpool North', '3 calls a day', '!warn|In hospital', 'Back Fri 13 Nov'], ['@WB|Walter Brennan', '#SU-064', '#WIR-20931', 'Wirral', '4 calls a day', '!ok|Active', 'Today 12:30'], ['@EV|Elsie Varga', '#SU-143', '#LCC-461340', 'Liverpool South', 'Being assessed', '!info|Assessment', 'Fri 13 Nov 10:00']] }),
+
+      coordinator: C({ key: 'coordinator', title: 'Care Coordinator', icon: 'spark', kind: 'list', purpose: 'Upload a council support plan and ClearCare sets up the person, their care plan, risks and visits for you to check.', actions: ['Upload and process'],
+        tip: 'Medication found in a support plan always goes to reconciliation. It is never switched on automatically.',
+        strip: [['Being read', 1, 'prog', 'refresh', 'Reading'], ['Ready to check', 2, 'info', 'eye', 'check'], ['Set up this month', 6, 'ok', 'check', 'Set up']],
+        cols: ['Intake', 'Service user', 'Document', 'Status', 'Records', 'Questions', 'Started'],
+        rows: [['#IN-0031', '*Rita Lowe', 'LCC support plan · 14 pages', '!prog|Reading', '—', '—', 'Today 10:31'], ['#IN-0030', '*Elsie Varga', 'LCC support plan · 11 pages', '!info|Ready to check', '23 found', '2', 'Yesterday'], ['#IN-0029', '*Bernard Ward', 'Hospital discharge letter', '!info|Ready to check', '8 found', '1', 'Tue 10 Nov'], ['#IN-0027', '*Rose Doyle', 'LCC support plan · 9 pages', '!ok|Set up', '19 created', '0', '2 Nov']] }),
+
+      'care-plans': C({ key: 'care-plans', title: 'Care Plans', icon: 'clip', kind: 'list', purpose: 'Every person’s current care plan, when it is due for review, and whether carers have read it.', actions: ['Search'], noPlus: true, rowGo: 'ServiceUser',
+        strip: [['Review overdue', 2, 'bad', 'alert', 'Overdue'], ['Due in 30 days', 6, 'warn', 'clock', 'Due'], ['Not read by every carer', 9, 'info', 'eye']],
+        cols: ['Person', 'Area', 'Plan in use', 'Review due', 'Read by carers', 'In progress'],
+        rows: [['@HF|Harold Finch', 'Liverpool North', 'Version 2', '!bad|Overdue 5 Nov', '%80|4 of 5', 'Draft v3'], ['@EM|Edith Marsh', 'Liverpool South', 'Version 4', '!bad|Overdue 8 Nov', '%100|6 of 6', '—'], ['@HP|Harold Pryce', 'Liverpool North', 'Version 3', '!warn|Due 28 Nov', '%86|6 of 7', '—'], ['@RL|Rita Lowe', 'Liverpool South', 'Version 1', '!ok|8 Mar 2027', '%50|2 of 4', '—']] }),
+
+      risks: C({ key: 'risks', title: 'Risk Assessments', icon: 'shield', kind: 'list', purpose: 'Risks for each person, how serious they are, and when each must be looked at again.', actions: ['New assessment'],
+        strip: [['High risk', 3, 'bad', 'alert', 'High'], ['Medium risk', 21, 'warn', 'alert', 'Medium'], ['Review overdue', 1, 'info', 'clock']],
+        filters: ['Type: Any', 'Level: Any'], cols: ['Assessment', 'Person', 'Type', 'Level', 'Review by'],
+        rows: [['*Moving and handling', '@HP|Harold Pryce', 'Mobility', '!warn|Medium', '1 Dec 2026'], ['*Falls', '@HP|Harold Pryce', 'Mobility', '!warn|Medium', '1 Dec 2026'], ['*Choking', '@WB|Walter Brennan', 'Eating and drinking', '!bad|High', '20 Nov 2026'], ['*Home environment', '@RL|Rita Lowe', 'Environment', '!ok|Low', '8 Mar 2027']] }),
+
+      incidents: C({ key: 'incidents', title: 'Incidents', icon: 'alert', kind: 'list', purpose: 'Accidents, near misses and concerns, from first report to closing.', actions: ['Report an incident'],
+        strip: [['Open', 4, 'warn', 'clock', 'Open'], ['Safeguarding', 1, 'bad', 'shield', 'Safeguarding'], ['Closed this month', 7, 'ok', 'check', 'Closed']],
+        cols: ['Reference', 'When', 'Person', 'Category', 'Severity', 'Status'],
+        rows: [['#INC-0421', '11 Nov 16:40', '@WB|Walter Brennan', 'Fall, no injury', '!warn|Moderate', '!warn|Open'], ['#INC-0420', '10 Nov 09:12', '@JC|Joan Carrow', 'Safeguarding concern', '!bad|High', '!bad|Safeguarding'], ['#INC-0418', '9 Nov 17:22', '@HP|Harold Pryce', 'Skin tear', '!ok|Low', '!ok|Closed'], ['#INC-0417', '8 Nov 20:05', '@EM|Edith Marsh', 'Medication refused', '!ok|Low', '!warn|Open']] }),
+
+      notes: C({ key: 'notes', title: 'Visit Notes', icon: 'chat', kind: 'list', purpose: 'What carers wrote at each visit. Anything worrying can be turned into an incident.', actions: ['Exceptions'], noPlus: true,
+        strip: [['Flagged by carers', 3, 'warn', 'flag', 'Flagged'], ['Today', 47, 'mod', 'chat']],
+        cols: ['Time', 'Service user', 'Carer', 'Note', 'Flag', ''],
+        rows: [['Today 08:14', '*Harold Pryce', '@OP|Oscar Patel', '~Up and dressed, ate a full breakfast. In good spirits.', '', ''], ['Today 07:52', '*Walter Brennan', '@OB|Oliver Bennett', '~Coughing while drinking tea. Took it slowly.', '!warn|Flagged', '>Make this an incident'], ['Today 07:41', '*Margaret Ellison', '@AH|Amelia Hart', '~Slept well. Asked about her hospital appointment.', '', ''], ['Yesterday 20:44', '*Edith Marsh', '@AK|Alice King', '~Refused evening tablets, said she felt sick.', '!warn|Flagged', '>Make this an incident']] }),
+
+      staff: C({ key: 'staff', title: 'Staff & Eligibility', icon: 'shield', kind: 'list', purpose: 'Who can be put on the rota, and why not if they cannot. Information comes from the HR Hub.', actions: ['Open HR Hub', 'HR'], noPlus: true,
+        strip: [['Ready', 19, 'ok', 'check', 'Ready'], ['Ready with limits', 2, 'warn', 'alert', 'limits'], ['Not ready', 2, 'bad', 'x', 'Not ready']],
+        filters: ['Area: All', 'Readiness: Any'], cols: ['Name', 'Areas', 'DBS', 'Right to work', 'Training', 'Readiness', 'Visits this week', 'Sign-in'],
+        rows: [['@OP|Oscar Patel', 'North, South', '!ok|In date', '!ok|Checked', '!ok|In date', '!ok|Ready', '41', '!ok|Linked'], ['@DW|Daniel Webb', 'South', '!prog|To verify', '!ok|Checked', '!ok|In date', '!ok|Ready', '35', '!ok|Linked'], ['@AR|Aisha Rahman', 'South', '!ok|In date', '!ok|Checked', '!bad|Medication expired', '!warn|Ready with limits', '28', '!ok|Linked'], ['@MR|Marcus Reid', 'Wirral', '!ok|In date', '!warn|Due 9 Dec', '!bad|Medication expired', '!warn|Ready with limits', '22', '!ok|Linked'], ['@LT|Lucy Tran', 'South', '!prog|Applied', '!ok|Checked', '!warn|Induction', '!bad|Not ready', '0', '!warn|Not linked']] }),
+
+      readiness: C({ key: 'readiness', title: 'Staff Readiness', icon: 'check', kind: 'matrix', purpose: 'Every requirement for every carer. Red stops someone being booked.', actions: ['Requirements matrix'], noPlus: true, rowsHead: 'Carer',
+        mcols: ['DBS', 'Right to work', 'References', 'Safeguarding', 'Moving & handling', 'Medication', 'First aid', 'Infection control'],
+        mrows: [['Oscar Patel', 'Care Support Worker', 'oooooooo'], ['Daniel Webb', 'Care Support Worker', 'vooooood'], ['Aisha Rahman', 'Care Support Worker', 'oooooxoo'], ['Marcus Reid', 'Care Support Worker', 'odoooxoo'], ['Lucy Tran', 'New starter', 'vooddnno'], ['Chloe Barton', 'Care Coordinator', 'ooodnnoo']] }),
+
+      carer: C({ key: 'carer', title: 'My Visits (carer app)', icon: 'phone', kind: 'phone', purpose: 'What a carer sees on their phone: today’s visits, the care plan and risks, and clocking in and out.', actions: ['Preview as another carer'], noPlus: true,
+        pv: [['Elsie Varga', '07:15', 'Morning call', 'Done', 'ok'], ['Walter Brennan', '09:30', 'Morning call', 'Late', 'warn', true], ['Irene Castellano', '12:00', 'Lunch call', 'Booked', 'n'], ['Cyril Mbeki', '13:00', 'Lunch call', 'Booked', 'n']],
+        pfeat: ['See today’s visits in order, with the address and how to get in.', 'Read the care plan and risks before going in.', 'Clock in and out, and write a visit note.', 'Report an incident or tell the office something went wrong.', 'Send a mileage claim.'] }),
+
+      finance: C({ key: 'finance', title: 'Finance', icon: 'pound', kind: 'steps', purpose: 'Each week moves through six steps, from checked timesheets to files ready for your payroll and accounts.', actions: ['Review timesheets', 'Rota Insights'],
+        steps: [['Review timesheets', '23 carers, 4 to check', 'done'], ['Prepare payroll', 'From approved timesheets', 'done'], ['Check and approve payroll', '2 lines queried', 'now'], ['Prepare invoices', 'From charged visits', 'todo'], ['Approve invoices', '', 'todo'], ['Ready to export', '', 'todo']],
+        tableTitle: 'Recent weeks', cols: ['Week', 'Timesheets', 'Payroll', 'Invoices', 'Next step'],
+        rows: [['*2 to 8 November', '!ok|Approved', '!warn|Being checked', '!n|Not prepared', '>Approve payroll'], ['*26 Oct to 1 Nov', '!ok|Approved', '!ok|Approved', '!warn|Being checked', '>Approve invoices'], ['*19 to 25 October', '!ok|Approved', '!ok|Approved', '!ok|Approved', '>Export'], ['*12 to 18 October', '!ok|Approved', '!info|Exported', '!info|Exported', '>Open week']] }),
+
+      invoices: C({ key: 'invoices', title: 'Invoicing', icon: 'doc', kind: 'list', purpose: 'Invoices to councils and private clients, built from the visits that were delivered.', actions: ['Prepare invoices'],
+        strip: [['To approve', 3, 'warn', 'clock', 'checked'], ['Approved', 12, 'ok', 'check', 'Approved'], ['Exported', 41, 'info', 'download', 'Exported']],
+        cols: ['Invoice', 'Funder', 'Period', 'Visits', 'Amount', 'Status'],
+        rows: [['#INV-2026-0312', 'Liverpool City Council', '26 Oct to 1 Nov', '612', '£14,820.50', '!warn|Being checked'], ['#INV-2026-0313', 'Wirral Council', '26 Oct to 1 Nov', '148', '£3,612.00', '!warn|Being checked'], ['#INV-2026-0314', 'Private clients (6)', '26 Oct to 1 Nov', '96', '£2,496.00', '!warn|Being checked'], ['#INV-2026-0305', 'Liverpool City Council', '19 to 25 Oct', '604', '£14,630.25', '!ok|Approved']] }),
+
+      wages: C({ key: 'wages', title: 'Wages', icon: 'pound', kind: 'list', purpose: 'Pay for each carer, from approved timesheets and mileage.', actions: ['Approve payroll'],
+        strip: [['Queried', 2, 'warn', 'alert', 'Queried'], ['Ready', 21, 'ok', 'check', 'Ready']],
+        cols: ['Carer', 'Hours', 'Mileage', 'Gross pay', 'Status'],
+        rows: [['@OP|Oscar Patel', '38.0', '84 miles', '£468.60', '!ok|Ready'], ['@AH|Amelia Hart', '22.5', '41 miles', '£279.90', '!ok|Ready'], ['@FJ|Freya James', '29.25', '63 miles', '£361.40', '!warn|Queried'], ['@JM|Jacob Morris', '24.0', '52 miles', '£298.20', '!ok|Ready']] }),
+
+      timesheets: C({ key: 'timesheets', title: 'Timesheets', icon: 'clock', kind: 'list', purpose: 'Planned time against clocked time for each carer. Check anything that looks wrong before payroll.', actions: ['Approve all checked'],
+        strip: [['To check', 4, 'warn', 'eye', 'check'], ['Approved', 19, 'ok', 'check', 'Approved']],
+        cols: ['Carer', 'Planned h', 'Clocked h', 'Payable h', 'To check', 'Status'],
+        rows: [['@OP|Oscar Patel', '38.0', '37.6', '38.0', '0', '!ok|Approved'], ['@FJ|Freya James', '29.0', '27.9', '29.25', '2 visits', '!warn|To check'], ['@OB|Oliver Bennett', '31.5', '33.1', '31.5', '1 no clock-out', '!warn|To check'], ['@AH|Amelia Hart', '22.5', '22.4', '22.5', '0', '!ok|Approved']] }),
+
+      mileage: C({ key: 'mileage', title: 'Mileage', icon: 'car', kind: 'list', purpose: 'Mileage claims from carers, checked against the visits they made.', actions: ['Approve selected', 'Wages'],
+        strip: [['Waiting', 6, 'warn', 'clock', 'Waiting'], ['Approved this week', 17, 'ok', 'check', 'Approved']],
+        cols: ['Carer', 'Date', 'Between visits', 'Miles', 'Amount', 'Status', ''],
+        rows: [['@FJ|Freya James', '11 Nov', 'Varga to Brennan', '4.2', '£1.89', '!warn|Waiting', '>Approve'], ['@OP|Oscar Patel', '11 Nov', 'Pryce to Ashdown', '3.1', '£1.40', '!warn|Waiting', '>Approve'], ['@AK|Alice King', '10 Nov', 'Lindqvist to Doherty', '5.8', '£2.61', '!ok|Approved', '']] }),
+
+      rates: C({ key: 'rates', title: 'Tariffs & Funders', icon: 'pound', kind: 'list', purpose: 'Who pays for each person’s care, and the rates you charge them.', actions: ['Create card', 'Bank holidays'],
+        cols: ['Funder', 'Type', 'Charge rate card', 'Charged on', 'Short-notice cancellations', 'People'],
+        rows: [['*Liverpool City Council', 'Local authority', 'LCC 2026/27', 'Planned time', 'Charged in full under 24 hours', '41'], ['*Wirral Council', 'Local authority', 'Wirral 2026/27', 'Actual time', 'Not charged', '9'], ['*Private clients', 'Self-funded', 'Private standard', 'Planned time', 'Charged in full under 48 hours', '6']] }),
+
+      'rota-settings': C({ key: 'rota-settings', title: 'Rota Settings', icon: 'gear', kind: 'settings', purpose: 'How the rota behaves for your organisation. Only care managers and admins can change these.', actions: ['Save settings'], noPlus: true,
+        sections: [['Visits and timing', [['Late call threshold', 'A visit is late when nobody has clocked in this long after it starts', '10 minutes', 'select'], ['Short visit warning', 'Flag visits that end early by more than', '25%', 'select'], ['Travel time between visits', 'Used to check a carer can get there', 'From run routes', 'select']]],
+          ['Call types and tasks', [['Call types', 'Morning, Lunch, Tea, Bed, Sit, Shopping', '6 types', 'select'], ['Care tasks', 'Tasks carers tick off at a visit', '24 tasks', 'select']]],
+          ['Optional features', [['Medication records', 'Medication lists and MAR. Needs a clinical review before switching on', 'Off', 'off'], ['Care Summary', 'A short summary at the top of each care plan', 'On', 'on'], ['Body map recommendations', 'Suggestions after a body map is recorded. A manager decides', 'Off', 'off'], ['AI document reading', 'Read uploaded support plans with the Care Coordinator', 'On', 'on']]]] })
+    };
+    const key = this.props.pkey || 'rota-home';
+    return { spec: P[key] || P['rota-home'], go: this.props.go || (() => {}) };
+  }
+}
+</script>
+</body>
+</html>

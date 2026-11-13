@@ -16,12 +16,13 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
 
 const MODULES: [string, string, string, string][] = [
   // [address, module name, page title, module colour as rgb()]
-  ["/", "Policy & Compliance", "Compliance Dashboard", "rgb(31, 95, 209)"],
-  ["/rota", "Rostering & Care Management", "Rota Dashboard", "rgb(107, 70, 201)"],
-  ["/rota/visits", "Rostering & Care Management", "Daily Rota", "rgb(107, 70, 201)"],
-  ["/workforce/absences", "HR & Workforce", "Time Off & Availability", "rgb(194, 65, 12)"],
-  ["/analytics", "Reporting & Analytics", "Analytics", "rgb(11, 111, 153)"],
-  ["/settings", "Administration & Settings", "Settings", "rgb(75, 86, 102)"],
+  // Harbour module colours (docs/design/harbour, 13 Nov 2026). Daily Rota keeps its layout under a plain header and the
+  // Care-colour bar above its board, so it is checked on its own below.
+  ["/", "Policy & Compliance", "Compliance Dashboard", "rgb(46, 91, 207)"],
+  ["/rota", "Rostering & Care Management", "Rota Dashboard", "rgb(15, 118, 110)"],
+  ["/workforce/absences", "HR & Workforce", "Time Off & Availability", "rgb(180, 83, 42)"],
+  ["/analytics", "Reporting & Analytics", "Analytics", "rgb(14, 116, 144)"],
+  ["/settings", "Administration & Settings", "Settings", "rgb(91, 94, 150)"],
 ];
 
 test.describe("shared page frame", () => {
@@ -43,8 +44,16 @@ test.describe("shared page frame", () => {
       // Exactly one h1 on the page: no second in-page title repeats the header.
       await expect(page.locator("main h1"), path).toHaveCount(1);
       // The page frame behind the cards.
-      expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(246, 247, 250)");
+      expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(244, 246, 249)");
     }
+  });
+
+  test("Daily Rota keeps its layout, with a plain header and the Care-colour bar above the board", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota/visits");
+    await expect(page.locator("[data-module-header]").first()).toHaveAttribute("data-variant", "plain");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Daily Rota");
+    await expect(page.locator("main h1")).toHaveCount(1);
   });
 
   test("the main action in the band is white with module-colour text", async ({ page }) => {
@@ -53,7 +62,7 @@ test.describe("shared page frame", () => {
     const create = page.getByTestId("title-bar").getByRole("link", { name: "Create policy" });
     await expect(create).toBeVisible();
     expect(await create.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
-    expect(await create.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(31, 95, 209)");
+    expect(await create.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(46, 91, 207)");
   });
 
   test("tabs are one underline style: grey when inactive, module colour when active", async ({ page }) => {
@@ -61,7 +70,7 @@ test.describe("shared page frame", () => {
     await page.goto("/analytics");
     const active = page.locator(".tab-line[aria-current=page], .tab-line[aria-selected=true]").first();
     await expect(active).toBeVisible();
-    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(11, 111, 153)");
+    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(14, 116, 144)");
     expect(await active.evaluate((el) => getComputedStyle(el).height)).toBe("38px");
     const inactive = page.locator(".tab-line:not([aria-current=page]):not([aria-selected=true])").first();
     expect(await inactive.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(71, 84, 103)");
@@ -74,8 +83,9 @@ test.describe("shared page frame", () => {
     await expect(launcher).toBeVisible();
     await expect(launcher).toHaveAccessibleName("AI CSB Coordinator");
     expect(await launcher.evaluate((el) => getComputedStyle(el).position)).not.toBe("fixed");
-    expect(await launcher.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(10, 79, 87)");
-    expect(await launcher.evaluate((el) => el.getBoundingClientRect().height)).toBe(34);
+    // Harbour's dark AI button, 32px like the rest of the top bar.
+    expect(await launcher.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(21, 24, 29)");
+    expect(await launcher.evaluate((el) => el.getBoundingClientRect().height)).toBe(32);
     // To the left of the notifications bell, on the same row.
     const bell = page.getByTestId("notifications-link").first();
     const [l, b] = [await launcher.boundingBox(), await bell.boundingBox()];

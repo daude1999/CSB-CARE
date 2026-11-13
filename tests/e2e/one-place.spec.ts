@@ -9,7 +9,7 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
-const pages = (page: Page) => page.getByTestId("portal-pages").locator("a.shell-page");
+const pages = (page: Page) => page.getByTestId("portal-pages").locator("a.hb-ti");
 
 test.describe("one place for each job", () => {
   test.use({ viewport: { width: 1440, height: 941 } });

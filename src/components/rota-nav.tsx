@@ -1,5 +1,5 @@
 import Link from "@/components/link";
-import { Bank, ChartLine, DeviceMobile, FirstAidKit, GearSix, House, ListChecks, Pulse, Repeat, UsersThree, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
+import { Bank, CalendarPlus, DeviceMobile, FirstAidKit, GearSix, House, IdentificationBadge, ListChecks, Repeat, UsersThree, WarningOctagon } from "@phosphor-icons/react/dist/ssr";
 import { hasOrgPermission, type Ctx, type OrgPermission } from "@/server/auth/rbac";
 import type { ShellItem } from "@/components/portal-switcher";
 
@@ -95,47 +95,85 @@ export function rotaWorkspaceTabs(ctx: Ctx, ws: RotaWorkspace): RotaTab[] {
     .map(({ key, label, href }) => ({ key, label, href }));
 }
 
-type Destination = { label: string; icon: React.ReactNode; ws?: RotaWorkspace; href?: string; perm?: OrgPermission };
+/**
+ * Care & Rostering in the Harbour menu (owner's decision, 13 Nov 2026): nine entries. An entry with more than one page
+ * shows its pages as sub-tabs under the top bar (src/components/harbour/sub-tabs.tsx). This is grouping only: every
+ * page keeps its address, and every page appears only for people with the permission its page checks on the server.
+ */
+export type CareGroupKey = "home" | "daily" | "attention" | "plan" | "templates" | "people" | "carers" | "finance" | "settings";
 
-const STAFF_TABS = new Set(["staff", "readiness"]);
+type CareGroup = { key: CareGroupKey; label: string; icon: (i: { size: number }) => React.ReactNode; tabs: TabDef[] };
 
-/** The sidebar entry for one workspace: it opens the first tab the person may use and stays lit on all of them. */
-function destination(ctx: Ctx, d: Destination, i: { size: number }): ShellItem | null {
-  if (!d.ws) return d.href && d.perm && hasOrgPermission(ctx, d.perm) ? { href: d.href, label: d.label, icon: d.icon } : null;
-  const tabs = rotaWorkspaceTabs(ctx, d.ws).filter((t) => t.href.startsWith("/rota"));
-  // Daily Rota is a destination only for people who can open a rota page; the staff tabs alone do not make one.
-  if (!tabs.length || (d.ws === "daily" && tabs.every((t) => STAFF_TABS.has(t.key)))) return null;
-  const [home, ...rest] = tabs;
-  // Someone who may only report incidents (a carer) sees that page under its own name, not a "Service Users" link
-  // that would open something else.
-  const label = d.ws === "people" && home!.key === "incidents" ? "Incidents" : d.label;
-  const icon = label === "Incidents" ? <FirstAidKit key="i" {...i} /> : d.icon;
-  const match = rest.map((t) => t.href.split("?")[0]!).filter((h, n, all) => h !== home!.href && all.indexOf(h) === n);
-  // Preserve the Service Users sidebar highlight on legacy detail links, notification targets and bookmarked registers.
-  if (d.ws === "people" && hasOrgPermission(ctx, "serviceUser.view")) match.push("/rota/care-plans", "/rota/risks");
-  return { href: home!.href, label, icon, ...(match.length ? { match } : {}), ...(label.length > 22 ? { wrap: true } : {}) };
-}
+const CARE_GROUPS: CareGroup[] = [
+  { key: "home", label: "Rota Home", icon: (i) => <House key="i" {...i} />, tabs: [
+    { key: "today", label: "Today", href: "/rota", perm: "rota.view" },
+    { key: "monitor", label: "The Monitor", href: "/rota/monitor", perm: "rota.monitor" },
+  ] },
+  { key: "daily", label: "Daily Rota", icon: (i) => <ListChecks key="i" {...i} />, tabs: [
+    { key: "visits", label: "Daily Rota", href: "/rota/visits", perm: "rota.view" },
+  ] },
+  { key: "attention", label: "Needs attention", icon: (i) => <WarningOctagon key="i" {...i} />, tabs: tabDefs("attention") },
+  { key: "plan", label: "Plan the rota", icon: (i) => <CalendarPlus key="i" {...i} />, tabs: [
+    { key: "planner", label: "Weekly Planner", href: "/rota/planner", perm: "rota.view" },
+    { key: "advanced", label: "Advanced Rota", href: "/rota/advanced", perm: "rota.view" },
+    { key: "build", label: "Build Rota", href: "/rota/build", perm: "rota.build" },
+    { key: "optimise", label: "Generate & Optimise", href: "/rota/optimise", perm: "rota.view" },
+    { key: "print", label: "Printable Rota", href: "/rota/print", perm: "rota.view" },
+  ] },
+  { key: "templates", label: "Templates & runs", icon: (i) => <Repeat key="i" {...i} />, tabs: [
+    { key: "daily", label: "Daily Templates", href: "/rota/templates", perm: "rota.view" },
+    { key: "advanced", label: "Advanced Templates", href: "/rota/templates/planner", perm: "rota.view" },
+    { key: "routes", label: "Live Run Routes", href: "/rota/routes", perm: "rota.view" },
+    { key: "template-routes", label: "Template Run Routes", href: "/rota/routes/templates", perm: "rota.view" },
+  ] },
+  { key: "people", label: "Service users", icon: (i) => <UsersThree key="i" {...i} />, tabs: [
+    { key: "directory", label: "All service users", href: "/rota/service-users", perm: "serviceUser.view" },
+    { key: "coordinator", label: "Care Coordinator", href: "/rota/coordinator", perm: "serviceUser.documents" },
+    { key: "care-plans", label: "Care Plans", href: "/rota/care-plans", perm: "serviceUser.view" },
+    { key: "risks", label: "Risk Assessments", href: "/rota/risks", perm: "serviceUser.view" },
+    { key: "incidents", label: "Incidents", href: "/rota/incidents", perm: ["incident.manage", "incident.report"] },
+    { key: "notes", label: "Visit Notes", href: "/rota/notes", perm: "rota.view" },
+  ] },
+  { key: "carers", label: "Carers", icon: (i) => <IdentificationBadge key="i" {...i} />, tabs: [
+    { key: "staff", label: "Staff & Eligibility", href: "/rota/staff", perm: "staff.directory" },
+    { key: "readiness", label: "Staff Readiness", href: "/rota/readiness", perm: "readiness.view" },
+    { key: "carer", label: "Carer app", href: "/carer", perm: "visit.own" },
+  ] },
+  { key: "finance", label: "Finance", icon: (i) => <Bank key="i" {...i} />, tabs: [
+    { key: "overview", label: "This week", href: "/rota/finance", perm: "finance.view" },
+    ...tabDefs("finance").slice(1),
+  ] },
+  { key: "settings", label: "Rota Settings", icon: (i) => <GearSix key="i" {...i} />, tabs: [
+    { key: "settings", label: "Rota Settings", href: "/rota/settings", perm: "rota.settings" },
+  ] },
+];
 
+/** The Care & Rostering entries this person may open, each with the sub-pages they may open (in order). */
 export function rotaItems(ctx: Ctx, i: { size: number }): ShellItem[] {
-  const destinations: Destination[] = [
-    { label: "Rota Home", icon: <House key="i" {...i} />, href: "/rota", perm: "rota.view" },
-    { label: "Daily Rota", icon: <ListChecks key="i" {...i} />, ws: "daily" },
-    { label: "Visits Needing Attention", icon: <WarningOctagon key="i" {...i} />, ws: "attention" },
-    { label: "The Monitor", icon: <Pulse key="i" {...i} />, ws: "monitor" },
-    { label: "Daily Templates", icon: <Repeat key="i" {...i} />, ws: "templates" },
-    { label: "Service Users", icon: <UsersThree key="i" {...i} />, ws: "people" },
-    { label: "Finance", icon: <Bank key="i" {...i} />, ws: "finance" },
-    { label: "Reports", icon: <ChartLine key="i" {...i} />, ws: "reports" },
-    // Carers have no office pages; their own visits are their one page in this module.
-    { label: "My Visits", icon: <DeviceMobile key="i" {...i} />, href: "/carer", perm: "visit.own" },
-  ];
-  const out = destinations.map((d) => destination(ctx, d, i)).filter((x): x is ShellItem => x !== null);
-  if (hasOrgPermission(ctx, "rota.settings")) out.push({ href: "/rota/settings", label: "Settings", icon: <GearSix key="i" {...i} />, separated: true });
+  const out: ShellItem[] = [];
+  for (const g of CARE_GROUPS) {
+    // The staff pages appear here only for people who also work the rota, as before the regroup (a finance officer
+    // may open Staff & Eligibility but never had it in their menu).
+    const tabs = g.tabs
+      .filter((t) => can(ctx, t.perm) && (g.key !== "carers" || t.key === "carer" || hasOrgPermission(ctx, "rota.view")))
+      .map(({ label, href }) => ({ label, href }));
+    if (!tabs.length) continue;
+    const [home] = tabs;
+    // Someone whose only page here is their own visits (a carer) sees it under its own name.
+    const own = g.key === "carers" && tabs.length === 1 && home!.href === "/carer";
+    const incidentsOnly = g.key === "people" && tabs.length === 1 && home!.href === "/rota/incidents";
+    const label = own ? "My Visits" : incidentsOnly ? "Incidents" : g.label;
+    const icon = own ? <DeviceMobile key="i" {...i} /> : incidentsOnly ? <FirstAidKit key="i" {...i} /> : g.icon(i);
+    const match = tabs.slice(1).map((t) => t.href.split("?")[0]!).filter((h, n, all) => h !== home!.href && all.indexOf(h) === n);
+    out.push({ href: home!.href, label, icon, ...(match.length ? { match } : {}), ...(tabs.length > 1 ? { tabs, tabsKey: g.key } : {}) });
+  }
   return out;
 }
 
 /** A workspace's tabs, under the page's title bar. Shown only when the workspace has more than one page for this person. */
 export function RotaTabs({ ctx, ws, active }: { ctx: Ctx; ws: RotaWorkspace; active: string }) {
+  // Care & Rostering pages get their sub-tabs from the shell (Harbour); Rota Reports belong to Reporting & Analytics.
+  if (ws !== "reports") return null;
   const tabs = rotaWorkspaceTabs(ctx, ws);
   if (tabs.length < 2) return null;
   const label = { daily: "Daily Rota", attention: "Visits Needing Attention", monitor: "The Monitor", templates: "Daily Templates", people: "Service Users", finance: "Finance", reports: "Reports" }[ws];

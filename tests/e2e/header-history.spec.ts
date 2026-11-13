@@ -1,3 +1,4 @@
+import { followMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 /** The header's Back and Forward buttons in the browser. */
@@ -25,7 +26,7 @@ test.describe("Header Back and Forward", () => {
     await expect(back).toBeDisabled();
     await expect(fwd).toBeDisabled();
 
-    await page.getByRole("link", { name: "Visits Needing Attention" }).first().click();
+    await followMenu(page, "Needs attention");
     await expect(page).toHaveURL(/\/rota\/attention/);
     await expect(back).toBeEnabled();
     await expect(fwd).toBeDisabled();

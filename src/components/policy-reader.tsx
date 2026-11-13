@@ -30,7 +30,7 @@ function useReader() {
   return c;
 }
 
-const topbarHeight = () => document.querySelector<HTMLElement>(".shell-topbar, .ov-topbar")?.getBoundingClientRect().height ?? 0;
+const topbarHeight = () => document.querySelector<HTMLElement>(".hb-hd, .shell-topbar, .ov-topbar")?.getBoundingClientRect().height ?? 0;
 
 export function PolicyReader({ items, initial, children }: { items: ReaderNavItem[]; initial?: string; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);

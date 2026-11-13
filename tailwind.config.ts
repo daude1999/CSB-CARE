@@ -50,7 +50,7 @@ export default {
         // pass WCAG AA (4.5 : 1) on the tile's 7% tint and white passes on the solid icon chip.
         tile: { completed: "#15803d", late: "#b45309", missed: "#c42b2f", unassigned: "#0a72b5" },
         // The page frame: one light grey page behind white cards, with one hairline rule colour.
-        page: "#f6f7fa",
+        page: "#f4f6f9",
         rule: "#e4e7ec",
         ink: "#101828",
         // The AI CSB Coordinator launcher in the top bar.

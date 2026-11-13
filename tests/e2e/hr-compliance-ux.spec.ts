@@ -14,8 +14,9 @@ async function signIn(page: Page, email = "manager@care-solution.demo") {
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByTestId("current-user")).toBeVisible();
 }
-const sidebar = (page: Page) => page.getByRole("navigation", { name: "Main" });
-const currentPage = (page: Page) => sidebar(page).locator('a.shell-page[aria-current="page"]');
+/** The current module's pages in the Harbour menu (readable while the menu is closed). */
+const sidebar = (page: Page) => page.getByTestId("portal-pages");
+const currentPage = (page: Page) => page.getByTestId("harbour-menu").locator('a.hb-ti[aria-current="page"]');
 const hubReady = (page: Page) => expect(page.getByText("Opening your HR workspace")).toHaveCount(0, { timeout: 30_000 });
 
 test.describe("HR & Workforce, approved design", () => {
@@ -25,7 +26,7 @@ test.describe("HR & Workforce, approved design", () => {
     await signIn(page);
     await page.goto("/hr/dashboard");
     await hubReady(page);
-    const pages = sidebar(page).locator("a.shell-page");
+    const pages = sidebar(page).locator("a.hb-ti");
     await expect(pages).toHaveText(["HR Dashboard", "People", "Recruitment", "Checks & Training", "Documents", "Time Off & Availability", "Settings"]);
     await hubReady(page);
     await page.getByTestId("hr-heading").getByRole("link", { name: "My tasks" }).click();
@@ -157,7 +158,7 @@ test.describe("HR & Workforce, approved design", () => {
   });
 
   test("no sideways scrolling on a phone", async ({ page }) => {
-    // Sign in at desktop width (the account menu sits in the sidebar, which folds away on a phone), then narrow.
+    // Sign in at desktop width (the signed-in name is hidden on a phone), then narrow.
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 844 });
     for (const path of ["/hr/dashboard", "/hr/training", "/hr/documents", "/hr/recruitment", "/"]) {
@@ -180,7 +181,7 @@ test.describe("Policy & Compliance, approved design", () => {
     await expect(page.getByTestId("key-dates").getByRole("link").first()).toHaveAttribute("href", /\/policies\?selected=/);
     await expect(page.getByRole("link", { name: "Create policy" })).toBeVisible();
     // The six workspaces are unchanged; CQC Inspection & Evidence follows them.
-    await expect(sidebar(page).locator("a.shell-page")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports", "CQC Inspection & Evidence"]);
+    await expect(sidebar(page).locator("a.hb-ti")).toHaveText(["Compliance Dashboard", "Policy Library", "Regulatory Monitoring", "Staff Sign-off", "Audits & Improvements", "Compliance Reports", "CQC Inspection & Evidence"]);
   });
 
   test("a care worker gets their reading, not management actions", async ({ page }) => {

@@ -58,7 +58,7 @@ export function MainArea({ children }: { children: React.ReactNode }) {
   const style = { "--module": portalById(portalForPath(target)).colour } as React.CSSProperties;
   const frame = frameFor(path);
   return (
-    <main ref={main} id="main-content" tabIndex={-1} data-testid="main-content" data-module={portalForPath(target)} data-blend={blend ? "" : undefined} style={style} className={`page-enter outline-none ${FRAME_CLASS[waiting ? frameFor(waiting) : frame]}`}>
+    <main ref={main} id="main-content" tabIndex={-1} data-testid="main-content" data-module={portalForPath(target)} data-hb-module={portalForPath(target)} data-blend={blend ? "" : undefined} style={style} className={`page-enter outline-none ${FRAME_CLASS[waiting ? frameFor(waiting) : frame]}`}>
       {waiting ? <SkeletonFor path={waiting} canvas={frameFor(waiting) === "canvas"} /> : null}
       <div className={waiting ? "hidden" : "contents"}>{frame === "canvas" ? <div className="page-canvas">{children}</div> : children}</div>
     </main>

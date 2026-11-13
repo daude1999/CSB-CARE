@@ -54,13 +54,14 @@ export interface BoardFooter {
 
 /** Block colours: completed and still-to-come as the approved design; the others as their status badges. */
 const TONE: Record<BlockTone, { cls: string; style?: CSSProperties }> = {
-  done: { cls: "border-l-[3px] border-l-[#16a34a] bg-status-completed-bg text-ink" },
-  due: { cls: "border-l-[3px] border-l-module bg-module/[.13] text-ink" },
-  needs: { cls: "border-[1.5px] border-dashed border-status-missed bg-white text-ink" },
-  missed: { cls: "border-l-[3px] border-l-[#b42318] bg-[#fdecec] text-[#7a1a12]" },
-  late: { cls: "border-l-[3px] border-l-[#b54708] bg-[#fdf3d8] text-[#5c3d00]" },
-  progress: { cls: "border-l-[3px] border-l-[#175cd3] bg-[#e6f0fb] text-[#123b8a]" },
-  cancelled: { cls: "border-l-[3px] border-l-[#b42318] bg-[#fdecec] text-[#7a1a12] line-through decoration-[#b42318]" },
+  // Harbour status colours (docs/design/harbour): tinted blocks with a status-coloured edge; a visit short of a carer is solid red.
+  done: { cls: "border border-[#bcddc9] bg-[#e7f4ec] text-[#16784a]" },
+  due: { cls: "border border-[#d5d2ca] bg-white text-[#4a4f57]" },
+  needs: { cls: "border border-[#b3261e] bg-[#b3261e] text-white" },
+  missed: { cls: "border border-[#f1c3be] bg-[#fceae9] text-[#b3261e]" },
+  late: { cls: "border border-[#efd39a] bg-[#fdf1da] text-[#8c5200]" },
+  progress: { cls: "border border-[#d7cdf6] bg-[#f1edfc] text-[#5b3cc4]" },
+  cancelled: { cls: "border border-[#f1c3be] bg-[#fceae9] text-[#b3261e] line-through decoration-[#b3261e]" },
 };
 export const LEGEND: [BlockTone, string][] = [["done", "Completed"], ["due", "Still to come"], ["progress", "In progress"], ["late", "Late"], ["missed", "Missed"], ["needs", "Needs a carer"], ["cancelled", "Cancelled"]];
 
@@ -68,11 +69,11 @@ const NAME_COL = 196;
 const ROW_PX = 50;
 const BLOCK_PX = 38;
 
-export function BoardLegend() {
+export function BoardLegend({ onBar = false }: { onBar?: boolean }) {
   return (
-    <ul aria-label="Colour key" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-status-ink">
+    <ul aria-label="Colour key" className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] ${onBar ? "text-white" : "text-status-ink"}`}>
       {LEGEND.map(([t, label]) => (
-        <li key={t} className="flex items-center gap-1.5"><span aria-hidden className={`inline-block h-3 w-4 rounded-[3px] ${TONE[t].cls}`} />{label}</li>
+        <li key={t} className="flex items-center gap-1.5"><span aria-hidden className={`inline-block h-3 w-3 rounded-[3px] ${TONE[t].cls} ${onBar ? "ring-1 ring-white/70" : ""}`} />{label}</li>
       ))}
     </ul>
   );
@@ -134,7 +135,7 @@ export function RotaBoard({ rows, rounds, segments, nowMin, footer, action, back
               {rounds.map((r) => {
                 const left = x(Math.max(r.start, dayFrom));
                 const w = Math.max(24, x(Math.min(r.end, dayTo)) - left);
-                return <span key={r.name} data-testid="board-round" className="absolute top-[3px] truncate rounded-[4px] bg-module/[.08] px-1.5 text-[11.5px] font-semibold leading-4 text-ink" style={{ left, width: w }} title={`${r.name}: ${hhmm(r.start)} to ${hhmm(r.end)}`}>{roundLabel(r.name)}</span>;
+                return <span key={r.name} data-testid="board-round" className="absolute top-[3px] truncate rounded-[4px] bg-[#f3f2ef] px-1.5 text-[11.5px] font-semibold leading-4 text-[#4a4f57]" style={{ left, width: w }} title={`${r.name}: ${hhmm(r.start)} to ${hhmm(r.end)}`}>{roundLabel(r.name)}</span>;
               })}
             </div>
           </div>
@@ -152,12 +153,12 @@ export function RotaBoard({ rows, rounds, segments, nowMin, footer, action, back
             const h = Math.max(ROW_PX, count * (BLOCK_PX + 4) + 8);
             const droppable = !!action && !!drag && !!r.dropStaffId && drag.from !== r.key;
             return (
-              <div key={r.key} data-testid={r.needs ? "board-needs-row" : "board-row"} className={`flex border-b border-rule ${r.needs ? "bg-[#fef3f2]" : ""}`} style={{ height: h }}>
-                <div className={`sm:sticky sm:left-0 z-[5] flex shrink-0 items-center gap-2.5 border-r border-rule px-3 ${r.needs ? "bg-[#fef3f2]" : "bg-white"}`} style={{ width: NAME_COL }}>
-                  <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${r.needs ? "bg-status-missed text-white" : "bg-module/[.13] text-ink"}`}>{r.initials}</span>
+              <div key={r.key} data-testid={r.needs ? "board-needs-row" : "board-row"} className={`flex border-b border-[#efeeea] ${r.needs ? "bg-[#fdf3f2]" : ""}`} style={{ height: h }}>
+                <div className={`sm:sticky sm:left-0 z-[5] flex shrink-0 items-center gap-2.5 border-r border-[#e6e4df] px-3 ${r.needs ? "bg-[#fdf3f2]" : "bg-white"}`} style={{ width: NAME_COL }}>
+                  <span aria-hidden className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${r.needs ? "bg-[#b3261e] text-white" : "bg-[#e4e9f2] text-[#1f3a68]"}`}>{r.initials}</span>
                   <span className="min-w-0">
-                    <span className={`block truncate text-[13.5px] font-semibold ${r.needs ? "text-[#b42318]" : "text-ink"}`}>{r.name}</span>
-                    <span className="block truncate text-[12px] text-status-ink">{r.sub}</span>
+                    <span className={`block truncate text-[13.5px] font-semibold ${r.needs ? "text-[#15181d]" : "text-[#15181d]"}`}>{r.name}</span>
+                    <span className="block truncate text-[12px] text-[#676c74]">{r.sub}</span>
                   </span>
                 </div>
                 <div
@@ -207,7 +208,7 @@ export function RotaBoard({ rows, rounds, segments, nowMin, footer, action, back
                           opener.current = e.currentTarget;
                           setOpen(b);
                         }}
-                        className={`absolute overflow-hidden rounded-[5px] text-left leading-[15px] ${w < 92 ? "px-1 text-[11px] tracking-tight" : "px-1.5 text-[12px]"} hover:z-[6] hover:shadow-md focus-visible:z-[6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-module ${action && b.move ? "cursor-grab" : "cursor-pointer"} ${t.cls}`}
+                        className={`absolute overflow-hidden rounded-[5px] text-left leading-[15px] ${w < 92 ? "px-1 text-[11px] tracking-tight" : "px-1.5 text-[12px]"} hover:z-[6] hover:shadow-md focus-visible:z-[6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#1f4fb4] ${action && b.move ? "cursor-grab" : "cursor-pointer"} ${t.cls}`}
                         style={{ left, width: w, top: 6 + lane * (BLOCK_PX + 4), height: BLOCK_PX }}
                       >
                         {narrow ? (
@@ -232,8 +233,8 @@ export function RotaBoard({ rows, rounds, segments, nowMin, footer, action, back
 
           {/* The time now, Europe/London. */}
           {showNow ? (
-            <div aria-hidden data-testid="board-now" className="pointer-events-none absolute bottom-0 top-[22px] z-[7] w-[2px] bg-status-missed" style={{ left: NAME_COL + x(nowMin!) }}>
-              <span className="absolute -top-px left-1/2 -translate-x-1/2 rounded-[4px] bg-status-missed px-1 text-[11px] font-semibold leading-4 text-white tabular-nums">{hhmm(nowMin!)}</span>
+            <div aria-hidden data-testid="board-now" className="pointer-events-none absolute bottom-0 top-[22px] z-[7] w-[2px] bg-[#e9a23b]" style={{ left: NAME_COL + x(nowMin!) }}>
+              <span className="absolute -top-px left-1/2 -translate-x-1/2 rounded-full border border-[#e9a23b] bg-[#fdf3e1] px-1.5 text-[11px] font-semibold leading-4 text-[#7a4e07] tabular-nums">{hhmm(nowMin!)}</span>
             </div>
           ) : null}
         </div>
@@ -326,7 +327,7 @@ function VisitDrawer({ block: b, onClose }: { block: BoardBlock; onClose: () => 
             <h2 id="board-drawer-title" className="truncate text-[17px] font-semibold text-ink" style={{ fontFamily: "inherit" }}>{b.serviceUser}</h2>
             <p className="text-[13px] text-status-ink">{b.callType} · {b.reference}</p>
           </div>
-          <button ref={closeBtn} type="button" onClick={onClose} aria-label="Close visit details" className="flex h-9 w-9 items-center justify-center rounded-[8px] text-ink hover:bg-[#f2f4f7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module"><X size={18} weight="bold" aria-hidden /></button>
+          <button ref={closeBtn} type="button" onClick={onClose} aria-label="Close visit details" className="flex h-9 w-9 items-center justify-center rounded-[8px] text-ink hover:bg-[#f2f4f7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1f4fb4]"><X size={18} weight="bold" aria-hidden /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 text-[14px] text-ink">
           <section aria-label="Details">

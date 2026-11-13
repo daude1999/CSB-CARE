@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ClearCare design system</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="page" style="max-width: 1160px">
+  <div class="over">ClearCare design system · round 2</div>
+  <h1 class="rec-name" style="margin-top: 6px">Harbour</h1>
+  <p class="m2" style="margin-top: 8px; max-width: 70ch; font-size: 15px; line-height: 23px">Navy for trust and the one main action on a screen. Saffron for "now". Status colours only for the state of something. A serif for the people and documents ClearCare looks after, a precise sans for everything you work with.</p>
+
+  <section class="ds-sec" style="margin-top: 28px">
+    <header><h2>Principles</h2><p>Every screen is judged against these before it is shown.</p></header>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px 28px">
+      <sc-for list="{{principles}}" as="p" hint-placeholder-count="6"><div><b style="font-size: 14px">{{p.t}}</b><p class="m2" style="margin-top: 3px; font-size: 13.5px; line-height: 20px">{{p.d}}</p></div></sc-for>
+    </div>
+  </section>
+
+  <section class="ds-sec">
+    <header><h2>Colour</h2><p>Warm neutrals carry the interface. Navy is the only action colour. Module colour appears only as a 20px tile.</p></header>
+    <div class="col" style="gap: 18px">
+      <div class="sw"><sc-for list="{{base}}" as="c" hint-placeholder-count="8"><div><i style="{{c.bg}}"></i><b>{{c.n}}</b><span class="mono">{{c.h}}</span></div></sc-for></div>
+      <div class="tbl-wrap panel" style="overflow-x: auto">
+        <table class="tbl dense">
+          <thead><tr><th scope="col">State</th><th scope="col">Pill</th><th scope="col">Fill (charts, board)</th><th scope="col">Used for</th></tr></thead>
+          <tbody><sc-for list="{{status}}" as="s" hint-placeholder-count="6"><tr><td class="b">{{s.n}}</td><td><span class="{{s.pill}}">{{s.n}}</span></td><td><span class="row"><span style="{{s.fill}}"></span><span class="mono">{{s.hex}}</span></span></td><td class="m2">{{s.u}}</td></tr></sc-for></tbody>
+        </table>
+      </div>
+      <div class="row" style="flex-wrap: wrap; gap: 14px"><sc-for list="{{mods}}" as="m" hint-placeholder-count="6"><span class="row" style="gap: 8px"><span class="mt" style="{{m.mc}}"></span><span style="font-size: 13px">{{m.n}}</span></span></sc-for></div>
+    </div>
+  </section>
+
+  <section class="ds-sec">
+    <header><h2>Type</h2><p>Instrument Sans for the interface. Newsreader for record titles and documents. IBM Plex Mono for references. Figures are tabular everywhere.</p></header>
+    <div class="panel" style="overflow-x: auto">
+      <table class="tbl">
+        <thead><tr><th scope="col">Role</th><th scope="col">Specimen</th><th scope="col">Face</th><th scope="col">Size / line</th><th scope="col">Weight</th></tr></thead>
+        <tbody>
+          <tr><td class="b">Record title</td><td><span class="serif" style="font-size: 30px; line-height: 36px; font-weight: 500">Harold Pryce</span></td><td>Newsreader</td><td>34 / 38</td><td>500</td></tr>
+          <tr><td class="b">Document body</td><td><span class="serif" style="font-size: 17px; line-height: 28px">Make the person safe first.</span></td><td>Newsreader</td><td>17 / 28</td><td>400</td></tr>
+          <tr><td class="b">Page title</td><td><span style="font-size: 22px; font-weight: 600; letter-spacing: -.015em">Daily Rota</span></td><td>Instrument Sans</td><td>22 / 28</td><td>600</td></tr>
+          <tr><td class="b">Section</td><td><span style="font-size: 14.5px; font-weight: 600">Who can cover</span></td><td>Instrument Sans</td><td>14.5 / 20</td><td>600</td></tr>
+          <tr><td class="b">Body and tables</td><td>Two carers · finished 08:14</td><td>Instrument Sans</td><td>14 / 20, tables 13.5</td><td>400</td></tr>
+          <tr><td class="b">Meta</td><td><span class="cap">Approved 2 Sep 2026</span></td><td>Instrument Sans</td><td>12.5 / 18</td><td>400</td></tr>
+          <tr><td class="b">Label</td><td><span class="over">Before you visit</span></td><td>Instrument Sans</td><td>12 / 16</td><td>600</td></tr>
+          <tr><td class="b">Reference</td><td><span class="mono">V-261112-MMD78</span></td><td>IBM Plex Mono</td><td>12.5</td><td>400</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ds-sec">
+    <header><h2>Space, shape and depth</h2><p>A 4-point grid. Corners grow with the size of the object. Shadows only lift things that sit above the page.</p></header>
+    <div class="spec">
+      <div class="spec-i"><b>Spacing</b><div class="row" style="align-items: flex-end; gap: 10px"><sc-for list="{{space}}" as="x" hint-placeholder-count="8"><span class="col" style="align-items: center; gap: 4px"><span style="{{x.box}}"></span><small>{{x.n}}</small></span></sc-for></div></div>
+      <div class="spec-i"><b>Corner radius</b><div class="row" style="gap: 14px"><span class="col" style="gap: 4px; align-items: center"><span style="width: 40px; height: 28px; border: 1.5px solid var(--ink-3); border-radius: 4px"></span><small>4 tags</small></span><span class="col" style="gap: 4px; align-items: center"><span style="width: 40px; height: 28px; border: 1.5px solid var(--ink-3); border-radius: 6px"></span><small>6 controls</small></span><span class="col" style="gap: 4px; align-items: center"><span style="width: 40px; height: 28px; border: 1.5px solid var(--ink-3); border-radius: 8px"></span><small>8 menus</small></span><span class="col" style="gap: 4px; align-items: center"><span style="width: 40px; height: 28px; border: 1.5px solid var(--ink-3); border-radius: 12px"></span><small>12 panels</small></span></div></div>
+      <div class="spec-i"><b>Depth</b><div class="row" style="gap: 16px"><span style="width: 64px; height: 40px; border-radius: 8px; background: #fff; box-shadow: var(--sh1); border: 1px solid var(--line)"></span><span style="width: 64px; height: 40px; border-radius: 8px; background: #fff; box-shadow: var(--sh2)"></span><span style="width: 64px; height: 40px; border-radius: 8px; background: #fff; box-shadow: var(--sh3)"></span></div><small>Panels · raised controls · drawers, menus and the AI panel</small></div>
+      <div class="spec-i"><b>Focus</b><div class="row" style="gap: 12px"><span class="btn" style="outline: 2px solid var(--brand); outline-offset: 2px">Keyboard focus</span></div><small>2px navy ring, 2px gap, on every control</small></div>
+    </div>
+  </section>
+
+  <section class="ds-sec">
+    <header><h2>Components</h2><p>Sizes are for a desk. On a phone every control grows to at least 40px and list rows to 44px.</p></header>
+    <div class="spec">
+      <div class="spec-i"><small>Buttons · 32 high, 12 side padding, 13.5 / 600. One filled button per screen.</small><div class="row" style="flex-wrap: wrap"><button class="btn btn-p">Find cover</button><button class="btn">Open</button><button class="btn btn-q">Rearrange</button><button class="btn btn-d">Cancel visit</button></div></div>
+      <div class="spec-i"><small>Filter chips · 28 high, pill. The label is grey, the value black. A set filter turns navy.</small><div class="row" style="flex-wrap: wrap"><span class="chip"><small>Area:</small>All Areas</span><span class="chip on"><small>Status:</small>Late</span><span class="chip add">More filters</span></div></div>
+      <div class="spec-i"><small>Status pills · 22 high, 12 / 600, dot plus word. Never colour alone.</small><div class="row" style="flex-wrap: wrap"><span class="pill ok">Completed</span><span class="pill prog">In progress</span><span class="pill">Booked</span><span class="pill warn">Due soon</span><span class="pill bad">1 of 2 carers</span></div></div>
+      <div class="spec-i"><small>Avatars · initials on six warm tints, 20 / 24 / 28 / 32 / 40 / 56 / 72</small><div class="row"><span class="av s20 a1">CB</span><span class="av s24 a2">OP</span><span class="av a3">FJ</span><span class="av s32 a4">AH</span><span class="av s40 a5">TK</span><span class="av s56 a2">DW</span></div></div>
+      <div class="spec-i"><small>Alert token · for what someone must know before acting. Icon tile 24, title 13 / 600.</small><div class="tok bad" style="max-width: none"><span class="tok-i"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5"></path></svg></span><span><b>Two carers at morning and bed</b><small>Hoist for every transfer</small></span></div></div>
+      <div class="spec-i"><small>Queue row · 56 high: severity tile, title and context, module, deadline, one action</small><div class="q urgent" style="grid-template-columns: 28px minmax(0,1fr) auto; margin: 0 -14px; border-top: 0"><span class="q-ic bad"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.9-3.6 3.8-5.5 7.5-5.5s6.6 1.9 7.5 5.5"></path></svg></span><div><b>3 visits need a carer</b><small>First in 1h 20m</small></div><button class="btn btn-sm btn-p">Find cover</button></div></div>
+      <div class="spec-i"><small>Tables · header 34, row 44 (dense 38), group row 34 on the page colour. Numbers right-aligned.</small><div class="panel" style="overflow: hidden"><table class="tbl dense"><thead><tr><th>Document</th><th>Status</th></tr></thead><tbody><tr class="grp"><td colspan="2">Review overdue · 2</td></tr><tr><td class="b">Safeguarding Adults</td><td><span class="pill bad">Overdue</span></td></tr></tbody></table></div></div>
+      <div class="spec-i"><small>Navigation · sidebar item 32, tree item 28, tabs 40 with a 2px ink underline</small><div class="tabs" style="border-bottom: 1px solid var(--line)"><span class="tab on">Overview</span><span class="tab">Visits<span class="cnt">28</span></span><span class="tab">Documents</span></div></div>
+    </div>
+  </section>
+
+  <section class="ds-sec">
+    <header><h2>A layout for each job</h2><p>The same parts, arranged for the work. No two workspaces in this round share a structure.</p></header>
+    <div class="panel" style="overflow-x: auto">
+      <table class="tbl">
+        <thead><tr><th scope="col">Workspace</th><th scope="col">Structure</th><th scope="col">Signature component</th></tr></thead>
+        <tbody><sc-for list="{{layouts}}" as="l" hint-placeholder-count="6"><tr><td class="b">{{l.w}}</td><td class="m2" style="white-space: normal; min-width: 260px">{{l.s}}</td><td style="white-space: normal; min-width: 200px">{{l.c}}</td></tr></sc-for></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1280,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sw = (n, h) => ({ n, h, bg: 'background:' + h });
+    const fill = (c) => 'width:28px;height:12px;border-radius:3px;display:inline-block;background:' + c;
+    return {
+      principles: [
+        { t: 'Lead with what needs a person', d: 'Each workspace opens on the work that is waiting, with the action beside it.' },
+        { t: 'Colour means state', d: 'Red, amber, green, violet and grey are states. Navy is action. Nothing is coloured for decoration.' },
+        { t: 'One structure per job', d: 'A command centre, a person record, a workforce record, a document reader and a settings console each get their own layout.' },
+        { t: 'Show time as time', d: 'Days, rounds, validity and expiry are drawn on a time axis, not written as lists of dates.' },
+        { t: 'Sensitive by default', d: 'Identifying details, key safe codes and restricted documents stay masked until someone allowed asks to see them.' },
+        { t: 'Nothing pretend', d: 'Simulated data and unbuilt pages say so. No invented figures, features or AI abilities.' }
+      ],
+      base: [sw('Navy', '#1F3A68'), sw('Navy 50', '#EEF2F8'), sw('Saffron', '#E9A23B'), sw('Ink', '#15181D'), sw('Ink 3', '#676C74'), sw('Canvas', '#F7F7F5'), sw('Sunken', '#F3F2EF'), sw('Line', '#E6E4DF')],
+      status: [
+        { n: 'Completed', pill: 'pill ok', hex: '#2E9A63', fill: fill('#2E9A63'), u: 'Done, in date, verified' },
+        { n: 'In progress', pill: 'pill prog', hex: '#7B5FDA', fill: fill('#7B5FDA'), u: 'Under way, waiting to verify, reading' },
+        { n: 'Booked', pill: 'pill', hex: '#DCE3F0', fill: fill('#DCE3F0'), u: 'Planned and still to come' },
+        { n: 'Late', pill: 'pill warn', hex: '#D9901F', fill: fill('#D9901F'), u: 'Late, due within 30 days, needs review' },
+        { n: 'Overdue', pill: 'pill bad', hex: '#D14336', fill: fill('#D14336'), u: 'No carer, missed, overdue, expired' },
+        { n: 'Information', pill: 'pill info', hex: '#1F3A68', fill: fill('#1F3A68'), u: 'Neutral notices and local content' }
+      ],
+      mods: [['Overview', 'var(--m-home)'], ['Care & Rostering', 'var(--m-care)'], ['HR & Workforce', 'var(--m-hr)'], ['Policy & Compliance', 'var(--m-pol)'], ['Reporting', 'var(--m-rep)'], ['Administration', 'var(--m-adm)']].map((m) => ({ n: m[0], mc: '--mc:' + m[1] })),
+      space: [4, 8, 12, 16, 20, 24, 32, 40].map((n) => ({ n, box: 'width:' + n + 'px;height:' + n + 'px;background:var(--brand-100);border-radius:2px' })),
+      layouts: [
+        { w: 'Overview', s: 'Day ribbon across the top, then a deadline-ordered queue beside notifications and quick routes', c: "Today's care delivery timeline with round bands, a now line and problem pins" },
+        { w: 'Service user record', s: 'Person header, a "Before you visit" alert rail, tabs on the left and an attribute column on the right', c: 'Day spine of calls, and a calls-by-days visit grid' },
+        { w: 'Employee record', s: 'Workforce header with a facts strip, vertical section nav, a readiness verdict first', c: 'Checks and training timeline showing validity, expiry and evidence waiting' },
+        { w: 'Policy library', s: 'Saved views as tabs, filter chips, a category tree and a grouped document table', c: 'Document rows with sign-off progress and review urgency' },
+        { w: 'Policy reader', s: 'Numbered section strip, a printed-page reading column, actions on the right', c: 'Review Sheet, local sections and change marks in the text' },
+        { w: 'Administration', s: 'Settings console with grouped navigation and a detail drawer', c: 'Role assignment with a plain-English summary of what it allows' },
+        { w: 'Daily Rota', s: 'Kept as it is today: board by team member with a Needs a carer row, or a list with bulk actions', c: 'Restyled only' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

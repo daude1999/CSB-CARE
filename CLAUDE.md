@@ -89,6 +89,17 @@ Expect the database to reject invalid transitions, and update the triggers in a 
 - The platform must look like the work of an experienced enterprise SaaS team. Avoid generic AI-dashboard patterns: repeated stat-card rows, meaningless metrics, gradients, decorative icons and empty whitespace.
 - **Reference systems come first (owner's rule, 29 Oct 2026).** When the owner names a reference system to copy, such as OnePlan for Rostering, mirror its structure screen by screen. That means the same menu sections and order, the same pages, the same page layout from top to bottom, the same views and filters, the same order of work, and the same behaviour behind each screen (its actions, bulk actions, rules and what each button does). Only the code, branding and styling are CSB's own. Never reuse its code, assets, logo or wording, and never show its personal data. This rule overrides the purpose-built-layout rule below for that module. Before showing any such screen to the owner, put it side by side with the reference screenshot and fix the differences. Redacted OnePlan screenshots and notes are on the owner's laptop in `C:\Users\Evantix\Documents\OnePlan-inspection`, and the written summary is in `docs/oneplan-research/`.
 - **Rota screens follow the owner's approved images, in a modernised OnePlan style (owner's decision, 31 Oct 2026, 23:39; replaces the earlier Birdie choice).** The Rota Dashboard (`/rota`) and Daily Rota Live List (`/rota/visits`) are built to `design-references`-style PNGs the owner approved (see `docs/implementation/ROTA_LIVE_SCREENS.md`). Keep them simple for non-technical office staff. Original CSB code, branding and styling only: never copy OnePlan's or Birdie's code, assets, logo or wording. The sidebar is out of scope for that work.
+- **ClearCare design system: Harbour (owner's decision, 13 Nov 2026).** The approved visual source of truth is `docs/design/harbour/` (screens, `prototype/clearcare.css` and the prototype screens). It replaces the earlier "Recommended mix" and the Policy Library reference image.
+
+  The look is a panel dashboard:
+  - a 76px icon rail with a slide-out menu;
+  - light blue page and record headers;
+  - white panels with solid coloured title bars, picked by meaning (blue details, rose contacts, red risks and alerts, amber before-you-visit, teal care plans, green completed, navy schedules, cyan documents, orange funding, purple team);
+  - tool rows and tick-box tables;
+  - record pages with quick links, key-value details and a timeline on the right;
+  - the `pnIn` entrance animation, with reduced motion respected.
+
+  Daily Rota keeps its existing layout. Build with the shared components in `src/components/harbour/`. Design work never changes data, APIs, permissions or business rules, and never removes a feature.
 - Give each module a layout built around its job, and don't reuse one dashboard template across modules:
   - Policy Library: document management and policy inspection.
   - Regulatory Updates: source comparison and applicability decisions.

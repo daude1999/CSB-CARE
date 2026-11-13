@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Policy library and reader</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="m-pol">
+<sc-if value="{{isLib}}" hint-placeholder-val="{{true}}">
+  <div>
+    <header class="lib-head">
+      <div class="row" style="flex-wrap: wrap; gap: 12px">
+        <div class="grow" style="flex: 1 1 280px"><h1 class="pt">Policies</h1><p class="m2" style="margin-top: 2px">92 policies and procedures · 2 reviews overdue · 7 sign-offs outstanding</p></div>
+        <button class="btn">Generate policy</button>
+        <button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Create policy</button>
+      </div>
+      <nav class="tabs" style="margin-top: 14px; border-bottom: 0" aria-label="Library views">
+        <button class="tab on">My Policies<span class="cnt">92</span></button>
+        <button class="tab">CSB Central Library<span class="cnt">214</span></button>
+        <button class="tab">Drafts<span class="cnt">3</span></button>
+        <button class="tab">Review Calendar</button>
+        <button class="tab">Archived<span class="cnt">11</span></button>
+        <button class="tab">Monthly Updates</button>
+      </nav>
+    </header>
+    <div class="lib-tools">
+      <div class="field"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg><span class="grow">Search titles and policy text</span><span class="kbd">/</span></div>
+      <button class="chip"><small>Status</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="chip"><small>Owner</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="chip"><small>Document type</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="chip"><small>Service type</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <span class="sp"></span>
+      <button class="btn btn-q btn-sm"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"></path></svg>Next review</button>
+      <div class="seg" aria-label="Layout"><button class="on" aria-label="List view"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg></button><button aria-label="Grid view"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg></button></div>
+    </div>
+    <div class="lib">
+      <nav class="lib-tree" aria-label="Categories">
+        <div class="over" style="padding: 2px 8px 6px">Categories</div>
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="9"><button class="{{c.cls}}" onClick="{{c.pick}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5h6l2 2h9v10h-17z"></path></svg>{{c.t}}<span>{{c.n}}</span></button></sc-for>
+        <div class="over" style="padding: 16px 8px 6px">Quick filters</div>
+        <button class="lt"><span class="dot bad" style="margin: 0"></span>Review overdue<span>2</span></button>
+        <button class="lt"><span class="dot warn" style="margin: 0"></span>Due in 30 days<span>4</span></button>
+        <button class="lt"><span class="dot brand" style="margin: 0"></span>Changed this month<span>3</span></button>
+        <button class="lt"><span class="dot" style="margin: 0"></span>Sign-off outstanding<span>7</span></button>
+      </nav>
+      <div class="lib-list pcol c-blue" style="overflow-x: auto">
+        <div class="ph"><h2>{{listTitle}}</h2><span class="cnt">{{listCount}}</span><span class="sp"></span><span class="cap">Click a policy to read it</span></div>
+        <table class="tbl">
+          <thead><tr><th scope="col">Document</th><th scope="col">Version</th><th scope="col">Owner</th><th scope="col">Next review</th><th scope="col">Staff sign-off</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+              <tr class="grp"><td colspan="6"><span class="row"><span class="{{g.dot}}"></span>{{g.t}}<span class="m3" style="font-weight: 500">{{g.n}}</span></span></td></tr>
+              <sc-for list="{{g.rows}}" as="d" hint-placeholder-count="3">
+                <tr onClick="{{open}}" style="cursor: pointer">
+                  <td style="height: 56px"><span class="row" style="gap: 12px"><span class="{{d.ic}}">{{d.ty}}</span><span style="min-width: 0"><b style="display: block; font-size: 14px">{{d.t}}</b><span class="cap"><span class="mono">{{d.ref}}</span> · {{d.cat}}</span></span></span></td>
+                  <td><span class="tag">{{d.vv}}</span></td>
+                  <td><span class="row"><span class="{{d.av}}">{{d.ini}}</span>{{d.owner}}</span></td>
+                  <td><b style="font-weight: 500; display: block">{{d.due}}</b><span class="{{d.relCls}}">{{d.rel}}</span></td>
+                  <td><span class="sgn"><span class="meter"><i style="{{d.sw}}"></i></span><span>{{d.sg}}</span></span></td>
+                  <td><span class="{{d.pill}}">{{d.st}}</span></td>
+                </tr>
+              </sc-for>
+            </sc-for>
+          </tbody>
+        </table>
+        <div class="row cap" style="padding: 12px 16px; border-top: 1px solid var(--line-2)"><span class="grow">Showing 9 of 92</span><button class="btn btn-sm">Previous</button><button class="btn btn-sm">Next</button></div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{isReader}}" hint-placeholder-val="{{false}}">
+  <div>
+    <header class="rd-head">
+      <button class="lnk" style="font-size: 13px" onClick="{{back}}"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>My Policies</button>
+      <div class="row" style="flex-wrap: wrap; gap: 12px 16px; margin-top: 8px; align-items: flex-end">
+        <div class="grow">
+          <div class="row" style="flex-wrap: wrap; gap: 10px"><h1 class="rd-title">Safeguarding Adults</h1><span class="pill bad">Review overdue</span></div>
+          <p class="m2" style="margin-top: 4px"><span class="mono">POL-014</span> · Version 6, published 4 Nov 2025 · Owner Chloe Barton · from the CSB Central Library with 2 local sections</p>
+        </div>
+        <div class="row" style="flex-wrap: wrap">
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4 15v5h16v-5"></path></svg>Word</button>
+          <button class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4 15v5h16v-5"></path></svg>PDF</button>
+          <button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg>Start revision</button>
+        </div>
+      </div>
+      <nav class="tabs" style="margin-top: 12px; border-bottom: 0" aria-label="Policy record views">
+        <button class="tab on"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5c3-1 5.5-1 8 .5 2.5-1.5 5-1.5 8-.5V19c-3-1-5.5-1-8 .5-2.5-1.5-5-1.5-8-.5zM12 6v13.5"></path></svg>Reader</button>
+        <button class="tab"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4M12 8v4l3 2"></path></svg>Versions<span class="cnt">6</span></button>
+        <button class="tab"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 20h12M5 8h14M5 8l-2.5 6a2.5 2.5 0 0 0 5 0zM19 8l-2.5 6a2.5 2.5 0 0 0 5 0z"></path></svg>Regulation Map<span class="cnt">12</span></button>
+        <button class="tab"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c3-1 4-6 6-6s-1 7 2 7 3-4 5-4 2 2 5 2M3 21h18"></path></svg>Read &amp; Sign</button>
+        <button class="tab"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"></path></svg>Reg. Flags<span class="cnt bad">1</span></button>
+      </nav>
+    </header>
+
+    <div class="rd">
+      <nav class="rd-nav" aria-label="Sections of this policy">
+        <div class="over" style="padding: 0 8px 4px">In this policy</div>
+        <div class="rprog" aria-label="Read 3 of 12 sections"><i style="width: 25%"></i></div>
+        <sc-for list="{{toc}}" as="t" hint-placeholder-count="12"><button class="{{t.cls}}"><span>{{t.n}}</span>{{t.t}}</button></sc-for>
+      </nav>
+
+      <article class="sheet" aria-label="Policy text">
+        <div class="doc">
+          <h2 style="margin-top: 0"><span class="num">1</span>Review Sheet</h2>
+          <dl class="rs">
+            <div class="rs-r"><dt>Owner</dt><dd>Chloe Barton, Care Coordinator</dd></div>
+            <div class="rs-r"><dt>Next review</dt><dd><b style="color: var(--bad)">2 November 2026, overdue by 10 days</b></dd></div>
+            <div class="rs-r"><dt>Applies to</dt><dd>All staff · domiciliary care · Liverpool and Wirral branches</dd></div>
+            <div class="rs-r"><dt>Regulation map</dt><dd>12 references · 10 checked against the official source</dd></div>
+            <div class="rs-r"><dt>Outstanding</dt><dd>
+              <ul class="col" style="gap: 4px">
+                <li class="row" style="align-items: flex-start"><span class="dot bad" style="margin-top: 6px"></span>Review is overdue (was due 2 November 2026).</li>
+                <li class="row" style="align-items: flex-start"><span class="dot warn" style="margin-top: 6px"></span>One regulatory flag: medicines guidance changed on 9 November.</li>
+              </ul>
+            </dd></div>
+          </dl>
+
+          <h2><span class="num">2</span>Purpose</h2>
+          <p>This policy sets out how we keep the people we support safe from abuse and neglect, and what every member of staff must do when they are worried about someone.</p>
+          <p>It explains how to recognise harm, how to respond in the moment, and how to pass a concern on so that it reaches the right people quickly.</p>
+
+          <h2><span class="num">3</span>Scope</h2>
+          <p>Everyone who works for the service, including agency staff, volunteers and office staff. It applies in people's homes, in the office and when travelling between visits.</p>
+
+          <h2><span class="num">4</span>Objectives</h2>
+          <ol>
+            <li>Every concern is recorded the same day and passed to the safeguarding lead.</li>
+            <li><span class="chg">Concerns that involve a risk of immediate harm are reported to the local authority within one hour.</span></li>
+            <li>The person and, where appropriate, their family are kept informed and involved.</li>
+          </ol>
+
+          <h2><span class="num">5</span>Policy</h2>
+          <p>We do not tolerate abuse in any form. Staff must not promise to keep a disclosure secret, and must never investigate a concern themselves.</p>
+          <section class="local" aria-label="Local section">
+            <h2 style="margin-top: 6px"><span class="num">5.4</span>Local safeguarding contacts<span class="pill info nodot" style="margin-left: 4px">Local</span></h2>
+            <p>Liverpool Safeguarding Adults Board and Wirral Safeguarding Adults Partnership contact details are kept here. This section belongs to Care Solution Bureau and is never changed by a central update.</p>
+          </section>
+
+          <h2><span class="num">6</span>Procedure</h2>
+          <p>If you are worried about someone during a visit, make them safe first, then call the office. Record what you saw and heard in the person's own words.</p>
+        </div>
+        <p class="cap" style="margin-top: 32px; font-family: var(--sans)">Sample wording written for this prototype.</p>
+      </article>
+
+      <aside class="rd-side" aria-label="Policy actions">
+        <section class="panel pcol c-navy">
+          <div class="ph"><h2>Policy Actions</h2></div><div style="padding: 6px">
+          <button class="act"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M18 8v6M15 11h6"></path></svg>Assign to Staff</button>
+          <button class="act"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 21V9M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 9h6M18 15h-6"></path></svg>Compare Versions<small>v5 → v6</small></button>
+          <button class="act"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4M12 8v4l3 2"></path></svg>View Version History</button>
+          <button class="act"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1"></path></svg>Report an incident</button>
+        </div></section>
+        <section class="panel pcol c-green">
+          <div class="ph"><h2>Staff sign-off</h2><span class="sp"></span><button class="lnk">Read &amp; Sign</button></div><div style="padding: 12px 14px">
+          <div class="row" style="gap: 10px"><div class="meter lg grow"><i style="width: 83.3%; background: var(--ok-fill)"></i></div><b style="font-size: 13px">35 of 42</b></div>
+          <p class="cap" style="margin-top: 4px">3 overdue · 4 not yet due</p>
+        </div></section>
+        <section class="panel pcol c-purple">
+          <div class="ph"><h2>Linked Forms &amp; Resources</h2><span class="sp"></span><button class="lnk">Manage</button></div><div style="padding: 4px 14px 8px">
+          <div class="fl"><span class="dico form">FORM</span><span class="grow">Safeguarding concern record</span><button class="btn btn-sm btn-q">Fill in</button></div>
+          <div class="fl"><span class="dico form">FORM</span><span class="grow">Body map</span><button class="btn btn-sm btn-q">Fill in</button></div>
+          <div class="fl"><span class="dico word">DOC</span><span class="grow">Local authority contact sheet</span><button class="btn btn-sm btn-q">Open</button></div>
+        </div></section>
+        <section class="note warn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"></path></svg><span>Regulatory flag: the CQC medicines guidance changed on 9 November. Check section 6 when you revise.</span></section>
+      </aside>
+    </div>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"start":{"editor":"enum","options":["library","reader"],"default":"library"},"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  state = { view: null, cat: 0 };
+  renderVals() {
+    const s = this.state, view = s.view || this.props.start || 'library';
+    const cats = [['All categories', 92], ['Safeguarding', 9], ['Medicines', 7], ['Care delivery', 18], ['Health and safety', 14], ['Workforce', 16], ['Governance', 12], ['Information and records', 10], ['Infection prevention', 6]];
+    const D = (t, ref, cat, v, owner, ini, av, due, rel, relCls, sgn, sgt, st, pill, ty, ic) => ({ t, ref, cat, v, vv: 'v' + v, owner, ini, av: 'av s24 ' + av, due, rel, relCls, sg: sgn + '/' + sgt, sw: 'width:' + Math.round(sgn / sgt * 100) + '%;background:' + (sgn === sgt ? 'var(--ok-fill)' : 'var(--brand)'), st, pill, ty: ty || 'POL', ic: ic || 'dico' });
+    const groups = [
+      { t: 'Review overdue', n: '2', dot: 'dot bad', rows: [
+        D('Safeguarding Adults', 'POL-014', 'Safeguarding', 6, 'Chloe Barton', 'CB', 'a1', '2 Nov 2026', '10 days overdue', 'cap b', 35, 42, 'Overdue', 'pill bad'),
+        D('Medication Management', 'POL-022', 'Medicines', 4, 'Tom Keane', 'TK', 'a5', '9 Nov 2026', '3 days overdue', 'cap b', 38, 42, 'Overdue', 'pill bad') ] },
+      { t: 'Due in the next 30 days', n: '4', dot: 'dot warn', rows: [
+        D('Infection Prevention and Control', 'POL-031', 'Infection prevention', 3, 'Owen Price', 'OP', 'a2', '20 Nov 2026', 'in 8 days', 'cap', 42, 42, 'Due soon', 'pill warn'),
+        D('Moving and Handling', 'POL-008', 'Health and safety', 5, 'Priya Nair', 'PN', 'a4', '28 Nov 2026', 'in 16 days', 'cap', 40, 42, 'Due soon', 'pill warn'),
+        D('Lone Working', 'POL-027', 'Health and safety', 3, 'Chloe Barton', 'CB', 'a1', '4 Dec 2026', 'in 22 days', 'cap', 0, 42, 'Revision in progress', 'pill prog') ] },
+      { t: 'Up to date', n: '86', dot: 'dot ok', rows: [
+        D('Mental Capacity and Consent', 'POL-045', 'Care delivery', 2, 'Aisha Rahman', 'AR', 'a3', '4 Feb 2027', 'in 3 months', 'cap', 42, 42, 'Up to date', 'pill ok'),
+        D('Complaints and Compliments', 'POL-019', 'Governance', 3, 'Leah Morris', 'LM', 'a3', '15 Mar 2027', 'in 4 months', 'cap', 41, 42, 'Up to date', 'pill ok'),
+        D('Recruitment and Selection', 'POL-052', 'Workforce', 4, 'Leah Morris', 'LM', 'a3', '1 Apr 2027', 'in 5 months', 'cap', 42, 42, 'Up to date', 'pill ok'),
+        D('Safeguarding concern record', 'FRM-006', 'Safeguarding', 2, 'Chloe Barton', 'CB', 'a1', '2 May 2027', 'in 6 months', 'cap', 42, 42, 'Up to date', 'pill ok', 'FORM', 'dico form') ] }
+    ];
+    const toc = ['Review Sheet', 'Purpose', 'Scope', 'Objectives', 'Policy', 'Procedure', 'Definitions', 'Key facts: staff', 'Key facts: people we support', 'Monitoring', 'Further reading', 'Forms & Resources'];
+    return {
+      isLib: view === 'library', isReader: view === 'reader', listTitle: cats[s.cat][0], listCount: cats[s.cat][1],
+      open: () => this.setState({ view: 'reader' }), back: () => this.setState({ view: 'library' }),
+      cats: cats.map((c, i) => ({ t: c[0], n: c[1], cls: i === s.cat ? 'lt on' : 'lt', pick: () => this.setState({ cat: i }) })),
+      groups,
+      toc: toc.map((t, i) => ({ t, n: i + 1, cls: i === 3 ? 'rn on' : (i < 3 ? 'rn read' : 'rn') }))
+    };
+  }
+}
+</script>
+</body>
+</html>

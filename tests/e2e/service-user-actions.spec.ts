@@ -24,10 +24,10 @@ const firstPerson = async (page: Page, n = 0) => {
 test.describe("All Service Users", () => {
   test.beforeEach(async ({ page }) => signIn(page));
 
-  test("is the one workspace: four tabs, title, both dropdowns, toolbar, real count and View / Update on every row", async ({ page }) => {
+  test("is the one workspace: six tabs, title, both dropdowns, toolbar, real count and View / Update on every row", async ({ page }) => {
     await page.goto("/rota/service-users");
     const tabs = page.getByTestId("rota-tabs-people").getByRole("link");
-    await expect(tabs).toHaveText(["All Service Users", "Care Coordinator", "Incidents", "Visit Notes"]);
+    await expect(tabs).toHaveText(["All service users", "Care Coordinator", "Care Plans", "Risk Assessments", "Incidents", "Visit Notes"]);
     await expect(page.getByRole("heading", { level: 1, name: "All Service Users" })).toBeVisible();
     await expect(page.getByTestId("add-service-user")).toBeVisible();
     await expect(page.getByTestId("update-service-user")).toBeVisible();
