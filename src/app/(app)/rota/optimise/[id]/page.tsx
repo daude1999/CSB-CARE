@@ -84,7 +84,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
       />
       <Flash searchParams={sp} />
 
-      <section aria-label="Plan summary" className="panel mb-3 text-body">
+      <section aria-label="Plan summary" className="panel mb-3 text-[14px]">
         <p>
           <strong className="font-medium tabular-nums">{summary.proposed}</strong> of <span className="tabular-nums">{summary.openSlots}</span> open carer slot{summary.openSlots === 1 ? "" : "s"} filled
           {summary.retimed ? <> · <span className="tabular-nums">{summary.retimed}</span> with a time change</> : null}
@@ -93,13 +93,13 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
           {" "}· <span className="tabular-nums">{summary.unfilled.length}</span> left open
           {draft ? <> · <span className="tabular-nums">{pending}</span> to decide, <span className="tabular-nums">{accepted}</span> accepted</> : null}
         </p>
-        <p className="mt-1 text-meta text-slate-600">
+        <p className="mt-1 text-[13px] text-slate-600">
           {summary.travelLabel} Weekly hours limits were {plan.respectWeeklyLimits ? "kept" : "not applied"}. Time changes up to {plan.maxShiftMinutes} minutes. {summary.passes} passes, {summary.checks.toLocaleString("en-GB")} checks, {(summary.ms / 1000).toFixed(1)} s{summary.budgetSpent ? ". The check budget ran out, so some slots were not tried" : ""}.
         </p>
       </section>
 
       {editable && changes.length ? (
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-body">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[13.5px]">
           <span className="text-slate-600">Whole plan:</span>
           {([["ALL_CLEAN", "ACCEPTED", `Accept every clean match (${clean})`], ["ALL", "ACCEPTED", "Accept all"], ["ALL", "REJECTED", "Reject all"]] as const).map(([which, decision, label]) => (
             <form key={label} action={decidePlanChangesAction}>
@@ -109,7 +109,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
               <button name="decision" value={decision} className="btn-secondary" disabled={which === "ALL_CLEAN" && !clean}>{label}</button>
             </form>
           ))}
-          <span className="text-meta text-slate-500">A clean match passes every check with no warnings and does not move the visit.</span>
+          <span className="text-[12.5px] text-slate-500">A clean match passes every check with no warnings and does not move the visit.</span>
         </div>
       ) : null}
 
@@ -118,11 +118,11 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
         <input type="hidden" name="back" value={back} />
         {editable && changes.length ? (
           <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white py-2">
-            <span className="text-body text-slate-600">Ticked changes:</span>
+            <span className="text-[13.5px] text-slate-600">Ticked changes:</span>
             <button name="decision" value="ACCEPTED" className="btn-secondary">Accept</button>
             <button name="decision" value="REJECTED" className="btn-secondary">Reject</button>
             <button name="decision" value="PENDING" className="btn-secondary">Reset</button>
-            <span className="text-meta text-slate-500">A carer change on a moved visit is accepted or rejected with the time change.</span>
+            <span className="text-[12.5px] text-slate-500">A carer change on a moved visit is accepted or rejected with the time change.</span>
           </div>
         ) : null}
 
@@ -139,7 +139,7 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
                         <input type="checkbox" name="changeIds" value={c.id} aria-label={`Select change for ${suName(c.visit.serviceUser)} at ${londonTime(from)}`} className="mt-1" />
                       ) : <span className="w-[13px]" />}
                       <div className="min-w-0 flex-1">
-                        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
+                        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
                           <span className="tabular-nums">{londonTime(c.visit.scheduledStart)}–{londonTime(c.visit.scheduledEnd)}</span>
                           <Link href={`/rota/visits/${c.visitId}`} className="row-title">{suName(c.visit.serviceUser)}</Link>
                           <span className="text-slate-600">{c.visit.callType.name}</span>
@@ -148,31 +148,31 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
                           {c.stale ? <Badge tone="amber" title="The visit was edited after the plan was made; applying will refuse it">Visit changed since</Badge> : null}
                         </p>
                         {c.kind === "RETIME" ? (
-                          <p className="mt-1 text-body">
+                          <p className="mt-1 text-[14px]">
                             <strong className="font-medium">Move the visit</strong> from <span className="tabular-nums">{londonTime(c.fromStart!)}–{londonTime(c.fromEnd!)}</span> to <span className="tabular-nums">{londonTime(c.toStart!)}–{londonTime(c.toEnd!)}</span>
                             <span className="text-slate-600"> · {c.reasons[0]}</span>
                           </p>
                         ) : (
                           <>
-                            <p className="mt-1 text-body">
+                            <p className="mt-1 text-[14px]">
                               <strong className="font-medium">{SLOT(placeKey({ slot: c.slot ?? "PRIMARY", position: c.slotPosition }))}: {c.staffName}</strong>
                               {c.score !== null ? <span className="text-slate-600"> · match {c.score}</span> : null}
                               {c.eligibility === "REQUIRES_REVIEW" ? <Badge tone="amber">Allowed with warnings</Badge> : null}
                             </p>
-                            {c.warnings.length ? <p className="mt-1 text-meta text-[#8a5a00]">Accepting confirms you have read: {c.warnings.join("; ")}</p> : null}
-                            {editable ? <Link href={`/rota/unassigned?when=custom&from=${londonDate(c.visit.scheduledStart)}&to=${londonDate(c.visit.scheduledStart)}&cover=${c.visitId}&slot=${placeKey({ slot: c.slot ?? "PRIMARY", position: c.slotPosition })}&ctab=manual`} className="mt-1 inline-block text-meta font-medium">Choose someone else (Manual)</Link> : null}
-                            <details className="mt-1 text-meta text-slate-600">
+                            {c.warnings.length ? <p className="mt-1 text-[13px] text-[#8a5a00]">Accepting confirms you have read: {c.warnings.join("; ")}</p> : null}
+                            {editable ? <Link href={`/rota/unassigned?when=custom&from=${londonDate(c.visit.scheduledStart)}&to=${londonDate(c.visit.scheduledStart)}&cover=${c.visitId}&slot=${placeKey({ slot: c.slot ?? "PRIMARY", position: c.slotPosition })}&ctab=manual`} className="mt-1 inline-block text-[13px] font-medium">Choose someone else (Manual)</Link> : null}
+                            <details className="mt-1 text-[13px] text-slate-600">
                               <summary className="cursor-pointer">Why this carer</summary>
                               <ul className="mt-1 list-disc pl-5">{c.reasons.map((x, i) => <li key={i}>{x}</li>)}</ul>
                             </details>
                           </>
                         )}
-                        {c.outcome ? <p className={`mt-1 text-meta ${c.decision === "FAILED" ? "text-[#a3242c]" : "text-[#1c7a43]"}`}>{c.outcome}</p> : null}
+                        {c.outcome ? <p className={`mt-1 text-[13px] ${c.decision === "FAILED" ? "text-[#a3242c]" : "text-[#1c7a43]"}`}>{c.outcome}</p> : null}
                       </div>
                       {editable && ["PENDING", "ACCEPTED", "REJECTED"].includes(c.decision) ? (
                         <div className="flex gap-1">
-                          <button name="row" value={`ACCEPTED|${c.id}`} className="btn-secondary !px-3 !py-1 text-meta" disabled={c.decision === "ACCEPTED"} aria-label={`Accept: ${c.kind === "RETIME" ? "move" : c.staffName} for ${suName(c.visit.serviceUser)} at ${londonTime(from)}`}>Accept</button>
-                          <button name="row" value={`REJECTED|${c.id}`} className="btn-secondary !px-3 !py-1 text-meta" disabled={c.decision === "REJECTED"} aria-label={`Reject: ${c.kind === "RETIME" ? "move" : c.staffName} for ${suName(c.visit.serviceUser)} at ${londonTime(from)}`}>Reject</button>
+                          <button name="row" value={`ACCEPTED|${c.id}`} className="btn-secondary !px-3 !py-1 text-[13px]" disabled={c.decision === "ACCEPTED"} aria-label={`Accept: ${c.kind === "RETIME" ? "move" : c.staffName} for ${suName(c.visit.serviceUser)} at ${londonTime(from)}`}>Accept</button>
+                          <button name="row" value={`REJECTED|${c.id}`} className="btn-secondary !px-3 !py-1 text-[13px]" disabled={c.decision === "REJECTED"} aria-label={`Reject: ${c.kind === "RETIME" ? "move" : c.staffName} for ${suName(c.visit.serviceUser)} at ${londonTime(from)}`}>Reject</button>
                         </div>
                       ) : null}
                     </li>
@@ -190,10 +190,10 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
         <Card title={`Left open (${summary.unfilled.length})`}>
           <ul className="rows">
             {summary.unfilled.map((u) => (
-              <li key={`${u.visitId}:${u.slot}`} className="py-2.5 text-body">
+              <li key={`${u.visitId}:${u.slot}`} className="py-2.5 text-[14px]">
                 <span className="tabular-nums text-slate-600">{fmtLondonDate(londonDate(new Date(u.start)), { weekday: "short", day: "numeric", month: "short" })} {londonTime(new Date(u.start))}</span>{" "}
                 <Link href={`/rota/visits/${u.visitId}`} className="row-title">{u.label}</Link> <span className="text-slate-600">· {SLOT(u.slot)}</span>
-                <p className="text-meta text-[#8a5a00]">{u.reason}</p>
+                <p className="text-[13px] text-[#8a5a00]">{u.reason}</p>
               </li>
             ))}
           </ul>

@@ -2,7 +2,7 @@
 
 ## Enterprise readiness (brief of 10 Nov 2026)
 
-Five workstreams, one pull request each, never merged without the owner. Plan: `ENTERPRISE_READINESS_PLAN.md`. On the owner's "merge" (10 Nov 2026, 23:34) #130, #131, #138 and #132 were merged. #133 (row-level security) is not merged: it changes the live database and should be tried on a staging copy first. The type scale follows as its own pull request (11 Nov 2026), see `UX_RESPONSIVENESS_AUDIT.md`.
+Five workstreams, one pull request each, never merged without the owner. Plan: `ENTERPRISE_READINESS_PLAN.md`.
 
 | Workstream | State |
 |---|---|

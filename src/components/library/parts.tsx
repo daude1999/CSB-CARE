@@ -23,7 +23,7 @@ const TIP: Record<StatusKey, string> = {
 };
 
 export function StatusPill({ status, className = "" }: { status: StatusKey; className?: string }) {
-  return <span title={TIP[status]} className={`inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-[9px] text-caption font-medium ${PILL[status]} ${className}`}>{STATUS_LABELS[status]}</span>;
+  return <span title={TIP[status]} className={`inline-flex h-[22px] items-center whitespace-nowrap rounded-full px-[9px] text-[12px] font-medium ${PILL[status]} ${className}`}>{STATUS_LABELS[status]}</span>;
 }
 
 /** The document tile: blue for documents in order, amber when a review is due or overdue. */

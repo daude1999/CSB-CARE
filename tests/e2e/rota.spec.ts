@@ -286,7 +286,7 @@ test.describe("Rostering & Care Management", () => {
     await expect(first.locator("td").nth(6)).toHaveText(/^\d\/\d|—/);
     const time = first.locator("td").nth(1);
     await expect(time).toHaveText(/^\d{2}:\d{2}$/);
-    expect(await time.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(["16.5px", "700"]);
+    expect(await time.evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(["15px", "700"]);
     expect(await first.locator("td").first().evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(/inset$|inset /);
     // Choosing a visit opens the details beside the list, keeping the filters; it closes again.
     await page.getByRole("link", { name: /Open details of visit/ }).first().click();

@@ -50,7 +50,7 @@ export function ChoiceGroup({ label, items }: { label: string; items: { href: st
       <ul className="flex gap-1.5 p-0.5">
         {items.map((it, i) => (
           <li key={i}>
-            <Link href={it.href} title={it.title} aria-current={it.active ? "true" : undefined} className={`relative flex h-[44px] min-w-[92px] items-center min-[1600px]:min-w-[112px] justify-center whitespace-nowrap rounded-[10px] px-4 text-lead font-bold no-underline ${FOCUS} ${it.active ? "bg-module text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module"}`}>
+            <Link href={it.href} title={it.title} aria-current={it.active ? "true" : undefined} className={`relative flex h-[44px] min-w-[92px] items-center min-[1600px]:min-w-[112px] justify-center whitespace-nowrap rounded-[10px] px-4 text-[15.5px] font-bold no-underline ${FOCUS} ${it.active ? "bg-module text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module"}`}>
               {it.label}
               {it.marker ? <span aria-hidden className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${it.active ? "bg-white" : "bg-module"}`} /> : null}
             </Link>
@@ -65,14 +65,14 @@ export function ChoiceGroup({ label, items }: { label: string; items: { href: st
 export function CoverageBadge({ filled, required, icon }: { filled: number; required: number; icon?: ReactNode }) {
   const tone = filled >= required ? "bg-[#e3f5e8] text-[#15803d]" : filled === 0 ? "bg-[#fdecec] text-[#b42318] ring-1 ring-[#f7c1bd]" : "bg-[#fdf3d8] text-[#8a5a00]";
   const words = filled >= required ? "fully staffed" : filled === 0 ? "no carer planned" : "partly staffed";
-  return <span title={`${filled} of ${required} carer${required === 1 ? "" : "s"} planned: ${words}`} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-body font-bold tabular-nums ${tone}`}>{icon}{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
+  return <span title={`${filled} of ${required} carer${required === 1 ? "" : "s"} planned: ${words}`} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[14px] font-bold tabular-nums ${tone}`}>{icon}{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
 }
 
 /** A template is Active (built into rotas) or Inactive (skipped by Build Rota until reactivated). */
 export function StatusBadge({ enabled }: { enabled: boolean }) {
   return enabled
-    ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f5e8] px-2.5 py-0.5 text-body font-semibold text-[#15803d]"><span aria-hidden className="h-2 w-2 rounded-full bg-current" />Active</span>
-    : <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2f4f7] px-2.5 py-0.5 text-body font-semibold text-[#475467]"><span aria-hidden className="h-2 w-2 rounded-full bg-current" />Inactive</span>;
+    ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f5e8] px-2.5 py-0.5 text-[14px] font-semibold text-[#15803d]"><span aria-hidden className="h-2 w-2 rounded-full bg-current" />Active</span>
+    : <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2f4f7] px-2.5 py-0.5 text-[14px] font-semibold text-[#475467]"><span aria-hidden className="h-2 w-2 rounded-full bg-current" />Inactive</span>;
 }
 
 /** The right-hand inspector frame: calendar icon, title, close button, body. Only rendered when a template is chosen. */
@@ -81,7 +81,7 @@ export function DetailsPanel({ title, closeHref, children }: { title: string; cl
     <aside aria-label={title} className="rounded-[12px] border border-[#eaecf0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
       <div className="flex items-center gap-2.5 border-b border-[#eaecf0] px-4 py-3.5">
         <CalendarDots size={22} weight="bold" aria-hidden className="text-module" />
-        <h2 className="mr-auto text-subtitle font-bold text-module">{title}</h2>
+        <h2 className="mr-auto text-[17px] font-bold text-module">{title}</h2>
         <Link href={closeHref} scroll={false} aria-label={`Close ${title}`} className={`flex h-8 w-8 items-center justify-center rounded-[6px] text-module hover:bg-module/[.08] ${FOCUS}`}><X size={20} weight="bold" aria-hidden /></Link>
       </div>
       {children}
@@ -92,7 +92,7 @@ export function DetailsPanel({ title, closeHref, children }: { title: string; cl
 export function Warnings({ items }: { items: string[] }) {
   if (!items.length) return null;
   return (
-    <ul aria-label="Warnings" className="space-y-1 rounded-[8px] border border-[#fbe1a6] bg-[#fffaeb] px-3 py-2 text-body text-[#7a4b00]">
+    <ul aria-label="Warnings" className="space-y-1 rounded-[8px] border border-[#fbe1a6] bg-[#fffaeb] px-3 py-2 text-[13.5px] text-[#7a4b00]">
       {items.map((w) => <li key={w} className="flex gap-1.5"><Warning size={16} weight="fill" aria-hidden className="mt-0.5 shrink-0 text-[#dc8b06]" />{w}</li>)}
     </ul>
   );

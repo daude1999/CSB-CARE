@@ -43,9 +43,9 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                   <tr key={r.id}>
                     <td className="whitespace-nowrap tabular-nums">{fmtDate(r.createdAt, true)}</td>
                     <td>{r.actorId ? names.get(r.actorId) ?? "Former member" : "System"}</td>
-                    <td className="font-mono text-meta">{r.action}</td>
-                    <td className="text-meta">{r.entityType}<span className="block font-mono text-caption text-slate-500">{r.entityId}</span></td>
-                    <td className="max-w-[420px] break-words font-mono text-caption text-slate-600">{r.data && JSON.stringify(r.data) !== "{}" ? JSON.stringify(r.data).slice(0, 400) : ""}</td>
+                    <td className="font-mono text-[12.5px]">{r.action}</td>
+                    <td className="text-[13px]">{r.entityType}<span className="block font-mono text-[11.5px] text-slate-500">{r.entityId}</span></td>
+                    <td className="max-w-[420px] break-words font-mono text-[11.5px] text-slate-600">{r.data && JSON.stringify(r.data) !== "{}" ? JSON.stringify(r.data).slice(0, 400) : ""}</td>
                   </tr>
                 ))}
               </tbody>
@@ -53,7 +53,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           </div>
         ) : <Empty>No entries match these filters.</Empty>}
         {pages > 1 ? (
-          <nav aria-label="Pages" className="mt-3 flex items-center gap-3 text-body">
+          <nav aria-label="Pages" className="mt-3 flex items-center gap-3 text-[14px]">
             {f.page > 1 ? <Link href={`/admin/audit?${qs({ page: String(f.page - 1) })}`}>Newer</Link> : null}
             <span className="text-slate-600">Page {f.page} of {pages} ({PAGE_SIZE} a page)</span>
             {f.page < pages ? <Link href={`/admin/audit?${qs({ page: String(f.page + 1) })}`}>Older</Link> : null}

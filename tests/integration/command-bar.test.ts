@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { db } from "@/lib/db";
-import { dbDate, londonDate, londonTime, londonToUtc } from "@/lib/london";
+import { dbDate, londonDate, londonToUtc } from "@/lib/london";
 import { setMemberBranches } from "@/server/admin/branches";
 import { commandActions, commandSearch } from "@/server/search/command";
 import { BROOKFIELD, OAKRIDGE, ctxFor, resetDb, seedAll } from "../helpers";
@@ -67,11 +67,7 @@ describe("command bar search", () => {
     expect(await db.visit.count({ where: { id: { in: r.visitsToday.map((v) => v.id) }, organisationId: mine.orgId, date: dbDate(TODAY) } })).toBe(r.visitsToday.length);
     const su = r.serviceUsers[0]!;
     expect(su.title).toBe("Zephyrine Quartermain");
-    // The renamed person keeps their seeded visits, which on some weekdays include one before 16:30, so the expected
-    // "next visit" is the earliest scheduled visit still to come at NOW, read from the database.
-    const first = await db.visit.findFirstOrThrow({ where: { serviceUserId: mine.suId, status: "SCHEDULED", scheduledStart: { gte: NOW } }, orderBy: { scheduledStart: "asc" } });
-    expect(first.scheduledStart <= londonToUtc(TODAY, 16 * 60 + 30)).toBe(true);
-    expect(su.detail).toBe(`${mine.areaName} · next visit ${londonTime(first.scheduledStart)}`);
+    expect(su.detail).toBe(`${mine.areaName} · next visit 16:30`);
     expect(su.href).toBe(`/rota/service-users/${mine.suId}`);
     expect(su.addVisitHref).toBe(`/rota/visits/new?serviceUserId=${mine.suId}`);
     expect(su.carePlanHref).toBe(`/rota/service-users/${mine.suId}?tab=care-plans`);

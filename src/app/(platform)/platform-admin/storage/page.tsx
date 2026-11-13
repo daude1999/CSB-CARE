@@ -42,13 +42,13 @@ export default async function StoragePage({ searchParams }: { searchParams: Prom
         </PxPanel>
         <PxPanel title="Files added per month" description="All clients, measured.">
           {growth.length ? (
-            <ul className="space-y-2">{growth.map((g) => <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_72px] items-center gap-2 text-meta"><span className="tabular-nums text-px-muted">{g.month}</span><span className="h-2 rounded-full bg-px-row"><span className="block h-2 rounded-full bg-px-accent" style={{ width: `${(g.bytes / max) * 100}%` }} /></span><span className="text-right tabular-nums">{fmtBytes(g.bytes)}</span></li>)}</ul>
-          ) : <p className="text-body text-px-muted">No files stored yet.</p>}
+            <ul className="space-y-2">{growth.map((g) => <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_72px] items-center gap-2 text-[12.5px]"><span className="tabular-nums text-px-muted">{g.month}</span><span className="h-2 rounded-full bg-px-row"><span className="block h-2 rounded-full bg-px-accent" style={{ width: `${(g.bytes / max) * 100}%` }} /></span><span className="text-right tabular-nums">{fmtBytes(g.bytes)}</span></li>)}</ul>
+          ) : <p className="text-[13.5px] text-px-muted">No files stored yet.</p>}
         </PxPanel>
       </div>
       <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <PxPanel title="Backups and restore tests" description="Backups are taken by the database host. The platform cannot see them, so it never reports them as successful.">
-          {restore ? <p className="text-body"><Tone tone={restore.outcome === "PASSED" ? "green" : "rose"}>Last restore test {restore.outcome === "PASSED" ? "passed" : "failed"}</Tone> on {fmtDate(restore.testedOn)} <span className="text-px-muted">(recorded on {fmtDate(restore.recordedAt, true)}{restore.notes ? `: ${restore.notes}` : ""})</span></p> : <p className="text-body"><NotConfigured>No restore test recorded</NotConfigured></p>}
+          {restore ? <p className="text-[13.5px]"><Tone tone={restore.outcome === "PASSED" ? "green" : "rose"}>Last restore test {restore.outcome === "PASSED" ? "passed" : "failed"}</Tone> on {fmtDate(restore.testedOn)} <span className="text-px-muted">(recorded on {fmtDate(restore.recordedAt, true)}{restore.notes ? `: ${restore.notes}` : ""})</span></p> : <p className="text-[13.5px]"><NotConfigured>No restore test recorded</NotConfigured></p>}
           <form action={restoreTestAction} className="mt-4 grid grid-cols-1 items-end gap-3 border-t border-px-divider pt-4 sm:grid-cols-[160px_140px_minmax(0,1fr)_auto]">
             <Back value="/platform-admin/storage" />
             <label><span className="label">Tested on</span><input type="date" name="testedOn" required className="input" /></label>

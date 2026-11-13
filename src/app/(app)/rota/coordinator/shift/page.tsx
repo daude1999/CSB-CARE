@@ -36,7 +36,7 @@ export default async function ShiftCheckPage({ searchParams }: { searchParams: P
         </div>}
       />
       <Flash searchParams={sp} />
-      <p className="mb-3 px-1 text-body text-slate-700">{s.visits} visit{s.visits === 1 ? "" : "s"} on the rota, {s.staffed} fully staffed, {s.open.length} with an open place. Checked {fmtDate(s.generatedAt, true)}.</p>
+      <p className="mb-3 px-1 text-[14px] text-slate-700">{s.visits} visit{s.visits === 1 ? "" : "s"} on the rota, {s.staffed} fully staffed, {s.open.length} with an open place. Checked {fmtDate(s.generatedAt, true)}.</p>
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-3">
           <Card title={`Open places (${s.open.length})`}>
@@ -46,10 +46,10 @@ export default async function ShiftCheckPage({ searchParams }: { searchParams: P
                 <tbody>
                   {s.open.map((o) => (
                     <tr key={o.visitId}>
-                      <td><Link href={visitHref(o.visitId)}>{o.time}</Link><span className="block text-meta text-slate-600">{o.callType} · {o.missing} needed{o.published ? "" : " · not published"}</span></td>
+                      <td><Link href={visitHref(o.visitId)}>{o.time}</Link><span className="block text-[13px] text-slate-600">{o.callType} · {o.missing} needed{o.published ? "" : " · not published"}</span></td>
                       <td><Link href={`/rota/service-users/${o.serviceUserId}`}>{o.person}</Link></td>
-                      <td><Badge tone={PRIORITY_TONE[o.priority as keyof typeof PRIORITY_TONE] ?? "slate"}>{o.priority.toLowerCase()}</Badge><span className="block text-meta text-slate-600">{o.why}</span></td>
-                      <td>{o.options.length ? <ul className="space-y-1">{o.options.map((c) => <li key={c.staffId}><span className="font-medium">{c.name}</span> <span className="text-meta text-slate-600">{STATE_LABEL[c.state] ?? c.state}{c.continuity ? " · already visits" : ""}{c.notes.length ? ` · ${c.notes.join("; ")}` : ""}</span></li>)}</ul> : <span className="text-body text-slate-600">Nobody suitable is free. Try Find Replacement Cover.</span>}</td>
+                      <td><Badge tone={PRIORITY_TONE[o.priority as keyof typeof PRIORITY_TONE] ?? "slate"}>{o.priority.toLowerCase()}</Badge><span className="block text-[12.5px] text-slate-600">{o.why}</span></td>
+                      <td>{o.options.length ? <ul className="space-y-1">{o.options.map((c) => <li key={c.staffId}><span className="font-medium">{c.name}</span> <span className="text-[13px] text-slate-600">{STATE_LABEL[c.state] ?? c.state}{c.continuity ? " · already visits" : ""}{c.notes.length ? ` · ${c.notes.join("; ")}` : ""}</span></li>)}</ul> : <span className="text-[13.5px] text-slate-600">Nobody suitable is free. Try Find Replacement Cover.</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -58,22 +58,22 @@ export default async function ShiftCheckPage({ searchParams }: { searchParams: P
           </Card>
           <Card title={`Double bookings and travel (${s.clashes.length})`}>
             {s.clashes.length ? (
-              <ul className="rows text-body">{s.clashes.map((c, i) => <li key={i} className="py-2"><Badge tone={c.kind === "OVERLAP" ? "rose" : "amber"}>{c.kind === "OVERLAP" ? "Double booked" : "Tight travel"}</Badge> {c.text} {c.visitIds.map((v, n) => <Link key={v} href={visitHref(v)} className="ml-1 print:hidden">Visit {n + 1}</Link>)}</li>)}</ul>
+              <ul className="rows text-[14px]">{s.clashes.map((c, i) => <li key={i} className="py-2"><Badge tone={c.kind === "OVERLAP" ? "rose" : "amber"}>{c.kind === "OVERLAP" ? "Double booked" : "Tight travel"}</Badge> {c.text} {c.visitIds.map((v, n) => <Link key={v} href={visitHref(v)} className="ml-1 print:hidden">Visit {n + 1}</Link>)}</li>)}</ul>
             ) : <Empty>No carer is booked twice or left without travel time.</Empty>}
           </Card>
           <Card title={`Bookings the rules question (${s.compliance.length})`}>
             {s.compliance.length ? (
-              <ul className="rows text-body">{s.compliance.map((c, i) => <li key={i} className="py-2"><span className="font-medium">{c.name}</span> on <Link href={visitHref(c.visitId)}>{c.reference}</Link> for {c.person}: <span className="text-slate-700">{STATE_LABEL[c.state] ?? c.state}. {c.reasons.join("; ")}</span></li>)}</ul>
+              <ul className="rows text-[14px]">{s.compliance.map((c, i) => <li key={i} className="py-2"><span className="font-medium">{c.name}</span> on <Link href={visitHref(c.visitId)}>{c.reference}</Link> for {c.person}: <span className="text-slate-700">{STATE_LABEL[c.state] ?? c.state}. {c.reasons.join("; ")}</span></li>)}</ul>
             ) : <Empty>Every booked carer still passes the checks (training, DBS, right to work, absence, availability, restrictions).</Empty>}
           </Card>
         </div>
         <aside className="space-y-3">
           <Card title="Needs action first">
-            {s.urgent.length ? <ul className="space-y-2 text-body">{s.urgent.map((u, i) => <li key={i}><Badge tone={u.kind === "FACT" ? "slate" : "teal"}>{u.kind === "FACT" ? "Fact" : "Recommendation"}</Badge> {u.href ? <Link href={u.href}>{u.text}</Link> : u.text}</li>)}</ul> : <Empty>Nothing urgent.</Empty>}
+            {s.urgent.length ? <ul className="space-y-2 text-[14px]">{s.urgent.map((u, i) => <li key={i}><Badge tone={u.kind === "FACT" ? "slate" : "teal"}>{u.kind === "FACT" ? "Fact" : "Recommendation"}</Badge> {u.href ? <Link href={u.href}>{u.text}</Link> : u.text}</li>)}</ul> : <Empty>Nothing urgent.</Empty>}
           </Card>
           <Card title="Handover">
-            {s.handover.length ? <ol className="list-decimal space-y-1.5 pl-5 text-body">{s.handover.map((h, i) => <li key={i}><span className="text-caption uppercase tracking-wide text-slate-500">{h.kind === "FACT" ? "Fact" : "Recommendation"}</span> {h.text}</li>)}</ol> : <Empty>Nothing to hand over.</Empty>}
-            <p className="mt-2 text-meta text-slate-600">Generated from the rota at {londonTime(s.generatedAt)}. Written by the system, not by a person.</p>
+            {s.handover.length ? <ol className="list-decimal space-y-1.5 pl-5 text-[14px]">{s.handover.map((h, i) => <li key={i}><span className="text-[12px] uppercase tracking-wide text-slate-500">{h.kind === "FACT" ? "Fact" : "Recommendation"}</span> {h.text}</li>)}</ol> : <Empty>Nothing to hand over.</Empty>}
+            <p className="mt-2 text-[12.5px] text-slate-600">Generated from the rota at {londonTime(s.generatedAt)}. Written by the system, not by a person.</p>
           </Card>
         </aside>
       </div>

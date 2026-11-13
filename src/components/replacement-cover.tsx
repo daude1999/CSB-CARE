@@ -69,7 +69,7 @@ export async function ReplacementCoverPanel({ ctx, sp, basePath, keep, fallback 
     return (
       <DrawerShell closeHref={close} labelledBy="fc-title">
         <CoverHeader close={close} />
-        <div className="p-5"><p role="alert" className="rounded-[6px] bg-[#fde8e8] px-3 py-2 text-body text-[#8a1f1a]">{ws.error}</p></div>
+        <div className="p-5"><p role="alert" className="rounded-[6px] bg-[#fde8e8] px-3 py-2 text-[14px] text-[#8a1f1a]">{ws.error}</p></div>
       </DrawerShell>
     );
   }
@@ -89,11 +89,11 @@ export async function ReplacementCoverPanel({ ctx, sp, basePath, keep, fallback 
     <DrawerShell closeHref={u.close} labelledBy="fc-title" step={`${tab}:${step}:${sp.fcStaff ?? ""}:${ws.kind === "recovery" ? ws.view.still : ws.slot}`}>
       <CoverHeader close={u.close} title={text.title} subtitle={text.subtitle} />
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5" data-scroll>
-        {message ? <p role={message.error ? "alert" : "status"} className={`mb-3 mt-3 rounded-[6px] px-3 py-2 text-body ${message.error ? "bg-[#fde8e8] text-[#8a1f1a]" : "bg-[#e6f4ea] text-[#1e6b2c]"}`}>{message.text}</p> : null}
+        {message ? <p role={message.error ? "alert" : "status"} className={`mb-3 mt-3 rounded-[6px] px-3 py-2 text-[13.5px] ${message.error ? "bg-[#fde8e8] text-[#8a1f1a]" : "bg-[#e6f4ea] text-[#1e6b2c]"}`}>{message.text}</p> : null}
         <Summary ws={ws} />
         <nav aria-label="Find Cover sections" className="mt-3 grid grid-cols-2 rounded-[8px] border border-[#d0d5dd] p-0.5">
-          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight rounded-[6px] text-body font-semibold no-underline ${tab === "cover" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
-          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight gap-1.5 rounded-[6px] text-body font-semibold no-underline ${tab === "comms" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>
+          <Link href={u.at({ fcTab: undefined })} scroll={false} aria-current={tab === "cover" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight rounded-[6px] text-[14px] font-semibold no-underline ${tab === "cover" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>Cover</Link>
+          <Link href={u.at({ fcTab: "comms" })} scroll={false} aria-current={tab === "comms" ? "page" : undefined} className={`flex min-h-9 items-center justify-center px-1 py-1 text-center leading-tight gap-1.5 rounded-[6px] text-[14px] font-semibold no-underline ${tab === "comms" ? "bg-module text-white" : "text-[#101828] hover:bg-slate-50"}`}>
             Contact &amp; communication
             {comms && tab !== "comms" ? <span title={COMMS_LABEL[comms.kind]} className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATE_DOT[comms.kind]}`}><span className="sr-only">: {COMMS_LABEL[comms.kind]}</span></span> : null}
           </Link>
@@ -115,10 +115,10 @@ function Summary({ ws }: { ws: CoverWorkspace }) {
   return (
     <section aria-label={ws.kind === "recovery" ? "The missed visit" : "The visit"} className="mt-4 rounded-[8px] border border-slate-200 bg-[#faf9fd] p-3.5">
       <div className="flex flex-wrap items-center gap-2">
-        <b className="text-lead text-slate-900">{s.serviceUser}</b>
-        <span className={`rounded-full px-2.5 py-0.5 text-meta font-medium ${BADGE[s.badge.tone]}`}>{s.badge.text}</span>
+        <b className="text-[16px] text-slate-900">{s.serviceUser}</b>
+        <span className={`rounded-full px-2.5 py-0.5 text-[12.5px] font-medium ${BADGE[s.badge.tone]}`}>{s.badge.text}</span>
       </div>
-      <dl className="mt-2 grid grid-cols-[132px_1fr] gap-x-3 gap-y-1 text-body">
+      <dl className="mt-2 grid grid-cols-[132px_1fr] gap-x-3 gap-y-1 text-[13.5px]">
         {s.rows.map((r) => (
           <div key={r.k} className="contents">
             <dt className="text-slate-500">{r.k}</dt>
@@ -136,16 +136,16 @@ function Recommended({ ws, u, reviewHidden }: { ws: CoverWorkspace; u: U; review
   return (
     <form method="get" id="fc-pick">
       {u.hidden({ ...reviewHidden, fcStep: "review", fcSrc: "RECOMMENDED" })}
-      <h3 className="mb-2 mt-5 text-lead font-semibold text-slate-900">Recommended carers</h3>
+      <h3 className="mb-2 mt-5 text-[15px] font-semibold text-slate-900">Recommended carers</h3>
       {ws.recommended.length ? (
         <>
           <ol className="space-y-2" aria-label="Recommended carers">{ws.recommended.map((c, i) => <CarerOption key={c.id} c={c} rank={i} name="rec" />)}</ol>
-          <p className="mt-2 text-meta text-slate-500">Only carers who pass every hard rule (HR checks, training, readiness, leave, clashes and the service user&apos;s restrictions) are shown. Familiarity, area and hours decide the order. Travel time is not calculated.</p>
+          <p className="mt-2 text-[12.5px] text-slate-500">Only carers who pass every hard rule (HR checks, training, readiness, leave, clashes and the service user&apos;s restrictions) are shown. Familiarity, area and hours decide the order. Travel time is not calculated.</p>
         </>
       ) : (
         <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4" role="status">
-          <p className="text-lead font-semibold text-slate-900">No suitable carers available</p>
-          <p className="mt-1 text-body text-slate-700">Nobody you can book passes every check for this time. Search staff by hand to see why, try another time, or escalate to a manager. A carer who fails a hard rule can never be booked from here.</p>
+          <p className="text-[15px] font-semibold text-slate-900">No suitable carers available</p>
+          <p className="mt-1 text-[13.5px] text-slate-700">Nobody you can book passes every check for this time. Search staff by hand to see why, try another time, or escalate to a manager. A carer who fails a hard rule can never be booked from here.</p>
         </div>
       )}
     </form>
@@ -155,7 +155,7 @@ function Recommended({ ws, u, reviewHidden }: { ws: CoverWorkspace; u: U; review
 function Manual({ ws, u, q, area, reviewHidden }: { ws: CoverWorkspace; u: U; q?: string; area?: string; reviewHidden: Params }) {
   return (
     <>
-      <h3 className="mb-2 mt-5 text-lead font-semibold text-slate-900">Search staff</h3>
+      <h3 className="mb-2 mt-5 text-[15px] font-semibold text-slate-900">Search staff</h3>
       <form method="get" className="flex flex-wrap items-end gap-2" role="search" aria-label="Search staff">
         {u.hidden({ fcStep: "manual", fcQ: undefined, fcArea: undefined })}
         <label className="min-w-[160px] flex-1"><span className="label">Name or area</span><input type="search" name="fcQ" defaultValue={q ?? ""} className="input w-full" /></label>
@@ -164,8 +164,8 @@ function Manual({ ws, u, q, area, reviewHidden }: { ws: CoverWorkspace; u: U; q?
       </form>
       <form method="get" id="fc-manual" className="mt-3">
         {u.hidden({ ...reviewHidden, fcStep: "review", fcSrc: "MANUAL" })}
-        {ws.list.length ? <ul className="space-y-2" aria-label="Staff">{ws.list.map((c) => <CarerOption key={c.id} c={c} rank={null} name="man" />)}</ul> : <p className="rounded-[8px] border border-slate-200 p-3 text-body text-slate-600">Nobody matches this search.</p>}
-        <p className="mt-2 text-meta text-slate-500">Greyed-out carers fail a hard rule and cannot be chosen. A carer you choose here goes through exactly the same checks when you confirm.</p>
+        {ws.list.length ? <ul className="space-y-2" aria-label="Staff">{ws.list.map((c) => <CarerOption key={c.id} c={c} rank={null} name="man" />)}</ul> : <p className="rounded-[8px] border border-slate-200 p-3 text-[13.5px] text-slate-600">Nobody matches this search.</p>}
+        <p className="mt-2 text-[12.5px] text-slate-500">Greyed-out carers fail a hard rule and cannot be chosen. A carer you choose here goes through exactly the same checks when you confirm.</p>
       </form>
     </>
   );
@@ -178,7 +178,7 @@ function Actions({ ws, u, reviewForm, manual, more }: { ws: CoverWorkspace; u: U
         {reviewForm ? <button form={reviewForm} className={PURPLE}>{MODE_TEXT[ws.mode].review}</button> : null}
         {manual ? <Link href={u.at({ fcStep: "manual" })} scroll={false} className={QUIET}>Search Staff Manually</Link> : <Link href={u.at({ fcStep: undefined, fcQ: undefined, fcArea: undefined })} scroll={false} className={QUIET}>Back to recommendations</Link>}
       </div>
-      <details className="mt-3 text-body" id="fc-escalate" open={!ws.recommended.length ? true : undefined}>
+      <details className="mt-3 text-[13.5px]" id="fc-escalate" open={!ws.recommended.length ? true : undefined}>
         <summary className="cursor-pointer font-medium text-slate-700">More options</summary>
         <ul className="mt-2 space-y-1.5 pl-1">{more}</ul>
       </details>
@@ -190,21 +190,21 @@ function WarningsAndReason({ warnings }: { warnings: string[] }) {
   if (!warnings.length) return null;
   return (
     <fieldset className="rounded-[8px] border border-[#ecd29a] bg-[#fffaf0] p-3">
-      <legend className="px-1 text-body font-semibold text-[#7a5200]">Review {warnings.length === 1 ? "this warning" : "these warnings"}</legend>
+      <legend className="px-1 text-[14px] font-semibold text-[#7a5200]">Review {warnings.length === 1 ? "this warning" : "these warnings"}</legend>
       <ul className="space-y-1.5">
         {warnings.map((w, i) => (
-          <li key={w}><label className="flex items-start gap-2 text-body"><input type="checkbox" name="ack" value={w} required className="mt-0.5 h-4 w-4 accent-[#6b46c9]" id={`fc-ack-${i}`} /> <span>I have reviewed: {w}</span></label></li>
+          <li key={w}><label className="flex items-start gap-2 text-[13.5px]"><input type="checkbox" name="ack" value={w} required className="mt-0.5 h-4 w-4 accent-[#6b46c9]" id={`fc-ack-${i}`} /> <span>I have reviewed: {w}</span></label></li>
         ))}
       </ul>
       <label className="mt-2 block"><span className="label">Why this carer is right despite the warnings</span><textarea name="warningReason" required minLength={5} maxLength={1000} rows={2} className="input w-full" /></label>
-      <p className="mt-1 text-meta text-slate-600">Your name, the warnings and this reason are kept in the visit history.</p>
+      <p className="mt-1 text-[12.5px] text-slate-600">Your name, the warnings and this reason are kept in the visit history.</p>
     </fieldset>
   );
 }
 
 function ReviewDetails({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="mt-2 grid grid-cols-[150px_1fr] gap-x-3 gap-y-1 rounded-[8px] border border-slate-200 p-3 text-body">
+    <dl className="mt-2 grid grid-cols-[150px_1fr] gap-x-3 gap-y-1 rounded-[8px] border border-slate-200 p-3 text-[13.5px]">
       {rows.map(([k, v]) => (
         <div key={k} className="contents"><dt className="text-slate-500">{k}</dt><dd className="text-slate-900">{v}</dd></div>
       ))}
@@ -215,7 +215,7 @@ function ReviewDetails({ rows }: { rows: [string, ReactNode][] }) {
 function CommsNudge({ u, kind }: { u: U; kind: string | null }) {
   const outstanding = !kind || kind === "NOT_CONTACTED" || kind === "ATTEMPTED" || kind === "UPDATE_NEEDED";
   return (
-    <div className={`mt-3 rounded-[8px] border p-3 text-body ${outstanding ? "border-[#ecd29a] bg-[#fffaf0]" : "border-slate-200"}`}>
+    <div className={`mt-3 rounded-[8px] border p-3 text-[13.5px] ${outstanding ? "border-[#ecd29a] bg-[#fffaf0]" : "border-slate-200"}`}>
       <p><b className="font-semibold">Service user communication: </b>{kind ? COMMS_LABEL[kind as keyof typeof COMMS_LABEL] : COMMS_LABEL.NOT_CONTACTED}.</p>
       <p className="mt-0.5 text-slate-600">Booking cover does not record that anyone was told. Recording communication does not book cover.</p>
       <Link href={u.at({ fcTab: "comms" })} scroll={false} className="mt-2 inline-block font-semibold">Open Contact &amp; communication</Link>
@@ -229,16 +229,16 @@ function VisitCoverTab({ ws, u, step, sp, comms }: { ws: VisitCover; u: U; step:
   if (step === "done") return <VisitDone ws={ws} u={u} comms={comms} />;
   if (!ws.canBook) {
     return (
-      <section aria-label="Cover" className="mt-4 rounded-[8px] border border-slate-200 p-4 text-body">
+      <section aria-label="Cover" className="mt-4 rounded-[8px] border border-slate-200 p-4 text-[14px]">
         <p className="font-medium">Cover cannot be booked from here.</p>
         <p className="mt-1 text-slate-700">{ws.blocked}</p>
-        <Link href={`/rota/visits/${ws.summary.visitId}`} className="mt-3 inline-block text-body">Open the visit</Link>
+        <Link href={`/rota/visits/${ws.summary.visitId}`} className="mt-3 inline-block text-[14px]">Open the visit</Link>
       </section>
     );
   }
   const slotNav = ws.slots.length > 1 ? (
     <nav aria-label={ws.mode === "fill" ? "Carer place to fill" : "Carer to replace"} className="mt-3 flex flex-wrap gap-1.5">
-      {ws.slots.map((s) => <Link key={s.slot} href={u.at({ fcSlot: s.slot, fcStep: step === "manual" ? "manual" : undefined, fcStaff: undefined })} scroll={false} aria-current={s.slot === ws.slot ? "true" : undefined} className={`rounded-full border px-3 py-0.5 text-meta font-semibold no-underline ${s.slot === ws.slot ? "border-module bg-module text-white" : "border-[#d0d5dd] bg-white text-[#344054]"}`}>{s.label}{s.current ? `: ${s.current}` : ""}</Link>)}
+      {ws.slots.map((s) => <Link key={s.slot} href={u.at({ fcSlot: s.slot, fcStep: step === "manual" ? "manual" : undefined, fcStaff: undefined })} scroll={false} aria-current={s.slot === ws.slot ? "true" : undefined} className={`rounded-full border px-3 py-0.5 text-[13px] font-semibold no-underline ${s.slot === ws.slot ? "border-module bg-module text-white" : "border-[#d0d5dd] bg-white text-[#344054]"}`}>{s.label}{s.current ? `: ${s.current}` : ""}</Link>)}
     </nav>
   ) : null;
   const more = (
@@ -276,7 +276,7 @@ function VisitReview({ ws, u, sp }: { ws: VisitCover; u: U; sp: Params }) {
   const text = MODE_TEXT[ws.mode];
   return (
     <section aria-labelledby="fc-review" className="mt-4">
-      <h3 id="fc-review" className="text-lead font-semibold text-slate-900" data-autofocus tabIndex={-1}>{ws.mode === "fill" ? "Review Replacement Cover" : "Review Replacement"}</h3>
+      <h3 id="fc-review" className="text-[16px] font-semibold text-slate-900" data-autofocus tabIndex={-1}>{ws.mode === "fill" ? "Review Replacement Cover" : "Review Replacement"}</h3>
       <ReviewDetails rows={[
         ["Service user", ws.summary.serviceUser],
         ["Visit", ws.summary.rows.find((r) => r.k === "Visit")?.v ?? ws.summary.reference],
@@ -286,11 +286,11 @@ function VisitReview({ ws, u, sp }: { ws: VisitCover; u: U; sp: Params }) {
         ["Care tasks", ws.careTasks.length ? ws.careTasks.join(", ") : "None listed on the visit"],
         ["Eligibility", blocked ? "Not eligible" : sel.result.state === "REQUIRES_REVIEW" ? "Allowed, with warnings to review" : "Passes every check"],
       ]} />
-      <h4 className="mb-1.5 mt-4 text-body font-semibold text-slate-900">Safety checks</h4>
+      <h4 className="mb-1.5 mt-4 text-[14.5px] font-semibold text-slate-900">Safety checks</h4>
       <SafetyChecks checks={sel.checks} />
-      <p className="mt-1.5 text-meta text-slate-500">Checked now against HR and the rota. Everything is checked again when you confirm.</p>
+      <p className="mt-1.5 text-[12.5px] text-slate-500">Checked now against HR and the rota. Everything is checked again when you confirm.</p>
       {blocked ? (
-        <p role="alert" className="mt-4 rounded-[6px] bg-[#fde8e8] px-3 py-2 text-body text-[#8a1f1a]">{sel.candidate.name} cannot be booked: {sel.result.blocking.map((b) => b.message).join("; ")}. <Link href={back} scroll={false}>Choose someone else</Link></p>
+        <p role="alert" className="mt-4 rounded-[6px] bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">{sel.candidate.name} cannot be booked: {sel.result.blocking.map((b) => b.message).join("; ")}. <Link href={back} scroll={false}>Choose someone else</Link></p>
       ) : (
         <form action={coverBookAction} className="mt-4 space-y-3">
           <input type="hidden" name="back" value={u.at({ fcStep: "review", fcStaff: sel.candidate.id, fcSrc: source })} />
@@ -309,7 +309,7 @@ function VisitReview({ ws, u, sp }: { ws: VisitCover; u: U; sp: Params }) {
             <button className={PURPLE}>{text.confirm}</button>
             <Link href={back} scroll={false} className={QUIET}>Choose someone else</Link>
           </div>
-          <p className="text-meta text-slate-500">Saving checks everything again with the visit locked. If the visit changed or someone else filled this place in the meantime, nothing is saved and you are told why.{ws.mode === "replace" ? ` ${ws.current?.name ?? "The booked carer"} is taken off this visit only; any other carer stays.` : ""}</p>
+          <p className="text-[12.5px] text-slate-500">Saving checks everything again with the visit locked. If the visit changed or someone else filled this place in the meantime, nothing is saved and you are told why.{ws.mode === "replace" ? ` ${ws.current?.name ?? "The booked carer"} is taken off this visit only; any other carer stays.` : ""}</p>
         </form>
       )}
     </section>
@@ -321,9 +321,9 @@ function VisitDone({ ws, u, comms }: { ws: VisitCover; u: U; comms: string | nul
   return (
     <section aria-labelledby="fc-done" className="mt-4">
       <div className="rounded-[8px] border border-[#b7dfc0] bg-[#f1faf3] p-3.5">
-        <h3 id="fc-done" className="text-lead font-semibold text-[#1e6b2c]" data-autofocus tabIndex={-1}>{open ? "Cover partly booked" : "Cover booked"}</h3>
-        <p className="mt-1 text-body text-slate-800">{ws.summary.rows.find((r) => r.k === "Booked now")?.v}</p>
-        {open ? <p className="mt-1 text-body font-medium text-[#7a5200]">{ws.slots.length} more carer {ws.slots.length === 1 ? "place is" : "places are"} empty on this visit.</p> : null}
+        <h3 id="fc-done" className="text-[16px] font-semibold text-[#1e6b2c]" data-autofocus tabIndex={-1}>{open ? "Cover partly booked" : "Cover booked"}</h3>
+        <p className="mt-1 text-[13.5px] text-slate-800">{ws.summary.rows.find((r) => r.k === "Booked now")?.v}</p>
+        {open ? <p className="mt-1 text-[13.5px] font-medium text-[#7a5200]">{ws.slots.length} more carer {ws.slots.length === 1 ? "place is" : "places are"} empty on this visit.</p> : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {open ? <Link href={u.at({ fcStep: undefined, fcSlot: ws.slots[0]!.slot })} scroll={false} className={PURPLE}>Fill {ws.slots[0]!.label}</Link> : null}
           <Link href={`/rota/visits?date=${ws.date}&visit=${ws.summary.visitId}`} className={QUIET}>Open the Daily Rota</Link>
@@ -339,17 +339,17 @@ function VisitDone({ ws, u, comms }: { ws: VisitCover; u: U; comms: string | nul
 
 function TimeForm({ ws, u, step }: { ws: RecoveryCover; u: U; step?: string }) {
   const view = ws.view;
-  if (view.state.recovery) return <p className="mt-4 text-body text-slate-700">Recovery visit <b>{view.state.recovery.reference}</b> is already booked for {fmtLondonDate(londonDate(view.state.recovery.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(view.state.recovery.scheduledStart)}. Choose {placeLabel(view.slot)} for it.</p>;
+  if (view.state.recovery) return <p className="mt-4 text-[13.5px] text-slate-700">Recovery visit <b>{view.state.recovery.reference}</b> is already booked for {fmtLondonDate(londonDate(view.state.recovery.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(view.state.recovery.scheduledStart)}. Choose {placeLabel(view.slot)} for it.</p>;
   return (
     <form method="get" className="mt-4 rounded-[8px] border border-slate-200 p-3" aria-label="Proposed recovery time">
       {u.hidden({ fcDate: undefined, fcTime: undefined, fcStep: step })}
-      <p className="mb-2 text-body font-medium text-slate-800">The original time has passed, so cover is a new recovery visit. When should it start?</p>
+      <p className="mb-2 text-[13.5px] font-medium text-slate-800">The original time has passed, so cover is a new recovery visit. When should it start?</p>
       <div className="flex flex-wrap items-end gap-2">
         <label><span className="label">Date</span><input type="date" name="fcDate" defaultValue={view.date} className="input w-[160px]" /></label>
         <label><span className="label">Start time</span><input type="time" name="fcTime" defaultValue={view.time} step={300} className="input w-[120px]" /></label>
         <button className={QUIET}>Update carers</button>
       </div>
-      {view.timeError ? <p role="alert" className="mt-2 text-meta text-[#8a1f1a]" data-autofocus tabIndex={-1}>{view.timeError}</p> : <p className="mt-1.5 text-meta text-slate-500">Same length as the missed visit ({view.summary.minutes} min). Carers are checked for this time.</p>}
+      {view.timeError ? <p role="alert" className="mt-2 text-[13px] text-[#8a1f1a]" data-autofocus tabIndex={-1}>{view.timeError}</p> : <p className="mt-1.5 text-[12.5px] text-slate-500">Same length as the missed visit ({view.summary.minutes} min). Carers are checked for this time.</p>}
     </form>
   );
 }
@@ -361,10 +361,10 @@ async function RecoveryCoverTab({ ctx, ws, u, step, sp }: { ctx: Ctx; ws: Recove
   if (showRecord) return <RecoveryResult ctx={ctx} ws={ws} u={u} />;
   if (!view.state.canFind) {
     return (
-      <section aria-label="Cover" className="mt-4 rounded-[8px] border border-slate-200 p-4 text-body">
+      <section aria-label="Cover" className="mt-4 rounded-[8px] border border-slate-200 p-4 text-[14px]">
         <p className="font-medium">Find Cover is not available for this call.</p>
         <p className="mt-1 text-slate-700">{view.state.text}</p>
-        <Link href={`/rota/missed/${s.caseId}`} className="mt-3 inline-block text-body">Open the case</Link>
+        <Link href={`/rota/missed/${s.caseId}`} className="mt-3 inline-block text-[14px]">Open the case</Link>
       </section>
     );
   }
@@ -380,7 +380,7 @@ async function RecoveryCoverTab({ ctx, ws, u, step, sp }: { ctx: Ctx; ws: Recove
             <input type="hidden" name="back" value={u.at({})} />
             <input type="hidden" name="caseId" value={s.caseId} />
             <input name="note" required minLength={5} className="input min-w-0 flex-1" defaultValue={view.recommended.length ? "" : "No suitable carer available to cover this missed call."} aria-label="Why a manager is needed" placeholder="Why a manager is needed" />
-            <button className="inline-flex items-center rounded-[6px] border border-[#b42a23] bg-white px-3 py-2 text-body font-medium text-[#b42a23] hover:bg-[#fdf1f1]">Escalate to Manager</button>
+            <button className="inline-flex items-center rounded-[6px] border border-[#b42a23] bg-white px-3 py-2 text-[14px] font-medium text-[#b42a23] hover:bg-[#fdf1f1]">Escalate to Manager</button>
           </form>
         )}
       </li>
@@ -416,7 +416,7 @@ function RecoveryReview({ ws, u, sp }: { ws: RecoveryCover; u: U; sp: Params }) 
   const back = u.at({ fcStep: source === "MANUAL" ? "manual" : undefined, fcStaff: undefined });
   return (
     <section aria-labelledby="fc-review" className="mt-4">
-      <h3 id="fc-review" className="text-lead font-semibold text-slate-900" data-autofocus tabIndex={-1}>Review Replacement Cover</h3>
+      <h3 id="fc-review" className="text-[16px] font-semibold text-slate-900" data-autofocus tabIndex={-1}>Review Replacement Cover</h3>
       <ReviewDetails rows={[
         ["Service user", s.serviceUser],
         ["Original visit", s.reference],
@@ -427,11 +427,11 @@ function RecoveryReview({ ws, u, sp }: { ws: RecoveryCover; u: U; sp: Params }) 
         ["Staffing", `${placeLabel(view.slot)} of ${s.carersRequired} ${s.carersRequired === 1 ? "carer" : "carers"}`],
         ["Eligibility", blocked ? "Not eligible" : sel.result.state === "REQUIRES_REVIEW" ? "Allowed, with warnings to review" : "Passes every check"],
       ]} />
-      <h4 className="mb-1.5 mt-4 text-body font-semibold text-slate-900">Safety checks</h4>
+      <h4 className="mb-1.5 mt-4 text-[14.5px] font-semibold text-slate-900">Safety checks</h4>
       <SafetyChecks checks={sel.checks} />
-      <p className="mt-1.5 text-meta text-slate-500">Checked now against HR and the rota. Everything is checked again when you confirm.</p>
+      <p className="mt-1.5 text-[12.5px] text-slate-500">Checked now against HR and the rota. Everything is checked again when you confirm.</p>
       {blocked ? (
-        <p role="alert" className="mt-4 rounded-[6px] bg-[#fde8e8] px-3 py-2 text-body text-[#8a1f1a]">{sel.candidate.name} cannot be booked: {sel.result.blocking.map((b) => b.message).join("; ")}.</p>
+        <p role="alert" className="mt-4 rounded-[6px] bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">{sel.candidate.name} cannot be booked: {sel.result.blocking.map((b) => b.message).join("; ")}.</p>
       ) : (
         <form action={coverConfirmAction} className="mt-4 space-y-3">
           <input type="hidden" name="back" value={u.at({ fcStep: "review", fcStaff: sel.candidate.id, fcSrc: source })} />
@@ -449,7 +449,7 @@ function RecoveryReview({ ws, u, sp }: { ws: RecoveryCover; u: U; sp: Params }) 
             <button className={PURPLE}>Confirm Cover</button>
             <Link href={back} scroll={false} className={QUIET}>Choose someone else</Link>
           </div>
-          <p className="text-meta text-slate-500">Confirming books {sel.candidate.name} on a new recovery visit and tells them in the app if they have a sign-in. The missed call stays missed and its investigation stays open.</p>
+          <p className="text-[12.5px] text-slate-500">Confirming books {sel.candidate.name} on a new recovery visit and tells them in the app if they have a sign-in. The missed call stays missed and its investigation stays open.</p>
         </form>
       )}
     </section>
@@ -468,28 +468,28 @@ async function RecoveryResult({ ctx, ws, u }: { ctx: Ctx; ws: RecoveryCover; u: 
     <section aria-labelledby="fc-done" className="mt-4">
       {rv ? (
         <div className="rounded-[8px] border border-[#b7dfc0] bg-[#f1faf3] p-3.5">
-          <h3 id="fc-done" className="text-lead font-semibold text-[#1e6b2c]" data-autofocus tabIndex={-1}>{view.still ? "Cover partly booked" : "Cover booked"}</h3>
-          <dl className="mt-2 grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 text-body">
+          <h3 id="fc-done" className="text-[16px] font-semibold text-[#1e6b2c]" data-autofocus tabIndex={-1}>{view.still ? "Cover partly booked" : "Cover booked"}</h3>
+          <dl className="mt-2 grid grid-cols-[140px_1fr] gap-x-3 gap-y-1 text-[13.5px]">
             <dt className="text-slate-600">Recovery visit</dt><dd><Link href={`/rota/visits/${rv.id}`}>{rv.reference}</Link>, {fmtLondonDate(londonDate(rv.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} {londonTime(rv.scheduledStart)}–{londonTime(rv.scheduledEnd)}</dd>
             <dt className="text-slate-600">Replacement</dt><dd>{live.map((x) => `${x.staffName} (${placeLabel(x.slot)})`).join(", ") || "Nobody now"}</dd>
             <dt className="text-slate-600">Carer told</dt><dd>{live.map((x) => (x.notifyStatus === "IN_APP" ? `${x.staffName}: in-app notification${x.notificationReadAt ? ", opened" : ", not opened yet"}` : `${x.staffName}: no sign-in linked, phone them`)).join("; ")}</dd>
             <dt className="text-slate-600">Missed visit</dt><dd>{view.summary.reference} stays recorded as missed; the investigation stays open.</dd>
           </dl>
-          {view.still ? <p className="mt-2 text-body font-medium text-[#7a5200]">{view.still} more {view.still === 1 ? "carer is" : "carers are"} needed on this visit.</p> : null}
+          {view.still ? <p className="mt-2 text-[13.5px] font-medium text-[#7a5200]">{view.still} more {view.still === 1 ? "carer is" : "carers are"} needed on this visit.</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {view.still && view.state.canFind ? <Link href={u.at({ fcStep: undefined })} scroll={false} className={PURPLE}>{view.still === 1 && view.state.required === 2 ? "Find the second carer" : "Find the next carer"}</Link> : null}
             <Link href={`/rota/visits?date=${londonDate(rv.scheduledStart)}`} className={QUIET}>Open the Daily Rota</Link>
             <Link href={`/rota/missed/${caseId}`} className={QUIET}>Open the case</Link>
           </div>
         </div>
-      ) : <p id="fc-done" className="rounded-[8px] border border-slate-200 p-3 text-body">No recovery visit is booked now{r.covers.length ? " (the last one was cancelled)" : ""}.</p>}
-      {lateNote ? <p role="alert" className="mt-3 rounded-[6px] bg-[#fdf3dc] px-3 py-2 text-body text-[#7a5200]">{lateNote}</p> : null}
+      ) : <p id="fc-done" className="rounded-[8px] border border-slate-200 p-3 text-[14px]">No recovery visit is booked now{r.covers.length ? " (the last one was cancelled)" : ""}.</p>}
+      {lateNote ? <p role="alert" className="mt-3 rounded-[6px] bg-[#fdf3dc] px-3 py-2 text-[13.5px] text-[#7a5200]">{lateNote}</p> : null}
       <CommsNudge u={u} kind={comms} />
-      <h4 className="mb-1.5 mt-4 text-body font-semibold text-slate-900">What has happened so far</h4>
-      <ul className="divide-y divide-slate-100 rounded-[8px] border border-slate-200 text-body" aria-label="Cover progress">
+      <h4 className="mb-1.5 mt-4 text-[14.5px] font-semibold text-slate-900">What has happened so far</h4>
+      <ul className="divide-y divide-slate-100 rounded-[8px] border border-slate-200 text-[13.5px]" aria-label="Cover progress">
         {r.facts.map((f) => (
           <li key={f.label} className="flex gap-2.5 px-3 py-2">
-            <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-caption font-bold ${f.done ? CHECK_TONE.ok.cls : CHECK_TONE.info.cls}`}>{f.done ? "✓" : "·"}</span>
+            <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${f.done ? CHECK_TONE.ok.cls : CHECK_TONE.info.cls}`}>{f.done ? "✓" : "·"}</span>
             <span><b className="font-medium">{f.label}</b>: {f.text}</span>
           </li>
         ))}

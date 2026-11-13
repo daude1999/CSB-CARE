@@ -15,9 +15,9 @@ type Option = { id: string; name: string };
 const suName = (s: { firstName: string; lastName: string; preferredName: string | null }) => `${s.preferredName || s.firstName} ${s.lastName}`;
 const initials = (s: { firstName: string; lastName: string; preferredName: string | null }) => `${(s.preferredName || s.firstName).charAt(0)}${s.lastName.charAt(0)}`.toUpperCase();
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-module focus-visible:ring-offset-2";
-const ROW_BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-2.5 text-body font-semibold text-[#344054] no-underline hover:border-module hover:bg-[#f8f5fe] hover:text-[#344054] ${FOCUS}`;
-const PAGE_BTN = `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white px-3 text-body font-semibold text-[#344054] no-underline hover:border-module hover:text-[#344054] ${FOCUS}`;
-const FIELD = "h-11 w-full rounded-[9px] border border-[#d0d5dd] bg-white px-3 text-body text-[#101828] focus:border-module focus:outline-none focus:ring-2 focus:ring-module/[.14]";
+const ROW_BTN = `inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-2.5 text-[14px] font-semibold text-[#344054] no-underline hover:border-module hover:bg-[#f8f5fe] hover:text-[#344054] ${FOCUS}`;
+const PAGE_BTN = `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white px-3 text-[14px] font-semibold text-[#344054] no-underline hover:border-module hover:text-[#344054] ${FOCUS}`;
+const FIELD = "h-11 w-full rounded-[9px] border border-[#d0d5dd] bg-white px-3 text-[14.5px] text-[#101828] focus:border-module focus:outline-none focus:ring-2 focus:ring-module/[.14]";
 /** Columns that give way on narrower screens; everything in them is also under the row's ⋮ details. */
 const WIDE = "hidden xl:table-cell";
 /** The council number gives way first (below 1536px); it stays in the row's ⋮ details and in search. */
@@ -100,34 +100,34 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           <label><span className="sr-only">Area</span><select name="area" defaultValue={sp.area ?? ""} className={FIELD}><option value="">All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <label><span className="sr-only">Status</span><select name="status" defaultValue={sp.status ?? ""} className={FIELD}><option value="">Current (not ended)</option><option value="ALL">All Statuses</option>{DIRECTORY_STATUSES.map((s) => <option key={s} value={s}>{STATUS_PILL[s].label}</option>)}<option value="ARCHIVED">Archived</option></select></label>
           <div className="flex gap-2.5 sm:col-span-2 lg:col-span-1">
-            <button className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] bg-module px-6 text-lead font-semibold text-white hover:bg-module-strong lg:flex-none ${FOCUS}`}>Apply</button>
-            <Link href={basePath} className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] border border-[#344054] bg-white px-6 text-lead font-medium text-[#344054] no-underline hover:bg-[#f9fafb] hover:text-[#101828] lg:flex-none ${FOCUS}`}>Clear</Link>
+            <button className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] bg-module px-6 text-[15px] font-semibold text-white hover:bg-module-strong lg:flex-none ${FOCUS}`}>Apply</button>
+            <Link href={basePath} className={`inline-flex h-11 flex-1 items-center justify-center rounded-[9px] border border-[#344054] bg-white px-6 text-[15px] font-medium text-[#344054] no-underline hover:bg-[#f9fafb] hover:text-[#101828] lg:flex-none ${FOCUS}`}>Clear</Link>
           </div>
         </form>
       </section>
 
       <div className="mt-3 empty:hidden">
         {dir.referenceProblem ? <SearchProblem>{dir.referenceProblem}</SearchProblem> : null}
-        {dir.councilReferenceProblem ? <p role="status" className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-2.5 text-body text-amber-900" data-testid="council-ref-problem">{COUNCIL_PROBLEM[dir.councilReferenceProblem]}</p> : null}
+        {dir.councilReferenceProblem ? <p role="status" className="mb-3 rounded-[8px] border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13.5px] text-amber-900" data-testid="council-ref-problem">{COUNCIL_PROBLEM[dir.councilReferenceProblem]}</p> : null}
         {dir.hiddenByFilters ? (
-          <p role="status" data-testid="hidden-by-filters" className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-2.5 text-body text-sky-900">
+          <p role="status" data-testid="hidden-by-filters" className="mb-3 rounded-[8px] border border-sky-200 bg-sky-50 px-4 py-2.5 text-[13.5px] text-sky-900">
             {dir.hiddenByFilters === 1 ? "1 more person matches" : `${dir.hiddenByFilters} more people match`} “{dir.q}” but {dir.hiddenByFilters === 1 ? "is" : "are"} hidden by the status, area or branch filter. <Link href={showAll}>Show all matches</Link>
           </p>
         ) : null}
         {dir.archivedMatches ? (
-          <p role="status" data-testid="archived-matches" className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-body text-slate-800">
+          <p role="status" data-testid="archived-matches" className="mb-3 rounded-[8px] border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13.5px] text-slate-800">
             {dir.archivedMatches === 1 ? "1 archived person also matches" : `${dir.archivedMatches} archived people also match`} “{dir.q}”. <Link href={`${basePath}?${new URLSearchParams({ q: dir.q, status: "ARCHIVED" })}`}>Show archived</Link>
           </p>
         ) : null}
       </div>
 
-      {showing ? <p className="mt-4 text-lead text-[#344054]" data-testid="su-count">{showing}</p> : null}
+      {showing ? <p className="mt-4 text-[15px] text-[#344054]" data-testid="su-count">{showing}</p> : null}
 
       {rows.length ? (
         <div className="relative mt-3 overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left text-body text-[#101828]">
+          <table className="w-full min-w-[640px] border-collapse text-left text-[14.5px] text-[#101828]">
             <thead>
-              <tr className="whitespace-nowrap bg-[#f6f7f9] text-body font-semibold text-[#101828]">
+              <tr className="whitespace-nowrap bg-[#f6f7f9] text-[13.5px] font-semibold text-[#101828]">
                 <th scope="col" className="rounded-l-[8px] px-2.5 py-3 2xl:px-3 font-semibold">Service User</th>
                 <th scope="col" className="px-2.5 py-3 2xl:px-3 font-semibold">CSB Reference</th>
                 <th scope="col" className={`${WIDEST} px-2.5 py-3 2xl:px-3 font-semibold`}>Council / Frameworki Ref</th>
@@ -149,18 +149,18 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
                   <tr key={s.id} data-testid="su-row" className="border-b border-[#eaecf0] last:border-b-0">
                     <td className="px-2.5 py-3 2xl:px-3">
                       <div className="flex items-center gap-3">
-                        <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ece7fb] text-body font-bold text-[#4b1fa8]">{initials(s)}</span>
+                        <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#ece7fb] text-[14px] font-bold text-[#4b1fa8]">{initials(s)}</span>
                         <span className="min-w-0">
                           <Link href={`/rota/service-users/${s.id}`} className="block whitespace-nowrap font-semibold text-[#101828] no-underline hover:text-[#4b1fa8] hover:underline">{name}</Link>
-                          <span className="block whitespace-nowrap text-meta text-[#475467]">{s.matchedReference ? `Search matched ${s.matchedReference}` : s.dateOfBirth ? `DOB: ${dobText(s.dateOfBirth)}` : s.postcode ?? ""}</span>
+                          <span className="block whitespace-nowrap text-[13px] text-[#475467]">{s.matchedReference ? `Search matched ${s.matchedReference}` : s.dateOfBirth ? `DOB: ${dobText(s.dateOfBirth)}` : s.postcode ?? ""}</span>
                         </span>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-2.5 py-3 2xl:px-3 tabular-nums">{s.csbReference ?? <span className="text-[#667085]">Not recorded</span>}{s.csbReference && s.reference !== s.csbReference ? <span className="block text-meta text-[#667085]">legacy {s.reference}</span> : null}</td>
-                    <td className={`${WIDEST} px-2.5 py-3 2xl:px-3 tabular-nums`} data-testid="council-ref">{council ? <><span>{council.value}</span><span className="block whitespace-nowrap text-meta text-[#667085]">{council.title}{council.verified ? "" : " · unverified"}{council.others ? ` · +${council.others} more` : ""}</span></> : <span className="text-[#667085]">—</span>}</td>
+                    <td className="whitespace-nowrap px-2.5 py-3 2xl:px-3 tabular-nums">{s.csbReference ?? <span className="text-[#667085]">Not recorded</span>}{s.csbReference && s.reference !== s.csbReference ? <span className="block text-[12.5px] text-[#667085]">legacy {s.reference}</span> : null}</td>
+                    <td className={`${WIDEST} px-2.5 py-3 2xl:px-3 tabular-nums`} data-testid="council-ref">{council ? <><span>{council.value}</span><span className="block whitespace-nowrap text-[12.5px] text-[#667085]">{council.title}{council.verified ? "" : " · unverified"}{council.others ? ` · +${council.others} more` : ""}</span></> : <span className="text-[#667085]">—</span>}</td>
                     <td className={`${WIDE} px-2.5 py-3 2xl:px-3`}>{s.area?.name ?? <span className="text-[#667085]">No area</span>}</td>
                     <td className={`${WIDE} whitespace-nowrap px-2.5 py-3 2xl:px-3 tabular-nums`}>{mins ? hoursText(mins) : <span className="text-[#667085]">No active package</span>}</td>
-                    <td className="px-2.5 py-3 2xl:px-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-meta font-medium ${pill.cls}`} data-testid="status-pill">{pill.label}</span></td>
+                    <td className="px-2.5 py-3 2xl:px-3"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-[13px] font-medium ${pill.cls}`} data-testid="status-pill">{pill.label}</span></td>
                     <td className={`${WIDER} whitespace-nowrap px-2.5 py-3 2xl:px-3 tabular-nums`}>{s.nextVisit ? nextVisitText(s.nextVisit) : <span className="text-[#667085]">None scheduled</span>}</td>
                     <td className="px-2.5 py-3 2xl:px-3">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -191,19 +191,19 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           </table>
         </div>
       ) : (
-        <p className="mt-4 rounded-[10px] border border-dashed border-[#d0d5dd] px-4 py-8 text-center text-body text-[#475467]" data-testid="su-empty">
+        <p className="mt-4 rounded-[10px] border border-dashed border-[#d0d5dd] px-4 py-8 text-center text-[14.5px] text-[#475467]" data-testid="su-empty">
           {dir.q ? `No service users you are allowed to see match “${dir.q}” with these filters.${mayBeExternalReference(dir.q) && !dir.referenceProblem ? ` ${EXACT_REFERENCE_HINT}` : ""}` : "No service users match these filters."}
         </p>
       )}
 
       {dir.total ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-lead text-[#344054]" data-testid="su-showing">{showing}</p>
+          <p className="text-[15px] text-[#344054]" data-testid="su-showing">{showing}</p>
           {dir.pages > 1 ? (
             <nav aria-label="Service user pages" className="flex flex-wrap items-center gap-1.5">
               {dir.page > 1 ? <Link href={params({ page: String(dir.page - 1) })} className={PAGE_BTN}>Previous</Link> : <span aria-disabled="true" className={`${PAGE_BTN} cursor-default text-[#98a2b3] hover:border-[#e4e7ec]`}>Previous</span>}
               {pageList(dir.page, dir.pages).map((n, i) => n === "gap" ? <span key={`g${i}`} aria-hidden className="px-1 text-[#667085]">…</span> : (
-                <Link key={n} href={params({ page: String(n) })} aria-current={n === dir.page ? "page" : undefined} aria-label={`Page ${n}`} className={n === dir.page ? `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] bg-[#4b1fa8] px-3 text-body font-semibold text-white no-underline hover:text-white ${FOCUS}` : PAGE_BTN}>{n}</Link>
+                <Link key={n} href={params({ page: String(n) })} aria-current={n === dir.page ? "page" : undefined} aria-label={`Page ${n}`} className={n === dir.page ? `inline-flex h-10 min-w-10 items-center justify-center rounded-[8px] bg-[#4b1fa8] px-3 text-[14px] font-semibold text-white no-underline hover:text-white ${FOCUS}` : PAGE_BTN}>{n}</Link>
               ))}
               {dir.page < dir.pages ? <Link href={params({ page: String(dir.page + 1) })} className={PAGE_BTN}>Next</Link> : <span aria-disabled="true" className={`${PAGE_BTN} cursor-default text-[#98a2b3] hover:border-[#e4e7ec]`}>Next</span>}
             </nav>

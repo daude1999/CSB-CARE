@@ -36,8 +36,8 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
         <NotOfficialBanner>Results and scores are a management tool and are not shared with CQC.</NotOfficialBanner>
         <Panel title="Assessments" testId="assessment-list" actions={
           <form method="get" className="flex flex-wrap items-center gap-2" aria-label="Filter assessments">
-            <select name="status" defaultValue={sp.status ?? ""} className="input h-9 py-0 text-body" aria-label="Status"><option value="">Any status</option>{Object.entries(ASSESSMENT_STATUS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-            {branches.length > 1 ? <select name="branch" defaultValue={sp.branch ?? ""} className="input h-9 py-0 text-body" aria-label="Branch"><option value="">All branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select> : null}
+            <select name="status" defaultValue={sp.status ?? ""} className="input h-9 py-0 text-[13.5px]" aria-label="Status"><option value="">Any status</option>{Object.entries(ASSESSMENT_STATUS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            {branches.length > 1 ? <select name="branch" defaultValue={sp.branch ?? ""} className="input h-9 py-0 text-[13.5px]" aria-label="Branch"><option value="">All branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select> : null}
             <button className="pc-btn-secondary pc-btn-sm" type="submit">Apply</button>
           </form>
         }>
@@ -71,7 +71,7 @@ export default async function AssessmentsPage({ searchParams }: { searchParams: 
               <label><span className="label">Period from</span><input type="date" name="periodFrom" className="input" defaultValue={addDays(today, -90)} required /></label>
               <label><span className="label">Period to</span><input type="date" name="periodTo" className="input" defaultValue={today} required /></label>
               <label><span className="label">Next assessment due</span><input type="date" name="nextDueAt" className="input" defaultValue={addDays(today, 90)} /></label>
-              <label className="md:col-span-2"><span className="label">Start from an earlier approved assessment (optional)</span><select name="copyFromId" className="input" defaultValue=""><option value="">Start blank</option>{previous.map((p) => <option key={p.id} value={p.id}>{p.reference} {p.title}</option>)}</select><span className="mt-1 block text-meta text-[#667085]">Copies the earlier results as a starting point. Each one can then be checked and changed; the earlier assessment is not changed.</span></label>
+              <label className="md:col-span-2"><span className="label">Start from an earlier approved assessment (optional)</span><select name="copyFromId" className="input" defaultValue=""><option value="">Start blank</option>{previous.map((p) => <option key={p.id} value={p.id}>{p.reference} {p.title}</option>)}</select><span className="mt-1 block text-[12.5px] text-[#667085]">Copies the earlier results as a starting point. Each one can then be checked and changed; the earlier assessment is not changed.</span></label>
               <div className="flex items-end"><button className="pc-btn" type="submit">Start assessment</button></div>
             </form>
           </Panel>

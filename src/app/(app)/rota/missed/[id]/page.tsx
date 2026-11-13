@@ -21,8 +21,8 @@ const STAGE_TONE: Record<string, Tone> = { NEW: "rose", INVESTIGATING: "amber", 
 function Step({ n, title, done, children }: { n: number; title: string; done: boolean; children: React.ReactNode }) {
   return (
     <section className="panel mb-3" aria-labelledby={`step-${n}`}>
-      <h2 id={`step-${n}`} className="mb-2 flex items-center gap-2 text-lead font-semibold">
-        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-caption text-white ${done ? "bg-[#2e7d32]" : "bg-[#6b46c9]"}`} aria-hidden>{done ? "✓" : n}</span>
+      <h2 id={`step-${n}`} className="mb-2 flex items-center gap-2 text-[16px] font-semibold">
+        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] text-white ${done ? "bg-[#2e7d32]" : "bg-[#6b46c9]"}`} aria-hidden>{done ? "✓" : n}</span>
         {title}
         {done ? <span className="sr-only">(done)</span> : null}
       </h2>
@@ -48,7 +48,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
   const cover = coverMap.get(c.id);
   const coverOpen = d.canWork && sp.cover === c.id;
   const coverLink = cover && d.canWork && (cover.canFind || cover.recovery) ? (
-    <Link href={`${back}?cover=${c.id}${cover.canFind ? "" : "&fcStep=done"}`} scroll={false} className={cover.canFind ? "inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-body font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" : "btn-secondary"}>{cover.canFind ? (cover.kind === "partial" ? `Find Cover (${cover.booked}/${cover.required} booked)` : "Find Cover") : "View cover booked"}</Link>
+    <Link href={`${back}?cover=${c.id}${cover.canFind ? "" : "&fcStep=done"}`} scroll={false} className={cover.canFind ? "inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[14px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" : "btn-secondary"}>{cover.canFind ? (cover.kind === "partial" ? `Find Cover (${cover.booked}/${cover.required} booked)` : "Find Cover") : "View cover booked"}</Link>
   ) : null;
   const editable = d.canWork && (c.stage === "NEW" || c.stage === "INVESTIGATING");
   const open = c.stage !== "CLOSED";
@@ -89,7 +89,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
       />
       <Flash searchParams={sp} />
 
-      <ol aria-label="Investigation progress" className="mb-3 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white text-meta sm:grid-cols-3 lg:grid-cols-6">
+      <ol aria-label="Investigation progress" className="mb-3 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white text-[13px] sm:grid-cols-3 lg:grid-cols-6">
         {steps.map(([label, done], i) => (
           <li key={label} className={`border-b border-r border-slate-100 px-3 py-2 ${done ? "font-medium text-[#22682a]" : "text-slate-600"}`}>{done ? "✓ " : `${i} `}{label}</li>
         ))}
@@ -101,19 +101,19 @@ export default async function MissedCasePage({ params, searchParams }: { params:
         <div>
           <Step n={1} title="Investigate and record the reason" done={!!c.reasonCode}>
             {c.reasonCode ? (
-              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 text-body">
+              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 text-[14px]">
                 <dt className="text-slate-600">Reason</dt><dd>{reasonLabel(c.reasonCode)}{c.reasonDetail ? `: ${c.reasonDetail}` : ""}</dd>
                 <dt className="text-slate-600">Findings</dt><dd className="whitespace-pre-wrap">{c.findings}</dd>
                 <dt className="text-slate-600">Recorded</dt><dd>{who(c.reasonRecordedById)}, {fmtDate(c.reasonRecordedAt, true)}</dd>
               </dl>
-            ) : <p className="mb-2 text-body text-slate-600">No reason recorded yet.{d.overdue ? " The deadline has passed, so the care managers have been told." : ""}</p>}
+            ) : <p className="mb-2 text-[14px] text-slate-600">No reason recorded yet.{d.overdue ? " The deadline has passed, so the care managers have been told." : ""}</p>}
             {d.canWork && open ? (
               <form action={missedAssignAction} className="mb-3 flex flex-wrap items-end gap-2">
                 {hidden({ lockVersion: c.lockVersion })}
                 <label className="min-w-[220px] flex-1"><span className="label">Responsible coordinator</span><select name="coordinatorId" defaultValue={c.coordinatorId ?? ""} required className="input w-full"><option value="">Choose…</option>{d.workers.map((w) => <option key={w.userId} value={w.userId}>{w.name}</option>)}</select></label>
                 <button className="btn-secondary">{c.coordinatorId ? "Change" : "Assign"}</button>
               </form>
-            ) : <p className="mb-2 text-body">Responsible coordinator: {c.coordinatorId ? who(c.coordinatorId) : "nobody yet"}</p>}
+            ) : <p className="mb-2 text-[14px]">Responsible coordinator: {c.coordinatorId ? who(c.coordinatorId) : "nobody yet"}</p>}
             {editable ? (
               <form action={missedReasonAction} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {hidden({ lockVersion: c.lockVersion })}
@@ -126,9 +126,9 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </Step>
 
           <Step n={2} title="Replacement care arrangements" done={!!c.replacementType}>
-            {coverLink ? <div className="mb-2 flex flex-wrap items-center gap-2">{coverLink}<span className="text-meta text-slate-600">{cover?.canFind ? "Book an eligible carer on a recovery visit." : cover?.text}</span></div> : null}
+            {coverLink ? <div className="mb-2 flex flex-wrap items-center gap-2">{coverLink}<span className="text-[13px] text-slate-600">{cover?.canFind ? "Book an eligible carer on a recovery visit." : cover?.text}</span></div> : null}
             {c.replacementType ? (
-              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 text-body">
+              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 text-[14px]">
                 <dt className="text-slate-600">Arrangement</dt><dd>{REPLACEMENT_TYPES[c.replacementType] ?? c.replacementType}</dd>
                 {d.replacement ? <><dt className="text-slate-600">Replacement carer</dt><dd><Link href={`/rota/staff/${d.replacement.id}`}>{d.replacement.displayName}</Link> (eligibility checked{c.replacementWarnings.length ? `; accepted warnings: ${c.replacementWarnings.join("; ")}` : ""})</dd></> : null}
                 {c.replacementArrivedAt ? <><dt className="text-slate-600">Arrived</dt><dd>{londonTime(c.replacementArrivedAt)}</dd></> : null}
@@ -136,7 +136,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
                 {c.replacementNote ? <><dt className="text-slate-600">Note</dt><dd className="whitespace-pre-wrap">{c.replacementNote}</dd></> : null}
                 <dt className="text-slate-600">Recorded</dt><dd>{who(c.replacementById)}, {fmtDate(c.replacementAt, true)}</dd>
               </dl>
-            ) : <p className="mb-2 text-body text-slate-600">Not recorded yet. Record how the client&apos;s care was covered, even if it was not.</p>}
+            ) : <p className="mb-2 text-[14px] text-slate-600">Not recorded yet. Record how the client&apos;s care was covered, even if it was not.</p>}
             {editable ? (
               <form action={missedReplacementAction} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {hidden({ lockVersion: c.lockVersion })}
@@ -145,26 +145,26 @@ export default async function MissedCasePage({ params, searchParams }: { params:
                 <label><span className="label">Arrived at (replacement or late carer)</span><input type="time" name="arrivedAt" defaultValue={c.replacementArrivedAt ? londonTime(c.replacementArrivedAt) : ""} className="input w-full" /></label>
                 <label><span className="label">Client or family told (who, how, when)</span><input name="clientInformed" required minLength={2} maxLength={300} defaultValue={c.clientInformed ?? ""} className="input w-full" placeholder="Daughter by phone at 08:25" /></label>
                 <label className="sm:col-span-2"><span className="label">Note (optional)</span><input name="note" maxLength={2000} defaultValue={c.replacementNote ?? ""} className="input w-full" /></label>
-                <label className="flex items-center gap-2 text-body"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept eligibility warnings</label>
+                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> Accept eligibility warnings</label>
                 <div><button className="btn-primary">Record arrangement</button></div>
-                <p className="text-meta text-slate-500 sm:col-span-2">A replacement carer is checked by the same eligibility rules as any booking (DBS, right to work, training, restrictions, the client&apos;s preferences). This form only records what happened; nothing on the rota is changed. To book a replacement on the rota, use Find Cover.</p>
+                <p className="text-[12.5px] text-slate-500 sm:col-span-2">A replacement carer is checked by the same eligibility rules as any booking (DBS, right to work, training, restrictions, the client&apos;s preferences). This form only records what happened; nothing on the rota is changed. To book a replacement on the rota, use Find Cover.</p>
               </form>
             ) : null}
           </Step>
 
           <Step n={3} title="Follow-up actions" done={c.actions.length > 0 && c.actions.every((a) => a.doneAt)}>
             {c.actions.length ? (
-              <ul className="mb-2 divide-y divide-slate-100 text-body">
+              <ul className="mb-2 divide-y divide-slate-100 text-[14px]">
                 {c.actions.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center gap-2 py-1.5">
                     <span className={a.doneAt ? "text-slate-500 line-through" : ""}>{a.text}</span>
-                    <span className="ml-auto text-meta text-slate-600">{who(a.ownerId)} · due {fmtLondonDate(londonDate(a.dueAt), { day: "numeric", month: "short" })}</span>
+                    <span className="ml-auto text-[13px] text-slate-600">{who(a.ownerId)} · due {fmtLondonDate(londonDate(a.dueAt), { day: "numeric", month: "short" })}</span>
                     {a.doneAt ? <Badge tone="green">Done</Badge> : a.dueAt < new Date() ? <Badge tone="rose">Overdue</Badge> : <Badge tone="amber">Open</Badge>}
-                    {!a.doneAt && d.canWork ? <form action={missedCompleteActionAction}>{hidden({ actionId: a.id })}<button className="btn-secondary py-0.5 text-meta">Mark done</button></form> : null}
+                    {!a.doneAt && d.canWork ? <form action={missedCompleteActionAction}>{hidden({ actionId: a.id })}<button className="btn-secondary py-0.5 text-[13px]">Mark done</button></form> : null}
                   </li>
                 ))}
               </ul>
-            ) : <p className="mb-2 text-body text-slate-600">No follow-up actions yet.</p>}
+            ) : <p className="mb-2 text-[14px] text-slate-600">No follow-up actions yet.</p>}
             {d.canWork && open ? (
               <form action={missedAddActionAction} className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
                 {hidden()}
@@ -177,13 +177,13 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </Step>
 
           <Step n={4} title="Comments, evidence and outcome" done={!!c.submittedAt || c.stage === "CLOSED"}>
-            <ul className="mb-3 space-y-2 border-l-2 border-[#e3dff0] pl-3 text-body">
+            <ul className="mb-3 space-y-2 border-l-2 border-[#e3dff0] pl-3 text-[14px]">
               {c.comments.map((m) => {
                 const file = m.evidenceId ? d.evidence.find((e) => e.id === m.evidenceId) : null;
                 return (
                   <li key={m.id}>
-                    <b>{who(m.authorId)}</b> <span className="text-meta text-slate-500">{fmtDate(m.createdAt, true)}</span>
-                    <p className="whitespace-pre-wrap">{file ? <a href={`/api/rota/missed/evidence/${file.id}`}>📎 {file.filename}</a> : m.body}{file ? <span className="text-meta text-slate-500"> · {Math.max(1, Math.round(file.sizeBytes / 1024))} KB{file.scanStatus === "NOT_SCANNED" ? " · not virus-scanned (no scanner configured)" : ""}{m.body !== file.filename ? ` · ${m.body}` : ""}</span> : null}</p>
+                    <b>{who(m.authorId)}</b> <span className="text-[12.5px] text-slate-500">{fmtDate(m.createdAt, true)}</span>
+                    <p className="whitespace-pre-wrap">{file ? <a href={`/api/rota/missed/evidence/${file.id}`}>📎 {file.filename}</a> : m.body}{file ? <span className="text-[12.5px] text-slate-500"> · {Math.max(1, Math.round(file.sizeBytes / 1024))} KB{file.scanStatus === "NOT_SCANNED" ? " · not virus-scanned (no scanner configured)" : ""}{m.body !== file.filename ? ` · ${m.body}` : ""}</span> : null}</p>
                   </li>
                 );
               })}
@@ -204,7 +204,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
               </div>
             ) : null}
             {c.outcome ? (
-              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 rounded bg-slate-50 p-2 text-body">
+              <dl className="mb-2 grid grid-cols-[150px_1fr] gap-x-2 gap-y-1 rounded bg-slate-50 p-2 text-[14px]">
                 <dt className="text-slate-600">Outcome</dt><dd>{outcomeLabel(c.outcome)}</dd>
                 <dt className="text-slate-600">Preventable</dt><dd>{c.preventable ? "Yes" : "No"}</dd>
                 <dt className="text-slate-600">Summary</dt><dd className="whitespace-pre-wrap">{c.outcomeNote}</dd>
@@ -218,7 +218,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
                 <label><span className="label">Preventable?</span><select name="preventable" required defaultValue={c.preventable === null ? "" : c.preventable ? "yes" : "no"} className="input w-full"><option value="">Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>
                 <label className="sm:col-span-2"><span className="label">Outcome summary and what will stop it happening again</span><textarea name="outcomeNote" required minLength={10} maxLength={4000} rows={3} defaultValue={c.outcomeNote ?? ""} className="input w-full" /></label>
                 <div><button className="btn-primary" disabled={!c.reasonCode || !c.replacementType}>Send for manager sign-off</button></div>
-                {!c.reasonCode || !c.replacementType ? <p className="text-meta text-slate-500">Record the reason and the replacement care first.</p> : null}
+                {!c.reasonCode || !c.replacementType ? <p className="text-[12.5px] text-slate-500">Record the reason and the replacement care first.</p> : null}
               </form>
             ) : null}
           </Step>
@@ -226,7 +226,7 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           <Step n={5} title="Manager sign-off" done={c.stage === "CLOSED"}>
             {c.stage === "CLOSED" ? (
               <>
-                <p className="text-body">Signed off by <b>{who(c.signedOffById)}</b> on {fmtDate(c.signedOffAt, true)}{c.signOffNote ? `: ${c.signOffNote}` : "."}</p>
+                <p className="text-[14px]">Signed off by <b>{who(c.signedOffById)}</b> on {fmtDate(c.signedOffAt, true)}{c.signOffNote ? `: ${c.signOffNote}` : "."}</p>
                 {d.canSignOff ? (
                   <form action={missedReopenAction} className="mt-2 flex flex-wrap items-end gap-2">
                     {hidden()}
@@ -245,15 +245,15 @@ export default async function MissedCasePage({ params, searchParams }: { params:
                     <button name="decision" value="return" className="btn-secondary">Send back for more investigation</button>
                   </div>
                 </form>
-              ) : <p className="rounded border border-dashed border-slate-300 bg-slate-50 p-2 text-body text-slate-600">{d.ownCase ? "You investigated this missed call, so another care manager must sign it off." : "Waiting for a care manager to sign off."}</p>
-            ) : <p className="rounded border border-dashed border-slate-300 bg-slate-50 p-2 text-body text-slate-600">Waiting for the outcome. A care manager signs off; the person who investigated cannot sign off their own case. Sign-off closes the case and keeps it on record; it can be reopened with a reason.</p>}
+              ) : <p className="rounded border border-dashed border-slate-300 bg-slate-50 p-2 text-[14px] text-slate-600">{d.ownCase ? "You investigated this missed call, so another care manager must sign it off." : "Waiting for a care manager to sign off."}</p>
+            ) : <p className="rounded border border-dashed border-slate-300 bg-slate-50 p-2 text-[14px] text-slate-600">Waiting for the outcome. A care manager signs off; the person who investigated cannot sign off their own case. Sign-off closes the case and keeps it on record; it can be reopened with a reason.</p>}
           </Step>
         </div>
 
         <aside className="space-y-3">
           <section className="panel" aria-label="The visit">
-            <h2 className="mb-2 text-lead font-semibold">The visit</h2>
-            <dl className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-1 text-body">
+            <h2 className="mb-2 text-[16px] font-semibold">The visit</h2>
+            <dl className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-1 text-[14px]">
               <dt className="text-slate-600">Service user</dt><dd><Link href={`/rota/service-users/${c.visit.serviceUser.id}`}>{suName(c.visit.serviceUser)}</Link> {d.highRisk ? <Badge tone="rose">High risk</Badge> : null}</dd>
               <dt className="text-slate-600">Care worker</dt><dd>{d.carer ? <Link href={`/rota/staff/${d.carer.id}`}>{d.carer.displayName}</Link> : "Nobody was assigned"} {d.carerRepeat >= d.settings.repeatOffenderCount ? <Badge tone="rose">Repeat · {d.carerRepeat} in {d.settings.repeatWindowDays} days</Badge> : null}</dd>
               <dt className="text-slate-600">Visit</dt><dd><Link href={`/rota/visits/${c.visit.id}`}>{c.visit.reference}</Link> · {c.visit.carersRequired} {c.visit.carersRequired === 1 ? "carer" : "carers"}</dd>
@@ -273,27 +273,27 @@ export default async function MissedCasePage({ params, searchParams }: { params:
           </section>
 
           <section className="panel" aria-label="Care worker's missed calls">
-            <h2 className="mb-1 text-lead font-semibold">Care worker&apos;s missed calls (90 days)</h2>
+            <h2 className="mb-1 text-[16px] font-semibold">Care worker&apos;s missed calls (90 days)</h2>
             {d.carer ? (
               d.carerHistory.length ? (
-                <ul className="divide-y divide-slate-100 text-body">{d.carerHistory.map((h) => <li key={h.id} className="flex gap-2 py-1"><Link href={`/rota/missed/${h.id}`}>{fmtLondonDate(londonDate(h.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</Link><span>{suName(h.visit.serviceUser)} · {h.visit.callType.name}</span><span className="ml-auto"><Badge tone={STAGE_TONE[h.stage]}>{h.reasonCode ? reasonLabel(h.reasonCode) : STAGE_LABEL[h.stage]}</Badge></span></li>)}</ul>
-              ) : <p className="text-body text-slate-600">No other missed calls.</p>
-            ) : <p className="text-body text-slate-600">Nobody was assigned to this call.</p>}
-            {d.carer ? <Link href={`/rota/staff/${d.carer.id}#missed`} className="text-meta">Full history →</Link> : null}
+                <ul className="divide-y divide-slate-100 text-[13.5px]">{d.carerHistory.map((h) => <li key={h.id} className="flex gap-2 py-1"><Link href={`/rota/missed/${h.id}`}>{fmtLondonDate(londonDate(h.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</Link><span>{suName(h.visit.serviceUser)} · {h.visit.callType.name}</span><span className="ml-auto"><Badge tone={STAGE_TONE[h.stage]}>{h.reasonCode ? reasonLabel(h.reasonCode) : STAGE_LABEL[h.stage]}</Badge></span></li>)}</ul>
+              ) : <p className="text-[13.5px] text-slate-600">No other missed calls.</p>
+            ) : <p className="text-[13.5px] text-slate-600">Nobody was assigned to this call.</p>}
+            {d.carer ? <Link href={`/rota/staff/${d.carer.id}#missed`} className="text-[13px]">Full history →</Link> : null}
           </section>
 
           <section className="panel" aria-label="Service user's missed calls">
-            <h2 className="mb-1 text-lead font-semibold">Service user&apos;s missed calls (90 days)</h2>
+            <h2 className="mb-1 text-[16px] font-semibold">Service user&apos;s missed calls (90 days)</h2>
             {d.clientHistory.length ? (
-              <ul className="divide-y divide-slate-100 text-body">{d.clientHistory.map((h) => <li key={h.id} className="flex gap-2 py-1"><Link href={`/rota/missed/${h.id}`}>{fmtLondonDate(londonDate(h.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</Link><span>{h.staffId ? d.historyStaff.get(h.staffId) ?? "Former staff member" : "Unassigned"} · {h.visit.callType.name}</span><span className="ml-auto"><Badge tone={STAGE_TONE[h.stage]}>{h.reasonCode ? reasonLabel(h.reasonCode) : STAGE_LABEL[h.stage]}</Badge></span></li>)}</ul>
-            ) : <p className="text-body text-slate-600">No other missed calls.</p>}
-            <Link href={`/rota/service-users/${c.serviceUserId}?tab=missed`} className="text-meta">Full history →</Link>
+              <ul className="divide-y divide-slate-100 text-[13.5px]">{d.clientHistory.map((h) => <li key={h.id} className="flex gap-2 py-1"><Link href={`/rota/missed/${h.id}`}>{fmtLondonDate(londonDate(h.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</Link><span>{h.staffId ? d.historyStaff.get(h.staffId) ?? "Former staff member" : "Unassigned"} · {h.visit.callType.name}</span><span className="ml-auto"><Badge tone={STAGE_TONE[h.stage]}>{h.reasonCode ? reasonLabel(h.reasonCode) : STAGE_LABEL[h.stage]}</Badge></span></li>)}</ul>
+            ) : <p className="text-[13.5px] text-slate-600">No other missed calls.</p>}
+            <Link href={`/rota/service-users/${c.serviceUserId}?tab=missed`} className="text-[13px]">Full history →</Link>
           </section>
 
           <section className="panel" aria-label="Case history">
-            <h2 className="mb-1 text-lead font-semibold">Case history</h2>
-            <ul className="space-y-1.5 border-l-2 border-[#e3dff0] pl-3 text-body">
-              {timeline.map((t, i) => <li key={i}>{fmtDate(t.at, true)} · {t.text}<span className="block text-caption text-slate-500">{t.by}</span></li>)}
+            <h2 className="mb-1 text-[16px] font-semibold">Case history</h2>
+            <ul className="space-y-1.5 border-l-2 border-[#e3dff0] pl-3 text-[13.5px]">
+              {timeline.map((t, i) => <li key={i}>{fmtDate(t.at, true)} · {t.text}<span className="block text-[12px] text-slate-500">{t.by}</span></li>)}
             </ul>
           </section>
         </aside>

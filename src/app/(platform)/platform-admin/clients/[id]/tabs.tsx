@@ -64,7 +64,7 @@ export async function OverviewTab({ ctx, client, drawerHref }: P) {
       {alerts.length ? (
         <ul aria-label="Alerts" className="mb-4 divide-y divide-px-row overflow-hidden rounded-[10px] border border-px-line bg-white">
           {alerts.map((al) => (
-            <li key={al.text} className="flex items-center gap-3 px-4 py-2.5 text-body">
+            <li key={al.text} className="flex items-center gap-3 px-4 py-2.5 text-[13.5px]">
               <Warning size={16} weight="fill" className={`shrink-0 ${al.tone === "danger" ? "text-px-danger-strong" : "text-[#d48806]"}`} aria-hidden="true" />
               <span className="min-w-0 flex-1 text-px-body">{al.text}</span>
               {al.href ? <Link href={al.href} className={pxLink}>{al.action}</Link> : null}
@@ -81,7 +81,7 @@ export async function OverviewTab({ ctx, client, drawerHref }: P) {
                 ["Price", fmtMoney(s.billingPeriod === "ANNUAL" ? s.plan.annualPricePence : s.plan.monthlyPricePence) ?? <NotConfigured key="p">Not set</NotConfigured>],
                 [s.status === "TRIAL" ? "Trial ends" : "Renews", fmtDate(s.status === "TRIAL" ? s.trialEndsAt : s.renewsAt)],
               ]} />
-            ) : <p className="text-body text-px-muted">No subscription yet.</p>}
+            ) : <p className="text-[13.5px] text-px-muted">No subscription yet.</p>}
           </PxPanel>
           <PxPanel title="Usage" actions={<Link href="?tab=usage" className={pxLink}>Details</Link>}>
             <DetailRows items={[
@@ -94,8 +94,8 @@ export async function OverviewTab({ ctx, client, drawerHref }: P) {
           </PxPanel>
           <PxPanel title="Administrators" actions={<Link href={drawerHref("invite")} scroll={false} className={pxLink}>Invite</Link>}>
             {admins.length ? (
-              <ul className="-my-1 divide-y divide-px-row text-body">{admins.map((m) => <li key={m.id} className="py-2"><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block truncate text-meta text-px-muted">{m.user.email}</span></li>)}</ul>
-            ) : <p className="text-body text-px-danger">No active administrator.</p>}
+              <ul className="-my-1 divide-y divide-px-row text-[13.5px]">{admins.map((m) => <li key={m.id} className="py-2"><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block truncate text-[12.5px] text-px-muted">{m.user.email}</span></li>)}</ul>
+            ) : <p className="text-[13.5px] text-px-danger">No active administrator.</p>}
           </PxPanel>
         </>
       }>
@@ -112,7 +112,7 @@ export async function OverviewTab({ ctx, client, drawerHref }: P) {
           {branches.length ? (
             <div className="px-4">
               <Table label="Branches" minWidth={560} head={["Branch", "Address", "CQC location", "Limited staff", "Added"]} align={["left", "left", "left", "right", "left"]}>
-                {branches.map((b) => <tr key={b.id}><td className="font-medium">{b.name}</td><td className="text-px-body">{b.address ?? "—"}</td><td className="font-mono text-meta">{b.cqcLocationId ?? "—"}</td><td className="text-right tabular-nums">{b._count.grants}</td><td className="whitespace-nowrap">{fmtDate(b.createdAt)}</td></tr>)}
+                {branches.map((b) => <tr key={b.id}><td className="font-medium">{b.name}</td><td className="text-px-body">{b.address ?? "—"}</td><td className="font-mono text-[12.5px]">{b.cqcLocationId ?? "—"}</td><td className="text-right tabular-nums">{b._count.grants}</td><td className="whitespace-nowrap">{fmtDate(b.createdAt)}</td></tr>)}
               </Table>
             </div>
           ) : <EmptyState title="No branches yet">Add the first branch, or let the customer add branches in their own Settings.</EmptyState>}
@@ -134,12 +134,12 @@ export async function UsersTab({ ctx, client, back, drawerHref }: P) {
             <Table label="People" minWidth={760} head={["Person", "Roles", "Branch access", "Status", ""]} align={["left", "left", "left", "left", "right"]}>
               {members.map((m) => (
                 <tr key={m.id}>
-                  <td><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block text-meta text-px-muted">{m.user.email}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</span></td>
-                  <td className="max-w-[260px] text-meta">{m.roles.length ? m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") : <span className="text-px-subtle">No roles</span>}</td>
-                  <td className="max-w-[200px] text-meta text-px-body">{m.branches.length ? m.branches.map((b) => branchName.get(b.branchId) ?? "Branch").join(", ") : "All branches"}</td>
+                  <td><Link href={`/platform-admin/users/${m.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{m.user.name}</Link><span className="block text-[12.5px] text-px-muted">{m.user.email}{m.jobTitle ? ` · ${m.jobTitle}` : ""}</span></td>
+                  <td className="max-w-[260px] text-[13px]">{m.roles.length ? m.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ") : <span className="text-px-subtle">No roles</span>}</td>
+                  <td className="max-w-[200px] text-[13px] text-px-body">{m.branches.length ? m.branches.map((b) => branchName.get(b.branchId) ?? "Branch").join(", ") : "All branches"}</td>
                   <td>
                     {m.user.deactivatedAt ? <Pill value="SUSPENDED" label="Account deactivated" /> : m.deactivatedAt ? <Pill value="CLOSED" label="Removed here" /> : <Pill value="ACTIVE" />}
-                    {m.user._count.memberships > 1 ? <span className="mt-0.5 block text-caption text-px-subtle">{m.user._count.memberships} organisations</span> : null}
+                    {m.user._count.memberships > 1 ? <span className="mt-0.5 block text-[11.5px] text-px-subtle">{m.user._count.memberships} organisations</span> : null}
                   </td>
                   <td className="text-right">
                     {m.deactivatedAt ? (
@@ -156,15 +156,15 @@ export async function UsersTab({ ctx, client, back, drawerHref }: P) {
         <PxPanel title="Open invitations" description={invites.length ? undefined : "Nobody is waiting to accept an invitation."} flush>
           {invites.length ? (
             <ul className="divide-y divide-px-row">{invites.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-body">
-                <span className="min-w-0"><span className="block font-medium">{i.name ?? i.email}</span><span className="block text-meta text-px-muted">{i.email} · {i.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ")} · until {fmtDate(i.expiresAt)}</span></span>
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13.5px]">
+                <span className="min-w-0"><span className="block font-medium">{i.name ?? i.email}</span><span className="block text-[12.5px] text-px-muted">{i.email} · {i.roles.map((r) => ORG_ROLE_NAMES[r]).join(", ")} · until {fmtDate(i.expiresAt)}</span></span>
                 <form action={platformRevokeInviteAction}><Hidden id={client.org.id} back={back} /><input type="hidden" name="inviteId" value={i.id} /><button className={`${pxSecondary} ${pxSm}`}>Revoke</button></form>
               </li>
             ))}</ul>
           ) : null}
         </PxPanel>
         <PxPanel title="What an administrator can do" description="Effective access of the Organisation administrator role, from the permission registry the server enforces.">
-          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-meta sm:grid-cols-2">{effectivePermissions(["ORG_ADMIN"]).map((g) => <li key={g.group} className="flex justify-between gap-2 border-b border-px-row pb-1.5"><span>{g.group}</span><span className={g.level === "No access" ? "text-px-subtle" : "font-medium text-px-ink"}>{g.level}</span></li>)}</ul>
+          <ul className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">{effectivePermissions(["ORG_ADMIN"]).map((g) => <li key={g.group} className="flex justify-between gap-2 border-b border-px-row pb-1.5"><span>{g.group}</span><span className={g.level === "No access" ? "text-px-subtle" : "font-medium text-px-ink"}>{g.level}</span></li>)}</ul>
         </PxPanel>
       </div>
     </div>
@@ -203,7 +203,7 @@ export async function SubscriptionTab({ ctx, client, drawerHref }: P) {
           <div className="px-4">
             <Table label="Subscription history" minWidth={760} head={["From", "Until", "Plan", "Status", "Allowances", "Reason"]}>
               {history.map((h) => (
-                <tr key={h.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(h.startsAt, true)}</td><td className="whitespace-nowrap tabular-nums">{h.endedAt ? fmtDate(h.endedAt, true) : <Tone tone="green">Current</Tone>}</td><td>{h.plan.name}</td><td><Pill value={h.status} /></td><td className="text-meta text-px-body">{h.userAllowance ?? "∞"} users · {h.branchAllowance ?? "∞"} branches · {h.storageMb ?? "∞"} MB · {h.aiRequestsPerMonth ?? "—"} AI</td><td className="text-meta text-px-body">{h.changeReason ?? "—"}</td></tr>
+                <tr key={h.id}><td className="whitespace-nowrap tabular-nums">{fmtDate(h.startsAt, true)}</td><td className="whitespace-nowrap tabular-nums">{h.endedAt ? fmtDate(h.endedAt, true) : <Tone tone="green">Current</Tone>}</td><td>{h.plan.name}</td><td><Pill value={h.status} /></td><td className="text-[12.5px] text-px-body">{h.userAllowance ?? "∞"} users · {h.branchAllowance ?? "∞"} branches · {h.storageMb ?? "∞"} MB · {h.aiRequestsPerMonth ?? "—"} AI</td><td className="text-[12.5px] text-px-body">{h.changeReason ?? "—"}</td></tr>
               ))}
             </Table>
           </div>
@@ -220,8 +220,8 @@ export function ModulesTab({ client, back }: P) {
         {client.modules.map((m) => (
           <li key={m.key} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3.5">
             <div className="min-w-0 flex-1 basis-[22rem]">
-              <p className="flex flex-wrap items-center gap-2 text-body font-medium text-px-ink">{m.name}{m.critical ? <Tone tone="amber">Care-critical</Tone> : null}</p>
-              <p className="mt-0.5 text-meta leading-[18px] text-px-muted">{m.summary}{m.updatedAt ? ` · Changed ${fmtDate(m.updatedAt, true)}` : ""}</p>
+              <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-px-ink">{m.name}{m.critical ? <Tone tone="amber">Care-critical</Tone> : null}</p>
+              <p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{m.summary}{m.updatedAt ? ` · Changed ${fmtDate(m.updatedAt, true)}` : ""}</p>
               {m.enabled && m.limits && m.key === "AI_COORDINATOR" ? (
                 <form action={moduleLimitsAction} className="mt-2.5 flex flex-wrap items-end gap-2">
                   <Hidden id={client.org.id} back={back} /><input type="hidden" name="moduleKey" value={m.key} />
@@ -236,7 +236,7 @@ export function ModulesTab({ client, back }: P) {
               <Confirm small label={m.enabled ? "Switch off" : "Switch on"} tone={m.enabled ? "danger" : "default"}>
                 <form action={setModuleAction} className="w-[300px] max-w-full space-y-2">
                   <Hidden id={client.org.id} back={back} /><input type="hidden" name="moduleKey" value={m.key} /><input type="hidden" name="enabled" value={m.enabled ? "false" : "true"} />
-                  {m.enabled ? <p className="text-meta text-px-danger">{m.consequence}</p> : null}
+                  {m.enabled ? <p className="text-[12.5px] text-px-danger">{m.consequence}</p> : null}
                   {m.enabled && m.critical ? <label className="block"><span className="label">Type <strong>{client.org.name}</strong> to confirm</span><input name="confirmName" required className="input" autoComplete="off" /></label> : null}
                   <ReasonField />
                   <button className={m.enabled ? pxDanger : pxPrimary}>{m.enabled ? `Switch off ${m.name}` : `Switch on ${m.name}`}</button>
@@ -274,10 +274,10 @@ export async function UsageTab({ ctx, client }: P) {
             ["Stored", <Allowance key="s" used={client.usage.storage.bytes} limit={s?.storageMb ? s.storageMb * 1048576 : null} fmt={fmtBytes} />],
             ["Files", fmtNumber(client.usage.storage.files)],
           ]} />
-          <h3 className="mb-2 mt-4 text-meta font-medium text-px-muted">Added per month</h3>
+          <h3 className="mb-2 mt-4 text-[12.5px] font-medium text-px-muted">Added per month</h3>
           <ul className="space-y-1.5">
             {growth.map((g) => (
-              <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-2 text-meta">
+              <li key={g.month} className="grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-2 text-[12.5px]">
                 <span className="tabular-nums text-px-muted">{g.month}</span>
                 <span className="h-2 rounded-full bg-px-row"><span className="block h-2 rounded-full bg-px-focus" style={{ width: `${(g.bytes / max) * 100}%` }} /></span>
                 <span className="text-right tabular-nums">{fmtBytes(g.bytes)}</span>
@@ -325,11 +325,11 @@ export async function SecurityTab({ ctx, client, back, sp, drawerHref }: P) {
             <Table label="Support access" minWidth={780} head={["Requested", "Purpose", "Scope", "Authorised", "State", ""]} align={["left", "left", "left", "left", "left", "right"]}>
               {grants.map((g) => (
                 <tr key={g.id}>
-                  <td className="whitespace-nowrap tabular-nums">{fmtDate(g.createdAt, true)}<span className="block text-caption text-px-muted">{g.requestedBy}</span></td>
+                  <td className="whitespace-nowrap tabular-nums">{fmtDate(g.createdAt, true)}<span className="block text-[12px] text-px-muted">{g.requestedBy}</span></td>
                   <td className="max-w-[260px]">{g.purpose}</td>
-                  <td className="text-meta">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
-                  <td className="text-meta">{g.authorisation === "EMERGENCY" ? "Emergency (Evantix)" : g.decidedBy ? `By ${g.decidedBy}` : "Waiting for the client"}</td>
-                  <td><Pill value={g.state} />{g.state === "ACTIVE" && g.expiresAt ? <span className="block text-caption text-px-muted">until {fmtDate(g.expiresAt, true)}</span> : null}</td>
+                  <td className="text-[12.5px]">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
+                  <td className="text-[12.5px]">{g.authorisation === "EMERGENCY" ? "Emergency (Evantix)" : g.decidedBy ? `By ${g.decidedBy}` : "Waiting for the client"}</td>
+                  <td><Pill value={g.state} />{g.state === "ACTIVE" && g.expiresAt ? <span className="block text-[12px] text-px-muted">until {fmtDate(g.expiresAt, true)}</span> : null}</td>
                   <td className="text-right">{g.state === "ACTIVE" || g.state === "REQUESTED" ? <Confirm small label="Revoke"><form action={revokeSupportAction} className="w-[260px] space-y-2 text-left"><Back value={back} /><input type="hidden" name="grantId" value={g.id} /><ReasonField /><button className={pxDanger}>Revoke access</button></form></Confirm> : null}</td>
                 </tr>
               ))}
@@ -344,20 +344,20 @@ export async function SecurityTab({ ctx, client, back, sp, drawerHref }: P) {
               <Table label="History" minWidth={620} head={["When", "Event", "By", "Details"]}>
                 {audit.entries.map((e) => (
                   <tr key={e.id}>
-                    <td className="whitespace-nowrap tabular-nums text-meta">{fmtDate(e.at, true)}</td>
-                    <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="mt-0.5 block text-meta"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
-                    <td className="text-meta">{e.actor}</td>
-                    <td className="max-w-[320px] text-meta text-px-body">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-caption text-px-muted">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}{e.outcome !== "Done" ? <span className="block text-px-danger">{e.outcome}</span> : null}</td>
+                    <td className="whitespace-nowrap tabular-nums text-[12.5px]">{fmtDate(e.at, true)}</td>
+                    <td><Tone tone={e.tone}>{e.label}</Tone>{e.subject ? <span className="mt-0.5 block text-[12.5px]"><Link href={`/platform-admin/users/${e.subjectId}`}>{e.subject}</Link></span> : null}</td>
+                    <td className="text-[13px]">{e.actor}</td>
+                    <td className="max-w-[320px] text-[12.5px] text-px-body">{e.reason ? <span className="block">Reason: {e.reason}</span> : null}{e.before !== null || e.after !== null ? <span className="block break-words font-mono text-[11.5px] text-px-muted">{JSON.stringify(e.before)} → {JSON.stringify(e.after)}</span> : null}{e.outcome !== "Done" ? <span className="block text-px-danger">{e.outcome}</span> : null}</td>
                   </tr>
                 ))}
               </Table>
             </div>
           ) : <EmptyRow>No events yet.</EmptyRow>}
-          <p className="border-t border-px-divider px-4 py-2 text-meta text-px-muted">{audit.total} event{audit.total === 1 ? "" : "s"}</p>
+          <p className="border-t border-px-divider px-4 py-2 text-[12.5px] text-px-muted">{audit.total} event{audit.total === 1 ? "" : "s"}</p>
         </PxPanel>
         <PxPanel title="Sign-in" description={`${sessions} session${sessions === 1 ? " is" : "s are"} signed in to this organisation now.`} actions={<Link href="/platform-admin/sessions" className={pxLink}>Sessions</Link>}>
-          <h3 className="mb-1 text-meta font-medium text-px-muted">Recent password reset links</h3>
-          {links.length ? <ul className="-my-1 divide-y divide-px-row text-meta">{links.map((l) => <li key={l.id} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0"><span className="block truncate">{l.email}</span><span className="block text-caption text-px-muted">{fmtDate(l.createdAt, true)}</span></span><Pill value={tokenState(l)} /></li>)}</ul> : <p className="text-meta text-px-muted">None.</p>}
+          <h3 className="mb-1 text-[12.5px] font-medium text-px-muted">Recent password reset links</h3>
+          {links.length ? <ul className="-my-1 divide-y divide-px-row text-[13px]">{links.map((l) => <li key={l.id} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0"><span className="block truncate">{l.email}</span><span className="block text-[12px] text-px-muted">{fmtDate(l.createdAt, true)}</span></span><Pill value={tokenState(l)} /></li>)}</ul> : <p className="text-[13px] text-px-muted">None.</p>}
         </PxPanel>
       </div>
     </div>
@@ -370,7 +370,7 @@ export async function SettingsTab({ ctx, client, back }: P) {
   const config = grant ? await supportConfigurationView(ctx, client.org.id) : null;
   const statusForm = (action: "suspend" | "reinstate" | "close" | "reopen", label: string, danger: boolean, needsPassword: boolean, explain: string) => (
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-px-row py-4 last:border-0">
-      <div className="min-w-0 flex-1 basis-[18rem]"><p className="text-body font-medium text-px-ink">{label}</p><p className="mt-0.5 text-meta leading-[18px] text-px-muted">{explain}</p></div>
+      <div className="min-w-0 flex-1 basis-[18rem]"><p className="text-[13.5px] font-medium text-px-ink">{label}</p><p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{explain}</p></div>
       <Confirm label={label} tone={danger ? "danger" : "default"}>
         <form action={customerStatusAction} className="w-[320px] max-w-full space-y-2">
           <Hidden id={client.org.id} back={back} /><input type="hidden" name="statusAction" value={action} />
@@ -384,8 +384,8 @@ export async function SettingsTab({ ctx, client, back }: P) {
   return (
     <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
       <PxPanel title="Account status" description="Suspending or closing never deletes records. The client's staff see a plain notice until it is reinstated.">
-        <p className="mb-1 flex flex-wrap items-center gap-2 text-body">Currently <Pill value={status} />{client.account.statusChangedAt ? <span className="text-px-muted">since {fmtDate(client.account.statusChangedAt, true)}</span> : null}</p>
-        {client.account.statusReason ? <p className="text-meta text-px-muted">Reason: {client.account.statusReason}</p> : null}
+        <p className="mb-1 flex flex-wrap items-center gap-2 text-[13.5px]">Currently <Pill value={status} />{client.account.statusChangedAt ? <span className="text-px-muted">since {fmtDate(client.account.statusChangedAt, true)}</span> : null}</p>
+        {client.account.statusReason ? <p className="text-[12.5px] text-px-muted">Reason: {client.account.statusReason}</p> : null}
         <div className="mt-2">
           {status === "ACTIVE" || status === "TRIAL" ? statusForm("suspend", "Suspend client", true, true, "Every member loses access at their next click. Sessions and data are kept. Needs your password.") : null}
           {status === "SUSPENDED" ? statusForm("reinstate", "Reinstate client", false, false, "Restores access with the same roles, modules and data.") : null}
@@ -394,10 +394,10 @@ export async function SettingsTab({ ctx, client, back }: P) {
       </PxPanel>
       <PxPanel title="Organisation configuration" description="Visible only while the client has approved support access to its configuration.">
         {config ? (
-          <div className="space-y-2 text-meta">
+          <div className="space-y-2 text-[13px]">
             <p><Tone tone="amber">Support access active until {fmtDate(grant!.expiresAt, true)}</Tone></p>
             <DetailRows items={[["Jurisdiction", config.org.jurisdiction], ["Branches", config.branches.map((b) => `${b.name}${b.hrBranchKey ? " (HR linked)" : ""}`).join(", ") || "None"], ["Rota settings", config.rotaSettings ? "Configured" : "Not configured"]]} />
-            <pre className="max-h-64 overflow-auto rounded-[6px] bg-px-field p-2 text-caption">{JSON.stringify(config.org.settings, null, 2)}</pre>
+            <pre className="max-h-64 overflow-auto rounded-[6px] bg-px-field p-2 text-[12px]">{JSON.stringify(config.org.settings, null, 2)}</pre>
           </div>
         ) : <EmptyState title="No active support access" action={<Link href="?tab=security" className={pxSecondary}>Ask the client for access</Link>}>The client&apos;s configuration stays private until one of its administrators approves a request.</EmptyState>}
       </PxPanel>

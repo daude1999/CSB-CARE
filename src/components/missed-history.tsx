@@ -14,13 +14,13 @@ export async function MissedHistory({ ctx, staffId, serviceUserId }: { ctx: Ctx;
   return (
     <section id="missed" aria-labelledby="missed-history" className="card mt-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-3">
-        <h2 id="missed-history" className="text-lead font-semibold">Missed calls</h2>
-        <span className="text-meta text-slate-600">{fmtLondonDate(h.from)} to {fmtLondonDate(h.to)} · {h.rows.length} missed · {open} open · <Link href={`/rota/missed?period=custom&from=${h.from}&to=${h.to}&${staffId ? `carer=${staffId}` : `su=${serviceUserId}`}`}>Open in Missed Calls</Link></span>
+        <h2 id="missed-history" className="text-[16px] font-semibold">Missed calls</h2>
+        <span className="text-[13px] text-slate-600">{fmtLondonDate(h.from)} to {fmtLondonDate(h.to)} · {h.rows.length} missed · {open} open · <Link href={`/rota/missed?period=custom&from=${h.from}&to=${h.to}&${staffId ? `carer=${staffId}` : `su=${serviceUserId}`}`}>Open in Missed Calls</Link></span>
       </div>
       {h.rows.length ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-body">
-            <thead className="text-left text-meta text-slate-600"><tr><th className="px-4 py-2">Date</th><th className="px-2 py-2">{staffId ? "Service user" : "Care worker"}</th><th className="px-2 py-2">Visit type</th><th className="px-2 py-2">Reason</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Status</th></tr></thead>
+          <table className="w-full text-[13.5px]">
+            <thead className="text-left text-[12.5px] text-slate-600"><tr><th className="px-4 py-2">Date</th><th className="px-2 py-2">{staffId ? "Service user" : "Care worker"}</th><th className="px-2 py-2">Visit type</th><th className="px-2 py-2">Reason</th><th className="px-2 py-2">Outcome</th><th className="px-2 py-2">Status</th></tr></thead>
             <tbody>
               {h.rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">

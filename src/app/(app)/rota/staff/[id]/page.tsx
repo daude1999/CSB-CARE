@@ -131,15 +131,15 @@ export default async function StaffMemberPage({ params, searchParams }: { params
                 </tbody>
               </table>
             ) : <Empty>No checks recorded in HR.</Empty>}
-            {c.problems.length ? <p className="mt-2 text-meta text-[#a3242c]">For the rota: {c.problems.join("; ")}.</p> : <p className="mt-2 text-meta text-[#1c7a43]">All required checks are in order today.</p>}
-            <p className="mt-1 text-meta text-slate-500">Personal details, employment, documents, checks, training records, holidays and sickness are changed in HR & Workforce, not here.</p>
+            {c.problems.length ? <p className="mt-2 text-[13px] text-[#a3242c]">For the rota: {c.problems.join("; ")}.</p> : <p className="mt-2 text-[13px] text-[#1c7a43]">All required checks are in order today.</p>}
+            <p className="mt-1 text-[12.5px] text-slate-500">Personal details, employment, documents, checks, training records, holidays and sickness are changed in HR & Workforce, not here.</p>
           </Card>
 
           <Card title="Next 7 days">
             {upcoming.length ? (
               <ul className="rows">
                 {upcoming.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center gap-3 py-2 text-body">
+                  <li key={a.id} className="flex flex-wrap items-center gap-3 py-2 text-[14px]">
                     <span className="w-[140px] tabular-nums">{fmtLondonDate(londonDate(a.startsAt), { weekday: "short", day: "numeric", month: "short" })} {londonTime(a.startsAt)}</span>
                     <Link href={`/rota/visits/${a.visit.id}`} className="row-title">{suName(a.visit.serviceUser)}</Link>
                     <span className="text-slate-600">{a.visit.callType.name}{a.slot === "SHADOW" ? " · shadowing" : ""}</span>
@@ -161,14 +161,14 @@ export default async function StaffMemberPage({ params, searchParams }: { params
               <label className="col-span-2"><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">Any</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
               <button className="btn-secondary col-span-2">Check</button>
             </form>
-            {checkError ? <p role="alert" className="mt-3 text-body text-[#a3242c]">{checkError}</p> : null}
+            {checkError ? <p role="alert" className="mt-3 text-[14px] text-[#a3242c]">{checkError}</p> : null}
             {check ? (
-              <div className="mt-3 space-y-2 text-body" aria-live="polite">
+              <div className="mt-3 space-y-2 text-[14px]" aria-live="polite">
                 <Badge tone={STATE[check.state][1]}>{STATE[check.state][0]}</Badge>
                 {check.blocking.length ? <ul className="list-disc pl-5 text-[#a3242c]">{check.blocking.map((r) => <li key={r.code + r.message}>{r.message}</li>)}</ul> : null}
                 {check.warnings.length ? <ul className="list-disc pl-5 text-[#8a5a00]">{check.warnings.map((r) => <li key={r.code + r.message}>{r.message}</li>)}</ul> : null}
                 {!check.blocking.length && !check.warnings.length ? <p>No problems found for this time.</p> : null}
-                <p className="text-meta text-slate-500">DBS: {check.compliance.dbs} · Right to work: {check.compliance.rightToWork} · Training: {check.compliance.training}</p>
+                <p className="text-[12.5px] text-slate-500">DBS: {check.compliance.dbs} · Right to work: {check.compliance.rightToWork} · Training: {check.compliance.training}</p>
               </div>
             ) : null}
           </Card>
@@ -187,13 +187,13 @@ export default async function StaffMemberPage({ params, searchParams }: { params
                   <select name="gender" defaultValue={s.profile?.gender ?? ""} className="input"><option value="">Not recorded</option><option value="FEMALE">Female</option><option value="MALE">Male</option><option value="OTHER">Other</option><option value="UNDISCLOSED">Prefers not to say</option></select>
                 </label>
                 <label className="block"><span className="label">Weekly hour limit</span><input type="number" name="maxWeeklyHours" min={0} max={80} step={0.5} defaultValue={s.profile?.maxWeeklyMinutes ? s.profile.maxWeeklyMinutes / 60 : ""} className="input" /></label>
-                <label className="flex items-center gap-2 text-body"><input type="checkbox" name="drives" defaultChecked={s.profile?.drives ?? false} className="h-4 w-4" /> Drives</label>
+                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="drives" defaultChecked={s.profile?.drives ?? false} className="h-4 w-4" /> Drives</label>
                 <fieldset>
                   <legend className="label">Areas</legend>
-                  <div className="grid grid-cols-2 gap-1">{areas.map((a) => <label key={a.id} className="flex items-center gap-1.5 text-body"><input type="checkbox" name="areaIds" value={a.id} defaultChecked={s.areas.some((x) => x.areaId === a.id)} className="h-4 w-4" /> {a.name}</label>)}</div>
+                  <div className="grid grid-cols-2 gap-1">{areas.map((a) => <label key={a.id} className="flex items-center gap-1.5 text-[14px]"><input type="checkbox" name="areaIds" value={a.id} defaultChecked={s.areas.some((x) => x.areaId === a.id)} className="h-4 w-4" /> {a.name}</label>)}</div>
                 </fieldset>
                 <label className="block"><span className="label">Notes for coordinators</span><textarea name="notes" rows={2} defaultValue={s.profile?.notes ?? ""} className="input" /></label>
-                {canEdit ? <button className="btn-primary">Save rota details</button> : <p className="text-meta text-slate-500">You can view these details. Changing them needs rota editing rights.</p>}
+                {canEdit ? <button className="btn-primary">Save rota details</button> : <p className="text-[13px] text-slate-500">You can view these details. Changing them needs rota editing rights.</p>}
               </fieldset>
             </form>
           </Card>
@@ -203,23 +203,23 @@ export default async function StaffMemberPage({ params, searchParams }: { params
             {hours.pattern.length ? (
               <ul className="rows mb-2" data-testid="working-pattern">
                 {hours.pattern.map((r) => (
-                  <li key={r.id} className="flex flex-wrap items-center gap-2 py-1.5 text-body">
+                  <li key={r.id} className="flex flex-wrap items-center gap-2 py-1.5 text-[14px]">
                     <span className="w-12">{WEEKDAYS[r.weekday - 1]!.slice(0, 3)}</span>
                     <span className="tabular-nums">{hhmm(r.startMinute)}–{r.endMinute === 1440 ? "24:00" : hhmm(r.endMinute)}</span>
                     <Badge tone={r.kind === "AVAILABLE" ? "green" : "rose"}>{r.kind === "AVAILABLE" ? "Available" : "Unavailable"}</Badge>
-                    {r.note ? <span className="text-meta text-slate-500">{r.note}</span> : null}
-                    {canEdit ? <form action={endRotaAvailabilityAction} className="ml-auto"><input type="hidden" name="back" value={back} /><input type="hidden" name="staffId" value={s.id} /><input type="hidden" name="id" value={r.id} /><button className="btn-secondary px-2 py-0.5 text-meta" aria-label={`End ${WEEKDAYS[r.weekday - 1]} ${hhmm(r.startMinute)} line`}>End</button></form> : null}
+                    {r.note ? <span className="text-[12.5px] text-slate-500">{r.note}</span> : null}
+                    {canEdit ? <form action={endRotaAvailabilityAction} className="ml-auto"><input type="hidden" name="back" value={back} /><input type="hidden" name="staffId" value={s.id} /><input type="hidden" name="id" value={r.id} /><button className="btn-secondary px-2 py-0.5 text-[13px]" aria-label={`End ${WEEKDAYS[r.weekday - 1]} ${hhmm(r.startMinute)} line`}>End</button></form> : null}
                   </li>
                 ))}
               </ul>
-            ) : <p className="mb-2 text-meta text-slate-500">No working pattern recorded, so they can be booked at any time.</p>}
+            ) : <p className="mb-2 text-[13px] text-slate-500">No working pattern recorded, so they can be booked at any time.</p>}
             {canEdit ? (
               <details className="mb-3">
-                <summary className="cursor-pointer text-body font-medium">Add to working pattern</summary>
+                <summary className="cursor-pointer text-[14px] font-medium">Add to working pattern</summary>
                 <form action={addRotaAvailabilityAction} className="mt-2 space-y-2">
                   <input type="hidden" name="back" value={back} />
                   <input type="hidden" name="staffId" value={s.id} />
-                  <fieldset><legend className="label">Days</legend><div className="flex flex-wrap gap-2">{WEEKDAYS.map((d, n) => <label key={d} className="flex items-center gap-1 text-body"><input type="checkbox" name="weekdays" value={n + 1} defaultChecked={n < 5} className="h-4 w-4" /> {d.slice(0, 3)}</label>)}</div></fieldset>
+                  <fieldset><legend className="label">Days</legend><div className="flex flex-wrap gap-2">{WEEKDAYS.map((d, n) => <label key={d} className="flex items-center gap-1 text-[13.5px]"><input type="checkbox" name="weekdays" value={n + 1} defaultChecked={n < 5} className="h-4 w-4" /> {d.slice(0, 3)}</label>)}</div></fieldset>
                   <div className="grid grid-cols-2 gap-2">
                     <label><span className="label">From</span><input type="time" name="start" required defaultValue="07:00" className="input" /></label>
                     <label><span className="label">Until</span><input type="time" name="end" required defaultValue="15:00" className="input" /></label>
@@ -235,7 +235,7 @@ export default async function StaffMemberPage({ params, searchParams }: { params
               </details>
             ) : null}
             <h3 className="label">Holidays and sickness (from HR, next 4 weeks)</h3>
-            {hours.timeOff.length ? <ul className="space-y-1 text-body" data-testid="hr-time-off">{hours.timeOff.map((a) => <li key={a.id}>{a.kind.toLowerCase()} · {fmtDate(a.startsAt)} to {fmtDate(a.endsAt)} · <span className={a.status === "APPROVED" ? "" : "text-[#8a5a00]"}>{a.status === "APPROVED" ? "approved" : "requested"}</span></li>)}</ul> : <Empty>None recorded.</Empty>}
+            {hours.timeOff.length ? <ul className="space-y-1 text-[14px]" data-testid="hr-time-off">{hours.timeOff.map((a) => <li key={a.id}>{a.kind.toLowerCase()} · {fmtDate(a.startsAt)} to {fmtDate(a.endsAt)} · <span className={a.status === "APPROVED" ? "" : "text-[#8a5a00]"}>{a.status === "APPROVED" ? "approved" : "requested"}</span></li>)}</ul> : <Empty>None recorded.</Empty>}
           </Card>
         </div>
       </div>

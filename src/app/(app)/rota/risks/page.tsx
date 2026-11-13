@@ -34,7 +34,7 @@ export default async function RisksPage({ searchParams }: { searchParams: Promis
           <label><span className="label">Review</span><select name="due" defaultValue={sp.due ?? ""} className="input"><option value="">Any date</option><option value="overdue">Overdue</option><option value="30">Due within 30 days</option></select></label>
           <label><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Title or name" className="input" /></label>
           <div className="col-span-2 flex flex-wrap items-end gap-3 md:col-span-3 xl:col-span-1">
-            <label className="flex items-center gap-2 pb-2 text-body"><input type="checkbox" name="archived" value="1" defaultChecked={sp.archived === "1"} className="h-4 w-4" /> Archived</label>
+            <label className="flex items-center gap-2 pb-2 text-[14px]"><input type="checkbox" name="archived" value="1" defaultChecked={sp.archived === "1"} className="h-4 w-4" /> Archived</label>
             <button className="btn-primary" type="submit">Apply</button>
           </div>
         </form>

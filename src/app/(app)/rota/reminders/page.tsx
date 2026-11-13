@@ -33,7 +33,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
             <select name="days" defaultValue={String(windowDays)} className="input w-[140px]">{WINDOWS.map((w) => <option key={w} value={w}>{w} days</option>)}</select>
           </label>
           <button className="btn-primary">Show</button>
-          <p className="ml-auto text-body text-slate-600">{rows.length} reminder{rows.length === 1 ? "" : "s"}{overdue ? `, ${overdue} overdue` : ""}</p>
+          <p className="ml-auto text-[13.5px] text-slate-600">{rows.length} reminder{rows.length === 1 ? "" : "s"}{overdue ? `, ${overdue} overdue` : ""}</p>
         </form>
         <SearchTable
           tall

@@ -55,7 +55,7 @@ type Option = { id: string; name: string };
 /** Template bulk actions with their own confirmation (Deactivate) or that only add new, switched-off copies. */
 const NO_CONFIRM = new Set(["enable", "duplicate"]);
 
-const FIELD = "h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body text-[#101828]";
+const FIELD = "h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828]";
 
 /**
  * The ticked row checkboxes that belong to the bulk form, wherever they sit on the page. Recounted on every tick, on
@@ -190,12 +190,12 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className={compact && !selected ? "sr-only" : "flex h-10 items-center rounded-[8px] bg-[#f2f4f7] px-3 text-body font-semibold text-[#344054]"} data-testid="bulk-selected" aria-live="polite">
+      <span className={compact && !selected ? "sr-only" : "flex h-10 items-center rounded-[8px] bg-[#f2f4f7] px-3 text-[13.5px] font-semibold text-[#344054]"} data-testid="bulk-selected" aria-live="polite">
         {selected} selected
       </span>
       <label className="relative">
         <span className="sr-only">Bulk action</span>
-        <select name="kind" aria-label="Bulk action" required value={kind} onChange={(e) => setKind(e.target.value)} className={`h-10 w-[210px] appearance-none border border-[#d0d5dd] bg-white pl-3 pr-8 text-body text-[#101828] ${joined ? "rounded-l-[8px] rounded-r-none" : "rounded-[8px]"}`}>
+        <select name="kind" aria-label="Bulk action" required value={kind} onChange={(e) => setKind(e.target.value)} className={`h-10 w-[210px] appearance-none border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828] ${joined ? "rounded-l-[8px] rounded-r-none" : "rounded-[8px]"}`}>
           <option value="" disabled>Bulk Actions…</option>
           {actions.map((a) => <option key={a.kind} value={a.kind}>{a.label}</option>)}
         </select>
@@ -234,7 +234,7 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
       ) : null}
       {needs.has("time") ? <label><span className="sr-only">New start time</span><input aria-label="New start time" type="time" name="time" value={time} onChange={(e) => setTime(e.target.value)} className={FIELD} /></label> : null}
       {needs.has("duration") ? <label><span className="sr-only">New length in minutes</span><input aria-label="New length in minutes" type="number" name="duration" min={5} max={1440} step={5} placeholder="Minutes" value={duration} onChange={(e) => setDuration(e.target.value)} className={`${FIELD} w-[110px]`} /></label> : null}
-      {needs.has("minutes") ? <label className="flex items-center gap-1.5 text-body text-[#344054]">Move by<input type="number" name="minutes" min={-240} max={240} step={5} value={minutes} onChange={(e) => setMinutes(e.target.value)} aria-label="Minutes to move by (minus for earlier)" className={`${FIELD} w-[90px]`} />min</label> : null}
+      {needs.has("minutes") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]">Move by<input type="number" name="minutes" min={-240} max={240} step={5} value={minutes} onChange={(e) => setMinutes(e.target.value)} aria-label="Minutes to move by (minus for earlier)" className={`${FIELD} w-[90px]`} />min</label> : null}
       {needs.has("service") ? (
         <label><span className="sr-only">Service call</span>
           <select aria-label="Service call" name="callTypeId" value={callTypeId} onChange={(e) => setCallTypeId(e.target.value)} className={`${FIELD} w-[180px]`}>
@@ -249,17 +249,17 @@ function BulkActionBar({ form, itemName, noun, actions, staff, callTypes, compac
         <fieldset className="flex items-center gap-1.5">
           <legend className="sr-only">Charge for the cancellation?</legend>
           {([["yes", "Charge"], ["no", "Don't charge"]] as const).map(([value, label]) => (
-            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body text-[#101828] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
+            <label key={value} className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] text-[#101828] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold">
               <input type="radio" name="charge" value={value} checked={charge === value} onChange={() => setCharge(value)} className="h-4 w-4" />{label}
             </label>
           ))}
         </fieldset>
       ) : null}
-      {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-body text-[#344054]"><input type="checkbox" name="acceptWarnings" checked={acceptWarnings} onChange={(e) => setAcceptWarnings(e.target.checked)} className="h-4 w-4" /> Accept warnings</label> : null}
+      {needs.has("warnings") ? <label className="flex items-center gap-1.5 text-[13.5px] text-[#344054]"><input type="checkbox" name="acceptWarnings" checked={acceptWarnings} onChange={(e) => setAcceptWarnings(e.target.checked)} className="h-4 w-4" /> Accept warnings</label> : null}
 
       {confirmTemplates ? <input type="hidden" name="confirmed" value={confirmed ? "1" : ""} form={form} /> : null}
-      <button type={review || (confirmTemplates && !NO_CONFIRM.has(kind)) ? "button" : "submit"} onClick={review ? openReview : confirmTemplates && !NO_CONFIRM.has(kind) ? () => !missing && setConfirming(describe()) : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
-      <span id="bulk-hint" className={compact && !selected ? "sr-only" : "text-meta text-[#667085]"} data-testid="bulk-hint">{missing ?? (review ? `Ready: review ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.` : `Ready: ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.`)}</span>
+      <button type={review || (confirmTemplates && !NO_CONFIRM.has(kind)) ? "button" : "submit"} onClick={review ? openReview : confirmTemplates && !NO_CONFIRM.has(kind) ? () => !missing && setConfirming(describe()) : undefined} disabled={Boolean(missing)} aria-describedby="bulk-hint" aria-haspopup={review ? "dialog" : undefined} title={missing ?? undefined} className={`h-10 ${joined ? "-ml-2 rounded-l-none rounded-r-[8px]" : "rounded-[8px]"} bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]`}>Go</button>
+      <span id="bulk-hint" className={compact && !selected ? "sr-only" : "text-[13px] text-[#667085]"} data-testid="bulk-hint">{missing ?? (review ? `Ready: review ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.` : `Ready: ${action?.label.toLowerCase()} for ${selected} ${noun}${selected === 1 ? "" : "s"}.`)}</span>
       {confirming && action ? (
         <TemplateBulkConfirm
           label={action.label}
@@ -291,17 +291,17 @@ function TemplateBulkConfirm({ label, count, details, onCancel, onContinue }: { 
   return (
     <dialog ref={ref} onCancel={(e) => { e.preventDefault(); onCancel(); }} aria-labelledby="tpl-bulk-title" data-testid="template-bulk-confirm" className="m-auto w-[min(560px,calc(100vw-24px))] rounded-[12px] border border-[#e4e7ec] bg-white p-0 text-[#101828] shadow-[0_24px_48px_rgba(16,24,40,0.18)] backdrop:bg-[#101828]/40">
       <div className="px-5 py-4">
-        <h2 id="tpl-bulk-title" className="text-title font-bold">Confirm Template Changes</h2>
-        <p className="mt-2 text-lead">Are you sure you want to save these changes to {count === 1 ? "this template" : `these ${count} templates`}?</p>
-        <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-body">
+        <h2 id="tpl-bulk-title" className="text-[19px] font-bold">Confirm Template Changes</h2>
+        <p className="mt-2 text-[15px]">Are you sure you want to save these changes to {count === 1 ? "this template" : `these ${count} templates`}?</p>
+        <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14.5px]">
           <dt className="font-medium">Change</dt><dd>{label}</dd>
           {details.map(([k, v]) => <Fragment key={k}><dt className="font-medium">{k}</dt><dd className="font-semibold">{v}</dd></Fragment>)}
         </dl>
-        <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-body text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed. To update built visits too, open one template, edit it and choose Template + future rota.</p>
+        <p className="mt-3 rounded-[8px] bg-[#f7f4fe] px-3 py-2 text-[14px] text-[#3d1880]"><strong>Template only.</strong> Existing scheduled visits will not be changed. To update built visits too, open one template, edit it and choose Template + future rota.</p>
       </div>
       <div className="flex justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
-        <button type="button" onClick={onCancel} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold">Cancel</button>
-        <button type="button" onClick={onContinue} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-body font-semibold text-white hover:bg-[#3d1880]">Continue</button>
+        <button type="button" onClick={onCancel} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold">Cancel</button>
+        <button type="button" onClick={onContinue} className="h-10 rounded-[8px] bg-[#4b1f9e] px-4 text-[14.5px] font-semibold text-white hover:bg-[#3d1880]">Continue</button>
       </div>
     </dialog>
   );

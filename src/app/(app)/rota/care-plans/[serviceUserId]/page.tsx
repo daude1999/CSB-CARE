@@ -66,7 +66,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
               </Card>
               {shown.sections.map((s) => (
                 <Card key={s.id} title={s.title}>
-                  <p className="mb-2 text-meta text-slate-600">{hint(s.key)}</p>
+                  <p className="mb-2 text-[13px] text-slate-600">{hint(s.key)}</p>
                   <label className="block"><span className="label">What carers need to know and do</span><textarea name={`section.${s.key}.body`} rows={5} defaultValue={s.body} className="input" /></label>
                   <label className="mt-2 block"><span className="label">Outcomes the person wants (optional)</span><textarea name={`section.${s.key}.outcomes`} rows={2} defaultValue={s.outcomes ?? ""} className="input" /></label>
                 </Card>
@@ -76,26 +76,26 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 <button className="btn-secondary" name="then" value="save">Save draft</button>
                 <button className="btn-secondary" name="then" value="submit">Send for review (optional)</button>
                 <Link href={base} className="btn-secondary">Stop editing</Link>
-                <span className="text-meta text-slate-500">Every section must be filled in before the plan is put in use. No second approval is needed.</span>
+                <span className="text-[12.5px] text-slate-500">Every section must be filled in before the plan is put in use. No second approval is needed.</span>
               </div>
             </form>
           ) : (
             <article aria-label={`Care plan version ${shown.version}`} className="space-y-3">
               <Card title={`Version ${shown.version}`} actions={<Badge tone={STATUS[shown.status]!.tone}>{STATUS[shown.status]!.label}</Badge>}>
-                {shown.summary ? <p className="whitespace-pre-line text-body">{shown.summary}</p> : <p className="text-body text-slate-500">No summary yet.</p>}
-                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-meta text-slate-600 md:grid-cols-4">
+                {shown.summary ? <p className="whitespace-pre-line text-[14.5px]">{shown.summary}</p> : <p className="text-[14px] text-slate-500">No summary yet.</p>}
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[13px] text-slate-600 md:grid-cols-4">
                   <div><dt className="font-medium text-slate-700">Written by</dt><dd>{who(shown.createdById)}</dd></div>
                   <div><dt className="font-medium text-slate-700">{shown.origin === "DOCUMENT" ? "Imported" : "Saved by"}</dt><dd>{shown.origin === "DOCUMENT" ? `CSB AI (started by ${who(shown.createdById)})` : shown.submittedAt ? `${who(shown.submittedById)}, ${fmtDate(shown.submittedAt)}` : "—"}</dd></div>
                   <div><dt className="font-medium text-slate-700">In use from</dt><dd>{shown.approvedAt ? `${fmtDate(shown.approvedAt)}${shown.approvedById && shown.approvedById !== shown.submittedById ? `, approved by ${who(shown.approvedById)}` : ""}` : "—"}</dd></div>
                   <div><dt className="font-medium text-slate-700">Review by</dt><dd>{shown.reviewDue ? fmtLondonDate(fromDbDate(shown.reviewDue)) : "—"}</dd></div>
                 </dl>
-                {shown.origin === "DOCUMENT" ? <p className="mt-2 rounded border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-meta text-slate-700"><span className="font-medium">Imported from a council support plan.</span> {shown.sourceNote ?? ""} The wording is CSB AI&apos;s summary of the council&apos;s plan, and each part names the page it came from. Anything marked &ldquo;To clarify&rdquo; is not a council instruction. Staff can change it by starting a new version.</p> : null}
-                {shown.sourceSummaryId ? <p className="mt-2 text-meta text-slate-600">This version was started from a <Link href={`${base}?view=summary&summary=${shown.sourceSummaryId}`}>Care Summary</Link>. Its text was written by staff, not copied from the summary.</p> : null}
+                {shown.origin === "DOCUMENT" ? <p className="mt-2 rounded border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12.5px] text-slate-700"><span className="font-medium">Imported from a council support plan.</span> {shown.sourceNote ?? ""} The wording is CSB AI&apos;s summary of the council&apos;s plan, and each part names the page it came from. Anything marked &ldquo;To clarify&rdquo; is not a council instruction. Staff can change it by starting a new version.</p> : null}
+                {shown.sourceSummaryId ? <p className="mt-2 text-[12.5px] text-slate-600">This version was started from a <Link href={`${base}?view=summary&summary=${shown.sourceSummaryId}`}>Care Summary</Link>. Its text was written by staff, not copied from the summary.</p> : null}
               </Card>
               {shown.sections.map((s) => (
                 <Card key={s.id} title={s.title}>
-                  {s.body ? <p className="whitespace-pre-line text-body">{s.body}</p> : <p className="text-body text-slate-500">Not written yet.</p>}
-                  {s.outcomes ? <p className="mt-2 whitespace-pre-line border-l-2 border-teal-600 pl-3 text-body text-slate-700"><span className="font-medium">Outcomes: </span>{s.outcomes}</p> : null}
+                  {s.body ? <p className="whitespace-pre-line text-[14.5px]">{s.body}</p> : <p className="text-[14px] text-slate-500">Not written yet.</p>}
+                  {s.outcomes ? <p className="mt-2 whitespace-pre-line border-l-2 border-teal-600 pl-3 text-[14px] text-slate-700"><span className="font-medium">Outcomes: </span>{s.outcomes}</p> : null}
                 </Card>
               ))}
             </article>
@@ -108,12 +108,12 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
               <form action={startDraftAction}>
                 <input type="hidden" name="back" value={base} />
                 <input type="hidden" name="serviceUserId" value={su.id} />
-                <p className="mb-2 text-body">{active ? `Version ${active.version} is in use. Start a new version to make changes; it is copied from the current one.` : "No plan yet. The draft starts with the standard sections."}</p>
+                <p className="mb-2 text-[14px]">{active ? `Version ${active.version} is in use. Start a new version to make changes; it is copied from the current one.` : "No plan yet. The draft starts with the standard sections."}</p>
                 <button className="btn-primary">{active ? "Start a new version" : "Start the first care plan"}</button>
               </form>
             ) : null}
             {open?.status === "DRAFT" ? (
-              <div className="space-y-2 text-body">
+              <div className="space-y-2 text-[14px]">
                 <p>Version {open.version} is being drafted by {who(open.createdById)}.</p>
                 {canEdit ? (
                   <div className="flex flex-wrap gap-2">
@@ -125,7 +125,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
               </div>
             ) : null}
             {open?.status === "IN_REVIEW" ? (
-              <div className="space-y-3 text-body">
+              <div className="space-y-3 text-[14px]">
                 <p>Version {open.version} was sent for review by {who(open.submittedById)}{open.submittedAt ? ` on ${fmtDate(open.submittedAt)}` : ""}.{shown?.id !== open.id ? <> <Link href={`${base}?v=${open.version}`}>Read it</Link>.</> : null}</p>
                 {canApprove && open.createdById !== ctx.userId && open.submittedById !== ctx.userId ? (
                   <form action={approvePlanAction}>
@@ -133,7 +133,7 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                     <input type="hidden" name="planId" value={open.id} />
                     <button className="btn-primary">Approve and put in use</button>
                   </form>
-                ) : <p className="text-meta text-slate-600">{canApprove ? "You wrote or sent this version for review, so another manager reviews it." : "A care manager reviews it."}</p>}
+                ) : <p className="text-[13px] text-slate-600">{canApprove ? "You wrote or sent this version for review, so another manager reviews it." : "A care manager reviews it."}</p>}
                 {canEdit ? (
                   <form action={returnPlanAction} className="space-y-1.5">
                     <input type="hidden" name="back" value={base} />
@@ -144,13 +144,13 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
                 ) : null}
               </div>
             ) : null}
-            {!open && !canEdit ? <p className="text-body text-slate-600">Nothing waiting.</p> : null}
+            {!open && !canEdit ? <p className="text-[14px] text-slate-600">Nothing waiting.</p> : null}
           </Card>
 
           {active ? (
             <Card title={`Read by carers (${visitingCarers.filter((c) => readBy.has(c.id)).length} of ${visitingCarers.length})`}>
               {visitingCarers.length ? (
-                <ul className="rows text-body">
+                <ul className="rows text-[14px]">
                   {visitingCarers.map((c) => <li key={c.id} className="flex justify-between py-1.5"><span>{c.displayName}</span>{readBy.has(c.id) ? <Badge tone="green">Read</Badge> : <Badge tone="amber">Not yet</Badge>}</li>)}
                 </ul>
               ) : <Empty>No carers booked in the next 14 days.</Empty>}
@@ -159,16 +159,16 @@ export default async function CarePlanPage({ params, searchParams }: { params: P
 
           <Card title="Versions">
             {plans.length ? (
-              <ul className="rows text-body">
+              <ul className="rows text-[14px]">
                 {plans.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-2 py-1.5">
                     <Link href={`${base}?v=${p.version}`} aria-current={shown?.id === p.id ? "page" : undefined} className={shown?.id === p.id ? "font-semibold" : ""}>Version {p.version}</Link>
-                    <span className="flex items-center gap-2 text-meta text-slate-500">{p.approvedAt ? fmtDate(p.approvedAt) : fmtDate(p.createdAt)} <Badge tone={STATUS[p.status]!.tone}>{STATUS[p.status]!.label}</Badge></span>
+                    <span className="flex items-center gap-2 text-[12.5px] text-slate-500">{p.approvedAt ? fmtDate(p.approvedAt) : fmtDate(p.createdAt)} <Badge tone={STATUS[p.status]!.tone}>{STATUS[p.status]!.label}</Badge></span>
                   </li>
                 ))}
               </ul>
             ) : <Empty>No versions yet.</Empty>}
-            <p className="mt-2 text-meta text-slate-500">Versions in use or replaced cannot be changed or deleted.</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">Versions in use or replaced cannot be changed or deleted.</p>
           </Card>
         </aside>
       </div>

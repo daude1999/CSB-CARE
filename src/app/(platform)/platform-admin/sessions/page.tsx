@@ -30,12 +30,12 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
             <Table label="Sessions" minWidth={900} head={["Person", "Organisation", "Signed in", "Last active", "Ends", "Device", ""]} align={["left", "left", "left", "left", "left", "left", "right"]}>
               {sessions.map((s) => (
                 <tr key={s.id}>
-                  <td><Link href={`/platform-admin/users/${s.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{s.user.name}</Link>{s.user.platformRoles.includes("PLATFORM_ADMIN") ? <> <Tone tone="violet">Evantix</Tone></> : null}<span className="block text-caption text-px-muted">{s.user.email}</span></td>
-                  <td className="text-meta">{s.organisation ?? "—"}</td>
-                  <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(s.createdAt, true)}</td>
-                  <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(s.lastSeenAt, true)}</td>
-                  <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(s.expiresAt, true)}</td>
-                  <td className="text-caption text-px-muted">{s.ip ?? "—"}<span className="block max-w-[200px] truncate">{s.userAgent ?? ""}</span></td>
+                  <td><Link href={`/platform-admin/users/${s.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{s.user.name}</Link>{s.user.platformRoles.includes("PLATFORM_ADMIN") ? <> <Tone tone="violet">Evantix</Tone></> : null}<span className="block text-[12px] text-px-muted">{s.user.email}</span></td>
+                  <td className="text-[13px]">{s.organisation ?? "—"}</td>
+                  <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(s.createdAt, true)}</td>
+                  <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(s.lastSeenAt, true)}</td>
+                  <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(s.expiresAt, true)}</td>
+                  <td className="text-[12px] text-px-muted">{s.ip ?? "—"}<span className="block max-w-[200px] truncate">{s.userAgent ?? ""}</span></td>
                   <td className="text-right">{s.id ? <form action={revokeSessionAction}><Back value={back} /><input type="hidden" name="sessionId" value={s.id} /><button className={`${pxSecondary} ${pxSm}`}>End session</button></form> : null}</td>
                 </tr>
               ))}

@@ -47,15 +47,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <tr key={c.id}>
                   <td className="max-w-[280px]">
                     <Link href={open(c.id)} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{c.name}</Link>
-                    {c.isDemo ? <span className="ml-2 rounded-[4px] bg-px-row px-1.5 py-[1px] text-micro font-medium text-px-muted">Demo</span> : null}
+                    {c.isDemo ? <span className="ml-2 rounded-[4px] bg-px-row px-1.5 py-[1px] text-[11px] font-medium text-px-muted">Demo</span> : null}
                   </td>
-                  <td className="whitespace-nowrap font-mono text-meta text-px-body">{c.reference}</td>
+                  <td className="whitespace-nowrap font-mono text-[12.5px] text-px-body">{c.reference}</td>
                   <td>{c.plan ?? <span className="text-px-subtle">No plan</span>}</td>
                   <td><Pill value={c.status} /></td>
                   <td className="text-right tabular-nums">{fmtNumber(c.users)}</td>
                   <td className="text-right tabular-nums">{fmtNumber(c.branches)}</td>
                   <td className="whitespace-nowrap text-right tabular-nums">{fmtBytes(c.storageBytes)}</td>
-                  <td className="whitespace-nowrap tabular-nums">{c.renewal ? <>{fmtDate(c.renewal)}<span className="block text-caption text-px-subtle">{c.renewalKind}</span></> : <span className="text-px-subtle">—</span>}</td>
+                  <td className="whitespace-nowrap tabular-nums">{c.renewal ? <>{fmtDate(c.renewal)}<span className="block text-[12px] text-px-subtle">{c.renewalKind}</span></> : <span className="text-px-subtle">—</span>}</td>
                   <td className="text-right">
                     <Link href={open(c.id)} className={`${pxSecondary} ${pxSm}`} aria-label={`Manage ${c.name}`}>Manage</Link>
                   </td>

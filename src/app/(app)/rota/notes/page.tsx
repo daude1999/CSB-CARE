@@ -37,20 +37,20 @@ export default async function VisitNotesPage({ searchParams }: { searchParams: P
         {notes.length ? (
           <ul className="rows">
             {notes.map((n) => (
-              <li key={n.id} className="py-3 text-body">
-                <div className="flex flex-wrap items-center gap-2 text-meta text-slate-600">
+              <li key={n.id} className="py-3 text-[14.5px]">
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
                   <Badge tone={n.category === "CONCERN" ? "rose" : n.category === "HANDOVER" ? "violet" : "slate"}>{NOTE_LABEL[n.category] ?? n.category}</Badge>
                   <Link href={`/rota/visits/${n.visit.id}`} className="row-title">{suName(n.visit.serviceUser)} · {fmtDate(n.visit.scheduledStart)} {londonTime(n.visit.scheduledStart)}</Link>
                   {n.visit.area ? <span>{n.visit.area.name}</span> : null}
                   <span className="ml-auto">written {fmtDate(n.createdAt, true)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-line">{n.text}</p>
-                {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="mt-1 inline-block text-meta font-medium">Make this an incident</Link> : null}
+                {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="mt-1 inline-block text-[13px] font-medium">Make this an incident</Link> : null}
               </li>
             ))}
           </ul>
         ) : <Empty>No notes written in these dates.</Empty>}
-        {notes.length === 500 ? <p className="mt-2 text-meta text-slate-600">Showing the newest 500. Narrow the dates to see older notes.</p> : null}
+        {notes.length === 500 ? <p className="mt-2 text-[13px] text-slate-600">Showing the newest 500. Narrow the dates to see older notes.</p> : null}
       </Card>
     </>
   );

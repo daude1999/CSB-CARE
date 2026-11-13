@@ -5,5 +5,5 @@ export const pxSecondary = `${btn} border-px-line bg-white text-px-body shadow-[
 export const pxDanger = `${btn} border-px-danger-strong bg-px-danger-strong text-white hover:border-[#8f1b2a] hover:bg-[#8f1b2a] hover:text-white`;
 export const pxGhost = `${btn} border-transparent bg-transparent text-px-body hover:bg-px-row hover:text-px-ink`;
 /** Compact size modifier for buttons inside tables and toolbars. */
-export const pxSm = "!h-8 !px-2.5 !text-meta";
+export const pxSm = "!h-8 !px-2.5 !text-[13px]";
 export const pxLink = "font-medium text-px-accent no-underline hover:text-px-accent-hover hover:underline";

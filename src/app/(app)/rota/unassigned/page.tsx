@@ -38,7 +38,7 @@ export default async function UnassignedPage({ searchParams }: { searchParams: P
       />
       <nav aria-label="Unassigned Visits sections" className="mb-3 flex gap-1 border-b border-[#e4e7ec]">
         {([["live", "Unassigned Visits", <WarningOctagon key="i" size={18} aria-hidden />], ["history", "Coverage History", <ClockCounterClockwise key="i" size={18} aria-hidden />]] as const).map(([k, label, icon]) => (
-          <Link key={k} href={tabHref(k)} aria-current={tab === k ? "page" : undefined} className={`-mb-px inline-flex items-center gap-2 border-b-[3px] px-3.5 py-2.5 text-lead no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module ${tab === k ? "border-module font-semibold text-module" : "border-transparent font-medium text-[#475467] hover:text-[#101828]"}`}>
+          <Link key={k} href={tabHref(k)} aria-current={tab === k ? "page" : undefined} className={`-mb-px inline-flex items-center gap-2 border-b-[3px] px-3.5 py-2.5 text-[15px] no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module ${tab === k ? "border-module font-semibold text-module" : "border-transparent font-medium text-[#475467] hover:text-[#101828]"}`}>
             {icon}{label}
           </Link>
         ))}

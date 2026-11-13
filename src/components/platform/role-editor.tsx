@@ -51,10 +51,10 @@ export function RoleEditor({ roles, branches, selectedRoles, selectedBranches, j
           {roles.map(([value, label]) => {
             const on = chosen.includes(value);
             return (
-              <label key={value} className={`flex cursor-pointer items-center gap-3 px-3 py-2 text-body ${on ? "bg-px-accent-tint" : "bg-white hover:bg-px-field"}`}>
+              <label key={value} className={`flex cursor-pointer items-center gap-3 px-3 py-2 text-[13.5px] ${on ? "bg-px-accent-tint" : "bg-white hover:bg-px-field"}`}>
                 <input type="checkbox" name="roles" value={value} checked={on} onChange={(e) => setChosen((c) => (e.target.checked ? [...c, value] : c.filter((x) => x !== value)))} />
                 <span className={`flex-1 ${on ? "font-medium text-px-ink" : "text-px-body"}`}>{label}</span>
-                <span className="text-caption tabular-nums text-px-subtle">{(rolePermissions[value] ?? []).length} permissions</span>
+                <span className="text-[12px] tabular-nums text-px-subtle">{(rolePermissions[value] ?? []).length} permissions</span>
               </label>
             );
           })}
@@ -65,7 +65,7 @@ export function RoleEditor({ roles, branches, selectedRoles, selectedBranches, j
           <legend className="label">Branch access <span className="font-normal text-px-muted">(none ticked means every branch)</span></legend>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {branches.map((b) => (
-              <label key={b.id} className="flex items-center gap-2 text-body"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={selectedBranches.includes(b.id)} />{b.name}</label>
+              <label key={b.id} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={selectedBranches.includes(b.id)} />{b.name}</label>
             ))}
           </div>
         </fieldset>
@@ -74,7 +74,7 @@ export function RoleEditor({ roles, branches, selectedRoles, selectedBranches, j
       {catalogue ? (
         <div>
           <p className="label">Effective access by module</p>
-          <ul className="divide-y divide-px-row rounded-[8px] border border-px-line text-meta">
+          <ul className="divide-y divide-px-row rounded-[8px] border border-px-line text-[13px]">
             {catalogue.groups.map((g) => {
               const was = before.get(g) ?? "No access";
               const now = after.get(g) ?? "No access";
@@ -83,8 +83,8 @@ export function RoleEditor({ roles, branches, selectedRoles, selectedBranches, j
                 <li key={g} className={`flex items-center justify-between gap-2 px-3 py-1.5 ${changed ? "bg-px-warn-bg/40" : ""}`}>
                   <span className="text-px-body">{g}</span>
                   <span className="flex items-center gap-1.5">
-                    {changed ? <><span className={`rounded-[4px] px-1.5 text-caption line-through opacity-60 ${LEVEL_CLS[was]}`}>{was}</span><span aria-hidden="true" className="text-px-subtle">→</span><span className="sr-only">changes to</span></> : null}
-                    <span className={`rounded-[4px] px-1.5 text-caption font-medium ${LEVEL_CLS[now]}`}>{now}</span>
+                    {changed ? <><span className={`rounded-[4px] px-1.5 text-[12px] line-through opacity-60 ${LEVEL_CLS[was]}`}>{was}</span><span aria-hidden="true" className="text-px-subtle">→</span><span className="sr-only">changes to</span></> : null}
+                    <span className={`rounded-[4px] px-1.5 text-[12px] font-medium ${LEVEL_CLS[now]}`}>{now}</span>
                   </span>
                 </li>
               );
@@ -92,7 +92,7 @@ export function RoleEditor({ roles, branches, selectedRoles, selectedBranches, j
           </ul>
         </div>
       ) : null}
-      <div aria-live="polite" className="rounded-[8px] border border-px-line bg-px-field p-3 text-meta">
+      <div aria-live="polite" className="rounded-[8px] border border-px-line bg-px-field p-3 text-[12.5px]">
         {diff.added.length || diff.removed.length ? (
           <>
             <p className="font-medium text-px-ink">Review before saving</p>

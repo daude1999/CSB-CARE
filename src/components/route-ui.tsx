@@ -14,12 +14,12 @@ export function RouteForm({ action, back, staff, areas, withWeek, defaultWeek }:
         <label><span className="label">Colour</span><input type="color" name="colour" defaultValue="#1a6b8f" className="input h-10 p-1" /></label>
         <label><span className="label">Text colour</span><input type="color" name="textColour" defaultValue="#ffffff" className="input h-10 p-1" /></label>
       </div>
-      <p className="text-meta text-slate-600">The text colour must be readable on the route colour; the server checks the contrast.</p>
+      <p className="text-[12.5px] text-slate-600">The text colour must be readable on the route colour; the server checks the contrast.</p>
       <button className="btn-primary">Add run route</button>
     </form>
   );
 }
 
 export function RouteChip({ name, colour, textColour }: { name: string; colour: string; textColour: string }) {
-  return <span className="inline-block rounded px-2 py-0.5 text-meta font-medium" style={{ background: colour, color: textColour }}>{name}</span>;
+  return <span className="inline-block rounded px-2 py-0.5 text-[12.5px] font-medium" style={{ background: colour, color: textColour }}>{name}</span>;
 }

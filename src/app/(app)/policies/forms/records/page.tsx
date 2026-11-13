@@ -29,7 +29,7 @@ export default async function FormRecordsPage({ searchParams }: { searchParams: 
   const table = (rows: Row[], opts: { who?: boolean; testId: string; empty: string }) =>
     rows.length ? (
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-meta" data-testid={opts.testId}>
+        <table className="w-full min-w-[560px] text-left text-[13px]" data-testid={opts.testId}>
           <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
             <tr>
               <th scope="col" className="px-4 py-3">Form</th>
@@ -50,7 +50,7 @@ export default async function FormRecordsPage({ searchParams }: { searchParams: 
           </tbody>
         </table>
       </div>
-    ) : <p className="px-4 py-6 text-meta text-slate-600">{opts.empty}</p>;
+    ) : <p className="px-4 py-6 text-[13px] text-slate-600">{opts.empty}</p>;
 
   return (
     <div className="min-w-0" data-testid="form-records">
@@ -71,7 +71,7 @@ export default async function FormRecordsPage({ searchParams }: { searchParams: 
               <li key={f.id} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1 basis-[18rem]">
                   <div className="font-medium">{f.title} <span className="font-normal text-slate-600">· {f.ref}</span></div>
-                  <p className="text-meta text-slate-600">{f.description}</p>
+                  <p className="text-[13px] text-slate-600">{f.description}</p>
                 </div>
                 <form action={startFormAction}>
                   <input type="hidden" name="definitionId" value={f.id} />
@@ -81,8 +81,8 @@ export default async function FormRecordsPage({ searchParams }: { searchParams: 
               </li>
             ))}
           </ul>
-        ) : <p className="mt-2 text-meta text-slate-600">No on-screen forms are open to your role yet.</p>}
-        <p className="mt-2 text-meta text-slate-600">Only these forms can be filled in on screen so far. Every other form is a document to download from Forms &amp; Resources.</p>
+        ) : <p className="mt-2 text-[13px] text-slate-600">No on-screen forms are open to your role yet.</p>}
+        <p className="mt-2 text-[12.5px] text-slate-600">Only these forms can be filled in on screen so far. Every other form is a document to download from Forms &amp; Resources.</p>
       </section>
 
       {lists.isReviewer ? (

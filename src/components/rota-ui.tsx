@@ -44,14 +44,14 @@ export function CarerSlots({ assignments, carersRequired, cancelled }: { assignm
     <span className="flex flex-wrap gap-1">
       {slots.map((s) => {
         const a = assignments.find((x) => placeKey(x) === s);
-        if (!a) return cancelled ? null : <span key={s} className="rounded-[3px] border border-dashed border-[#e4544f] px-1.5 text-meta text-[#a3242c]">Unassigned</span>;
+        if (!a) return cancelled ? null : <span key={s} className="rounded-[3px] border border-dashed border-[#e4544f] px-1.5 text-[12.5px] text-[#a3242c]">Unassigned</span>;
         return (
-          <span key={s} title={a.reviewReason ?? undefined} className={`rounded-[3px] px-1.5 text-meta ${a.reviewReason ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#e3effb] text-[#1d4f91]"}`}>
+          <span key={s} title={a.reviewReason ?? undefined} className={`rounded-[3px] px-1.5 text-[12.5px] ${a.reviewReason ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#e3effb] text-[#1d4f91]"}`}>
             {a.staff.displayName}
           </span>
         );
       })}
-      {shadow ? <span className="rounded-[3px] bg-slate-100 px-1.5 text-meta text-slate-600" title="Shadowing">+ {shadow.staff.displayName}</span> : null}
+      {shadow ? <span className="rounded-[3px] bg-slate-100 px-1.5 text-[12.5px] text-slate-600" title="Shadowing">+ {shadow.staff.displayName}</span> : null}
     </span>
   );
 }
@@ -72,7 +72,7 @@ export function Stepper({ base, params, param: k, prev, next, label }: { base: s
   return (
     <div className="flex items-center gap-1">
       <Link href={href(prev)} className="btn-secondary px-2.5 py-1" aria-label="Previous">‹</Link>
-      <span className="min-w-[170px] text-center text-lead font-medium text-navy-900">{label}</span>
+      <span className="min-w-[170px] text-center text-[15px] font-medium text-navy-900">{label}</span>
       <Link href={href(next)} className="btn-secondary px-2.5 py-1" aria-label="Next">›</Link>
     </div>
   );
@@ -114,7 +114,7 @@ export function rotaState(v: { status: VisitStatus; flags: VisitFlags }): { labe
 export function NotBuiltNotice({ date, canBuild }: { date: string; canBuild: boolean }) {
   const monday = mondayOf(date);
   return (
-    <div role="status" className="mb-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-body text-amber-950">
+    <div role="status" className="mb-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-950">
       <strong className="font-semibold">No rota has been built for the week of {longDate(monday)}.</strong>{" "}
       Visits appear here once the week is built from the templates in Build Rota{canBuild ? "" : " (ask a coordinator)"}, or added one at a time.
       {canBuild ? <> <Link href={`/rota/build?week=${monday}`} className="font-medium">Build this week</Link></> : null}
@@ -134,8 +134,8 @@ export function CallRing({ label, value, total, colour, note, href }: { label: s
         <circle cx="42" cy="42" r={r} fill="none" stroke={colour} strokeWidth="7" strokeDasharray={`${share * c} ${c}`} transform="rotate(-90 42 42)" strokeLinecap="round" />
         <text x="42" y="49" textAnchor="middle" fontSize={value === null ? 13 : 22} fill={colour}>{value === null ? "n/a" : value}</text>
       </svg>
-      <span className="mt-1 text-title font-semibold" style={{ color: colour }}>{label}</span>
-      <span className="text-meta text-slate-600">{note}</span>
+      <span className="mt-1 text-[19px] font-semibold" style={{ color: colour }}>{label}</span>
+      <span className="text-[12.5px] text-slate-600">{note}</span>
     </>
   );
   const cls = "flex flex-col items-center px-2 py-2 text-center no-underline";
@@ -145,10 +145,10 @@ export function CallRing({ label, value, total, colour, note, href }: { label: s
 
 /** The office must say whether a cancellation is charged. Used on every cancel form; the server refuses a cancel without it. */
 export function CancelChargeChoice({ compact = false }: { compact?: boolean }) {
-  const opt = "flex flex-1 cursor-pointer items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-body has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold";
+  const opt = "flex flex-1 cursor-pointer items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-[14px] has-[:checked]:border-module has-[:checked]:bg-[#f6f2fd] has-[:checked]:font-semibold";
   return (
     <fieldset>
-      <legend className={compact ? "mb-1 text-meta text-slate-600" : "label"}>Charge for this cancellation?</legend>
+      <legend className={compact ? "mb-1 text-[12.5px] text-slate-600" : "label"}>Charge for this cancellation?</legend>
       <div className="flex gap-2">
         <label className={opt}><input type="radio" name="charge" value="yes" required className="h-4 w-4" />Charge</label>
         <label className={opt}><input type="radio" name="charge" value="no" required className="h-4 w-4" />Don&apos;t charge</label>

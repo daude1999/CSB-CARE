@@ -19,9 +19,9 @@ import { CandidateFields, DL, EligibilityPill, R_PANEL, R_PRIMARY, R_SECONDARY, 
 
 export const dynamic = "force-dynamic";
 
-const INPUT = "h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body";
-const AREA = "w-full rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-body";
-const LABEL = "mb-1 block text-body font-semibold text-[#344054]";
+const INPUT = "h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px]";
+const AREA = "w-full rounded-[8px] border border-[#d0d5dd] bg-white px-3 py-2 text-[14px]";
+const LABEL = "mb-1 block text-[13.5px] font-semibold text-[#344054]";
 
 const EVENT_LABEL: Record<string, string> = {
   CREATED: "Application recorded",
@@ -60,7 +60,7 @@ function Hidden({ back, candidateId, lockVersion }: { back: string; candidateId:
 
 function Callout({ tone, children }: { tone: "info" | "warn" | "good"; children: ReactNode }) {
   const cls = tone === "warn" ? "border-[#fedf89] bg-[#fffaeb] text-[#7a2e0e]" : tone === "good" ? "border-[#abefc6] bg-[#ecfdf3] text-[#054f31]" : "border-[#d0d5dd] bg-[#f9fafb] text-[#344054]";
-  return <div role="note" className={`rounded-[8px] border px-3 py-2 text-body ${cls}`}>{children}</div>;
+  return <div role="note" className={`rounded-[8px] border px-3 py-2 text-[13.5px] ${cls}`}>{children}</div>;
 }
 
 /**
@@ -119,7 +119,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
         <form action={makeOfferAction}>
           <Hidden back={base} candidateId={c.id} lockVersion={c.lockVersion} />
           <button className={R_PRIMARY}>Record Offer Made</button>
-          <p className="mt-1.5 text-meta text-[#667085]">Records that you have offered the job. The platform does not send the offer.</p>
+          <p className="mt-1.5 text-[12.5px] text-[#667085]">Records that you have offered the job. The platform does not send the offer.</p>
         </form>
       );
     } else if (c.stage === "INTERVIEW") {
@@ -152,7 +152,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
               <button className={R_PRIMARY}>Start Onboarding</button>
             </form>
           )}
-          <p className="text-meta text-[#667085]">Creates {matches.length ? "the link to" : ""} the employee in HR &amp; Workforce as a New starter, with the standard checks (DBS, right to work, safeguarding training), your onboarding requirements and an HR task for each outstanding document. A new starter can only shadow on the rota until HR makes them Active and their checks are verified.</p>
+          <p className="text-[12.5px] text-[#667085]">Creates {matches.length ? "the link to" : ""} the employee in HR &amp; Workforce as a New starter, with the standard checks (DBS, right to work, safeguarding training), your onboarding requirements and an HR task for each outstanding document. A new starter can only shadow on the rota until HR makes them Active and their checks are verified.</p>
         </div>
       );
     } else if (c.stage === "OFFER" && c.offerResponse === "DECLINED") {
@@ -167,7 +167,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
         <form action={markReadyAction}>
           <Hidden back={base} candidateId={c.id} lockVersion={c.lockVersion} />
           <button className={R_PRIMARY}>Record Ready for Work</button>
-          <p className="mt-1.5 text-meta text-[#667085]">This records HR&apos;s decision. It does not make anyone bookable: the rota checks readiness itself at every booking.</p>
+          <p className="mt-1.5 text-[12.5px] text-[#667085]">This records HR&apos;s decision. It does not make anyone bookable: the rota checks readiness itself at every booking.</p>
         </form>
       );
     } else if (!open && !c.anonymisedAt) {
@@ -191,17 +191,17 @@ export default async function CandidatePage({ params, searchParams }: { params: 
       <Flash searchParams={sp} />
 
       <section aria-label="Stage" className={`${R_PANEL} mb-3 flex flex-wrap items-center gap-3 px-4 py-3`}>
-        {open ? <StageSteps stage={c.stage} /> : <><StageBadge stage={c.stage} /><span className="text-body text-[#475467]">Closed {c.closedAt ? fmtLondonDate(londonDate(c.closedAt)) : ""}{c.closedReason ? `: ${c.closedReason}` : ""}. {c.anonymisedAt ? "Personal details removed." : c.retainUntil ? `Kept until ${fmtLondonDate(fromDbDate(c.retainUntil))}.` : ""}</span></>}
+        {open ? <StageSteps stage={c.stage} /> : <><StageBadge stage={c.stage} /><span className="text-[14px] text-[#475467]">Closed {c.closedAt ? fmtLondonDate(londonDate(c.closedAt)) : ""}{c.closedReason ? `: ${c.closedReason}` : ""}. {c.anonymisedAt ? "Personal details removed." : c.retainUntil ? `Kept until ${fmtLondonDate(fromDbDate(c.retainUntil))}.` : ""}</span></>}
       </section>
 
       <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-3">
           <section aria-labelledby="next-h" className={`${R_PANEL} border-l-4 border-l-[#c2410c] px-4 py-3`}>
-            <h2 id="next-h" className="text-meta font-semibold uppercase tracking-[0.03em] text-[#9a3412]">Next step</h2>
-            <p className="mb-2.5 text-subtitle font-bold text-[#101828]" data-testid="next-step">{next}</p>
+            <h2 id="next-h" className="text-[13px] font-semibold uppercase tracking-[0.03em] text-[#9a3412]">Next step</h2>
+            <p className="mb-2.5 text-[17px] font-bold text-[#101828]" data-testid="next-step">{next}</p>
             {step}
             {a.canEdit && manualMoves(c.stage).length ? (
-              <form action={moveStageAction} className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#f2f4f7] pt-2.5 text-body">
+              <form action={moveStageAction} className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#f2f4f7] pt-2.5 text-[13.5px]">
                 <Hidden back={base} candidateId={c.id} lockVersion={c.lockVersion} />
                 <span className="text-[#475467]">Move to another stage:</span>
                 {manualMoves(c.stage).map((s) => <button key={s} name="to" value={s} className="rounded-[6px] border border-[#d0d5dd] px-2.5 py-1 font-semibold text-[#344054] hover:bg-slate-50">{STAGE_LABEL[s]}</button>)}
@@ -238,13 +238,13 @@ export default async function CandidatePage({ params, searchParams }: { params: 
 
           <Section id="screening-h" title="Screening">
             <div id="screening" className="space-y-3">
-              {!screening ? <p className="text-body text-[#667085]">The screening questions have not been asked yet.</p> : (
+              {!screening ? <p className="text-[14px] text-[#667085]">The screening questions have not been asked yet.</p> : (
                 <>
-                  <p className="text-body text-[#475467]">Asked {CHANNEL_LABEL[screening.channel]?.toLowerCase()} on {fmtLondonDate(londonDate(screening.sentAt))} by {who(screening.sentById)}.{screening.answeredAt ? ` Answers recorded by ${who(screening.recordedById)}.` : ""}</p>
+                  <p className="text-[13.5px] text-[#475467]">Asked {CHANNEL_LABEL[screening.channel]?.toLowerCase()} on {fmtLondonDate(londonDate(screening.sentAt))} by {who(screening.sentById)}.{screening.answeredAt ? ` Answers recorded by ${who(screening.recordedById)}.` : ""}</p>
                   {screening.answeredAt ? (
                     <dl className="space-y-2">
                       {(screening.answers as { key: string; answer: string }[] | null ?? []).map((x) => (
-                        <div key={x.key}><dt className="text-body font-semibold text-[#344054]">{SCREENING_QUESTIONS.find((q) => q.key === x.key)?.question ?? x.key}</dt><dd className="whitespace-pre-line text-body">{x.answer || <span className="text-[#98a2b3]">No answer</span>}</dd></div>
+                        <div key={x.key}><dt className="text-[13.5px] font-semibold text-[#344054]">{SCREENING_QUESTIONS.find((q) => q.key === x.key)?.question ?? x.key}</dt><dd className="whitespace-pre-line text-[14px]">{x.answer || <span className="text-[#98a2b3]">No answer</span>}</dd></div>
                       ))}
                     </dl>
                   ) : a.canEdit ? (
@@ -254,7 +254,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                       {SCREENING_QUESTIONS.map((q) => <label key={q.key} className="block"><span className={LABEL}>{q.question}</span><textarea name={`answer.${q.key}`} rows={2} maxLength={2000} className={AREA} /></label>)}
                       <button className={R_PRIMARY}>Save Answers</button>
                     </form>
-                  ) : <p className="text-body text-[#667085]">Answers not recorded yet.</p>}
+                  ) : <p className="text-[14px] text-[#667085]">Answers not recorded yet.</p>}
                   {screening.answeredAt && screening.reviewOutcome ? (
                     <Callout tone={screening.reviewOutcome === "PROCEED" ? "good" : "warn"}><strong>{screening.reviewOutcome === "PROCEED" ? "Continue to interview" : "On hold"}</strong>, decided by {who(screening.reviewedById)}{screening.reviewedAt ? ` on ${fmtLondonDate(londonDate(screening.reviewedAt))}` : ""}.{screening.reviewNote ? ` ${screening.reviewNote}` : ""}</Callout>
                   ) : screening.answeredAt && a.canEdit ? (
@@ -263,7 +263,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                       <input type="hidden" name="screeningId" value={screening.id} />
                       <label className="block"><span className={LABEL}>Your decision note (optional)</span><input name="note" maxLength={1000} className={INPUT} /></label>
                       <div className="flex flex-wrap gap-2"><button name="outcome" value="PROCEED" className={R_PRIMARY}>Continue to Interview</button><button name="outcome" value="HOLD" className={R_SECONDARY}>Put on Hold</button></div>
-                      <p className="text-meta text-[#667085]">A person decides. The platform does not score, rank or reject applicants.</p>
+                      <p className="text-[12.5px] text-[#667085]">A person decides. The platform does not score, rank or reject applicants.</p>
                     </form>
                   ) : null}
                 </>
@@ -280,12 +280,12 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                     const isLive = i.status === "AWAITING_CONFIRMATION" || i.status === "CONFIRMED";
                     return (
                       <li key={i.id} className="py-2.5">
-                        <div className="flex flex-wrap items-center gap-2 text-body">
+                        <div className="flex flex-wrap items-center gap-2 text-[14px]">
                           <span className="font-semibold tabular-nums">{fmtLondonDate(londonDate(i.startsAt), { weekday: "short", day: "numeric", month: "short", year: "numeric" })} at {londonTime(i.startsAt)}</span>
                           <span className="text-[#475467]">· {i.durationMin} min · {who(i.interviewerId)}{i.location ? ` · ${i.location}` : ""}</span>
-                          <span className={`ml-auto rounded-full px-2 py-0.5 text-meta font-semibold ${i.status === "CONFIRMED" || i.outcome === "PASSED" ? "bg-[#ecfdf3] text-[#067647]" : i.status === "AWAITING_CONFIRMATION" ? "bg-[#fffaeb] text-[#b54708]" : "bg-[#f2f4f7] text-[#475467]"}`}>{i.outcome ? (i.outcome === "PASSED" ? "Passed" : "Not passed") : INTERVIEW_LABEL[i.status]}</span>
+                          <span className={`ml-auto rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${i.status === "CONFIRMED" || i.outcome === "PASSED" ? "bg-[#ecfdf3] text-[#067647]" : i.status === "AWAITING_CONFIRMATION" ? "bg-[#fffaeb] text-[#b54708]" : "bg-[#f2f4f7] text-[#475467]"}`}>{i.outcome ? (i.outcome === "PASSED" ? "Passed" : "Not passed") : INTERVIEW_LABEL[i.status]}</span>
                         </div>
-                        {i.notes ? <p className="mt-1 whitespace-pre-line text-body text-[#344054]">{i.notes}</p> : null}
+                        {i.notes ? <p className="mt-1 whitespace-pre-line text-[13.5px] text-[#344054]">{i.notes}</p> : null}
                         {a.canEdit && isLive ? (
                           <form action={interviewAction} className="mt-2 flex flex-wrap gap-2">
                             <input type="hidden" name="back" value={`${base}#interviews`} />
@@ -302,7 +302,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                             <input type="hidden" name="interviewId" value={i.id} />
                             <input type="hidden" name="action" value="outcome" />
                             <label className="block"><span className={LABEL}>Interview notes</span><textarea name="notes" rows={3} required minLength={3} maxLength={4000} className={AREA} /></label>
-                            <fieldset className="flex flex-wrap gap-4 text-body"><legend className={LABEL}>Outcome, decided by the interviewer</legend><label className="flex items-center gap-2"><input type="radio" name="outcome" value="PASSED" required />Passed</label><label className="flex items-center gap-2"><input type="radio" name="outcome" value="NOT_PASSED" />Not passed</label></fieldset>
+                            <fieldset className="flex flex-wrap gap-4 text-[14px]"><legend className={LABEL}>Outcome, decided by the interviewer</legend><label className="flex items-center gap-2"><input type="radio" name="outcome" value="PASSED" required />Passed</label><label className="flex items-center gap-2"><input type="radio" name="outcome" value="NOT_PASSED" />Not passed</label></fieldset>
                             <button className={R_PRIMARY}>Save Outcome</button>
                           </form>
                         ) : null}
@@ -310,7 +310,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                     );
                   })}
                 </ul>
-              ) : <p className="text-body text-[#667085]">No interviews yet.</p>}
+              ) : <p className="text-[14px] text-[#667085]">No interviews yet.</p>}
               {a.canEdit && ["APPLIED", "SCREENING", "INTERVIEW"].includes(c.stage) && !c.anonymisedAt ? (
                 <form id="book" action={scheduleInterviewAction} className="grid grid-cols-1 items-end gap-2 rounded-[8px] border border-dashed border-[#d0d5dd] p-3 sm:grid-cols-2 lg:grid-cols-[1fr_120px_110px_1.3fr_1.3fr_auto]">
                   <Hidden back={`${base}#interviews`} candidateId={c.id} />
@@ -320,7 +320,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                   <label><span className={LABEL}>Interviewer</span><select name="interviewerId" required defaultValue={c.recruiterId ?? ctx.userId} className={INPUT}>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                   <label><span className={LABEL}>Where</span><input name="location" maxLength={160} placeholder="Office, video call…" className={INPUT} /></label>
                   <button className={R_PRIMARY}>Book Interview</button>
-                  <p className="text-meta text-[#667085] sm:col-span-2 lg:col-span-6">Booked in the platform only. No external calendar is connected, so tell the candidate yourself and record their confirmation here.</p>
+                  <p className="text-[12.5px] text-[#667085] sm:col-span-2 lg:col-span-6">Booked in the platform only. No external calendar is connected, so tell the candidate yourself and record their confirmation here.</p>
                 </form>
               ) : null}
             </div>
@@ -336,13 +336,13 @@ export default async function CandidatePage({ params, searchParams }: { params: 
             ) : null}
             {c.notes.length ? (
               <ul className="divide-y divide-[#f2f4f7]">
-                {c.notes.map((n) => <li key={n.id} className="py-2 text-body"><p className="whitespace-pre-line">{n.text}</p><span className="text-meta text-[#667085]">{who(n.authorId)} · {fmtLondonDate(londonDate(n.createdAt))} {londonTime(n.createdAt)}</span></li>)}
+                {c.notes.map((n) => <li key={n.id} className="py-2 text-[14px]"><p className="whitespace-pre-line">{n.text}</p><span className="text-[12.5px] text-[#667085]">{who(n.authorId)} · {fmtLondonDate(londonDate(n.createdAt))} {londonTime(n.createdAt)}</span></li>)}
               </ul>
             ) : <Empty>No notes yet.</Empty>}
           </Section>
 
           <Section id="history-h" title="History">
-            <ol className="space-y-1.5 text-body">
+            <ol className="space-y-1.5 text-[13.5px]">
               {c.events.map((e) => (
                 <li key={e.id} className="flex flex-wrap gap-x-2">
                   <span className="w-[150px] shrink-0 tabular-nums text-[#667085]">{fmtLondonDate(londonDate(e.at), { day: "numeric", month: "short", year: "numeric" })} {londonTime(e.at)}</span>
@@ -357,27 +357,27 @@ export default async function CandidatePage({ params, searchParams }: { params: 
         <aside className="space-y-3" aria-label="Onboarding and readiness">
           {onboard ? (
             <Section id="ready-h" title="Onboarding and staff readiness">
-              <div className="space-y-3 text-body" data-testid="onboarding-panel">
-                <p className="text-body text-[#475467]">From the employee&apos;s HR record and the rota&apos;s own rules. Nothing here is copied or set by recruitment.</p>
+              <div className="space-y-3 text-[14px]" data-testid="onboarding-panel">
+                <p className="text-[13.5px] text-[#475467]">From the employee&apos;s HR record and the rota&apos;s own rules. Nothing here is copied or set by recruitment.</p>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold">HR status</span>
                   <span>{onboard.employee ? (onboard.employee.status === "Onboarding" ? "New starter" : onboard.employee.status) : <span className="text-[#b42318]">HR record missing</span>}</span>
                 </div>
                 <div>
-                  <h3 className="mb-1 text-body font-semibold">HR checks</h3>
+                  <h3 className="mb-1 text-[14.5px] font-semibold">HR checks</h3>
                   <ul className="divide-y divide-[#f2f4f7] rounded-[8px] border border-[#eaecf0]">
                     {onboard.checks.filter((x) => x.required).map((x) => (
                       <li key={x.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
                         <span className="min-w-0 truncate">{x.name}</span>
-                        <span className={`shrink-0 text-meta font-semibold ${x.status === "Up to date" ? "text-[#067647]" : x.status === "Due soon" ? "text-[#b54708]" : "text-[#b42318]"}`}>{x.status}</span>
+                        <span className={`shrink-0 text-[12.5px] font-semibold ${x.status === "Up to date" ? "text-[#067647]" : x.status === "Due soon" ? "text-[#b54708]" : "text-[#b42318]"}`}>{x.status}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
                 {onboard.tasks.length ? (
                   <div>
-                    <h3 className="mb-1 text-body font-semibold">HR onboarding tasks</h3>
-                    <ul className="space-y-1">{onboard.tasks.map((t) => <li key={t.id} className="flex items-start gap-2">{t.status === "Complete" ? <CheckCircle size={17} weight="fill" aria-hidden className="mt-0.5 shrink-0 text-[#067647]" /> : <WarningCircle size={17} aria-hidden className="mt-0.5 shrink-0 text-[#b54708]" />}<span>{t.type}<span className="block text-meta text-[#667085]">{t.status} · due {fmtLondonDate(t.due, { day: "numeric", month: "short" })}</span></span></li>)}</ul>
+                    <h3 className="mb-1 text-[14.5px] font-semibold">HR onboarding tasks</h3>
+                    <ul className="space-y-1">{onboard.tasks.map((t) => <li key={t.id} className="flex items-start gap-2">{t.status === "Complete" ? <CheckCircle size={17} weight="fill" aria-hidden className="mt-0.5 shrink-0 text-[#067647]" /> : <WarningCircle size={17} aria-hidden className="mt-0.5 shrink-0 text-[#b54708]" />}<span>{t.type}<span className="block text-[12.5px] text-[#667085]">{t.status} · due {fmtLondonDate(t.due, { day: "numeric", month: "short" })}</span></span></li>)}</ul>
                   </div>
                 ) : null}
                 <div className="flex items-center justify-between gap-2"><span className="font-semibold">Policy sign-offs outstanding</span><span className={onboard.signOffs ? "font-semibold text-[#b54708]" : "text-[#067647]"}>{onboard.signOffs}</span></div>
@@ -385,16 +385,16 @@ export default async function CandidatePage({ params, searchParams }: { params: 
                 {onboard.check ? (
                   <div className="rounded-[8px] bg-[#f9fafb] p-3" data-testid="staff-check">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="text-body font-semibold">Check Staff Readiness</h3>
+                      <h3 className="text-[14.5px] font-semibold">Check Staff Readiness</h3>
                       <EligibilityPill state={onboard.check.state} label={onboard.check.label} />
                     </div>
-                    <p className="mt-1 text-meta text-[#667085]">The rota&apos;s rules for an ordinary visit on {fmtLondonDate(onboard.check.date)}. The rota decides again at every booking.</p>
+                    <p className="mt-1 text-[12.5px] text-[#667085]">The rota&apos;s rules for an ordinary visit on {fmtLondonDate(onboard.check.date)}. The rota decides again at every booking.</p>
                     {onboard.check.blocking.length || onboard.check.warnings.length ? (
-                      <ul className="mt-2 list-disc space-y-0.5 pl-5 text-body">
+                      <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[13.5px]">
                         {onboard.check.blocking.map((x, n) => <li key={`b${n}`} className="text-[#b42318]">{x.message}</li>)}
                         {onboard.check.warnings.map((x, n) => <li key={`w${n}`} className="text-[#b54708]">{x.message}</li>)}
                       </ul>
-                    ) : <p className="mt-2 text-body text-[#067647]">No person-level reason stops them being booked.</p>}
+                    ) : <p className="mt-2 text-[13.5px] text-[#067647]">No person-level reason stops them being booked.</p>}
                   </div>
                 ) : <Callout tone="warn">The rota has not received this employee yet.</Callout>}
                 <div className="flex flex-wrap gap-2">
@@ -406,18 +406,18 @@ export default async function CandidatePage({ params, searchParams }: { params: 
           ) : null}
 
           <Section id="docs-h" title="Outstanding documents">
-            {c.outstandingDocuments.length ? <ul className="list-disc space-y-0.5 pl-5 text-body">{c.outstandingDocuments.map((d) => <li key={d}>{d}</li>)}</ul> : <p className="text-body text-[#067647]">Nothing outstanding.</p>}
-            {a.canEdit && open && !editing ? <Link href={`${base}?edit=1`} className="mt-2 inline-block text-body font-semibold text-[#9a3412]">Update the list</Link> : null}
+            {c.outstandingDocuments.length ? <ul className="list-disc space-y-0.5 pl-5 text-[14px]">{c.outstandingDocuments.map((d) => <li key={d}>{d}</li>)}</ul> : <p className="text-[14px] text-[#067647]">Nothing outstanding.</p>}
+            {a.canEdit && open && !editing ? <Link href={`${base}?edit=1`} className="mt-2 inline-block text-[13.5px] font-semibold text-[#9a3412]">Update the list</Link> : null}
           </Section>
 
           {a.canEdit && canClose(c.stage) ? (
             <Section id="close-h" title="Close the application">
               <form id="close" action={closeCandidateAction} className="space-y-2">
                 <Hidden back={base} candidateId={c.id} lockVersion={c.lockVersion} />
-                <fieldset className="flex flex-wrap gap-4 text-body"><legend className="sr-only">Outcome</legend><label className="flex items-center gap-2"><input type="radio" name="outcome" value="WITHDRAWN" required />Withdrawn by the candidate</label><label className="flex items-center gap-2"><input type="radio" name="outcome" value="UNSUCCESSFUL" />Unsuccessful</label></fieldset>
+                <fieldset className="flex flex-wrap gap-4 text-[14px]"><legend className="sr-only">Outcome</legend><label className="flex items-center gap-2"><input type="radio" name="outcome" value="WITHDRAWN" required />Withdrawn by the candidate</label><label className="flex items-center gap-2"><input type="radio" name="outcome" value="UNSUCCESSFUL" />Unsuccessful</label></fieldset>
                 <label className="block"><span className={LABEL}>Reason</span><input name="reason" required minLength={3} maxLength={300} className={INPUT} /></label>
                 <button className={R_SECONDARY}>Close Application</button>
-                <p className="text-meta text-[#667085]">Kept for the retention period set under Reminders &amp; retention, then personal details can be removed.</p>
+                <p className="text-[12.5px] text-[#667085]">Kept for the retention period set under Reminders &amp; retention, then personal details can be removed.</p>
               </form>
             </Section>
           ) : null}
@@ -426,7 +426,7 @@ export default async function CandidatePage({ params, searchParams }: { params: 
             <Section id="erase-h" title="Remove personal details">
               <form action={eraseCandidateAction} className="space-y-2">
                 <Hidden back={base} candidateId={c.id} />
-                <p className="text-body text-[#475467]">The retention date has passed. Names, contact details, notes, answers and interview notes are removed. The reference, role, branch and dates stay for reporting.</p>
+                <p className="text-[13.5px] text-[#475467]">The retention date has passed. Names, contact details, notes, answers and interview notes are removed. The reference, role, branch and dates stay for reporting.</p>
                 <label className="block"><span className={LABEL}>Type REMOVE to confirm</span><input name="confirm" required pattern="REMOVE" className={INPUT} /></label>
                 <button className={R_SECONDARY}>Remove Personal Details</button>
               </form>

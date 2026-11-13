@@ -43,7 +43,7 @@ export function RuleTargetFields({ branches, jobTitles, roles, staff }: { branch
           <select name="staffMemberIds" multiple required size={6} className="input">{staff.map((s) => <option key={s.id} value={s.id}>{s.displayName} · {s.jobTitle ?? "No job title"}</option>)}</select>
         </label>
       ) : null}
-      {scope === "ORG" ? <p className="col-span-2 text-meta text-slate-600">Everyone in the organisation will be asked to read it.</p> : null}
+      {scope === "ORG" ? <p className="col-span-2 text-[13px] text-slate-600">Everyone in the organisation will be asked to read it.</p> : null}
     </>
   );
 }

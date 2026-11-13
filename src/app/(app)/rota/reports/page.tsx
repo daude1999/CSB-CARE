@@ -52,7 +52,7 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
         subtitle="Worked out from visits and clock times when you open the page, so corrections show straight away. Choose a report, dates and an area; each row links to the records behind it."
         actions={canExport ? <span className="flex flex-wrap gap-2"><a href={`/api/rota/reports?${qs(filters)}&format=xlsx`} className="btn-secondary">Download Excel</a><a href={`/api/rota/reports?${qs(filters)}&format=pdf`} className="btn-secondary">Download PDF</a><a href={`/api/rota/reports?${qs(filters)}`} className="btn-secondary">Download CSV</a></span> : null}
       />
-      {problem ? <p role="alert" className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-body text-[#a3242c]">{problem}. Showing the default instead.</p> : null}
+      {problem ? <p role="alert" className="mb-3 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-[14px] text-[#a3242c]">{problem}. Showing the default instead.</p> : null}
       <SegmentNav label="Reports" items={Object.entries(ROTA_REPORTS).map(([k, label]) => ({ href: `/rota/reports?${qs({ ...filters, report: k as RotaReportFilters["report"] })}`, label, active: k === filters.report }))} />
       <section className="panel mb-3" aria-label="Report filters">
         <form method="get" className="flex flex-wrap items-end gap-3">
@@ -66,15 +66,15 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
             </select>
           </label>
           <button className="btn-primary">Show report</button>
-          <span className="flex flex-wrap gap-x-3 gap-y-1 text-body">
+          <span className="flex flex-wrap gap-x-3 gap-y-1 text-[13.5px]">
             {quick.map((q) => <Link key={q.label} href={`/rota/reports?${qs({ ...filters, from: q.from, to: q.to })}`}>{q.label}</Link>)}
           </span>
         </form>
-        <p className="mt-2 text-meta text-slate-500">Up to {MAX_RANGE_DAYS} days at a time.</p>
+        <p className="mt-2 text-[12.5px] text-slate-500">Up to {MAX_RANGE_DAYS} days at a time.</p>
       </section>
       <Card title={`${report.title}${report.areaName ? ` · ${report.areaName}` : ""}`}>
-        <p className="mb-3 max-w-[80ch] text-body">{report.summary}</p>
-        {report.truncated ? <p className="mb-3 text-meta text-[#a3242c]">This range has more visits than one report can show. Choose a shorter range.</p> : null}
+        <p className="mb-3 max-w-[80ch] text-[14.5px]">{report.summary}</p>
+        {report.truncated ? <p className="mb-3 text-[13px] text-[#a3242c]">This range has more visits than one report can show. Choose a shorter range.</p> : null}
         {report.rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">
@@ -95,7 +95,7 @@ export default async function RotaReportsPage({ searchParams }: { searchParams: 
           </div>
         ) : <Empty>Nothing to report for these dates{report.areaName ? " in this area" : ""}.</Empty>}
       </Card>
-      <details className="panel mt-3 text-body">
+      <details className="panel mt-3 text-[14px]">
         <summary className="cursor-pointer font-medium">How these figures are worked out</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">
           <li>Planned hours are the visit length times the number of carers needed. Delivered and clocked hours come from clock-in to clock-out, using corrected times where the office has changed them.</li>

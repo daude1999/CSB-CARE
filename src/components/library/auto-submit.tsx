@@ -6,7 +6,7 @@ export function AutoSubmitSelect({ name, label, defaultValue, children, classNam
   return (
     <label className={`pl-select ${className}`}>
       <span className="sr-only">{label}</span>
-      <select name={name} defaultValue={defaultValue ?? ""} onChange={(e) => e.currentTarget.form?.requestSubmit()} className="h-full w-full cursor-pointer appearance-none bg-transparent pl-3 pr-8 text-meta text-[#1f2d42] focus:outline-none">
+      <select name={name} defaultValue={defaultValue ?? ""} onChange={(e) => e.currentTarget.form?.requestSubmit()} className="h-full w-full cursor-pointer appearance-none bg-transparent pl-3 pr-8 text-[13px] text-[#1f2d42] focus:outline-none">
         {children}
       </select>
     </label>

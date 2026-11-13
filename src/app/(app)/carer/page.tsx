@@ -44,25 +44,25 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
       <Flash searchParams={sp} />
       {changes.map((c) => (
         <section key={c.id} className="mb-3 rounded-[10px] border border-[#c7d7fe] bg-[#eef4ff] p-3.5" aria-labelledby={`instr-${c.id}`} data-testid="carer-instruction-change">
-          <h2 id={`instr-${c.id}`} className="text-lead font-bold text-[#1d2939]">New instructions for {c.person}</h2>
-          <p className="mt-1 text-body text-[#101828]">{c.summary} From {fmtLondonDate(c.effectiveFrom, { weekday: "short", day: "numeric", month: "short" })}. Visits you have already done are not changed.</p>
-          {c.tasks.length ? <p className="mt-1 text-body text-[#344054]">Tasks now: {c.tasks.join("; ")}.</p> : null}
-          {c.notes ? <p className="mt-1 whitespace-pre-line text-body text-[#344054]">{c.notes}</p> : null}
+          <h2 id={`instr-${c.id}`} className="text-[16px] font-bold text-[#1d2939]">New instructions for {c.person}</h2>
+          <p className="mt-1 text-[14.5px] text-[#101828]">{c.summary} From {fmtLondonDate(c.effectiveFrom, { weekday: "short", day: "numeric", month: "short" })}. Visits you have already done are not changed.</p>
+          {c.tasks.length ? <p className="mt-1 text-[14px] text-[#344054]">Tasks now: {c.tasks.join("; ")}.</p> : null}
+          {c.notes ? <p className="mt-1 whitespace-pre-line text-[14px] text-[#344054]">{c.notes}</p> : null}
           <form action={acknowledgeInstructionsAction} className="mt-2"><input type="hidden" name="back" value="/carer" /><input type="hidden" name="versionId" value={c.id} /><button className="btn-primary">I have read the new instructions</button></form>
         </section>
       ))}
       {missed.filter((m) => m.status !== "RESPONDED").map((m) => (
         <section key={m.id} className="mb-3 rounded-[10px] border border-[#f3c1bd] bg-[#fef3f2] p-3.5" aria-labelledby={`missed-${m.id}`} data-testid="carer-missed-card">
-          <h2 id={`missed-${m.id}`} className="text-lead font-bold text-[#912018]">Action required: missed visit</h2>
-          <p className="mt-1 text-body text-[#101828]">No clock-in was recorded for your visit at <b>{londonTime(m.case.visit.scheduledStart)}</b> on {fmtLondonDate(londonDate(m.case.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ({m.case.visit.callType.name}, {carerFacingName(m.case.visit.serviceUser)}). Please confirm what happened.</p>
-          {m.responseDueAt && m.status === "REQUESTED" ? <p className="text-meta text-[#475467]">Please answer by {londonTime(m.responseDueAt)}.</p> : null}
+          <h2 id={`missed-${m.id}`} className="text-[16px] font-bold text-[#912018]">Action required: missed visit</h2>
+          <p className="mt-1 text-[14.5px] text-[#101828]">No clock-in was recorded for your visit at <b>{londonTime(m.case.visit.scheduledStart)}</b> on {fmtLondonDate(londonDate(m.case.visit.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} ({m.case.visit.callType.name}, {carerFacingName(m.case.visit.serviceUser)}). Please confirm what happened.</p>
+          {m.responseDueAt && m.status === "REQUESTED" ? <p className="text-[13px] text-[#475467]">Please answer by {londonTime(m.responseDueAt)}.</p> : null}
           <Link href={`/carer/missed/${m.id}`} className="btn-primary mt-2 inline-flex">Tell us what happened</Link>
         </section>
       ))}
       {unseen ? (
         <form action={acknowledgeMyVisitsAction} className="panel mb-3 flex flex-wrap items-center justify-between gap-2">
           <input type="hidden" name="back" value="/carer" />
-          <p className="text-body"><span className="font-medium">{unseen} new or changed visit{unseen === 1 ? "" : "s"}.</span> Let the office know you have seen them.</p>
+          <p className="text-[14px]"><span className="font-medium">{unseen} new or changed visit{unseen === 1 ? "" : "s"}.</span> Let the office know you have seen them.</p>
           <button className="btn-primary">I have seen my visits</button>
         </form>
       ) : null}
@@ -74,7 +74,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                 const mine = v.assignments.find((a) => a.staffId === staff.id);
                 const partner = v.assignments.find((a) => a.staffId !== staff.id && a.slot !== "SHADOW");
                 return (
-                  <li key={v.id} className="py-3 text-body">
+                  <li key={v.id} className="py-3 text-[14.5px]">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold tabular-nums">{londonTime(v.scheduledStart)}–{londonTime(v.scheduledEnd)}</span>
                       <span className="font-medium text-navy-900">{suName(v.serviceUser)}</span>
@@ -82,15 +82,15 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
                       <span className="ml-auto flex gap-1"><VisitStatusBadge status={v.status} />{mine && !mine.acknowledgedAt ? <Badge tone="amber">New</Badge> : null}</span>
                     </div>
                     <p className="text-slate-600">{[v.serviceUser.addressLine1, v.serviceUser.town, v.serviceUser.postcode].filter(Boolean).join(", ")}</p>
-                    {partner ? <p className="text-body">With {partner.staff.displayName}</p> : null}
-                    {mine?.slot === "SHADOW" ? <p className="text-body">You are shadowing on this visit.</p> : null}
-                    {v.serviceUser.accessNotes ? <p className="mt-1 text-body text-slate-700">Getting in: {v.serviceUser.accessNotes}</p> : null}
-                    {lastHandover.get(v.serviceUserId) && lastHandover.get(v.serviceUserId)!.visitId !== v.id ? <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-body text-slate-800">Handover from the last visit: {lastHandover.get(v.serviceUserId)!.text}</p> : null}
-                    {v.tasks.length ? <p className="mt-1 text-body text-slate-700">Tasks: {v.tasks.map((t) => t.name).join(", ")}</p> : null}
-                    {meds.get(v.id) === null && v.medicationRequired ? <p className="text-meta text-slate-500">Medication prompt only. Follow the paper MAR chart; medication records are switched off.</p> : null}
-                    <p className="mt-1 flex flex-wrap gap-x-4 text-body"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
+                    {partner ? <p className="text-[13.5px]">With {partner.staff.displayName}</p> : null}
+                    {mine?.slot === "SHADOW" ? <p className="text-[13.5px]">You are shadowing on this visit.</p> : null}
+                    {v.serviceUser.accessNotes ? <p className="mt-1 text-[13.5px] text-slate-700">Getting in: {v.serviceUser.accessNotes}</p> : null}
+                    {lastHandover.get(v.serviceUserId) && lastHandover.get(v.serviceUserId)!.visitId !== v.id ? <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-[13.5px] text-slate-800">Handover from the last visit: {lastHandover.get(v.serviceUserId)!.text}</p> : null}
+                    {v.tasks.length ? <p className="mt-1 text-[13.5px] text-slate-700">Tasks: {v.tasks.map((t) => t.name).join(", ")}</p> : null}
+                    {meds.get(v.id) === null && v.medicationRequired ? <p className="text-[13px] text-slate-500">Medication prompt only. Follow the paper MAR chart; medication records are switched off.</p> : null}
+                    <p className="mt-1 flex flex-wrap gap-x-4 text-[13.5px]"><Link href={`/carer/care-plan/${v.serviceUserId}`}>Care plan and risks</Link><Link href={`/rota/incidents/new?su=${v.serviceUserId}&visit=${v.id}`}>Report an incident</Link></p>
                     {mine ? <ClockControls v={v} now={now} doorstep={settings.doorstepCancel} /> : null}
-                    {meds.get(v.id)?.length ? <p className="text-meta font-medium text-module">{leads.get(v.id) ? (leads.get(v.id)!.staffId === staff.id ? "You are the Medication Lead on this visit." : `Medication Lead: ${leads.get(v.id)!.name}.`) : "No Medication Lead chosen yet. The office will confirm who is responsible."}</p> : null}
+                    {meds.get(v.id)?.length ? <p className="text-[13px] font-medium text-module">{leads.get(v.id) ? (leads.get(v.id)!.staffId === staff.id ? "You are the Medication Lead on this visit." : `Medication Lead: ${leads.get(v.id)!.name}.`) : "No Medication Lead chosen yet. The office will confirm who is responsible."}</p> : null}
                     {mine && meds.get(v.id) ? <CarerMedication visitId={v.id} due={meds.get(v.id)!} clockedIn={effectiveClocks(v.clocks).some((c) => c.kind === "IN")} /> : null}
                     {mine ? <TaskControls v={v} /> : null}
                     {mine ? <CorrectionControls v={v} now={now} /> : null}
@@ -106,12 +106,12 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
       )}
       <Card title="Mileage" className="mb-3">
         {claims.length ? (
-          <ul className="mb-2 space-y-1 text-body">
+          <ul className="mb-2 space-y-1 text-[13.5px]">
             {claims.slice(0, 5).map((c) => <li key={c.id}>{fmtLondonDate(fromDbDate(c.date), { day: "numeric", month: "short" })}: {c.miles} miles · {c.status === "SUBMITTED" ? "waiting" : c.status === "APPROVED" ? "approved" : `rejected${c.decisionNote ? ` (${c.decisionNote})` : ""}`}</li>)}
           </ul>
         ) : null}
         <details>
-          <summary className="cursor-pointer text-body text-navy-700 underline">Claim mileage</summary>
+          <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Claim mileage</summary>
           <form action={submitMileageAction} className="mt-2 space-y-2">
             <input type="hidden" name="back" value="/carer" />
             <div className="grid grid-cols-2 gap-2">
@@ -119,7 +119,7 @@ export default async function MyVisitsPage({ searchParams }: { searchParams: Pro
               <label><span className="label">Miles</span><input type="number" name="miles" min="0.1" max="500" step="0.1" required className="input" /></label>
             </div>
             <label className="block"><span className="label">Journey</span><input name="reason" required minLength={3} placeholder="e.g. between visits, Mon morning round" className="input" /></label>
-            <p className="text-meta text-slate-600">Enter the miles you drove for work. They are not worked out from a map.</p>
+            <p className="text-[12.5px] text-slate-600">Enter the miles you drove for work. They are not worked out from a map.</p>
             <button className="btn-secondary">Send claim</button>
           </form>
         </details>
@@ -138,7 +138,7 @@ function ClockControls({ v, now, doorstep }: { v: MyVisit; now: number; doorstep
   const open = now >= v.scheduledStart.getTime() - 3 * 3600_000 && now <= v.scheduledEnd.getTime() + 6 * 3600_000;
   const closed = ["CANCELLED", "NOT_DELIVERED"].includes(v.status);
   const back = "/carer";
-  if (outAt) return <p className="mt-2 text-body text-slate-700">You clocked in at {londonTime(inAt?.at ?? outAt.at)} and out at {londonTime(outAt.at)}.</p>;
+  if (outAt) return <p className="mt-2 text-[13.5px] text-slate-700">You clocked in at {londonTime(inAt?.at ?? outAt.at)} and out at {londonTime(outAt.at)}.</p>;
   if (closed || !open) return null;
   if (inAt) {
     return (
@@ -147,7 +147,7 @@ function ClockControls({ v, now, doorstep }: { v: MyVisit; now: number; doorstep
         <input type="hidden" name="visitId" value={v.id} />
         <input type="hidden" name="kind" value="OUT" />
         <input type="hidden" name="nonce" value={randomUUID()} />
-        <p className="text-body">Clocked in at {londonTime(inAt.at)}.</p>
+        <p className="text-[13.5px]">Clocked in at {londonTime(inAt.at)}.</p>
         <label className="block"><span className="label">Note for the office (needed if the visit was short)</span><textarea name="note" rows={2} className="input" /></label>
         <button className="btn-primary w-full sm:w-auto">Clock out</button>
       </form>
@@ -186,7 +186,7 @@ function TaskControls({ v }: { v: MyVisit }) {
   return (
     <div className="mt-2">
       {done.length ? (
-        <ul className="text-body text-slate-700">
+        <ul className="text-[13.5px] text-slate-700">
           {done.map((t) => <li key={t.id}>{t.name}: <span className="font-medium">{OUTCOME_LABEL[t.outcomes[0]!.outcome]}</span>{t.outcomes[0]!.note ? ` (${t.outcomes[0]!.note})` : ""}</li>)}
         </ul>
       ) : null}
@@ -196,11 +196,11 @@ function TaskControls({ v }: { v: MyVisit }) {
           <input type="hidden" name="visitId" value={v.id} />
           {open.map((t) => (
             <fieldset key={t.id} className="space-y-1">
-              <legend className="text-body font-medium">{t.name}</legend>
-              <div className="flex flex-wrap gap-3 text-body">
+              <legend className="text-[14px] font-medium">{t.name}</legend>
+              <div className="flex flex-wrap gap-3 text-[14px]">
                 {TASK_OUTCOMES.map((o) => <label key={o} className="flex items-center gap-1.5"><input type="radio" name={`outcome_${t.id}`} value={o} />{OUTCOME_LABEL[o]}</label>)}
               </div>
-              <input name={`note_${t.id}`} className="input py-1.5 text-body" placeholder="Explain anything not completed, or describe the concern" aria-label={`Note for ${t.name}`} />
+              <input name={`note_${t.id}`} className="input py-1.5 text-[14px]" placeholder="Explain anything not completed, or describe the concern" aria-label={`Note for ${t.name}`} />
             </fieldset>
           ))}
           <button className="btn-primary w-full sm:w-auto">Save tasks</button>
@@ -216,12 +216,12 @@ function NoteControls({ v, staffId }: { v: MyVisit; staffId: string }) {
   return (
     <div className="mt-2">
       {v.visitNotes.length ? (
-        <ul className="space-y-1 text-body">
+        <ul className="space-y-1 text-[13.5px]">
           {v.visitNotes.map((n) => <li key={n.id}><span className="text-slate-500">{NOTE_LABEL[n.category] ?? n.category}{n.staffId === staffId ? " (you)" : ""} · {londonTime(n.createdAt)}:</span> {n.text}</li>)}
         </ul>
       ) : null}
       <details className="mt-1">
-        <summary className="cursor-pointer text-body text-navy-700 underline">Add a note</summary>
+        <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Add a note</summary>
         <form action={addVisitNoteAction} className="mt-2 space-y-2">
           <input type="hidden" name="back" value="/carer" />
           <input type="hidden" name="visitId" value={v.id} />
@@ -241,10 +241,10 @@ function CorrectionControls({ v, now }: { v: MyVisit; now: number }) {
   return (
     <div className="mt-2">
       {v.correctionRequests.map((r) => (
-        <p key={r.id} className="text-body text-slate-700">You asked to change your {r.kind === "IN" ? "clock-in" : "clock-out"} to {londonTime(r.requestedTime)}: {r.status === "PENDING" ? "waiting for the office" : r.status === "APPROVED" ? "approved" : `rejected${r.decisionNote ? ` (${r.decisionNote})` : ""}`}.</p>
+        <p key={r.id} className="text-[13.5px] text-slate-700">You asked to change your {r.kind === "IN" ? "clock-in" : "clock-out"} to {londonTime(r.requestedTime)}: {r.status === "PENDING" ? "waiting for the office" : r.status === "APPROVED" ? "approved" : `rejected${r.decisionNote ? ` (${r.decisionNote})` : ""}`}.</p>
       ))}
       <details className="mt-1">
-        <summary className="cursor-pointer text-body text-navy-700 underline">Ask the office to correct a time</summary>
+        <summary className="cursor-pointer text-[13.5px] text-navy-700 underline">Ask the office to correct a time</summary>
         <form action={requestClockCorrectionAction} className="mt-2 space-y-2">
           <input type="hidden" name="back" value="/carer" />
           <input type="hidden" name="visitId" value={v.id} />

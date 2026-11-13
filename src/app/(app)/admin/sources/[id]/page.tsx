@@ -82,7 +82,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
           </Card>
           <Card title="Processing log">
             {events.length ? (
-              <ul className="space-y-1 font-mono text-micro">
+              <ul className="space-y-1 font-mono text-[11px]">
                 {events.map((e) => <li key={e.id} className={e.level === "error" ? "text-rose-700" : e.level === "warn" ? "text-amber-700" : "text-slate-600"}>{fmtDate(e.createdAt, true)} [{e.level}] {e.event}: {e.message}</li>)}
               </ul>
             ) : (
@@ -117,7 +117,7 @@ export default async function SourcePage({ params, searchParams }: { params: Pro
               <input id="fresh" className="input" type="number" min={1} name="freshnessWindowHours" defaultValue={s.freshnessWindowHours} />
               <button className="btn-secondary" type="submit">Save</button>
             </form>
-            <pre className="mt-3 overflow-x-auto rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200 text-micro">{JSON.stringify(s.config, null, 2)}</pre>
+            <pre className="mt-3 overflow-x-auto rounded-[2px] bg-white p-3 ring-1 ring-inset ring-slate-200 text-[11px]">{JSON.stringify(s.config, null, 2)}</pre>
           </Card>
           <Card title="Recent changes">
             {s.changes.length ? <ul className="space-y-1 text-sm">{s.changes.map((c) => <li key={c.id}><Link href={`/changes/${c.id}`}>{c.title}</Link> <StatusBadge status={c.status} /></li>)}</ul> : <Empty>None detected.</Empty>}

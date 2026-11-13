@@ -46,11 +46,11 @@ export default async function PolicyResourceLinksPage({ params, searchParams }: 
       <section className="pc-panel mb-4 overflow-hidden" aria-labelledby="links-title" data-testid="active-links">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <h2 id="links-title" className="font-semibold">Linked now</h2>
-          <span className="text-meta text-slate-600">{active.length} {active.length === 1 ? "link" : "links"}</span>
+          <span className="text-[13px] text-slate-600">{active.length} {active.length === 1 ? "link" : "links"}</span>
         </div>
         {active.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-meta">
+            <table className="w-full min-w-[640px] text-left text-[13px]">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                 <tr>
                   <th scope="col" className="px-4 py-3">Form or resource</th>
@@ -100,7 +100,7 @@ export default async function PolicyResourceLinksPage({ params, searchParams }: 
       {canManage ? (
         <section className="pc-panel mb-4 p-4" aria-labelledby="add-title" data-testid="add-link">
           <h2 id="add-title" className="font-semibold">Link a form</h2>
-          <p className="mt-1 text-meta text-slate-600">Choose one of your organisation&rsquo;s forms, templates, checklists or tools. Place it at the procedure step where staff need it, or leave it on the whole policy.</p>
+          <p className="mt-1 text-[13px] text-slate-600">Choose one of your organisation&rsquo;s forms, templates, checklists or tools. Place it at the procedure step where staff need it, or leave it on the whole policy.</p>
           {choices.length ? (
             <form action={addResourceLinkAction} className="mt-3 grid gap-3 md:grid-cols-2">
               <input type="hidden" name="policyId" value={policy.id} />
@@ -120,17 +120,17 @@ export default async function PolicyResourceLinksPage({ params, searchParams }: 
               <label className="block md:col-span-2"><span className="label">Use when (optional)</span>
                 <input name="useWhen" maxLength={300} className="input" placeholder="for example: you notice a new mark or bruise" />
               </label>
-              <label className="flex items-center gap-2 text-body"><input type="checkbox" name="required" className="h-4 w-4" />Staff must complete this form at this step</label>
+              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="required" className="h-4 w-4" />Staff must complete this form at this step</label>
               <div className="md:text-right"><button type="submit" className="btn-primary">Link form</button></div>
             </form>
-          ) : <p className="mt-3 text-meta text-slate-600">Your library has no forms or resources yet. Adopt them from the CSB templates first.</p>}
+          ) : <p className="mt-3 text-[13px] text-slate-600">Your library has no forms or resources yet. Adopt them from the CSB templates first.</p>}
         </section>
       ) : null}
 
       <section className="pc-panel overflow-hidden" aria-labelledby="history-title" data-testid="link-history">
         <h2 id="history-title" className="border-b border-slate-200 px-4 py-3 font-semibold">Removed links</h2>
         {withdrawn.length ? (
-          <ul className="divide-y divide-slate-100 text-meta">
+          <ul className="divide-y divide-slate-100 text-[13px]">
             {withdrawn.map((l) => (
               <li key={l.id} className="px-4 py-3">
                 <span className="font-medium">{l.resource.ref} · {l.resource.title}</span>
@@ -139,7 +139,7 @@ export default async function PolicyResourceLinksPage({ params, searchParams }: 
               </li>
             ))}
           </ul>
-        ) : <p className="px-4 py-4 text-meta text-slate-600">No links have been removed.</p>}
+        ) : <p className="px-4 py-4 text-[13px] text-slate-600">No links have been removed.</p>}
       </section>
     </>
   );

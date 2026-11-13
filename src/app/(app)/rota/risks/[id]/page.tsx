@@ -38,37 +38,37 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-3">
           {draft ? (
-            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-body text-[#6b4a00]">
+            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
               This is a draft written from the person&apos;s documents before drafts were retired. Carers do not see it yet. Check the fields against the documents and put it in use; no second person is needed.
             </p>
           ) : null}
           {r.origin !== "MANUAL" && !old ? (
-            <p role="note" className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-body text-slate-700">
+            <p role="note" className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[14px] text-slate-700">
               <span className="font-medium">{RISK_ORIGIN_LABEL[r.origin] ?? r.origin}.</span> Saved by CSB AI from {r.sourceNote ?? "the person's documents"}.{r.origin === "AI_INFERRED" ? " CSB AI wrote it from what the support plan says; the plan did not contain a completed assessment for it. Check the level and controls at the next review." : " The council's own assessment, saved as written."} Edit it with Review this assessment.
             </p>
           ) : null}
           {old ? (
-            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-body text-[#6b4a00]">
+            <p role="note" className="rounded-md border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[14px] text-[#6b4a00]">
               You are reading version {old.version}, saved {fmtDate(old.changedAt, true)}. It is kept for the record and cannot be changed. <Link href={back}>Back to the current version</Link>
             </p>
           ) : null}
           <Card title={old ? `Version ${old.version}` : `Assessment · version ${r.version}`} actions={<span className="flex flex-wrap gap-1"><Badge tone={LEVEL[shown.level].tone}>{LEVEL[shown.level].label} risk</Badge>{shown.status === "DRAFT" ? <Badge tone="amber">Draft, not in use</Badge> : !old && r.origin === "AI_INFERRED" ? <Badge tone="slate">AI-generated</Badge> : shown.status === "ARCHIVED" ? <Badge>Archived</Badge> : !old && state ? <Badge tone={REVIEW_TONE[state]}>{REVIEW_STATE_LABEL[state]}</Badge> : null}</span>}>
-            {old && old.title !== r.title ? <p className="mb-2 text-body"><span className="font-medium">Title then:</span> {old.title}</p> : null}
-            <h3 className="text-body font-semibold">Hazards</h3>
-            <p className="mb-3 whitespace-pre-line text-body">{shown.hazards}</p>
-            <h3 className="text-body font-semibold">Controls carers follow</h3>
-            <p className="mb-3 whitespace-pre-line text-body">{shown.controls}</p>
-            <h3 className="text-body font-semibold">Actions still required</h3>
+            {old && old.title !== r.title ? <p className="mb-2 text-[14px]"><span className="font-medium">Title then:</span> {old.title}</p> : null}
+            <h3 className="text-[13.5px] font-semibold">Hazards</h3>
+            <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.hazards}</p>
+            <h3 className="text-[13.5px] font-semibold">Controls carers follow</h3>
+            <p className="mb-3 whitespace-pre-line text-[14.5px]">{shown.controls}</p>
+            <h3 className="text-[13.5px] font-semibold">Actions still required</h3>
             {shown.requiredActions ? (
-              <p className="whitespace-pre-line text-body">{shown.requiredActions}<span className="mt-1 block text-meta text-slate-600">Responsible: {shown.responsiblePerson}</span></p>
-            ) : <p className="text-body text-slate-600">None recorded.</p>}
-            <p className="mt-3 text-meta text-slate-600">
+              <p className="whitespace-pre-line text-[14.5px]">{shown.requiredActions}<span className="mt-1 block text-[13px] text-slate-600">Responsible: {shown.responsiblePerson}</span></p>
+            ) : <p className="text-[14px] text-slate-600">None recorded.</p>}
+            <p className="mt-3 text-[13px] text-slate-600">
               {old ? <>{CHANGE[old.change] ?? old.change} by {who(old.changedById)}. Review was due {fmtLondonDate(fromDbDate(old.reviewDue))}.</> : <>Last assessed by {who(r.assessedById)} on {fmtDate(r.assessedAt)}. Review by <span className={state === "OVERDUE" ? "font-medium text-[#a3242c]" : ""}>{fmtLondonDate(fromDbDate(r.reviewDue))}</span>.</>}
             </p>
           </Card>
           {canApproveDraft && !old ? (
             <Card title="Check and put in use">
-              <p className="mb-2 text-meta text-slate-600">Correct anything that does not match the documents or your own assessment, then put it in use. Your name is recorded on the version.</p>
+              <p className="mb-2 text-[13px] text-slate-600">Correct anything that does not match the documents or your own assessment, then put it in use. Your name is recorded on the version.</p>
               <form action={approveRiskDraftAction} className="space-y-3">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="riskId" value={r.id} />
@@ -80,7 +80,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           ) : null}
           {canEdit && !old ? (
             <Card title="Review this assessment">
-              <p className="mb-2 text-meta text-slate-600">Saving a review keeps this version as it is and starts version {r.version + 1}.</p>
+              <p className="mb-2 text-[13px] text-slate-600">Saving a review keeps this version as it is and starts version {r.version + 1}.</p>
               <form action={reviewRiskAction} className="space-y-3">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="riskId" value={r.id} />
@@ -94,7 +94,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
         <aside className="space-y-3">
           <Card title="Versions">
             {versions.length ? (
-              <ol className="rows text-body" aria-label="Saved versions, newest first">
+              <ol className="rows text-[13.5px]" aria-label="Saved versions, newest first">
                 {versions.map((v) => {
                   const current = v.version === r.version;
                   const here = old ? old.version === v.version : current;

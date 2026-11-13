@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { Alarm, Cake, CalendarBlank, House, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
+import { Alarm, Cake, CalendarBlank, CalendarDots, CaretLeft, CaretRight, Check, Clock, EnvelopeSimple, FirstAidKit, IdentificationCard, Lightning, Note, Stack, TreePalm, User, Users, UsersThree, Warning, X } from "@phosphor-icons/react/dist/ssr";
 import Link from "@/components/link";
 import { ModuleHeader } from "@/components/module-header-band";
 import { addDays, fmtLondonDate, fromDbDate, isIsoDate, londonDate, londonTime, mondayOf } from "@/lib/london";
@@ -13,7 +13,7 @@ import { NotBuiltNotice } from "@/components/rota-ui";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { AutoSubmitForm } from "@/components/auto-submit";
 import { DashTable } from "@/components/dash-table";
-import { DatePill } from "@/components/date-pill";
+import { ordinalDate } from "@/components/rota-dashboard";
 import { LiveLondonTime } from "@/components/live-london-time";
 
 export const dynamic = "force-dynamic";
@@ -43,12 +43,12 @@ function CallCard({ tone, icon, label, value, share, fraction, note, href, testI
       <span className="flex items-center gap-4 px-4 pb-3.5 pt-3">
         <span aria-hidden className={`flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] text-white ${t.chip}`}>{icon}</span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-lead font-semibold text-ink">{label}</span>
+          <span className="block truncate text-[15px] font-semibold text-ink">{label}</span>
           <span className={`mt-0.5 flex items-center ${t.text}`}>
-            <span data-value className="text-figure font-bold leading-none tabular-nums">{value}</span>
-            {share ? <span className="ml-auto border-l border-rule pl-4 text-lead font-semibold tabular-nums">{share}</span> : null}
+            <span data-value className="text-[28px] font-bold leading-none tabular-nums">{value}</span>
+            {share ? <span className="ml-auto border-l border-rule pl-4 text-[16px] font-semibold tabular-nums">{share}</span> : null}
           </span>
-          <span className="mt-1.5 block truncate text-meta text-status-ink">{note}</span>
+          <span className="mt-1.5 block truncate text-[12.5px] text-status-ink">{note}</span>
         </span>
       </span>
       <span aria-hidden data-tile-bar className={`absolute inset-x-0 bottom-0 h-[5px] ${t.track}`}><span className={`block h-full ${t.bar}`} style={{ width }} /></span>
@@ -63,8 +63,8 @@ function Panel({ id, icon, title, count, aside, children, className = "" }: { id
     <section aria-labelledby={id} className={`flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)] ${className}`}>
       <div className="flex flex-wrap items-center gap-2 px-3.5 pb-2 pt-2.5">
         <span aria-hidden className="text-module">{icon}</span>
-        <h2 id={id} className="text-lead font-bold text-[#101828]">{title}</h2>
-        {count !== undefined ? <span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-meta font-semibold tabular-nums text-[#344054]">{count.toLocaleString("en-GB")}</span> : null}
+        <h2 id={id} className="text-[16.5px] font-bold text-[#101828]">{title}</h2>
+        {count !== undefined ? <span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12.5px] font-semibold tabular-nums text-[#344054]">{count.toLocaleString("en-GB")}</span> : null}
         {aside ? <span className="ml-auto flex items-center gap-2">{aside}</span> : null}
       </div>
       {children}
@@ -96,8 +96,8 @@ function Issue({ href, icon, value, label, tone, testId }: { href: string; icon:
       <Link href={href} data-testid={testId} className="flex items-center justify-center gap-4 rounded-[8px] px-3 py-1.5 no-underline hover:bg-[#fafafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
         <span aria-hidden style={{ color: tone }}>{icon}</span>
         <span className="min-w-0">
-          <span data-value className="block text-title font-bold leading-tight tabular-nums text-[#101828]">{value}</span>
-          <span className="block truncate text-lead font-semibold" style={{ color: tone }}>{label}</span>
+          <span data-value className="block text-[19px] font-bold leading-tight tabular-nums text-[#101828]">{value}</span>
+          <span className="block truncate text-[15px] font-semibold" style={{ color: tone }}>{label}</span>
         </span>
       </Link>
     </li>
@@ -105,13 +105,13 @@ function Issue({ href, icon, value, label, tone, testId }: { href: string; icon:
 }
 
 function BirthdayTable({ who, rows, unavailable }: { who: string; rows: Birthday[] | null; unavailable: string }) {
-  if (rows === null) return <p className="px-3.5 pb-4 text-body text-[#475467]">{unavailable}</p>;
-  if (!rows.length) return <p className="px-3.5 pb-4 text-body text-[#475467]">No birthdays in the next {BIRTHDAY_WINDOW_DAYS} days.</p>;
+  if (rows === null) return <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">{unavailable}</p>;
+  if (!rows.length) return <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">No birthdays in the next {BIRTHDAY_WINDOW_DAYS} days.</p>;
   return (
     <div className="max-h-[118px] overflow-auto px-3.5 pb-2">
-      <table className="w-full whitespace-nowrap text-body">
+      <table className="w-full whitespace-nowrap text-[13.5px]">
         <caption className="sr-only">{who} birthdays in the next {BIRTHDAY_WINDOW_DAYS} days</caption>
-        <thead><tr className="border-b border-[#eaecf0] text-left text-meta"><th scope="col" className="py-1.5 pl-1 pr-3 font-semibold">{who}</th><th scope="col" className="py-1.5 pr-3 font-semibold">DOB</th><th scope="col" className="py-1.5 pr-3 font-semibold">Turns</th><th scope="col" className="py-1.5 font-semibold">Birthday</th></tr></thead>
+        <thead><tr className="border-b border-[#eaecf0] text-left text-[12.5px]"><th scope="col" className="py-1.5 pl-1 pr-3 font-semibold">{who}</th><th scope="col" className="py-1.5 pr-3 font-semibold">DOB</th><th scope="col" className="py-1.5 pr-3 font-semibold">Turns</th><th scope="col" className="py-1.5 font-semibold">Birthday</th></tr></thead>
         <tbody>
           {rows.map((b) => (
             <tr key={b.id} className="border-b border-[#f2f4f7] last:border-0">
@@ -129,10 +129,10 @@ function BirthdayTable({ who, rows, unavailable }: { who: string; rows: Birthday
 
 function QuickAction({ href, icon, label, badge, tone = "#5b2bb5" }: { href: string; icon: ReactNode; label: string; badge?: number; tone?: string }) {
   return (
-    <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-body font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-module/[.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
+    <Link href={href} data-count={badge} className="flex h-[46px] min-w-0 items-center gap-2.5 rounded-[8px] border border-[#e4e7ec] bg-white px-3.5 text-[14px] font-semibold text-[#101828] no-underline shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:border-[#c9bdf0] hover:bg-module/[.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-module">
       <span aria-hidden style={{ color: tone }}>{icon}</span>
       <span className="line-clamp-2 min-w-0 flex-1 leading-[1.2]">{label}</span>
-      {badge ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-meta font-bold tabular-nums text-white" style={{ background: tone }}>{badge}</span> : null}
+      {badge ? <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[12.5px] font-bold tabular-nums text-white" style={{ background: tone }}>{badge}</span> : null}
     </Link>
   );
 }
@@ -160,20 +160,21 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
 
   return (
     <div className="rota-home space-y-3">
-      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>} icon={<House size={22} />} inline>
-        <p className="text-subtitle font-bold leading-6 tabular-nums text-white" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
-        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2.5">
-          <nav aria-label="Change day" className="flex items-center gap-2.5">
-            <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-square"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
-            <DatePill value={date} label={fmtLondonDate(date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(",", "")} short={fmtLondonDate(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).replace(",", "")} />
-            <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-square"><CaretRight size={18} weight="bold" aria-hidden /></Link>
-          </nav>
+      <ModuleHeader title="Rota Dashboard" description={<>Visit performance, people and reminders for the day · {branchName}</>}>
+        <nav aria-label="Change day" className="flex items-center gap-2.5">
+          <Link href={`/rota?${keep({ date: addDays(date, -1) })}`} aria-label="Previous day" className="mh-round"><CaretLeft size={20} weight="bold" aria-hidden /></Link>
+          <p className="flex items-center gap-2.5 text-[21px] font-bold text-white sm:text-[24px]"><CalendarBlank size={24} aria-hidden /><span>{ordinalDate(date)}</span></p>
+          <Link href={`/rota?${keep({ date: addDays(date, 1) })}`} aria-label="Next day" className="mh-round"><CaretRight size={20} weight="bold" aria-hidden /></Link>
+        </nav>
+        <p className="text-[16px] font-semibold leading-6 tabular-nums text-white sm:border-l sm:border-white/38 sm:pl-3" title="Current UK time"><LiveLondonTime initial={Date.now()} testId="rota-live-time" /></p>
+        <AutoSubmitForm label="Date and branch" className="flex flex-wrap items-center gap-2">
           {d.branches.length > 1 ? (
             <label><span className="sr-only">Branch</span>
-              <select name="branch" defaultValue={branch ?? ""} className="mh-field font-semibold"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+              <select name="branch" defaultValue={branch ?? ""} className="mh-field"><option value="">All my branches</option>{d.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
             </label>
           ) : null}
-          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn">Today</Link>
+          <label className="mh-field flex items-center gap-2"><CalendarBlank size={17} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px]" /></label>
+          <Link href={`/rota?${keep({ date: undefined })}`} aria-current={date === d.today ? "date" : undefined} className="mh-btn mh-btn-primary">Today</Link>
         </AutoSubmitForm>
       </ModuleHeader>
       <Flash searchParams={sp} />
@@ -219,10 +220,10 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
                 };
               })}
             />
-          ) : <p className="px-3.5 pb-4 text-body text-[#475467]">Your role does not include service-user records.</p>}
+          ) : <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">Your role does not include service-user records.</p>}
         </Panel>
 
-        <Panel id="team-h" icon={<UsersThree size={24} weight="fill" />} title="All Team Members" count={d.canStaff ? d.team.length : undefined} aside={d.canStaff && unlinked ? <Link href="/rota/staff" title="Team members with no app sign-in linked yet" className="inline-flex items-center gap-1 rounded-[6px] border border-[#f5d9a8] bg-[#fdf6e8] px-2 py-0.5 text-caption font-semibold text-[#8a5a00] no-underline"><EnvelopeSimple size={14} aria-hidden />{unlinked} without a sign-in</Link> : null}>
+        <Panel id="team-h" icon={<UsersThree size={24} weight="fill" />} title="All Team Members" count={d.canStaff ? d.team.length : undefined} aside={d.canStaff && unlinked ? <Link href="/rota/staff" title="Team members with no app sign-in linked yet" className="inline-flex items-center gap-1 rounded-[6px] border border-[#f5d9a8] bg-[#fdf6e8] px-2 py-0.5 text-[12px] font-semibold text-[#8a5a00] no-underline"><EnvelopeSimple size={14} aria-hidden />{unlinked} without a sign-in</Link> : null}>
           {d.canStaff ? (
             <DashTable
               label="team members"
@@ -246,15 +247,15 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
                     first ?? "",
                     rest.join(" "),
                     <span key="r" className="block max-w-[88px] truncate" title={t.jobTitle}>{t.jobTitle}</span>,
-                    <span key="s" className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-caption font-semibold ${STATUS_PILL[st.status]}`}><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{st.status}</span>,
+                    <span key="s" className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[12px] font-semibold ${STATUS_PILL[st.status]}`}><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />{st.status}</span>,
                   ],
                 };
               })}
             />
-          ) : <p className="px-3.5 pb-4 text-body text-[#475467]">Your role does not include the staff directory.</p>}
+          ) : <p className="px-3.5 pb-4 text-[13.5px] text-[#475467]">Your role does not include the staff directory.</p>}
         </Panel>
 
-        <Panel id="rem-h" icon={<Alarm size={24} weight="bold" />} title="All Active Reminders" aside={<><span className="hidden whitespace-nowrap text-caption text-[#475467] 2xl:inline" title="Due in the next 14 days, or overdue">14 days + overdue</span><Link href="/rota/reminders" className="rounded-[7px] bg-[#15803d] px-3 py-1.5 text-meta font-semibold text-white no-underline hover:bg-[#116a32]">View All</Link></>}>
+        <Panel id="rem-h" icon={<Alarm size={24} weight="bold" />} title="All Active Reminders" aside={<><span className="hidden whitespace-nowrap text-[12px] text-[#475467] 2xl:inline" title="Due in the next 14 days, or overdue">14 days + overdue</span><Link href="/rota/reminders" className="rounded-[7px] bg-[#15803d] px-3 py-1.5 text-[13px] font-semibold text-white no-underline hover:bg-[#116a32]">View All</Link></>}>
           <DashTable
             label="reminders"
             columns={[{ key: "text", label: "Reminder", sortable: true }, { key: "due", label: "Due", sortable: true }, { key: "account", label: "Account", sortable: true }, { key: "type", label: "Type", sortable: true }, { key: "over", label: "Overdue", sortable: true }]}
@@ -272,7 +273,7 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
                 <span key="d" className="tabular-nums">{ddmmyyyy(r.due)}</span>,
                 r.account,
                 r.type === "Service user" ? "Client" : "Staff",
-                r.overdueDays ? <span key="o" className="rounded-full bg-[#fdecec] px-2 py-0.5 text-caption font-semibold tabular-nums text-[#a3242c]">{r.overdueDays} day(s)</span> : <span key="o" className="text-[#667085]">—</span>,
+                r.overdueDays ? <span key="o" className="rounded-full bg-[#fdecec] px-2 py-0.5 text-[12px] font-semibold tabular-nums text-[#a3242c]">{r.overdueDays} day(s)</span> : <span key="o" className="text-[#667085]">—</span>,
               ],
             }))}
           />
@@ -289,10 +290,10 @@ export default async function RotaDashboardPage({ searchParams }: { searchParams
       </section>
 
       <section aria-label="Birthdays and quick actions" className="grid grid-cols-1 gap-3.5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.88fr)]">
-        <Panel id="sub-h" icon={<Cake size={24} weight="fill" />} title="Service User Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-caption font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
+        <Panel id="sub-h" icon={<Cake size={24} weight="fill" />} title="Service User Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12px] font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
           <BirthdayTable who="Service User" rows={d.birthdays.serviceUsers} unavailable="Your role does not include service-user records." />
         </Panel>
-        <Panel id="tmb-h" icon={<Cake size={24} weight="fill" />} title="Team Member Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-caption font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
+        <Panel id="tmb-h" icon={<Cake size={24} weight="fill" />} title="Team Member Upcoming Birthdays" aside={<span className="rounded-full bg-[#f2f4f7] px-2 py-0.5 text-[12px] font-medium text-[#344054]">Next {BIRTHDAY_WINDOW_DAYS} days</span>}>
           <BirthdayTable who="Team Member" rows={d.birthdays.team} unavailable="Dates of birth are kept in HR & Workforce, so only people with HR access see team birthdays." />
         </Panel>
         <Panel id="qa-h" icon={<Lightning size={24} weight="fill" />} title="Quick Actions" className="lg:col-span-2 xl:col-span-1">

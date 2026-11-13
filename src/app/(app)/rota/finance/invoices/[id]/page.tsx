@@ -28,20 +28,20 @@ export default async function InvoiceRunPage({ params, searchParams }: { params:
             const f = funders.get(inv.funderId);
             return (
               <Card key={inv.id} title={`${f?.name ?? "Funder"}${inv.number ? ` · ${inv.number}` : ""}`} actions={<span className="flex items-center gap-2"><span className="tabular-nums font-semibold">{pounds(inv.totalPence)}</span><RunBadge status={run.status} /></span>}>
-                <p className="mb-2 text-meta text-slate-600">{inv.lines.length} lines · payment due {inv.dueDays} days after issue{f?.billingEmail ? ` · ${f.billingEmail}` : ""}</p>
+                <p className="mb-2 text-[13px] text-slate-600">{inv.lines.length} lines · payment due {inv.dueDays} days after issue{f?.billingEmail ? ` · ${f.billingEmail}` : ""}</p>
                 <details>
-                  <summary className="cursor-pointer text-body">Show lines</summary>
+                  <summary className="cursor-pointer text-[14px]">Show lines</summary>
                   <div className="relative mt-2 min-w-0 overflow-x-auto">
                     <table className="table">
                       <thead><tr><th>Visit</th><th className="text-right">Minutes</th><th className="text-right">Rate</th><th className="text-right">Amount</th><th>Band</th></tr></thead>
-                      <tbody>{inv.lines.map((l) => <tr key={l.id}><td>{l.description}</td><td className="text-right tabular-nums">{l.minutes}</td><td className="text-right tabular-nums">{pounds(l.ratePence)}</td><td className="text-right tabular-nums">{pounds(l.amountPence)}</td><td className="text-meta">{l.bandLabel}</td></tr>)}</tbody>
+                      <tbody>{inv.lines.map((l) => <tr key={l.id}><td>{l.description}</td><td className="text-right tabular-nums">{l.minutes}</td><td className="text-right tabular-nums">{pounds(l.ratePence)}</td><td className="text-right tabular-nums">{pounds(l.amountPence)}</td><td className="text-[12.5px]">{l.bandLabel}</td></tr>)}</tbody>
                     </table>
                   </div>
                 </details>
               </Card>
             );
           })}
-          {!run.invoices.length ? <Card><p className="text-body text-slate-600">No chargeable visits in this week.</p></Card> : null}
+          {!run.invoices.length ? <Card><p className="text-[14px] text-slate-600">No chargeable visits in this week.</p></Card> : null}
           <Exceptions items={exceptions} />
         </div>
         <aside className="space-y-3">

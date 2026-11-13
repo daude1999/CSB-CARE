@@ -53,25 +53,25 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-3">
           <Card title="The risk">
-            <p className="whitespace-pre-line text-body text-slate-800">{risk.description}</p>
+            <p className="whitespace-pre-line text-[14.5px] text-slate-800">{risk.description}</p>
             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
-              <Field label="Inherent (before controls)"><RatingChip score={risk.inherent} /> <span className="text-meta text-slate-600">L{risk.likelihood} x I{risk.impact}</span></Field>
-              <Field label="Residual (with controls)"><RatingChip score={risk.residual} /> <span className="text-meta text-slate-600">L{risk.residualLikelihood} x I{risk.residualImpact}</span></Field>
-              <Field label="Next review"><span className={overdue ? "font-medium text-[#a3242c]" : ""}>{fmtDate(risk.reviewDate)}</span><div className="text-caption text-slate-600">At least every {REVIEW_MONTHS[band] === 1 ? "month" : `${REVIEW_MONTHS[band]} months`} for a {BAND_LABEL[band]} risk</div></Field>
+              <Field label="Inherent (before controls)"><RatingChip score={risk.inherent} /> <span className="text-[12.5px] text-slate-600">L{risk.likelihood} x I{risk.impact}</span></Field>
+              <Field label="Residual (with controls)"><RatingChip score={risk.residual} /> <span className="text-[12.5px] text-slate-600">L{risk.residualLikelihood} x I{risk.residualImpact}</span></Field>
+              <Field label="Next review"><span className={overdue ? "font-medium text-[#a3242c]" : ""}>{fmtDate(risk.reviewDate)}</span><div className="text-[12px] text-slate-600">At least every {REVIEW_MONTHS[band] === 1 ? "month" : `${REVIEW_MONTHS[band]} months`} for a {BAND_LABEL[band]} risk</div></Field>
               <Field label="Last management review">{risk.lastReviewedAt ? `${fmtDate(risk.lastReviewedAt)} by ${names.get(risk.lastReviewedById ?? "") ?? "a member"}` : "Not reviewed yet"}</Field>
             </div>
-            <h3 className="mt-5 text-body font-semibold text-slate-800">Existing controls <span className="ml-1 font-normal text-slate-600">({CONTROL_EFFECTIVENESS[risk.controlEffectiveness as keyof typeof CONTROL_EFFECTIVENESS]})</span></h3>
-            <p className="mt-1 whitespace-pre-line text-body text-slate-800">{risk.existingControls}</p>
-            {risk.finding ? <p className="mt-4 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-body">Raised from a finding in <Link href={`/audits/${risk.finding.audit.id}#findings`}>{risk.finding.audit.title}</Link>: {risk.finding.description}</p> : null}
-            {closed ? <p className="mt-4 rounded-[3px] bg-slate-100 px-3 py-2 text-body">Closed {fmtDate(risk.closedAt)}: {risk.closedReason}</p> : null}
+            <h3 className="mt-5 text-[14px] font-semibold text-slate-800">Existing controls <span className="ml-1 font-normal text-slate-600">({CONTROL_EFFECTIVENESS[risk.controlEffectiveness as keyof typeof CONTROL_EFFECTIVENESS]})</span></h3>
+            <p className="mt-1 whitespace-pre-line text-[14px] text-slate-800">{risk.existingControls}</p>
+            {risk.finding ? <p className="mt-4 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[13.5px]">Raised from a finding in <Link href={`/audits/${risk.finding.audit.id}#findings`}>{risk.finding.audit.title}</Link>: {risk.finding.description}</p> : null}
+            {closed ? <p className="mt-4 rounded-[3px] bg-slate-100 px-3 py-2 text-[13.5px]">Closed {fmtDate(risk.closedAt)}: {risk.closedReason}</p> : null}
           </Card>
 
           <Card title={`Mitigation actions (${risk.actions.length})`}>
             {risk.actions.length ? (
               <ul className="rows">
                 {risk.actions.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-body">
-                    <span><Link href={`/actions/${a.id}`} className="row-title">{a.title}</Link> <span className="text-meta text-slate-600">· {names.get(a.ownerId) ?? "a member"} · due {fmtDate(a.dueDate)}</span></span>
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[14px]">
+                    <span><Link href={`/actions/${a.id}`} className="row-title">{a.title}</Link> <span className="text-[13px] text-slate-600">· {names.get(a.ownerId) ?? "a member"} · due {fmtDate(a.dueDate)}</span></span>
                     <span className="flex gap-1"><StatusBadge status={a.status} />{["OPEN", "IN_PROGRESS"].includes(a.status) && a.dueDate < now ? <Badge tone="rose">Overdue</Badge> : null}</span>
                   </li>
                 ))}
@@ -79,7 +79,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
             ) : <Empty>No mitigation actions yet.</Empty>}
             {canAct && !closed ? (
               <details className="mt-2">
-                <summary className="cursor-pointer text-body text-[#0646b1]">Add a mitigation action</summary>
+                <summary className="cursor-pointer text-[14px] text-[#0646b1]">Add a mitigation action</summary>
                 <form action={createActionAction} className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
                   <input type="hidden" name="back" value={back} /><input type="hidden" name="riskId" value={risk.id} />
                   <label className="md:col-span-3"><span className="label">Action</span><input name="title" required minLength={3} className="input" /></label>
@@ -93,7 +93,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           </Card>
 
           <Card title="History">
-            <ol className="space-y-3 border-l border-slate-300 pl-4 text-body">
+            <ol className="space-y-3 border-l border-slate-300 pl-4 text-[13.5px]">
               {risk.events.map((e) => {
                 const changes = Object.entries((e.changes ?? {}) as Record<string, unknown>);
                 return (
@@ -101,7 +101,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
                     <div><span className="tabular-nums text-slate-600">{fmtDate(e.createdAt, true)}</span> · <span className="font-medium">{KIND[e.kind] ?? e.kind}</span> <span className="text-slate-600">by {names.get(e.actorId) ?? "a member"}</span></div>
                     {e.note ? <p className="text-slate-800">{e.note}</p> : null}
                     {changes.length && e.kind === "UPDATED" ? (
-                      <ul className="mt-0.5 text-meta text-slate-600">{changes.filter(([k]) => k !== "actionId").map(([k, v]) => {
+                      <ul className="mt-0.5 text-[12.5px] text-slate-600">{changes.filter(([k]) => k !== "actionId").map(([k, v]) => {
                         const c = v as { from?: unknown; to?: unknown };
                         return <li key={k}>{FIELD[k] ?? k}: {k === "description" || k === "existingControls" ? "edited" : `${show(k, c.from)} → ${show(k, c.to)}`}</li>;
                       })}</ul>
@@ -134,7 +134,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
           {canManage && !closed ? (
             <Card title="Change the risk">
               <details>
-                <summary className="cursor-pointer text-body text-[#0646b1]">Edit scores, controls, owner or review date</summary>
+                <summary className="cursor-pointer text-[14px] text-[#0646b1]">Edit scores, controls, owner or review date</summary>
                 <form action={updateRiskAction} className="mt-3 space-y-3">
                   <input type="hidden" name="back" value={back} /><input type="hidden" name="riskId" value={risk.id} /><input type="hidden" name="updatedAt" value={risk.updatedAt.toISOString()} />
                   <RiskFormFields risk={risk} branches={branches} members={members.map((m) => ({ userId: m.userId, name: m.user.name }))} branchRequired={Boolean(ctx.branchIds)} />
@@ -150,7 +150,7 @@ export default async function RiskPage({ params, searchParams }: { params: Promi
                 <input type="hidden" name="back" value={back} /><input type="hidden" name="riskId" value={risk.id} />
                 <label className="block"><span className="label">{closed ? "Why it is being reopened" : "Why the risk can be closed"}</span><textarea name="reason" required minLength={closed ? 5 : 10} rows={2} className="input" /></label>
                 <button className="btn-secondary">{closed ? "Reopen" : "Close risk"}</button>
-                {!closed ? <p className="text-meta text-slate-600">A risk with mitigation actions that are not yet verified cannot be closed.</p> : null}
+                {!closed ? <p className="text-[12.5px] text-slate-600">A risk with mitigation actions that are not yet verified cannot be closed.</p> : null}
               </form>
             </Card>
           ) : null}

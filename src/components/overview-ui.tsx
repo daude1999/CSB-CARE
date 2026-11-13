@@ -42,18 +42,18 @@ export function ModuleGrid({ items, arranging, saveAction, columns }: { items: A
     <>
       {arranging ? (
         <div className="flex flex-col gap-2 rounded-[10px] border border-dashed border-[#9db9e6] bg-[#f3f8ff] px-4 py-2.5 sm:flex-row sm:items-center" data-testid="arrange-bar">
-          <p className="flex-1 text-meta text-[#1b2533]"><span className="font-semibold">Arrange your module tiles.</span> Drag a tile to a new place, or use its arrow buttons. Only you see this order.</p>
+          <p className="flex-1 text-[13px] text-[#1b2533]"><span className="font-semibold">Arrange your module tiles.</span> Drag a tile to a new place, or use its arrow buttons. Only you see this order.</p>
           <div className="flex flex-wrap items-center gap-2">
             <form action={saveAction}>
               <input type="hidden" name="back" value="/overview?arrange=1" />
               <input type="hidden" name="reset" value="1" />
-              <button type="submit" className="h-[32px] rounded-[7px] px-3 text-meta font-medium text-[#1b2533] hover:bg-black/5">Standard order</button>
+              <button type="submit" className="h-[32px] rounded-[7px] px-3 text-[13px] font-medium text-[#1b2533] hover:bg-black/5">Standard order</button>
             </form>
-            <a href="/overview" className="flex h-[32px] items-center rounded-[7px] border border-[#d5dbe5] bg-white px-3 text-meta font-medium text-[#1b2533] hover:bg-[#fafbfc]">Cancel</a>
+            <a href="/overview" className="flex h-[32px] items-center rounded-[7px] border border-[#d5dbe5] bg-white px-3 text-[13px] font-medium text-[#1b2533] hover:bg-[#fafbfc]">Cancel</a>
             <form action={saveAction}>
               <input type="hidden" name="back" value="/overview?arrange=1" />
               <input type="hidden" name="order" value={order.join(",")} />
-              <button type="submit" className="h-[32px] rounded-[7px] bg-[#1565c0] px-3.5 text-meta font-semibold text-white hover:bg-[#11589f]">Save order</button>
+              <button type="submit" className="h-[32px] rounded-[7px] bg-[#1565c0] px-3.5 text-[13px] font-semibold text-white hover:bg-[#11589f]">Save order</button>
             </form>
           </div>
         </div>
@@ -80,7 +80,7 @@ export function ModuleGrid({ items, arranging, saveAction, columns }: { items: A
               className={`relative flex cursor-grab flex-col rounded-[12px] bg-[#eaf1fb] p-1.5 outline-dashed outline-2 outline-offset-2 active:cursor-grabbing ${dragging === item.key ? "opacity-50 outline-[#1565c0]" : "outline-[#9db9e6]"}`}
             >
               <div className="flex items-center gap-1 px-1 pb-1.5">
-                <span className="flex flex-1 items-center gap-1.5 text-caption font-medium text-[#3a4658]"><DotsSixVertical size={16} weight="bold" aria-hidden="true" />Drag to move · position {i + 1}</span>
+                <span className="flex flex-1 items-center gap-1.5 text-[12px] font-medium text-[#3a4658]"><DotsSixVertical size={16} weight="bold" aria-hidden="true" />Drag to move · position {i + 1}</span>
                 <button type="button" onClick={() => move(item.key, i - 1)} disabled={i === 0} aria-label={`Move ${item.name} earlier`} className="flex h-7 w-7 items-center justify-center rounded-[6px] border border-[#d5dbe5] bg-white text-[#1b2533] hover:bg-[#f3f5f9] disabled:opacity-40">
                   <ArrowLeft size={14} weight="bold" aria-hidden="true" />
                 </button>

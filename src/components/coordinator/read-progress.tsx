@@ -47,5 +47,5 @@ export function ReadProgress({ intakeId }: { intakeId: string }) {
     return () => clearInterval(timer);
   }, [intakeId, router]);
 
-  return <p role="status" aria-live="polite" className="text-meta text-slate-600">{message}</p>;
+  return <p role="status" aria-live="polite" className="text-[13px] text-slate-600">{message}</p>;
 }

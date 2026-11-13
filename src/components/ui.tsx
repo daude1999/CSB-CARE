@@ -15,8 +15,8 @@ export function Panel({ title, actions, children, className = "", label }: { tit
   return (
     <section aria-label={label} className={`panel ${className}`}>
       {title || actions ? (
-        <div className={title ? "panel-head" : "mb-3 flex flex-wrap items-center justify-between gap-3"}>
-          {title ? <h2 className="panel-title">{title}</h2> : <span />}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
@@ -25,22 +25,20 @@ export function Panel({ title, actions, children, className = "", label }: { tit
   );
 }
 
-// ClearCare status tints (owner's design of 12 Nov 2026): red, amber, green and neutral pills; blue and violet kept for
-// the few states that already used them.
 const TONES = {
-  slate: "bg-cc-neutral-bg text-cc-neutral",
-  teal: "bg-[#e5effa] text-[#1d4f91]",
+  slate: "bg-slate-100 text-slate-700",
+  teal: "bg-[#e3effb] text-[#1d4f91]",
   navy: "bg-navy-900 text-white",
-  amber: "bg-cc-amber-bg text-cc-amber",
-  rose: "bg-cc-red-bg text-cc-red",
-  green: "bg-cc-green-bg text-cc-green",
+  amber: "bg-[#fdf0d8] text-[#8a5a00]",
+  rose: "bg-[#fde1e3] text-[#a3242c]",
+  green: "bg-[#dff3e7] text-[#1c7a43]",
   violet: "bg-violet-50 text-violet-700",
 } as const;
 export type Tone = keyof typeof TONES;
 
 export function Badge({ children, tone = "slate", title }: { children: ReactNode; tone?: Tone; title?: string }) {
   return (
-    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-[3px] text-caption font-semibold leading-4 ${TONES[tone]}`}>
+    <span title={title} className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-normal leading-4 ${TONES[tone]}`}>
       {/* Sentence case on screen; the text itself stays as written. */}
       <span className="inline-block first-letter:uppercase">{children}</span>
     </span>
@@ -79,7 +77,7 @@ export function SegmentNav({ items, label, alert = false }: { items: { href: str
       {items.map((i) => (
         <Link key={i.href} href={i.href} aria-current={i.active ? "page" : undefined} className="tab-line">
           {i.label}
-          {i.count !== undefined ? <span className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-caption font-medium ${alert && i.count ? "bg-status-missed text-white" : "bg-slate-100 text-slate-700"}`}>{i.count}</span> : null}
+          {i.count !== undefined ? <span className={`flex h-[20px] min-w-[20px] items-center justify-center rounded-full px-1.5 text-[12px] font-medium ${alert && i.count ? "bg-status-missed text-white" : "bg-slate-100 text-slate-700"}`}>{i.count}</span> : null}
         </Link>
       ))}
     </nav>
@@ -91,8 +89,8 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
   return (
     <section className={`card ${className}`}>
       {title || actions ? (
-        <div className={title ? "panel-head" : "mb-3 flex flex-wrap items-center justify-between gap-3"}>
-          {title ? <h2 className="panel-title">{title}</h2> : <span />}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          {title ? <h2 className="text-[17px]">{title}</h2> : <span />}
           {actions}
         </div>
       ) : null}
@@ -107,7 +105,7 @@ export function Card({ title, children, actions, className = "" }: { title?: Rea
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-6 text-center text-lead text-slate-600">{children}</p>;
+  return <p className="px-4 py-6 text-center text-[15px] text-slate-600">{children}</p>;
 }
 
 const RINGS = {
@@ -122,15 +120,15 @@ const RINGS = {
 export function Stat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: keyof typeof RINGS; hint?: string }) {
   const body = (
     <>
-      <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border-2 px-1 text-lead ${RINGS[tone]}`}>{value}</span>
+      <span className={`flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border-2 px-1 text-[16px] ${RINGS[tone]}`}>{value}</span>
       <span className="min-w-0">
-        <span className="block text-lead leading-[19px] text-slate-900 sm:text-subtitle sm:leading-[22px]">{label}</span>
-        {hint ? <span className="hidden text-body leading-[18px] text-slate-600 sm:block">{hint}</span> : null}
+        <span className="block text-[15px] leading-[19px] text-slate-900 sm:text-[18px] sm:leading-[22px]">{label}</span>
+        {hint ? <span className="hidden text-[13.5px] leading-[18px] text-slate-600 sm:block">{hint}</span> : null}
       </span>
     </>
   );
-  const cls = "flex min-h-[66px] items-center gap-2.5 rounded-panel border border-cc-line bg-white py-2 pl-2.5 pr-3 sm:gap-[13px] sm:pl-[13px] sm:pr-4 no-underline transition-colors duration-[120ms]";
-  return href ? <Link href={href} className={`${cls} hover:border-cc-control`}>{body}</Link> : <div className={cls}>{body}</div>;
+  const cls = "flex min-h-[66px] items-center gap-2.5 rounded-[3px] bg-white py-2 pl-2.5 pr-3 sm:gap-[13px] sm:pl-[13px] sm:pr-4 no-underline shadow-[0_0_0_1px_#eef1f3] transition-shadow duration-[120ms]";
+  return href ? <Link href={href} className={`${cls} hover:shadow-[0_0_0_1px_#c4cfdd]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 /** A row of key figures, as on the dashboard. */
@@ -143,7 +141,7 @@ export function Flash({ searchParams }: { searchParams: Record<string, string | 
   const ok = typeof searchParams.ok === "string" ? searchParams.ok : null;
   if (!error && !ok) return null;
   return (
-    <div role={error ? "alert" : "status"} className={`flash mb-3 rounded-[10px] border px-4 py-3 text-body ${error ? "border-[#f6c9bf] bg-cc-red-bg text-cc-red" : "border-cc-sidebar-line bg-cc-green-bg text-cc-green"}`}>
+    <div role={error ? "alert" : "status"} className={`flash mb-3 rounded-[3px] border-l-4 px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
       {error ?? ok}
     </div>
   );

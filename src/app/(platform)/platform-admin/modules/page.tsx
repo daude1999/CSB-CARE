@@ -18,11 +18,11 @@ export default async function ModulesPage() {
             {modules.map((m) => (
               <tr key={m.key}>
                 <td className="font-medium text-px-ink">{m.name}{m.critical ? <span className="mt-1 block"><Tone tone="amber">Care-critical</Tone></span> : null}</td>
-                <td className="max-w-[260px] text-meta text-px-body">{m.summary}</td>
+                <td className="max-w-[260px] text-[13px] text-px-body">{m.summary}</td>
                 <td className="text-right tabular-nums">{m.clientsOn}</td>
                 <td className="text-right tabular-nums">{m.clientsOff}</td>
-                <td className="text-meta">{m.limits?.map((l) => l.label).join(", ") ?? <span className="text-px-subtle">—</span>}</td>
-                <td className="max-w-[300px] text-meta text-px-muted">{m.consequence}</td>
+                <td className="text-[13px]">{m.limits?.map((l) => l.label).join(", ") ?? <span className="text-px-subtle">—</span>}</td>
+                <td className="max-w-[300px] text-[13px] text-px-muted">{m.consequence}</td>
               </tr>
             ))}
           </Table>

@@ -11,26 +11,26 @@ import { Archive, ChatTeardropText, ChatsCircle, Question } from "@phosphor-icon
  */
 export function HelpMenu({ assistant, dark = false }: { assistant: boolean; dark?: boolean }) {
   const ref = useDismissableDetails();
-  const row = "flex items-start gap-3 px-3 py-2.5 text-body text-[#0b1530] no-underline hover:bg-slate-100 hover:text-[#0b1530]";
+  const row = "flex items-start gap-3 px-3 py-2.5 text-[14px] text-[#0b1530] no-underline hover:bg-slate-100 hover:text-[#0b1530]";
   return (
     <details ref={ref} className="relative" data-testid="help-menu">
-      <summary aria-label="Help and resources" title="Help and resources" className={`flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-[10px] [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
+      <summary aria-label="Help and resources" title="Help and resources" className={`flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
         <Question size={23} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[290px] overflow-hidden rounded-[8px] border border-slate-200 bg-white py-1 shadow-lg">
-        <p className="px-3 pb-1 pt-2 text-micro font-semibold uppercase tracking-[0.06em] text-slate-500">Help &amp; Resources</p>
+        <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Help &amp; Resources</p>
         <Link href="/resource-centre" className={row}>
           <Archive size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#1f5fd1]" />
-          <span><span className="block font-medium">Resource Centre</span><span className="block text-meta text-slate-600">Registration pack, templates and guidance</span></span>
+          <span><span className="block font-medium">Resource Centre</span><span className="block text-[12.5px] text-slate-600">Registration pack, templates and guidance</span></span>
         </Link>
         <Link href="/interview-prep" className={row}>
           <ChatsCircle size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#1f5fd1]" />
-          <span><span className="block font-medium">Interview Prep</span><span className="block text-meta text-slate-600">Registered manager interview guidance</span></span>
+          <span><span className="block font-medium">Interview Prep</span><span className="block text-[12.5px] text-slate-600">Registered manager interview guidance</span></span>
         </Link>
         {assistant ? (
           <Link href="/assistant" className={row}>
             <ChatTeardropText size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-[#1f5fd1]" />
-            <span><span className="block font-medium">AI Assistant</span><span className="block text-meta text-slate-600">Ask about your policies</span></span>
+            <span><span className="block font-medium">AI Assistant</span><span className="block text-[12.5px] text-slate-600">Ask about your policies</span></span>
           </Link>
         ) : null}
       </div>

@@ -43,11 +43,11 @@ export default async function MonthlyUpdatesPage({ searchParams }: { searchParam
 
       <nav aria-label="Month" className="pc-panel mb-3 flex flex-wrap items-center gap-2 p-3">
         <Link href={href(q, { month: shiftMonth(q.month, -1) })} className="pc-btn-secondary pc-btn-sm">Previous month</Link>
-        <h2 className="mx-2 text-lead font-semibold text-[#101828]" data-testid="updates-month">{monthName(q.month)}</h2>
+        <h2 className="mx-2 text-[16px] font-semibold text-[#101828]" data-testid="updates-month">{monthName(q.month)}</h2>
         {next <= thisMonth ? <Link href={href(q, { month: next })} className="pc-btn-secondary pc-btn-sm">Next month</Link> : null}
         <form method="get" action="/policies/updates" className="ml-auto flex items-center gap-2">
           {q.group ? <input type="hidden" name="type" value={q.group} /> : null}
-          <label htmlFor="month" className="text-meta text-[#475467]">Go to month</label>
+          <label htmlFor="month" className="text-[13px] text-[#475467]">Go to month</label>
           <input id="month" name="month" type="month" className="input h-9 w-auto" defaultValue={q.month} max={thisMonth} />
           <button className="pc-btn-secondary pc-btn-sm" type="submit">Show</button>
         </form>
@@ -58,13 +58,13 @@ export default async function MonthlyUpdatesPage({ searchParams }: { searchParam
         {UPDATE_GROUPS.map(([key, label]) => (
           <Link key={key} href={href(q, { group: key })} aria-current={q.group === key ? "page" : undefined} className={`pc-btn-secondary pc-btn-sm ${q.group === key ? "ring-2 ring-[#0646b1]" : ""}`}>{label} ({data.counts[key]})</Link>
         ))}
-        <span className="ml-auto text-meta text-[#475467]">{data.newCount} new · {data.updatedCount} updated</span>
+        <span className="ml-auto text-[13px] text-[#475467]">{data.newCount} new · {data.updatedCount} updated</span>
       </div>
 
       <section className="pc-panel overflow-hidden" aria-label={`Updates published in ${monthName(q.month)}`}>
         {data.rows.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-meta" data-testid="updates-table">
+            <table className="w-full min-w-[820px] text-left text-[13px]" data-testid="updates-table">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                 <tr>
                   <th scope="col" className="px-4 py-3">Document</th>
@@ -81,13 +81,13 @@ export default async function MonthlyUpdatesPage({ searchParams }: { searchParam
                     <td className="px-4 py-3">
                       <Link href={`/policies/${r.policyId}`} className="font-semibold">{r.title}</Link>
                       <div className="text-slate-600">{r.ref} · {r.docTypeName} · {r.category}</div>
-                      <div className="text-caption text-slate-500">{r.source}</div>
+                      <div className="text-[12px] text-slate-500">{r.source}</div>
                     </td>
-                    <td className="px-4 py-3"><PcBadge tone={r.change === "New" ? "green" : "blue"}>{r.change}</PcBadge>{r.impact ? <div className="mt-1 text-caption text-slate-600">{r.impact}</div> : null}</td>
+                    <td className="px-4 py-3"><PcBadge tone={r.change === "New" ? "green" : "blue"}>{r.change}</PcBadge>{r.impact ? <div className="mt-1 text-[12px] text-slate-600">{r.impact}</div> : null}</td>
                     <td className="whitespace-nowrap px-4 py-3">{r.previousLabel ? <>{r.previousLabel} → </> : null}<strong className="font-semibold">{r.label}</strong></td>
                     <td className="px-4 py-3 text-slate-700">
                       {r.summary ?? <span className="text-slate-500">No summary recorded</span>}
-                      <div className="mt-1 flex flex-wrap gap-x-3 text-meta">
+                      <div className="mt-1 flex flex-wrap gap-x-3 text-[12.5px]">
                         <Link href={`/policies/${r.policyId}/versions/${r.versionId}`}>Open this version</Link>
                         {r.previousLabel ? <Link href={`/policies/${r.policyId}/compare?to=${r.versionId}`}>See what changed</Link> : null}
                       </div>
@@ -100,7 +100,7 @@ export default async function MonthlyUpdatesPage({ searchParams }: { searchParam
             </table>
           </div>
         ) : (
-          <p className="px-4 py-8 text-center text-body text-slate-600" data-testid="updates-empty">Nothing was published in {monthName(q.month)}{q.group ? " of this type" : ""}.</p>
+          <p className="px-4 py-8 text-center text-[14px] text-slate-600" data-testid="updates-empty">Nothing was published in {monthName(q.month)}{q.group ? " of this type" : ""}.</p>
         )}
       </section>
     </div>
