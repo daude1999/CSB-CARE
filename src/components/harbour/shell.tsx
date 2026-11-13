@@ -102,7 +102,7 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
   return (
     <nav aria-label="Modules" className="hb-rail print:hidden" data-testid="icon-rail">
       {/* The ClearCare mark from the approved reference (a navy 40px square with "CC"). */}
-      <Link href="/overview" className="hb-rail-logo" aria-label="ClearCare home" title="Home">CC</Link>
+      <Link href="/overview" className="hb-rail-logo" aria-label="Overview" title="ClearCare home" data-testid="rail-logo">CC</Link>
       {overview ? (
         <Link href="/overview" className="hb-rail-b" data-on={on === "overview" && !menu.open ? "" : undefined} aria-current={path === "/overview" ? "page" : undefined} title="Home" onClick={() => menu.open && menu.close()}>
           <span className="hb-rail-i"><House size={20} aria-hidden="true" /></span><span className="hb-rail-t">Home</span>

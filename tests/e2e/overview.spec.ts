@@ -211,7 +211,7 @@ test.describe("Overview", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
     // The ClearCare mark from the approved Harbour reference: a navy square with "CC".
-    await expect(page.getByTestId("icon-rail").getByRole("link", { name: "ClearCare home" })).toHaveText("CC");
+    await expect(page.getByTestId("rail-logo")).toHaveText("CC");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);
