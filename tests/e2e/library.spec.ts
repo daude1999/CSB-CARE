@@ -167,7 +167,9 @@ test.describe("Policy Library", () => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/policies");
     // Ctrl+K opens the command bar since 10 Nov 2026 (tests/e2e/command-bar.spec.ts); the box is reached with Tab.
-    await page.locator("#global-search").focus();
+    // Harbour (13 Nov 2026): the top bar's search icon opens the box, focused.
+    await page.getByTestId("top-search").focus();
+    await page.keyboard.press("Enter");
     await expect(page.locator("#global-search")).toBeFocused();
     await page.keyboard.type("medicines");
     await page.keyboard.press("Enter");

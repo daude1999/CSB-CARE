@@ -207,11 +207,11 @@ test.describe("Overview", () => {
     for (const id of ["hr", "admin", "reporting", "rota"]) await expect(page.getByTestId(`tile-${id}`)).toHaveCount(0);
   });
 
-  test("the top bar shows today's London date and time on the Overview, the rail the CSB logo, and the account menu the signed-in person", async ({ page }) => {
+  test("the top bar shows today's London date and time on the Overview, the rail the ClearCare mark, and the account menu the signed-in person", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    // The official CSB monogram (public/brand), never a redrawn logo.
-    await expect(page.getByTestId("icon-rail").locator("img")).toHaveAttribute("src", "/brand/csb-monogram-on-dark.png");
+    // The ClearCare mark from the approved Harbour reference: a navy square with "CC".
+    await expect(page.getByTestId("icon-rail").getByRole("link", { name: "ClearCare home" })).toHaveText("CC");
     const london = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", ...o }).format(new Date());
     await expect(page.getByTestId("overview-date")).toHaveText(london({ weekday: "short", day: "numeric", month: "short", year: "numeric" }));
     await expect(page.getByTestId("overview-time")).toHaveText(/^UK time \d{2}:\d{2}$/);

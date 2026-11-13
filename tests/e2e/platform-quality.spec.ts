@@ -2,7 +2,7 @@ import { openMenu } from "./harbour-menu";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Platform quality build (1 Nov 2026). The Rota Dashboard and Daily Rota are visually locked: their headings, table
+ * Platform quality build (1 Nov 2026). Rota Home and the Daily Rota are visually locked: their headings, table
  * columns and controls must match the approved screens exactly. The other checks cover the usability changes.
  */
 const PASSWORD = "DemoPassword!2026";
@@ -25,13 +25,15 @@ async function structure(page: Page) {
 test.describe("protected Rota screens keep their approved structure", () => {
   test.use({ viewport: { width: 1672, height: 941 } });
 
-  test("Rota Dashboard", async ({ page }) => {
+  test("Rota Home", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
     await page.waitForLoadState("networkidle");
     expect(await structure(page)).toEqual({
       // The "Coming up" panel (PR #48) was removed at the owner's request on 1 Nov 2026: the cards sit under the header.
-      headings: ["Rota Dashboard", "All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays", "Quick Actions"],
+      // Harbour module home (owner's decision, 13 Nov 2026): "What needs doing" and "Go to" come first (Quick Actions now
+      // live in "Go to"); the people, reminder and birthday tables follow unchanged.
+      headings: ["Rota Home", "What needs doing", "Go to", "All Service Users", "All Team Members", "All Active Reminders", "Service User Upcoming Birthdays", "Team Member Upcoming Birthdays"],
       columns: ["Actions", "Forename", "Surname", "DOB", "Next Visit", "Actions", "Forename", "Surname", "Role", "Status", "Reminder", "Due", "Account", "Type", "Overdue", "Team Member", "DOB", "Turns", "Birthday"],
     });
   });

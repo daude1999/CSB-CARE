@@ -30,7 +30,7 @@ export function SubTabs({ label, tabs, module, testId }: { label: string; tabs: 
 /* ---------- PageHeader ---------- */
 
 /** The light blue band at the top of a module page: module icon, module name, a 20px title and one plain-English line. */
-export function PageHeader({ module, moduleName, icon, title, description, actions, titleId }: {
+export function PageHeader({ module, moduleName, icon, title, description, actions, titleId, children }: {
   module: PortalId;
   moduleName: string;
   icon: ReactNode;
@@ -39,6 +39,8 @@ export function PageHeader({ module, moduleName, icon, title, description, actio
   /** Primary and secondary actions on the right; give the main one `hb-btn hb-btn-p`. */
   actions?: ReactNode;
   titleId?: string;
+  /** Page-wide controls under the description (a date picker, for example). */
+  children?: ReactNode;
 }) {
   return (
     <header className="hb-fh" data-hb-module={module} data-testid="page-header">
@@ -47,6 +49,7 @@ export function PageHeader({ module, moduleName, icon, title, description, actio
         <p className="hb-fh-c">{moduleName}</p>
         <h1 id={titleId}>{title}</h1>
         {description ? <p>{description}</p> : null}
+        {children}
       </div>
       {actions ? <div className="hb-fh-a">{actions}</div> : null}
     </header>
@@ -65,9 +68,12 @@ export type StatTile = {
   colour: string;
   /** Number colour, when it should carry the tile's meaning (red for a problem). */
   numberColour?: string;
-  /** Clicking a tile filters the main table to these rows. */
+  /** Clicking a tile filters the main table to these rows (or opens the list behind the figure). */
   href: string;
   active?: boolean;
+  /** A longer description of the figure, read by screen readers and shown as a tooltip. */
+  note?: string;
+  testId?: string;
 };
 
 /** A row of clickable count tiles; clicking one filters the table, and "Show all" clears the filter. */
@@ -79,9 +85,9 @@ export function StatTiles({ tiles, showAllHref, label = "Filter by count" }: { t
       <ul className="hb-tiles" aria-label={label}>
         {tiles.map((t, n) => (
           <li key={t.key} className="contents">
-            <Link href={t.href} className="hb-tile" aria-current={t.active ? "true" : undefined} style={{ "--t": t.colour, "--tn": t.numberColour, "--hb-i": n } as React.CSSProperties} data-testid={`stat-${t.key}`}>
+            <Link href={t.href} className="hb-tile" title={t.note} aria-current={t.active ? "true" : undefined} style={{ "--t": t.colour, "--tn": t.numberColour, "--hb-i": n } as React.CSSProperties} data-testid={t.testId ?? `stat-${t.key}`}>
               <span className="hb-tile-ic" aria-hidden="true">{t.icon}</span>
-              <span className="min-w-0"><b>{t.value}</b><span>{t.label}</span></span>
+              <span className="min-w-0"><b data-value="">{t.value}</b><span>{t.label}</span>{t.note ? <span className="sr-only">{t.note}</span> : null}</span>
             </Link>
           </li>
         ))}

@@ -24,12 +24,12 @@ function dayOfWeek(weeks: number, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-/** The Rota Dashboard's figures for one day, and the Daily Rota's for the same day: they must always agree. */
+/** Rota Home's figures for one day, and the Daily Rota's for the same day: they must always agree. */
 async function figures(page: Page, date: string) {
   await page.goto(`/rota?date=${date}`);
-  const note = await page.getByTestId("card-completed").innerText();
+  const note = (await page.getByTestId("card-completed").textContent()) ?? "";
   const scheduled = Number(/of ([\d,]+) scheduled visits/.exec(note)?.[1]?.replace(/,/g, ""));
-  const unassigned = Number((await page.getByRole("region", { name: "Quick Actions" }).getByRole("link", { name: /Unassigned Visits/ }).getAttribute("data-count")) ?? 0);
+  const unassigned = Number((await page.getByTestId("todo-unassigned-link").getAttribute("data-count")) ?? 0);
   const total = async (path: string) => {
     await page.goto(path);
     return Number(await page.getByTestId("visit-count").getAttribute("data-total"));

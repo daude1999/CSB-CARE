@@ -44,7 +44,7 @@ test.describe("Command bar", () => {
     await signIn(page);
     const person = await demoPerson(page);
     await page.goto("/rota");
-    await expect(page.getByRole("heading", { level: 1, name: "Rota Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Rota Home" })).toBeVisible();
     const bar = await openBar(page);
     await expect(bar).toHaveAttribute("role", "dialog");
     await expect(bar).toHaveAttribute("aria-modal", "true");
@@ -101,7 +101,7 @@ test.describe("Command bar", () => {
   test("Esc closes it and returns focus; Tab never leaves the dialog", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    const opener = page.getByRole("searchbox", { name: "Search rostering" });
+    const opener = page.getByTestId("top-search");
     await opener.focus();
     const bar = await openBar(page);
     await page.keyboard.press("Tab");

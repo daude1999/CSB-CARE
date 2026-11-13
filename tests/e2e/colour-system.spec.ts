@@ -19,7 +19,6 @@ const MODULES: [string, string, string, string][] = [
   // Harbour module colours (docs/design/harbour, 13 Nov 2026). Daily Rota keeps its layout under a plain header and the
   // Care-colour bar above its board, so it is checked on its own below.
   ["/", "Policy & Compliance", "Compliance Dashboard", "rgb(46, 91, 207)"],
-  ["/rota", "Rostering & Care Management", "Rota Dashboard", "rgb(15, 118, 110)"],
   ["/workforce/absences", "HR & Workforce", "Time Off & Availability", "rgb(180, 83, 42)"],
   ["/analytics", "Reporting & Analytics", "Analytics", "rgb(14, 116, 144)"],
   ["/settings", "Administration & Settings", "Settings", "rgb(91, 94, 150)"],
@@ -46,6 +45,17 @@ test.describe("shared page frame", () => {
       // The page frame behind the cards.
       expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(244, 246, 249)");
     }
+  });
+
+  test("Rota Home uses the Harbour page header: light blue band, Care-colour icon tile, 20px title", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota");
+    const header = page.getByTestId("page-header");
+    expect(await header.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(233, 240, 250)");
+    expect(await header.locator(".hb-fh-ic").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(15, 118, 110)");
+    await expect(header.getByRole("heading", { level: 1 })).toHaveText("Rota Home");
+    expect(await header.getByRole("heading", { level: 1 }).evaluate((el) => getComputedStyle(el).fontSize)).toBe("20px");
+    await expect(page.locator("main h1")).toHaveCount(1);
   });
 
   test("Daily Rota keeps its layout, with a plain header and the Care-colour bar above the board", async ({ page }) => {
@@ -76,26 +86,23 @@ test.describe("shared page frame", () => {
     expect(await inactive.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(71, 84, 103)");
   });
 
-  test("the AI CSB Coordinator launcher sits in the top bar before the bell and opens the same panel", async ({ page }) => {
+  test("the AI CSB Coordinator launcher is the icon rail's AI button and opens the same panel", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    const launcher = page.getByTestId("ai-launcher-button");
+    // Harbour reference (13 Nov 2026): no AI button on the top bar; the rail's AI button, pinned near the bottom, opens it.
+    const launcher = page.getByTestId("icon-rail").getByTestId("ai-launcher-button");
     await expect(launcher).toBeVisible();
     await expect(launcher).toHaveAccessibleName("AI CSB Coordinator");
-    expect(await launcher.evaluate((el) => getComputedStyle(el).position)).not.toBe("fixed");
-    // Harbour's dark AI button, 32px like the rest of the top bar.
-    expect(await launcher.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(21, 24, 29)");
-    expect(await launcher.evaluate((el) => el.getBoundingClientRect().height)).toBe(32);
-    // To the left of the notifications bell, on the same row.
-    const bell = page.getByTestId("notifications-link").first();
-    const [l, b] = [await launcher.boundingBox(), await bell.boundingBox()];
-    expect(l && b && l.x < b.x && Math.abs(l.y + l.height / 2 - (b.y + b.height / 2)) < 4).toBe(true);
+    await expect(page.locator("header.hb-hd").getByTestId("ai-launcher-button")).toHaveCount(0);
+    const settings = page.getByTestId("icon-rail").getByRole("link", { name: "Settings" });
+    const [l, st] = [await launcher.boundingBox(), await settings.boundingBox()];
+    expect(l && st && l.y < st.y).toBe(true);
     await launcher.click();
     await expect(launcher).toHaveAttribute("aria-expanded", "true");
     await expect(page.getByRole("dialog", { name: /AI CSB Coordinator/ })).toBeVisible();
     // The panel survives moving to another page.
-    await page.getByRole("link", { name: "Daily Rota" }).first().click();
-    await expect(page).toHaveURL(/\/rota\/visits/);
+    await page.getByTestId("rota-tabs-home").getByRole("link", { name: "The Monitor" }).click();
+    await expect(page).toHaveURL(/\/rota\/monitor/);
     await expect(page.getByTestId("ai-launcher-button")).toBeVisible();
   });
 });
@@ -117,26 +124,22 @@ test.describe("phone width", () => {
   });
 });
 
-test.describe("PR 2: Rota Dashboard call tiles", () => {
+test.describe("Rota Home count tiles", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("each tile is a white card tinted with its status colour, with a solid icon chip and a bar filled to its share", async ({ page }) => {
+  test("each tile is a Harbour count tile: a solid status-colour icon square and the figure, linking to the visits behind it", async ({ page }) => {
     await signIn(page);
     await page.goto("/rota");
-    const tiles: [string, string][] = [["card-completed", "rgb(21, 128, 61)"], ["card-late", "rgb(180, 83, 9)"], ["card-missed", "rgb(196, 43, 47)"]];
+    const tiles: [string, string][] = [["card-completed", "rgb(46, 154, 99)"], ["card-late", "rgb(217, 144, 31)"]];
     for (const [id, colour] of tiles) {
       const tile = page.getByTestId(id);
       await expect(tile).toBeVisible();
-      // Still a link to the visits behind the figure.
       expect(await tile.evaluate((el) => el.tagName)).toBe("A");
-      expect(await tile.locator("[data-value]").evaluate((el) => getComputedStyle(el).color), id).toBe(colour);
-      const chip = tile.locator("span[aria-hidden]").first();
+      const chip = tile.locator(".hb-tile-ic");
       expect(await chip.evaluate((el) => getComputedStyle(el).backgroundColor), id).toBe(colour);
-      // The bar's fill matches the percentage shown on the tile.
-      const share = Number.parseFloat((await tile.innerText()).match(/([\d.]+)%/)![1]!);
-      const [fill, track] = await tile.locator("[data-tile-bar]").evaluate((el) => [(el.firstElementChild as HTMLElement).getBoundingClientRect().width, el.getBoundingClientRect().width]);
-      expect(Math.abs((fill / track) * 100 - share), id).toBeLessThan(1);
-      expect(await tile.locator("[data-tile-bar]").evaluate((el) => el.getBoundingClientRect().height)).toBe(5);
+      expect(await tile.locator("[data-value]").evaluate((el) => getComputedStyle(el).fontSize), id).toBe("22px");
+      // The full figure (with its share of the day's visits) is kept for screen readers and as the tooltip.
+      expect(await tile.getAttribute("title"), id).toMatch(/%/);
     }
   });
 });
