@@ -60,9 +60,10 @@ function oklchToRgb(lch) {
   return oklchToRgbRaw({ ...lch, C: 0 }).map((v) => Math.round(clamp(fromLinear(clamp(v, 0, 1)), 0, 255)));
 }
 
-// The dark surfaces take the navy of the CSB logo as their tint, so neutral greys become CSB navy rather than grey.
-const NAVY_HUE = 255;
-const NAVY_TINT = 0.028;
+// The dark surfaces take the hue of ClearCare's ink (#16242b, a blue-green slate) as their tint, so neutral greys
+// become a calm slate that sits with the teal brand rather than plain grey or the old CSB navy.
+const NAVY_HUE = 231;
+const NAVY_TINT = 0.022;
 
 /**
  * Maps one opaque colour for one kind of use. Kinds:
@@ -78,7 +79,7 @@ function mapLch({ L, C, H }, kind) {
   switch (kind) {
     case "bg": {
       if (L >= 0.995) return { L: 0.235, C: NAVY_TINT, H: NAVY_HUE }; // white panels and cards
-      if (!neutral && C >= 0.09 && L > 0.4 && L < 0.74) return { L: L - 0.07, C, H }; // vivid fills
+      if (!neutral && C >= 0.075 && L > 0.4 && L < 0.74) return { L: L - 0.07, C, H }; // vivid fills (incl. ClearCare teal)
       if (L > 0.55) return tint(0.19 + (1 - L) * 0.4); // page canvas, light tints, hover greys
       return { L: L * 0.72, C: neutral ? Math.max(C, NAVY_TINT * L * 2) : C, H: neutral && C < 0.005 ? NAVY_HUE : H }; // dark chrome stays dark
     }
