@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reports, administration and notifications</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div><dc-import name="Workspace" spec="{{spec}}" go="{{go}}" hint-size="100%,900px"></dc-import></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pkey":{"editor":"enum","options":["analytics","reports","rota-reports","insights","assistant","org-settings","branches-areas","modules","readiness-rules","activity","source-monitor","jobs","platform","notifications"],"default":"analytics"},"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const R = (o) => Object.assign({ mod: 'rep' }, o), A = (o) => Object.assign({ mod: 'adm' }, o);
+    const P = {
+      analytics: R({ key: 'analytics', title: 'Analytics', icon: 'chart', kind: 'report', purpose: 'How care is being delivered, week by week. Every figure says how it is worked out.', actions: ['Download CSV', 'Rota Reports'], noPlus: true,
+        strip: [['Visits scheduled', 986, 'mod', 'cal'], ['Completed', '90%', 'ok'], ['Late calls', 14, 'warn'], ['Missed calls', 2, 'bad', 'x']],
+        chartTitle: 'Visits delivered each day', barLabels: ['Completed', 'Scheduled'], bars: [['Fri 6', 138, 141], ['Sat 7', 134, 136], ['Sun 8', 131, 134], ['Mon 9', 144, 144], ['Tue 10', 142, 145], ['Wed 11', 141, 144], ['Today', 47, 142]],
+        tableTitle: 'How each figure is worked out', cols: ['Measure', 'Value', 'How it is worked out'],
+        rows: [['*Visits scheduled', '986', '~Visits in the period that are not cancelled'], ['*Visits completed', '888', '~Visits with status Completed. Today is still under way'], ['*Late calls', '14', '~Not started within the late threshold set in Rota Settings'], ['*Missed calls', '2', '~Visits with status Missed']] }),
+
+      reports: R({ key: 'reports', title: 'Reports', icon: 'download', kind: 'docs', purpose: 'Reports and CSV exports you can download and share.', actions: ['New export'],
+        dgroups: [['Ready to download', [['XLS', 'Visits by carer, week of 2 Nov', 'Made today 08:02', 'Excel'], ['PDF', 'Missed and late calls, October', 'Made 2 Nov', 'PDF'], ['CSV', 'Staff sign-off by policy', 'Made 30 Oct', 'CSV'], ['PDF', 'CQC readiness summary', 'Made 14 Aug', 'PDF']]]] }),
+
+      'rota-reports': R({ key: 'rota-reports', title: 'Rota Reports', icon: 'cal', kind: 'report', purpose: 'Visit, hours and punctuality reports for any period, area or carer.', actions: ['Show report', 'Download Excel', 'Download PDF'], noPlus: true,
+        chartTitle: 'Care hours delivered by week', barLabels: ['Delivered', 'Planned'], bars: [['12 Oct', 712, 730], ['19 Oct', 718, 730], ['26 Oct', 701, 728], ['2 Nov', 724, 735], ['9 Nov', 312, 738]],
+        tableTitle: 'By area', cols: ['Area', 'Visits', 'Care hours', 'On time', 'Late', 'Missed'],
+        rows: [['*Liverpool South', '412', '298', '%96|96%', '6', '1'], ['*Liverpool North', '376', '271', '%97|97%', '5', '1'], ['*Wirral', '198', '143', '%95|95%', '3', '0']] }),
+
+      insights: R({ key: 'insights', title: 'Rota Insights', icon: 'pound', kind: 'list', purpose: 'Estimated income, cost and margin by service user, so you can see where the rota makes or loses money.', actions: ['Show', 'Finance'], noPlus: true,
+        tip: 'These are estimates from rate cards and planned pay. Visits without a rate show as "Not priced".',
+        cols: ['Name', 'Visits', 'Care hours', 'Est. revenue', 'Est. cost', 'Est. margin'],
+        rows: [['*Harold Pryce', '28', '24.5', '£661.50', '£520.80', '!ok|£140.70'], ['*Walter Brennan', '28', '21.0', '£567.00', '£446.40', '!ok|£120.60'], ['*Rita Lowe', '14', '7.0', '£189.00', '£172.20', '!warn|£16.80'], ['*Joan Carrow', '9', '4.5', 'Not priced', '£110.70', '!n|Not priced']] }),
+
+      assistant: R({ key: 'assistant', title: 'AI Assistant', icon: 'spark', kind: 'chat', purpose: 'Ask questions about your own policies, rota and records. Answers show where they came from.', actions: ['New conversation'],
+        msgs: [['u', 'What does our safeguarding policy say about reporting to the council?'], ['a', 'Section 4 of Safeguarding Adults (version 6) says: "Concerns that involve a risk of immediate harm are reported to the local authority within one hour." Local contacts for Liverpool and Wirral are in section 5.4.'], ['u', 'Who still needs to sign version 6?'], ['a', '7 people have not signed it yet. 3 are overdue: Jordan Ellis, Marcus Reid and Lucy Tran. Open Sign-off Overview to chase them.']],
+        chips: ['Which policies are due for review?', 'Who is off tomorrow?', 'Summarise this week’s incidents'] }),
+
+      'org-settings': A({ key: 'org-settings', title: 'Organisation settings', icon: 'org', kind: 'settings', purpose: 'Details about Care Solution Bureau that appear on policies, reports and invoices.', actions: ['Save'], noPlus: true,
+        sections: [['Business details', [['Organisation name', 'As it appears on documents', 'Care Solution Bureau CIC', 'text'], ['Registered manager', '', 'Demo Manager', 'select'], ['Head office', '', '1 Sample Street, London', 'text'], ['Logo', 'Shown in the top bar for this organisation', 'csb-logo.png', 'text']]],
+          ['Publishing', [['Who can publish policies', 'People with publishing permission publish directly', 'Approvers and admins', 'select'], ['Optional review before publishing', 'Kept as history only', 'Off', 'off']]],
+          ['AI', [['AI provider', 'Simulated output is always labelled', 'Simulated', 'select'], ['Read uploaded support plans', 'Care Coordinator intake', 'On', 'on']]]] }),
+
+      'branches-areas': A({ key: 'branches-areas', title: 'Branches & Areas', icon: 'pin', kind: 'list', purpose: 'Your branches and the areas within them. Areas are used to plan rotas and runs.', actions: ['Add branch', 'Add area'],
+        cols: ['Name', 'Type', 'Branch', 'Staff', 'Service users', ''],
+        rows: [['*Liverpool', '!info|Branch', '—', '33', '55', '>Edit'], ['*Liverpool North', 'Area', 'Liverpool', '15', '27', '>Edit'], ['*Liverpool South', 'Area', 'Liverpool', '18', '28', '>Edit'], ['*Wirral', '!info|Branch', '—', '9', '9', '>Edit']] }),
+
+      modules: A({ key: 'modules', title: 'Modules', icon: 'grid', kind: 'settings', purpose: 'Which parts of ClearCare your organisation uses. Switching a module off hides it for everyone.', actions: ['Save'], noPlus: true,
+        sections: [['Modules', [['Policy & Compliance', 'Policies, regulatory monitoring, audits and CQC', 'On', 'on'], ['Care & Rostering', 'Rota, service users, care plans and finance', 'On', 'on'], ['HR & Workforce', 'People, recruitment, checks and time off', 'On', 'on'], ['Reporting & Analytics', 'Reports and exports', 'On', 'on'], ['Medication', 'Set by CSB in the Platform Admin Centre', 'Off', 'off']]]] }),
+
+      'readiness-rules': A({ key: 'readiness-rules', title: 'Staff Readiness Rules', icon: 'shield', kind: 'list', purpose: 'What each role needs before they can be booked, how often it renews and what happens if it lapses.', actions: ['New version', 'Readiness queue'],
+        cols: ['Requirement', 'Type', 'Applies to', 'Renewal', 'If not met', 'Evidence held'],
+        rows: [['*Enhanced DBS', 'Check', 'Everyone in care', 'Every 3 years', '!bad|Cannot be booked', '%98|41 of 42'], ['*Right to work', 'Check', 'Everyone', 'When visa ends', '!bad|Cannot be booked', '%100|42 of 42'], ['*Medication competency', 'Assessment', 'Carers giving medicines', 'Yearly', '!warn|No medication visits', '%93|26 of 28'], ['*Moving and handling', 'Training', 'Everyone in care', 'Yearly', '!warn|Review required', '%95|38 of 40']] }),
+
+      activity: A({ key: 'activity', title: 'Activity Log', icon: 'history', kind: 'list', purpose: 'Every change anyone makes in ClearCare, who made it and when. Entries can never be changed.', actions: ['Download CSV'], noPlus: true,
+        filters: ['Who: Anyone', 'Action: Any', 'From: 1 Nov'], cols: ['When', 'Who', 'Action', 'Record', 'Details'],
+        rows: [['Today 10:41', '@DM|Demo Manager', 'Revealed key safe code', 'Harold Pryce', '~Reason: covering visit'], ['Today 10:31', '@DM|Demo Manager', 'Uploaded support plan', 'Rita Lowe', '~Care Coordinator intake IN-0031'], ['Today 09:52', '@PN|Priya Nair', 'Reported sickness', 'Priya Nair', '~Fri 13 to Sun 15 Nov'], ['Yesterday 18:42', '@DW|Daniel Webb', 'Uploaded evidence', 'Daniel Webb', '~DBS certificate']] }),
+
+      'source-monitor': A({ key: 'source-monitor', title: 'Source Monitoring', icon: 'eye', kind: 'list', purpose: 'The background checks of regulatory sources, and whether they are working.', actions: ['Check all now'], noPlus: true,
+        cols: ['Source', 'Method', 'Coverage', 'Status', 'Last success', 'Next check', 'Changes found'],
+        rows: [['*CQC', 'Page watch', '48 pages', '!ok|Working', 'Today 06:00', 'Tomorrow 06:00', '3'], ['*legislation.gov.uk', 'Feed', '22 items', '!ok|Working', 'Today 06:00', 'Tomorrow 06:00', '1'], ['*GOV.UK', 'Page watch', '31 pages', '!warn|One failure', 'Yesterday 06:00', 'Today 18:00', '1']] }),
+
+      jobs: A({ key: 'jobs', title: 'Background Jobs', icon: 'gear', kind: 'list', purpose: 'Work ClearCare does behind the scenes, such as reading documents and checking sources.', actions: ['Refresh'], noPlus: true,
+        strip: [['Waiting', 2, 'info', 'clock'], ['Failed', 1, 'bad', 'x', 'Failed'], ['Done today', 64, 'ok']],
+        cols: ['Created', 'Type', 'Status', 'Attempts', 'Run after', 'Last error', ''],
+        rows: [['Today 10:31', 'Read support plan', '!prog|Running', '1', '—', '—', ''], ['Today 06:00', 'Check GOV.UK sources', '!bad|Failed', '3', '—', '~Page did not respond', '>Retry'], ['Today 06:00', 'Send reading reminders', '!ok|Done', '1', '—', '—', '']] }),
+
+      platform: A({ key: 'platform', title: 'Platform Admin Centre', icon: 'globe', kind: 'list', purpose: 'For CSB staff only: the care organisations using ClearCare, their modules and their sign-ins.', actions: ['Add client', 'Sign-in log'],
+        tip: 'Only CSB platform staff see this area. Each client’s data stays separate.',
+        cols: ['Organisation', 'Plan', 'Modules', 'Users', 'Status', ''],
+        rows: [['*Care Solution Bureau CIC', 'All modules', '5 of 5', '48', '!ok|Active', '>Manage'], ['*Demo Care Ltd', 'Policy only', '1 of 5', '6', '!info|Trial', '>Manage']] }),
+
+      notifications: Object.assign({ mod: 'home' }, { key: 'notifications', title: 'Notifications', icon: 'bell', kind: 'list', purpose: 'Everything ClearCare has told you about, newest first.', actions: ['Mark all read'], noPlus: true,
+        strip: [['Unread', 4, 'info', 'bell'], ['This week', 23, 'mod', 'list']],
+        cols: ['', 'What happened', 'Module', 'When'],
+        rows: [['!info|New', '~Priya Nair reported sick for tomorrow. 5 visits need cover.', 'Care & Rostering', '09:52'], ['!info|New', '~Medicines in home care guidance updated. 2 policies affected.', 'Policy & Compliance', '09:10'], ['!info|New', '~Daniel Webb uploaded a DBS certificate to verify.', 'HR & Workforce', 'Yesterday'], ['!info|New', '~Leah Morris asked for 21 to 28 December off.', 'HR & Workforce', 'Yesterday'], ['', '~Lone Working v1 was published.', 'Policy & Compliance', '1 Nov']] })
+    };
+    const key = this.props.pkey || 'analytics';
+    return { spec: P[key] || P.analytics, go: this.props.go || (() => {}) };
+  }
+}
+</script>
+</body>
+</html>

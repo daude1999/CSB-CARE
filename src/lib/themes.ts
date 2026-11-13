@@ -1,5 +1,6 @@
 /** Visual themes. The layout is identical in every theme; only colour, type and shape change. */
 export const THEMES = [
+  { id: "harbour", name: "Harbour", source: "ClearCare Harbour design system (docs/design/harbour), Instrument Sans type" },
   { id: "board", name: "Board paper", source: "CSB board-paper document template" },
   { id: "care", name: "CSB blue", source: "Navy and cyan from the CSB logo, Inter type" },
   { id: "govuk", name: "GOV.UK", source: "GOV.UK Design System (alphagov/govuk-frontend)" },
@@ -9,7 +10,7 @@ export const THEMES = [
 
 export type ThemeId = (typeof THEMES)[number]["id"];
 export const THEME_COOKIE = "csb-theme";
-export const DEFAULT_THEME: ThemeId = "care";
+export const DEFAULT_THEME: ThemeId = "harbour";
 
 export function parseTheme(value: string | undefined): ThemeId {
   return THEMES.some((t) => t.id === value) ? (value as ThemeId) : DEFAULT_THEME;

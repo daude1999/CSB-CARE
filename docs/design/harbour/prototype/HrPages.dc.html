@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HR and Workforce pages</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div><dc-import name="Workspace" spec="{{spec}}" go="{{go}}" hint-size="100%,900px"></dc-import></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pkey":{"editor":"enum","options":["hr-home","people","recruitment","training","hr-docs","timeoff","hr-settings"],"default":"hr-home"},"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const H = (o) => Object.assign({ mod: 'hr' }, o);
+    const P = {
+      'hr-home': H({ key: 'hr-home', title: 'HR Home', icon: 'users', kind: 'home', purpose: 'Who is ready to work, what is about to run out, and what HR needs to do today.', actions: [['Add employee'], ['Upload evidence']],
+        tip: 'Green means ready to work. Anything amber or red is waiting on you or the employee.',
+        strip: [['Current employees', 42, 'mod', 'users'], ['Checks verified', '91%', 'ok'], ['Due in 30 days', 7, 'warn'], ['Off today', 3, 'info', 'cal']],
+        todos: [['info', "Verify Daniel Webb's new DBS certificate", 'Uploaded yesterday', 'Verify', 'Employee', 'shield'], ['warn', 'Approve leave for Leah Morris', '21 to 28 December', 'Review', 'P:timeoff', 'cal'], ['bad', 'Medication training has run out for Aisha Rahman', 'She is restricted from medication visits until renewed', 'Open', 'P:training'], ['n', 'Return to work talk with Priya Nair', 'After sickness', 'Record']],
+        links: [['People', 'Everyone who works here', 'users', 'P:people'], ['Recruitment', '11 applicants in progress', 'user', 'P:recruitment'], ['Checks & Training', 'Who is in date and who is not', 'shield', 'P:training'], ['Time Off & Availability', 'Holidays, sickness and who can work', 'cal', 'P:timeoff'], ['Documents', 'Contracts, certificates and letters', 'folder', 'P:hr-docs']] }),
+
+      people: H({ key: 'people', title: 'People', icon: 'users', kind: 'list', purpose: 'Everyone who works for you. Open someone to see their record, checks, documents and time off.', actions: ['Add employee', 'Import from a spreadsheet (CSV)'], rowGo: 'Employee', total: 42,
+        strip: [['Ready to work', 35, 'ok', 'check', 'Ready'], ['Review needed', 5, 'warn', 'clock', 'Review'], ['Missing evidence', 2, 'bad', 'alert', 'Missing']],
+        search: 'Search people', filters: ['Role: All roles', 'Branch: All my branches', 'Manager: Any manager'], cols: ['Name', 'Role', 'Branch', 'Manager', 'Checks', 'Today'],
+        rows: [['@DW|Daniel Webb', 'Care Support Worker', 'Liverpool', 'Chloe Barton', '!warn|Review needed', 'On rota · 7 visits'], ['@AH|Amelia Hart', 'Care Support Worker', 'Liverpool', 'Chloe Barton', '!ok|Ready', 'On rota · 6 visits'], ['@PN|Priya Nair', 'Senior Support Worker', 'Liverpool', 'Chloe Barton', '!ok|Ready', 'Off sick'], ['@CB|Chloe Barton', 'Care Coordinator', 'Liverpool', 'Demo Manager', '!ok|Ready', 'Office'], ['@AR|Aisha Rahman', 'Care Support Worker', 'Liverpool', 'Chloe Barton', '!bad|Missing evidence', 'On rota · restricted'], ['@MR|Marcus Reid', 'Care Support Worker', 'Wirral', 'Owen Price', '!warn|Review needed', 'On rota · 5 visits']] }),
+
+      recruitment: H({ key: 'recruitment', title: 'Recruitment', icon: 'user', kind: 'board', purpose: 'Applicants from first application to ready for work. Move someone on when each step is done.', actions: ['Add applicant', 'Reminders & Retention'],
+        tip: 'Nobody can be booked on the rota until they reach Ready for Work and their checks are verified.',
+        stages: [['Applied', [['Ruth Adeyemi', 'Care worker · Liverpool', 'Screen by Fri', 'n'], ['Tomasz Zielinski', 'Care worker · Wirral', 'Screen by Mon', 'n'], ['Ellie Marsden', 'Senior carer · Liverpool', 'Screen by Mon', 'n']], ''],
+          ['Screening', [['Jade Okoro', 'Care worker · Liverpool', 'Phone call today 15:00', 'info']], 'brand'],
+          ['Interview', [['Hannah Doyle', 'Care worker · Liverpool', 'Fri 13 Nov 10:00', 'ok'], ['Callum Byrne', 'Care worker · Liverpool', 'Mon 16 Nov 14:30', 'warn']], 'prog'],
+          ['Offer', [['Bethany Cole', 'Care worker · Wirral', 'Send offer letter', 'warn']], 'warn'],
+          ['Onboarding', [['Imran Sheikh', 'Care worker · Liverpool', 'Second reference missing', 'warn'], ['Niamh Farrell', 'Care worker · Liverpool', 'DBS applied 4 Nov', 'info'], ['Samuel Osei', 'Senior carer · Liverpool', 'Induction 18 Nov', 'ok']], 'prog'],
+          ['Ready for Work', [['Lucy Tran', 'Care worker · Liverpool', 'Move to People', 'ok']], 'ok']] }),
+
+      training: H({ key: 'training', title: 'Checks & Training', icon: 'grad', kind: 'matrix', purpose: 'Every check and course for every employee. Red stops someone working until it is fixed.', actions: ['Upload evidence', 'Staff Readiness Rules'], rowsHead: 'Employee',
+        strip: [['Everyone', 42, 'mod', 'users'], ['Needs action', 10, 'warn'], ['Overdue or missing', 3, 'bad'], ['Waiting to verify', 2, 'prog', 'eye']],
+        mcols: ['DBS', 'Right to work', 'References', 'Safeguarding', 'Moving & handling', 'Medication', 'First aid', 'Infection control'],
+        mrows: [['Amelia Hart', 'Care Support Worker', 'oooooooo'], ['Daniel Webb', 'Care Support Worker', 'vooooood'], ['Priya Nair', 'Senior Support Worker', 'oooooooo'], ['Aisha Rahman', 'Care Support Worker', 'oooooxoo'], ['Marcus Reid', 'Care Support Worker', 'odoooxoo'], ['Jordan Ellis', 'Care Support Worker', 'oooodooo'], ['Lucy Tran', 'New starter', 'vooddnno']] }),
+
+      'hr-docs': H({ key: 'hr-docs', title: 'Documents', icon: 'folder', kind: 'docs', purpose: 'Contracts, certificates and letters for everyone, filed by type. Sensitive files only open for HR.', actions: ['Upload documents'],
+        dgroups: [['Waiting to file', [['PDF', 'DBS certificate · Daniel Webb', 'Uploaded yesterday by Daniel', 'Verify', 'prog'], ['PDF', 'First aid certificate · Lucy Tran', 'Uploaded 10 Nov', 'Verify', 'prog']]],
+          ['Recently filed', [['DOC', 'Contract · Samuel Osei', 'Senior Support Worker · signed 9 Nov', 'Contract'], ['PDF', 'Right to work · Bethany Cole', 'Share code checked 6 Nov', 'Restricted', 'warn'], ['PDF', 'Moving and handling · Jordan Ellis', 'Certificate · 2 Nov', 'Training'], ['DOC', 'Probation letter · Daniel Webb', 'Passed · 3 Jun', 'Letter']]]] }),
+
+      timeoff: H({ key: 'timeoff', title: 'Time Off & Availability', icon: 'cal', kind: 'week', purpose: 'Who is off and when, so the rota can plan around it. Approving leave flags affected visits for cover.', actions: ['Record time off', 'Find cover now'], rowsHead: 'Employee',
+        strip: [['Requests to approve', 2, 'warn', 'inbox'], ['Off this week', 4, 'info', 'cal'], ['Sick today', 2, 'bad', 'heart']],
+        legend: [['Holiday', 'info'], ['Sick', 'bad'], ['Requested', 'warn'], ['Unavailable', 'mod']],
+        wrows: [['Priya Nair', 'Senior Support Worker', ['', '', '', 'Sick|bad', 'Sick|bad', 'Sick|bad', 'Sick|bad']], ['Grace Oduya', 'Care Support Worker', ['', '', '', 'Sick|bad', '', '', '']], ['Owen Price', 'Care Coordinator', ['', '', '', 'Holiday|info', 'Holiday|info', 'Holiday|info', 'Holiday|info']], ['Leah Morris', 'Office manager', ['', '', '', '', '', '', '']], ['Amelia Hart', 'Care Support Worker', ['', 'Not available|mod', '', '', 'Not available|mod', '', '']], ['Jacob Morris', 'Care Support Worker', ['Not available|mod', '', '', '', '', '', 'Requested|warn']]] }),
+
+      'hr-settings': H({ key: 'hr-settings', title: 'HR Settings', icon: 'gear', kind: 'settings', purpose: 'How HR works for your organisation: leave, checks and reminders.', actions: ['Save'], noPlus: true,
+        sections: [['Leave', [['Holiday year starts', 'Used for allowances and carry-over', '1 April', 'select'], ['Standard allowance', 'For full-time staff, including bank holidays', '28 days', 'select'], ['Managers approve leave', 'Leave requests go to the line manager first', 'On', 'on']]],
+          ['Checks and reminders', [['Remind employees before a check runs out', 'Sends a reminder in the HR Hub', '30 days before', 'select'], ['Remind HR when evidence is uploaded', '', 'On', 'on']]],
+          ['Departments and roles', [['Departments', 'Domiciliary care, Office, Management', '3', 'select'], ['Job roles', 'Used for readiness rules and reports', '7', 'select']]]] })
+    };
+    const key = this.props.pkey || 'hr-home';
+    return { spec: P[key] || P['hr-home'], go: this.props.go || (() => {}) };
+  }
+}
+</script>
+</body>
+</html>

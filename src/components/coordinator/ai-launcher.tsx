@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { COORDINATOR_SLOT } from "@/lib/shell-slots";
+import { COORDINATOR_SLOT, OPEN_COORDINATOR_EVENT } from "@/lib/shell-slots";
 import Link from "@/components/link";
 import {
   ArrowsInSimple, ArrowsOutSimple, CalendarPlus, CaretRight, ClipboardText, FileArrowUp, Minus, PaperPlaneRight, Paperclip, Sparkle, UserPlus, X,
@@ -76,6 +76,12 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => { setSlot(document.getElementById(COORDINATOR_SLOT)); }, [pathname]);
 
+  // The icon rail's AI button opens the same panel.
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_COORDINATOR_EVENT, show);
+    return () => window.removeEventListener(OPEN_COORDINATOR_EVENT, show);
+  }, []);
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => { if (open && messages.length > 1) scrollBottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [messages, open, sending]);
 

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily Rota</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="page full m-care" style=" position: relative; min-height: 100vh">
+  <div class="dr-top">
+    <div class="grow"><h1 class="pt">Daily Rota</h1><p class="m2">Thursday 12th November 2026 · All my branches</p></div>
+    <div class="row" style="gap: 4px">
+      <button class="btn btn-ico" aria-label="Previous day"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+      <button class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg>12/11/2026</button>
+      <button class="btn btn-ico" aria-label="Next day"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+    <button class="btn btn-q">Today</button>
+    <div class="seg" role="group" aria-label="Layout">
+      <button class="{{listCls}}" onClick="{{toList}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>List</button>
+      <button class="{{boardCls}}" onClick="{{toBoard}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3.5v3M14 10.5v3M10 17.5v3"></path></svg>Board</button>
+    </div>
+    <button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add Visit</button>
+  </div>
+
+  <div class="dr-filt">
+    <button class="chip"><small>Area:</small>All Areas<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="chip"><small>Status:</small>All<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="chip"><small>Service User:</small>All<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="chip"><small>Team Member:</small>All<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    <button class="chip add"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"></path></svg>More filters</button>
+    <span class="sp"></span>
+    <div style="position: relative">
+      <button class="btn" onClick="{{toggleActs}}">Actions<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <sc-if value="{{acts}}" hint-placeholder-val="{{false}}">
+        <div class="menu" style="right: 0; top: 38px; width: 280px">
+          <button>Add visit</button><button>Advanced Rota planner</button><button>Unassigned visits (with suggestions)</button><button>Printable rota</button><button>Sickness &amp; holiday cover</button>
+          <hr><button>Build or publish this week</button><button>Generate &amp; Optimise</button><button>Weekly Planner (drag and drop)</button><button>Daily templates</button><hr><button>Show every visit</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{isBoard}}" hint-placeholder-val="{{true}}">
+    <section class="board" aria-label="Board">
+      <div class="bd-bar bd-bar-c"><b style="font-size: 13.5px">23 team members working · 142 visits</b><span class="cap">Drag a visit to another row to reassign it. Every move runs the eligibility check.</span><span class="sp"></span>
+        <div class="lgd" aria-label="Colour key"><span><i style="background: var(--bad); border-color: var(--bad)"></i>Needs a carer</span><span><i style="background: var(--ok-50); border-color: var(--ok-bd)"></i>Completed</span><span><i style="background: var(--prog-50); border-color: var(--prog-bd)"></i>In progress</span><span><i style="background: var(--warn-50); border-color: var(--warn-bd)"></i>Late</span><span><i style="background: var(--surface); border-color: var(--ctl)"></i>Still to come</span><span><i style="background: var(--bad-50); border-color: var(--bad-bd)"></i>Missed</span></div>
+      </div>
+      <div class="bd-scroll">
+        <div class="bd">
+          <div class="bd-row hdr"><div class="bd-who"><span class="over">Team member</span></div><div class="bd-lane bd-hours"><sc-for list="{{hours}}" as="h" hint-placeholder-count="12"><span style="{{h.pos}}">{{h.t}}</span></sc-for><sc-for list="{{folds}}" as="f" hint-placeholder-count="3"><i class="bd-fold" style="{{f.pos}}"></i></sc-for></div></div>
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+            <div class="{{r.cls}}">
+              <div class="bd-who">
+                <sc-if value="{{r.need}}" hint-placeholder-val="{{false}}"><span class="bd-need"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v6M12 16.5v.1"></path></svg></span></sc-if>
+                <sc-if value="{{r.person}}" hint-placeholder-val="{{true}}"><span class="{{r.av}}">{{r.ini}}</span></sc-if>
+                <span style="min-width: 0"><b class="trunc">{{r.name}}</b><small>{{r.sub}}</small></span>
+              </div>
+              <div class="bd-lane">
+                <sc-for list="{{gridlines}}" as="gl" hint-placeholder-count="12"><i class="bd-grid" style="{{gl.pos}}"></i></sc-for>
+                <sc-for list="{{folds}}" as="f" hint-placeholder-count="3"><i class="bd-fold" style="{{f.pos}}"></i></sc-for>
+                <sc-for list="{{r.v}}" as="v" hint-placeholder-count="4"><button class="{{v.cls}}" style="{{v.pos}}" onClick="{{v.pick}}" aria-label="{{v.label}}"><b>{{v.sn}}</b><span>{{v.t}}</span></button></sc-for>
+                <span class="bd-now" style="{{nowPos}}"></span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{isList}}" hint-placeholder-val="{{false}}">
+    <section class="board" aria-label="List">
+      <div class="bd-bar" style="position: relative">
+        <span class="tag" style="height: 28px">{{selCount}} selected</span>
+        <button class="btn btn-sm" onClick="{{toggleBulk}}">Bulk Actions…<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <button class="btn btn-sm btn-p" style="{{goStyle}}">Go</button>
+        <span class="cap grow">{{bulkHint}}</span>
+        <button class="btn btn-sm"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h5v16H5zM14 4h5v16h-5z"></path></svg>Columns</button>
+        <sc-if value="{{bulk}}" hint-placeholder-val="{{false}}">
+          <div class="menu" style="left: 90px; top: 42px; width: 260px; max-height: 360px; overflow-y: auto">
+            <sc-for list="{{bulkActs}}" as="b" hint-placeholder-count="10"><button>{{b.t}}</button></sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <div style="overflow-x: auto">
+        <table class="tbl dense">
+          <thead><tr><th scope="col" style="width: 32px"><span class="cb" role="checkbox" aria-checked="false" aria-label="Select all"></span></th><th scope="col">Ref</th><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Service User</th><th scope="col">Time</th><th scope="col">Duration</th><th scope="col">Carers</th><th scope="col">Service Call</th><th scope="col">Team Member</th></tr></thead>
+          <tbody>
+            <sc-for list="{{list}}" as="v" hint-placeholder-count="12">
+              <tr class="{{v.row}}" onClick="{{v.pick}}" style="cursor: pointer">
+                <td><button class="{{v.cb}}" role="checkbox" aria-checked="{{v.on}}" aria-label="Select visit" onClick="{{v.tick}}"></button></td>
+                <td class="mono">{{v.ref}}</td><td>12/11/2026</td><td><span class="{{v.pill}}">{{v.st}}</span></td><td><b style="font-weight: 600">{{v.su}}</b></td><td class="b">{{v.time}}</td><td>{{v.dur}}</td><td><span class="{{v.crCls}}">{{v.cr}}</span></td><td>{{v.call}}</td><td>{{v.tm}}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="row cap" style="padding: 10px 16px; border-top: 1px solid var(--line-2)"><span class="grow">Showing 1 to 12 of 142 visits · 25 per page</span><button class="btn btn-sm">Previous</button><button class="btn btn-sm">Next</button></div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{drawer}}" hint-placeholder-val="{{false}}">
+    <aside class="vdw" aria-label="Visit Details">
+      <div class="dr-h">
+        <div class="row"><b style="font-size: 15px" class="grow">Visit Details</b><button class="ib" aria-label="Close visit details" onClick="{{close}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></button></div>
+        <div class="row" style="gap: 12px; margin-top: 12px"><span class="av s40 a3">{{sel.ini}}</span><div class="grow"><b style="display: block; font-size: 15px">{{sel.su}}</b><span class="mono m3">{{sel.ref}}</span></div><span class="{{sel.pill}}">{{sel.st}}</span></div>
+        <nav class="tabs" style="margin-top: 12px; border-bottom: 0; gap: 18px"><button class="tab on">Details</button><button class="tab">Notes</button><button class="tab">Care tasks<span class="cnt">2</span></button><button class="tab">History</button></nav>
+      </div>
+      <div class="dr-b">
+        <div class="vl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2"></path></svg>{{sel.span}}</div>
+        <div class="vl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"></path></svg>{{sel.call}}</div>
+        <div class="vl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-11.5A7 7 0 0 0 5 9.5C5 15 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"></path></svg>Liverpool South</div>
+        <div class="vl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"></path></svg>{{sel.clock}}</div>
+        <div class="over" style="margin: 14px 0 6px">Carers</div>
+        <div class="row"><span class="{{sel.tmAv}}">{{sel.tmIni}}</span><span class="grow">{{sel.tm}}</span><span class="{{sel.eligCls}}">{{sel.elig}}</span></div>
+        <div class="col" style="gap: 8px; margin-top: 20px">
+          <button class="btn btn-p" style="width: 100%">Reassign</button>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><button class="btn">Edit Visit</button><button class="btn">Add Note</button></div>
+          <button class="btn btn-q" style="width: 100%">Open full visit</button>
+        </div>
+      </div>
+    </aside>
+  </sc-if>
+  <p class="cap" style="margin-top: 14px">Layout kept from the live Daily Rota: Board by default with a Needs a carer row first and quiet hours folded, List with bulk actions and Columns, the same filters, Actions menu and Visit Details drawer. Only type, colour and spacing are new.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  state = { layout: 'board', sel: null, acts: false, bulk: false, ticks: {} };
+  renderVals() {
+    const s = this.state;
+    const segs = [[6.5, 11], [11.5, 14], [16, 18.5], [19.5, 22.5]];
+    const full = { Lowe: 'Rita Lowe', Finch: 'Harold Finch', Pryce: 'Harold Pryce', Marsh: 'Edith Marsh', Ashdown: 'George Ashdown', Okafor: 'Stanley Okafor', Ellison: 'Margaret Ellison', Whitlock: 'Doreen Whitlock', Hale: 'Margaret Hale', Varga: 'Elsie Varga', Brennan: 'Walter Brennan', Castellano: 'Irene Castellano', Mbeki: 'Cyril Mbeki', Haverford: 'Joan Haverford', Quayle: 'Ronald Quayle', Lindqvist: 'Patricia Lindqvist', Doherty: 'Ivy Doherty', Doyle: 'Rose Doyle', Ward: 'Bernard Ward' };
+    const total = segs.reduce((a, g) => a + g[1] - g[0], 0), gap = 1.6, span = 100 - gap * (segs.length - 1);
+    const x = (h) => { let acc = 0; for (let i = 0; i < segs.length; i++) { const g = segs[i]; if (h <= g[1]) return acc + Math.max(0, h - g[0]) / total * span + i * gap; acc += (g[1] - g[0]) / total * span; } return 100; };
+    const hm = (t) => { const p = t.split(':').map(Number); return p[0] + p[1] / 60; };
+    const now = 10 + 40 / 60;
+    const tone = (st) => ({ done: 'vb done', progress: 'vb progress', late: 'vb late', due: 'vb due', needs: 'vb needs', missed: 'vb missed' })[st];
+    const people = [
+      ['Needs a carer', 'Visits short of a carer', null, null, [['Lowe', 'RL', '12:00', 30, 'needs', 'Lunch call', 'V-261112-MMD78'], ['Finch', 'HF', '18:00', 30, 'needs', 'Tea call', 'V-261112-Q2LLP'], ['Pryce', 'HP', '20:30', 30, 'needs', 'Bed call, 2nd carer', 'V-261112-PRY4B'], ['Marsh', 'EM', '20:30', 30, 'needs', 'Bed call', 'V-261112-ZK4E1']]],
+      ['Oscar Patel', '9 visits · 6h 15m', 'OP', 'a2', [['Pryce', 'HP', '07:30', 45, 'done', 'Morning call'], ['Ashdown', 'GA', '08:30', 45, 'done', 'Morning call'], ['Okafor', 'SO', '09:30', 30, 'done', 'Morning call'], ['Pryce', 'HP', '12:30', 30, 'due', 'Lunch call'], ['Okafor', 'SO', '13:15', 30, 'due', 'Lunch call'], ['Ashdown', 'GA', '17:00', 45, 'due', 'Tea call'], ['Pryce', 'HP', '20:30', 30, 'due', 'Bed call']]],
+      ['Amelia Hart', '8 visits · 5h 30m', 'AH', 'a4', [['Ellison', 'ME', '07:00', 45, 'done', 'Morning call'], ['Pryce', 'HP', '07:30', 45, 'done', 'Morning call'], ['Whitlock', 'DW', '10:15', 45, 'progress', 'Morning call'], ['Hale', 'MH', '12:00', 30, 'due', 'Lunch call'], ['Pryce', 'HP', '17:00', 30, 'due', 'Tea call'], ['Ellison', 'ME', '21:00', 30, 'due', 'Bed call']]],
+      ['Freya James', '8 visits · 5h 15m', 'FJ', 'a3', [['Varga', 'EV', '07:15', 45, 'done', 'Morning call'], ['Brennan', 'WB', '09:30', 45, 'late', 'Morning call'], ['Castellano', 'IC', '12:00', 30, 'due', 'Lunch call'], ['Mbeki', 'CM', '13:00', 30, 'due', 'Lunch call'], ['Varga', 'EV', '17:30', 30, 'due', 'Tea call'], ['Brennan', 'WB', '20:00', 45, 'due', 'Bed call']]],
+      ['Oliver Bennett', '7 visits · 4h 45m', 'OB', 'a1', [['Castellano', 'IC', '07:00', 45, 'done', 'Morning call'], ['Haverford', 'JH', '10:15', 45, 'progress', 'Morning call'], ['Quayle', 'RQ', '12:30', 30, 'due', 'Lunch call'], ['Haverford', 'JH', '16:30', 30, 'due', 'Tea call'], ['Quayle', 'RQ', '19:45', 30, 'due', 'Bed call']]],
+      ['Alice King', '6 visits · 4h', 'AK', 'a5', [['Lindqvist', 'PL', '07:00', 45, 'done', 'Morning call'], ['Doherty', 'ID', '09:00', 45, 'late', 'Morning call'], ['Lindqvist', 'PL', '12:15', 30, 'due', 'Lunch call'], ['Doherty', 'ID', '16:15', 30, 'due', 'Tea call'], ['Lindqvist', 'PL', '21:15', 30, 'due', 'Bed call']]],
+      ['Jacob Morris', '6 visits · 4h 15m', 'JM', 'a6', [['Ashdown', 'GA', '07:30', 45, 'done', 'Morning call'], ['Hale', 'MH', '08:30', 45, 'done', 'Morning call'], ['Ashdown', 'GA', '11:45', 30, 'due', 'Lunch call'], ['Hale', 'MH', '17:45', 30, 'due', 'Tea call'], ['Hale', 'MH', '21:30', 30, 'due', 'Bed call']]],
+      ['Matilda Allen', '5 visits · 3h 15m', 'MA', 'a2', [['Doyle', 'RD', '08:00', 45, 'done', 'Morning call'], ['Varga', 'EV', '11:30', 30, 'due', 'Lunch call'], ['Doyle', 'RD', '16:00', 30, 'due', 'Tea call'], ['Doyle', 'RD', '20:00', 30, 'due', 'Bed call']]],
+      ['Archie Phillips', '5 visits · 3h 30m', 'AP', 'a1', [['Quayle', 'RQ', '07:45', 45, 'done', 'Morning call'], ['Ward', 'BW', '09:15', 45, 'done', 'Morning call'], ['Quayle', 'RQ', '12:30', 30, 'due', 'Lunch call'], ['Ward', 'BW', '18:15', 30, 'due', 'Tea call']]]
+    ];
+    const stLabel = { done: 'Completed', progress: 'In progress', late: 'Late', due: 'Still to come', needs: 'Needs a carer', missed: 'Missed' };
+    const pillOf = { done: 'pill ok', progress: 'pill prog', late: 'pill warn', due: 'pill', needs: 'pill bad', missed: 'pill bad' };
+    const pad = (n) => (n < 10 ? '0' : '') + n;
+    const all = [];
+    const rows = people.map((p, ri) => ({
+      name: p[0], sub: p[1], ini: p[2], av: 'av s28 ' + (p[3] || ''), need: !p[2], person: !!p[2], cls: p[2] ? 'bd-row' : 'bd-row need',
+      v: p[4].map((v, vi) => {
+        const a = hm(v[2]), b = a + v[3] / 60, id = ri + ':' + vi;
+        const e = Math.round(b * 60), rec = { id, su: v[0], ini: v[1], t: v[2], dur: v[3], st: v[4], call: v[5], ref: v[6] || ('V-261112-' + (ri * 7 + vi + 11).toString(36).toUpperCase().padStart(5, 'Q')), tm: p[2] ? p[0] : 'Unassigned', tmIni: p[2] || '—', tmAv: 'av s28 ' + (p[3] || 'a6'), end: pad(Math.floor(e / 60)) + ':' + pad(e % 60) };
+        all.push(rec);
+        return { cls: tone(v[4]) + (s.sel === id ? ' on' : ''), pos: 'left:' + x(a).toFixed(2) + '%;width:calc(' + (x(b) - x(a)).toFixed(2) + '% - 3px)', sn: v[0] + ' ' + v[1], t: v[2], label: v[0] + ', ' + v[5] + ' at ' + v[2] + ', ' + stLabel[v[4]], pick: () => this.setState({ sel: id }) };
+      })
+    }));
+    const hours = []; segs.forEach((g) => { for (let h = Math.ceil(g[0]); h < g[1]; h++) hours.push({ t: pad(h) + ':00', pos: 'left:' + x(h).toFixed(2) + '%' }); });
+    const sel = all.find((r) => r.id === s.sel);
+    const sorted = all.slice().sort((a, b) => hm(a.t) - hm(b.t)).slice(0, 12);
+    const n = Object.values(s.ticks).filter(Boolean).length;
+    return {
+      isBoard: s.layout === 'board', isList: s.layout === 'list',
+      boardCls: s.layout === 'board' ? 'on' : '', listCls: s.layout === 'list' ? 'on' : '',
+      toBoard: () => this.setState({ layout: 'board' }), toList: () => this.setState({ layout: 'list' }),
+      acts: s.acts, toggleActs: () => this.setState({ acts: !s.acts }), bulk: s.bulk, toggleBulk: () => this.setState({ bulk: !s.bulk }),
+      hours, folds: segs.slice(0, -1).map((g) => ({ pos: 'left:' + (x(g[1]) + gap / 2).toFixed(2) + '%' })),
+      gridlines: hours.map((h) => ({ pos: h.pos })), nowPos: 'left:' + x(now).toFixed(2) + '%',
+      rows, drawer: !!sel, close: () => this.setState({ sel: null }),
+      sel: sel ? { su: full[sel.su] || sel.su, ini: sel.ini, ref: sel.ref, st: stLabel[sel.st], pill: pillOf[sel.st], span: sel.t + ' – ' + sel.end + ' (' + sel.dur + 'm)', call: sel.call, tm: sel.tm, tmIni: sel.tmIni, tmAv: sel.tmAv,
+        clock: sel.st === 'done' ? 'Clocked in ' + sel.t + ', out on time' : (sel.st === 'progress' ? 'Clocked in, visit under way' : 'Not clocked in'),
+        elig: sel.tm === 'Unassigned' ? 'Place open' : 'Passed every eligibility check when booked', eligCls: sel.tm === 'Unassigned' ? 'pill bad' : 'cap' } : {},
+      list: sorted.map((r) => { const on = !!s.ticks[r.id]; return { ref: r.ref, st: stLabel[r.st], pill: pillOf[r.st], su: full[r.su] || r.su, time: r.t, dur: r.dur + 'm', cr: r.tm === 'Unassigned' ? '0/1' : '1/1', crCls: r.tm === 'Unassigned' ? 'pill bad nodot' : 'pill ok nodot', call: r.call, tm: r.tm, row: s.sel === r.id ? 'is-sel' : '', on: on ? 'true' : 'false', cb: on ? 'cb on' : 'cb', pick: () => this.setState({ sel: r.id }), tick: (e) => { if (e && e.stopPropagation) e.stopPropagation(); const t = Object.assign({}, s.ticks); t[r.id] = !t[r.id]; this.setState({ ticks: t }); } }; }),
+      selCount: n, bulkHint: n ? 'Choose an action, then Go to review the change before it is applied.' : 'Tick the visits to change first.', goStyle: n ? '' : 'opacity:.45',
+      bulkActs: ['Cancel Visits', 'Activate Visits', 'Reassign Visits', 'Unassign Visits', 'Add Rota Lock(s)', 'Remove Rota Lock(s)', 'Edit Times', 'Edit Duration', 'Edit Service Name', 'Add Alerts', 'Remove Alerts', 'Add Shadow Shifts', 'Convert To Double Up', 'Revert Double Up To Single', 'Change Carers Needed', 'Nudge Times', 'Publish to Carers', 'Complete Calls'].map((t) => ({ t }))
+    };
+  }
+}
+</script>
+</body>
+</html>

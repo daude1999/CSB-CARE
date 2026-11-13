@@ -35,6 +35,11 @@ export type ModuleHeaderProps = {
   module?: PortalId;
   testId?: string;
   titleId?: string;
+  /**
+   * "plain" (Harbour, used by the Daily Rota): no coloured band; the title sits on the page with white controls and a
+   * navy main action, as in docs/design/harbour/screens/daily-rota-1180.png. The breadcrumb is in the top bar.
+   */
+  variant?: "band" | "plain";
 };
 
 /**
@@ -43,13 +48,13 @@ export type ModuleHeaderProps = {
  * actions. It replaces the centred title bar with its Back link, the Policy breadcrumb header, the HR heading and the
  * Rota headers. The breadcrumb and the top bar's history arrows do the job of the old Back link.
  */
-export function ModuleHeader({ title, page, crumbs = [], description, actions, children, tabs, module, testId = "module-header", titleId }: ModuleHeaderProps) {
+export function ModuleHeader({ title, page, crumbs = [], description, actions, children, tabs, module, testId = "module-header", titleId, variant = "band" }: ModuleHeaderProps) {
   const path = usePathname() ?? "/";
   const portal = portalById(module ?? portalForPath(path));
   const pageName = page ?? (typeof title === "string" ? title : undefined);
   const home = portal.id === "overview" ? null : portal;
   return (
-    <header className="mh" data-testid={testId} data-module-header={portal.id}>
+    <header className="mh" data-testid={testId} data-module-header={portal.id} data-variant={variant === "plain" ? "plain" : undefined}>
       <div className="mh-band" data-testid="title-bar">
         <span className="mh-chip" aria-hidden="true">{MODULE_ICON[portal.id]({ size: 22 })}</span>
         <div className="mh-main">

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Employee record</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="m-hr pr cc6">
+  <div class="ctx">
+    <button class="ctx-b" aria-label="Back to people"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <span class="ctx-v"></span>
+    <button class="ctx-b" title="Edit employee" aria-label="Edit employee" onClick="{{toEmployment}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button>
+    <button class="ctx-b" title="Upload evidence" aria-label="Upload evidence"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v5h16v-5"></path></svg></button>
+    <button class="ctx-b" title="Book time off" aria-label="Book time off"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg></button>
+    <button class="ctx-b" title="More actions" aria-label="More actions"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button>
+    <span class="ctx-t">Employee: <b>Daniel Webb</b></span>
+    <span class="sp"></span>
+    <button class="btn btn-sm">Upload evidence</button>
+    <button class="btn btn-sm btn-p">Verify DBS certificate</button>
+  </div>
+
+  <header class="pid">
+    <span class="av s40 a2">DW</span>
+    <div style="min-width: 0">
+      <div class="row" style="gap: 8px; flex-wrap: wrap"><button class="pid-n" onClick="{{toEmployment}}">WEBB, Daniel (Staff ID: EMP-0142)</button><span class="pill ok">Active employee</span></div>
+      <div class="pid-m">Preferred name: <b>Dan</b></div>
+      <div class="pid-m">Care Support Worker · Domiciliary care · Manager: <b>Chloe Barton</b></div>
+    </div>
+    <div class="pid-r">
+      <div class="pid-ids"><span>Started: <b>3 Jun 2025 (1 yr 5 mo)</b></span><span>Branch: <b>Liverpool</b></span><span>Hours: <b>Full time, 37.5 h</b></span><button class="pid-c" aria-label="Collapse header"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+      <div class="pid-al" aria-label="Alerts">
+        <sc-for list="{{alerts}}" as="a" hint-placeholder-count="4"><button class="{{a.cls}}" title="{{a.d}}" aria-label="{{a.t}}: {{a.d}}"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.ic}}"></path></svg></button></sc-for>
+      </div>
+    </div>
+  </header>
+
+  <div class="prt">
+    <button class="prt-menu" aria-label="Record menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Menu</button>
+    <nav class="tabs rec-tabs" role="tablist" aria-label="Employee record sections">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="6"><button role="tab" class="{{n.tcls}}" onClick="{{n.pick}}">{{n.t}}<sc-if value="{{n.hasC}}" hint-placeholder-val="{{false}}"><span class="{{n.cc}}">{{n.c}}</span></sc-if></button></sc-for>
+    </nav>
+  </div>
+
+  <sc-if value="{{isOverview}}" hint-placeholder-val="{{true}}">
+  <div class="cl">
+    <div class="cl-l">
+      <nav class="qm2" aria-label="Jump to">
+        <sc-for list="{{qm}}" as="q" hint-placeholder-count="8"><button onClick="{{q.pick}}"><span class="{{q.c}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{q.ic}}"></path></svg></span><span class="grow">{{q.t}}</span><sc-if value="{{q.hasN}}" hint-placeholder-val="{{false}}"><span class="{{q.nc}}">{{q.n}}</span></sc-if></button></sc-for>
+      </nav>
+
+      <section class="pn c-blue" aria-label="Employee details">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c.8-3.6 4-6 8-6s7.2 2.4 8 6"></path></svg>Employee details<span class="sp"></span><button class="pn-x" aria-label="Open Employee details full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b kv6">
+          <p>Full name: <b>Daniel Webb</b></p>
+          <p>Job role: <b>Care Support Worker</b></p>
+          <p>Department: <b>Domiciliary care</b></p>
+          <p>Manager: <b>Chloe Barton</b></p>
+          <p>Branch: <b>Liverpool</b></p>
+          <p>Employment: <b>Full time, 37.5 h</b></p>
+          <p>Started: <b>3 Jun 2025</b> · 1 yr 5 mo</p>
+          <p>Staff ID: <b class="mono">EMP-0142</b></p>
+          <p>Carer app sign-in: <b>Linked</b></p>
+        </div>
+        <div class="pn-f"><button class="btn btn-sm"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4"></path></svg>Refresh</button><button class="btn btn-sm btn-p" onClick="{{toEmployment}}">Edit</button></div>
+      </section>
+
+      <section class="pn c-red" aria-label="Checks due">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"></path></svg>Checks needing action<span class="cnt2">2</span><span class="sp"></span><button onClick="{{toCompliance}}">Compliance</button><button class="pn-x" aria-label="Open Checks needing action full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+        <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Due</th></tr></thead><tbody>
+          <tr><td class="cbc"><span class="cb"></span></td><td>DBS</td><td><span class="pill prog">Waiting to verify</span></td><td class="nw">26 Nov</td></tr>
+          <tr><td class="cbc"><span class="cb"></span></td><td>Medication competency</td><td><span class="pill warn">Due soon</span></td><td class="nw">9 Dec</td></tr>
+        </tbody></table></div>
+        <div class="pn-f" style="justify-content: flex-start"><span class="cap">The other 6 checks are in date.</span></div>
+      </section>
+
+      <section class="pn c-rose" aria-label="Contact">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"></path></svg>Contact<span class="sp"></span><button>Edit</button><button class="pn-x" aria-label="Open Contact full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b kv6">
+          <p>Work email: <b>d.webb@example.org</b></p>
+          <p>Phone: <b>07700 900452</b></p>
+          <p>Home address: <b>Restricted</b> <button class="reveal">Show</button></p>
+          <p>Date of birth: <b>Restricted</b> <button class="reveal">Show</button></p>
+          <p>Emergency contact: <b>Sarah Webb, Partner, 07700 900771</b></p>
+        </div>
+      </section>
+
+      <section class="pn c-teal" aria-label="Time off">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg>Time off<span class="sp"></span><button>Book time off</button><button class="pn-x" aria-label="Open Time off full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b">
+          <p class="cap" style="margin-bottom: 2px">Holiday year Apr 2026 to Mar 2027</p>
+              <div class="allow" role="img" aria-label="28 days allowance: 15 taken, 5 booked, 8 remaining">
+                <i style="width: 53.6%; background: var(--brand); color: #fff">15 taken</i><i style="width: 17.9%; background: var(--brand-200); color: var(--brand)">5 booked</i><i style="flex: 1; background: var(--line-2); color: var(--ink-2)">8 left</i>
+              </div>
+              <p class="cap">28 days including bank holidays · sickness this year: 2 absences, 3 days</p>
+              <div class="yr" role="img" aria-label="Days off by month"><sc-for list="{{yr}}" as="y" hint-placeholder-count="12"><div><i style="{{y.h}}"></i><i style="{{y.s}}"></i></div></sc-for></div>
+              <div class="yr-l"><sc-for list="{{yr}}" as="y" hint-placeholder-count="12"><span>{{y.m}}</span></sc-for></div>
+              <div class="lgd" style="margin-top: 10px"><span><i style="background: var(--brand); border-color: var(--brand)"></i>Holiday</span><span><i style="background: var(--bad-fill); border-color: var(--bad-fill)"></i>Sickness</span><span><i style="background: var(--brand-200); border-color: var(--brand-200)"></i>Booked</span></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="tl2" aria-label="Activity timeline">
+      <div class="tl2-h"><h2>Timeline</h2><span class="sp"></span><button class="lnk">All activity</button></div>
+      <div class="tl2-m">NOV 2026</div>
+      <sc-for list="{{act}}" as="f" hint-placeholder-count="5">
+        <div class="{{f.cls}}">
+          <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{f.ic}}"></path></svg></span>
+          <div style="min-width: 0">
+            <div class="row" style="align-items: baseline; gap: 8px"><button class="tt grow" style="text-align: left">{{f.title}}</button><span class="wh">{{f.ago}}</span></div>
+            <p>{{f.t}}</p>
+            <div class="tm2"><span>Completed by:</span><span>Date and time:</span><b>{{f.who}}</b><b>{{f.when}}</b></div>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <section class="pn c-navy cl-full" aria-label="Checks and training">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l3 3 5-6"></path></svg>Checks and training<span class="cnt2">8</span><span class="sp"></span><span style="font-size: 12px; font-weight: 500; opacity: .9">Requirements for this role</span><button class="pn-x" aria-label="Open Checks and training full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-tools" style="gap: 14px; padding: 6px 12px"><div class="lgd"><span><i style="background: var(--ok-fill); border-color: var(--ok-fill)"></i>In date</span><span><i style="background: var(--warn-fill); border-color: var(--warn-fill)"></i>Due within 30 days</span><span><i style="background: var(--prog-fill); border-color: var(--prog-fill)"></i>Waiting to verify</span></div></div>
+      <div style="overflow-x: auto"><div style="min-width: 640px">
+            <div class="ck-axis"><span></span><div class="ck-tl"><sc-for list="{{months}}" as="m" hint-placeholder-count="12"><span class="mo">{{m.t}}</span></sc-for><span class="tdy" style="left: 68.3%">Today</span></div><span></span></div>
+            <div style="position: relative">
+              <sc-for list="{{checks}}" as="c" hint-placeholder-count="8">
+                <div class="ck">
+                  <div class="ck-n">{{c.t}}<small>{{c.d}}</small></div>
+                  <div class="ck-t">
+                    <sc-for list="{{c.bars}}" as="b" hint-placeholder-count="1"><span class="{{b.cls}}" style="{{b.pos}}" title="{{b.title}}"></span></sc-for>
+                    <span class="ck-today" style="left: 68.3%"></span>
+                  </div>
+                  <div class="ck-s"><span class="{{c.pill}}">{{c.st}}</span><small>{{c.when}}</small></div>
+                </div>
+              </sc-for>
+            </div>
+      </div></div>
+    </section>
+
+    <section class="pn c-cyan" aria-label="Documents">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"></path></svg>Documents<span class="cnt2">9</span><span class="sp"></span><button>Upload</button><button class="pn-x" aria-label="Open Documents full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+      <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Document</th><th scope="col">Uploaded</th><th scope="col">Status</th></tr></thead><tbody>
+        <sc-for list="{{docs}}" as="d" hint-placeholder-count="4"><tr><td class="cbc"><span class="cb"></span></td><td>{{d.t}}</td><td class="nw">{{d.u}}</td><td><span class="{{d.pill}}">{{d.s}}</span></td></tr></sc-for>
+      </tbody></table></div>
+    </section>
+
+    <section class="pn c-purple" aria-label="Upcoming dates">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"></path></svg>Upcoming dates<span class="cnt2">5</span><span class="sp"></span><button class="pn-x" aria-label="Open Upcoming dates full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-b" style="padding-top: 0; padding-bottom: 4px">
+              <sc-for list="{{dates}}" as="d" hint-placeholder-count="5">
+                <div class="row" style="gap: 14px; padding: 9px 0; border-top: 1px solid var(--line-2)">
+                  <div style="width: 44px; text-align: center; flex: none"><div class="over" style="font-size: 11px">{{d.mon}}</div><div style="font-size: 20px; line-height: 22px; font-weight: 600">{{d.day}}</div></div>
+                  <div class="grow"><b style="font-size: 13.5px">{{d.t}}</b><div class="cap">{{d.s}}</div></div>
+                  <span class="{{d.pill}}">{{d.in}}</span>
+                </div>
+              </sc-for>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+
+  <div style="padding: 18px 24px 28px; background: var(--canvas)">
+      <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+        <div class="panel" style="padding: 20px 22px; max-width: 640px">
+          <div class="over">Next round</div>
+          <h2 style="font-size: 16px; font-weight: 600; margin-top: 4px">{{secTitle}}</h2>
+          <p class="m2" style="margin-top: 4px">This section keeps everything it holds today:</p>
+          <ul class="col" style="margin-top: 10px"><sc-for list="{{holds}}" as="h" hint-placeholder-count="3"><li class="row" style="min-height: 30px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ok)"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{h.t}}</li></sc-for></ul>
+        </div>
+      </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  state = { sec: 0 };
+  renderVals() {
+    const s = this.state;
+    const I = {
+      home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+      brief: 'M4 8h16v12H4zM9 8V5h6v3M4 13h16',
+      shield: 'M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z',
+      grad: 'M2.5 9 12 4.5 21.5 9 12 13.5zM6.5 11v5c3 2.5 8 2.5 11 0v-5M21.5 9v5',
+      doc: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
+      hist: 'M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4M12 8v4l3 2'
+    };
+    const secs = [
+      ['Overview', I.home, 0, []],
+      ['Employment', I.brief, 0, ['Employment details: job role, branch, manager, department, type, status, start and leaving dates, staff ID', 'Employment history', 'Branch transfer history']],
+      ['Compliance', I.shield, 1, ['Each check with evidence, last reviewed, review status, due date and HR owner', 'Verify, reject or replace evidence', 'Statuses: Up to date, Due soon, Missing evidence, Awaiting verification, Incomplete information, Overdue']],
+      ['Training', I.grad, 0, ['Training records and certificates', 'Competency assessments and restrictions']],
+      ['Documents', I.doc, 9, ['Document library with notes and released evidence', 'Upload and quarantine status']],
+      ['Activity', I.hist, 0, ['Employee activity', 'HR notes']]
+    ];
+    // window: Jul 2025 to Jun 2027, 24 months
+    const at = (y, m, d) => ((y - 2025) * 12 + (m - 7) + (d - 1) / 30) / 24 * 100;
+    const bar = (a, b, cls, title) => { const l = Math.max(0, a), r = Math.min(100, b); return { cls: 'ck-bar ' + (cls || ''), pos: 'left:' + l.toFixed(2) + '%;width:' + (r - l).toFixed(2) + '%', title }; };
+    const rows = [
+      ['DBS', 'Enhanced, adult barred list', [bar(-4, at(2026, 11, 26), 'warn', 'Review due 26 Nov 2026'), bar(at(2026, 11, 11), 100, 'ver', 'New certificate, waiting to verify')], 'Waiting to verify', 'pill prog', 'Review 26 Nov'],
+      ['Right to work', 'Share code checked', [bar(at(2025, 6, 2), 100)], 'Up to date', 'pill ok', 'No expiry'],
+      ['References', '2 of 2 received', [bar(at(2025, 5, 20), 100)], 'Up to date', 'pill ok', 'Complete'],
+      ['Safeguarding adults', 'Training', [bar(at(2025, 6, 10), at(2027, 6, 10))], 'Up to date', 'pill ok', 'Until Jun 2027'],
+      ['Moving and handling', 'Practical, renewed yearly', [bar(at(2025, 6, 12), at(2026, 6, 12)), bar(at(2026, 6, 15), at(2027, 6, 15))], 'Up to date', 'pill ok', 'Until Jun 2027'],
+      ['Medication', 'Competency assessment', [bar(at(2025, 12, 9), at(2026, 12, 9), 'warn')], 'Due soon', 'pill warn', 'Due 9 Dec'],
+      ['Basic life support', 'Training', [bar(at(2025, 8, 14), at(2027, 8, 14))], 'Up to date', 'pill ok', 'Until Aug 2027'],
+      ['Infection control', 'Training', [bar(at(2025, 6, 11), at(2026, 6, 11)), bar(at(2026, 6, 11), at(2027, 6, 11))], 'Up to date', 'pill ok', 'Until Jun 2027']
+    ];
+    const to = (i) => () => this.setState({ sec: i });
+    const Q = (t, c, ic, tab, n, nc) => ({ t, c: 'qi2 ' + c, ic, pick: to(tab), n: n || '', hasN: !!n, nc: nc || 'n' });
+    const ml = ['Jul 25', 'Sep', 'Nov', 'Jan 26', 'Mar', 'May', 'Jul', 'Sep', 'Nov', 'Jan 27', 'Mar', 'May'];
+    const hol = [0, 0, 5, 0, 0, 0, 5, 2, 0, 3, 0, 0], sick = [0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0], booked = [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 2, 0];
+    const yrm = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+    return {
+      nav: secs.map((x, i) => ({ t: x[0], ic: x[1], c: x[2], hasC: x[2] > 0, cc: i === 2 ? 'cnt bad' : 'cnt', tcls: i === s.sec ? 'tab on' : 'tab', pick: () => this.setState({ sec: i }) })),
+      toCompliance: to(2), toEmployment: to(1),
+      docs: [
+        { t: 'DBS certificate (new)', u: '11/11/2026', s: 'Waiting to verify', pill: 'pill prog' },
+        { t: 'Right to work share code', u: '02/06/2025', s: 'Verified', pill: 'pill ok' },
+        { t: 'Moving and handling certificate', u: '15/06/2026', s: 'Verified', pill: 'pill ok' },
+        { t: 'Contract of employment', u: '03/06/2025', s: 'Signed', pill: 'pill ok' }
+      ],
+      alerts: [
+        { t: 'Ready to work', d: 'Can be booked on the rota', cls: 'ai ok', ic: 'M5 12.5l4.5 4.5L19 7.5' },
+        { t: 'DBS to verify', d: 'New certificate uploaded yesterday', cls: 'ai prog', ic: I.shield },
+        { t: 'Medication due 9 Dec', d: 'Competency assessment', cls: 'ai warn', ic: I.grad },
+        { t: 'App linked', d: 'Carer app sign-in linked', cls: 'ai info', ic: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1' }
+      ],
+      qm: [
+        Q('Overview', 'c-orange', I.home, 0), Q('Employment', 'c-navy', I.brief, 1), Q('Compliance', 'c-amber', I.shield, 2, 1, 'n bad'), Q('Training', 'c-teal', I.grad, 3),
+        Q('Documents', 'c-cyan', I.doc, 4, 9), Q('Activity', 'c-purple', I.hist, 5), Q('Time off', 'c-green', 'M4 7h16v13H4zM4 11h16M8 4v4M16 4v4', 0), Q('Rota eligibility', 'c-blue', I.shield, 2)
+      ],
+      isOverview: s.sec === 0, isOther: s.sec !== 0, secTitle: secs[s.sec][0], holds: secs[s.sec][3].map((t) => ({ t })),
+      months: ml.map((t) => ({ t })),
+      checks: rows.map((r, i) => ({ t: r[0], d: r[1], bars: r[2], st: r[3], pill: r[4], when: r[5], first: i === 0, notFirst: i !== 0 })),
+      yr: yrm.map((m, i) => ({ m, h: 'height:' + (hol[i] + booked[i]) * 9 + 'px;background:' + (booked[i] ? 'var(--brand-200)' : 'var(--brand)'), s: 'height:' + sick[i] * 9 + 'px;background:var(--bad-fill)' })),
+      dates: [
+        { mon: 'Nov', day: '26', t: 'DBS review', s: 'New certificate uploaded, waiting to verify', in: 'in 14 days', pill: 'pill warn' },
+        { mon: 'Dec', day: '9', t: 'Medication competency', s: 'Book an assessment with a senior', in: 'in 27 days', pill: 'pill warn' },
+        { mon: 'Dec', day: '22', t: 'Holiday', s: '22 Dec to 2 Jan · approved', in: 'booked', pill: 'pill info nodot' },
+        { mon: 'Jun', day: '3', t: 'Annual review', s: 'With Chloe Barton', in: 'in 7 months', pill: 'pill' },
+        { mon: 'Jun', day: '15', t: 'Moving and handling refresher', s: 'Practical session', in: 'in 7 months', pill: 'pill' }
+      ],
+      act: [
+        { title: 'Evidence uploaded', ago: 'Yesterday at 18:42', cls: 'tle2 c-purple', ic: I.doc, who: 'Daniel Webb', when: '11/11/2026 18:42', t: 'Uploaded a DBS certificate for verification.' },
+        { title: 'Holiday approved', ago: '02/11/2026 10:15', cls: 'tle2 c-teal', ic: 'M4 7h16v13H4zM4 11h16M8 4v4M16 4v4', who: 'Chloe Barton', when: '02/11/2026 10:15', t: 'Approved holiday, 22 December to 2 January.' },
+        { title: 'Certificate verified', ago: '15/06/2026 14:02', cls: 'tle2 c-green', ic: 'M5 12.5l4.5 4.5L19 7.5', who: 'Chloe Barton', when: '15/06/2026 14:02', t: 'Verified moving and handling certificate.' },
+        { title: 'Probation review', ago: '03/06/2026 11:30', cls: 'tle2 c-orange', ic: I.brief, who: 'Demo Manager', when: '03/06/2026 11:30', t: 'Recorded probation review: passed.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

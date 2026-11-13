@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feature parity</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="page" style="max-width: 1160px">
+  <div class="over">Checkpoint 1 · read from the repository at commit 530ad5f</div>
+  <h1 class="pt" style="margin-top: 4px">Feature parity for the six screens</h1>
+  <div class="note info" style="margin-top: 10px; max-width: 76ch"><span><b>Round 6:</b> a slim icon rail replaces the wide sidebar (the full menu slides out from it), records follow the panel-dashboard layout with a context toolbar, header strip with alert icons, a timeline beside the panels, and tables with tick boxes and tool rows. Same features, nothing removed. <b>Round 5:</b> every page now uses panels with coloured title bars, the records gain a quick menu and an activity timeline, and Daily Rota keeps its layout with only its title bar coloured. No feature was added or removed. <b>Round 3:</b> every one of the 80 menu pages opens a designed page, with the column headings and buttons read from the code.</span></div>
+  <p class="m2" style="margin-top: 6px; max-width: 76ch">Each row is a feature found in the code for that page, and where it now lives. "Shown" means it is drawn and visible. "Kept, not drawn" means it stays in the same place but its screen is designed in a later round. Nothing has been removed.</p>
+  <div class="row" style="gap: 8px; flex-wrap: wrap; margin: 14px 0 6px">
+    <sc-for list="{{totals}}" as="t" hint-placeholder-count="3"><span class="{{t.pill}}">{{t.n}} {{t.t}}</span></sc-for>
+  </div>
+
+  <sc-for list="{{screens}}" as="sc" hint-placeholder-count="6">
+    <section style="margin-top: 26px">
+      <div class="sh"><h2>{{sc.name}}</h2><span class="cap mono">{{sc.route}}</span></div>
+      <div class="panel" style="overflow-x: auto">
+        <table class="tbl">
+          <thead><tr><th scope="col" style="width: 38%">Existing feature</th><th scope="col">Where it is now</th><th scope="col" style="width: 150px">Status</th></tr></thead>
+          <tbody><sc-for list="{{sc.rows}}" as="r" hint-placeholder-count="6"><tr><td style="white-space: normal; padding-top: 10px; padding-bottom: 10px">{{r.f}}</td><td class="m2" style="white-space: normal">{{r.w}}</td><td><span class="{{r.pill}}">{{r.s}}</span></td></tr></sc-for></tbody>
+        </table>
+      </div>
+    </section>
+  </sc-for>
+
+  <section style="margin-top: 32px" class="col">
+    <div class="sh"><h2>Not checked yet</h2></div>
+    <div class="col" style="gap: 8px">
+      <div class="note warn"><span>Every field of every form and drawer on these six pages has not been compared line by line. That comes before any build.</span></div>
+      <div class="note warn"><span>The live site was not opened. This inventory comes from the repository only.</span></div>
+      <div class="note"><span>The repository's CLAUDE.md still names the "Recommended mix" as the visual source of truth and the Policy Library reference image as a layout to match. Both are set aside for this exploration. CLAUDE.md is unchanged; replacing those paragraphs needs your approval.</span></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1280,"height":3200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = 'Shown', K = 'Kept, not drawn', N = 'New view, existing data', P = 'Proposed, not built';
+    const pill = { [S]: 'pill ok', [K]: 'pill', [N]: 'pill info', [P]: 'pill warn' };
+    const R = (f, w, s) => ({ f, w, s, pill: pill[s] });
+    const screens = [
+      { name: 'Overview', route: '/overview', rows: [
+        R('Urgent actions: visits needing a carer, missed visits, rota alerts, staff sign-offs overdue, policy reviews overdue, actions past due, policies awaiting approval, regulatory changes, HR checks overdue', 'Needs action queue, grouped by deadline, filterable by module', S),
+        R("Today's call rounds", "Today's care delivery timeline, rounds as bands", S),
+        R('Week bars of visits', 'This week', S),
+        R('Module summaries and quick links (HR Hub, Reports and CSV exports, Settings and activity log)', 'Go to list, and module counts on the queue filter', S),
+        R('Rearrange, with Standard order, Cancel and Save order', 'Rearrange button in the header', K),
+        R('Role-based visibility of modules', 'Unchanged; the queue only shows what your role can act on', S),
+        R('Notifications', 'Notifications panel and the bell', S)
+      ] },
+      { name: 'Service user record', route: '/rota/service-users/[id]', rows: [
+        R('Eleven tabs: Overview, Personal details, Reference Numbers, Care, Health and safety, Visits, Documents, Contacts & carers, Call Notes, Audit & Exceptions, History', 'Same eleven tabs, same order', S),
+        R('About: known as, date of birth, first language, carer preference, risk, care started', 'Header, Identity column and the Before you visit rail', S),
+        R('Getting in, Show key safe code (audited), New key safe code', 'Before you visit rail; New key safe code in Health and safety', S),
+        R('Date of birth and NHS number for people with sensitive access', 'Identity column, masked until shown', S),
+        R('Recent care, latest visit notes, next visits, repeating visits', 'Today day spine, this week grid, Recent care feed', S),
+        R('Carers who visit most (28 days)', 'Care team in the side column', S),
+        R('Care plans, Care Summary, risk assessments', 'Care plan card and Risk assessments; Care Summary in the Care tab', S),
+        R('Medication, when switched on', 'Care tab', K),
+        R('Key contacts, Away and Record absence', 'Side column', S),
+        R('Change status, Upload revised support plan, Hospital discharge, Update manually, Archive or delete', 'More actions menu in the header', S),
+        R('Commissioned care: funder, package period, authorised against scheduled hours', 'Commissioned care in the side column', S),
+        R('References: CSB, council and package, Add a reference', 'References in the side column', S),
+        R('Council documents, other documents, received, effective, expires, upload, archive, restricted', 'Documents tab', S),
+        R('Call notes, audit and exceptions, record history', 'Their own tabs', K)
+      ] },
+      { name: 'Employee record', route: 'HR Hub record', rows: [
+        R('Sections: Overview, Employment, Compliance, Training, Documents, Activity', 'Vertical section navigation', S),
+        R('Compliance meter and statuses (up to date, due soon, missing evidence, awaiting verification, incomplete, overdue)', 'Readiness verdict and the checks and training timeline', S),
+        R('Work profile: role, branch, manager, department, type, status, start date, length of service, staff ID', 'Header and facts strip', S),
+        R('Contact, with restricted home address and date of birth', 'Contact', S),
+        R('Upcoming dates and recent activity', 'Upcoming dates and Recent activity', S),
+        R('Edit employee, upload evidence', 'Header actions', S),
+        R('Holiday allowance and sickness from Time Off & Availability', 'Time off summary on the record', N),
+        R('Employment history, branch transfers, HR notes', 'Employment and Activity sections', K)
+      ] },
+      { name: 'Policy library and reader', route: '/policies and /policies/[id]', rows: [
+        R('My Policies, CSB Central Library, Archived, Review Calendar; Drafts and Monthly Updates', 'Tabs across the library', S),
+        R('Filters: category, status, owner, document type, service type; quick filters; sort; list or grid', 'Filter chips, category tree, sort and layout switch', S),
+        R('Create policy, Generate policy', 'Library header', S),
+        R('Reader: Review Sheet first, parts in order, sticky section strip, reading progress', 'Reader column and numbered section strip', S),
+        R('Versions, Regulation Map, Read & Sign, Reg. Flags', 'Record view tabs', S),
+        R('Start or continue revision, Compare versions, version history, Word and PDF, Assign to Staff', 'Header and Policy Actions', S),
+        R('Linked Forms & Resources, Fill in on screen', 'Right column', S),
+        R('Local sections marked local, never changed by a central update', 'Shaded local section in the text', S),
+        R('Direct publishing by an authorised publisher, no mandatory approval', 'Unchanged', S)
+      ] },
+      { name: 'Administration', route: '/admin/users and /settings', rows: [
+        R('Users & Logins: office users, and carer app logins & HR sync', 'Tabs', S),
+        R('Active, Deactivated, All; search', 'Toolbar', S),
+        R('Create invitation link, Revoke, Password reset link, Deactivate, Reactivate, Save', 'Table, invitation row and user drawer', S),
+        R('Link and unlink sign-ins, Re-check against HR now', 'Carer app logins tab', S),
+        R('Business details, Branches & Areas, Modules, Staff Readiness Rules, Rota Settings, Activity Log, Source Monitoring, Background Jobs, Platform Admin Centre', 'Grouped settings navigation', K),
+        R('Read-only reference of what each role allows', 'Roles & permissions tab', P)
+      ] },
+      { name: 'Daily Rota (layout kept)', route: '/rota/visits', rows: [
+        R('Board by default: team member rows, Needs a carer row first, quiet hours folded, colour key', 'Same board, restyled', S),
+        R('Drag a visit to another row; the eligibility service runs on every move', 'Same; drag is not simulated in this prototype', S),
+        R('List with Bulk Actions (18 actions), Go, Columns, pagination', 'Same list, restyled', S),
+        R('Area, Status, Service User and Team Member filters; more filters (branch, service call, show only, include cancelled)', 'Same filter chips', S),
+        R('Actions menu: add visit, Advanced Rota planner, unassigned visits, printable rota, cover, build or publish, Generate & Optimise, Weekly Planner, daily templates, show every visit', 'Same menu', S),
+        R('Visit Details drawer: Details, Notes, Care tasks, History; Reassign, Edit Visit, Add Note, Open full visit', 'Same drawer, restyled', S)
+      ] }
+    ];
+    const all = [].concat.apply([], screens.map((s) => s.rows));
+    const count = (k) => all.filter((r) => r.s === k).length;
+    return { screens, totals: [[S, 'pill ok'], [K, 'pill'], [N, 'pill info'], [P, 'pill warn']].map((t) => ({ t: t[0].toLowerCase(), n: count(t[0]), pill: t[1] })) };
+  }
+}
+</script>
+</body>
+</html>

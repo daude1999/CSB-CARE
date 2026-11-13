@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Service user record</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="m-care pr cc6">
+  <div class="ctx">
+    <button class="ctx-b" aria-label="Back to service users" onClick="{{toList}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <span class="ctx-v"></span>
+    <button class="ctx-b" title="Edit details" aria-label="Edit details" onClick="{{toPersonal}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button>
+    <button class="ctx-b" title="Add call note" aria-label="Add call note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></button>
+    <button class="ctx-b" title="Report incident" aria-label="Report incident"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1"></path></svg></button>
+    <button class="ctx-b" title="Add visit" aria-label="Add visit"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg></button>
+    <button class="ctx-b" title="More actions" aria-label="More actions" onClick="{{toggleMore}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button>
+    <span class="ctx-t">Service user: <b>Harold Pryce</b></span>
+    <span class="sp"></span>
+    <button class="btn btn-sm">Add call note</button>
+    <button class="btn btn-sm btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add visit</button>
+  </div>
+  <sc-if value="{{more}}" hint-placeholder-val="{{false}}">
+    <div class="menu" style="left: 160px; margin-top: 2px; width: 300px">
+      <button>Change status</button>
+      <hr>
+      <div class="over">Update from a document</div>
+      <button>Upload revised support plan</button>
+      <button>Hospital discharge or new medical information</button>
+      <button>Update manually</button>
+      <hr>
+      <button class="btn-d" style="color: var(--bad)">Archive or delete</button>
+    </div>
+  </sc-if>
+
+  <header class="pid">
+    <span class="av s40 a3">HP</span>
+    <div style="min-width: 0">
+      <div class="row" style="gap: 8px; flex-wrap: wrap"><button class="pid-n" onClick="{{toPersonal}}">PRYCE, Harold (Mr) (Ref: SU-102)</button><span class="pill ok">Active</span></div>
+      <div class="pid-m">Known as: <b>Harry</b></div>
+      <div class="pid-m">Coordinator: <b>Chloe Barton</b> · Liverpool North</div>
+    </div>
+    <div class="pid-r">
+      <div class="pid-ids"><span>Born: <b>•• •• 1936 (90 Years)</b></span><span>First language: <b>English</b></span><span>NHS No: <b class="mono">••• ••• 4521</b> <button class="reveal">Show</button></span><button class="pid-c" aria-label="Collapse header"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+      <div class="pid-al" aria-label="Alerts">
+        <sc-for list="{{alerts}}" as="a" hint-placeholder-count="5"><button class="{{a.cls}}" title="{{a.d}}" aria-label="{{a.d}}"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{a.ic}}"></path></svg></button></sc-for>
+      </div>
+    </div>
+  </header>
+
+  <div class="prt">
+    <button class="prt-menu" onClick="{{toggleMore}}" aria-label="Record menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Menu</button>
+    <nav class="tabs" role="tablist" aria-label="Service user sections">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="11"><button role="tab" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}<sc-if value="{{t.hasN}}" hint-placeholder-val="{{false}}"><span class="cnt">{{t.n}}</span></sc-if></button></sc-for>
+    </nav>
+  </div>
+
+  <sc-if value="{{isOverview}}" hint-placeholder-val="{{true}}">
+  <div class="cl">
+    <div class="cl-l">
+      <nav class="qm2" aria-label="Jump to">
+        <sc-for list="{{qm}}" as="q" hint-placeholder-count="12"><button onClick="{{q.pick}}"><span class="{{q.c}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{q.ic}}"></path></svg></span><span class="grow">{{q.t}}</span><sc-if value="{{q.hasN}}" hint-placeholder-val="{{false}}"><span class="{{q.nc}}">{{q.n}}</span></sc-if></button></sc-for>
+      </nav>
+
+      <section class="pn c-blue" aria-label="Person details">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c.8-3.6 4-6 8-6s7.2 2.4 8 6"></path></svg>Person details<span class="sp"></span><button class="pn-x" aria-label="Open Person details full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b kv6">
+          <p>Full name: <b>Harold James Pryce</b></p>
+          <p>Known as: <b>Harry</b></p>
+          <p>Address: <b>12 Sample Road, Liverpool ZZ2 1AA</b></p>
+          <p>Phone: <b>0151 555 0142</b></p>
+          <p>Date of birth: <b>•• •• 1936</b> <button class="reveal">Show</button></p>
+          <p>NHS number: <b class="mono">••• ••• 4521</b> <button class="reveal">Show</button></p>
+          <p>First language: <b>English</b></p>
+          <p>Carer preference: <b>Male carers for personal care</b></p>
+          <p>Status: <b>Active since 3 Mar 2025</b></p>
+        </div>
+        <div class="pn-f"><button class="btn btn-sm"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4"></path></svg>Refresh</button><button class="btn btn-sm btn-p" onClick="{{toPersonal}}">Edit</button></div>
+      </section>
+
+      <section class="pn c-rose" aria-label="Key contacts">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.8 3.1 2.6 3.5 5.2"></path></svg>Key contacts<span class="cnt2">3</span><span class="sp"></span><button class="pn-x" aria-label="Open Key contacts full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+        <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Name</th><th scope="col">Relationship</th><th scope="col">Phone</th></tr></thead><tbody>
+          <sc-for list="{{contacts}}" as="c" hint-placeholder-count="3"><tr><td class="cbc"><span class="cb"></span></td><td>{{c.n}}<sc-if value="{{c.nok}}" hint-placeholder-val="{{false}}"> <span class="tag">Next of kin</span></sc-if></td><td>{{c.r}}</td><td class="nw">{{c.p}}</td></tr></sc-for>
+        </tbody></table></div>
+      </section>
+
+      <section class="pn c-red" aria-label="Risks and safety">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1"></path></svg>Risks and safety<span class="cnt2">3</span><span class="sp"></span><button class="pn-x" aria-label="Open Risks and safety full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+        <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Risk</th><th scope="col">Level</th><th scope="col">Review</th></tr></thead><tbody>
+          <sc-for list="{{risks}}" as="r" hint-placeholder-count="3"><tr><td class="cbc"><span class="cb"></span></td><td>{{r.t}}</td><td><span class="{{r.pill}}">{{r.level}}</span></td><td class="nw">{{r.rev}}</td></tr></sc-for>
+        </tbody></table></div>
+      </section>
+
+      <section class="pn c-amber" aria-label="Before you visit">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1"></path></svg>Before you visit<span class="cnt2">4</span><span class="sp"></span><button onClick="{{toHealth}}">Health and safety</button><button class="pn-x" aria-label="Open Before you visit full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b">
+          <sc-for list="{{hz}}" as="h" hint-placeholder-count="4"><div class="hz"><span class="{{h.c}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{h.ic}}"></path></svg></span><span class="grow"><b>{{h.t}}</b><small>{{h.d}}</small></span><sc-if value="{{h.code}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm">Show code</button></sc-if></div></sc-for>
+        </div>
+      </section>
+
+      <section class="pn c-teal" aria-label="Care plan">
+        <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5.5H5V21h14V5.5h-2M8.5 12h7M8.5 16h5"></path></svg>Care plan<span class="sp"></span><button onClick="{{toCare}}">Open</button><button class="pn-x" aria-label="Open Care plan full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+        <div class="pn-b kv6">
+          <p>Version: <b>3, in use</b> <span class="pill warn">Review 28 Nov</span></p>
+          <p>Approved: <b>2 Sep 2026</b>, set up from the council support plan</p>
+          <div class="row" style="margin-top: 8px; gap: 10px"><span class="cap nw">Read by carers</span><div class="meter grow"><i style="width: 85.7%; background: var(--ok-fill)"></i></div><b style="font-size: 12.5px">6 of 7</b></div>
+          <div class="toc" style="margin-top: 10px"><span class="tag">Personal care</span><span class="tag">Moving and handling</span><span class="tag">Eating and drinking</span><span class="tag">+4</span></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="tl2" aria-label="Activity timeline">
+      <div class="tl2-h"><h2>Timeline</h2><span class="sp"></span><sc-for list="{{kinds}}" as="k" hint-placeholder-count="4"><button class="{{k.cls}}" onClick="{{k.pick}}">{{k.t}}</button></sc-for></div>
+      <div class="tl2-m">NOV 2026</div>
+      <sc-for list="{{feed}}" as="f" hint-placeholder-count="6">
+        <div class="{{f.cls}}">
+          <span class="ic"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{f.ic}}"></path></svg></span>
+          <div style="min-width: 0">
+            <div class="row" style="align-items: baseline; gap: 8px"><button class="tt grow" style="text-align: left">{{f.title}}</button><span class="wh">{{f.ago}}</span></div>
+            <p>{{f.text}}</p>
+            <div class="tm2"><span>Completed by:</span><span>Date and time:</span><b>{{f.who}}</b><b>{{f.when}}</b></div>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+
+    <section class="pn c-green" aria-label="Completed visits with staff">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l3 3 5-6"></path></svg>Completed visits with staff<span class="cnt2">12</span><span class="sp"></span><button class="pn-x" aria-label="Open Completed visits with staff full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+      <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Date</th><th scope="col">Call</th><th scope="col">Staff</th><th scope="col">Times</th><th scope="col">Note</th></tr></thead><tbody>
+        <sc-for list="{{done}}" as="v" hint-placeholder-count="5"><tr><td class="cbc"><span class="cb"></span></td><td class="nw">{{v.d}}</td><td>{{v.c}}</td><td>{{v.w}}</td><td class="nw">{{v.t}}</td><td><span class="{{v.pill}}">{{v.n}}</span></td></tr></sc-for>
+      </tbody></table></div>
+    </section>
+
+    <section class="pn c-blue" aria-label="Visits for the next 14 days">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg>Visits for the next 14 days<span class="cnt2">54</span><span class="sp"></span><button onClick="{{toRota}}">Daily Rota</button><button class="pn-x" aria-label="Open Visits for the next 14 days full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-tools"><button aria-label="Add" title="Add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button aria-label="Export to spreadsheet" title="Export to spreadsheet"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM9 8l6 8M15 8l-6 8"></path></svg></button><button aria-label="Edit selected" title="Edit selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"></path></svg></button><button aria-label="Remove selected" title="Remove selected"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"></path></svg></button><button aria-label="Pin to overview" title="Pin to overview"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"></path></svg></button><button aria-label="More" title="More"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5h.01M12 12h.01M12 19h.01"></path></svg></button></div>
+      <div class="pn-b flush" style="overflow-x: auto"><table class="tbl tck"><thead><tr><th scope="col" class="cbc"><span class="cb"></span></th><th scope="col">Day</th><th scope="col">Calls</th><th scope="col">Carers</th></tr></thead><tbody>
+        <sc-for list="{{next}}" as="v" hint-placeholder-count="5"><tr><td class="cbc"><span class="cb"></span></td><td class="nw">{{v.d}}</td><td>{{v.c}}</td><td><span class="{{v.pill}}">{{v.w}}</span></td></tr></sc-for>
+      </tbody></table></div>
+    </section>
+
+    <section class="pn c-navy cl-w" aria-label="This week's visits">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg>This week's visits<span class="sp"></span><button>Repeating visits</button><button class="pn-x" aria-label="Open This week's visits full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-b" style="overflow-x: auto">
+        <div class="mx" role="table" aria-label="Visits by call and day this week">
+          <div class="mh"></div><sc-for list="{{days}}" as="d" hint-placeholder-count="7"><div class="{{d.cls}}">{{d.t}}</div></sc-for>
+          <sc-for list="{{grid}}" as="g" hint-placeholder-count="4">
+            <div class="rl">{{g.name}}</div>
+            <sc-for list="{{g.cells}}" as="c" hint-placeholder-count="7"><div class="{{c.cls}}"><span class="{{c.x}}">{{c.t}}</span></div></sc-for>
+          </sc-for>
+        </div>
+        <div class="lgd" style="margin-top: 8px"><span><i style="background: var(--ok-50); border-color: var(--ok-bd)"></i>Completed</span><span><i style="background: var(--todo-50); border-color: var(--ctl)"></i>Booked</span><span><i style="background: var(--bad); border-color: var(--bad)"></i>A carer place is open</span></div>
+      </div>
+    </section>
+
+    <section class="pn c-orange" aria-label="Funding and references">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v11H3zM3 11h18M7 15h3"></path></svg>Funding and references<span class="sp"></span><button>Add reference</button><button class="pn-x" aria-label="Open Funding and references full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-b kv6">
+        <p>Funder: <b>Liverpool City Council</b></p>
+        <p>Package period: <b>3 Mar 2025 to open</b></p>
+        <p>Council ref: <b class="mono">LCC-448120</b></p>
+        <p>Package ref: <b class="mono">PKG-2025-0311</b></p>
+        <p>Authorised: <b>24.5 h a week</b> · Scheduled: <b>24.5 h a week</b></p>
+        <p style="color: var(--ok)">Scheduled care matches the package</p>
+      </div>
+    </section>
+
+    <section class="pn c-purple" aria-label="Care team">
+      <div class="pn-h"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"></path></svg>Care team<span class="sp"></span><button onClick="{{toContacts}}">Contacts &amp; carers</button><button class="pn-x" aria-label="Open Care team full screen" title="Open full screen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button></div>
+      <div class="pn-b flush"><table class="tbl tck"><thead><tr><th scope="col">Carer</th><th scope="col">Role</th><th scope="col">Visits, 28 days</th></tr></thead><tbody>
+        <tr><td><span class="row" style="gap: 8px"><span class="av s24 a1">CB</span>Chloe Barton</span></td><td>Coordinator</td><td>–</td></tr>
+        <tr><td><span class="row" style="gap: 8px"><span class="av s24 a2">OP</span>Oscar Patel</span></td><td>Carer</td><td>41</td></tr>
+        <tr><td><span class="row" style="gap: 8px"><span class="av s24 a4">AH</span>Amelia Hart</span></td><td>Carer</td><td>33</td></tr>
+        <tr><td><span class="row" style="gap: 8px"><span class="av s24 a3">FJ</span>Freya James</span></td><td>Carer</td><td>12</td></tr>
+      </tbody></table></div>
+      <div class="pn-f" style="justify-content: space-between; align-items: center"><span class="cap">Away: not away, nothing planned</span><button class="btn btn-sm">Record absence</button></div>
+    </section>
+  </div>
+  </sc-if>
+
+  <div style="padding: 18px 24px 28px; background: var(--canvas)">
+      <sc-if value="{{isDocs}}" hint-placeholder-val="{{false}}">
+        <div class="col" style="gap: 16px">
+          <div class="row" style="flex-wrap: wrap"><div class="field" style="flex: 0 1 300px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg><span class="grow">Search documents</span></div><span class="sp"></span><button class="btn">Show archived</button><button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v5h16v-5"></path></svg>Upload documents</button></div>
+          <div class="panel" style="overflow: hidden">
+            <table class="tbl">
+              <thead><tr><th scope="col">Document</th><th scope="col">Received</th><th scope="col">Effective from</th><th scope="col">Expires</th><th scope="col">Uploaded</th><th scope="col"></th></tr></thead>
+              <tbody>
+                <tr class="grp"><td colspan="6">Council documents · 3</td></tr>
+                <sc-for list="{{docs1}}" as="d" hint-placeholder-count="3"><tr><td><span class="row" style="gap: 10px"><span class="{{d.ic}}">{{d.ty}}</span><span><b style="display: block">{{d.t}}</b><span class="cap">{{d.s}}</span></span></span></td><td>{{d.rec}}</td><td>{{d.eff}}</td><td>{{d.exp}}</td><td class="m2">{{d.up}}</td><td class="r"><button class="btn btn-sm btn-q">Open</button></td></tr></sc-for>
+                <tr class="grp"><td colspan="6">Other documents · 2</td></tr>
+                <sc-for list="{{docs2}}" as="d" hint-placeholder-count="2"><tr><td><span class="row" style="gap: 10px"><span class="{{d.ic}}">{{d.ty}}</span><span><b style="display: block">{{d.t}}</b><span class="cap">{{d.s}}</span></span></span></td><td>{{d.rec}}</td><td>{{d.eff}}</td><td>{{d.exp}}</td><td class="m2">{{d.up}}</td><td class="r"><button class="btn btn-sm btn-q">Open</button></td></tr></sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div class="note"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"></path></svg>Restricted documents (identity, medical and financial) only open for people allowed to see sensitive details. Every opening is recorded.</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+        <div class="panel" style="padding: 20px 22px; max-width: 640px">
+          <div class="over">Next round</div>
+          <h2 style="font-size: 16px; font-weight: 600; margin-top: 4px">{{tabTitle}}</h2>
+          <p class="m2" style="margin-top: 4px">This tab keeps everything it holds today:</p>
+          <ul style="margin-top: 10px" class="col"><sc-for list="{{holds}}" as="h" hint-placeholder-count="4"><li class="row" style="min-height: 30px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ok)"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{h.t}}</li></sc-for></ul>
+        </div>
+      </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  state = { tab: 0, kind: 'All', more: false };
+  renderVals() {
+    const go = this.props.go || (() => {}), s = this.state;
+    const tabs = [
+      ['Overview', 0, []],
+      ['Personal details', 0, ['Name, known as, date of birth and first language', 'Address and phone', 'Status, with Change status', 'Carer preferences, with Save preference']],
+      ['Reference Numbers', 0, ['Permanent CSB reference', 'External references: council, Frameworki, package', 'Superseded references and reference history', 'Add a reference']],
+      ['Care', 0, ['Care plans: version, review due, approved, open plan', 'Care Summary', 'Risk assessments with actions required', 'Medication, when switched on in Rota Settings']],
+      ['Health and safety', 0, ['Getting in and key safe, with audited Show code and New key safe code', 'Incidents with reference, when and severity', 'Body map observations']],
+      ['Visits', 28, ['Visits, Template, Rota, Visit notes and Missed calls', 'Week navigation and Add Visit', 'Repeating visits and New template', 'Scheduled care against the commissioned package']],
+      ['Documents', 5, []],
+      ['Contacts & carers', 4, ['Key contacts with Add, Save and Remove', 'Carers who visit most', 'Carer preferences']],
+      ['Call Notes', 6, ['Call notes with review status', 'Add call note and follow-up tasks', 'Restricted notes for people with sensitive access']],
+      ['Audit & Exceptions', 2, ['Exceptions raised for this person', 'Audit entries']],
+      ['History', 0, ['Record history', 'Package history and previous packages']]
+    ];
+    const A = (i, c) => ({ i, c: 'av s24 ' + c });
+    const OP = A('OP', 'a2'), AH = A('AH', 'a4');
+    const I = {
+      warn: 'M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1', two: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.8 3.1 2.6 3.5 5.2',
+      key: 'M15 9.5a4.5 4.5 0 1 1-1.3-3.2A4.5 4.5 0 0 1 15 9.5zM11.8 12.7 4 20.5M6.5 18l2 2M8.8 15.7l2 2', heart: 'M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z',
+      clip: 'M9 4h6v3H9zM7 5.5H5V21h14V5.5h-2M8.5 12h7M8.5 16h5', shield: 'M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z', med: 'M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7zM7 10l7 7',
+      cal: 'M4 7h16v13H4zM4 11h16M8 4v4M16 4v4', pen: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4', phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+      body: 'M12 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 9h12M12 9v6M9 21l3-6 3 6', doc: 'M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5', hist: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2',
+      card: 'M3 7h18v11H3zM3 11h18M7 15h3', check: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l3 3 5-6', walk: 'M13 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM10 21l2-6 3 3v4M9 11l3-3 3 3 3 1M12 8l-1 7'
+    };
+    const feedAll = [
+      { kind: 'Visit note', title: 'Visit note created', c: 'c-green', ic: I.check, ago: 'Today at 08:14', who: 'Oscar Patel', when: '12/11/2026 08:14', text: 'Up and dressed, ate a full breakfast. In good spirits, talked about his grandson visiting on Saturday.' },
+      { kind: 'Audit', title: 'Key safe code viewed', c: 'c-amber', ic: I.key, ago: 'Today at 07:22', who: 'Amelia Hart', when: '12/11/2026 07:22', text: 'Code shown before the morning call. Recorded in Audit & Exceptions.' },
+      { kind: 'Call note', title: 'Call note created', c: 'c-blue', ic: I.phone, ago: 'Yesterday at 15:20', who: 'Chloe Barton', when: '11/11/2026 15:20', text: 'Susan asked us to move Tuesday lunch to 13:00 for his hospital appointment on 18 November. Agreed for that day only.' },
+      { kind: 'Visit note', title: 'Visit note created', c: 'c-green', ic: I.check, ago: 'Yesterday at 20:58', who: 'Amelia Hart', when: '11/11/2026 20:58', text: 'Assisted to bed with the hoist, two carers. Skin checked, no concerns.' },
+      { kind: 'Incident', title: 'Incident INC-0418 closed', c: 'c-red', ic: I.warn, ago: '09/11/2026 17:22', who: 'Chloe Barton', when: '09/11/2026 17:22', text: 'Small skin tear on left forearm from the chair arm. Cleaned and dressed, daughter told.' },
+      { kind: 'Care plan', title: 'Care plan read', c: 'c-teal', ic: I.clip, ago: '07/11/2026 09:40', who: 'Freya James', when: '07/11/2026 09:40', text: 'Version 3 read and signed. 6 of 7 regular carers have now read it.' }
+    ];
+    const kinds = ['All', 'Visit notes', 'Call notes', 'Incidents'];
+    const kmap = { 'Visit notes': 'Visit note', 'Call notes': 'Call note', Incidents: 'Incident' };
+    const toTab = (i) => () => this.setState({ tab: i });
+    const Q = (t, c, ic, tab, n, nc) => ({ t, c: 'qi2 ' + c, ic, pick: toTab(tab), n: n || '', hasN: !!n, nc: nc || 'n' });
+    const X = (t, x) => ({ t, x: 'x ' + x });
+    const row = (name, cells) => ({ name, cells: cells.map((c, i) => ({ cls: i === 3 ? 'c td' : 'c', t: c.t, x: c.x })) });
+    const d2 = X('OP AH', 'ok'), d1 = X('OP', 'ok'), d1b = X('AH', 'ok');
+    return {
+      toRota: () => go('DailyRota'), more: s.more, toggleMore: () => this.setState({ more: !s.more }),
+      tabs: tabs.map((t, i) => ({ label: t[0], n: t[1], hasN: t[1] > 0, cls: i === s.tab ? 'tab on' : 'tab', pick: () => this.setState({ tab: i }) })),
+      isOverview: s.tab === 0, isDocs: s.tab === 6, isOther: s.tab !== 0 && s.tab !== 6, tabTitle: tabs[s.tab][0], holds: tabs[s.tab][2].map((t) => ({ t })),
+      calls: [
+        { row: 'vrow', t: '07:30', e: 'to 08:15', name: 'Morning call', line: 'Two carers · finished 08:14, 1 minute early', node: 'node ok', av: [OP, AH], st: 'Completed', pill: 'pill ok' },
+        { row: 'vrow now', t: '12:30', e: 'to 13:00', name: 'Lunch call', line: 'One carer · Oscar Patel', node: 'node', av: [OP], st: 'Booked', pill: 'pill' },
+        { row: 'vrow', t: '17:00', e: 'to 17:30', name: 'Tea call', line: 'One carer · Amelia Hart', node: 'node', av: [AH], st: 'Booked', pill: 'pill' },
+        { row: 'vrow', t: '20:30', e: 'to 21:00', name: 'Bed call', line: 'Two carers needed · Oscar Patel booked', node: 'node bad', av: [OP], st: '1 of 2 carers', pill: 'pill bad' }
+      ],
+      risks: [
+        { t: 'Moving and handling', level: 'Medium', rev: '1 Dec', lvl: 'lvl l2', pill: 'pill warn' },
+        { t: 'Falls', level: 'Medium', rev: '1 Dec', lvl: 'lvl l2', pill: 'pill warn' },
+        { t: 'Home environment', level: 'Low', rev: '14 Feb', lvl: 'lvl l1', pill: 'pill ok' }
+      ],
+      days: ['Mon 9', 'Tue 10', 'Wed 11', 'Thu 12', 'Fri 13', 'Sat 14', 'Sun 15'].map((t, i) => ({ t, cls: i === 3 ? 'mh td' : 'mh' })),
+      grid: [
+        row('Morning', [d2, d2, d2, d2, X('OP AH', ''), X('OP FJ', ''), X('OP AH', '')]),
+        row('Lunch', [d1, d1, d1, X('OP', ''), X('OP', ''), X('FJ', ''), X('FJ', '')]),
+        row('Tea', [d1b, d1b, d1b, X('AH', ''), X('AH', ''), X('FJ', ''), X('AH', '')]),
+        row('Bed', [d2, d2, d2, X('OP +1', 'bad'), X('OP AH', ''), X('AH +1', 'bad'), X('OP AH', '')])
+      ],
+      kinds: kinds.map((k) => ({ t: k, cls: k === s.kind ? 'chip on' : 'chip', pick: () => this.setState({ kind: k }) })),
+      feed: feedAll.filter((f) => s.kind === 'All' || f.kind === kmap[s.kind]).map((f) => Object.assign({}, f, { cls: 'tle2 ' + f.c })),
+      toList: () => go('P:service-users'),
+      done: [
+        { d: 'Thu 12 Nov', c: 'Morning', w: 'Oscar Patel, Amelia Hart', t: '07:31 to 08:14', n: 'Note added', pill: 'pill ok' },
+        { d: 'Wed 11 Nov', c: 'Bed', w: 'Oscar Patel, Amelia Hart', t: '20:30 to 20:58', n: 'Note added', pill: 'pill ok' },
+        { d: 'Wed 11 Nov', c: 'Tea', w: 'Amelia Hart', t: '17:02 to 17:31', n: 'Note added', pill: 'pill ok' },
+        { d: 'Wed 11 Nov', c: 'Lunch', w: 'Oscar Patel', t: '12:34 to 13:01', n: 'Note added', pill: 'pill ok' },
+        { d: 'Wed 11 Nov', c: 'Morning', w: 'Oscar Patel, Amelia Hart', t: '07:40 to 08:20', n: '10 min late', pill: 'pill warn' }
+      ],
+      toPersonal: toTab(1), toCare: toTab(3), toHealth: toTab(4), toVisits: toTab(5), toContacts: toTab(7),
+      alerts: [
+        { t: 'Two carers', d: 'Two carers at morning and bed. Hoist for every transfer.', cls: 'ai bad', ic: I.two },
+        { t: 'Falls risk', d: 'Medium. Walking frame indoors at all times.', cls: 'ai warn', ic: I.walk },
+        { t: 'Key safe', d: 'By the side gate. Knock and call out first.', cls: 'ai info', ic: I.key },
+        { t: 'Male carers', d: 'Prefers male carers for personal care.', cls: 'ai prog', ic: I.heart },
+        { t: 'Care plan', d: 'Care plan in place, review due 28 November', cls: 'ai ok', ic: I.check }
+      ],
+      hz: [
+        { t: 'Two carers at morning and bed', d: 'Hoist for every transfer', c: 'hi bad', ic: I.two, code: false },
+        { t: 'Falls risk: medium', d: 'Walking frame indoors at all times', c: 'hi warn', ic: I.walk, code: false },
+        { t: 'Key safe by the side gate', d: 'Knock and call out first. Viewing the code is recorded.', c: 'hi info', ic: I.key, code: true },
+        { t: 'Prefers male carers', d: 'For personal care', c: 'hi n', ic: I.heart, code: false }
+      ],
+      qm: [
+        Q('Before you visit', 'c-red', I.warn, 4, 4, 'n bad'), Q('Care plan', 'c-teal', I.clip, 3), Q('Risk assessments', 'c-amber', I.shield, 3, 3), Q('Medication', 'c-purple', I.med, 3),
+        Q('Visits', 'c-navy', I.cal, 5, 28), Q('Visit notes', 'c-green', I.check, 5), Q('Call notes', 'c-blue', I.phone, 8, 6), Q('Incidents', 'c-red', I.warn, 4, 1),
+        Q('Body map', 'c-rose', I.body, 4), Q('Documents', 'c-cyan', I.doc, 6, 5), Q('Contacts & carers', 'c-rose', I.two, 7, 4), Q('References', 'c-orange', I.card, 2),
+        Q('Audit & exceptions', 'c-amber', I.shield, 9, 2, 'n bad'), Q('History', 'c-navy', I.hist, 10)
+      ],
+      contacts: [
+        { n: 'Susan Pryce', r: 'Daughter', p: '07700 900118', nok: true },
+        { n: 'Michael Pryce', r: 'Son', p: '07700 900342', nok: false },
+        { n: 'Dr A. Mensah', r: 'GP', p: '0151 555 0190', nok: false }
+      ],
+      next: [
+        { d: 'Fri 13 Nov', c: 'Morning, lunch, tea, bed', w: 'All booked', pill: 'pill ok' },
+        { d: 'Sat 14 Nov', c: 'Bed call', w: '1 of 2 carers', pill: 'pill bad' },
+        { d: 'Sun 15 Nov', c: 'Morning, lunch, tea, bed', w: 'All booked', pill: 'pill ok' },
+        { d: 'Tue 17 Nov', c: 'Lunch moved to 13:00', w: 'Changed', pill: 'pill info' },
+        { d: 'Wed 18 Nov', c: 'Hospital appointment', w: 'Lunch cancelled', pill: 'pill warn' }
+      ],
+      docs1: [
+        { ty: 'PDF', ic: 'dico pdf', t: 'Support plan', s: 'Liverpool City Council · read by the Care Coordinator', rec: '28 Aug 2026', eff: '1 Sep 2026', exp: '—', up: 'Chloe Barton' },
+        { ty: 'PDF', ic: 'dico pdf', t: 'Care and support assessment', s: 'Liverpool City Council', rec: '14 Feb 2025', eff: '3 Mar 2025', exp: '—', up: 'Chloe Barton' },
+        { ty: 'DOC', ic: 'dico word', t: 'Service agreement', s: 'Signed by Susan Pryce', rec: '28 Feb 2025', eff: '3 Mar 2025', exp: '2 Mar 2027', up: 'Demo Manager' }
+      ],
+      docs2: [
+        { ty: 'PDF', ic: 'dico pdf', t: 'Hospital discharge letter', s: 'Restricted · medical', rec: '19 Jun 2026', eff: '19 Jun 2026', exp: '—', up: 'Chloe Barton' },
+        { ty: 'IMG', ic: 'dico form', t: 'Hoist service certificate', s: 'Equipment', rec: '2 Apr 2026', eff: '2 Apr 2026', exp: '1 Apr 2027', up: 'Oscar Patel' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

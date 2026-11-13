@@ -129,7 +129,7 @@ function alertsOf(v: VisitRow) {
   return out;
 }
 
-const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]";
+const SEL = "h-[34px] w-full appearance-none rounded-full border border-[#d5d2ca] bg-white pl-3 pr-8 text-[13px] text-[#15181d]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
   return (
@@ -236,6 +236,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   return (
     <div className="daily-rota">
       <ModuleHeader
+        variant="plain"
         title="Daily Rota"
         description={<>{ordinalDate(date)} · {branchName}</>}
         actions={
@@ -247,11 +248,11 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="mh-btn"><CaretRight size={18} weight="bold" aria-hidden /></Link>
               {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="mh-btn">Today</Link> : null}
             </AutoSubmitForm>
-            <nav aria-label="Rota view" className="flex gap-2">
-              <Link href={url({ layout: "list", visit: undefined })} aria-current={layout === "list" ? "page" : undefined} className={`mh-btn ${layout === "list" ? "mh-btn-primary" : ""}`}><List size={19} weight="bold" aria-hidden />List</Link>
-              <Link href={url({ layout: "board", visit: undefined, status: undefined, view: undefined, sort: undefined, dir: undefined, page: undefined, per: undefined, cols: undefined })} aria-current={layout === "board" ? "page" : undefined} className={`mh-btn ${layout === "board" ? "mh-btn-primary" : ""}`}><SquaresFour size={19} weight="bold" aria-hidden />Board</Link>
+            <nav aria-label="Rota view" className="hb-seg">
+              <Link href={url({ layout: "list", visit: undefined })} aria-current={layout === "list" ? "page" : undefined} className="hb-seg-b"><List size={16} weight="bold" aria-hidden />List</Link>
+              <Link href={url({ layout: "board", visit: undefined, status: undefined, view: undefined, sort: undefined, dir: undefined, page: undefined, per: undefined, cols: undefined })} aria-current={layout === "board" ? "page" : undefined} className="hb-seg-b"><SquaresFour size={16} weight="bold" aria-hidden />Board</Link>
             </nav>
-            {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className="mh-btn"><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
+            {canEdit ? <Link href={`/rota/visits/new?date=${date}`} className="mh-btn mh-btn-primary"><Plus size={18} weight="bold" aria-hidden />Add Visit</Link> : null}
           </>
         }
       />
@@ -263,7 +264,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
           <label className="relative min-w-0">
             <span className="sr-only">Search visits by service user, carer or reference</span>
             <MagnifyingGlass size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
-            <input type="search" name="q" defaultValue={q ?? ""} placeholder="Search visits…" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-[14px] text-[#101828] placeholder:text-[#667085]" />
+            <input type="search" name="q" defaultValue={q ?? ""} placeholder="Search visits…" className="h-[34px] w-full rounded-full border border-[#d5d2ca] bg-white pl-9 pr-2 text-[13px] text-[#15181d] placeholder:text-[#676c74]" />
           </label>
           <FilterSelect name="area" label="Area" value={area ?? ""}><option value="">Area: All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>Area: {a.name}</option>)}</FilterSelect>
           <FilterSelect name="status" label="Status" value={sp.status ?? ""}><option value="">Status: All</option>{STATUSES.map((s) => <option key={s} value={s}>Status: {VISIT_LABEL[s]}</option>)}</FilterSelect>
@@ -272,7 +273,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className="flex h-[34px] cursor-pointer list-none items-center gap-2 rounded-full border border-dashed border-[#bbb7ad] bg-white px-3.5 text-[13px] font-semibold text-[#4a4f57] hover:bg-[#f6f5f2] [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={16} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
             <form method="get" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["branch", "call", "view", "cancelled", "page", "visit"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
@@ -283,7 +284,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <summary className="hb-btn h-[34px] cursor-pointer list-none [&::-webkit-details-marker]:hidden">Actions<CaretDown size={14} weight="bold" aria-hidden /></summary>
             <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={url({ cancelled: sp.cancelled === "1" ? undefined : "1", page: undefined })} className="block px-3 py-2 no-underline hover:bg-slate-50">{sp.cancelled === "1" ? "Hide cancelled visits" : "Show cancelled visits"}</Link></li>
@@ -305,18 +306,19 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
 
       <div className={`grid grid-cols-1 items-start gap-4 ${inspector ? "xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
         {board ? (
-          <section aria-label="Board" data-testid="rota-board" className="min-w-0 overflow-hidden rounded-[10px] border border-rule bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <section aria-label="Board" data-testid="rota-board" className="hb-pn min-w-0 overflow-hidden">
             {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <div className="px-3.5 pt-3"><MoveConfirm move={move} back={back} /></div> : null}
-            <div className="flex flex-wrap items-center gap-3 border-b border-rule px-3.5 py-2.5">
-              <h2 className="text-[15px] font-semibold text-ink" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
-              <span className="text-[13px] text-status-ink">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
-              <span className="ml-auto"><BoardLegend /></span>
+            {/* The bar above the board, in the Care & Rostering colour (Harbour). */}
+            <div className="hb-rota-bar flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-2.5">
+              <h2 className="text-[13.5px] font-semibold text-white" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
+              <span className="text-[13px] text-white/90">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
+              <span className="basis-full"><BoardLegend onBar /></span>
             </div>
             <RotaBoard rows={board.rows} rounds={board.rounds} segments={board.segments} nowMin={board.nowMin} footer={board.footer} action={canEdit ? assignCarerAction : undefined} back={back} />
             {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
           </section>
         ) : layout === "list" ? (
-          <section aria-label="Visits" className="min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+          <section aria-label="Visits" className="hb-pn min-w-0 !overflow-visible">
             <div className="flex flex-wrap items-center gap-2 px-3.5 py-3">
               {canEdit ? (
                 <form id="bulk" action={bulkVisitsAction} className="flex flex-wrap items-center gap-2" aria-label="Bulk actions">

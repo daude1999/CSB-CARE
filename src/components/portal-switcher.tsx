@@ -25,6 +25,10 @@ export type ShellItem = {
   separated?: boolean;
   /** A long name that takes two lines rather than being cut off. */
   wrap?: boolean;
+  /** The entry's pages, shown as sub-tabs under the top bar (Harbour). Only set when there are two or more. */
+  tabs?: { label: string; href: string }[];
+  /** Names the sub-tab strip for tests and assistive technology (rota-tabs-<key>). */
+  tabsKey?: string;
 };
 export type ShellPortal = Portal & { icon: React.ReactNode };
 export type ShellPerson = { name: string; initials: string; role: string };

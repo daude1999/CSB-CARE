@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Administration</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="adm m-adm">
+  <nav class="adm-nav" aria-label="Administration">
+    <h1>Administration</h1>
+    <sc-for list="{{nav}}" as="g" hint-placeholder-count="5">
+      <div class="col" style="gap: 1px">
+        <div class="an-h">{{g.h}}</div>
+        <sc-for list="{{g.items}}" as="n" hint-placeholder-count="3"><button class="{{n.cls}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{n.ic}}"></path></svg>{{n.t}}<sc-if value="{{n.hasTag}}" hint-placeholder-val="{{false}}"><span class="tag">{{n.tag}}</span></sc-if></button></sc-for>
+      </div>
+    </sc-for>
+  </nav>
+
+  <div class="adm-main">
+    <div class="row" style="flex-wrap: wrap; gap: 12px; margin-bottom: 4px">
+      <div class="grow"><div class="over">People and access</div><h2 class="pt" style="margin-top: 2px">Users &amp; Logins</h2></div>
+      <button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Create invitation link</button>
+    </div>
+    <p class="m2" style="max-width: 70ch">Office users sign in to ClearCare. Carers sign in to the carer app and are linked to their HR record by hand. Every change here is written to the Activity Log.</p>
+    <nav class="tabs" style="margin: 14px 0 16px" aria-label="Users and logins">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button class="{{t.cls}}" onClick="{{t.pick}}">{{t.t}}<sc-if value="{{t.hasC}}" hint-placeholder-val="{{true}}"><span class="cnt">{{t.c}}</span></sc-if><sc-if value="{{t.prop}}" hint-placeholder-val="{{false}}"><span class="pill info nodot">Proposed</span></sc-if></button></sc-for>
+    </nav>
+
+    <sc-if value="{{isUsers}}" hint-placeholder-val="{{true}}">
+      <div>
+        <div class="row" style="flex-wrap: wrap; margin-bottom: 12px">
+          <div class="field" style="flex: 0 1 280px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg><span class="grow">Search name or email</span></div>
+          <div class="seg"><button class="on">Active</button><button>Deactivated</button><button>All</button></div>
+          <button class="chip"><small>Role</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+          <button class="chip"><small>Branch</small>Any<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        </div>
+        <div class="panel pcol c-purple" style="overflow-x: auto">
+          <div class="ph"><h2>Office users</h2><span class="cap">people who sign in to ClearCare</span></div>
+          <table class="tbl">
+            <thead><tr><th scope="col">User</th><th scope="col">Roles</th><th scope="col">Branches</th><th scope="col">Status</th><th scope="col"><span class="sr" style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+            <tbody>
+              <sc-for list="{{users}}" as="u" hint-placeholder-count="6">
+                <tr class="{{u.row}}" onClick="{{u.pick}}" style="cursor: pointer">
+                  <td style="height: 56px"><span class="row" style="gap: 10px"><span class="{{u.av}}">{{u.ini}}</span><span style="min-width: 0"><b style="display: block">{{u.name}}</b><span class="cap">{{u.email}}</span></span></span></td>
+                  <td><span class="row" style="gap: 4px; flex-wrap: wrap"><sc-for list="{{u.roles}}" as="r" hint-placeholder-count="2"><span class="tag">{{r.t}}</span></sc-for></span></td>
+                  <td>{{u.br}}</td>
+                  <td><span class="{{u.pill}}">{{u.st}}</span></td>
+                  <td class="r"><button class="btn btn-sm btn-q btn-ico" aria-label="Actions for this user"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button></td>
+                </tr>
+              </sc-for>
+              <tr class="grp"><td colspan="5">Invitation links waiting to be used · 1</td></tr>
+              <tr><td style="height: 52px"><span class="row" style="gap: 10px"><span class="av s32 a6"><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4zM4 7l8 6 8-6"></path></svg></span><span><b style="display: block">priya.n@example.org</b><span class="cap">Invited by Demo Manager · link expires in 5 days</span></span></span></td><td><span class="tag">Care manager</span></td><td>Liverpool</td><td><span class="pill">Invited</span></td><td class="r"><button class="btn btn-sm">Revoke</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isCarers}}" hint-placeholder-val="{{false}}">
+      <div class="panel pcol c-teal" style="overflow-x: auto">
+        <div class="ph"><h2>Carer app logins</h2><span class="cap">23 carers · 21 linked to HR</span><span class="sp"></span><button class="btn btn-sm">Re-check against HR now</button></div>
+        <table class="tbl">
+          <thead><tr><th scope="col">Staff member (from HR)</th><th scope="col">Sign-in</th><th scope="col">Linked</th><th scope="col"></th></tr></thead>
+          <tbody>
+            <sc-for list="{{carers}}" as="c" hint-placeholder-count="5"><tr><td><span class="row" style="gap: 10px"><span class="{{c.av}}">{{c.ini}}</span><b>{{c.name}}</b></span></td><td class="m2">{{c.login}}</td><td><span class="{{c.pill}}">{{c.st}}</span></td><td class="r"><button class="{{c.btn}}">{{c.a}}</button></td></tr></sc-for>
+          </tbody>
+        </table>
+        <div class="note" style="margin: 12px 16px 16px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 7.8v.1"></path></svg>Sign-ins are linked to staff by hand only, by an organisation admin. Linking is recorded in the Activity Log.</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isRoles}}" hint-placeholder-val="{{false}}">
+      <div>
+        <div class="note info" style="margin-bottom: 14px"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 7.8v.1"></path></svg>Proposed page, not in the live app. A read-only reference drawn from the fixed role rules in the code, so admins can see what each role allows before assigning it.</div>
+        <div class="panel pcol c-navy" style="overflow-x: auto"><div class="ph"><h2>What each role allows</h2><span class="cap">read only</span></div><div style="padding: 0 16px 8px">
+          <table class="pm">
+            <thead><tr><th style="text-align: left; vertical-align: bottom">Permission</th><sc-for list="{{roleCols}}" as="r" hint-placeholder-count="10"><th class="rot"><div>{{r.t}}</div></th></sc-for></tr></thead>
+            <tbody>
+              <sc-for list="{{matrix}}" as="m" hint-placeholder-count="14">
+                <tr class="{{m.cls}}"><td colspan="{{m.span}}">{{m.t}}</td><sc-for list="{{m.cells}}" as="c" hint-placeholder-count="10"><td><span class="{{c.k}}" aria-label="{{c.a}}"></span></td></sc-for></tr>
+              </sc-for>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{drawer}}" hint-placeholder-val="{{true}}">
+      <aside class="drawer" aria-label="User details">
+        <div class="dr-h">
+          <div class="row" style="gap: 12px">
+            <span class="av s40 a1">{{u.ini}}</span>
+            <div class="grow"><b style="display: block; font-size: 16px">{{u.name}}</b><span class="cap">{{u.email}}</span></div>
+            <button class="ib" aria-label="Close user details" onClick="{{close}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></button>
+          </div>
+          <div class="row" style="margin-top: 12px; gap: 8px"><span class="pill ok">Active</span><span class="cap">Member since March 2021</span></div>
+        </div>
+        <div class="dr-b">
+          <section>
+            <div class="sh"><h3>Roles</h3><span class="cap">a person can hold several</span></div>
+            <div>
+              <sc-for list="{{roleList}}" as="r" hint-placeholder-count="6">
+                <label class="role"><span class="{{r.cb}}" role="checkbox" aria-checked="{{r.on}}"></span><span><b>{{r.t}}</b><p>{{r.d}}</p></span></label>
+              </sc-for>
+              <button class="lnk" style="font-size: 13px; margin-top: 4px">Show all 10 roles</button>
+            </div>
+          </section>
+          <section style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-2)">
+            <div class="sh"><h3>Branches this person works in</h3></div>
+            <div class="seg"><button>All branches</button><button class="on">Chosen branches</button></div>
+            <div class="row" style="gap: 6px; margin-top: 10px"><span class="chip on">Liverpool<svg class="i i12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></span><button class="chip add">Add branch</button></div>
+          </section>
+          <section style="margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-2)">
+            <div class="sh"><h3>What these roles allow</h3></div>
+            <sc-for list="{{allow}}" as="a" hint-placeholder-count="4">
+              <div style="margin-bottom: 12px"><b style="font-size: 13px">{{a.t}}</b><div class="perm"><sc-for list="{{a.p}}" as="p" hint-placeholder-count="4"><span><svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>{{p.t}}</span></sc-for></div></div>
+            </sc-for>
+            <div class="note" style="margin-top: 4px"><span><b>Not included:</b> publishing policies, finance, sensitive service user details, organisation settings.</span></div>
+          </section>
+        </div>
+        <div class="dr-f">
+          <button class="btn btn-d" style="margin-right: auto">Deactivate</button>
+          <button class="btn">Password reset link</button>
+          <button class="btn btn-p">Save</button>
+        </div>
+      </aside>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  state = { tab: 0, sel: (typeof window !== 'undefined' && window.innerWidth < 1024) ? -1 : 1 };
+  renderVals() {
+    const s = this.state;
+    const I = {
+      org: 'M4 20V7l8-4 8 4v13M9 20v-5h6v5M8 10h.01M12 10h.01M16 10h.01',
+      pin: 'M12 21s7-6 7-11.5A7 7 0 0 0 5 9.5C5 15 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+      grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+      users: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.8 3.1 2.6 3.5 5.2',
+      key: 'M15 9.5a4.5 4.5 0 1 1-1.3-3.2A4.5 4.5 0 0 1 15 9.5zM11.8 12.7 4 20.5M6.5 18l2 2M8.8 15.7l2 2',
+      shield: 'M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z',
+      cal: 'M4 7h16v13H4zM4 11h16M8 4v4M16 4v4',
+      list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+      radar: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12l6-6',
+      gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13.5l1.6 1-2 3.5-1.8-.6a7 7 0 0 1-2 1.2L14.8 21h-4l-.4-2.4a7 7 0 0 1-2-1.2l-1.8.6-2-3.5 1.6-1a7 7 0 0 1 0-3L4.6 9.5l2-3.5 1.8.6a7 7 0 0 1 2-1.2L10.8 3h4l.4 2.4a7 7 0 0 1 2 1.2l1.8-.6 2 3.5-1.6 1a7 7 0 0 1 0 3z',
+      globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3z'
+    };
+    const N = (t, ic, on, tag) => ({ t, ic, cls: on ? 'an on' : 'an', tag: tag || '', hasTag: !!tag });
+    const roles = { ORG_ADMIN: 'Organisation admin', CARE_MANAGER: 'Care manager', CARE_COORDINATOR: 'Care coordinator', COMPLIANCE_LEAD: 'Compliance lead', POLICY_AUTHOR: 'Policy author', POLICY_REVIEWER: 'Policy reviewer', POLICY_APPROVER: 'Policy approver', FINANCE_OFFICER: 'Finance officer', STAFF: 'Staff', CARER: 'Carer' };
+    const desc = { ORG_ADMIN: 'Everything in this organisation, including settings and publishing.', CARE_MANAGER: 'Runs care and the rota, sees sensitive details, signs off missed calls.', CARE_COORDINATOR: 'Day-to-day rota, visits and service user records.', COMPLIANCE_LEAD: 'Audits, actions, evidence, staff sign-off and CQC.', POLICY_AUTHOR: 'Writes policy drafts and uploads evidence.', POLICY_APPROVER: 'Publishes policies and approves CQC assessments.' };
+    const users = [
+      ['Demo Manager', 'demo.manager@example.org', ['ORG_ADMIN', 'CARE_MANAGER'], 'All branches', 'Active', 'a6'],
+      ['Chloe Barton', 'c.barton@example.org', ['CARE_COORDINATOR', 'COMPLIANCE_LEAD'], 'Liverpool', 'Active', 'a1'],
+      ['Tom Keane', 't.keane@example.org', ['POLICY_APPROVER'], 'All branches', 'Active', 'a5'],
+      ['Leah Morris', 'l.morris@example.org', ['POLICY_AUTHOR', 'FINANCE_OFFICER'], 'All branches', 'Active', 'a3'],
+      ['Owen Price', 'o.price@example.org', ['CARE_COORDINATOR'], 'Wirral', 'Active', 'a2'],
+      ['Grace Oduya', 'g.oduya@example.org', ['STAFF'], 'Liverpool', 'Deactivated', 'a4']
+    ];
+    const ini = (n) => n.split(' ').map((x) => x[0]).join('');
+    const cur = users[s.sel];
+    const R = ['ORG_ADMIN', 'CARE_MANAGER', 'CARE_COORDINATOR', 'COMPLIANCE_LEAD', 'POLICY_AUTHOR', 'POLICY_REVIEWER', 'POLICY_APPROVER', 'FINANCE_OFFICER', 'STAFF', 'CARER'];
+    const P = [
+      ['Policies'],
+      ['Read policies', 'ORG_ADMIN POLICY_AUTHOR POLICY_REVIEWER POLICY_APPROVER COMPLIANCE_LEAD STAFF CARE_MANAGER CARE_COORDINATOR CARER FINANCE_OFFICER'],
+      ['Write drafts', 'ORG_ADMIN POLICY_AUTHOR'],
+      ['Publish', 'POLICY_APPROVER ORG_ADMIN'],
+      ['Manage staff sign-off', 'ORG_ADMIN COMPLIANCE_LEAD'],
+      ['Rostering'],
+      ['View the rota', 'ORG_ADMIN CARE_MANAGER CARE_COORDINATOR COMPLIANCE_LEAD'],
+      ['Edit and build the rota', 'ORG_ADMIN CARE_MANAGER CARE_COORDINATOR'],
+      ['Rota settings', 'ORG_ADMIN CARE_MANAGER'],
+      ['Sign off missed calls', 'ORG_ADMIN CARE_MANAGER'],
+      ['Service users'],
+      ['View and edit records', 'ORG_ADMIN CARE_MANAGER CARE_COORDINATOR'],
+      ['Sensitive details', 'ORG_ADMIN CARE_MANAGER'],
+      ['Reveal key safe code', 'ORG_ADMIN CARE_MANAGER CARE_COORDINATOR'],
+      ['Report an incident', 'ORG_ADMIN CARE_MANAGER CARE_COORDINATOR COMPLIANCE_LEAD CARER'],
+      ['Finance and administration'],
+      ['View finance', 'ORG_ADMIN FINANCE_OFFICER CARE_MANAGER'],
+      ['Approve payroll and invoices', 'ORG_ADMIN FINANCE_OFFICER'],
+      ['Organisation settings', 'ORG_ADMIN'],
+      ['Link carer sign-ins to staff', 'ORG_ADMIN']
+    ];
+    return {
+      nav: [
+        { h: 'Organisation', items: [N('Business details', I.org), N('Branches & Areas', I.pin), N('Modules', I.grid)] },
+        { h: 'People and access', items: [N('Users & Logins', I.users, true), N('Staff Readiness Rules', I.shield)] },
+        { h: 'Rostering', items: [N('Rota Settings', I.cal)] },
+        { h: 'System', items: [N('Activity Log', I.list), N('Source Monitoring', I.radar), N('Background Jobs', I.gear)] },
+        { h: 'Platform', items: [N('Platform Admin Centre', I.globe, false, 'CSB')] }
+      ],
+      tabs: [['Office users', 6], ['Carer app logins & HR sync', 23], ['Roles & permissions', 0]].map((t, i) => ({ t: t[0], c: t[1], hasC: t[1] > 0, prop: i === 2, cls: i === s.tab ? 'tab on' : 'tab', pick: () => this.setState({ tab: i, sel: i === 0 ? s.sel : -1 }) })),
+      isUsers: s.tab === 0, isCarers: s.tab === 1, isRoles: s.tab === 2,
+      users: users.map((u, i) => ({ name: u[0] + (i === 0 ? ' (you)' : ''), email: u[1], roles: u[2].map((r) => ({ t: roles[r] })), br: u[3], st: u[4], pill: u[4] === 'Active' ? 'pill ok' : 'pill', av: 'av s32 ' + u[5], ini: ini(u[0]), row: i === s.sel ? 'is-sel' : '', pick: () => this.setState({ sel: i }) })),
+      drawer: s.tab === 0 && s.sel >= 0, close: () => this.setState({ sel: -1 }),
+      u: cur ? { name: cur[0], email: cur[1], ini: ini(cur[0]) } : { name: '', email: '', ini: '' },
+      roleList: ['ORG_ADMIN', 'CARE_MANAGER', 'CARE_COORDINATOR', 'COMPLIANCE_LEAD', 'POLICY_AUTHOR', 'POLICY_APPROVER'].map((r) => { const on = cur && cur[2].indexOf(r) >= 0; return { t: roles[r], d: desc[r], on: on ? 'true' : 'false', cb: on ? 'cb on' : 'cb' }; }),
+      allow: [
+        { t: 'Rostering', p: [{ t: 'View and edit the rota' }, { t: 'Build and publish rotas' }, { t: 'Watch The Monitor' }, { t: 'Correct clock times' }] },
+        { t: 'Service users', p: [{ t: 'View and edit records' }, { t: 'Reveal key safe codes' }, { t: 'Manage documents' }, { t: 'Record body maps and call notes' }] },
+        { t: 'Compliance', p: [{ t: 'Run audits and actions' }, { t: 'Manage staff sign-off' }, { t: 'Assess for CQC' }, { t: 'Verify staff evidence' }] }
+      ],
+      carers: [
+        ['Freya James', 'freya.j', 'Linked', 'pill ok', 'btn btn-sm btn-q', 'Unlink', 'a3'],
+        ['Oscar Patel', 'oscar.p', 'Linked', 'pill ok', 'btn btn-sm btn-q', 'Unlink', 'a2'],
+        ['Amelia Hart', 'amelia.h', 'Linked', 'pill ok', 'btn btn-sm btn-q', 'Unlink', 'a4'],
+        ['Lucy Tran', 'No sign-in yet', 'Not linked', 'pill warn', 'btn btn-sm', 'Link', 'a5'],
+        ['Samuel Osei', 's.osei', 'Not linked', 'pill warn', 'btn btn-sm', 'Link', 'a1']
+      ].map((c) => ({ name: c[0], ini: ini(c[0]), login: c[1], st: c[2], pill: c[3], btn: c[4], a: c[5], av: 'av s28 ' + c[6] })),
+      roleCols: R.map((r) => ({ t: roles[r] })),
+      matrix: P.map((p) => p.length === 1 ? { cls: 'g', t: p[0], span: 11, cells: [] } : { cls: '', t: p[0], span: 1, cells: R.map((r) => { const y = p[1].split(' ').indexOf(r) >= 0; return { k: y ? 'y' : 'n', a: y ? 'Allowed' : 'Not allowed' }; }) })
+    };
+  }
+}
+</script>
+</body>
+</html>

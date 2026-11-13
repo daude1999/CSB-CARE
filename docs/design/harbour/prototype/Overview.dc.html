@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Overview</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="clearcare.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="page">
+  <header class="ov-head">
+    <div class="grow">
+      <div class="over">Thursday 12 November · 10:40 · All my branches</div>
+      <h1 style="margin-top: 4px">Good morning, Demo</h1>
+      <p class="ov-sum"><b class="bad">3 visits have no carer</b> and <b class="warn">2 are running late</b>. The other 137 are on plan.</p>
+    </div>
+    <div class="row" style="flex-wrap: wrap">
+      <button class="chip"><small>Branch</small>All my branches<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      <button class="btn btn-q"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4.5v5M8 14.5v5"></path></svg>Rearrange</button>
+      <div class="split" style="position: relative">
+        <button class="btn btn-p"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New</button>
+        <button class="btn btn-p" aria-label="More things to create" onClick="{{toggleNew}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <sc-if value="{{newOpen}}" hint-placeholder-val="{{false}}">
+          <div class="menu" style="right: 0; top: 38px">
+            <div class="over">Create</div>
+            <button><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg>Visit<span class="kbd" style="margin-left: auto">V</span></button>
+            <button><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.9-3.6 3.8-5.5 7.5-5.5s6.6 1.9 7.5 5.5"></path></svg>Service user<span class="kbd" style="margin-left: auto">S</span></button>
+            <button><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17.2v.1"></path></svg>Incident report</button>
+            <button><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"></path></svg>Policy draft</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </header>
+
+  <section class="panel pcol c-navy" aria-labelledby="dl-t">
+    <div class="ph">
+      <h2 id="dl-t">Today's care delivery</h2><span class="live">Live</span><span class="cap">updated 10:40</span>
+      <span class="sp"></span>
+      <button class="btn btn-sm btn-q">The Monitor</button>
+      <button class="btn btn-sm" onClick="{{toRota}}">Open Daily Rota<svg class="i i14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+    <div class="dl">
+      <div class="dl-sum">
+        <div>
+          <div class="dl-big"><b>47</b><span>of 142 visits completed</span></div>
+          <div class="meter lg" style="margin-top: 12px" aria-hidden="true"><i style="width: 33.1%; background: var(--ok-fill)"></i><i style="width: 2.8%; background: var(--prog-fill)"></i><i style="width: 1.4%; background: var(--warn-fill)"></i><i style="width: 2.1%; background: var(--bad-fill)"></i><i style="flex: 1; background: var(--brand-100)"></i></div>
+        </div>
+        <div class="leg">
+          <sc-for list="{{legend}}" as="l" hint-placeholder-count="6"><button onClick="{{toRota}}"><span class="sq" style="{{l.sq}}"></span>{{l.t}}<b>{{l.n}}</b></button></sc-for>
+        </div>
+      </div>
+      <div class="tlw">
+        <div class="tl-in">
+          <div class="tl-bands">
+            <sc-for list="{{rounds}}" as="r" hint-placeholder-count="4"><span class="tl-band" style="{{r.pos}}">{{r.name}}</span></sc-for>
+          </div>
+          <div class="tl-plot" role="img" aria-label="Visits each half hour from 06:00 to 23:00. Morning visits are complete; lunch, tea and bed calls are still to come. Three visits have no carer, at 12:00, 18:00 and 20:30.">
+            <sc-for list="{{rounds}}" as="r" hint-placeholder-count="4"><span class="tl-zone" style="{{r.pos}}"></span></sc-for>
+            <sc-for list="{{slots}}" as="s" hint-placeholder-count="34">
+              <div class="tl-bar"><sc-for list="{{s.segs}}" as="g" hint-placeholder-count="2"><i style="{{g.st}}"></i></sc-for></div>
+            </sc-for>
+            <div class="tl-now" style="left: 27.45%"><span>Now 10:40</span></div>
+          </div>
+          <div class="tl-axis"><sc-for list="{{hours}}" as="h" hint-placeholder-count="9"><span style="{{h.pos}}">{{h.t}}</span></sc-for></div>
+          <div class="tl-lane">
+            <sc-for list="{{pins}}" as="p" hint-placeholder-count="4">
+              <button class="{{p.cls}}" style="{{p.pos}}" onClick="{{toAtt}}">
+                <span class="pin-m"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{p.ic}}"></path></svg></span>
+                <span><b>{{p.t}}</b><small>{{p.s}}</small></span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ov-grid">
+    <section class="panel pcol c-red" aria-labelledby="q-t">
+      <div class="q-head">
+        <h2 id="q-t">Needs action</h2>
+        <span class="cap">Sorted by deadline</span>
+        <span class="sp"></span>
+        <div class="seg" role="tablist" aria-label="Filter by module">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="4"><button role="tab" class="{{f.cls}}" onClick="{{f.pick}}">{{f.t}}<span class="cnt">{{f.n}}</span></button></sc-for>
+        </div>
+      </div>
+      <sc-for list="{{tiers}}" as="t" hint-placeholder-count="3">
+        <div>
+          <div class="{{t.cls}}">{{t.name}}</div>
+          <sc-for list="{{t.items}}" as="q" hint-placeholder-count="3">
+            <div class="{{q.cls}}">
+              <span class="{{q.icCls}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{q.ic}}"></path></svg></span>
+              <div style="min-width: 0"><b>{{q.t}}</b><small>{{q.s}}</small></div>
+              <span class="q-mod"><i style="{{q.mc}}"></i>{{q.mod}}</span>
+              <span class="{{q.dueCls}}">{{q.due}}</span>
+              <button class="{{q.btn}}" onClick="{{q.go}}">{{q.a}}</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div class="cap" style="padding: 12px 16px 14px; border-top: 1px solid var(--line-2)">Showing what your role can act on. Care manager sees Care, HR and Policy items.</div>
+    </section>
+
+    <div class="col" style="gap: 20px">
+      <section class="panel pcol c-blue" aria-labelledby="n-t">
+        <div class="ph"><h2 id="n-t">Notifications</h2><span class="cnt bad">4</span><span class="sp"></span><button class="lnk" style="font-size: 13px">Mark all read</button></div>
+        <sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+          <div class="{{n.cls}}">
+            <span class="{{n.av}}">{{n.i}}</span>
+            <div style="min-width: 0"><p>{{n.t}}</p><small>{{n.s}}</small></div>
+            <time>{{n.w}}</time>
+          </div>
+        </sc-for>
+      </section>
+
+      <section class="panel pcol c-green" aria-labelledby="w-t">
+        <div class="ph" style="border-bottom: 0"><h2 id="w-t">This week</h2><span class="cap">visits completed of scheduled</span></div>
+        <div class="wk-ch" role="img" aria-label="Visits completed against scheduled for each day this week">
+          <sc-for list="{{week}}" as="d" hint-placeholder-count="7"><div class="wk-c"><span class="cap" style="font-size: 11px">{{d.lab}}</span><div class="wk-b" style="{{d.h}}"><i style="{{d.f}}"></i></div></div></sc-for>
+        </div>
+        <div class="wk-l"><sc-for list="{{week}}" as="d" hint-placeholder-count="7"><span class="{{d.cls}}">{{d.d}}</span></sc-for></div>
+      </section>
+
+      <section class="panel pcol c-teal" aria-labelledby="g-t">
+        <div class="ph"><h2 id="g-t">Go to</h2></div>
+        <button class="go" style="border-top: 0" onClick="{{toRota}}"><span class="mt" style="--mc: var(--m-care)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 11h16M8 4v4M16 4v4"></path></svg></span>Daily Rota<span class="kbd">G R</span></button>
+        <button class="go" onClick="{{toSu}}"><span class="mt" style="--mc: var(--m-care)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.9-3.6 3.8-5.5 7.5-5.5s6.6 1.9 7.5 5.5"></path></svg></span>Service users<span class="kbd">G S</span></button>
+        <button class="go" onClick="{{toHr}}"><span class="mt" style="--mc: var(--m-hr)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.8 3.1 2.6 3.5 5.2"></path></svg></span>HR Hub<span class="kbd">G H</span></button>
+        <button class="go" onClick="{{toPol}}"><span class="mt" style="--mc: var(--m-pol)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"></path></svg></span>Policies<span class="kbd">G P</span></button>
+        <button class="go"><span class="mt" style="--mc: var(--m-rep)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"></path></svg></span>Reports and CSV exports<span class="kbd">G A</span></button>
+        <button class="go" onClick="{{toAdm}}"><span class="mt" style="--mc: var(--m-adm)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 4.5v5M8 14.5v5"></path></svg></span>Settings and activity log<span class="kbd">G ,</span></button>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"go":{"editor":null},"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  state = { f: 'All', newOpen: false };
+  renderVals() {
+    const go = this.props.go || (() => {}), s = this.state, g = (n) => () => go(n);
+    const counts = [0,1,9,9,9,8,6,5,4,5, 2,5,8,8,5,2,1,1,1,2, 4,7,7,5,3,2,1, 3,6,4,5,2,1,1];
+    const U = 12.5;
+    const C = { done: 'var(--ok-fill)', prog: 'var(--prog-fill)', late: 'var(--warn-fill)', todo: 'var(--brand-100)', need: 'var(--bad-fill)' };
+    const special = { 6: [['done', 5], ['late', 1]], 7: [['done', 4], ['late', 1]], 8: [['done', 2], ['prog', 2]], 9: [['prog', 2], ['todo', 3]], 12: [['need', 1], ['todo', 7]], 24: [['need', 1], ['todo', 2]], 29: [['need', 1], ['todo', 3]] };
+    const slots = counts.map((n, i) => {
+      const parts = special[i] || [[i < 8 ? 'done' : 'todo', n]];
+      return { segs: parts.filter((p) => p[1] > 0).map((p) => ({ st: 'height:' + (p[1] * U - 1) + 'px;background:' + C[p[0]] })) };
+    });
+    const pct = (h) => ((h - 6) / 17 * 100).toFixed(2) + '%';
+    const zone = (a, b) => 'left:' + pct(a) + ';width:' + ((b - a) / 17 * 100).toFixed(2) + '%';
+    const sq = (c) => 'background:' + c;
+    const mc = (c) => 'background:' + c;
+    const I = {
+      user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.9-3.6 3.8-5.5 7.5-5.5s6.6 1.9 7.5 5.5',
+      clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2',
+      bell: 'M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5h4',
+      shield: 'M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z',
+      sign: 'M3 17c3-1 4-6 6-6s-1 7 2 7 3-4 5-4 2 2 5 2M3 21h18',
+      doc: 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6',
+      scale: 'M12 4v16M6 20h12M5 8h14M5 8l-2.5 6a2.5 2.5 0 0 0 5 0zM19 8l-2.5 6a2.5 2.5 0 0 0 5 0z',
+      check: 'M5 12.5l4.5 4.5L19 7.5',
+      x: 'M7 7l10 10M17 7L7 17',
+      warn: 'M12 7v6M12 16.5v.1'
+    };
+    const items = [
+      { tier: 0, mod: 'Care', t: '3 visits need a carer today', s: 'Rita Lowe 12:00 · Harold Finch 18:00 · Edith Marsh 20:30', due: 'First in 1h 20m', dueCls: 'q-due bad', a: 'Find cover', ic: I.user, icCls: 'q-ic bad', btn: 'btn btn-sm btn-p', go: g('DailyRota') },
+      { tier: 0, mod: 'Care', t: '2 visits running late', s: 'Walter Brennan, 70 min · Ivy Doherty, 40 min', due: 'Now', dueCls: 'q-due bad', a: 'Open', ic: I.clock, icCls: 'q-ic warn', btn: 'btn btn-sm', go: g('DailyRota') },
+      { tier: 1, mod: 'Care', t: '8 rota alerts to review', s: 'Template conflicts, travel time and one double-up short', due: 'Today', dueCls: 'q-due warn', a: 'Review', ic: I.bell, icCls: 'q-ic', btn: 'btn btn-sm', go: g('DailyRota') },
+      { tier: 1, mod: 'HR', t: '5 checks overdue', s: '2 DBS reviews, 3 training renewals', due: 'Today', dueCls: 'q-due warn', a: 'Review', ic: I.shield, icCls: 'q-ic', btn: 'btn btn-sm', go: g('Employee') },
+      { tier: 1, mod: 'Policy', t: 'Regulatory change to review', s: 'Guidance on medicines in home care, affects 2 policies', due: 'Today', dueCls: 'q-due warn', a: 'Assess', ic: I.scale, icCls: 'q-ic info', btn: 'btn btn-sm', go: g('Policies') },
+      { tier: 2, mod: 'Policy', t: '3 staff sign-offs overdue', s: 'Safeguarding Adults v6, Medication Management v4', due: 'Since Mon', dueCls: 'q-due n', a: 'Chase', ic: I.sign, icCls: 'q-ic', btn: 'btn btn-sm', go: g('Policies') },
+      { tier: 2, mod: 'Policy', t: '2 policy reviews overdue', s: 'Safeguarding Adults, Medication Management', due: '11 days', dueCls: 'q-due n', a: 'Open', ic: I.doc, icCls: 'q-ic', btn: 'btn btn-sm', go: g('Policies') },
+      { tier: 2, mod: 'Policy', t: '2 actions past due date', s: 'From the August audit', due: '19 days', dueCls: 'q-due n', a: 'Open', ic: I.check, icCls: 'q-ic', btn: 'btn btn-sm', go: g('Policies') },
+      { tier: 2, mod: 'Policy', t: 'Policy awaiting approval', s: 'Lone Working v3, optional review', due: 'Fri', dueCls: 'q-due n', a: 'Open', ic: I.doc, icCls: 'q-ic', btn: 'btn btn-sm', go: g('Policies') }
+    ];
+    const mcol = { Care: 'var(--m-care)', HR: 'var(--m-hr)', Policy: 'var(--m-pol)' };
+    const mname = { Care: 'Care & Rostering', HR: 'HR & Workforce', Policy: 'Policy & Compliance' };
+    const shown = items.filter((q) => s.f === 'All' || q.mod === s.f);
+    const tierNames = ['Before the next round', 'Today', 'This week'];
+    const tiers = [0, 1, 2].map((ti) => ({ name: tierNames[ti], cls: ti === 0 ? 'q-tier urgent' : 'q-tier',
+      items: shown.filter((q) => q.tier === ti).map((q) => Object.assign({}, q, { cls: ti === 0 ? 'q urgent' : 'q', mod: mname[q.mod], mc: mc(mcol[q.mod]) })) })).filter((t) => t.items.length);
+    const fcount = (m) => items.filter((q) => m === 'All' || q.mod === m).length;
+    return {
+      toRota: g('DailyRota'), toAtt: g('DailyRota'), toSu: g('ServiceUser'), toHr: g('Employee'), toPol: g('Policies'), toAdm: g('Admin'),
+      newOpen: s.newOpen, toggleNew: () => this.setState({ newOpen: !s.newOpen }),
+      legend: [
+        { t: 'Completed', n: 47, sq: sq('var(--ok-fill)') }, { t: 'In progress', n: 4, sq: sq('var(--prog-fill)') }, { t: 'Late', n: 2, sq: sq('var(--warn-fill)') },
+        { t: 'Needs a carer', n: 3, sq: sq('var(--bad-fill)') }, { t: 'Still to come', n: 86, sq: sq('var(--brand-100)') }, { t: 'Missed', n: 0, sq: 'border:1.5px solid var(--ctl)' }
+      ],
+      rounds: [{ name: 'Morning', pos: zone(7, 10.5) }, { name: 'Lunch', pos: zone(11.5, 14) }, { name: 'Tea', pos: zone(16, 18.5) }, { name: 'Bed', pos: zone(19.5, 22.5) }],
+      slots,
+      hours: [6, 8, 10, 12, 14, 16, 18, 20, 22].map((h) => ({ t: (h < 10 ? '0' : '') + h + ':00', pos: 'left:' + pct(h) })),
+      pins: [
+        { cls: 'pin warn', pos: 'left:' + pct(9.25), ic: I.warn, t: '2 late', s: 'since 09:00' },
+        { cls: 'pin bad', pos: 'left:' + pct(12.25), ic: I.x, t: 'No carer', s: 'Rita Lowe 12:00' },
+        { cls: 'pin bad', pos: 'left:' + pct(18.25), ic: I.x, t: 'No carer', s: 'Harold Finch 18:00' },
+        { cls: 'pin bad', pos: 'left:' + pct(20.75), ic: I.x, t: 'No carer', s: 'Edith Marsh 20:30' }
+      ],
+      filters: ['All', 'Care', 'HR', 'Policy'].map((f) => ({ t: f, n: fcount(f), cls: f === s.f ? 'on' : '', pick: () => this.setState({ f }) })),
+      tiers,
+      notes: [
+        { cls: 'nf unread', i: 'PN', av: 'av s24 a4', t: 'Priya Nair reported sick for tomorrow', s: '5 visits on Friday need cover', w: '09:52' },
+        { cls: 'nf unread', i: 'CQ', av: 'av s24 a1', t: 'Medicines in home care guidance updated', s: 'Care Quality Commission · 2 policies affected', w: '09:10' },
+        { cls: 'nf unread', i: 'DW', av: 'av s24 a2', t: 'Daniel Webb uploaded a DBS certificate', s: 'Waiting for you to verify', w: 'Yesterday' },
+        { cls: 'nf unread', i: 'LM', av: 'av s24 a3', t: 'Leah Morris asked for 21 to 28 December off', s: 'Time Off & Availability', w: 'Yesterday' }
+      ],
+      week: [['Mon', 144, 144], ['Tue', 145, 142], ['Wed', 144, 141], ['Thu', 142, 47], ['Fri', 139, 0], ['Sat', 131, 0], ['Sun', 129, 0]].map((d, i) => ({
+        d: d[0], cls: i === 3 ? 'td' : '', lab: i <= 3 ? d[2] : d[1], h: 'height:' + Math.round(d[1] / 150 * 66) + 'px' + (i === 3 ? ';box-shadow:0 0 0 2px var(--sun-50),0 0 0 3px var(--sun)' : ''), f: 'height:' + Math.round(d[2] / d[1] * 100) + '%'
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

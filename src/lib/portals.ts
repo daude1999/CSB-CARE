@@ -15,19 +15,19 @@ export interface Portal {
   home: string;
   /** The stage that builds a planned portal, shown on its label. */
   planned?: string;
-  /** The module colour: the sidebar marker, the portal's page headers and its Overview tile. White text on it meets WCAG AA. */
+  /** The module colour (Harbour, 13 Nov 2026): the menu icon, page-header icon, sub-tab pills, default panel bar and Overview tile. White text on it meets WCAG AA. */
   colour: string;
   /** A light tint of the module colour for panels behind figures. */
   tint: string;
 }
 
 export const PORTALS: readonly Portal[] = [
-  { id: "overview", name: "Overview", code: "OV", summary: "Today across every portal", home: "/overview", colour: "#1565c0", tint: "#e8f1fc" },
-  { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/", colour: "#1f5fd1", tint: "#eaf1fd" },
-  { id: "rota", name: "Rostering & Care Management", code: "RC", summary: "Service users, rota, visits, call monitoring, care records, finance", home: "/rota", colour: "#6b46c9", tint: "#f1ecfc" },
-  { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", colour: "#c2410c", tint: "#fff1e6" },
-  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Measures, reports and the AI assistant", home: "/analytics", colour: "#0b6f99", tint: "#e5f4fa" },
-  { id: "admin", name: "Administration & Settings", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#4b5666", tint: "#eef0f3" },
+  { id: "overview", name: "Overview", code: "OV", summary: "Today across every portal", home: "/overview", colour: "#1f3a68", tint: "#eef2f8" },
+  { id: "policy", name: "Policy & Compliance", code: "PC", summary: "Policies, regulatory updates, audits, actions", home: "/", colour: "#2e5bcf", tint: "#eff3fd" },
+  { id: "rota", name: "Rostering & Care Management", code: "RC", summary: "Service users, rota, visits, call monitoring, care records, finance", home: "/rota", colour: "#0f766e", tint: "#e9f5f2" },
+  { id: "hr", name: "HR & Workforce", code: "HR", summary: "Your HR Hub: people, compliance, documents", home: "/hr/dashboard", colour: "#b4532a", tint: "#fcf1ea" },
+  { id: "reporting", name: "Reporting & Analytics", code: "RA", summary: "Measures, reports and the AI assistant", home: "/analytics", colour: "#0e7490", tint: "#e7f3f6" },
+  { id: "admin", name: "Administration & Settings", code: "AD", summary: "Settings, users, sources, jobs", home: "/settings", colour: "#5b5e96", tint: "#f0f0f7" },
 ];
 
 
