@@ -21,7 +21,7 @@ export default async function SourceVersionPage({ params }: { params: Promise<{ 
           <div className="space-y-4">
             {sections.map((s) => (
               <section key={s.ref} id={s.ref}>
-                <h3>{s.heading} <span className="font-mono text-[11px] font-normal text-slate-400">{s.ref}</span></h3>
+                <h3>{s.heading} <span className="font-mono text-micro font-normal text-slate-400">{s.ref}</span></h3>
                 <p className="prose-policy mt-1 text-sm">{s.text}</p>
               </section>
             ))}
@@ -34,7 +34,7 @@ export default async function SourceVersionPage({ params }: { params: Promise<{ 
             <Field label="Retrieved">{fmtDate(v.retrievedAt, true)}</Field>
             <Field label="Official published date">{v.publishedAt ? fmtDate(v.publishedAt) : "Not supplied by source"}</Field>
             <Field label="Official modified date">{v.modifiedAt ? fmtDate(v.modifiedAt) : "Not supplied by source"}</Field>
-            <Field label="Content hash"><span className="break-all font-mono text-[11px]">{v.contentHash}</span></Field>
+            <Field label="Content hash"><span className="break-all font-mono text-micro">{v.contentHash}</span></Field>
           </div>
           <p className="mt-3 text-xs text-slate-500">Stored versions cannot be edited or deleted. Always check the live source before relying on this text.</p>
         </Card>

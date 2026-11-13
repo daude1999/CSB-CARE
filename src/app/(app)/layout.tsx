@@ -5,7 +5,7 @@ import { requireCtx } from "@/server/auth/current";
 import { hasOrgPermission, hasPlatformPermission } from "@/server/auth/rbac";
 import { portalsFor } from "@/server/auth/portals";
 import { logoutAction, switchOrgAction } from "../actions";
-import { Logo, Monogram } from "@/components/brand";
+import { Monogram } from "@/components/brand";
 import { MobileMenu, ShellSidebar, type ShellItem, type ShellPortal } from "@/components/portal-switcher";
 import { ShellSearch } from "@/components/shell-search";
 import { hrItems } from "@/components/hr-nav";
@@ -113,8 +113,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initials = ctx.userName.split(/\s+/).map((w) => w[0]).slice(0, 2).join("");
   const me = memberships.find((m) => m.organisationId === ctx.organisationId);
   const roleName = me?.jobTitle ?? (me?.roles[0] ? ROLE_NAMES[me.roles[0]] : ctx.platformRoles[0] ? ROLE_NAMES[ctx.platformRoles[0]] : "Member");
-  // The CSB brand leads the Overview header; a customer organisation's own name sits beneath it.
-  const overviewSubtitle = org && !/^care solution bureau\b/i.test(orgName) ? orgName : "Integrated care management";
   // The AI CSB Coordinator (Claude with CRM tools when switched on, built-in CRM search otherwise), for employees who may use it.
   const coordinator = ctx.organisationId && hasOrgPermission(ctx, "serviceUser.documents") && portalsFor(ctx).some((p) => p.id === "rota")
     ? {
@@ -144,9 +142,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   };
   return (
     <div className="flex min-h-screen flex-col">
-      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-[14px] text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
+      <a href="#main-content" className="sr-only z-50 rounded-[6px] bg-white px-3 py-2 text-body text-[#0b1530] shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
       {setupLeft ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-[14px] text-[#a3242c]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#fde1e3] px-4 py-2 text-body text-[#a3242c]">
           <Warning size={18} weight="fill" aria-hidden="true" className="shrink-0" />
           <span className="min-w-0 flex-1">Your organisation is not fully set up yet. Complete your setup checklist so every policy is personalised to your service.</span>
           <Link href="/" className="rounded-[4px] bg-emerald-500 px-4 py-1 font-medium text-white no-underline hover:bg-emerald-600 hover:text-white">Complete Setup</Link>
@@ -155,57 +153,37 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1">
         <ShellSidebar {...shell} />
         <div className="shell-main flex min-w-0 flex-1 flex-col">
-          <TopbarSwitch
-            overview={
-              // The Overview's own header, as in the owner's approved design: logo and organisation on the left; the
-              // date and time in London, alerts, help and the signed-in person on the right. No search box here.
-              <header className="ov-topbar sticky top-0 z-[35] flex h-[64px] items-center gap-3 px-[16px] text-white md:h-[72px] md:px-[24px]" data-testid="overview-header">
-                <NavigationProgress renderKey={String(Date.now())} />
-                <MobileMenu {...shell} light />
-                <Monogram className="h-[30px] sm:h-[36px] lg:h-[46px]" />
-                <div className="min-w-0">
-                  <h1 className="truncate text-[16px] font-semibold max-sm:sr-only leading-[22px] text-white md:text-[18px] lg:text-[20px] lg:leading-[26px]">Care Solution Bureau CIC</h1>
-                  <p className="hidden truncate text-[13px] leading-[17px] text-white/80 sm:block">{overviewSubtitle}</p>
-                </div>
-                <div className="ml-auto flex shrink-0 items-center gap-2 md:gap-3">
-                  <LondonClock initial={Date.now()} />
-                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 lg:block" />
-                  {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
-                  <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-white no-underline hover:bg-white/10 hover:text-white">
-                    <Bell size={22} aria-hidden="true" />
-                    {unread ? <span className="absolute right-[6px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#0b2a4a] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
-                  </Link>
-                  <HelpMenu assistant={can.assistant} dark />
-                  <span aria-hidden="true" className="hidden h-7 w-px bg-white/25 sm:block" />
-                  <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
-                </div>
-              </header>
-            }
-          >
-            <header className="shell-topbar sticky top-0 z-[35] flex h-[56px] items-center gap-[12px] px-[16px] md:h-[68px] md:gap-[16px] md:px-[24px] lg:gap-[24px] lg:px-[32px]">
-              <NavigationProgress renderKey={String(Date.now())} />
-              <MobileMenu {...shell} />
-              <div className="hidden sm:block"><HistoryButtons /></div>
-              <Link href="/overview" className="block md:hidden" aria-label="CSB All in One Platform home"><Logo className="h-7" /></Link>
-              <ShellSearch />
-              <div className="flex shrink-0 items-center gap-2 md:gap-3 lg:gap-4">
-                {me?.branch?.name ? (
-                  <span className="hidden items-center gap-2 rounded-[8px] border border-[#e3e6ec] bg-white px-3 py-[7px] text-[13px] text-[#0b1530] lg:flex" title="Your branch">
-                    <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
-                  </span>
-                ) : null}
-                {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
-                <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#0b1530] no-underline hover:bg-black/5 hover:text-[#0b1530]">
-                  <Bell size={21} aria-hidden="true" />
-                  {unread ? <span className="absolute right-[5px] top-[5px] h-[9px] w-[9px] rounded-full border-2 border-[#f6f5f3] bg-[#e12125]"><span className="sr-only">{unread} unread</span></span> : null}
-                </Link>
-                <ColourModeMenu initial={colourMode} />
-                <HelpMenu assistant={can.assistant} />
-                <span aria-hidden="true" title={ctx.userName} className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#dbe7f8] text-[13px] font-semibold text-[#0b2a4a] sm:flex">{initials}</span>
-              </div>
-            </header>
-          </TopbarSwitch>
-          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-[13.5px] text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
+          {/*
+            ClearCare top bar (owner's design, 12 Nov 2026), the same on every page: the organisation's own tile and name
+            on the left, then search, branch, the AI Coordinator, a demo-data pill, and the signed-in person. The bell,
+            appearance, help and Back / Forward stay as small icon buttons; the Overview also shows today's date and time.
+          */}
+          <header className="shell-topbar sticky top-0 z-[35] flex h-[60px] items-center gap-[10px] px-[12px] md:h-[68px] md:gap-[14px] md:px-[20px] lg:px-[24px]" data-testid="app-topbar">
+            <NavigationProgress renderKey={String(Date.now())} />
+            <MobileMenu {...shell} />
+            <div className="hidden xl:block"><HistoryButtons /></div>
+            <OrgTile name={org ? orgName : "ClearCare administration"} csb={/care solution bureau/i.test(orgName)} />
+            <ShellSearch />
+            <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
+              {me?.branch?.name ? (
+                <span className="hidden h-[40px] items-center gap-2 rounded-[10px] border border-cc-control bg-white px-3 text-meta font-semibold text-ink xl:flex" title="Your branch" data-testid="topbar-branch">
+                  <Buildings size={17} aria-hidden="true" /><span className="sr-only">Your branch: </span>{me.branch.name}
+                </span>
+              ) : null}
+              {coordinator ? <span id={COORDINATOR_SLOT} className="contents" /> : null}
+              {org?.isDemo ? <span className="hidden h-[28px] items-center rounded-full bg-cc-amber-bg px-3 text-caption font-semibold text-cc-amber lg:inline-flex" data-testid="demo-pill" title="This organisation holds demonstration data">Demo data</span> : null}
+              <TopbarSwitch overview={<span className="hidden 2xl:contents"><LondonClock initial={Date.now()} /></span>}>{null}</TopbarSwitch>
+              <Link href="/notifications" data-testid="notifications-link" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} title="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-[10px] text-ink no-underline hover:bg-page hover:text-ink">
+                <Bell size={21} aria-hidden="true" />
+                {unread ? <span className="absolute right-[7px] top-[7px] h-[9px] w-[9px] rounded-full border-2 border-white bg-[#d92d20]"><span className="sr-only">{unread} unread</span></span> : null}
+              </Link>
+              <ColourModeMenu initial={colourMode} />
+              <HelpMenu assistant={can.assistant} />
+              <span aria-hidden="true" className="hidden h-7 w-px bg-cc-line sm:block" />
+              <AccountMenu name={ctx.userName} initials={initials} role={roleName} branch={me?.branch?.name ?? null} sample={Boolean(org?.isDemo)} mode={colourMode} signOutAction={logoutAction} />
+            </div>
+          </header>
+          {maintenanceNotice ? <div role="status" className="border-b border-[#f3d38a] bg-[#fff8e6] px-4 py-2 text-body text-[#6b4a00] md:px-8">{maintenanceNotice}</div> : null}
           <MainArea>{ctx.suspended ? <SuspendedNotice orgName={orgName} email={supportContact[0]} phone={supportContact[1]} /> : children}</MainArea>
           {coordinator ? <AiCsbCoordinatorLauncher access={coordinator.access} aiOn={coordinator.aiOn} /> : null}
           <CommandBar pages={commandPages} actions={commandActions(ctx)} />
@@ -241,10 +219,29 @@ function groupAdmin(everyday: ShellItem[], advanced: ShellItem[]): ShellItem[] {
 /** Shown instead of every page while Evantix has suspended or closed the organisation. Nothing has been deleted. */
 function SuspendedNotice({ orgName, email, phone }: { orgName: string; email: string; phone: string }) {
   return (
-    <section aria-labelledby="suspended-heading" className="mx-auto mt-10 max-w-xl rounded-[6px] bg-white p-6 text-[15px]" data-testid="organisation-suspended">
-      <h1 id="suspended-heading" className="text-[22px] font-semibold text-[#0b1530]">{orgName} is suspended</h1>
+    <section aria-labelledby="suspended-heading" className="mx-auto mt-10 max-w-xl rounded-[6px] bg-white p-6 text-lead" data-testid="organisation-suspended">
+      <h1 id="suspended-heading" className="text-heading font-semibold text-[#0b1530]">{orgName} is suspended</h1>
       <p className="mt-2 text-slate-700">Access to this organisation has been paused by the platform provider. Your records are safe and have not been changed or deleted.</p>
       <p className="mt-2 text-slate-700">Please contact your organisation&apos;s administrator{email || phone ? <> or Evantix support{email ? <> at <a href={`mailto:${email}`}>{email}</a></> : null}{phone ? <> on {phone}</> : null}</> : null}.</p>
     </section>
+  );
+}
+
+/**
+ * The signed-in organisation in the top bar: its own logo on a navy tile when it has one (Care Solution Bureau's
+ * monogram, never redrawn), otherwise its initials. The organisation is the client; ClearCare is the product.
+ */
+function OrgTile({ name, csb }: { name: string; csb: boolean }) {
+  const letters = name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="hidden min-w-0 shrink items-center gap-2.5 overflow-hidden sm:flex" data-testid="topbar-org">
+      <span aria-hidden="true" className="flex h-[40px] w-[52px] shrink-0 items-center justify-center rounded-[10px] bg-[#0f2a4f]">
+        {csb ? <Monogram className="h-[24px]" /> : <span className="text-meta font-bold text-white">{letters}</span>}
+      </span>
+      <span className="hidden min-w-0 lg:block">
+        <span className="block max-w-[220px] truncate text-body font-bold leading-[19px] text-ink" data-testid="topbar-org-name">{name}</span>
+        <span className="block text-caption leading-[16px] text-cc-muted">Organisation</span>
+      </span>
+    </div>
   );
 }

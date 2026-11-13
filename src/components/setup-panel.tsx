@@ -38,8 +38,8 @@ export function SetupPanel({ firstName, orgName, steps }: { firstName: string; o
         <X size={14} weight="bold" aria-hidden="true" />
       </button>
       <div className="px-4 text-center">
-        <p className="text-[20px] font-bold">Hi, {firstName}!</p>
-        <p className="mt-1 text-[13px] leading-snug text-teal-100">{done === steps.length ? `${orgName} is fully set up. Nice work!` : "To finish setting up CSB, please complete the checklist below."}</p>
+        <p className="text-title font-bold">Hi, {firstName}!</p>
+        <p className="mt-1 text-meta leading-snug text-teal-100">{done === steps.length ? `${orgName} is fully set up. Nice work!` : "To finish setting up CSB, please complete the checklist below."}</p>
       </div>
       <div className="mt-4 flex items-center pl-3">
         <svg viewBox="0 0 28 34" className="relative z-10 h-[34px] w-[28px] shrink-0" aria-hidden="true">
@@ -47,12 +47,12 @@ export function SetupPanel({ firstName, orgName, steps }: { firstName: string; o
           <rect x="8" y="1" width="12" height="7" rx="2" className="fill-teal-400" />
           <path d="M6 15h16M6 21h16M6 27h10" className="stroke-navy-900" strokeWidth="2" />
         </svg>
-        <p className="-ml-2 flex-1 bg-teal-400 py-[7px] pl-4 text-[14px] font-bold text-navy-950 [clip-path:polygon(0_0,100%_0,94%_50%,100%_100%,0_100%)]">Setup Checklist · {done} of {steps.length}</p>
+        <p className="-ml-2 flex-1 bg-teal-400 py-[7px] pl-4 text-body font-bold text-navy-950 [clip-path:polygon(0_0,100%_0,94%_50%,100%_100%,0_100%)]">Setup Checklist · {done} of {steps.length}</p>
       </div>
       <ul className="mt-2">
         {steps.map((s) => (
           <li key={s.key}>
-            <Link href={s.href} className="flex h-[46px] items-center gap-3 border-b border-white/15 px-4 text-[14.5px] text-white no-underline hover:bg-white/[0.06] hover:text-white">
+            <Link href={s.href} className="flex h-[46px] items-center gap-3 border-b border-white/15 px-4 text-body text-white no-underline hover:bg-white/[0.06] hover:text-white">
               {s.done ? (
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-400 text-navy-950"><Check size={11} weight="bold" aria-hidden="true" /><span className="sr-only">Done:</span></span>
               ) : (
@@ -64,7 +64,7 @@ export function SetupPanel({ firstName, orgName, steps }: { firstName: string; o
           </li>
         ))}
       </ul>
-      <button type="button" onClick={hide} className="mx-auto mt-3 block px-2 py-1 text-[13px] text-teal-100 underline hover:text-white">Don&apos;t show this again</button>
+      <button type="button" onClick={hide} className="mx-auto mt-3 block px-2 py-1 text-meta text-teal-100 underline hover:text-white">Don&apos;t show this again</button>
     </aside>
   );
 }

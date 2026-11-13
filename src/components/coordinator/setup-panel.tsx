@@ -40,13 +40,13 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
         actions={open && report && !busy ? runForm(status === "FAILED" ? "Run setup again" : "Check again") : null}
       >
         {!report ? (
-          <div className="space-y-2 text-[14px]">
+          <div className="space-y-2 text-body">
             <p>This intake was started before CSB AI set records up by itself{view.documents.length ? "" : ", or has no documents yet"}. Running the automatic setup now keeps every document, fact and decision already made: CSB AI only sorts the facts still waiting, saves them into the person&apos;s records, skips anything already saved and lists only what needs a person.</p>
             {open && view.documents.length && !busy ? runForm("Run automatic setup", true) : !view.documents.length ? <p className="text-slate-600">Upload the documents under Documents first.</p> : null}
           </div>
         ) : (
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="min-w-0 space-y-2 text-[14px]">
+            <div className="min-w-0 space-y-2 text-body">
               {report.blocked ? <p className={report.blocked.kind === "READING" ? "text-slate-700" : "font-medium text-[#8a5a00]"}>{report.blocked.message}</p> : null}
               {!report.blocked || report.blocked.kind === "READING" ? (
                 <ul className="list-disc space-y-0.5 pl-5">{setupSummaryLines(report, intake.mode).map((l) => <li key={l}>{l}</li>)}</ul>
@@ -54,7 +54,7 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
               {report.sections.filter((s) => s.status !== "SAVED").map((s) => <p key={s.section} className={s.status === "FAILED" ? "text-[#a3242c]" : "text-slate-700"}>{s.label}: {s.status === "FAILED" ? "not saved" : "left for review"}. {s.error}</p>)}
               {report.failures.map((f) => <p key={f} className="text-[#a3242c]">{f}</p>)}
               {report.rota?.error ? <p className="text-[#a3242c]">Proposed rota not built: {report.rota.error}</p> : null}
-              <p className="text-[13px] text-slate-600">
+              <p className="text-meta text-slate-600">
                 {report.finishedAt ? `Finished ${fmtDate(report.finishedAt, true)}.` : `Started ${fmtDate(report.startedAt, true)}.`} {intake.setupStage ? `Last stage: ${STAGE_LABEL[intake.setupStage] ?? intake.setupStage}.` : ""} CSB AI sorted {report.triage.routine} routine fact{report.triage.routine === 1 ? "" : "s"}, consolidated {report.triage.duplicates} repeat{report.triage.duplicates === 1 ? "" : "s"} and kept {report.triage.notUsed} historical or superseded value{report.triage.notUsed === 1 ? "" : "s"} for reference only. The care plan and risk assessments were saved straight into the record with their source; nothing needed approving. Visits were not published and nothing was sent to carers.
               </p>
             </div>
@@ -74,12 +74,12 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
 
       {report?.blocked?.kind === "POSSIBLE_DUPLICATE" && report.blocked.match ? (
         <Card title="This person may already exist">
-          <p className="text-[14px]">{report.blocked.match.name} ({report.blocked.match.reference}) is already on record: {report.blocked.match.reason.toLowerCase()}. CSB AI never creates a second record for someone who may already exist, and never merges two people.</p>
+          <p className="text-body">{report.blocked.match.name} ({report.blocked.match.reference}) is already on record: {report.blocked.match.reason.toLowerCase()}. CSB AI never creates a second record for someone who may already exist, and never merges two people.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Link href={`/rota/service-users/${report.blocked.match.id}`} className="btn-secondary">Open existing record</Link>
             <form action={confirmNewPersonAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="intakeId" value={intake.id} /><button className="btn-primary">Confirm a new person</button></form>
           </div>
-          <p className="mt-2 text-[13px] text-slate-600">If it is the same person, cancel this intake and start a &ldquo;B. Updated or revised plan&rdquo; intake for them with the same documents.</p>
+          <p className="mt-2 text-meta text-slate-600">If it is the same person, cancel this intake and start a &ldquo;B. Updated or revised plan&rdquo; intake for them with the same documents.</p>
         </Card>
       ) : null}
 
@@ -89,12 +89,12 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
             {identity.map((g) => (
               <fieldset key={g.destination}>
                 <legend className="label">{g.label}</legend>
-                {g.restricted ? <p className="text-[13.5px] text-slate-600">A registered manager chooses this value.</p> : (
+                {g.restricted ? <p className="text-body text-slate-600">A registered manager chooses this value.</p> : (
                   <div className="flex flex-wrap gap-2">
                     {g.options.map((o) => (
                       <form key={o.factId} action={chooseIdentityAction}>
                         <input type="hidden" name="back" value={back} /><input type="hidden" name="intakeId" value={intake.id} /><input type="hidden" name="factId" value={o.factId} />
-                        <button className="btn-secondary">Use &ldquo;{o.value}&rdquo; <span className="text-[12px] text-slate-600">({o.source})</span></button>
+                        <button className="btn-secondary">Use &ldquo;{o.value}&rdquo; <span className="text-caption text-slate-600">({o.source})</span></button>
                       </form>
                     ))}
                   </div>
@@ -109,7 +109,7 @@ export function SetupPanel({ view, report, exceptions, hidden, identity, back }:
         <Card title="The person's name is needed">
           <form action={provideNameAction} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="back" value={back} /><input type="hidden" name="intakeId" value={intake.id} />
-            <p className="w-full text-[14px]">CSB AI could not read the person&apos;s name clearly. Type it as the document gives it and setup carries on.</p>
+            <p className="w-full text-body">CSB AI could not read the person&apos;s name clearly. Type it as the document gives it and setup carries on.</p>
             <label className="block"><span className="label">First name</span><input name="firstName" required maxLength={100} className="input" /></label>
             <label className="block"><span className="label">Last name</span><input name="lastName" required maxLength={100} className="input" /></label>
             <button className="btn-primary">Save name and continue</button>

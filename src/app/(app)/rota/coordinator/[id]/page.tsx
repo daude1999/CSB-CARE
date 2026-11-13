@@ -75,7 +75,7 @@ export default async function IntakePage({ params, searchParams }: { params: Pro
               <input type="hidden" name="back" value={back} />
               <input type="hidden" name="intakeId" value={intake.id} />
               <label className="block"><span className="label">Why it is being cancelled</span><input name="reason" required minLength={5} className="input" /></label>
-              <p className="text-[12.5px] text-slate-600">Anything already saved to the person&apos;s record stays. Nothing more is saved from this intake.</p>
+              <p className="text-meta text-slate-600">Anything already saved to the person&apos;s record stays. Nothing more is saved from this intake.</p>
               <button className="btn-danger">Cancel intake</button>
             </form>
           </details>

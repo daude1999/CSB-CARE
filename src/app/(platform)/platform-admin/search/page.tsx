@@ -30,12 +30,12 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <button className={pxPrimary}>Search</button>
       </form>
       {q.trim().length < 2 ? (
-        <p className="text-[13.5px] text-px-muted">Type at least two letters.</p>
+        <p className="text-body text-px-muted">Type at least two letters.</p>
       ) : !hits.length ? (
-        <PxPanel><p className="py-4 text-center text-[13.5px] text-px-muted">Nothing matches “{q}”. Check the spelling, or search by EVX reference or email address.</p></PxPanel>
+        <PxPanel><p className="py-4 text-center text-body text-px-muted">Nothing matches “{q}”. Check the spelling, or search by EVX reference or email address.</p></PxPanel>
       ) : (
         <div className="space-y-4">
-          <p className="text-[13px] text-px-muted">{hits.length} result{hits.length === 1 ? "" : "s"} for “{q}”</p>
+          <p className="text-meta text-px-muted">{hits.length} result{hits.length === 1 ? "" : "s"} for “{q}”</p>
           {GROUPS.map((g) => {
             const list = hits.filter((h) => h.kind === g.kind);
             if (!list.length) return null;
@@ -47,8 +47,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
                       <Link href={h.href} className="flex items-center gap-3 px-4 py-2.5 no-underline hover:bg-px-hover">
                         {ICON[h.kind]}
                         <span className="min-w-0">
-                          <span className="block text-[14px] font-medium text-px-ink">{h.title}</span>
-                          <span className="block truncate text-[12.5px] text-px-muted">{h.detail}</span>
+                          <span className="block text-body font-medium text-px-ink">{h.title}</span>
+                          <span className="block truncate text-meta text-px-muted">{h.detail}</span>
                         </span>
                       </Link>
                     </li>

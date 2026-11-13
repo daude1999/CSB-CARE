@@ -32,10 +32,10 @@ export default async function RotaActivityPage({ searchParams }: { searchParams:
           <button className="btn-primary">Show</button>
           {q || a.branch ? <Link href="/rota/activity" className="btn-secondary">Clear</Link> : null}
         </form>
-        {q || a.branch ? <p className="mb-2 text-[13px] text-slate-600">Whole-rota events (built, published, rolled forward) are shown only when no branch or search is chosen, because they cover every branch.</p> : null}
+        {q || a.branch ? <p className="mb-2 text-meta text-slate-600">Whole-rota events (built, published, rolled forward) are shown only when no branch or search is chosen, because they cover every branch.</p> : null}
         {a.rows.length ? (
           <div className="overflow-x-auto rounded border border-slate-200">
-            <table className="table text-[14px]">
+            <table className="table text-body">
               <thead><tr><th scope="col">Time</th><th scope="col">Activity</th><th scope="col">Details</th><th scope="col">By</th></tr></thead>
               <tbody>
                 {a.rows.map((r) => (
@@ -50,7 +50,7 @@ export default async function RotaActivityPage({ searchParams }: { searchParams:
             </table>
           </div>
         ) : <Empty>{q ? `No rota activity matches “${q}”.` : "No rota activity has been recorded yet."}</Empty>}
-        <nav aria-label="Pages" className="mt-3 flex items-center gap-2 text-[14px]">
+        <nav aria-label="Pages" className="mt-3 flex items-center gap-2 text-body">
           {page > 1 ? <Link href={`/rota/activity?${qs({ page: String(page - 1) })}`} className="btn-secondary">Newer</Link> : null}
           <span className="text-slate-600">Page {page}</span>
           {a.more ? <Link href={`/rota/activity?${qs({ page: String(page + 1) })}`} className="btn-secondary">Older</Link> : null}

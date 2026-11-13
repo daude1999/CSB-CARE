@@ -88,9 +88,9 @@ export function TimelineBoard({ rows, fromMin, toMin, nowMin, caption, action, b
           <input type="hidden" name="lockVersion" value={pending?.card.move?.lockVersion ?? ""} />
         </form>
       ) : null}
-      {pending ? <p role="status" className="sticky left-0 bg-[#fff6db] px-3 py-1.5 text-[13px]">Checking and saving the move…</p> : null}
+      {pending ? <p role="status" className="sticky left-0 bg-[#fff6db] px-3 py-1.5 text-meta">Checking and saving the move…</p> : null}
       <div style={{ width: width + 170 }}>
-        <div className="sticky top-0 z-10 flex border-b border-slate-300 bg-white text-[13.5px] font-semibold">
+        <div className="sticky top-0 z-10 flex border-b border-slate-300 bg-white text-body font-semibold">
           <div className="sticky left-0 z-20 w-[170px] shrink-0 border-r border-slate-200 bg-white px-2 py-2">{caption}</div>
           {slots.map((s) => <div key={s} className="shrink-0 border-l border-slate-200 px-1.5 py-2 tabular-nums" style={{ width: SLOT_PX }}>{hhmm(s)}</div>)}
         </div>
@@ -101,11 +101,11 @@ export function TimelineBoard({ rows, fromMin, toMin, nowMin, caption, action, b
           lastGroup = r.group;
           return (
             <div key={r.key}>
-              {header ? <div className="sticky left-0 border-b border-slate-200 bg-slate-50 px-2 py-1 text-[12.5px] font-semibold uppercase tracking-wide text-slate-600">{header}</div> : null}
+              {header ? <div className="sticky left-0 border-b border-slate-200 bg-slate-50 px-2 py-1 text-meta font-semibold uppercase tracking-wide text-slate-600">{header}</div> : null}
               <div className="flex border-b border-slate-200">
-                <div className={`sticky left-0 z-[5] w-[170px] shrink-0 border-r border-slate-200 bg-white px-2 py-2 text-[13.5px] ${r.danger ? "text-[#b42a23]" : ""}`}>
+                <div className={`sticky left-0 z-[5] w-[170px] shrink-0 border-r border-slate-200 bg-white px-2 py-2 text-body ${r.danger ? "text-[#b42a23]" : ""}`}>
                   <div className="font-medium">{r.label}</div>
-                  {r.sub ? <div className="text-[12px] text-slate-500">{r.sub}</div> : null}
+                  {r.sub ? <div className="text-caption text-slate-500">{r.sub}</div> : null}
                 </div>
                 <div
                   className={`relative shrink-0 ${drag && r.dropStaffId && drag.from !== r.key ? (over === r.key ? "bg-[#e3effb]" : "bg-[#f7fafd]") : ""}`}
@@ -138,12 +138,12 @@ export function TimelineBoard({ rows, fromMin, toMin, nowMin, caption, action, b
                       onDragEnd={() => setDrag(null)}
                       aria-label={c.label}
                       title={c.label}
-                      className={`absolute overflow-hidden rounded-[3px] border px-1.5 py-1 text-[12px] leading-tight text-navy-900 no-underline hover:z-[6] hover:shadow-md focus-visible:z-[6] ${action && c.move ? "cursor-grab" : ""} ${TONE[c.tone]}`}
+                      className={`absolute overflow-hidden rounded-[3px] border px-1.5 py-1 text-caption leading-tight text-navy-900 no-underline hover:z-[6] hover:shadow-md focus-visible:z-[6] ${action && c.move ? "cursor-grab" : ""} ${TONE[c.tone]}`}
                       style={{ left: x(c.startMin) + 2, width: Math.max(x(c.endMin) - x(c.startMin) - 4, 44), top: lane * 58 + 4, height: 52 }}
                     >
                       <span className="flex items-center gap-1 truncate font-semibold">{c.tone === "cancelled" ? <X size={13} weight="bold" aria-hidden className="shrink-0 text-[#b42318]" /> : null}<span className="truncate">{c.title}</span></span>
                       <span className="block truncate">{c.line}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-slate-600">
+                      <span className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-micro text-slate-600">
                         {c.areaColour ? <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: c.areaColour }} /> : null}
                         {c.double ? <UsersThree size={13} aria-hidden /> : null}
                         {c.tasks ? <span className="inline-flex items-center gap-0.5 text-[#13703c]"><ListChecks size={13} aria-hidden />{c.tasks}</span> : null}
@@ -157,7 +157,7 @@ export function TimelineBoard({ rows, fromMin, toMin, nowMin, caption, action, b
             </div>
           );
         })}
-        {!rows.length ? <p className="px-3 py-6 text-center text-[14px] text-slate-500">No visits to show for this view.</p> : null}
+        {!rows.length ? <p className="px-3 py-6 text-center text-body text-slate-500">No visits to show for this view.</p> : null}
       </div>
     </div>
   );

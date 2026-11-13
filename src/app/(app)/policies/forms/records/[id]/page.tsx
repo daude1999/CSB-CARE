@@ -53,14 +53,14 @@ export default async function FormRecordPage({ params, searchParams }: { params:
           <section className="pc-panel p-4" aria-label="Status">
             <div className="flex flex-wrap items-center gap-2">
               <PcBadge tone={TONE[record.status]}>{STATUS_LABELS[record.status]}</PcBadge>
-              <span className="text-[13px] text-slate-600">Started {fmtDate(record.createdAt, true)} by {who(record.createdById)}</span>
+              <span className="text-meta text-slate-600">Started {fmtDate(record.createdAt, true)} by {who(record.createdById)}</span>
             </div>
             {record.status === "RETURNED" && record.returnReason ? (
-              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[14px] text-amber-900" data-testid="return-reason"><strong>Returned for correction:</strong> {record.returnReason}</p>
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-body text-amber-900" data-testid="return-reason"><strong>Returned for correction:</strong> {record.returnReason}</p>
             ) : null}
-            {record.status === "VOIDED" && record.voidReason ? <p className="mt-3 text-[14px] text-slate-700"><strong>Voided:</strong> {record.voidReason}</p> : null}
-            {can.ownRecordReview ? <p className="mt-3 text-[13px] text-slate-600">You filled this in, so another reviewer must approve it.</p> : null}
-            <p className="mt-3 text-[14px] leading-6 text-slate-700">{version.instructions}</p>
+            {record.status === "VOIDED" && record.voidReason ? <p className="mt-3 text-body text-slate-700"><strong>Voided:</strong> {record.voidReason}</p> : null}
+            {can.ownRecordReview ? <p className="mt-3 text-meta text-slate-600">You filled this in, so another reviewer must approve it.</p> : null}
+            <p className="mt-3 text-body leading-6 text-slate-700">{version.instructions}</p>
           </section>
 
           {can.edit ? (
@@ -76,20 +76,20 @@ export default async function FormRecordPage({ params, searchParams }: { params:
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
                 <button type="submit" name="intent" value="save" className="btn-secondary">Save draft</button>
                 <button type="submit" name="intent" value="submit" className="btn-primary">Submit for review</button>
-                <span className="text-[12.5px] text-slate-600">Drafts are not saved automatically. Once submitted, answers are locked.</span>
+                <span className="text-meta text-slate-600">Drafts are not saved automatically. Once submitted, answers are locked.</span>
               </div>
             </form>
           ) : (
             <section className="pc-panel p-4" aria-label="Answers" data-testid="form-answers">
               <dl className="space-y-4">
                 {schema.map((f) => {
-                  if (f.type === "heading") return <h2 key={f.key} className="border-b border-slate-200 pb-1 pt-2 text-[15px] font-semibold">{f.label}</h2>;
-                  if (!isAnswerable(f)) return <p key={f.key} className="text-[13px] text-slate-600">{f.label}</p>;
+                  if (f.type === "heading") return <h2 key={f.key} className="border-b border-slate-200 pb-1 pt-2 text-lead font-semibold">{f.label}</h2>;
+                  if (!isAnswerable(f)) return <p key={f.key} className="text-meta text-slate-600">{f.label}</p>;
                   if (f.showIf && record.answers[f.key] === undefined) return null;
                   return (
                     <div key={f.key} className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:gap-4">
-                      <dt className="text-[13.5px] text-slate-600">{f.label}</dt>
-                      <dd className="whitespace-pre-wrap text-[14px] text-slate-900">{answerText(f, record.answers[f.key])}</dd>
+                      <dt className="text-body text-slate-600">{f.label}</dt>
+                      <dd className="whitespace-pre-wrap text-body text-slate-900">{answerText(f, record.answers[f.key])}</dd>
                     </div>
                   );
                 })}
@@ -102,7 +102,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
           {can.review ? (
             <section className="pc-panel p-4" data-testid="review-actions">
               <h2 className="font-semibold">Review</h2>
-              <p className="mt-1 text-[13px] text-slate-600">Approve it, or send it back with what needs correcting.</p>
+              <p className="mt-1 text-meta text-slate-600">Approve it, or send it back with what needs correcting.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <form action={reviewFormAction}>
                   <input type="hidden" name="recordId" value={record.id} />
@@ -125,7 +125,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
             </section>
           ) : null}
 
-          <section className="pc-panel p-4 text-[13px]">
+          <section className="pc-panel p-4 text-meta">
             <h2 className="font-semibold">Details</h2>
             <dl className="mt-2 space-y-1.5">
               <div className="flex justify-between gap-3"><dt className="text-slate-600">Reference</dt><dd>{record.reference}</dd></div>
@@ -137,7 +137,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
           </section>
 
           {links ? (
-            <section className="pc-panel p-4 text-[13px]" aria-labelledby="about-title" data-testid="form-links">
+            <section className="pc-panel p-4 text-meta" aria-labelledby="about-title" data-testid="form-links">
               <h2 id="about-title" className="font-semibold">Who this form is about</h2>
               {links.rows.length ? (
                 <ul className="mt-2 divide-y divide-slate-100">
@@ -185,7 +185,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
 
           <section className="pc-panel p-4" data-testid="form-history">
             <h2 className="font-semibold">History</h2>
-            <ol className="mt-2 space-y-2.5 text-[13px]">
+            <ol className="mt-2 space-y-2.5 text-meta">
               {events.map((e) => (
                 <li key={e.id} className="border-l-2 border-slate-200 pl-3">
                   <div className="font-medium text-slate-900">{EVENT_LABEL[e.type] ?? e.type}</div>
@@ -208,7 +208,7 @@ export default async function FormRecordPage({ params, searchParams }: { params:
               </ActionDialog>
             </section>
           ) : null}
-          <p className="text-[12.5px] text-slate-600"><Link href="/policies/forms/records">Back to my forms &amp; reviews</Link></p>
+          <p className="text-meta text-slate-600"><Link href="/policies/forms/records">Back to my forms &amp; reviews</Link></p>
         </aside>
       </div>
     </div>
@@ -217,15 +217,15 @@ export default async function FormRecordPage({ params, searchParams }: { params:
 
 function FieldInput({ f, value }: { f: FormField; value: AnswerValue | undefined }) {
   const id = `f_${f.key}`;
-  if (f.type === "heading") return <h2 className="border-b border-slate-200 pb-1 pt-2 text-[15px] font-semibold" {...showAttrs(f)}>{f.label}</h2>;
-  if (f.type === "instructions") return <p className="text-[13.5px] text-slate-700" {...showAttrs(f)}>{f.label}</p>;
+  if (f.type === "heading") return <h2 className="border-b border-slate-200 pb-1 pt-2 text-lead font-semibold" {...showAttrs(f)}>{f.label}</h2>;
+  if (f.type === "instructions") return <p className="text-body text-slate-700" {...showAttrs(f)}>{f.label}</p>;
   const label = (
     <span className="label">
       {f.label}
-      {f.required ? <span className="ml-1 text-[12px] font-normal text-slate-500">(required)</span> : null}
+      {f.required ? <span className="ml-1 text-caption font-normal text-slate-500">(required)</span> : null}
     </span>
   );
-  const help = f.help ? <span id={`${id}_help`} className="mt-1 block text-[12.5px] text-slate-600">{f.help}</span> : null;
+  const help = f.help ? <span id={`${id}_help`} className="mt-1 block text-meta text-slate-600">{f.help}</span> : null;
   const described = f.help ? { "aria-describedby": `${id}_help` } : {};
   const str = typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
   let control: React.ReactNode;
@@ -246,10 +246,10 @@ function FieldInput({ f, value }: { f: FormField; value: AnswerValue | undefined
     case "yesno":
       return (
         <fieldset data-field={f.key} {...showAttrs(f)}>
-          <legend className="label">{f.label}{f.required ? <span className="ml-1 text-[12px] font-normal text-slate-500">(required)</span> : null}</legend>
+          <legend className="label">{f.label}{f.required ? <span className="ml-1 text-caption font-normal text-slate-500">(required)</span> : null}</legend>
           <div className="mt-1 flex gap-5">
             {(["yes", "no"] as const).map((o) => (
-              <label key={o} className="flex items-center gap-2 text-[14px]"><input type="radio" name={id} value={o} defaultChecked={value === (o === "yes")} className="h-4 w-4" />{o === "yes" ? "Yes" : "No"}</label>
+              <label key={o} className="flex items-center gap-2 text-body"><input type="radio" name={id} value={o} defaultChecked={value === (o === "yes")} className="h-4 w-4" />{o === "yes" ? "Yes" : "No"}</label>
             ))}
           </div>
           {help}
@@ -260,7 +260,7 @@ function FieldInput({ f, value }: { f: FormField; value: AnswerValue | undefined
         <fieldset data-field={f.key} {...showAttrs(f)}>
           <legend className="label">{f.label}</legend>
           <div className="mt-1 grid gap-1.5 sm:grid-cols-2">
-            {f.options.map((o) => <label key={o} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name={id} value={o} defaultChecked={Array.isArray(value) && value.includes(o)} className="h-4 w-4" />{o}</label>)}
+            {f.options.map((o) => <label key={o} className="flex items-center gap-2 text-body"><input type="checkbox" name={id} value={o} defaultChecked={Array.isArray(value) && value.includes(o)} className="h-4 w-4" />{o}</label>)}
           </div>
           {help}
         </fieldset>
@@ -268,8 +268,8 @@ function FieldInput({ f, value }: { f: FormField; value: AnswerValue | undefined
     case "attestation":
       return (
         <div data-field={f.key} {...showAttrs(f)} className="rounded-md border border-slate-200 bg-slate-50 p-3">
-          <label className="flex items-start gap-2.5 text-[14px]"><input type="checkbox" name={id} defaultChecked={value === true} className="mt-0.5 h-4 w-4" />{f.label}</label>
-          <span className="mt-1 block text-[12.5px] text-slate-600">Your name and the time you submit are recorded with this confirmation.</span>
+          <label className="flex items-start gap-2.5 text-body"><input type="checkbox" name={id} defaultChecked={value === true} className="mt-0.5 h-4 w-4" />{f.label}</label>
+          <span className="mt-1 block text-meta text-slate-600">Your name and the time you submit are recorded with this confirmation.</span>
         </div>
       );
   }

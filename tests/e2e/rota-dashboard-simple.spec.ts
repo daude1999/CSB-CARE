@@ -43,6 +43,25 @@ test.describe("Rota Dashboard header and cards", () => {
     if (!notice) expect(gap).toBeLessThanOrEqual(16);
   });
 
+  test("ClearCare header (owner's picture, 12 Nov 2026): title, time and day controls share one row, the date is written out on a white pill", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/rota?date=2026-11-12");
+    const band = page.getByTestId("title-bar");
+    const title = (await band.getByRole("heading", { level: 1, name: "Rota Dashboard" }).boundingBox())!;
+    const pill = band.locator(".mh-date-pill");
+    await expect(pill).toContainText("Thursday 12 November 2026");
+    expect(await pill.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
+    for (const control of [page.getByTestId("rota-live-time"), page.getByRole("link", { name: "Previous day" }), pill, page.getByRole("link", { name: "Next day" }), page.getByRole("link", { name: "Today" })]) {
+      const box = (await control.boundingBox())!;
+      expect(box.x).toBeGreaterThan(title.x + title.width);
+      expect(box.y).toBeLessThan(title.y + title.height + 30);
+    }
+    // The date input still carries the choice: typing a date moves the page to it.
+    await page.getByLabel("Date", { exact: true }).fill("2026-11-14");
+    await expect(page).toHaveURL(/date=2026-11-14/);
+    await expect(pill).toContainText("Saturday 14 November 2026");
+  });
+
   test("previous, next, date picker, branch and Today still drive the selected date", async ({ page }) => {
     await signIn(page);
     const today = londonToday();

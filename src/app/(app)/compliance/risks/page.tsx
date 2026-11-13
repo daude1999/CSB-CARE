@@ -104,7 +104,7 @@ export default async function RiskRegisterPage({ searchParams }: { searchParams:
         <section aria-labelledby="matrix-heading" className="pc-panel self-start p-5">
           <h2 id="matrix-heading" className="pc-panel-title mb-3">Open risks after controls</h2>
           <RiskMatrix cells={cells} />
-          {open.length ? <p className="mt-2 text-[12.5px] text-[#475467]">Highest residual: <strong>{BAND_LABEL[riskBand(Math.max(...open.map((r) => r.residual)))]}</strong>. Scores are an internal management tool, not a regulatory rating.</p> : null}
+          {open.length ? <p className="mt-2 text-meta text-[#475467]">Highest residual: <strong>{BAND_LABEL[riskBand(Math.max(...open.map((r) => r.residual)))]}</strong>. Scores are an internal management tool, not a regulatory rating.</p> : null}
         </section>
       </div>
     </>

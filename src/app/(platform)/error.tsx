@@ -18,10 +18,10 @@ export default function PlatformError({ error, reset }: { error: Error & { diges
     });
   return (
     <div role="alert" className="rounded-[10px] border border-px-line bg-white p-6">
-      <h1 className="text-[18px] font-semibold text-px-ink">This page couldn&apos;t load</h1>
-      <p className="mt-2 max-w-[640px] text-[14px] leading-[22px] text-px-body">
+      <h1 className="text-subtitle font-semibold text-px-ink">This page couldn&apos;t load</h1>
+      <p className="mt-2 max-w-[640px] text-body leading-[22px] text-px-body">
         Something went wrong on our side and the error has been logged. Nothing was changed. Please try again; if it keeps happening, check Platform Health.{" "}
-        {error.digest ? <span className="text-[12px] text-px-muted">Ref: {error.digest}</span> : null}
+        {error.digest ? <span className="text-caption text-px-muted">Ref: {error.digest}</span> : null}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <button type="button" onClick={retry} className={pxPrimary}>Try again</button>

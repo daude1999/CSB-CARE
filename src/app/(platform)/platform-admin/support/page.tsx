@@ -31,11 +31,11 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
                 {rows.map((g) => (
                   <tr key={g.id}>
                     <td><Link href={`/platform-admin/clients/${g.organisation.id}?tab=security`}>{g.organisation.name}</Link></td>
-                    <td className="whitespace-nowrap tabular-nums">{fmtDate(g.createdAt, true)}<span className="block text-[12px] text-px-subtle">{g.requestedBy}</span></td>
+                    <td className="whitespace-nowrap tabular-nums">{fmtDate(g.createdAt, true)}<span className="block text-caption text-px-subtle">{g.requestedBy}</span></td>
                     <td className="max-w-[240px]">{g.purpose}</td>
-                    <td className="text-[12.5px]">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
-                    <td className="text-[12.5px]">{g.authorisation === "EMERGENCY" ? "Emergency" : g.decidedBy ? `Client: ${g.decidedBy}` : "Waiting"}</td>
-                    <td><Pill value={g.state} />{g.expiresAt && g.state === "ACTIVE" ? <span className="block text-[12px] text-px-subtle">until {fmtDate(g.expiresAt, true)}</span> : null}{g.revokedBy ? <span className="block text-[12px] text-px-subtle">by {g.revokedBy}</span> : null}</td>
+                    <td className="text-meta">{g.scopes.map((s) => s.toLowerCase().replace("_", " ")).join(", ")}</td>
+                    <td className="text-meta">{g.authorisation === "EMERGENCY" ? "Emergency" : g.decidedBy ? `Client: ${g.decidedBy}` : "Waiting"}</td>
+                    <td><Pill value={g.state} />{g.expiresAt && g.state === "ACTIVE" ? <span className="block text-caption text-px-subtle">until {fmtDate(g.expiresAt, true)}</span> : null}{g.revokedBy ? <span className="block text-caption text-px-subtle">by {g.revokedBy}</span> : null}</td>
                     <td className="text-right">{g.state === "ACTIVE" || g.state === "REQUESTED" ? <Confirm label="Revoke" tone="danger" small><form action={revokeSupportAction} className="space-y-2 text-left"><Back value={`/platform-admin/support${view === "all" ? "?view=all" : ""}`} /><input type="hidden" name="grantId" value={g.id} /><ReasonField /><button className={pxDanger}>Revoke access</button></form></Confirm> : null}</td>
                   </tr>
                 ))}
@@ -46,7 +46,7 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
           )}
         </PxPanel>
         <PxPanel title="How it works">
-          <ol className="list-decimal space-y-2 pl-5 text-[13px] text-px-body">
+          <ol className="list-decimal space-y-2 pl-5 text-meta text-px-body">
             <li>On the client&apos;s Security tab, say why support needs access and to what: {Object.values(SUPPORT_SCOPES).join("; ")}.</li>
             <li>The client&apos;s administrators approve or decline it from their bell or Settings.</li>
             <li>Access ends by itself after the hours asked. Either side can revoke it sooner, and every use is audited.</li>

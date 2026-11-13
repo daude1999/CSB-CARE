@@ -57,23 +57,23 @@ export default async function TemplatePage({ params, searchParams }: { params: P
       />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card title={<span className="flex items-center gap-2">Template {t.enabled ? <Badge tone="green">Switched on</Badge> : <Badge>Switched off</Badge>} <span className="text-[13px] font-normal text-slate-500">version {t.version}</span></span>}>
+        <Card title={<span className="flex items-center gap-2">Template {t.enabled ? <Badge tone="green">Switched on</Badge> : <Badge>Switched off</Badge>} <span className="text-meta font-normal text-slate-500">version {t.version}</span></span>}>
           {canEdit ? (
             <TemplateForm action={updateTemplateAction} lk={lk} t={t} taskIds={t.tasks.map((x) => x.careTaskId)} back={back} cycleLength={settings.cycleLength} submit="Save template" />
           ) : (
-            <p className="text-[14px] text-slate-600">You can view this template. Changing it needs rota editing rights.</p>
+            <p className="text-body text-slate-600">You can view this template. Changing it needs rota editing rights.</p>
           )}
         </Card>
         <div className="space-y-3">
-          <Suspense fallback={<p className="skeleton-pulse rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13.5px] text-slate-600">Checking the weeks already built…</p>}>
+          <Suspense fallback={<p className="skeleton-pulse rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-body text-slate-600">Checking the weeks already built…</p>}>
             <GapNotice check={gapCheck} serviceUser={suName(t.serviceUser)} />
           </Suspense>
           {preview ? (
             <Card title="Built visits">
               {toApply.length ? (
                 <>
-                  <p className="mb-2 text-[14px]">{toApply.length} future visit{toApply.length === 1 ? "" : "s"} still follow{toApply.length === 1 ? "s" : ""} the old pattern.</p>
-                  <ul className="mb-3 max-h-60 space-y-1 overflow-y-auto text-[13.5px]">
+                  <p className="mb-2 text-body">{toApply.length} future visit{toApply.length === 1 ? "" : "s"} still follow{toApply.length === 1 ? "s" : ""} the old pattern.</p>
+                  <ul className="mb-3 max-h-60 space-y-1 overflow-y-auto text-body">
                     {toApply.map((i) => <li key={i.visitId}><Link href={`/rota/visits/${i.visitId}`}>{fmtLondonDate(i.date)}</Link> · {i.change}</li>)}
                   </ul>
                   <form action={applyTemplateChangesAction}>
@@ -82,22 +82,22 @@ export default async function TemplatePage({ params, searchParams }: { params: P
                     <input type="hidden" name="version" value={t.version} />
                     <button className="btn-primary">Apply to {toApply.length} built visit{toApply.length === 1 ? "" : "s"}</button>
                   </form>
-                  <p className="mt-2 text-[12.5px] text-slate-500">Every carer is re-checked at the new time. Visits a carer cannot do are listed as refused and left unchanged.</p>
+                  <p className="mt-2 text-meta text-slate-500">Every carer is re-checked at the new time. Visits a carer cannot do are listed as refused and left unchanged.</p>
                 </>
               ) : (
                 <Empty><Suspense fallback="The visits already on the rota match this template."><MatchNote check={gapCheck} /></Suspense></Empty>
               )}
               {kept.length ? (
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-[14px] font-medium text-navy-900">{kept.length} left as they are</summary>
-                  <ul className="mt-2 space-y-1 text-[13px]">{kept.map((i) => <li key={i.visitId}>{fmtLondonDate(i.date)}: {i.reason}</li>)}</ul>
+                  <summary className="cursor-pointer text-body font-medium text-navy-900">{kept.length} left as they are</summary>
+                  <ul className="mt-2 space-y-1 text-meta">{kept.map((i) => <li key={i.visitId}>{fmtLondonDate(i.date)}: {i.reason}</li>)}</ul>
                 </details>
               ) : null}
             </Card>
           ) : null}
           <Card title="Carer instructions">
             {instructions.length ? (
-              <ol className="space-y-2 text-[13.5px]" data-testid="instruction-versions">
+              <ol className="space-y-2 text-body" data-testid="instruction-versions">
                 {instructions.map((v) => (
                   <li key={v.id} className="border-l-2 border-slate-200 pl-3">
                     <div className="font-medium">Version {v.version} · from {fmtLondonDate(v.effectiveFrom)}</div>
@@ -107,11 +107,11 @@ export default async function TemplatePage({ params, searchParams }: { params: P
                 ))}
               </ol>
             ) : <Empty>No instruction versions yet. A version is kept each time the notes or tasks change.</Empty>}
-            <p className="mt-2 text-[12.5px] text-slate-500">Changes reach future visits only, when applied above. Visits already done keep the instructions they had.</p>
+            <p className="mt-2 text-meta text-slate-500">Changes reach future visits only, when applied above. Visits already done keep the instructions they had.</p>
           </Card>
           <div id="history" className="scroll-mt-20"><Card title="History">
             {history.length ? (
-              <ol className="space-y-2 text-[13.5px]">
+              <ol className="space-y-2 text-body">
                 {history.map((h) => <li key={h.id} className="border-l-2 border-slate-200 pl-3"><div className="font-medium">{h.action.replace("template.", "").replace(/_/g, " ")}</div><div className="text-slate-500">{names.get(h.actorId ?? "") ?? "System"} · {fmtDate(h.createdAt, true)}</div></li>)}
               </ol>
             ) : <Empty>No changes recorded yet.</Empty>}
@@ -129,8 +129,8 @@ async function GapNotice({ check, serviceUser }: { check: Promise<RotaGap>; serv
   const gap = await check;
   if (!gap) return null;
   return (
-    <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-[14px] text-slate-800" data-testid="template-rota-gap" aria-labelledby="gap-title">
-      <h2 id="gap-title" className="text-[15px] font-medium text-navy-900">Not on the rota yet</h2>
+    <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-body text-slate-800" data-testid="template-rota-gap" aria-labelledby="gap-title">
+      <h2 id="gap-title" className="text-lead font-medium text-navy-900">Not on the rota yet</h2>
       <p className="mt-1">{gap.missing} visit{gap.missing === 1 ? "" : "s"} from this template {gap.missing === 1 ? "is" : "are"} missing from weeks that were already built (up to {fmtLondonDate(gap.builtThrough)}). Build Rota only builds new weeks, so add {gap.missing === 1 ? "it" : "them"} for {serviceUser} now.</p>
       <Link href={`/rota/service-users/${gap.serviceUserId}?tab=rota&future=1&from=${gap.from}&nweeks=${gap.weeks}`} className="btn-primary mt-2 inline-flex">Add to the built weeks</Link>
     </section>

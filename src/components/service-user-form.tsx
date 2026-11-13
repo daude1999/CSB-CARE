@@ -39,7 +39,7 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit, al
       <input type="hidden" name="back" value={back} />
       {su ? <><input type="hidden" name="serviceUserId" value={su.id} /><input type="hidden" name="version" value={su.version} /></> : null}
       <fieldset className="grid gap-3 md:grid-cols-3">
-        <legend className="mb-2 text-[15px] font-medium text-navy-900">Person</legend>
+        <legend className="mb-2 text-lead font-medium text-navy-900">Person</legend>
         {t("firstName", "First name", { required: true, maxLength: 100 })}
         {t("lastName", "Last name", { required: true, maxLength: 100 })}
         {t("preferredName", "Known as")}
@@ -51,7 +51,7 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit, al
         <label><span className="label">Carer preference</span><select name="carerGenderPreference" defaultValue={su?.carerGenderPreference ?? "ANY"} className="input"><option value="ANY">No preference</option><option value="FEMALE">Female carers</option><option value="MALE">Male carers</option></select></label>
       </fieldset>
       <fieldset className="grid gap-3 md:grid-cols-3">
-        <legend className="mb-2 text-[15px] font-medium text-navy-900">Home</legend>
+        <legend className="mb-2 text-lead font-medium text-navy-900">Home</legend>
         {t("addressLine1", "Address")}
         {t("addressLine2", "Address line 2")}
         {t("town", "Town")}
@@ -62,14 +62,14 @@ export function ServiceUserForm({ action, su, areas, back, sensitive, submit, al
         <label className="md:col-span-3"><span className="label">Access notes for carers</span><textarea name="accessNotes" rows={2} defaultValue={su?.accessNotes ?? ""} className="input" /></label>
       </fieldset>
       <fieldset className="grid gap-3 md:grid-cols-3">
-        <legend className="mb-2 text-[15px] font-medium text-navy-900">Care</legend>
+        <legend className="mb-2 text-lead font-medium text-navy-900">Care</legend>
         <label><span className="label">Overall risk</span><select name="riskLevel" defaultValue={su?.riskLevel ?? ""} className="input"><option value="">Not assessed</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
         <label className="md:col-span-2"><span className="label">Risk summary</span><input name="riskSummary" defaultValue={su?.riskSummary ?? ""} className="input" /></label>
         <label className="md:col-span-3"><span className="label">Communication needs</span><textarea name="communicationNeeds" rows={2} defaultValue={su?.communicationNeeds ?? ""} className="input" /></label>
         <label className="md:col-span-3"><span className="label">What matters to them</span><textarea name="carePreferences" rows={2} defaultValue={su?.carePreferences ?? ""} className="input" /></label>
       </fieldset>
       {allowDuplicate ? (
-        <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-[14px]">
+        <label className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-body">
           <input type="checkbox" name="confirmNotDuplicate" className="mt-0.5 h-4 w-4" />
           <span>I have checked: this is a different person who shares the same name and date of birth.</span>
         </label>

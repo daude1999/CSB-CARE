@@ -75,10 +75,10 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
       <ol aria-label="Steps" className="flex gap-2 overflow-x-auto lg:sticky lg:top-24 lg:flex-col lg:gap-0">
         {STEPS.map((s, i) => (
           <li key={s} aria-current={i === step ? "step" : undefined} className="flex shrink-0 items-start gap-3 lg:pb-5">
-            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold ${i === step ? "bg-px-accent text-white" : i < step ? "bg-px-accent-soft text-px-accent-strong" : "border border-px-line bg-white text-px-muted"}`}>{i < step ? <Check size={14} weight="bold" aria-label="Done" /> : i + 1}</span>
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-meta font-semibold ${i === step ? "bg-px-accent text-white" : i < step ? "bg-px-accent-soft text-px-accent-strong" : "border border-px-line bg-white text-px-muted"}`}>{i < step ? <Check size={14} weight="bold" aria-label="Done" /> : i + 1}</span>
             <span className="hidden min-w-0 pt-[3px] sm:block">
-              <span className={`block text-[13.5px] ${i === step ? "font-semibold text-px-ink" : "text-px-body"}`}>{s}</span>
-              <span className="hidden text-[12px] text-px-muted lg:block">{STEP_NOTES[i]}</span>
+              <span className={`block text-body ${i === step ? "font-semibold text-px-ink" : "text-px-body"}`}>{s}</span>
+              <span className="hidden text-caption text-px-muted lg:block">{STEP_NOTES[i]}</span>
             </span>
           </li>
         ))}
@@ -86,7 +86,7 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
       <div className="min-w-0 overflow-hidden rounded-[10px] border border-px-line bg-white">
 
       <section ref={(el) => { sections.current[0] = el; }} hidden={step !== 0} className={panel} aria-label="Company details">
-        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[0]}</h2>
+        <h2 className="mb-4 text-lead font-semibold text-px-ink">{STEPS[0]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className="label">Legal company name *</span><input name="legalName" required minLength={2} className="input" /></label>
           <label><span className="label">Trading name</span><input name="tradingName" className="input" /></label>
@@ -99,22 +99,22 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
           <label><span className="label">CQC provider ID</span><input name="cqcProviderId" pattern="[0-9]-[0-9]{6,12}" placeholder="1-123456789" className="input" /></label>
           <label className="md:col-span-2"><span className="label">CQC location IDs (separate with commas)</span><input name="cqcLocationIds" className="input" /></label>
           <fieldset className="md:col-span-2"><legend className="label">Service types</legend>
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">{SERVICE_TYPES.map((t) => <label key={t} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="serviceTypes" value={t} defaultChecked={t === "Domiciliary care"} />{t}</label>)}</div>
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3">{SERVICE_TYPES.map((t) => <label key={t} className="flex items-center gap-2 text-body"><input type="checkbox" name="serviceTypes" value={t} defaultChecked={t === "Domiciliary care"} />{t}</label>)}</div>
           </fieldset>
           <label className="md:col-span-2"><span className="label">Branches (one per line; empty means a single &quot;Main office&quot;)</span><textarea name="branches" rows={3} className="input" /></label>
         </div>
-        <p className="mt-2 text-[12.5px] text-px-muted">A CQC ID is recorded as given. It is not proof of registration until someone checks it on the CQC register.</p>
+        <p className="mt-2 text-meta text-px-muted">A CQC ID is recorded as given. It is not proof of registration until someone checks it on the CQC register.</p>
       </section>
 
       <section ref={(el) => { sections.current[1] = el; }} hidden={step !== 1} className={panel} aria-label="Subscription">
-        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[1]}</h2>
+        <h2 className="mb-4 text-lead font-semibold text-px-ink">{STEPS[1]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="md:col-span-2"><span className="label">Plan *</span>
             <select name="planId" required value={planId} onChange={(e) => choosePlan(e.target.value)} className="input">{plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({money(p.monthlyPricePence)} a month)</option>)}</select>
           </label>
           <fieldset className="md:col-span-2"><legend className="label">Trial or paid</legend>
-            <label className="mr-4 inline-flex items-center gap-2 text-[13.5px]"><input type="radio" name="status" value="TRIAL" checked={trial} onChange={() => setTrial(true)} />Trial</label>
-            <label className="inline-flex items-center gap-2 text-[13.5px]"><input type="radio" name="status" value="ACTIVE" checked={!trial} onChange={() => setTrial(false)} />Paid</label>
+            <label className="mr-4 inline-flex items-center gap-2 text-body"><input type="radio" name="status" value="TRIAL" checked={trial} onChange={() => setTrial(true)} />Trial</label>
+            <label className="inline-flex items-center gap-2 text-body"><input type="radio" name="status" value="ACTIVE" checked={!trial} onChange={() => setTrial(false)} />Paid</label>
           </fieldset>
           {trial ? <label><span className="label">Trial ends *</span><input type="date" name="trialEndsAt" required defaultValue={trialEnd} className="input" /></label> : null}
           <label><span className="label">Billing period</span><select name="billingPeriod" className="input"><option value="MONTHLY">Monthly</option><option value="ANNUAL">Annual</option></select></label>
@@ -125,41 +125,41 @@ export function OnboardingWizard({ onboardingKey, plans, modules, defaultModules
           <fieldset className="md:col-span-2"><legend className="label">Enabled modules</legend>
             <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
               {modules.map((m) => (
-                <label key={m.key} className="flex items-start gap-2 text-[13.5px]">
+                <label key={m.key} className="flex items-start gap-2 text-body">
                   <input type="checkbox" name="modules" value={m.key} className="mt-1" checked={chosenModules.includes(m.key)} onChange={(e) => setChosenModules((c) => (e.target.checked ? [...c, m.key] : c.filter((x) => x !== m.key)))} />
-                  <span><span className="font-medium">{m.name}</span><span className="block text-[12px] text-px-muted">{m.summary}</span></span>
+                  <span><span className="font-medium">{m.name}</span><span className="block text-caption text-px-muted">{m.summary}</span></span>
                 </label>
               ))}
             </div>
           </fieldset>
         </div>
-        <p className="mt-2 text-[12.5px] text-px-muted">Empty allowances follow the plan. No payment is taken: billing is not connected.</p>
+        <p className="mt-2 text-meta text-px-muted">Empty allowances follow the plan. No payment is taken: billing is not connected.</p>
       </section>
 
       <section ref={(el) => { sections.current[2] = el; }} hidden={step !== 2} className={panel} aria-label="Customer administrator">
-        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[2]}</h2>
+        <h2 className="mb-4 text-lead font-semibold text-px-ink">{STEPS[2]}</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className="label">Administrator name *</span><input name="adminName" required minLength={2} className="input" /></label>
           <label><span className="label">Administrator email *</span><input type="email" name="adminEmail" required className="input" /></label>
           <label><span className="label">Job title</span><input name="adminJobTitle" className="input" /></label>
           <fieldset><legend className="label">Organisation roles</legend>
-            <div className="grid grid-cols-1 gap-1">{roles.map(([v, l]) => <label key={v} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="adminRoles" value={v} defaultChecked={v === "ORG_ADMIN" || v === "CARE_MANAGER" || v === "COMPLIANCE_LEAD"} disabled={false} />{l}</label>)}</div>
+            <div className="grid grid-cols-1 gap-1">{roles.map(([v, l]) => <label key={v} className="flex items-center gap-2 text-body"><input type="checkbox" name="adminRoles" value={v} defaultChecked={v === "ORG_ADMIN" || v === "CARE_MANAGER" || v === "COMPLIANCE_LEAD"} disabled={false} />{l}</label>)}</div>
           </fieldset>
         </div>
-        <p className="mt-2 text-[12.5px] text-px-muted">They receive a secure, single-use invitation link and choose their own password. Organisation admin is required.</p>
+        <p className="mt-2 text-meta text-px-muted">They receive a secure, single-use invitation link and choose their own password. Organisation admin is required.</p>
       </section>
 
       <section hidden={step !== 3} className={panel} aria-label="Review and provision">
-        <h2 className="mb-4 text-[15px] font-semibold text-px-ink">{STEPS[3]}</h2>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-[13.5px] md:grid-cols-[200px_minmax(0,1fr)]">
+        <h2 className="mb-4 text-lead font-semibold text-px-ink">{STEPS[3]}</h2>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-body md:grid-cols-[200px_minmax(0,1fr)]">
           {summary.map(([k, v]) => <div key={k} className="contents"><dt className="text-px-muted">{k}</dt><dd className="break-words">{v}</dd></div>)}
         </dl>
-        {state.error ? <p role="alert" className="mt-3 rounded-[8px] border border-[#f2c4c9] bg-px-danger-bg px-3 py-2 text-[13.5px] text-px-danger">{state.error}</p> : null}
-        <p className="mt-3 text-[12.5px] text-px-muted">Provisioning creates the organisation, its reference, branches, subscription, modules, the invitation and an audit entry together. If anything fails, nothing is created.</p>
+        {state.error ? <p role="alert" className="mt-3 rounded-[8px] border border-[#f2c4c9] bg-px-danger-bg px-3 py-2 text-body text-px-danger">{state.error}</p> : null}
+        <p className="mt-3 text-meta text-px-muted">Provisioning creates the organisation, its reference, branches, subscription, modules, the invitation and an audit entry together. If anything fails, nothing is created.</p>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-px-line bg-px-field px-5 py-3">
-        <span className="text-[12.5px] text-px-muted">Step {step + 1} of {STEPS.length}</span>
+        <span className="text-meta text-px-muted">Step {step + 1} of {STEPS.length}</span>
         <div className="flex gap-2">
           {step > 0 ? <button type="button" className={btn2} onClick={() => setStep((s) => s - 1)} disabled={pending}>Back</button> : null}
           {step < 3 ? <button key="next" type="button" className={btn} onClick={next}>Continue</button> : <button key="submit" type="submit" className={btn} disabled={pending}>{pending ? "Creating client…" : "Create client"}</button>}

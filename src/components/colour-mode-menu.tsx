@@ -29,7 +29,7 @@ export function ColourModeOptions({ mode, onChange }: { mode: ColourMode; onChan
             aria-pressed={on}
             data-testid={`colour-mode-${m.id}`}
             onClick={() => onChange(m.id)}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[14px] text-[#0b1530] hover:bg-slate-100"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-body text-[#0b1530] hover:bg-slate-100"
           >
             <Icon size={18} aria-hidden="true" className="shrink-0 text-slate-600" />
             <span className="flex-1">{m.name}</span>
@@ -59,11 +59,11 @@ export function ColourModeMenu({ initial, dark = false }: { initial: ColourMode;
   const label = `Appearance: ${COLOUR_MODES.find((m) => m.id === mode)?.name ?? "Light"}`;
   return (
     <details ref={ref} className="relative" data-testid="colour-mode-menu">
-      <summary aria-label={label} title={label} className={`flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
+      <summary aria-label={label} title={label} className={`flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-[10px] [&::-webkit-details-marker]:hidden ${dark ? "text-white hover:bg-white/10" : "text-[#0b1530] hover:bg-black/5"}`}>
         <Icon size={21} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[230px] overflow-hidden rounded-[8px] border border-slate-200 bg-white py-1 shadow-lg">
-        <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Appearance</p>
+        <p className="px-3 pb-1 pt-2 text-micro font-semibold uppercase tracking-[0.06em] text-slate-500">Appearance</p>
         <ColourModeOptions
           mode={mode}
           onChange={(m) => {

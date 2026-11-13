@@ -21,18 +21,18 @@ export function MedicationList({ meds, serviceUserId, back, canManage, me, names
         {meds.length ? (
           <ul className="rows">
             {meds.map((m) => (
-              <li key={m.id} className="py-3 text-[14px]" data-medication={m.name}>
+              <li key={m.id} className="py-3 text-body" data-medication={m.name}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{m.name}{m.strength ? ` ${m.strength}` : ""}</span>
                   {m.status === "DRAFT" ? <Badge tone="amber">Waiting for a second check</Badge> : m.status === "ACTIVE" ? <Badge tone="green">In use</Badge> : <Badge>Stopped</Badge>}
                   {m.controlled ? <Badge tone="rose">Controlled drug</Badge> : null}
                   {m.asRequired ? <Badge tone="violet">As required</Badge> : null}
                 </div>
-                <p className="text-[13.5px] text-slate-700">{m.dose} · {label(ROUTE_LABEL, m.route)} · {label(SUPPORT_LABEL, m.support)} · {when(m)} · from {fmtLondonDate(fromDbDate(m.startDate))}{m.endDate ? ` to ${fmtLondonDate(fromDbDate(m.endDate))}` : ""}</p>
-                {m.instructions ? <p className="text-[13.5px] text-slate-700">{m.instructions}</p> : null}
-                <p className="text-[12.5px] text-slate-500">Entered by {who(m.createdById)} {fmtDate(m.createdAt, true)}{m.approvedById ? ` · checked by ${who(m.approvedById)}` : ""}{m.prescriber ? ` · prescriber ${m.prescriber}` : ""}{m.stopReason ? ` · stopped: ${m.stopReason}` : ""}{m.changeReason ? ` · change: ${m.changeReason}` : ""}</p>
+                <p className="text-body text-slate-700">{m.dose} · {label(ROUTE_LABEL, m.route)} · {label(SUPPORT_LABEL, m.support)} · {when(m)} · from {fmtLondonDate(fromDbDate(m.startDate))}{m.endDate ? ` to ${fmtLondonDate(fromDbDate(m.endDate))}` : ""}</p>
+                {m.instructions ? <p className="text-body text-slate-700">{m.instructions}</p> : null}
+                <p className="text-meta text-slate-500">Entered by {who(m.createdById)} {fmtDate(m.createdAt, true)}{m.approvedById ? ` · checked by ${who(m.approvedById)}` : ""}{m.prescriber ? ` · prescriber ${m.prescriber}` : ""}{m.stopReason ? ` · stopped: ${m.stopReason}` : ""}{m.changeReason ? ` · change: ${m.changeReason}` : ""}</p>
                 {canManage && m.status === "DRAFT" ? (
-                  m.createdById === me ? <p className="text-[13px] text-slate-600">You entered this, so someone else must check it against the prescription and approve it.</p> : (
+                  m.createdById === me ? <p className="text-meta text-slate-600">You entered this, so someone else must check it against the prescription and approve it.</p> : (
                     <form action={approveMedicationAction} className="mt-1"><input type="hidden" name="back" value={back} /><input type="hidden" name="medicationId" value={m.id} /><button className="btn-primary py-1">Checked against the prescription: approve</button></form>
                   )
                 ) : null}
@@ -55,7 +55,7 @@ export function MedicationList({ meds, serviceUserId, back, canManage, me, names
           </ul>
         ) : <Empty>No medicines recorded.</Empty>}
       </Card>
-      {canManage ? <Card title="Add a medicine"><MedicationForm back={back} serviceUserId={serviceUserId} /><p className="mt-2 text-[12.5px] text-slate-600">Copy it exactly from the prescription or the pharmacy label. A second person checks it before carers see it. The platform does not check doses or interactions.</p></Card> : null}
+      {canManage ? <Card title="Add a medicine"><MedicationForm back={back} serviceUserId={serviceUserId} /><p className="mt-2 text-meta text-slate-600">Copy it exactly from the prescription or the pharmacy label. A second person checks it before carers see it. The platform does not check doses or interactions.</p></Card> : null}
     </div>
   );
 }
@@ -74,7 +74,7 @@ function MedicationForm({ back, serviceUserId, m }: { back: string; serviceUserI
         <label><span className="label">Starts</span><input type="date" name="startDate" required defaultValue={m ? fromDbDate(m.startDate) : undefined} className="input" /></label>
       </div>
       <fieldset><legend className="label">When</legend>
-        <div className="flex flex-wrap gap-3 text-[13.5px]">
+        <div className="flex flex-wrap gap-3 text-body">
           {TIME_RANGE_KEYS.map((k) => <label key={k} className="flex items-center gap-1.5"><input type="checkbox" name="timeRanges" value={k} defaultChecked={m?.timeRanges.includes(k)} />{TIME_RANGES[k].label}</label>)}
           <label className="flex items-center gap-1.5"><input type="checkbox" name="asRequired" value="1" defaultChecked={m?.asRequired} />As required</label>
           <label className="flex items-center gap-1.5"><input type="checkbox" name="controlled" value="1" defaultChecked={m?.controlled} />Controlled drug</label>
@@ -99,10 +99,10 @@ export function CarerMedication({ visitId, due, clockedIn }: { visitId: string; 
   if (!due.length) return null;
   return (
     <div className="mt-2 rounded-md border border-violet-200 bg-violet-50/40 p-2.5" aria-label="Medication">
-      <p className="text-[13.5px] font-medium">Medication due</p>
+      <p className="text-body font-medium">Medication due</p>
       <ul className="mt-1 space-y-2">
         {due.map(({ med: m, records }) => (
-          <li key={m.id} className="text-[13.5px]">
+          <li key={m.id} className="text-body">
             <p><span className="font-medium">{m.name}{m.strength ? ` ${m.strength}` : ""}</span> · {m.dose} · {label(SUPPORT_LABEL, m.support)}{m.asRequired ? " · as required" : ""}{m.controlled ? " · controlled drug" : ""}</p>
             {m.instructions ? <p className="text-slate-700">{m.instructions}</p> : null}
             {records.map((r) => <p key={r.id} className="text-slate-700">Recorded: {OUTCOME_LABEL[r.outcome]} at {londonTime(r.at)}{r.reason ? ` (${r.reason})` : ""}</p>)}
@@ -118,7 +118,7 @@ export function CarerMedication({ visitId, due, clockedIn }: { visitId: string; 
           </li>
         ))}
       </ul>
-      {!clockedIn ? <p className="mt-1 text-[12.5px] text-slate-600">Clock in to record medication.</p> : null}
+      {!clockedIn ? <p className="mt-1 text-meta text-slate-600">Clock in to record medication.</p> : null}
     </div>
   );
 }
@@ -129,7 +129,7 @@ export function VisitMedication({ data, back, canManage }: { data: { due: Medica
     <section id="medication" aria-label="Medication">
       <Card title="Medication">
         {data.due.length || data.records.length ? (
-          <ul className="rows text-[14px]">
+          <ul className="rows text-body">
             {data.due.map((m) => {
               const recs = data.records.filter((r) => r.medicationId === m.id);
               return (
@@ -140,7 +140,7 @@ export function VisitMedication({ data, back, canManage }: { data: { due: Medica
                       <span>{OUTCOME_CODE[r.outcome]} · {OUTCOME_LABEL[r.outcome]} at {londonTime(r.at)}{r.reason ? ` · ${r.reason}` : ""}{r.witnessName ? ` · witness ${r.witnessName}` : ""}{r.supersedesId ? " · correction" : ""}</span>
                       {canManage && !r.supersededAt ? (
                         <details className="no-underline">
-                          <summary className="cursor-pointer text-[13px] text-navy-700">Correct this record</summary>
+                          <summary className="cursor-pointer text-meta text-navy-700">Correct this record</summary>
                           <form action={correctDoseAction} className="mt-1 flex flex-wrap gap-2"><input type="hidden" name="back" value={`${back}#medication`} /><input type="hidden" name="recordId" value={r.id} /><select name="outcome" className="input py-1" aria-label="Correct outcome">{Object.entries(OUTCOME_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select><input name="reason" required minLength={5} className="input py-1" placeholder="Why it is corrected" aria-label="Why it is corrected" /><button className="btn-secondary py-1">Save correction</button></form>
                         </details>
                       ) : null}
@@ -151,7 +151,7 @@ export function VisitMedication({ data, back, canManage }: { data: { due: Medica
             })}
           </ul>
         ) : <Empty>No medicines due on this visit.</Empty>}
-        <p className="mt-2 text-[12.5px] text-slate-600">Records cannot be edited or deleted. A correction is kept alongside the original. <Link href="/rota/exceptions?kind=MISSED_MEDICATION">Missed medication</Link></p>
+        <p className="mt-2 text-meta text-slate-600">Records cannot be edited or deleted. A correction is kept alongside the original. <Link href="/rota/exceptions?kind=MISSED_MEDICATION">Missed medication</Link></p>
       </Card>
     </section>
   );

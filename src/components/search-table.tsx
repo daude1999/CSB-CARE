@@ -14,20 +14,20 @@ export function SearchTable({ label, columns, rows, empty, max = 400, tall = fal
   return (
     <div>
       <div className="mb-2 flex items-center justify-end gap-2">
-        <label htmlFor={id} className="text-[13.5px] font-medium">Search:</label>
+        <label htmlFor={id} className="text-body font-medium">Search:</label>
         <input id={id} type="search" value={q} onChange={(e) => setQ(e.target.value)} className="input w-44 py-1" aria-label={`Search ${label}`} />
       </div>
       <div className={`relative min-w-0 overflow-auto rounded border border-slate-200 ${tall ? "" : "max-h-[340px]"}`}>
-        <table className="table text-[13.5px]">
+        <table className="table text-body">
           <caption className="sr-only">{label}</caption>
           <thead className="sticky top-0 z-[1] bg-white"><tr>{columns.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
           <tbody>
             {shown.map((r) => <tr key={r.key} className={r.tone ?? ""}>{r.cells.map((c, i) => <td key={i}>{c}</td>)}</tr>)}
           </tbody>
         </table>
-        {!shown.length ? <p className="px-3 py-4 text-center text-[13.5px] text-slate-500">{needle ? "Nothing matches your search." : empty}</p> : null}
+        {!shown.length ? <p className="px-3 py-4 text-center text-body text-slate-500">{needle ? "Nothing matches your search." : empty}</p> : null}
       </div>
-      <p className="mt-1.5 text-[12.5px] text-slate-500" aria-live="polite">Showing {shown.length} of {rows.length}</p>
+      <p className="mt-1.5 text-meta text-slate-500" aria-live="polite">Showing {shown.length} of {rows.length}</p>
     </div>
   );
 }

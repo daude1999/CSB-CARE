@@ -22,11 +22,11 @@ export const dynamic = "force-dynamic";
 const PER_PAGE = [10, 25, 50, 100] as const;
 const SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module";
-const CONTROL = "h-[42px] rounded-[10px] border border-[#e4e7ec] bg-white text-[14.5px] text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.06)]";
-const TH = "whitespace-nowrap px-2 py-3 text-left text-[14px] font-bold text-[#101828]";
+const CONTROL = "h-[42px] rounded-[10px] border border-[#e4e7ec] bg-white text-body text-[#101828] shadow-[0_1px_2px_rgba(16,24,40,0.06)]";
+const TH = "whitespace-nowrap px-2 py-3 text-left text-body font-bold text-[#101828]";
 const TD = "px-2 py-1.5";
 const ICON_BTN = `inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-module hover:bg-module/[.08] ${FOCUS}`;
-const MENU_ITEM = "flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] text-[#101828] no-underline hover:bg-module/[.08]";
+const MENU_ITEM = "flex w-full items-center gap-2 px-3 py-2 text-left text-body text-[#101828] no-underline hover:bg-module/[.08]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
   return (
@@ -42,7 +42,7 @@ function Fact({ icon, label, children }: { icon: ReactNode; label: string; child
   return (
     <div className="flex items-start gap-3 py-[7px]">
       <span aria-hidden className="mt-0.5 text-[#101828]">{icon}</span>
-      <p className="text-[15px] text-[#101828]"><span className="font-medium">{label}:</span> {children}</p>
+      <p className="text-lead text-[#101828]"><span className="font-medium">{label}:</span> {children}</p>
     </div>
   );
 }
@@ -130,8 +130,8 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
             const active = day === i + 1;
             return (
               <Link key={d} href={url({ day: String(i + 1), page: undefined })} aria-current={active ? "true" : undefined} title={`${d}${date ? ` ${fmtLondonDate(date, { day: "numeric", month: "long", year: "numeric" })}` : ""}${date === today ? " (today)" : ""}`} className={`relative flex min-w-[74px] shrink-0 flex-col items-center justify-center rounded-[10px] px-2.5 py-1.5 leading-tight no-underline min-[1600px]:min-w-[96px] ${FOCUS} ${active ? "bg-module text-white shadow-[0_2px_6px_rgba(91,43,181,0.35)]" : "bg-white text-[#101828] shadow-[0_1px_3px_rgba(16,24,40,0.12)] hover:text-module"}`}>
-                <span className="text-[15.5px] font-bold">{SHORT[i]}</span>
-                {date ? <span className="text-[14px]">{fmtLondonDate(date, { day: "numeric", month: "short" })}</span> : null}
+                <span className="text-lead font-bold">{SHORT[i]}</span>
+                {date ? <span className="text-body">{fmtLondonDate(date, { day: "numeric", month: "short" })}</span> : null}
                 {date === today ? <span aria-hidden className={`absolute bottom-1 h-1 w-1 rounded-full ${active ? "bg-white" : "bg-module"}`} /> : null}
               </Link>
             );
@@ -155,23 +155,23 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex justify-end gap-2.5">
           <details className="relative">
-            <summary className={`${CONTROL} flex cursor-pointer list-none items-center gap-2 whitespace-nowrap px-4 font-bold hover:bg-slate-50 [&::-webkit-details-marker]:hidden`}><SlidersHorizontal size={19} weight="bold" aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className={`${CONTROL} flex cursor-pointer list-none items-center gap-2 whitespace-nowrap px-4 font-bold hover:bg-slate-50 [&::-webkit-details-marker]:hidden`}><SlidersHorizontal size={19} weight="bold" aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-meta text-white">{more}</span> : null}</summary>
             <form method="get" aria-label="More filters" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["state", "empty", "week", "on", "day", "page", "tpl"])}
               {params.week && params.week !== "all" ? <input type="hidden" name="week" value={params.week} /> : null}
               {on ? <input type="hidden" name="on" value={on} /> : null}
               {sp.day && sp.day !== "all" ? <input type="hidden" name="day" value={sp.day} /> : null}
               <label><span className="label">Templates</span><select name="state" defaultValue={sp.state ?? ""} className="input"><option value="">Active only</option><option value="off">Inactive only</option><option value="all">Active and inactive</option></select></label>
-              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="empty" value="1" defaultChecked={sp.empty === "1"} className="h-4 w-4" /> Only templates short of a carer</label>
-              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="week" value="all" defaultChecked={sp.week === "all"} className="h-4 w-4" /> Every cycle week</label>
-              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="day" value="all" defaultChecked={sp.day === "all"} className="h-4 w-4" /> Every day of the week</label>
+              <label className="flex items-center gap-2 text-body"><input type="checkbox" name="empty" value="1" defaultChecked={sp.empty === "1"} className="h-4 w-4" /> Only templates short of a carer</label>
+              <label className="flex items-center gap-2 text-body"><input type="checkbox" name="week" value="all" defaultChecked={sp.week === "all"} className="h-4 w-4" /> Every cycle week</label>
+              <label className="flex items-center gap-2 text-body"><input type="checkbox" name="day" value="all" defaultChecked={sp.day === "all"} className="h-4 w-4" /> Every day of the week</label>
               <div className="flex gap-2"><button className="btn-primary">Apply</button><Link href="/rota/templates" className="btn-secondary">Clear all</Link></div>
             </form>
           </details>
-          {canEdit ? <Link href="/rota/templates/new" className={`flex h-[42px] items-center gap-2 whitespace-nowrap rounded-[10px] bg-[#4b1f9e] px-5 text-[15px] font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><Plus size={19} weight="bold" aria-hidden />Add Template</Link> : null}
+          {canEdit ? <Link href="/rota/templates/new" className={`flex h-[42px] items-center gap-2 whitespace-nowrap rounded-[10px] bg-[#4b1f9e] px-5 text-lead font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><Plus size={19} weight="bold" aria-hidden />Add Template</Link> : null}
         </div>
       </div>
-      {q || sp.empty === "1" || state !== "on" ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing {state === "off" ? "inactive" : state === "all" ? "active and inactive" : "active"} templates{sp.empty === "1" ? " short of a carer" : ""}{q ? ` matching “${q}”` : ""}. <Link href={url({ q: undefined, empty: undefined, state: undefined, page: undefined })}>Show every active template</Link></p> : null}
+      {q || sp.empty === "1" || state !== "on" ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-body text-[#5c3d00]" role="note">Showing {state === "off" ? "inactive" : state === "all" ? "active and inactive" : "active"} templates{sp.empty === "1" ? " short of a carer" : ""}{q ? ` matching “${q}”` : ""}. <Link href={url({ q: undefined, empty: undefined, state: undefined, page: undefined })}>Show every active template</Link></p> : null}
 
       <div className={`grid grid-cols-1 items-start gap-4 ${details ? "xl:grid-cols-[minmax(0,1fr)_300px] min-[1600px]:grid-cols-[minmax(0,1fr)_300px]" : ""}`}>
         <section aria-label={`Templates: ${scopeText}`} className="min-w-0 rounded-[12px] border border-[#eaecf0] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
@@ -185,7 +185,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
                 </form>
               </>
             ) : null}
-            <p className="ml-auto text-[14.5px] text-[#344054]" title={scopeText}>{total} template{total === 1 ? "" : "s"}</p>
+            <p className="ml-auto text-body text-[#344054]" title={scopeText}>{total} template{total === 1 ? "" : "s"}</p>
             <nav aria-label="Template layout" className="flex gap-1.5">
               <span aria-current="page" title="List" className="flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#101828]"><ListBullets size={20} weight="bold" aria-hidden /><span className="sr-only">List (shown)</span></span>
               <Link href="/rota/templates/planner" title="Advanced Templates: carers by day" aria-label="Open Advanced Templates (carers by day)" className={`flex h-10 w-11 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#475467] hover:text-module ${FOCUS}`}><SquaresFour size={20} aria-hidden /></Link>
@@ -194,7 +194,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
 
           {rows.length ? (
             <div className="relative min-w-0 overflow-x-auto min-[1600px]:overflow-visible">
-              <table className="w-full border-collapse text-[14.5px]">
+              <table className="w-full border-collapse text-body">
                 <caption className="sr-only">Templates for {scopeText}. Choose a row to see its details.</caption>
                 <thead>
                   <tr className="border-y border-[#eaecf0]">
@@ -265,24 +265,24 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
           )}
 
           <div className="grid grid-cols-1 items-center gap-3 border-t border-[#eaecf0] px-4 py-3.5 md:grid-cols-[1fr_auto_1fr]">
-            <p data-testid="template-count" data-total={total} className="text-[14.5px] text-[#101828]" aria-live="polite">Showing {total ? (page - 1) * per + 1 : 0} to {(page - 1) * per + rows.length} of {total} template{total === 1 ? "" : "s"}</p>
+            <p data-testid="template-count" data-total={total} className="text-body text-[#101828]" aria-live="polite">Showing {total ? (page - 1) * per + 1 : 0} to {(page - 1) * per + rows.length} of {total} template{total === 1 ? "" : "s"}</p>
             <nav aria-label="Template pages" className="flex items-center gap-2">
               {page > 1 ? <Link href={url({ page: page - 1 === 1 ? undefined : String(page - 1) })} aria-label="Previous page" className={`flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50 ${FOCUS}`}><CaretLeft size={16} weight="bold" aria-hidden /></Link> : <span aria-hidden className="flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#eaecf0] text-[#d0d5dd]"><CaretLeft size={16} weight="bold" /></span>}
               {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
                 <span key={n} className="flex items-center gap-2">
                   {i && n - arr[i - 1]! > 1 ? <span className="text-[#667085]">…</span> : null}
-                  <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-9 min-w-10 items-center justify-center rounded-[8px] border px-2 text-[14.5px] tabular-nums no-underline ${FOCUS} ${n === page ? "border-module bg-module font-bold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+                  <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-9 min-w-10 items-center justify-center rounded-[8px] border px-2 text-body tabular-nums no-underline ${FOCUS} ${n === page ? "border-module bg-module font-bold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
                 </span>
               ))}
               {page < pages ? <Link href={url({ page: String(page + 1) })} aria-label="Next page" className={`flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50 ${FOCUS}`}><CaretRight size={16} weight="bold" aria-hidden /></Link> : <span aria-hidden className="flex h-9 w-10 items-center justify-center rounded-[8px] border border-[#eaecf0] text-[#d0d5dd]"><CaretRight size={16} weight="bold" /></span>}
             </nav>
             <AutoSubmitForm label="Rows per page" className="flex items-center gap-4 md:justify-self-end">
               {hiddenExcept(["per", "page"])}
-              <label htmlFor="per" className="text-[14.5px] text-[#101828]">Rows per page</label>
-              <span className="relative"><select id="per" name="per" defaultValue={String(per)} className="h-10 w-[110px] appearance-none rounded-[8px] border border-[#e4e7ec] bg-white pl-3 pr-8 text-[14.5px]">{PER_PAGE.map((n) => <option key={n} value={n}>{n}</option>)}</select><CaretDown size={14} weight="bold" aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" /></span>
+              <label htmlFor="per" className="text-body text-[#101828]">Rows per page</label>
+              <span className="relative"><select id="per" name="per" defaultValue={String(per)} className="h-10 w-[110px] appearance-none rounded-[8px] border border-[#e4e7ec] bg-white pl-3 pr-8 text-body">{PER_PAGE.map((n) => <option key={n} value={n}>{n}</option>)}</select><CaretDown size={14} weight="bold" aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" /></span>
             </AutoSubmitForm>
           </div>
-          <p className="border-t border-[#eaecf0] px-4 py-2 text-[12.5px] text-[#475467]">Templates are the repeating pattern. Changing one does not change visits already built; apply a change to built visits from the template&apos;s Edit page. A double-up is one template with two carers.</p>
+          <p className="border-t border-[#eaecf0] px-4 py-2 text-meta text-[#475467]">Templates are the repeating pattern. Changing one does not change visits already built; apply a change to built visits from the template&apos;s Edit page. A double-up is one template with two carers.</p>
         </section>
 
         {details ? (
@@ -291,7 +291,7 @@ export default async function TemplatesPage({ searchParams }: { searchParams: Pr
               <TemplateDetailsBody d={details} cycleLength={cycleLength} canEdit={canEdit} back={back} confirmOff={sp.confirm === "off"} confirmHref={url({ confirm: "off" })} />
             </DetailsPanel>
           </div>
-        ) : sp.tpl ? <p className="text-[13px] text-slate-600">That template is not available to you, or no longer exists.</p> : null}
+        ) : sp.tpl ? <p className="text-meta text-slate-600">That template is not available to you, or no longer exists.</p> : null}
       </div>
     </div>
   );
@@ -308,10 +308,10 @@ function TemplateDetailsBody({ d, cycleLength, canEdit, back, confirmOff, confir
     <div>
       <div className="px-4 pb-1 pt-3.5">
         <div className="flex items-start gap-2">
-          <Link href={`/rota/service-users/${t.serviceUser.id}`} className="mr-auto text-[20px] font-bold leading-tight text-[#101828] no-underline hover:underline">{suName(t.serviceUser)}</Link>
+          <Link href={`/rota/service-users/${t.serviceUser.id}`} className="mr-auto text-title font-bold leading-tight text-[#101828] no-underline hover:underline">{suName(t.serviceUser)}</Link>
           <StatusBadge enabled={t.enabled} />
         </div>
-        <p className="mt-1 text-[15px] text-[#101828]">Ref: {ref}{t.serviceUser.reference ? <span className="text-[#667085]"> · {t.serviceUser.reference}</span> : null}</p>
+        <p className="mt-1 text-lead text-[#101828]">Ref: {ref}{t.serviceUser.reference ? <span className="text-[#667085]"> · {t.serviceUser.reference}</span> : null}</p>
       </div>
       <div className="px-4 py-2">
         <Fact icon={<CalendarBlank size={19} weight="bold" />} label="Week">{patternLabel(t.cycleWeeks, cycleLength)}</Fact>
@@ -326,7 +326,7 @@ function TemplateDetailsBody({ d, cycleLength, canEdit, back, confirmOff, confir
         <Fact icon={<MapPin size={19} weight="fill" />} label="Area">{t.area?.name ?? "—"}</Fact>
       </div>
       {d.warnings.length ? <div className="px-4 pb-2"><Warnings items={d.warnings} /></div> : null}
-      <details className="mx-4 mb-2 rounded-[8px] border border-[#eaecf0] px-3 py-2 text-[13.5px]">
+      <details className="mx-4 mb-2 rounded-[8px] border border-[#eaecf0] px-3 py-2 text-body">
         <summary className="cursor-pointer font-semibold text-[#344054]">More details</summary>
         <dl className="mt-2 space-y-1 text-[#344054]">
           <div><dt className="inline font-medium">Settings: </dt><dd className="inline">{[t.timeLocked ? "Time locked" : null, t.alertOnLate ? "Alert when late" : null, t.medicationRequired ? "Medication prompt" : null, t.rotaType === "ALTERNATE" ? "Alternate rota" : null, t._count.tasks ? `${t._count.tasks} care task${t._count.tasks === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ") || "—"}</dd></div>
@@ -338,34 +338,34 @@ function TemplateDetailsBody({ d, cycleLength, canEdit, back, confirmOff, confir
       </details>
       {canEdit ? (
         <div className="grid grid-cols-2 gap-2.5 border-t border-[#eaecf0] px-4 pb-4 pt-3.5">
-          <Link href={`/rota/templates/${t.id}`} className={`col-span-2 flex h-[44px] items-center justify-center gap-2 rounded-[10px] bg-[#4b1f9e] px-2 text-[15.5px] font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><PencilSimple size={18} weight="fill" aria-hidden />Edit Template</Link>
+          <Link href={`/rota/templates/${t.id}`} className={`col-span-2 flex h-[44px] items-center justify-center gap-2 rounded-[10px] bg-[#4b1f9e] px-2 text-lead font-bold text-white no-underline hover:bg-[#3d1880] ${FOCUS}`}><PencilSimple size={18} weight="fill" aria-hidden />Edit Template</Link>
           <form action={duplicateTemplateAction}>
             <input type="hidden" name="back" value={back} />
             <input type="hidden" name="templateId" value={t.id} />
-            <button title="Make a copy. The copy starts inactive until you check and activate it." className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-module bg-white px-2 text-[15px] font-bold text-module hover:bg-module/[.08] ${FOCUS}`}><Copy size={18} weight="bold" aria-hidden />Duplicate</button>
+            <button title="Make a copy. The copy starts inactive until you check and activate it." className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-module bg-white px-2 text-lead font-bold text-module hover:bg-module/[.08] ${FOCUS}`}><Copy size={18} weight="bold" aria-hidden />Duplicate</button>
           </form>
           {t.enabled ? (
-            <Link href={confirmHref} scroll={false} className={`flex h-[42px] items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#e5484d] bg-white px-2 text-[15px] font-bold text-[#d92d20] no-underline hover:bg-[#fef3f2] ${FOCUS}`}><Prohibit size={18} weight="bold" aria-hidden />Deactivate</Link>
+            <Link href={confirmHref} scroll={false} className={`flex h-[42px] items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#e5484d] bg-white px-2 text-lead font-bold text-[#d92d20] no-underline hover:bg-[#fef3f2] ${FOCUS}`}><Prohibit size={18} weight="bold" aria-hidden />Deactivate</Link>
           ) : (
             <form action={templateBulkAction}>
               <input type="hidden" name="back" value={back} />
               <input type="hidden" name="templateIds" value={t.id} />
-              <button name="kind" value="enable" className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#47b26b] bg-white px-2 text-[15px] font-bold text-[#15803d] hover:bg-[#ecfdf3] ${FOCUS}`}><CheckCircle size={18} weight="bold" aria-hidden />Activate</button>
+              <button name="kind" value="enable" className={`flex h-[42px] w-full items-center justify-center gap-2 rounded-[10px] border-[1.5px] border-[#47b26b] bg-white px-2 text-lead font-bold text-[#15803d] hover:bg-[#ecfdf3] ${FOCUS}`}><CheckCircle size={18} weight="bold" aria-hidden />Activate</button>
             </form>
           )}
           {t.enabled && confirmOff ? (
             <form action={templateBulkAction} role="alertdialog" aria-labelledby="deactivate-q" className="col-span-2 rounded-[8px] border border-[#f1b5b0] bg-[#fef3f2] p-3">
               <input type="hidden" name="back" value={back} />
               <input type="hidden" name="templateIds" value={t.id} />
-              <p id="deactivate-q" className="mb-2 text-[13.5px] text-[#7a271a]">Deactivate {ref}? Build Rota will skip it from now on. Nothing is deleted, its history is kept, and visits already built are not changed. You can activate it again at any time.</p>
+              <p id="deactivate-q" className="mb-2 text-body text-[#7a271a]">Deactivate {ref}? Build Rota will skip it from now on. Nothing is deleted, its history is kept, and visits already built are not changed. You can activate it again at any time.</p>
               <div className="flex gap-2">
-                <button name="kind" value="disable" className="h-9 rounded-[8px] bg-[#b42318] px-3 text-[14px] font-semibold text-white hover:bg-[#912018]">Yes, deactivate</button>
-                <Link href={back} scroll={false} className="flex h-9 items-center rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-semibold text-[#344054] no-underline">Keep it active</Link>
+                <button name="kind" value="disable" className="h-9 rounded-[8px] bg-[#b42318] px-3 text-body font-semibold text-white hover:bg-[#912018]">Yes, deactivate</button>
+                <Link href={back} scroll={false} className="flex h-9 items-center rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body font-semibold text-[#344054] no-underline">Keep it active</Link>
               </div>
             </form>
           ) : null}
         </div>
-      ) : <p className="border-t border-[#eaecf0] px-4 py-3 text-[13px] text-[#475467]">You can view templates. Changing them needs rota editing rights.</p>}
+      ) : <p className="border-t border-[#eaecf0] px-4 py-3 text-meta text-[#475467]">You can view templates. Changing them needs rota editing rights.</p>}
     </div>
   );
 }

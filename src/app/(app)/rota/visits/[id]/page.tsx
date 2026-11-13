@@ -87,10 +87,10 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
       />
       <Flash searchParams={sp} />
       {recovery.recoveryOf ? (
-        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-[14px]">Recovery visit for missed call <Link href={`/rota/visits/${recovery.recoveryOf.id}`}>{recovery.recoveryOf.reference}</Link>{recovery.recoveryOf.missedCallCase ? <> · <Link href={`/rota/missed/${recovery.recoveryOf.missedCallCase.id}`}>open the investigation</Link></> : null}. It has its own attendance and care records; the missed visit stays recorded as missed.</p>
+        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-body">Recovery visit for missed call <Link href={`/rota/visits/${recovery.recoveryOf.id}`}>{recovery.recoveryOf.reference}</Link>{recovery.recoveryOf.missedCallCase ? <> · <Link href={`/rota/missed/${recovery.recoveryOf.missedCallCase.id}`}>open the investigation</Link></> : null}. It has its own attendance and care records; the missed visit stays recorded as missed.</p>
       ) : null}
       {recovery.recoveries.length ? (
-        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-[14px]">Recovery {recovery.recoveries.length === 1 ? "visit" : "visits"} booked: {recovery.recoveries.map((r, i) => <span key={r.id}>{i ? ", " : ""}<Link href={`/rota/visits/${r.id}`}>{r.reference}</Link> ({londonTime(r.scheduledStart)}, {r.status.toLowerCase().replace("_", " ")})</span>)}.</p>
+        <p className="mb-3 rounded-[6px] border border-[#d9cff5] bg-[#f6f3fd] px-3 py-2 text-body">Recovery {recovery.recoveries.length === 1 ? "visit" : "visits"} booked: {recovery.recoveries.map((r, i) => <span key={r.id}>{i ? ", " : ""}<Link href={`/rota/visits/${r.id}`}>{r.reference}</Link> ({londonTime(r.scheduledStart)}, {r.status.toLowerCase().replace("_", " ")})</span>)}.</p>
       ) : null}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-3">
@@ -114,13 +114,13 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Field label="Source">{v.templateId ? <Link href={`/rota/templates/${v.templateId}`}>Rota template</Link> : "One-off visit"}</Field>
               <Field label="Run route">{v.runRoute?.name ?? "—"}</Field>
             </dl>
-            {v.notes ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[14px]">{v.notes}</p> : null}
-            {v.completionSource === "OFFICE_CONFIRMED" ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[14px]" data-testid="office-completed"><strong>Completed by the office</strong> (was {v.completedFromStatus ? v.completedFromStatus.toLowerCase().replace("_", " ") : "open"}): {v.completionReason} · confirmed by {v.completionVerifiedBy}{v.completedAt ? ` · ${fmtLondonDate(londonDate(v.completedAt), { day: "numeric", month: "short", year: "numeric" })} ${londonTime(v.completedAt)}` : ""}. No clock-in, clock-out or medicine record was created.</p> : null}
-            {v.cancelReason ? <p className="mt-3 text-[14px] text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
+            {v.notes ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-body">{v.notes}</p> : null}
+            {v.completionSource === "OFFICE_CONFIRMED" ? <p className="mt-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-body" data-testid="office-completed"><strong>Completed by the office</strong> (was {v.completedFromStatus ? v.completedFromStatus.toLowerCase().replace("_", " ") : "open"}): {v.completionReason} · confirmed by {v.completionVerifiedBy}{v.completedAt ? ` · ${fmtLondonDate(londonDate(v.completedAt), { day: "numeric", month: "short", year: "numeric" })} ${londonTime(v.completedAt)}` : ""}. No clock-in, clock-out or medicine record was created.</p> : null}
+            {v.cancelReason ? <p className="mt-3 text-body text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
           </Card>
 
           <Card title="Carers">
-            <div className="mb-1 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-slate-200 pb-3 text-[14px]" aria-label="Staffing">
+            <div className="mb-1 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-slate-200 pb-3 text-body" aria-label="Staffing">
               <span>Required <strong className="tabular-nums">{v.carersRequired}</strong></span>
               <span>Allocated <strong className="tabular-nums">{allocated}</strong></span>
               <span>Outstanding <strong className="tabular-nums">{Math.max(0, v.carersRequired - allocated)}</strong></span>
@@ -135,18 +135,18 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                   <li key={s} className="py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <div className="text-[12.5px] text-slate-500">{SLOT_LABEL(s)}</div>
+                        <div className="text-meta text-slate-500">{SLOT_LABEL(s)}</div>
                         {a ? (
-                          <div className="text-[15px] font-medium text-[#1d4f91]">{a.staff.displayName} <span className="font-normal text-slate-500">· {a.staff.jobTitle}</span>{medLead?.lead?.staffId === a.staffId && s !== "SHADOW" ? <> <Badge tone="violet">Medication Lead</Badge></> : null}</div>
+                          <div className="text-lead font-medium text-[#1d4f91]">{a.staff.displayName} <span className="font-normal text-slate-500">· {a.staff.jobTitle}</span>{medLead?.lead?.staffId === a.staffId && s !== "SHADOW" ? <> <Badge tone="violet">Medication Lead</Badge></> : null}</div>
                         ) : (
                           <div className={s === "SHADOW" ? "text-slate-500" : "font-medium text-[#a3242c]"}>{s === "SHADOW" ? "No one shadowing" : "Unassigned"}</div>
                         )}
-                        {a?.reviewReason ? <p className="mt-1 text-[13px] text-[#a3242c]">Needs review: {a.reviewReason}</p> : null}
-                        {a?.warningsAccepted.length ? <p className="mt-1 text-[13px] text-[#8a5a00]">Allocated with warnings accepted: {a.warningsAccepted.join("; ")}</p> : null}
-                        {a ? <p className="text-[12.5px] text-slate-500">Assigned by {who(a.assignedById)} {fmtDate(a.assignedAt, true)}{a.acknowledgedAt ? ` · seen by carer ${fmtDate(a.acknowledgedAt, true)}` : ""}</p> : null}
+                        {a?.reviewReason ? <p className="mt-1 text-meta text-[#a3242c]">Needs review: {a.reviewReason}</p> : null}
+                        {a?.warningsAccepted.length ? <p className="mt-1 text-meta text-[#8a5a00]">Allocated with warnings accepted: {a.warningsAccepted.join("; ")}</p> : null}
+                        {a ? <p className="text-meta text-slate-500">Assigned by {who(a.assignedById)} {fmtDate(a.assignedAt, true)}{a.acknowledgedAt ? ` · seen by carer ${fmtDate(a.acknowledgedAt, true)}` : ""}</p> : null}
                       </div>
                       {coverable && s !== "SHADOW" ? (
-                        <Link href={coverHref(back, {}, { id: v.id, mode: a ? "replace" : "fill", slot: s })} scroll={false} className="inline-flex items-center rounded-[6px] border border-[#6b46c9] px-2.5 py-1 text-[13.5px] font-semibold text-[#4b2f9a] no-underline hover:bg-[#f6f3fd]" aria-label={a ? `Find replacement cover for ${a.staff.displayName}` : `Find cover for the ${SLOT_LABEL(s).toLowerCase()} place`}>{a ? "Find replacement" : "Find Cover"}</Link>
+                        <Link href={coverHref(back, {}, { id: v.id, mode: a ? "replace" : "fill", slot: s })} scroll={false} className="inline-flex items-center rounded-[6px] border border-[#6b46c9] px-2.5 py-1 text-body font-semibold text-[#4b2f9a] no-underline hover:bg-[#f6f3fd]" aria-label={a ? `Find replacement cover for ${a.staff.displayName}` : `Find cover for the ${SLOT_LABEL(s).toLowerCase()} place`}>{a ? "Find replacement" : "Find Cover"}</Link>
                       ) : null}
                       {a && assignable ? (
                         <form action={unassignCarerAction} className="flex items-center gap-2">
@@ -154,16 +154,16 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                           <input type="hidden" name="visitId" value={v.id} />
                           <input type="hidden" name="slot" value={s} />
                           <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                          <input name="reason" className="input w-44 py-1.5 text-[14px]" placeholder="Reason" aria-label={`Reason for removing ${a.staff.displayName}`} />
+                          <input name="reason" className="input w-44 py-1.5 text-body" placeholder="Reason" aria-label={`Reason for removing ${a.staff.displayName}`} />
                           <button className="btn-secondary py-1">Remove</button>
                         </form>
                       ) : null}
                     </div>
                     {assignable && s !== "SHADOW" && list.some((c) => c.score !== null) ? (
                       <details className="mt-2" open={firstOpen}>
-                        <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Recommended carers</summary>
+                        <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Recommended carers</summary>
                         <CarerRecommendations list={list} visitId={v.id} slot={s} lockVersion={v.lockVersion} back={back} replacing={!!a} />
-                        <p className="mt-1 text-[12px] text-slate-500">{SCORE_NOTE}</p>
+                        <p className="mt-1 text-caption text-slate-500">{SCORE_NOTE}</p>
                       </details>
                     ) : null}
                     {assignable ? (
@@ -172,7 +172,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                         <input type="hidden" name="visitId" value={v.id} />
                         <input type="hidden" name="slot" value={s} />
                         <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                        <select name="staffId" required className="input max-w-md flex-1 py-1.5 text-[14px]" aria-label={`${a ? "Replace" : "Choose"} ${SLOT_LABEL(s).toLowerCase()}`}>
+                        <select name="staffId" required className="input max-w-md flex-1 py-1.5 text-body" aria-label={`${a ? "Replace" : "Choose"} ${SLOT_LABEL(s).toLowerCase()}`}>
                           <option value="">{a ? "Replace with…" : "Choose a carer…"}</option>
                           {list.map((c) => (
                             <option key={c.id} value={c.id} disabled={c.state === "NOT_ELIGIBLE"}>
@@ -180,20 +180,20 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                             </option>
                           ))}
                         </select>
-                        <label className="flex items-center gap-1.5 text-[13.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
+                        <label className="flex items-center gap-1.5 text-body"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
                         <button className="btn-primary py-1">{a ? "Replace" : "Assign"}</button>
                       </form>
                     ) : null}
                     {a && swappable.includes(s) ? (
                       <details className="mt-2">
-                        <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Swap with another carer’s visit</summary>
+                        <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Swap with another carer’s visit</summary>
                         {(swaps.find((x) => x[0] === s)?.[1] ?? []).length ? (
                           <form action={swapCarersAction} className="mt-2 flex flex-wrap items-center gap-2">
                             <input type="hidden" name="back" value={back} />
                             <input type="hidden" name="visitId" value={v.id} />
                             <input type="hidden" name="slot" value={s} />
                             <input type="hidden" name="lockVersion" value={v.lockVersion} />
-                            <select name="with" required className="input max-w-md flex-1 py-1.5 text-[14px]" aria-label={`Visit to swap ${a.staff.displayName} with`}>
+                            <select name="with" required className="input max-w-md flex-1 py-1.5 text-body" aria-label={`Visit to swap ${a.staff.displayName} with`}>
                               <option value="">Choose a visit…</option>
                               {(swaps.find((x) => x[0] === s)?.[1] ?? []).map((c) => (
                                 <option key={`${c.visitId}-${c.slot}`} value={`${c.visitId}|${c.slot}|${c.lockVersion}`}>
@@ -201,30 +201,30 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                                 </option>
                               ))}
                             </select>
-                            <input name="reason" required minLength={3} className="input w-48 py-1.5 text-[14px]" placeholder="Reason" aria-label="Reason for the swap" />
-                            <label className="flex items-center gap-1.5 text-[13.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
+                            <input name="reason" required minLength={3} className="input w-48 py-1.5 text-body" placeholder="Reason" aria-label="Reason for the swap" />
+                            <label className="flex items-center gap-1.5 text-body"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
                             <button className="btn-secondary py-1">Swap</button>
                           </form>
                         ) : (
-                          <p className="mt-2 text-[13px] text-slate-500">No other scheduled visit with a carer within 12 hours of this one.</p>
+                          <p className="mt-2 text-meta text-slate-500">No other scheduled visit with a carer within 12 hours of this one.</p>
                         )}
-                        <p className="mt-1 text-[12.5px] text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
+                        <p className="mt-1 text-meta text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
                       </details>
                     ) : null}
                   </li>
                 );
               })}
             </ul>
-            <p className="mt-2 text-[12.5px] text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
+            <p className="mt-2 text-meta text-slate-500">Carers are ranked by the shared eligibility check: HR checks on the visit date, staff readiness for this visit’s tasks (training, competency, policy acknowledgement, restrictions), holidays and sickness, availability, clashes, weekly hours and the service user’s preferences. People who are not eligible cannot be chosen.</p>
             {medLead ? <MedicationLeadPanel view={medLead} visitId={v.id} back={back} /> : null}
           </Card>
 
           {comms ? (
             <Card title="Contact & communication">
-              <p className="text-[14px]"><b className="font-semibold">{comms.label}</b>{comms.kind === "NOT_APPLICABLE" && comms.reason ? `: ${comms.reason}` : ""}{comms.effective.length ? ` · ${comms.effective.length} ${comms.effective.length === 1 ? "entry" : "entries"} recorded` : ""}</p>
-              {comms.followUp ? <p className="mt-1 text-[13.5px] text-[#8a5a00]">Follow-up {comms.followUp.dueAt ? `due ${fmtDate(comms.followUp.dueAt, true)}` : "open"}{comms.followUp.overdue ? " (overdue)" : ""}</p> : null}
-              <p className="mt-1 text-[12.5px] text-slate-500">What the service user or their representative has been told about this visit&apos;s arrangements. Recorded by staff; nothing is sent from the platform.</p>
-              <Link href={`${coverHref(back, {}, { id: caseId ?? v.id, mode: caseId ? "recovery" : v.carersRequired > live.filter((x) => x.slot !== "SHADOW").length ? "fill" : "replace", tab: "comms" })}`} scroll={false} className="mt-2 inline-block text-[14px] font-semibold">Open communication history</Link>
+              <p className="text-body"><b className="font-semibold">{comms.label}</b>{comms.kind === "NOT_APPLICABLE" && comms.reason ? `: ${comms.reason}` : ""}{comms.effective.length ? ` · ${comms.effective.length} ${comms.effective.length === 1 ? "entry" : "entries"} recorded` : ""}</p>
+              {comms.followUp ? <p className="mt-1 text-body text-[#8a5a00]">Follow-up {comms.followUp.dueAt ? `due ${fmtDate(comms.followUp.dueAt, true)}` : "open"}{comms.followUp.overdue ? " (overdue)" : ""}</p> : null}
+              <p className="mt-1 text-meta text-slate-500">What the service user or their representative has been told about this visit&apos;s arrangements. Recorded by staff; nothing is sent from the platform.</p>
+              <Link href={`${coverHref(back, {}, { id: caseId ?? v.id, mode: caseId ? "recovery" : v.carersRequired > live.filter((x) => x.slot !== "SHADOW").length ? "fill" : "replace", tab: "comms" })}`} scroll={false} className="mt-2 inline-block text-body font-semibold">Open communication history</Link>
             </Card>
           ) : null}
 
@@ -232,9 +232,9 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
             {v.tasks.length ? (
               <ul className="rows">
                 {v.tasks.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between py-2 text-[14px]">
+                  <li key={t.id} className="flex items-center justify-between py-2 text-body">
                     <span>{t.name}</span>
-                    <span className="text-right text-slate-500">{t.outcomes.length ? t.outcomes.map((o) => <span key={o.id} className="block">{OUTCOME_LABEL[o.outcome]} · {carerName(o.staffId)} · {fmtDate(o.at, true)}{o.note ? <span className="block text-[13px] text-slate-600">{o.note}</span> : null}</span>) : "Not recorded"}</span>
+                    <span className="text-right text-slate-500">{t.outcomes.length ? t.outcomes.map((o) => <span key={o.id} className="block">{OUTCOME_LABEL[o.outcome]} · {carerName(o.staffId)} · {fmtDate(o.at, true)}{o.note ? <span className="block text-meta text-slate-600">{o.note}</span> : null}</span>) : "Not recorded"}</span>
                   </li>
                 ))}
               </ul>
@@ -246,16 +246,16 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
               <Card title="Clock correction requests">
                 <ul className="rows">
                   {requests.map((r) => (
-                    <li key={r.id} className="py-2 text-[14px]">
+                    <li key={r.id} className="py-2 text-body">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{carerName(r.staffId)}: {CLOCK_KIND_LABEL[r.kind]} at {londonTime(r.requestedTime)} {fmtDate(r.requestedTime)}</span>
                         <Badge tone={r.status === "PENDING" ? "amber" : r.status === "APPROVED" ? "green" : "slate"}>{r.status === "PENDING" ? "Waiting" : r.status === "APPROVED" ? "Approved" : "Rejected"}</Badge>
-                        {r.origin === "OFFICE" ? <span className="text-[12.5px] text-slate-500">entered by the office</span> : null}
+                        {r.origin === "OFFICE" ? <span className="text-meta text-slate-500">entered by the office</span> : null}
                       </div>
-                      <p className="text-[13.5px] text-slate-700">{r.reason} · asked by {who(r.requestedById)} {fmtDate(r.createdAt, true)}</p>
-                      {r.decidedById && r.origin !== "OFFICE" ? <p className="text-[13px] text-slate-600">Decided by {who(r.decidedById)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : null}
+                      <p className="text-body text-slate-700">{r.reason} · asked by {who(r.requestedById)} {fmtDate(r.createdAt, true)}</p>
+                      {r.decidedById && r.origin !== "OFFICE" ? <p className="text-meta text-slate-600">Decided by {who(r.decidedById)}{r.decisionNote ? `: ${r.decisionNote}` : ""}</p> : null}
                       {r.status === "PENDING" && canDecideRequests ? (
-                        r.requestedById === ctx.userId ? <p className="text-[13px] text-slate-600">You asked for this, so someone else must decide it.</p> : (
+                        r.requestedById === ctx.userId ? <p className="text-meta text-slate-600">You asked for this, so someone else must decide it.</p> : (
                           <form action={decideClockCorrectionAction} className="mt-1 flex flex-wrap items-end gap-2">
                             <input type="hidden" name="back" value={`${back}#corrections`} />
                             <input type="hidden" name="requestId" value={r.id} />
@@ -279,17 +279,17 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
             {v.clocks.length || v.visitNotes.length ? (
               <ul className="rows">
                 {v.clocks.map((c) => (
-                  <li key={c.id} className={`py-2 text-[14px] ${inForce.has(c.id) ? "" : "text-slate-500 line-through decoration-slate-400"}`}>
+                  <li key={c.id} className={`py-2 text-body ${inForce.has(c.id) ? "" : "text-slate-500 line-through decoration-slate-400"}`}>
                     <span className="font-medium">{carerName(c.staffId)} {c.kind === "IN" ? "clocked in" : "clocked out"}</span> at {londonTime(c.at)} · {c.method === "OFFICE" ? "entered by the office" : "from the carer's phone"} · recorded by {who(c.recordedById)}
                     {inForce.has(c.id) ? null : <span className="ml-1 no-underline">(replaced)</span>}
-                    {c.reason ? <span className="block text-[13px] text-slate-600">Reason: {c.reason}</span> : null}
+                    {c.reason ? <span className="block text-meta text-slate-600">Reason: {c.reason}</span> : null}
                   </li>
                 ))}
                 {v.visitNotes.map((n) => (
-                  <li key={n.id} className="py-2 text-[14px]">
-                    <span className="text-[12.5px] text-slate-500">{NOTE_LABEL[n.category] ?? `${n.category.toLowerCase().replace("_", " ")} note`} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
+                  <li key={n.id} className="py-2 text-body">
+                    <span className="text-meta text-slate-500">{NOTE_LABEL[n.category] ?? `${n.category.toLowerCase().replace("_", " ")} note`} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
                     <p>{n.text}</p>
-                    {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="text-[13px] font-medium">Make this an incident</Link> : null}
+                    {canIncident ? <Link href={`/rota/incidents/new?note=${n.id}`} className="text-meta font-medium">Make this an incident</Link> : null}
                   </li>
                 ))}
               </ul>
@@ -303,14 +303,14 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                   <label><span className="label">Note</span><textarea name="text" required minLength={3} rows={2} className="input" /></label>
                   <button className="btn-secondary">Add note</button>
                 </div>
-                <p className="mt-1 text-[12.5px] text-slate-600">Notes cannot be edited or deleted once saved. A concern alerts the coordinators inside the platform.</p>
+                <p className="mt-1 text-meta text-slate-600">Notes cannot be edited or deleted once saved. A concern alerts the coordinators inside the platform.</p>
               </form>
             ) : null}
             {canClock ? (
               <form action={officeClockAction} className="mt-3 border-t border-slate-200 pt-3" aria-label="Record a clock time">
                 <input type="hidden" name="back" value={`${back}#attendance`} />
                 <input type="hidden" name="visitId" value={v.id} />
-                <h3 className="mb-2 text-[14px] font-semibold">Record a clock time for a carer</h3>
+                <h3 className="mb-2 text-body font-semibold">Record a clock time for a carer</h3>
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                   <label className="col-span-2 md:col-span-1"><span className="label">Carer</span><select name="staffId" required className="input">{live.map((a) => <option key={a.id} value={a.staffId}>{a.staff.displayName}</option>)}</select></label>
                   <label><span className="label">Clock</span><select name="kind" className="input"><option value="IN">In</option><option value="OUT">Out</option></select></label>
@@ -325,7 +325,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                   <label className="col-span-2 md:col-span-4"><span className="label">Clock-out note (needed when the visit was shorter than planned)</span><input name="note" maxLength={2000} placeholder="What the carer said about the visit" className="input" /></label>
                 </div>
                 <button className="btn-secondary mt-2">Record clock time</button>
-                <p className="mt-1 text-[12.5px] text-slate-500">Entries are permanent. A wrong entry is fixed by recording a replacement, and both stay on the visit.</p>
+                <p className="mt-1 text-meta text-slate-500">Entries are permanent. A wrong entry is fixed by recording a replacement, and both stay on the visit.</p>
               </form>
             ) : null}
           </Card>
@@ -346,9 +346,9 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                   <label><span className="label">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} className="input" /></label>
                 </div>
                 <label className="block"><span className="label">Call type</span><select name="callTypeId" defaultValue={v.callTypeId} className="input">{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="timeLocked" defaultChecked={v.timeLocked} className="h-4 w-4" /> Lock the time</label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="medicationRequired" defaultChecked={v.medicationRequired} className="h-4 w-4" /> Medication prompt</label>
-                <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="alertOnLate" defaultChecked={v.alertOnLate} className="h-4 w-4" /> Alert the office if late</label>
+                <label className="flex items-center gap-2 text-body"><input type="checkbox" name="timeLocked" defaultChecked={v.timeLocked} className="h-4 w-4" /> Lock the time</label>
+                <label className="flex items-center gap-2 text-body"><input type="checkbox" name="medicationRequired" defaultChecked={v.medicationRequired} className="h-4 w-4" /> Medication prompt</label>
+                <label className="flex items-center gap-2 text-body"><input type="checkbox" name="alertOnLate" defaultChecked={v.alertOnLate} className="h-4 w-4" /> Alert the office if late</label>
                 <label className="block"><span className="label">Office notes</span><textarea name="notes" defaultValue={v.notes ?? ""} rows={2} className="input" /></label>
                 <button className="btn-primary">Save visit</button>
               </form>
@@ -358,7 +358,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
                 <input type="hidden" name="lockVersion" value={v.lockVersion} />
                 <CarersNeededField defaultValue={v.carersRequired} />
                 <button className="btn-secondary">Change carers needed</button>
-                <p className="text-[12.5px] text-slate-500">Carers already booked stay. To lower the number, first remove the carers from the higher places.</p>
+                <p className="text-meta text-slate-500">Carers already booked stay. To lower the number, first remove the carers from the higher places.</p>
               </form>
             </Card>
           ) : null}
@@ -389,7 +389,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
 
           <Card title="History">
             {v.events.length ? (
-              <ol className="space-y-2.5 text-[13.5px]">
+              <ol className="space-y-2.5 text-body">
                 {v.events.map((e) => (
                   <li key={e.id} className="border-l-2 border-slate-200 pl-3">
                     <div className="font-medium text-slate-800">{EVENT_LABEL[e.type] ?? e.type.toLowerCase().replace(/_/g, " ")}{e.toStatus ? ` → ${e.toStatus.toLowerCase().replace("_", " ")}` : ""}</div>

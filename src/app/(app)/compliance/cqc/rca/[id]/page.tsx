@@ -84,7 +84,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
       />
       <Flash searchParams={sp} />
       <div className="space-y-4">
-        <div className="pc-panel flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 text-[13.5px]" data-testid="rca-summary">
+        <div className="pc-panel flex flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 text-body" data-testid="rca-summary">
           <PcBadge tone={RCA_TONE[r.status] ?? "grey"}>{RCA_STATUS[r.status as keyof typeof RCA_STATUS]}</PcBadge>
           <PcBadge tone={SEVERITY_TONE[r.severity] ?? "grey"}>{SEVERITIES[r.severity as keyof typeof SEVERITIES]} severity</PcBadge>
           {r.restricted ? <span className="inline-flex items-center gap-1 font-semibold text-[#93370d]"><LockSimple size={15} weight="fill" aria-hidden="true" />Restricted</span> : null}
@@ -98,8 +98,8 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_350px]">
           <section className="pc-panel" aria-label="Investigation steps">
             <div className="px-5 pt-2"><PcTabs label="Investigation steps" testId="rca-steps" active={step} items={STEPS.map((s) => ({ key: s.key, label: s.label, href: `/compliance/cqc/rca/${r.id}?step=${s.key}` }))} /></div>
-            <div className="space-y-5 px-5 py-4 text-[14px]" data-testid={`rca-step-${step}`}>
-              {locked && ["1", "2", "3", "4"].includes(step) ? <p className="rounded-lg bg-[#f9fafb] px-3 py-2 text-[13px] text-[#475467]">{r.status === "CLOSED" ? "Closed. Reopen the investigation to change it." : r.status === "NEW" || r.status === "INVESTIGATING" ? "You can read this investigation but not change it." : "Submitted. A manager must send it back for more investigation before these steps can change."}</p> : null}
+            <div className="space-y-5 px-5 py-4 text-body" data-testid={`rca-step-${step}`}>
+              {locked && ["1", "2", "3", "4"].includes(step) ? <p className="rounded-lg bg-[#f9fafb] px-3 py-2 text-meta text-[#475467]">{r.status === "CLOSED" ? "Closed. Reopen the investigation to change it." : r.status === "NEW" || r.status === "INVESTIGATING" ? "You can read this investigation but not change it." : "Submitted. A manager must send it back for more investigation before these steps can change."}</p> : null}
 
               {step === "1" ? (
                 <>
@@ -132,7 +132,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                         <span aria-hidden="true" className={`absolute -left-[27px] top-1.5 h-3 w-3 rounded-full ${t.kind === "FACT" ? "bg-[#7a5af8]" : t.kind === "WITNESS" ? "bg-[#2e90fa]" : "bg-[#f79009]"}`} />
                         <div className="flex flex-wrap items-baseline gap-x-2"><strong className="tabular-nums">{t.at.slice(0, 10)} {t.at.slice(11, 16)}</strong><PcBadge tone={t.kind === "FACT" ? "purple" : t.kind === "WITNESS" ? "blue" : "amber"}>{TIMELINE_KINDS[t.kind]}</PcBadge></div>
                         <p className="text-[#344054]">{t.text}</p>
-                        {g.can.work ? <form action={removeTimelineAction}>{base}{hidden("at", t.at)}{hidden("text", t.text)}<button className="text-[12.5px] text-[#b42318] underline" type="submit">Remove</button></form> : null}
+                        {g.can.work ? <form action={removeTimelineAction}>{base}{hidden("at", t.at)}{hidden("text", t.text)}<button className="text-meta text-[#b42318] underline" type="submit">Remove</button></form> : null}
                       </li>
                     ))}
                     {!timeline.length ? <li className="text-[#667085]">No entries yet.</li> : null}
@@ -144,7 +144,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                       <label><span className="label">Time</span><input type="time" name="time" className="input" required /></label>
                       <label><span className="label">This is a</span><select name="kind" className="input" defaultValue="FACT">{Object.entries(TIMELINE_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
                       <label><span className="label">What happened</span><input name="text" className="input" required minLength={3} /></label>
-                      <div className="md:col-span-4"><button className="pc-btn" type="submit">Add to timeline</button><span className="ml-3 text-[12.5px] text-[#667085]">Keep facts, witness accounts and assumptions apart.</span></div>
+                      <div className="md:col-span-4"><button className="pc-btn" type="submit">Add to timeline</button><span className="ml-3 text-meta text-[#667085]">Keep facts, witness accounts and assumptions apart.</span></div>
                     </form>
                   ) : null}
                 </>
@@ -158,13 +158,13 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                       {(Object.keys(FACTOR_AREAS) as (keyof typeof FACTOR_AREAS)[]).map((k) => (
                         <div key={k} className="rounded-lg border border-[#eaecf0] px-3 py-2">
                           <label className="flex items-center gap-2 font-medium"><input type="checkbox" name={`f_${k}`} defaultChecked={factors[k]?.relevant} disabled={locked} />{FACTOR_AREAS[k]}</label>
-                          <input name={`n_${k}`} className="input mt-1.5 h-8 py-0 text-[13px]" placeholder="How it contributed" aria-label={`${FACTOR_AREAS[k]} notes`} defaultValue={factors[k]?.notes ?? ""} disabled={locked} />
+                          <input name={`n_${k}`} className="input mt-1.5 h-8 py-0 text-meta" placeholder="How it contributed" aria-label={`${FACTOR_AREAS[k]} notes`} defaultValue={factors[k]?.notes ?? ""} disabled={locked} />
                         </div>
                       ))}
                     </div>
                   </fieldset>
                   <fieldset><legend className="pc-panel-title mb-2">Five whys</legend>
-                    <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <label key={i} className="flex items-center gap-2"><span className="w-[60px] shrink-0 text-[13px] text-[#475467]">Why {i}?</span><input name={`why${i}`} className="input" defaultValue={whys[i - 1] ?? ""} disabled={locked} /></label>)}</div>
+                    <div className="space-y-2">{[1, 2, 3, 4, 5].map((i) => <label key={i} className="flex items-center gap-2"><span className="w-[60px] shrink-0 text-meta text-[#475467]">Why {i}?</span><input name={`why${i}`} className="input" defaultValue={whys[i - 1] ?? ""} disabled={locked} /></label>)}</div>
                   </fieldset>
                   <label><span className="label">Cause and effect notes (optional)</span><textarea name="causeEffectNotes" className="input" rows={3} defaultValue={r.causeEffectNotes ?? ""} disabled={locked} /></label>
                   {!locked ? <button className="pc-btn" type="submit">Save contributing factors</button> : null}
@@ -178,9 +178,9 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                     <ul className="space-y-2" data-testid="rca-findings">
                       {g.findings.map((f) => (
                         <li key={f.id} className="rounded-lg border border-[#eaecf0] px-3 py-2">
-                          <div className="flex flex-wrap items-center gap-2"><PcBadge tone="blue">{FINDING_KINDS[f.kind as keyof typeof FINDING_KINDS] ?? f.kind}</PcBadge>{f.factorArea ? <span className="text-[12.5px] text-[#475467]">{FACTOR_AREAS[f.factorArea as keyof typeof FACTOR_AREAS]}</span> : null}<PcBadge tone={f.status === "CONFIRMED" ? "green" : f.status === "NOT_SUPPORTED" ? "red" : "grey"}>{f.status === "CONFIRMED" ? "Confirmed by manager" : f.status === "NOT_SUPPORTED" ? "Not supported" : "Proposed"}</PcBadge></div>
+                          <div className="flex flex-wrap items-center gap-2"><PcBadge tone="blue">{FINDING_KINDS[f.kind as keyof typeof FINDING_KINDS] ?? f.kind}</PcBadge>{f.factorArea ? <span className="text-meta text-[#475467]">{FACTOR_AREAS[f.factorArea as keyof typeof FACTOR_AREAS]}</span> : null}<PcBadge tone={f.status === "CONFIRMED" ? "green" : f.status === "NOT_SUPPORTED" ? "red" : "grey"}>{f.status === "CONFIRMED" ? "Confirmed by manager" : f.status === "NOT_SUPPORTED" ? "Not supported" : "Proposed"}</PcBadge></div>
                           <p className="mt-1 text-[#101828]">{f.text}</p>
-                          <p className="text-[13px] text-[#475467]">Evidence: {f.evidence}</p>
+                          <p className="text-meta text-[#475467]">Evidence: {f.evidence}</p>
                         </li>
                       ))}
                       {!g.findings.length ? <li className="text-[#667085]">No findings yet. Each finding needs the evidence that supports it.</li> : null}
@@ -215,14 +215,14 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                       return (
                         <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
                           <span className="min-w-0 flex-1"><Link href={`/actions/${x.id}`} className="pc-strong">{x.title}</Link><span className="pc-sub">{ACTION_TYPES[x.actionType as keyof typeof ACTION_TYPES] ?? "Action"} · {ACTION_PRIORITIES[x.priority as keyof typeof ACTION_PRIORITIES] ?? x.priority} priority · evidence: {x.evidenceRequired ?? "—"}</span></span>
-                          <span className="text-[13px] text-[#475467]">{n(x.ownerId)} · due {fmtDate(x.dueDate)}</span>
+                          <span className="text-meta text-[#475467]">{n(x.ownerId)} · due {fmtDate(x.dueDate)}</span>
                           <PcBadge tone={overdue ? "red" : x.status === "VERIFIED" || x.status === "CLOSED" ? "green" : x.status === "COMPLETED" ? "purple" : "blue"}>{overdue ? "Overdue" : ACTION_STATUS[x.status as keyof typeof ACTION_STATUS] ?? x.status}</PcBadge>
                         </li>
                       );
                     })}
                     {!g.actions.length ? <li className="px-3 py-3 text-[#667085]">No actions yet.</li> : null}
                   </ul>
-                  <p className="text-[12.5px] text-[#667085]">Owners update and complete actions on the action page. Someone other than the owner verifies each one.</p>
+                  <p className="text-meta text-[#667085]">Owners update and complete actions on the action page. Someone other than the owner verifies each one.</p>
                   {g.can.addActions ? (
                     <form action={rcaActionAction} className="grid grid-cols-1 gap-3 border-t border-[#eaecf0] pt-4 md:grid-cols-2" data-testid="rca-action-form">
                       {base}
@@ -239,7 +239,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                   ) : null}
                   <div className="border-t border-[#eaecf0] pt-4">
                     <h3 className="pc-panel-title mb-2">Files</h3>
-                    <ul className="space-y-1 text-[13.5px]">
+                    <ul className="space-y-1 text-body">
                       {g.evidence.map((e) => <li key={e.id}>{e.scanStatus === "INFECTED" ? <span className="text-[#b42318]">{e.filename} (blocked by malware scan)</span> : <a href={`/api/evidence/${e.id}`} className="pc-link" data-no-progress="">{e.filename}</a>}<span className="text-[#667085]"> · {e.description} · {fmtDate(e.createdAt)}</span></li>)}
                       {!g.evidence.length ? <li className="text-[#667085]">No files attached.</li> : null}
                     </ul>
@@ -259,16 +259,16 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                 <>
                   {r.status === "NEW" || r.status === "INVESTIGATING" ? (
                     g.gaps.length ? (
-                      <div className="rounded-lg border border-[#fedf89] bg-[#fffaeb] px-4 py-3" data-testid="rca-gaps"><p className="font-semibold text-[#93370d]">Before this can go for review:</p><ul className="mt-1 list-disc pl-5 text-[13.5px] text-[#93370d]">{g.gaps.map((x) => <li key={x}>{x}</li>)}</ul></div>
+                      <div className="rounded-lg border border-[#fedf89] bg-[#fffaeb] px-4 py-3" data-testid="rca-gaps"><p className="font-semibold text-[#93370d]">Before this can go for review:</p><ul className="mt-1 list-disc pl-5 text-body text-[#93370d]">{g.gaps.map((x) => <li key={x}>{x}</li>)}</ul></div>
                     ) : g.can.work ? (
-                      <form action={submitRcaAction}>{base}{hidden("lockVersion", r.lockVersion)}<button className="pc-btn" type="submit">Send for management review</button><span className="ml-3 text-[13px] text-[#475467]">{n(r.managerId)} will be told.</span></form>
+                      <form action={submitRcaAction}>{base}{hidden("lockVersion", r.lockVersion)}<button className="pc-btn" type="submit">Send for management review</button><span className="ml-3 text-meta text-[#475467]">{n(r.managerId)} will be told.</span></form>
                     ) : null
                   ) : null}
                   {g.can.review ? (
                     <form action={managerReviewAction} className="space-y-3 rounded-lg border border-module/[.22] bg-[#f9f8ff] px-4 py-3" data-testid="rca-review-form">
                       {base}{hidden("lockVersion", r.lockVersion)}
                       <p className="font-semibold">Confirm the findings the evidence supports</p>
-                      {g.findings.map((f) => <label key={f.id} className="flex items-start gap-2 text-[13.5px]"><input type="checkbox" name="confirm" value={f.id} defaultChecked className="mt-1" /><span>{f.text}<span className="block text-[12.5px] text-[#667085]">Evidence: {f.evidence}</span></span></label>)}
+                      {g.findings.map((f) => <label key={f.id} className="flex items-start gap-2 text-body"><input type="checkbox" name="confirm" value={f.id} defaultChecked className="mt-1" /><span>{f.text}<span className="block text-meta text-[#667085]">Evidence: {f.evidence}</span></span></label>)}
                       <label><span className="label">Review note</span><textarea name="note" className="input" rows={2} required minLength={5} /></label>
                       <div className="flex flex-wrap gap-2"><button className="pc-btn" type="submit" name="decision" value="APPROVE">Approve findings and actions</button><button className="pc-btn-secondary" type="submit" name="decision" value="MORE_INVESTIGATION">Needs more investigation</button></div>
                     </form>
@@ -285,7 +285,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                     <form action={effectivenessAction} className="space-y-3 rounded-lg border border-module/[.22] bg-[#f9f8ff] px-4 py-3" data-testid="rca-effectiveness-form">
                       {base}{hidden("lockVersion", r.lockVersion)}
                       <p className="font-semibold">Did the actions work?</p>
-                      {Object.entries(EFFECTIVENESS_CHECKS).map(([k, v]) => <label key={k} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name={k} />{v}</label>)}
+                      {Object.entries(EFFECTIVENESS_CHECKS).map(([k, v]) => <label key={k} className="flex items-center gap-2 text-body"><input type="checkbox" name={k} />{v}</label>)}
                       <label><span className="label">Decision</span><select name="decision" className="input" required defaultValue=""><option value="" disabled>Choose…</option>{Object.entries(EFFECTIVENESS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
                       <label><span className="label">Note</span><textarea name="note" className="input" rows={2} required minLength={5} /></label>
                       <button className="pc-btn" type="submit">Record effectiveness review</button>
@@ -295,9 +295,9 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
                     <form action={closeRcaAction} className="space-y-3 rounded-lg border border-[#eaecf0] px-4 py-3" data-testid="rca-close-form">
                       {base}{hidden("lockVersion", r.lockVersion)}
                       <p className="font-semibold">Close the investigation</p>
-                      <p className="text-[13px] text-[#475467]">Normally needs: confirmed findings, every action verified, an Effective decision, and every escalation decision recorded for serious cases. Closing does not close linked incidents or risks, and does not change any CQC score.</p>
+                      <p className="text-meta text-[#475467]">Normally needs: confirmed findings, every action verified, an Effective decision, and every escalation decision recorded for serious cases. Closing does not close linked incidents or risks, and does not change any CQC score.</p>
                       <label><span className="label">Closure note</span><textarea name="note" className="input" rows={2} required minLength={5} /></label>
-                      <label className="flex items-start gap-2 text-[13.5px]"><input type="checkbox" name="exception" className="mt-1" /><span>Close by approved exception (the normal conditions are not all met)</span></label>
+                      <label className="flex items-start gap-2 text-body"><input type="checkbox" name="exception" className="mt-1" /><span>Close by approved exception (the normal conditions are not all met)</span></label>
                       <label><span className="label">Reason for the exception</span><input name="exceptionReason" className="input" /></label>
                       <button className="pc-btn" type="submit">Close investigation</button>
                     </form>
@@ -318,12 +318,12 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
 
           <div className="space-y-4">
             <Panel title="Escalation decisions" testId="rca-escalations" actions={g.serious ? <PcBadge tone="red">Required</PcBadge> : null}>
-              <p className="border-b border-[#eaecf0] px-5 py-2 text-[12.5px] text-[#475467]">Record each decision. CSB does not decide these or send anything to the local authority or CQC for you.</p>
+              <p className="border-b border-[#eaecf0] px-5 py-2 text-meta text-[#475467]">Record each decision. CSB does not decide these or send anything to the local authority or CQC for you.</p>
               <ul className="divide-y divide-[#eaecf0]">
                 {(Object.keys(ESCALATIONS) as (keyof typeof ESCALATIONS)[]).map((k) => {
                   const e = g.escalations.find((x) => x.kind === k);
                   return (
-                    <li key={k} className="px-5 py-2.5 text-[13px]">
+                    <li key={k} className="px-5 py-2.5 text-meta">
                       <span className="block font-medium text-[#101828]">{ESCALATIONS[k]}</span>
                       {e ? <span className="block"><PcBadge tone={e.decision === "REQUIRED_PENDING" ? "amber" : e.decision === "DONE" ? "green" : "grey"}>{ESCALATION_DECISIONS[e.decision as keyof typeof ESCALATION_DECISIONS]}</PcBadge> <span className="text-[#475467]">{e.rationale}{e.externalRef ? ` · ref ${e.externalRef}` : ""}{e.notifiedAt ? ` · ${fmtDate(e.notifiedAt)}` : ""} · {n(e.decidedById)}</span></span> : <span className={`block ${g.serious ? "font-semibold text-[#b42318]" : "text-[#667085]"}`}>Not yet considered</span>}
                     </li>
@@ -332,7 +332,7 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
               </ul>
               {g.can.escalate ? (
                 <details className="border-t border-[#eaecf0] px-5 py-3">
-                  <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Record a decision</summary>
+                  <summary className="cursor-pointer text-body font-semibold text-module">Record a decision</summary>
                   <form action={escalationAction} className="mt-2 space-y-2">
                     {base}
                     <select name="kind" className="input" aria-label="Escalation question" defaultValue="">{<option value="" disabled>Which question…</option>}{Object.entries(ESCALATIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
@@ -347,11 +347,11 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
 
             {hasOrgPermission(ctx, "cqc.view") ? (
               <Panel title="CQC evidence" testId="rca-cqc">
-                {g.cqcLinks.length ? <ul className="divide-y divide-[#eaecf0]">{g.cqcLinks.map((l) => <li key={l.id} className="flex items-center gap-2 px-5 py-2 text-[13px]"><span className="flex-1"><span className="text-[#667085]">{l.criterion.code}</span> {l.criterion.title}</span><PcBadge tone={LINK_TONE[l.effective] ?? "grey"}>{LINK_STATUS[l.effective]}</PcBadge></li>)}</ul> : <p className="px-5 py-3 text-[13px] text-[#667085]">Not linked to any CQC area.</p>}
-                <p className="border-t border-[#eaecf0] px-5 py-2 text-[12px] text-[#667085]">An investigation counts as evidence only after a manager confirms its findings and a reviewer verifies the link. Closing it does not change any score.</p>
+                {g.cqcLinks.length ? <ul className="divide-y divide-[#eaecf0]">{g.cqcLinks.map((l) => <li key={l.id} className="flex items-center gap-2 px-5 py-2 text-meta"><span className="flex-1"><span className="text-[#667085]">{l.criterion.code}</span> {l.criterion.title}</span><PcBadge tone={LINK_TONE[l.effective] ?? "grey"}>{LINK_STATUS[l.effective]}</PcBadge></li>)}</ul> : <p className="px-5 py-3 text-meta text-[#667085]">Not linked to any CQC area.</p>}
+                <p className="border-t border-[#eaecf0] px-5 py-2 text-caption text-[#667085]">An investigation counts as evidence only after a manager confirms its findings and a reviewer verifies the link. Closing it does not change any score.</p>
                 {criteria.length ? (
                   <details className="border-t border-[#eaecf0] px-5 py-3">
-                    <summary className="cursor-pointer text-[13.5px] font-semibold text-module">Offer as evidence for CQC areas</summary>
+                    <summary className="cursor-pointer text-body font-semibold text-module">Offer as evidence for CQC areas</summary>
                     <form action={linkRcaCqcAction} className="mt-2 space-y-2">
                       {base}
                       <select name="criterionId" multiple className="input h-40" aria-label="CQC areas">{criteria.filter((c) => !linkedCriteria.has(c.id)).map((c) => <option key={c.id} value={c.id}>{c.code} {c.title} ({KQ_LABEL[c.keyQuestion as KeyQuestion]})</option>)}</select>
@@ -367,18 +367,18 @@ export default async function RcaPage({ params, searchParams }: { params: Promis
               {g.notifications.length ? (
                 <ul className="max-h-[260px] divide-y divide-[#eaecf0] overflow-y-auto">
                   {g.notifications.map((x) => (
-                    <li key={x.id} className="px-5 py-2 text-[12.5px]">
+                    <li key={x.id} className="px-5 py-2 text-meta">
                       <span className="block font-medium text-[#101828]">{x.title}</span>
                       <span className="block text-[#475467]">{n(x.userId)} · {fmtDate(x.createdAt, true)} · {x.readAt ? "read in CSB" : "unread in CSB"}{x.deliveries.map((d) => ` · ${DELIVERY[d.status] ?? d.status}${d.status === "FAILED" ? ` (${d.attempts} tries)` : ""}`).join("")}</span>
                     </li>
                   ))}
                 </ul>
-              ) : <p className="px-5 py-3 text-[13px] text-[#667085]">No notifications sent yet.</p>}
+              ) : <p className="px-5 py-3 text-meta text-[#667085]">No notifications sent yet.</p>}
             </Panel>
 
             <Panel title="History">
               <ol className="max-h-[340px] divide-y divide-[#eaecf0] overflow-y-auto" data-testid="rca-history">
-                {g.history.map((h) => <li key={h.id} className="px-5 py-2 text-[12.5px]"><span className="font-medium text-[#101828]">{HISTORY[h.action] ?? h.action}</span><span className="block text-[#667085]">{n(h.actorId)} · {fmtDate(h.createdAt, true)}</span></li>)}
+                {g.history.map((h) => <li key={h.id} className="px-5 py-2 text-meta"><span className="font-medium text-[#101828]">{HISTORY[h.action] ?? h.action}</span><span className="block text-[#667085]">{n(h.actorId)} · {fmtDate(h.createdAt, true)}</span></li>)}
               </ol>
             </Panel>
           </div>
@@ -402,7 +402,7 @@ function LinkedRecords({ g }: { g: Rca }) {
     <div className="space-y-2" data-testid="rca-sources">
       <h3 className="pc-panel-title">Records being investigated</h3>
       {g.incidents.map((i) => (
-        <div key={i.id} className="rounded-lg border border-[#eaecf0] bg-[#fcfcfd] px-4 py-3 text-[13.5px]">
+        <div key={i.id} className="rounded-lg border border-[#eaecf0] bg-[#fcfcfd] px-4 py-3 text-body">
           <div className="flex flex-wrap items-center gap-2"><Link href={`/rota/incidents/${i.id}`} className="pc-strong">Incident {i.reference}</Link><span className="text-[#475467]">{i.category} · {fmtDate(i.occurredAt, true)} · {i.status}</span>{i.safeguarding ? <PcBadge tone="red">Safeguarding</PcBadge> : null}{i.notifiable ? <PcBadge tone="amber">Notifiable</PcBadge> : null}</div>
           <p className="mt-1 text-[#344054]">{i.description}</p>
           {i.immediateAction ? <p className="text-[#475467]">Immediate action: {i.immediateAction}</p> : null}
@@ -410,14 +410,14 @@ function LinkedRecords({ g }: { g: Rca }) {
         </div>
       ))}
       {g.missed.map((m) => (
-        <div key={m.id} className="rounded-lg border border-[#eaecf0] bg-[#fcfcfd] px-4 py-3 text-[13.5px]">
+        <div key={m.id} className="rounded-lg border border-[#eaecf0] bg-[#fcfcfd] px-4 py-3 text-body">
           <div className="flex flex-wrap items-center gap-2"><Link href={`/rota/missed/${m.id}`} className="pc-strong">Missed call, visit {m.visit.reference}</Link><span className="text-[#475467]">{fmtDate(m.scheduledStart, true)} · {m.signedOffAt ? "signed off" : m.stage}</span>{m.preventable ? <PcBadge tone="amber">Preventable</PcBadge> : null}</div>
           {m.reasonDetail || m.reasonCode ? <p className="mt-1 text-[#344054]">Reason: {m.reasonDetail || m.reasonCode}</p> : null}
           {m.findings ? <p className="text-[#475467]">Findings: {m.findings}</p> : null}
           {m.outcome ? <p className="text-[#475467]">Outcome: {m.outcome}</p> : null}
         </div>
       ))}
-      {others.map((s) => <p key={s.id} className="rounded-lg border border-[#eaecf0] px-4 py-2 text-[13.5px]"><strong>{SOURCE_KINDS[s.sourceType as keyof typeof SOURCE_KINDS] ?? s.sourceType}</strong> {s.sourceRef}{s.externalRef ? ` · ref ${s.externalRef}` : ""}</p>)}
+      {others.map((s) => <p key={s.id} className="rounded-lg border border-[#eaecf0] px-4 py-2 text-body"><strong>{SOURCE_KINDS[s.sourceType as keyof typeof SOURCE_KINDS] ?? s.sourceType}</strong> {s.sourceRef}{s.externalRef ? ` · ref ${s.externalRef}` : ""}</p>)}
     </div>
   );
 }
@@ -430,7 +430,7 @@ function ReviewList({ g, n }: { g: Rca; n: (id: string | null | undefined) => st
     <div className="border-t border-[#eaecf0] pt-3">
       <h3 className="pc-panel-title mb-2">Reviews and decisions</h3>
       <ul className="space-y-2" data-testid="rca-reviews">
-        {g.reviews.map((x) => <li key={x.id} className="text-[13.5px]"><strong>{stage[x.stage] ?? x.stage}: {label[x.decision] ?? x.decision}</strong> · {n(x.reviewerId)} · {fmtDate(x.createdAt, true)}<span className="block text-[#475467]">{x.note}</span></li>)}
+        {g.reviews.map((x) => <li key={x.id} className="text-body"><strong>{stage[x.stage] ?? x.stage}: {label[x.decision] ?? x.decision}</strong> · {n(x.reviewerId)} · {fmtDate(x.createdAt, true)}<span className="block text-[#475467]">{x.note}</span></li>)}
       </ul>
     </div>
   );

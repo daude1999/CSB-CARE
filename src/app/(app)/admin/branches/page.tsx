@@ -50,7 +50,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
                     <label className="col-span-2 md:col-span-3"><span className="label">Address</span><input name="address" defaultValue={b.address ?? ""} className="input" /></label>
                     <div className="flex items-end"><button className="btn-secondary">Save</button></div>
                   </form>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-meta text-slate-600">
                     {b.hrBranchKey ? <Badge tone="green">HR: {hrName.get(b.hrBranchKey) ?? b.hrBranchKey}</Badge> : <Badge tone="amber">Not mapped to HR: staff from HR cannot be placed here</Badge>}
                     <span>{b._count.areas} areas · {b._count.staff} staff · {b._count.serviceUsers} service users · {b._count.grants} members limited to it</span>
                   </div>
@@ -74,13 +74,13 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
             <ul className="rows">
               {members.map((m) => (
                 <li key={m.id} className="py-3">
-                  <div className="text-[14.5px] font-medium">{m.user.name} <span className="font-normal text-slate-500">· {m.user.email}{m.branch ? ` · based at ${m.branch.name}` : ""}</span></div>
+                  <div className="text-body font-medium">{m.user.name} <span className="font-normal text-slate-500">· {m.user.email}{m.branch ? ` · based at ${m.branch.name}` : ""}</span></div>
                   <form action={memberBranchesAction} className="mt-1.5 flex flex-wrap items-center gap-3">
                     <input type="hidden" name="back" value={back} />
                     <input type="hidden" name="membershipId" value={m.id} />
-                    {branches.map((b) => <label key={b.id} className="flex items-center gap-1.5 text-[14px]"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={m.branches.some((x) => x.branchId === b.id)} className="h-4 w-4" /> {b.name}</label>)}
+                    {branches.map((b) => <label key={b.id} className="flex items-center gap-1.5 text-body"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={m.branches.some((x) => x.branchId === b.id)} className="h-4 w-4" /> {b.name}</label>)}
                     <button className="btn-secondary py-1">Save</button>
-                    {!m.branches.length ? <span className="text-[12.5px] text-slate-500">Whole organisation</span> : null}
+                    {!m.branches.length ? <span className="text-meta text-slate-500">Whole organisation</span> : null}
                   </form>
                 </li>
               ))}

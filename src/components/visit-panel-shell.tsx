@@ -356,12 +356,12 @@ export function VisitPanelShell({
         {children}
         <dialog ref={dialogRef} aria-labelledby="unsaved-title" aria-describedby="unsaved-text" onCancel={() => setPending(null)} className="w-[500px] max-w-[92vw] rounded-[12px] border border-[#e4e7ec] p-0 shadow-[0_16px_40px_rgba(16,24,40,0.25)] backdrop:bg-[rgba(16,24,40,0.35)]">
           <div className="p-5">
-            <h2 id="unsaved-title" className="text-[17px] font-bold text-[#101828]">Unsaved Changes</h2>
-            <p id="unsaved-text" className="mt-1.5 text-[14px] text-[#344054]">You have changes that haven&apos;t been saved. What would you like to do?</p>
-            {pending?.kind === "submit" ? <p className="mt-1.5 text-[13px] text-[#475467]">If you save the carer changes, send the other form again afterwards.</p> : null}
+            <h2 id="unsaved-title" className="text-subtitle font-bold text-[#101828]">Unsaved Changes</h2>
+            <p id="unsaved-text" className="mt-1.5 text-body text-[#344054]">You have changes that haven&apos;t been saved. What would you like to do?</p>
+            {pending?.kind === "submit" ? <p className="mt-1.5 text-meta text-[#475467]">If you save the carer changes, send the other form again afterwards.</p> : null}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <button type="button" autoFocus onClick={() => { setPending(null); dialogRef.current?.close(); }} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-[14px] font-semibold text-[#101828] hover:bg-slate-50">Continue Editing</button>
-              <button type="button" onClick={() => { discard(); if (pending?.kind === "submit") { setPending(null); dialogRef.current?.close(); resubmit(pending.form, pending.submitter); } else carryOn(); }} className="h-10 rounded-[8px] border border-[#f3c9c9] bg-white px-3.5 text-[14px] font-semibold text-[#b42318] hover:bg-[#fdeeee]">Discard Changes</button>
+              <button type="button" autoFocus onClick={() => { setPending(null); dialogRef.current?.close(); }} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-body font-semibold text-[#101828] hover:bg-slate-50">Continue Editing</button>
+              <button type="button" onClick={() => { discard(); if (pending?.kind === "submit") { setPending(null); dialogRef.current?.close(); resubmit(pending.form, pending.submitter); } else carryOn(); }} className="h-10 rounded-[8px] border border-[#f3c9c9] bg-white px-3.5 text-body font-semibold text-[#b42318] hover:bg-[#fdeeee]">Discard Changes</button>
               <button
                 type="button"
                 disabled={saving}
@@ -377,7 +377,7 @@ export function VisitPanelShell({
                     dialogRef.current?.close();
                   } else carryOn();
                 }}
-                className="h-10 rounded-[8px] bg-module px-3.5 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:opacity-60"
+                className="h-10 rounded-[8px] bg-module px-3.5 text-body font-semibold text-white hover:bg-[#4c2398] disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Save Changes"}
               </button>
@@ -392,7 +392,7 @@ export function VisitPanelShell({
 /** Previous | Visit 2 of 25 | Next, at the top of the panel. Real links, so they also work before scripts load. */
 export function PanelNav({ prevHref, nextHref, position, total, prevLabel, nextLabel }: { prevHref: string | null; nextHref: string | null; position: number | null; total: number; prevLabel?: string; nextLabel?: string }) {
   const { go } = usePanel();
-  const cls = "inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-[13.5px] font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module";
+  const cls = "inline-flex h-8 items-center gap-1 rounded-[8px] px-2 text-body font-semibold no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-module";
   const link = (href: string | null, label: string, aria: string, title?: string) =>
     href ? (
       <a href={href} title={title} aria-label={aria} data-panel-keep onClick={(e) => { if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); go(href); }} className={`${cls} text-module hover:bg-[#f6f2fd]`}>{label}</a>
@@ -402,7 +402,7 @@ export function PanelNav({ prevHref, nextHref, position, total, prevLabel, nextL
   return (
     <nav aria-label="Move between visits" className="flex items-center justify-between border-b border-[#eef0f3] px-3 py-1">
       {link(prevHref, "← Previous", "Previous visit", prevLabel)}
-      <span className="text-[13px] tabular-nums text-[#475467]" aria-live="polite">{position ? `Visit ${position} of ${total}` : "Not in the current list"}</span>
+      <span className="text-meta tabular-nums text-[#475467]" aria-live="polite">{position ? `Visit ${position} of ${total}` : "Not in the current list"}</span>
       {link(nextHref, "Next →", "Next visit", nextLabel)}
     </nav>
   );
@@ -430,16 +430,16 @@ export function PanelFooter({ children }: { children: ReactNode }) {
   if (!p.editing) return <>{children}</>;
   return (
     <div className="space-y-1.5">
-      <p className="text-[13px] font-semibold text-[#344054]" aria-live="polite">{p.changeCount ? `${p.changeCount} change${p.changeCount === 1 ? "" : "s"} waiting to be saved` : "No changes yet"}</p>
+      <p className="text-meta font-semibold text-[#344054]" aria-live="polite">{p.changeCount ? `${p.changeCount} change${p.changeCount === 1 ? "" : "s"} waiting to be saved` : "No changes yet"}</p>
       <div className="grid grid-cols-[auto_1fr] gap-2">
-      <button type="button" onClick={p.discard} disabled={p.saving} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-[14px] font-semibold text-[#101828] hover:bg-slate-50 disabled:opacity-60">{p.changeCount ? "Discard" : "Close editor"}</button>
+      <button type="button" onClick={p.discard} disabled={p.saving} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-3.5 text-body font-semibold text-[#101828] hover:bg-slate-50 disabled:opacity-60">{p.changeCount ? "Discard" : "Close editor"}</button>
       <button
         type="button"
         onClick={() => void p.save()}
         disabled={!p.changeCount || p.saving || (p.needsAck && !p.draft.acceptWarnings)}
         aria-busy={p.saving || undefined}
         title={!p.changeCount ? "Nothing has changed yet" : p.needsAck && !p.draft.acceptWarnings ? "Tick that you have read the warnings first" : undefined}
-        className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#b9a6e3]"
+        className="h-10 rounded-[8px] bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#b9a6e3]"
       >
         {p.saving ? "Saving…" : "Save Changes"}
       </button>
@@ -452,7 +452,7 @@ export function PanelFooter({ children }: { children: ReactNode }) {
 export function PanelSaved() {
   const { saved } = usePanel();
   return (
-    <div role="status" aria-live="polite" className={saved ? "mx-4 mb-1.5 rounded-[8px] border border-[#cfe9d8] bg-[#eaf6ee] px-3 py-1.5 text-[13.5px] font-semibold text-[#1c7a43]" : "sr-only"}>
+    <div role="status" aria-live="polite" className={saved ? "mx-4 mb-1.5 rounded-[8px] border border-[#cfe9d8] bg-[#eaf6ee] px-3 py-1.5 text-body font-semibold text-[#1c7a43]" : "sr-only"}>
       {saved ? `Saved: ${saved}. The rota now shows the new carers.` : ""}
     </div>
   );

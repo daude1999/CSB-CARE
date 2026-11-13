@@ -18,7 +18,7 @@ export function FactRow({ fact, docName }: { fact: Fact; docName: string | null 
     <li id={`fact-${fact.id}`} className={`scroll-mt-24 rounded-[3px] border border-l-[3px] border-slate-200 bg-white px-3 py-2.5 ${fact.conflict ? "border-l-[#e3934a]" : ACCEPTED.has(fact.decision) ? "border-l-[#3fae6a]" : fact.decision === "REJECTED" ? "border-l-[#e4544f]" : "border-l-slate-300"}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14.5px] font-semibold text-slate-900">{fact.label} <span className="ml-1 text-[12.5px] font-normal text-slate-600">→ <span className="font-mono text-[12px]">{destinationField(fact.destination)}</span></span></h3>
+          <h3 className="text-body font-semibold text-slate-900">{fact.label} <span className="ml-1 text-meta font-normal text-slate-600">→ <span className="font-mono text-caption">{destinationField(fact.destination)}</span></span></h3>
         </div>
         <div className="flex flex-wrap gap-1">
           <Badge tone={DECISION_TONE[fact.decision as keyof typeof DECISION_TONE] ?? "slate"}>{fact.decisionLabel}</Badge>
@@ -29,12 +29,12 @@ export function FactRow({ fact, docName }: { fact: Fact; docName: string | null 
         </div>
       </div>
 
-      <p className="mt-1 whitespace-pre-line break-words text-[14.5px] text-slate-900">{fact.display || <span className="text-slate-500">No value</span>}</p>
-      {fact.decision === "EDITED" && fact.proposedDisplay && fact.proposedDisplay !== fact.display ? <p className="mt-1 text-[13px] text-slate-600">Read from the document as: {fact.proposedDisplay}</p> : null}
-      {fact.existing !== null && fact.existing !== "" ? <p className="mt-1 text-[13px] text-slate-600">On the record now: {fact.existing}</p> : null}
+      <p className="mt-1 whitespace-pre-line break-words text-body text-slate-900">{fact.display || <span className="text-slate-500">No value</span>}</p>
+      {fact.decision === "EDITED" && fact.proposedDisplay && fact.proposedDisplay !== fact.display ? <p className="mt-1 text-meta text-slate-600">Read from the document as: {fact.proposedDisplay}</p> : null}
+      {fact.existing !== null && fact.existing !== "" ? <p className="mt-1 text-meta text-slate-600">On the record now: {fact.existing}</p> : null}
 
       {!fact.hidden ? (
-        <div className="mt-1.5 rounded bg-[#f5f9fc] px-3 py-1.5 text-[13px] text-slate-700">
+        <div className="mt-1.5 rounded bg-[#f5f9fc] px-3 py-1.5 text-meta text-slate-700">
           <span className="font-medium">{docName ?? (fact.origin === "MANUAL" ? "Added by a person" : "Document")}</span>
           {fact.sourcePage ? <>, page {fact.sourcePage}</> : null}
           {fact.sourceDocumentId ? <> · <a href={`/api/care-coordinator/documents/${fact.sourceDocumentId}${fact.sourcePage ? `#page=${fact.sourcePage}` : ""}`} target="_blank" rel="noopener">Open original<span className="sr-only"> (opens in a new tab)</span></a></> : null}
@@ -42,9 +42,9 @@ export function FactRow({ fact, docName }: { fact: Fact; docName: string | null 
         </div>
       ) : null}
 
-      {fact.conflict ? <p role="note" className="mt-2 rounded border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-[13.5px] text-[#6b4a00]">{fact.conflict}</p> : null}
-      {fact.question ? <p className="mt-2 text-[13.5px] text-slate-800"><span className="font-medium">Question:</span> {fact.question}{fact.assignedTo ? <> · asked of {fact.assignedTo}</> : null}</p> : null}
-      {decided ? <p className="mt-1 text-[12.5px] text-slate-600">{fact.decisionLabel} · {fact.decidedBy ?? "Unknown"}{fact.decidedAt ? `, ${fmtDate(fact.decidedAt, true)}` : ""}{fact.decisionNote ? `. ${fact.decisionNote}` : ""}</p> : null}
+      {fact.conflict ? <p role="note" className="mt-2 rounded border border-[#f0d9a8] bg-[#fff8e8] px-3 py-2 text-body text-[#6b4a00]">{fact.conflict}</p> : null}
+      {fact.question ? <p className="mt-2 text-body text-slate-800"><span className="font-medium">Question:</span> {fact.question}{fact.assignedTo ? <> · asked of {fact.assignedTo}</> : null}</p> : null}
+      {decided ? <p className="mt-1 text-meta text-slate-600">{fact.decisionLabel} · {fact.decidedBy ?? "Unknown"}{fact.decidedAt ? `, ${fmtDate(fact.decidedAt, true)}` : ""}{fact.decisionNote ? `. ${fact.decisionNote}` : ""}</p> : null}
 
     </li>
   );

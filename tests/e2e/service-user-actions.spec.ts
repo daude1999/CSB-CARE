@@ -113,7 +113,7 @@ test.describe("All Service Users", () => {
       await expect(page.getByTestId("su-row")).toHaveCount(1);
       await expect(page.getByTestId("su-row").first()).toContainText(name);
     }
-    await page.getByRole("link", { name: "Clear" }).click();
+    await page.getByRole("link", { name: "Clear", exact: true }).click();
     await expect(page).toHaveURL(/\/rota\/service-users$/);
     await expect(filters.getByLabel("Search")).toHaveValue("");
   });

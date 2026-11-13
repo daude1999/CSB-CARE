@@ -34,9 +34,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       <Flash searchParams={sp} />
       {link ? (
         <section aria-label="One-time link" className="panel mb-3 border-l-4 border-l-teal-500">
-          <p className="text-[14px] font-medium">Give this link to the person yourself. It works once and is shown here for two minutes only.</p>
-          <p className="mt-1 break-all rounded bg-slate-50 px-2 py-1 font-mono text-[13px]" data-testid="one-time-link">{link}</p>
-          <p className="mt-1 text-[12.5px] text-slate-600">Nothing has been emailed. Anyone with the link can use it, so do not post it in a shared channel.</p>
+          <p className="text-body font-medium">Give this link to the person yourself. It works once and is shown here for two minutes only.</p>
+          <p className="mt-1 break-all rounded bg-slate-50 px-2 py-1 font-mono text-meta" data-testid="one-time-link">{link}</p>
+          <p className="mt-1 text-meta text-slate-600">Nothing has been emailed. Anyone with the link can use it, so do not post it in a shared channel.</p>
         </section>
       ) : null}
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -56,15 +56,15 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             {members.length ? (
               <ul className="rows">
                 {members.map((m) => (
-                  <li key={m.id} className="py-3 text-[14px]">
+                  <li key={m.id} className="py-3 text-body">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-navy-900">{m.name}</span>
                       <span className="text-slate-600">{m.email}</span>
                       {m.deactivatedAt ? <Badge tone="slate">Deactivated {fmtDate(m.deactivatedAt)}</Badge> : null}
                       {m.userId === ctx.userId ? <Badge tone="violet">You</Badge> : null}
-                      <span className="ml-auto text-[12.5px] text-slate-500">{m.lastSeenAt ? `last active ${fmtDate(m.lastSeenAt, true)}` : "not signed in yet"}</span>
+                      <span className="ml-auto text-meta text-slate-500">{m.lastSeenAt ? `last active ${fmtDate(m.lastSeenAt, true)}` : "not signed in yet"}</span>
                     </div>
-                    <p className="text-[13.5px] text-slate-700">{m.roles.length ? m.roles.map((r) => ROLE_LABEL[r]).join(", ") : "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""} · {m.branchIds.length ? m.branchIds.map((b) => branchName.get(b) ?? "Branch").join(", ") : "all branches"}</p>
+                    <p className="text-body text-slate-700">{m.roles.length ? m.roles.map((r) => ROLE_LABEL[r]).join(", ") : "No roles"}{m.jobTitle ? ` · ${m.jobTitle}` : ""} · {m.branchIds.length ? m.branchIds.map((b) => branchName.get(b) ?? "Branch").join(", ") : "all branches"}</p>
                     {m.deactivatedAt ? (
                       <form action={reactivateMemberAction} className="mt-2"><input type="hidden" name="back" value={back} /><input type="hidden" name="membershipId" value={m.id} /><button className="btn-secondary py-1">Reactivate</button></form>
                     ) : (
@@ -106,15 +106,15 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               <label className="block"><span className="label">Email</span><input name="email" type="email" required className="input" /></label>
               <MemberFields roles={roles} branches={branches} selectedRoles={[]} selectedBranches={[]} jobTitle={null} />
               <button className="btn-primary">Create invitation link</button>
-              <p className="text-[12.5px] text-slate-600">The link lasts seven days. The person chooses their own password.</p>
+              <p className="text-meta text-slate-600">The link lasts seven days. The person chooses their own password.</p>
             </form>
           </Card>
           <Card title="Open invitations">
             {invites.length ? (
-              <ul className="rows text-[14px]">
+              <ul className="rows text-body">
                 {invites.map((i) => (
                   <li key={i.id} className="flex items-center justify-between gap-2 py-2">
-                    <span><span className="font-medium">{i.name ?? i.email}</span><span className="block text-[12.5px] text-slate-600">{i.email} · until {fmtDate(i.expiresAt)}</span></span>
+                    <span><span className="font-medium">{i.name ?? i.email}</span><span className="block text-meta text-slate-600">{i.email} · until {fmtDate(i.expiresAt)}</span></span>
                     <form action={revokeInviteAction}><input type="hidden" name="back" value={back} /><input type="hidden" name="inviteId" value={i.id} /><button className="btn-secondary py-1">Revoke</button></form>
                   </li>
                 ))}
@@ -132,14 +132,14 @@ function MemberFields({ roles, branches, selectedRoles, selectedBranches, jobTit
     <>
       <fieldset>
         <legend className="label">Roles</legend>
-        <div className="grid grid-cols-2 gap-1 text-[13.5px]">
+        <div className="grid grid-cols-2 gap-1 text-body">
           {roles.map(([k, l]) => <label key={k} className="flex items-center gap-1.5"><input type="checkbox" name="roles" value={k} defaultChecked={selectedRoles.includes(k)} />{l}</label>)}
         </div>
       </fieldset>
       {branches.length ? (
         <fieldset>
           <legend className="label">Branches (none ticked means all)</legend>
-          <div className="grid grid-cols-2 gap-1 text-[13.5px]">
+          <div className="grid grid-cols-2 gap-1 text-body">
             {branches.map((b) => <label key={b.id} className="flex items-center gap-1.5"><input type="checkbox" name="branchIds" value={b.id} defaultChecked={selectedBranches.includes(b.id)} />{b.name}</label>)}
           </div>
         </fieldset>

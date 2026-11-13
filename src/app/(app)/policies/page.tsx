@@ -151,7 +151,7 @@ function FilterBar({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
         <label className="pl-input w-full sm:w-[238px]">
           <MagnifyingGlass size={16} aria-hidden="true" className="shrink-0 text-[#4f5b6c]" />
           <span className="sr-only">Search policies</span>
-          <input type="search" name="q" defaultValue={query.q} placeholder="Search policies…" className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-[#1f2d42] placeholder:text-[#6b7586] focus:outline-none" />
+          <input type="search" name="q" defaultValue={query.q} placeholder="Search policies…" className="h-full min-w-0 flex-1 bg-transparent text-meta text-[#1f2d42] placeholder:text-[#6b7586] focus:outline-none" />
         </label>
         <AutoSubmitSelect name="category" label="Category" defaultValue={query.category} className="w-[calc(50%-4px)] sm:w-[186px]">
           <option value="">All Categories</option>
@@ -190,7 +190,7 @@ function FilterBar({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
           </div>
         </Menu>
         <button type="submit" className="pl-btn-secondary sr-only focus:not-sr-only">Apply filters</button>
-        {filtered ? <Link href={libraryHref({ ...query, q: undefined, area: undefined, category: undefined, status: undefined, owner: undefined, type: undefined, service: undefined, quick: undefined, page: 1 }, { selected: undefined })} className="px-1 text-[12.5px] text-[#0646b1] hover:underline">Clear filters</Link> : null}
+        {filtered ? <Link href={libraryHref({ ...query, q: undefined, area: undefined, category: undefined, status: undefined, owner: undefined, type: undefined, service: undefined, quick: undefined, page: 1 }, { selected: undefined })} className="px-1 text-meta text-[#0646b1] hover:underline">Clear filters</Link> : null}
       </form>
       {hasOrgPermission(ctx, "report.view") && ctx.organisationId ? (
         <Menu label="Library options" trigger={<DotsThreeVertical size={18} weight="bold" />}>
@@ -208,7 +208,7 @@ function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
   return (
     <>
       <nav aria-label="Categories" className="pl-panel p-[6px]">
-        <h2 className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#667085]">Categories</h2>
+        <h2 className="px-2.5 pb-1 pt-1.5 text-caption font-semibold uppercase tracking-[0.05em] text-[#667085]">Categories</h2>
         <ul className="space-y-px">
           <li>
             <Link href={libraryHref({ ...query, ...reset }, { selected: undefined })} scroll={false} aria-current={isAll ? "true" : undefined} className="pl-tree-row pl-[10px]">
@@ -238,12 +238,12 @@ function Explorer({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
             </TreeArea>
           ))}
         </ul>
-        {!view.tree.length ? <p className="px-3 py-2 text-[12.5px] text-[#646e7f]">No categories to show.</p> : null}
+        {!view.tree.length ? <p className="px-3 py-2 text-meta text-[#646e7f]">No categories to show.</p> : null}
       </nav>
 
       {query.tab !== "templates" ? (
         <nav aria-label="Quick filters" className="pl-panel px-[14px] py-[12px]">
-          <h2 className="mb-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#667085]">Quick filters</h2>
+          <h2 className="mb-1 text-caption font-semibold uppercase tracking-[0.05em] text-[#667085]">Quick filters</h2>
           <ul className="space-y-px">
             {QUICK_KEYS.map((k) => {
               const on = query.quick === k;
@@ -280,7 +280,7 @@ function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; sele
   return (
     <section aria-labelledby="register-title" className="pc-panel min-w-0" data-testid="policy-register" data-keep-inspector="">
       <div className="flex flex-wrap items-center justify-between gap-2 px-[18px] pb-[10px] pt-[14px]">
-        <h2 id="register-title" className="text-[16px] font-semibold text-[#101828]">
+        <h2 id="register-title" className="text-lead font-semibold text-[#101828]">
           {noun} <span className="font-normal text-[#667085]">({view.total})</span>
         </h2>
         <div className="flex items-center gap-2">
@@ -309,7 +309,7 @@ function Register({ ctx, view, selectedId }: { ctx: Ctx; view: LibraryView; sele
         <RegisterEmpty ctx={ctx} view={view} />
       )}
       {view.pageCount > 1 ? (
-        <nav aria-label="Pages" className="flex items-center justify-between border-t border-[#efece6] px-[18px] py-[10px] text-[12.5px] text-[#4f5b6c]">
+        <nav aria-label="Pages" className="flex items-center justify-between border-t border-[#efece6] px-[18px] py-[10px] text-meta text-[#4f5b6c]">
           {query.page > 1 ? <Link href={libraryHref(query, { page: query.page - 1, selected: undefined })} scroll={false} className="flex items-center gap-1 text-[#0646b1]"><CaretLeft size={12} aria-hidden="true" />Previous</Link> : <span />}
           <span>Page {query.page} of {view.pageCount}</span>
           {query.page < view.pageCount ? <Link href={libraryHref(query, { page: query.page + 1, selected: undefined })} scroll={false} className="flex items-center gap-1 text-[#0646b1]">Next<CaretRight size={12} aria-hidden="true" /></Link> : <span />}
@@ -331,7 +331,7 @@ function RowTitle({ row, query, className }: { row: LibraryRow; query: LibraryQu
 
 function Meta({ row }: { row: LibraryRow }) {
   return (
-    <p className="mt-[2px] min-w-0 truncate text-[12.5px] text-[#667085]" title={row.areaLabel ? `${row.areaLabel} › ${row.categoryName}` : row.categoryName}>
+    <p className="mt-[2px] min-w-0 truncate text-meta text-[#667085]" title={row.areaLabel ? `${row.areaLabel} › ${row.categoryName}` : row.categoryName}>
       {[row.ref, row.version, row.categoryName].filter(Boolean).join(" · ")}
     </p>
   );
@@ -344,14 +344,14 @@ function Row({ ctx, row, query, selected }: { ctx: Ctx; row: LibraryRow; query: 
       <div className="min-w-0 flex-1">
         <h3 className="leading-[21px]"><RowTitle row={row} query={query} /></h3>
         <Meta row={row} />
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#3a4658] sm:hidden">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[#3a4658] sm:hidden">
           <StatusPill status={row.status} />
           {row.nextReviewDate ? <span className="whitespace-nowrap">Review {fmtShort(row.nextReviewDate)}</span> : null}
           <RowSide ctx={ctx} row={row} query={query} />
         </div>
-        {row.description ? <p className="mt-[7px] line-clamp-2 text-[12px] leading-[17px] text-[#4f5b6c]">{row.description}</p> : null}
+        {row.description ? <p className="mt-[7px] line-clamp-2 text-caption leading-[17px] text-[#4f5b6c]">{row.description}</p> : null}
       </div>
-      <div className="flex w-[150px] shrink-0 flex-col items-start gap-[4px] text-[12.5px] text-[#475467] max-sm:hidden">
+      <div className="flex w-[150px] shrink-0 flex-col items-start gap-[4px] text-meta text-[#475467] max-sm:hidden">
         <StatusPill status={row.status} />
         {row.ownerName ? <span className="max-w-full truncate">{row.ownerName}</span> : null}
         {row.nextReviewDate ? <span className="whitespace-nowrap">Review {fmtShort(row.nextReviewDate)}</span> : null}
@@ -371,7 +371,7 @@ function GridCard({ ctx, row, query, selected }: { ctx: Ctx; row: LibraryRow; qu
       </div>
       <h3 className="leading-[21px]"><RowTitle row={row} query={query} /></h3>
       <Meta row={row} />
-      <p className="mt-auto text-[12.5px] text-[#3a4658]">{row.nextReviewDate ? `Review: ${fmtShort(row.nextReviewDate)}` : null}</p>
+      <p className="mt-auto text-meta text-[#3a4658]">{row.nextReviewDate ? `Review: ${fmtShort(row.nextReviewDate)}` : null}</p>
       <RowSide ctx={ctx} row={row} query={query} />
     </article>
   );
@@ -380,13 +380,13 @@ function GridCard({ ctx, row, query, selected }: { ctx: Ctx; row: LibraryRow; qu
 /** Templates show whether the organisation already has them, and let authors adopt them. */
 function RowSide({ ctx, row, query }: { ctx: Ctx; row: LibraryRow; query: LibraryQuery }) {
   if (row.kind !== "MASTER" || !ctx.organisationId) return null;
-  if (row.adopted) return <span className="text-[12px] text-[#157a3e]">In your library</span>;
+  if (row.adopted) return <span className="text-caption text-[#157a3e]">In your library</span>;
   if (!hasOrgPermission(ctx, "policy.author")) return null;
   return (
     <form action={adoptTemplateAction}>
       <input type="hidden" name="templateId" value={row.id} />
       <input type="hidden" name="back" value={libraryHref(query, { selected: row.id })} />
-      <button type="submit" className="pl-btn-secondary h-[26px] px-2.5 text-[12px]">Adopt<span className="sr-only"> {row.title}</span></button>
+      <button type="submit" className="pl-btn-secondary h-[26px] px-2.5 text-caption">Adopt<span className="sr-only"> {row.title}</span></button>
     </form>
   );
 }
@@ -420,8 +420,8 @@ function RegisterEmpty({ ctx, view }: { ctx: Ctx; view: LibraryView }) {
   }
   return (
     <div className="px-6 pb-12 pt-8 text-center" data-testid="register-empty">
-      <p className="pl-serif text-[17px] font-semibold text-[#0b1530]">{title}</p>
-      {body ? <p className="mt-1.5 text-[13px] text-[#4f5b6c]">{body}</p> : null}
+      <p className="pl-serif text-subtitle font-semibold text-[#0b1530]">{title}</p>
+      {body ? <p className="mt-1.5 text-meta text-[#4f5b6c]">{body}</p> : null}
     </div>
   );
 }
@@ -432,21 +432,21 @@ function ReviewCalendar({ view }: { view: LibraryView }) {
   return (
     <section aria-labelledby="calendar-title" className="pc-panel min-w-0" data-testid="review-calendar">
       <div className="px-[18px] pb-[6px] pt-[14px]">
-        <h2 id="calendar-title" className="text-[16px] font-semibold text-[#101828]">Review Calendar</h2>
-        <p className="mt-0.5 text-[12.5px] text-[#646e7f]">Next review dates for {view.total} {view.total === 1 ? "policy" : "policies"}, earliest first. Reviews within 60 days are due; past dates are overdue.</p>
+        <h2 id="calendar-title" className="text-lead font-semibold text-[#101828]">Review Calendar</h2>
+        <p className="mt-0.5 text-meta text-[#646e7f]">Next review dates for {view.total} {view.total === 1 ? "policy" : "policies"}, earliest first. Reviews within 60 days are due; past dates are overdue.</p>
       </div>
       {view.calendar.length ? (
         <div className="px-[18px] pb-[14px]">
           {view.calendar.map((m) => (
             <section key={m.month} aria-label={m.month} className="mt-3">
-              <h3 className="border-b border-[#efece6] pb-1.5 text-[13px] font-semibold text-[#0b1530]">{m.month} <span className="font-normal text-[#646e7f]">· {m.rows.length}</span></h3>
+              <h3 className="border-b border-[#efece6] pb-1.5 text-meta font-semibold text-[#0b1530]">{m.month} <span className="font-normal text-[#646e7f]">· {m.rows.length}</span></h3>
               <ul>
                 {m.rows.map((r) => (
-                  <li key={r.id} className="grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#f3f1ec] py-2 text-[13px]">
+                  <li key={r.id} className="grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#f3f1ec] py-2 text-meta">
                     <span className={r.nextReviewDate! < now ? "font-medium text-[#b42318]" : "text-[#3a4658]"}>{fmtShort(r.nextReviewDate)}</span>
                     <span className="min-w-0">
                       <Link href={libraryHref({ ...query, tab: "policies" }, { selected: r.id, page: undefined })} className="block truncate font-medium text-[#0b1530] hover:text-[#0646b1]">{r.title}</Link>
-                      <span className="text-[12px] text-[#646e7f]">{r.ref}{r.ownerName ? ` · ${r.ownerName}` : ""}</span>
+                      <span className="text-caption text-[#646e7f]">{r.ref}{r.ownerName ? ` · ${r.ownerName}` : ""}</span>
                     </span>
                     <StatusPill status={r.status} />
                   </li>
@@ -456,7 +456,7 @@ function ReviewCalendar({ view }: { view: LibraryView }) {
           ))}
         </div>
       ) : (
-        <p className="px-6 pb-12 pt-8 text-center text-[13px] text-[#4f5b6c]">No review dates match these filters.</p>
+        <p className="px-6 pb-12 pt-8 text-center text-meta text-[#4f5b6c]">No review dates match these filters.</p>
       )}
     </section>
   );

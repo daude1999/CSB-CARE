@@ -35,7 +35,7 @@ export default async function PayRunPage({ params, searchParams }: { params: Pro
                       <td>
                         <details>
                           <summary className="cursor-pointer">{p.name}</summary>
-                          <ul className="mt-1 text-[12.5px] text-slate-600">{p.lines.map((l) => <li key={l.id} className="tabular-nums">{fromDbDate(l.date)} · {l.description} · {l.minutes}m × {pounds(l.ratePence)} ({l.bandLabel}) = {pounds(l.amountPence)}</li>)}</ul>
+                          <ul className="mt-1 text-meta text-slate-600">{p.lines.map((l) => <li key={l.id} className="tabular-nums">{fromDbDate(l.date)} · {l.description} · {l.minutes}m × {pounds(l.ratePence)} ({l.bandLabel}) = {pounds(l.amountPence)}</li>)}</ul>
                         </details>
                       </td>
                       <td className="text-right tabular-nums">{p.lines.filter((l) => l.kind === "VISIT").length}</td>
@@ -52,7 +52,7 @@ export default async function PayRunPage({ params, searchParams }: { params: Pro
         </div>
         <aside className="space-y-3">
           <RunActions kind="pay" run={run} ctxUserId={ctx.userId} canApprove={hasOrgPermission(ctx, "finance.approve")} canManage={hasOrgPermission(ctx, "finance.manage")} back={`/rota/finance/payroll/${run.id}`} who={who} />
-          {run.status === "VOID" && run.voidReason ? <Card title="Voided"><p className="text-[14px]">{run.voidReason}</p></Card> : null}
+          {run.status === "VOID" && run.voidReason ? <Card title="Voided"><p className="text-body">{run.voidReason}</p></Card> : null}
         </aside>
       </div>
     </>

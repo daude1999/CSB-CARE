@@ -64,13 +64,13 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
                       const created = rep ? [rep.records.personal && r.mode === "NEW" ? 1 : 0, rep.records.contacts, rep.records.package ? 1 : 0, rep.records.carePlan ? 1 : 0, rep.records.risks, rep.records.templates, rep.records.callNotes, rep.records.references].reduce((a, b) => a + b, 0) : null;
                       return (
                         <tr key={r.id}>
-                          <td><Link href={`/rota/coordinator/${r.id}`}>{r.reference}</Link><span className="block text-[13px] text-slate-600">{r.title}</span></td>
-                          <td>{r.person ? <><Link href={`/rota/service-users/${r.person.id}`}>{r.person.name}</Link><span className="block text-[13px] text-slate-600">{r.person.reference}</span></> : <span className="text-slate-600">{r.mode === "NEW" ? "Not created yet" : "Not chosen"}</span>}</td>
-                          <td className="max-w-[14rem]">{r.documents[0]?.name ?? <span className="text-slate-600">None yet</span>}{r.documents.length > 1 ? <span className="block text-[13px] text-slate-600">and {r.documents.length - 1} more</span> : null}</td>
-                          <td><Badge tone={QUEUE_TONE[r.queue]}>{r.queue === "CLOSED" ? (INTAKE_STATUS[r.status as keyof typeof INTAKE_STATUS] ?? r.status) : QUEUE_LABEL[r.queue]}</Badge>{!r.setupStatus && r.queue === "NEEDS_ATTENTION" ? <span className="block text-[13px] text-slate-600">Set up before automatic setup: run it</span> : null}</td>
+                          <td><Link href={`/rota/coordinator/${r.id}`}>{r.reference}</Link><span className="block text-meta text-slate-600">{r.title}</span></td>
+                          <td>{r.person ? <><Link href={`/rota/service-users/${r.person.id}`}>{r.person.name}</Link><span className="block text-meta text-slate-600">{r.person.reference}</span></> : <span className="text-slate-600">{r.mode === "NEW" ? "Not created yet" : "Not chosen"}</span>}</td>
+                          <td className="max-w-[14rem]">{r.documents[0]?.name ?? <span className="text-slate-600">None yet</span>}{r.documents.length > 1 ? <span className="block text-meta text-slate-600">and {r.documents.length - 1} more</span> : null}</td>
+                          <td><Badge tone={QUEUE_TONE[r.queue]}>{r.queue === "CLOSED" ? (INTAKE_STATUS[r.status as keyof typeof INTAKE_STATUS] ?? r.status) : QUEUE_LABEL[r.queue]}</Badge>{!r.setupStatus && r.queue === "NEEDS_ATTENTION" ? <span className="block text-meta text-slate-600">Set up before automatic setup: run it</span> : null}</td>
                           <td className="tabular-nums">{created === null ? <span className="text-slate-600">–</span> : created}</td>
                           <td className="tabular-nums">{r.openExceptions ? <Link href={`/rota/coordinator/${r.id}?step=setup`}>{r.openExceptions} open</Link> : rep ? "None" : <span className="text-slate-600">–</span>}</td>
-                          <td>{fmtDate(r.createdAt)}<span className="block text-[13px] text-slate-600">{r.setupFinishedAt ? `Finished ${fmtDate(r.setupFinishedAt)}` : r.createdBy}</span></td>
+                          <td>{fmtDate(r.createdAt)}<span className="block text-meta text-slate-600">{r.setupFinishedAt ? `Finished ${fmtDate(r.setupFinishedAt)}` : r.createdBy}</span></td>
                           <td>{r.person ? <Link href={`/rota/service-users/${r.person.id}`} className="btn-secondary whitespace-nowrap py-1">Open profile</Link> : <Link href={`/rota/coordinator/${r.id}`} className="btn-secondary whitespace-nowrap py-1">Open intake</Link>}</td>
                         </tr>
                       );
@@ -85,7 +85,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
           <form id="start" action={createIntakeAction} className="space-y-3">
             <input type="hidden" name="back" value="/rota/coordinator" />
             {personLabel ? (
-              <p className="rounded-[4px] border-l-4 border-module bg-[#f8f5fe] px-3 py-2 text-[13.5px] text-slate-800" data-testid="intake-person-chosen">
+              <p className="rounded-[4px] border-l-4 border-module bg-[#f8f5fe] px-3 py-2 text-body text-slate-800" data-testid="intake-person-chosen">
                 Updating <strong>{personLabel}</strong>. Their existing profile, plans and history are kept; no new person is created.
                 {discharge ? " Upload the hospital discharge summary or new medical document. When it is filed, a post-discharge review is opened for mobility, personal care, medicines, skin, equipment, follow-up, risks and visits. Medicines are reconciled with the GP or pharmacy, never changed from the letter." : null}
               </p>
@@ -94,7 +94,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
             <fieldset>
               <legend className="label">What these documents are</legend>
               {START_MODES.map((m) => (
-                <label key={m.value} className="mt-1 flex items-start gap-2 text-[14px]"><input type="radio" name="mode" value={m.value} defaultChecked={mode === m.value} className="mt-1" /><span><span className="font-medium">{m.label}</span><span className="block text-[13px] text-slate-600">{m.hint}</span></span></label>
+                <label key={m.value} className="mt-1 flex items-start gap-2 text-body"><input type="radio" name="mode" value={m.value} defaultChecked={mode === m.value} className="mt-1" /><span><span className="font-medium">{m.label}</span><span className="block text-meta text-slate-600">{m.hint}</span></span></label>
               ))}
             </fieldset>
             <label className="block"><span className="label">Person already on the system (for B and C)</span>
@@ -104,7 +104,7 @@ export default async function CoordinatorPage({ searchParams }: { searchParams: 
               <select name="areaId" className="input" defaultValue=""><option value="">Choose later</option>{opts.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
             </label>
             <label className="block"><span className="label">Documents (PDF or photos: up to {MAX_INTAKE_DOCUMENTS} files, 4 MB each, 11 MB in total)</span><input type="file" name="files" multiple accept="application/pdf,image/jpeg,image/png" className="input" /></label>
-            <p className="text-[13px] text-slate-600">{opts.reading.label}</p>
+            <p className="text-meta text-slate-600">{opts.reading.label}</p>
             <button className="btn-primary">Upload and process</button>
           </form>
         </Card>

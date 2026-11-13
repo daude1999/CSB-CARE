@@ -152,7 +152,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
     <div className="policy-reader-page">
 
       {details && missing.length && isPolicy ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-[#f4c7cb] bg-[#fff6f6] px-4 py-2.5 text-[14px] text-[#a3242c]">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-[#f4c7cb] bg-[#fff6f6] px-4 py-2.5 text-body text-[#a3242c]">
           <span className="min-w-0 flex-1">Your business details are incomplete, so parts of this policy are not yet personalised to your organisation.</span>
           <Link href="/settings#business" className="btn-secondary">Complete details</Link>
         </div>
@@ -224,10 +224,10 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 <Link
                   href={l.key === "reader" ? back : `${back}?view=${l.key}`}
                   aria-current={view === l.key ? "page" : undefined}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] px-3 text-[13.5px] font-medium no-underline ${view === l.key ? "bg-[#f1ecfc] !text-module-strong" : "!text-[#475467] hover:bg-[#f9fafb] hover:!text-[#101828]"}`}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] px-3 text-body font-medium no-underline ${view === l.key ? "bg-[#f1ecfc] !text-module-strong" : "!text-[#475467] hover:bg-[#f9fafb] hover:!text-[#101828]"}`}
                 >
                   <span aria-hidden="true" className="flex">{l.icon}</span>{l.label}
-                  {l.count !== undefined ? <span className={`rounded-full px-1.5 text-[11.5px] font-semibold leading-[18px] ${l.key === "flags" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#f2f4f7] text-[#475467]"}`}>{l.count}</span> : null}
+                  {l.count !== undefined ? <span className={`rounded-full px-1.5 text-caption font-semibold leading-[18px] ${l.key === "flags" ? "bg-[#fde1e3] text-[#a3242c]" : "bg-[#f2f4f7] text-[#475467]"}`}>{l.count}</span> : null}
                 </Link>
               </li>
             ))}
@@ -260,7 +260,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       <tbody>
                         <Row label="Policy reference"><span className="font-semibold">{p.ref}</span></Row>
                         <Row label="Policy title">{p.title}</Row>
-                        <Row label="Version">{v ? <span className="flex flex-wrap items-center gap-2">Version {v.label} <StatusBadge status={v.status} />{previous ? <span className="text-[13px] text-[#667085]">Previous: version {previous.label}, published {fmtDate(previous.publishedAt)}</span> : <span className="text-[13px] text-[#667085]">First issue</span>}</span> : "No published version"}</Row>
+                        <Row label="Version">{v ? <span className="flex flex-wrap items-center gap-2">Version {v.label} <StatusBadge status={v.status} />{previous ? <span className="text-meta text-[#667085]">Previous: version {previous.label}, published {fmtDate(previous.publishedAt)}</span> : <span className="text-meta text-[#667085]">First issue</span>}</span> : "No published version"}</Row>
                         <Row label="Category / Subcategory">{p.category.name} / {typeName}</Row>
                         <Row label="Applicable to">
                           <ul className="space-y-0.5">
@@ -281,8 +281,8 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         <Row label="Business impact">
                           {level ? (
                             <span className="flex items-center gap-4">
-                              <span className="flex flex-col items-center"><ImpactBars level={level} /><span className={`mt-0.5 text-[11px] font-bold uppercase ${level === 3 ? "text-[#b42318]" : level === 2 ? "text-[#b54708]" : "text-[#067647]"}`}>{["Low", "Medium", "High"][level - 1]}</span></span>
-                              <span>{IMPACT_TEXT[level - 1]} <span className="text-[13px] text-[#667085]">From the impact assessment of {fmtDate(impact!.createdAt)}.</span></span>
+                              <span className="flex flex-col items-center"><ImpactBars level={level} /><span className={`mt-0.5 text-micro font-bold uppercase ${level === 3 ? "text-[#b42318]" : level === 2 ? "text-[#b54708]" : "text-[#067647]"}`}>{["Low", "Medium", "High"][level - 1]}</span></span>
+                              <span>{IMPACT_TEXT[level - 1]} <span className="text-meta text-[#667085]">From the impact assessment of {fmtDate(impact!.createdAt)}.</span></span>
                             </span>
                           ) : <span className="text-[#475467]">Not assessed. No regulatory change has needed an impact assessment of this policy.</span>}
                         </Row>
@@ -292,11 +292,11 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                           {framework.legal.length || framework.guidance.length ? (
                             <ul className="ml-5 list-disc space-y-1 marker:text-[#7a5ac9]">{[...framework.legal, ...framework.guidance].map((l) => <li key={l}>{l}</li>)}</ul>
                           ) : <span className="text-[#475467]">None recorded in this version.</span>}
-                          {links.length ? <p className="mt-2 text-[13px] text-[#667085]">{links.length - unverified} of {links.length} mapped references checked against the official source. <Link href={`${back}?view=requirements`}>Regulation Map</Link></p> : null}
+                          {links.length ? <p className="mt-2 text-meta text-[#667085]">{links.length - unverified} of {links.length} mapped references checked against the official source. <Link href={`${back}?view=requirements`}>Regulation Map</Link></p> : null}
                         </Row>
                         {framework.qs.length ? (
                           <Row label="CQC quality statements">
-                            <ul className="flex flex-wrap gap-2">{framework.qs.map((q) => { const [kq, title] = q.split(/:\s*/, 2); return <li key={q} className="rounded-full border border-[#e4dafb] bg-module/[.04] px-2.5 py-0.5 text-[13px] text-[#101828]"><strong className="font-semibold">{kq}</strong> · {title}</li>; })}</ul>
+                            <ul className="flex flex-wrap gap-2">{framework.qs.map((q) => { const [kq, title] = q.split(/:\s*/, 2); return <li key={q} className="rounded-full border border-[#e4dafb] bg-module/[.04] px-2.5 py-0.5 text-meta text-[#101828]"><strong className="font-semibold">{kq}</strong> · {title}</li>; })}</ul>
                           </Row>
                         ) : null}
                         {reading.length ? (
@@ -316,7 +316,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               </section>
 
               {v?.origin === "SEED" ? (
-                <div className="mx-4 mb-2 flex gap-3 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-[13.5px] leading-5 text-[#93370d] sm:mx-8">
+                <div className="mx-4 mb-2 flex gap-3 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-body leading-5 text-[#93370d] sm:mx-8">
                   <Warning size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                   <span>This is CSB starter text. It has not been professionally reviewed. Check it fits your service and add your local details before staff rely on it.</span>
                 </div>
@@ -335,16 +335,16 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   <h2 id="h-forms" tabIndex={-1} data-reader-heading className="reader-h2"><span className="num">{numberOf.get("forms")}</span>{isPolicy ? "Forms & Resources" : "Related policies"}</h2>
                   {isPolicy ? (
                     <>
-                      <p className="mt-1 text-[14px] text-[#475467]">Download a form in Word to fill in and sign, or as a PDF to print. Only published resources are listed.</p>
+                      <p className="mt-1 text-body text-[#475467]">Download a form in Word to fill in and sign, or as a PDF to print. Only published resources are listed.</p>
                       {forms.length ? (
                         <div className="mt-4 overflow-x-auto rounded-[10px] border border-[#eaecf0]">
-                          <table className="w-full min-w-[620px] border-collapse text-[14px]">
-                            <thead><tr className="h-[40px] bg-[#f9fafb] text-left text-[12.5px] font-semibold text-[#475467]"><th className="w-[44px] pl-3"><span className="sr-only">File</span></th><th>Name</th><th className="w-[140px]">Type</th><th className="w-[260px] pr-3 text-right">Actions</th></tr></thead>
+                          <table className="w-full min-w-[620px] border-collapse text-body">
+                            <thead><tr className="h-[40px] bg-[#f9fafb] text-left text-meta font-semibold text-[#475467]"><th className="w-[44px] pl-3"><span className="sr-only">File</span></th><th>Name</th><th className="w-[140px]">Type</th><th className="w-[260px] pr-3 text-right">Actions</th></tr></thead>
                             <tbody>
                               {forms.map((f) => (
                                 <tr key={f.id} className="h-[54px] border-t border-[#f2f4f7]" data-testid={`form-${f.ref}`}>
                                   <td className="pl-3"><FileDoc size={24} className="text-[#2b579a]" aria-hidden="true" /></td>
-                                  <td className="py-2"><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>{f.required ? <span className="ml-2 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}<span className="block text-[12px] text-[#667085]">{f.ref} · version {f.versionLabel}{f.starter ? " · CSB starter text" : ""}</span><LinkMeta f={f} /></td>
+                                  <td className="py-2"><Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>{f.required ? <span className="ml-2 rounded-full bg-[#fef3f2] px-1.5 text-caption font-semibold leading-[18px] text-[#b42318]">Required</span> : null}<span className="block text-caption text-[#667085]">{f.ref} · version {f.versionLabel}{f.starter ? " · CSB starter text" : ""}</span><LinkMeta f={f} /></td>
                                   <td className="text-[#344054]">{f.typeLabel}</td>
                                   <td className="pr-3">
                                     <span className="flex justify-end gap-1.5">
@@ -361,7 +361,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                         </div>
                       ) : <div className="mt-4"><Empty>No forms are linked to this policy yet.</Empty></div>}
                       {canManageLinks || forms.length ? (
-                        <p className="mt-3 text-[13px] text-[#667085]">
+                        <p className="mt-3 text-meta text-[#667085]">
                           {forms.some((f) => f.source === "TEXT") ? "Forms marked \u201cnamed in the form\u2019s Related policies\u201d have no confirmed link yet. " : null}
                           {canManageLinks ? <Link href={`/policies/${p.id}/resources`} data-testid="manage-form-links">Manage linked forms</Link> : <Link href={`/policies/${p.id}/resources`}>Link history</Link>}
                         </p>
@@ -374,7 +374,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       ) : null}
                     </>
                   ) : null}
-                  {related.length && isPolicy ? <p className="mt-5 text-[14px] text-[#475467]">Related policies are listed under <a href="#further-reading">Further Reading</a>.</p> : null}
+                  {related.length && isPolicy ? <p className="mt-5 text-body text-[#475467]">Related policies are listed under <a href="#further-reading">Further Reading</a>.</p> : null}
                   {!isPolicy ? <RelatedList related={related} /> : null}
                 </section>
               ) : null}
@@ -398,7 +398,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                     {canCompare ? (
                       <Link className="reader-action" href={`${back}/compare`} data-testid="compare-versions"><GitDiff size={18} aria-hidden="true" />Compare Versions</Link>
                     ) : (
-                      <span className="reader-action" aria-disabled="true" title="This policy has only one version"><GitDiff size={18} aria-hidden="true" />Compare Versions<span className="ml-auto text-[11.5px]">One version</span></span>
+                      <span className="reader-action" aria-disabled="true" title="This policy has only one version"><GitDiff size={18} aria-hidden="true" />Compare Versions<span className="ml-auto text-caption">One version</span></span>
                     )}
                   </li>
                   <li><Link className="reader-action" href={`${back}?view=history`}><ClockCounterClockwise size={18} aria-hidden="true" />View Version History</Link></li>
@@ -407,7 +407,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
               <section className="reader-panel" aria-labelledby="reader-forms-title" data-testid="linked-resources">
                 <div className="flex items-baseline justify-between gap-2">
                   <h2 id="reader-forms-title" className="reader-panel-title">Linked Forms &amp; Resources</h2>
-                  {forms.length ? <span className="text-[12px] text-[#667085]">{forms.length}</span> : null}
+                  {forms.length ? <span className="text-caption text-[#667085]">{forms.length}</span> : null}
                 </div>
                 {forms.length ? (
                   <ul className="mt-2 divide-y divide-[#f2f4f7]">
@@ -415,8 +415,8 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       <li key={f.id} className="flex items-start gap-2.5 py-2.5">
                         <FileDoc size={22} className="mt-0.5 shrink-0 text-[#2b579a]" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
-                          <Link href={`/policies/${f.id}`} className="block truncate text-[13.5px] font-medium no-underline hover:underline" title={f.title}>{f.title}</Link>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-module-strong">{f.typeLabel}</span>{f.ref}{f.uses.filter((u) => u.placement?.step).map((u) => <a key={u.linkId} href={`#${u.placement!.sectionKey}`}>Step {u.placement!.step}</a>)}</span>
+                          <Link href={`/policies/${f.id}`} className="block truncate text-body font-medium no-underline hover:underline" title={f.title}>{f.title}</Link>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-caption text-[#667085]"><span className="rounded-full bg-[#f1ecfc] px-1.5 font-semibold leading-[18px] text-module-strong">{f.typeLabel}</span>{f.ref}{f.uses.filter((u) => u.placement?.step).map((u) => <a key={u.linkId} href={`#${u.placement!.sectionKey}`}>Step {u.placement!.step}</a>)}</span>
                         </div>
                         <span className="flex shrink-0 gap-0.5">
                           <a href={`/api/policies/${f.id}/download?format=docx`} download className="flex h-8 w-8 items-center justify-center rounded-[7px] !text-[#475467] hover:bg-module/[.08]" aria-label={`Download ${f.title} as Word`} title="Download Word"><DownloadSimple size={17} aria-hidden="true" /></a>
@@ -425,12 +425,12 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       </li>
                     ))}
                   </ul>
-                ) : <p className="mt-2 text-[13px] text-[#667085]">{isPolicy ? "No forms are linked to this policy yet." : "This is itself a resource; see the policies it supports below."}</p>}
-                {forms.length > 6 ? <a href="#forms" className="mt-1 block text-[13px]">All {forms.length} forms and resources</a> : null}
+                ) : <p className="mt-2 text-meta text-[#667085]">{isPolicy ? "No forms are linked to this policy yet." : "This is itself a resource; see the policies it supports below."}</p>}
+                {forms.length > 6 ? <a href="#forms" className="mt-1 block text-meta">All {forms.length} forms and resources</a> : null}
                 {workflows.length ? (
                   <div className="mt-2 border-t border-[#f2f4f7] pt-2.5">
-                    <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Open in CSB Care</p>
-                    <ul className="mt-1">{workflows.map((w) => <li key={w.href}><Link className="reader-action !px-1.5 !py-1.5 text-[13.5px]" href={w.href}><ClipboardText size={17} aria-hidden="true" />{w.label}</Link></li>)}</ul>
+                    <p className="text-caption font-semibold uppercase tracking-[0.04em] text-[#667085]">Open in CSB Care</p>
+                    <ul className="mt-1">{workflows.map((w) => <li key={w.href}><Link className="reader-action !px-1.5 !py-1.5 text-body" href={w.href}><ClipboardText size={17} aria-hidden="true" />{w.label}</Link></li>)}</ul>
                   </div>
                 ) : null}
               </section>
@@ -456,7 +456,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                       last={i === p.versions.length - 1}
                       mark={live ? "current" : draft ? "pending" : "past"}
                       when={fmtDate(ver.publishedAt ?? ver.createdAt)}
-                      title={<span className="flex flex-wrap items-center gap-2"><Link href={`/policies/${p.id}/versions/${ver.id}`} className="text-[16px] font-semibold text-navy-900">Version {ver.label}</Link><StatusBadge status={ver.status} /></span>}
+                      title={<span className="flex flex-wrap items-center gap-2"><Link href={`/policies/${p.id}/versions/${ver.id}`} className="text-lead font-semibold text-navy-900">Version {ver.label}</Link><StatusBadge status={ver.status} /></span>}
                       aside={
                         <div className="flex flex-col items-start gap-2 sm:items-end">
                           {ver.revisionAsDraft && draft && canOpenDraft(ctx, p.kind) ? <Link href={`/revisions/${ver.revisionAsDraft.id}`} className="btn-secondary px-2.5 py-1 text-xs">Open draft</Link> : null}
@@ -523,7 +523,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                   return (
                     <li key={pub.id} className="grid gap-x-8 gap-y-3 border-b border-slate-200 py-5 md:grid-cols-[minmax(0,1fr)_18rem]">
                       <div>
-                        <div className="flex flex-wrap items-center gap-2"><StatusBadge status={pub.status} /><span className="text-[16px] font-semibold text-navy-900">{pub.status === "SCHEDULED" ? "Scheduled for" : "Published"} {fmtDate(pub.publishedAt ?? pub.scheduledFor)}</span></div>
+                        <div className="flex flex-wrap items-center gap-2"><StatusBadge status={pub.status} /><span className="text-lead font-semibold text-navy-900">{pub.status === "SCHEDULED" ? "Scheduled for" : "Published"} {fmtDate(pub.publishedAt ?? pub.scheduledFor)}</span></div>
                         {pub.implementationConfirmedAt ? (
                           <p className="mt-2 flex items-start gap-1.5 text-sm text-emerald-800"><CheckCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />Implementation confirmed {fmtDate(pub.implementationConfirmedAt)}: {pub.implementationNotes}</p>
                         ) : pub.status === "PUBLISHED" && pub.organisationId && hasOrgPermission(ctx, "implementation.confirm") ? (
@@ -556,7 +556,7 @@ export default async function PolicyPage({ params, searchParams }: { params: Pro
                 {p.candidates.map((c) => (
                   <li key={c.id} className="border-b border-slate-200 py-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link href={`/changes/${c.changeId}`} className="text-[16px] font-semibold text-navy-900">{c.change.title.replace(/^SIMULATED:\s*/, "")}</Link>
+                      <Link href={`/changes/${c.changeId}`} className="text-lead font-semibold text-navy-900">{c.change.title.replace(/^SIMULATED:\s*/, "")}</Link>
                       <SimulatedBadge show={c.change.isSimulated} />
                     </div>
                     <p className="mt-1 text-sm text-slate-600"><span className="text-slate-800">{c.reason.replace(/_/g, " ").toLowerCase().replace(/^./, (ch) => ch.toUpperCase())}.</span> {c.evidence.slice(0, 220)}{c.evidence.length > 220 ? "…" : ""}</p>
@@ -618,9 +618,9 @@ function PartBody({ part, procedure, details, canEdit, framework, reading, relat
   if (part.derived) {
     return (
       <>
-        <p className="mb-3 text-[13.5px] text-[#667085]">The first point of each procedure step. A written staff summary has not been added to this policy yet.</p>
+        <p className="mb-3 text-body text-[#667085]">The first point of each procedure step. A written staff summary has not been added to this policy yet.</p>
         <ul className="space-y-2.5">
-          {procedure.map((s) => <li key={s.key} className="flex gap-2.5 text-[15px] leading-7 text-[#1d2939]"><Lightbulb size={17} weight="fill" className="mt-1.5 shrink-0 text-[#7a5ac9]" aria-hidden="true" /><span><TagText text={firstSentence(s.body)} details={details} canEdit={canEdit} /></span></li>)}
+          {procedure.map((s) => <li key={s.key} className="flex gap-2.5 text-lead leading-7 text-[#1d2939]"><Lightbulb size={17} weight="fill" className="mt-1.5 shrink-0 text-[#7a5ac9]" aria-hidden="true" /><span><TagText text={firstSentence(s.body)} details={details} canEdit={canEdit} /></span></li>)}
         </ul>
       </>
     );
@@ -667,8 +667,8 @@ function PartBody({ part, procedure, details, canEdit, framework, reading, relat
       {part.id === "further-reading" && reading.length ? (
         <div>
           <h3 className="reader-h3">Official sources</h3>
-          <ul className="mt-2 space-y-2 text-[14.5px] leading-5">
-            {reading.map((r) => <li key={r.id}><a href={r.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1.5"><ArrowSquareOut size={14} className="mt-[3px] shrink-0" aria-hidden="true" />{r.title}<span className="sr-only"> (opens in a new tab)</span></a><span className="block pl-5 text-[12.5px] text-[#667085]">{r.exactReference} · <Verification status={r.verificationStatus} /></span></li>)}
+          <ul className="mt-2 space-y-2 text-body leading-5">
+            {reading.map((r) => <li key={r.id}><a href={r.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1.5"><ArrowSquareOut size={14} className="mt-[3px] shrink-0" aria-hidden="true" />{r.title}<span className="sr-only"> (opens in a new tab)</span></a><span className="block pl-5 text-meta text-[#667085]">{r.exactReference} · <Verification status={r.verificationStatus} /></span></li>)}
           </ul>
         </div>
       ) : null}
@@ -682,11 +682,11 @@ function FrameworkLists({ framework }: { framework: ReturnType<typeof parseFrame
     <div className="mt-2 space-y-3">
       {groups.filter(([, l]) => l.length).map(([label, list]) => (
         <div key={label}>
-          <p className="text-[13px] font-semibold text-[#475467]">{label}</p>
-          <ul className="ml-5 mt-1 list-disc space-y-1 text-[15px] leading-6 text-[#1d2939] marker:text-[#7a5ac9]">{list.map((l) => <li key={l}>{l}</li>)}</ul>
+          <p className="text-meta font-semibold text-[#475467]">{label}</p>
+          <ul className="ml-5 mt-1 list-disc space-y-1 text-lead leading-6 text-[#1d2939] marker:text-[#7a5ac9]">{list.map((l) => <li key={l}>{l}</li>)}</ul>
         </div>
       ))}
-      <p className="text-[12.5px] text-[#667085]">These references are CSB summaries for orientation, not quotations. Check them against the current official text before approval.</p>
+      <p className="text-meta text-[#667085]">These references are CSB summaries for orientation, not quotations. Check them against the current official text before approval.</p>
     </div>
   );
 }
@@ -709,7 +709,7 @@ function LinkMeta({ f }: { f: LinkedResource }) {
   const lines = f.uses.filter((u) => u.placement || u.placementMissing || u.useWhen);
   if (!lines.length && f.source === "LINK") return null;
   return (
-    <span className="mt-0.5 block text-[12.5px] leading-5 text-[#475467]" data-testid={`form-meta-${f.ref}`}>
+    <span className="mt-0.5 block text-meta leading-5 text-[#475467]" data-testid={`form-meta-${f.ref}`}>
       {lines.map((u) => (
         <span key={u.linkId} className="block">
           {u.placement ? <>Used at <a href={`#${u.placement.sectionKey}`}>{u.placement.step ? `Step ${u.placement.step}: ${u.placement.heading}` : u.placement.heading}</a>{u.useWhen ? " · " : null}</> : null}
@@ -727,17 +727,17 @@ function StepForms({ items }: { items?: StepForm[] }) {
   if (!items?.length) return null;
   return (
     <div className="col-start-2 mt-3 rounded-[10px] border border-[#e9e3fb] bg-module/[.04] px-3.5 py-2.5" data-testid="step-forms">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-module">{items.length === 1 ? "Form for this step" : "Forms for this step"}</p>
+      <p className="text-caption font-semibold uppercase tracking-[0.04em] text-module">{items.length === 1 ? "Form for this step" : "Forms for this step"}</p>
       <ul className="mt-1 space-y-1.5">
         {items.map((f) => (
-          <li key={f.use.linkId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
+          <li key={f.use.linkId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
             <span className="flex min-w-0 flex-1 basis-[16rem] items-start gap-2">
               <FileDoc size={18} className="mt-0.5 shrink-0 text-[#2b579a]" aria-hidden="true" />
               <span className="min-w-0">
                 <Link href={`/policies/${f.id}`} className="font-medium no-underline hover:underline">{f.title}</Link>
                 <span className="text-[#667085]"> · {f.ref}</span>
-                {f.use.required ? <span className="ml-1.5 rounded-full bg-[#fef3f2] px-1.5 text-[11.5px] font-semibold leading-[18px] text-[#b42318]">Required</span> : null}
-                {f.use.useWhen ? <span className="block text-[13px] text-[#475467]">Use when {f.use.useWhen}</span> : null}
+                {f.use.required ? <span className="ml-1.5 rounded-full bg-[#fef3f2] px-1.5 text-caption font-semibold leading-[18px] text-[#b42318]">Required</span> : null}
+                {f.use.useWhen ? <span className="block text-meta text-[#475467]">Use when {f.use.useWhen}</span> : null}
               </span>
             </span>
             <span className="flex gap-1.5">
@@ -753,10 +753,10 @@ function StepForms({ items }: { items?: StepForm[] }) {
 }
 
 function RelatedList({ related }: { related: { id: string; ref: string; title: string }[] }) {
-  if (!related.length) return <p className="mt-2 text-[14px] text-[#667085]">No related policies recorded.</p>;
+  if (!related.length) return <p className="mt-2 text-body text-[#667085]">No related policies recorded.</p>;
   return (
     <ul className="mt-2 grid gap-x-6 sm:grid-cols-2">
-      {related.map((r) => <li key={r.id} className="flex gap-3 border-b border-[#f2f4f7] py-2 text-[14px]"><span className="w-[108px] shrink-0 whitespace-nowrap text-[#667085]">{r.ref}</span><Link href={`/policies/${r.id}`} className="font-medium no-underline hover:underline">{r.title}</Link></li>)}
+      {related.map((r) => <li key={r.id} className="flex gap-3 border-b border-[#f2f4f7] py-2 text-body"><span className="w-[108px] shrink-0 whitespace-nowrap text-[#667085]">{r.ref}</span><Link href={`/policies/${r.id}`} className="font-medium no-underline hover:underline">{r.title}</Link></li>)}
     </ul>
   );
 }
@@ -768,7 +768,7 @@ function Fact({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
   return (
     <div className="reader-fact">
       <span aria-hidden="true">{icon}</span>
-      <div className="min-w-0"><p className="text-[12px] text-[#667085]">{label}</p><p className={`text-[14px] font-semibold leading-5 ${colour}`}>{value}</p></div>
+      <div className="min-w-0"><p className="text-caption text-[#667085]">{label}</p><p className={`text-body font-semibold leading-5 ${colour}`}>{value}</p></div>
     </div>
   );
 }
@@ -855,7 +855,7 @@ function VersionState({ version, starter }: { version: { label: string; publishe
 }
 
 function Verification({ status }: { status: string }) {
-  if (status === "VERIFIED") return <span className="text-[12.5px] text-[#067647]">Checked against source</span>;
-  if (status === "NEEDS_REVIEW") return <span className="text-[12.5px] font-medium text-[#b42318]">Needs review</span>;
-  return <span className="text-[12.5px] text-[#b54708]">Not yet verified</span>;
+  if (status === "VERIFIED") return <span className="text-meta text-[#067647]">Checked against source</span>;
+  if (status === "NEEDS_REVIEW") return <span className="text-meta font-medium text-[#b42318]">Needs review</span>;
+  return <span className="text-meta text-[#b54708]">Not yet verified</span>;
 }

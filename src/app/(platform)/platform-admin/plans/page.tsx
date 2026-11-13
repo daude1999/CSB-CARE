@@ -30,9 +30,9 @@ function PlanForm({ plan }: { plan?: Plan }) {
       <label><span className="label">Support</span><input name="supportLevel" defaultValue={plan?.supportLevel ?? ""} placeholder="e.g. Email, next working day" className="input" /></label>
       <label><span className="label">Add-ons</span><input name="addOns" defaultValue={plan?.addOns.join(", ") ?? ""} placeholder="Separate with commas" className="input" /></label>
       <fieldset className="sm:col-span-2"><legend className="label">Modules included</legend>
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{MODULES.map((m) => <label key={m.key} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="modules" value={m.key} defaultChecked={plan ? plan.modules.includes(m.key) : true} />{m.name}</label>)}</div>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{MODULES.map((m) => <label key={m.key} className="flex items-center gap-2 text-body"><input type="checkbox" name="modules" value={m.key} defaultChecked={plan ? plan.modules.includes(m.key) : true} />{m.name}</label>)}</div>
       </fieldset>
-      <label className="flex items-center gap-2 text-[13.5px] sm:col-span-2"><input type="checkbox" name="active" defaultChecked={plan ? plan.active : true} />Offered for new subscriptions</label>
+      <label className="flex items-center gap-2 text-body sm:col-span-2"><input type="checkbox" name="active" defaultChecked={plan ? plan.active : true} />Offered for new subscriptions</label>
       <div className="sticky bottom-0 -mx-5 mt-2 flex justify-end gap-2 border-t border-px-line bg-white px-5 py-3 sm:col-span-2">
         <Link href="/platform-admin/plans" scroll={false} className={pxSecondary}>Cancel</Link>
         <button className={pxPrimary}>{plan ? "Save plan" : "Create plan"}</button>
@@ -57,14 +57,14 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
             <Table label="Plans" minWidth={980} head={["Plan", "Monthly", "Annual", "Users", "Branches", "Storage", "AI / month", "Modules", "Clients", ""]} align={["left", "right", "right", "right", "right", "right", "right", "left", "right", "right"]}>
               {plans.map((p) => (
                 <tr key={p.id}>
-                  <td><span className="flex flex-wrap items-center gap-2 font-medium text-px-ink">{p.name}{p.active ? null : <Pill value="CLOSED" label="Not offered" />}</span><span className="block font-mono text-[11.5px] text-px-subtle">{p.code}{p.supportLevel ? ` · ${p.supportLevel}` : ""}</span></td>
+                  <td><span className="flex flex-wrap items-center gap-2 font-medium text-px-ink">{p.name}{p.active ? null : <Pill value="CLOSED" label="Not offered" />}</span><span className="block font-mono text-caption text-px-subtle">{p.code}{p.supportLevel ? ` · ${p.supportLevel}` : ""}</span></td>
                   <td className="text-right tabular-nums">{fmtMoney(p.monthlyPricePence) ?? <NotConfigured>Not set</NotConfigured>}</td>
                   <td className="text-right tabular-nums">{fmtMoney(p.annualPricePence) ?? <NotConfigured>Not set</NotConfigured>}</td>
                   <td className="text-right tabular-nums">{limit(p.includedUsers)}</td>
                   <td className="text-right tabular-nums">{limit(p.includedBranches)}</td>
                   <td className="text-right tabular-nums">{limit(p.storageMb, " MB")}</td>
                   <td className="text-right tabular-nums">{p.aiRequestsPerMonth === null ? "—" : fmtNumber(p.aiRequestsPerMonth)}</td>
-                  <td className="text-[12.5px] text-px-body" title={p.modules.map((k) => MODULES.find((m) => m.key === k)?.name ?? k).join(", ")}>{p.modules.length} of {MODULES.length}</td>
+                  <td className="text-meta text-px-body" title={p.modules.map((k) => MODULES.find((m) => m.key === k)?.name ?? k).join(", ")}>{p.modules.length} of {MODULES.length}</td>
                   <td className="text-right tabular-nums">{fmtNumber(p.currentClients)}</td>
                   <td className="text-right"><Link href={`?edit=${p.id}`} scroll={false} className={`${pxSecondary} ${pxSm}`} aria-label={`Edit ${p.name}`}>Edit</Link></td>
                 </tr>

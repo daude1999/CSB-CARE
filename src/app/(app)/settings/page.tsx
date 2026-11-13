@@ -34,13 +34,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 pb-3">
           <Buildings size={26} weight="fill" aria-hidden="true" className="text-navy-900" />
           <div className="min-w-0 flex-1">
-            <h2 id="business-heading" className="text-[19px] font-normal tracking-normal text-slate-800">Business details</h2>
-            <p className="text-[13px] text-slate-600">Recorded once, used everywhere. These details fill the highlighted tags in every policy, form and Word or PDF download.</p>
+            <h2 id="business-heading" className="text-title font-normal tracking-normal text-slate-800">Business details</h2>
+            <p className="text-meta text-slate-600">Recorded once, used everywhere. These details fill the highlighted tags in every policy, form and Word or PDF download.</p>
           </div>
           {missing.length ? (
-            <span className="flex items-center gap-1.5 rounded-full bg-[#fde1e3] px-3 py-1 text-[13px] text-[#a3242c]"><Warning size={15} weight="fill" aria-hidden="true" />{missing.length} required {missing.length === 1 ? "detail" : "details"} missing</span>
+            <span className="flex items-center gap-1.5 rounded-full bg-[#fde1e3] px-3 py-1 text-meta text-[#a3242c]"><Warning size={15} weight="fill" aria-hidden="true" />{missing.length} required {missing.length === 1 ? "detail" : "details"} missing</span>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[13px] text-emerald-800"><CheckCircle size={15} weight="fill" aria-hidden="true" />Policies fully personalised</span>
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-meta text-emerald-800"><CheckCircle size={15} weight="fill" aria-hidden="true" />Policies fully personalised</span>
           )}
         </div>
         <BusinessForm initial={details} action={updateBusinessDetailsAction} />

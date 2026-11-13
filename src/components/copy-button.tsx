@@ -15,7 +15,7 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
     window.setTimeout(() => setState("idle"), 2500);
   };
   return (
-    <button type="button" onClick={copy} aria-label={`Copy ${label}`} className="inline-flex h-7 items-center rounded-[6px] border border-[#d0d5dd] bg-white px-2 text-[12.5px] font-medium text-[#344054] hover:border-module hover:text-[#4b2f9a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-module">
+    <button type="button" onClick={copy} aria-label={`Copy ${label}`} className="inline-flex h-7 items-center rounded-[6px] border border-[#d0d5dd] bg-white px-2 text-meta font-medium text-[#344054] hover:border-module hover:text-[#4b2f9a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-module">
       <span aria-live="polite">{state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : "Copy"}</span>
     </button>
   );

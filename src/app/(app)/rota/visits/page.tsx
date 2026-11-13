@@ -101,7 +101,7 @@ function Coverage({ v }: { v: VisitRow }) {
   const { filled, required } = coverage(v);
   const tone = filled >= required ? "bg-[#e7f6ec] text-[#14713a]" : filled === 0 ? "bg-[#fdecec] text-[#b42318]" : "bg-[#fdf3d8] text-[#8a5a00]";
   const words = filled >= required ? "fully staffed" : filled === 0 ? "no carer booked" : "partly staffed";
-  return <span title={`${filled} of ${required} carer${required === 1 ? "" : "s"} booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold tabular-nums ${tone}`}><Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
+  return <span title={`${filled} of ${required} carer${required === 1 ? "" : "s"} booked: ${words}`} className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-meta font-semibold tabular-nums ${tone}`}><Users size={15} weight="fill" aria-hidden />{filled}/{required}<span className="sr-only"> carers, {words}</span></span>;
 }
 
 /** Truthful checklist indicator: no tasks, all done, some recorded as not done or refused, or still to record. */
@@ -113,7 +113,7 @@ function Checklist({ v, href }: { v: VisitRow; href: string }) {
   const title = allDone ? `All ${c.total} care tasks done` : `${c.done} of ${c.total} done${problem ? `, ${c.recorded - c.done} not done or refused` : ""}${c.outstanding ? `, ${c.outstanding} not recorded` : ""}`;
   const tone = allDone ? "text-[#15803d]" : problem ? "text-[#b54708]" : "text-[#475467]";
   return (
-    <Link href={href} title={title} aria-label={`Care tasks: ${title}`} className={`inline-flex items-center gap-1 rounded px-0.5 text-[12px] font-semibold tabular-nums no-underline ${tone}`}>
+    <Link href={href} title={title} aria-label={`Care tasks: ${title}`} className={`inline-flex items-center gap-1 rounded px-0.5 text-caption font-semibold tabular-nums no-underline ${tone}`}>
       {allDone ? <CheckSquare size={19} weight="fill" aria-hidden /> : <ListChecks size={19} weight={problem ? "bold" : "regular"} aria-hidden />}
       {allDone ? null : <span>{c.done}/{c.total}</span>}
     </Link>
@@ -129,7 +129,7 @@ function alertsOf(v: VisitRow) {
   return out;
 }
 
-const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px] text-[#101828]";
+const SEL = "h-10 w-full appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-body text-[#101828]";
 
 function FilterSelect({ name, label, value, children }: { name: string; label: string; value: string; children: ReactNode }) {
   return (
@@ -224,7 +224,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
   const sortHead = (key: SortKey, label: ReactNode, extra = "") => {
     const active = sort === key;
     return (
-      <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-2.5 py-2.5 text-left text-[13.5px] font-semibold text-[#101828] ${extra}`}>
+      <th scope="col" aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-2.5 py-2.5 text-left text-body font-semibold text-[#101828] ${extra}`}>
         <Link href={url({ sort: key === "time" ? undefined : key, dir: active && dir === "asc" ? "desc" : undefined, page: undefined })} className="inline-flex items-center gap-1 text-inherit no-underline hover:text-module">
           {label}{active ? (dir === "asc" ? <CaretUp size={11} weight="fill" aria-hidden /> : <CaretDown size={11} weight="fill" aria-hidden />) : null}
         </Link>
@@ -243,7 +243,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
             <AutoSubmitForm label="Day" className="flex items-center gap-2">
               {hiddenExcept(["date", "page", "visit"])}
               <Link href={url({ date: addDays(date, -1), page: undefined, visit: undefined })} aria-label="Previous day" className="mh-btn"><CaretLeft size={18} weight="bold" aria-hidden /></Link>
-              <label className="mh-field flex items-center gap-2"><CalendarBlank size={18} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-[14px] font-semibold" /></label>
+              <label className="mh-field flex items-center gap-2"><CalendarBlank size={18} aria-hidden /><span className="sr-only">Date</span><input type="date" name="date" defaultValue={date} className="bg-transparent text-body font-semibold" /></label>
               <Link href={url({ date: addDays(date, 1), page: undefined, visit: undefined })} aria-label="Next day" className="mh-btn"><CaretRight size={18} weight="bold" aria-hidden /></Link>
               {date !== today ? <Link href={url({ date: undefined, page: undefined, visit: undefined })} className="mh-btn">Today</Link> : null}
             </AutoSubmitForm>
@@ -263,7 +263,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
           <label className="relative min-w-0">
             <span className="sr-only">Search visits by service user, carer or reference</span>
             <MagnifyingGlass size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]" />
-            <input type="search" name="q" defaultValue={q ?? ""} placeholder="Search visits…" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-[14px] text-[#101828] placeholder:text-[#667085]" />
+            <input type="search" name="q" defaultValue={q ?? ""} placeholder="Search visits…" className="h-10 w-full rounded-[8px] border border-[#d0d5dd] bg-white pl-9 pr-2 text-body text-[#101828] placeholder:text-[#667085]" />
           </label>
           <FilterSelect name="area" label="Area" value={area ?? ""}><option value="">Area: All Areas</option>{areas.map((a) => <option key={a.id} value={a.id}>Area: {a.name}</option>)}</FilterSelect>
           <FilterSelect name="status" label="Status" value={sp.status ?? ""}><option value="">Status: All</option>{STATUSES.map((s) => <option key={s} value={s}>Status: {VISIT_LABEL[s]}</option>)}</FilterSelect>
@@ -272,19 +272,19 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </AutoSubmitForm>
         <div className="flex gap-2.5">
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14.5px] font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-[12.5px] text-white">{more}</span> : null}</summary>
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><SlidersHorizontal size={19} aria-hidden />More Filters{more ? <span className="rounded-full bg-module px-2 text-meta text-white">{more}</span> : null}</summary>
             <form method="get" className="absolute right-0 z-40 mt-1 grid w-[300px] gap-2.5 rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {hiddenExcept(["branch", "call", "view", "cancelled", "page", "visit"])}
               {lk.branches.length > 1 ? <label><span className="label">Branch</span><select name="branch" defaultValue={branch ?? ""} className="input"><option value="">All my branches</option>{lk.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label> : null}
               <label><span className="label">Service call</span><select name="call" defaultValue={sp.call ?? ""} className="input"><option value="">Any call</option>{lk.callTypes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <label><span className="label">Show only</span><select name="view" defaultValue={sp.view ?? ""} className="input"><option value="">All visits</option><option value="unassigned">Short of a carer (uncovered)</option><option value="late">Late</option><option value="review">Allocation to review</option></select></label>
-              <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="cancelled" value="1" defaultChecked={sp.cancelled === "1"} className="h-4 w-4" /> Include cancelled visits</label>
+              <label className="flex items-center gap-2 text-body"><input type="checkbox" name="cancelled" value="1" defaultChecked={sp.cancelled === "1"} className="h-4 w-4" /> Include cancelled visits</label>
               <div className="flex gap-2"><button className="btn-primary">Apply</button><Link href={url({ branch: undefined, call: undefined, view: undefined, cancelled: undefined, q: undefined, carer: undefined, su: undefined, status: undefined, area: undefined, page: undefined })} className="btn-secondary">Clear all</Link></div>
             </form>
           </details>
           <details className="relative">
-            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-[14.5px] font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
-            <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
+            <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398] [&::-webkit-details-marker]:hidden">Actions<CaretDown size={15} weight="bold" aria-hidden /></summary>
+            <ul className="absolute right-0 z-40 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white py-1 text-body shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 no-underline hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={url({ cancelled: sp.cancelled === "1" ? undefined : "1", page: undefined })} className="block px-3 py-2 no-underline hover:bg-slate-50">{sp.cancelled === "1" ? "Hide cancelled visits" : "Show cancelled visits"}</Link></li>
               <li><Link href={plannerHref} className="block px-3 py-2 no-underline hover:bg-slate-50">Advanced Rota planner</Link></li>
@@ -301,19 +301,19 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
       {notBuilt ? <NotBuiltNotice date={date} canBuild={canPublish} /> : null}
-      {only || status || q ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-[14px] text-[#5c3d00]" role="note">Showing {only ?? (status ? `${VISIT_LABEL[status].toLowerCase()} visits` : "visits")}{q ? ` matching “${q}”` : ""}. <Link href={url({ view: undefined, status: undefined, q: undefined, page: undefined })}>Show every visit</Link></p> : null}
+      {only || status || q ? <p className="mb-2 rounded-[8px] bg-[#fdf6e8] px-3 py-1.5 text-body text-[#5c3d00]" role="note">Showing {only ?? (status ? `${VISIT_LABEL[status].toLowerCase()} visits` : "visits")}{q ? ` matching “${q}”` : ""}. <Link href={url({ view: undefined, status: undefined, q: undefined, page: undefined })}>Show every visit</Link></p> : null}
 
       <div className={`grid grid-cols-1 items-start gap-4 ${inspector ? "xl:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
         {board ? (
           <section aria-label="Board" data-testid="rota-board" className="min-w-0 overflow-hidden rounded-[10px] border border-rule bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
             {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <div className="px-3.5 pt-3"><MoveConfirm move={move} back={back} /></div> : null}
             <div className="flex flex-wrap items-center gap-3 border-b border-rule px-3.5 py-2.5">
-              <h2 className="text-[15px] font-semibold text-ink" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
-              <span className="text-[13px] text-status-ink">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
+              <h2 className="text-lead font-semibold text-ink" style={{ fontFamily: "inherit" }}>Visits by team member</h2>
+              <span className="text-meta text-status-ink">{canEdit ? "Drag a visit to another team member to reassign it; every move is checked first." : "Choose a visit to see its details."}</span>
               <span className="ml-auto"><BoardLegend /></span>
             </div>
             <RotaBoard rows={board.rows} rounds={board.rounds} segments={board.segments} nowMin={board.nowMin} footer={board.footer} action={canEdit ? assignCarerAction : undefined} back={back} />
-            {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
+            {truncated ? <p className="px-3.5 pb-3 text-meta text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
           </section>
         ) : layout === "list" ? (
           <section aria-label="Visits" className="min-w-0 rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
@@ -325,12 +325,12 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 </form>
               ) : null}
               <details className="relative ml-auto">
-                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-[14px] font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-[12px] font-semibold text-module">+{cols.size}</span> : null}</summary>
+                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[8px] border border-[#d0d5dd] bg-white px-3 text-body font-medium text-[#101828] hover:bg-slate-50 [&::-webkit-details-marker]:hidden"><Columns size={18} aria-hidden />Columns{cols.size ? <span className="rounded-full bg-[#efeafc] px-1.5 text-caption font-semibold text-module">+{cols.size}</span> : null}</summary>
                 <form method="get" className="absolute right-0 z-30 mt-1 w-[240px] rounded-[10px] border border-[#e4e7ec] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
                   {hiddenExcept(["cols"])}
                   <fieldset>
-                    <legend className="mb-1.5 text-[13px] font-semibold text-[#101828]">Extra columns</legend>
-                    {OPTIONAL.map(([k, label]) => <label key={k} className="flex items-center gap-2 py-0.5 text-[14px]"><input type="checkbox" name="cols" value={k} defaultChecked={cols.has(k)} className="h-4 w-4" />{label}</label>)}
+                    <legend className="mb-1.5 text-meta font-semibold text-[#101828]">Extra columns</legend>
+                    {OPTIONAL.map(([k, label]) => <label key={k} className="flex items-center gap-2 py-0.5 text-body"><input type="checkbox" name="cols" value={k} defaultChecked={cols.has(k)} className="h-4 w-4" />{label}</label>)}
                   </fieldset>
                   <div className="mt-2 flex gap-2"><button className="btn-primary py-1">Apply</button><Link href={url({ cols: undefined })} className="btn-secondary py-1">Default</Link></div>
                 </form>
@@ -339,13 +339,13 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
 
             {shown.length ? (
               <div className="relative min-w-0 overflow-x-auto border-t border-[#eaecf0]">
-                <table className="w-full border-collapse whitespace-nowrap text-[14px]">
+                <table className="w-full border-collapse whitespace-nowrap text-body">
                   <caption className="sr-only">Visits on {fmtLondonDate(date)}</caption>
                   <thead className="bg-[#f9fafb]">
                     <tr className="border-b border-[#eaecf0]">
                       {canEdit ? <th scope="col" className="w-10 px-3 py-2.5"><SelectAll form="bulk" name="visitIds" label="Select all visits on this page" /></th> : null}
                       {sortHead("time", "Time")}
-                      {cols.has("end") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">End</th> : null}
+                      {cols.has("end") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">End</th> : null}
                       {sortHead("duration", "Duration")}
                       {sortHead("su", "Service User")}
                       {sortHead("call", "Service Call")}
@@ -357,16 +357,16 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                       <th scope="col" className="px-2 py-2.5 text-center" title="Visit checklist (care tasks)"><ListChecks size={18} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Visit checklist</span></th>
                       {sortHead("ref", "Ref")}
                       {cols.has("date") ? sortHead("date", <><CalendarBlank size={15} aria-hidden className="text-[#475467]" />Date</>) : null}
-                      {cols.has("week") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold" title="Position in the recurring rota pattern">Week</th> : null}
+                      {cols.has("week") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold" title="Position in the recurring rota pattern">Week</th> : null}
                       {cols.has("isoWeek") ? <th scope="col" className="px-1.5 py-2.5 text-center" title="Calendar (ISO) week"><CalendarBlank size={17} aria-hidden className="mx-auto text-[#475467]" /><span className="sr-only">Calendar week</span></th> : null}
-                      {cols.has("area") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Area</th> : null}
-                      {cols.has("run") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Run route</th> : null}
-                      {cols.has("risk") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Risk</th> : null}
-                      {cols.has("clockIn") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Clock in</th> : null}
-                      {cols.has("clockOut") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Clock out</th> : null}
-                      {cols.has("clockDur") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Clocked</th> : null}
-                      {cols.has("ack") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Acknowledged</th> : null}
-                      {cols.has("flags") ? <th scope="col" className="px-2.5 py-2.5 text-left text-[13.5px] font-semibold">Published / locks</th> : null}
+                      {cols.has("area") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Area</th> : null}
+                      {cols.has("run") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Run route</th> : null}
+                      {cols.has("risk") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Risk</th> : null}
+                      {cols.has("clockIn") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Clock in</th> : null}
+                      {cols.has("clockOut") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Clock out</th> : null}
+                      {cols.has("clockDur") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Clocked</th> : null}
+                      {cols.has("ack") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Acknowledged</th> : null}
+                      {cols.has("flags") ? <th scope="col" className="px-2.5 py-2.5 text-left text-body font-semibold">Published / locks</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -385,14 +385,14 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                         <Fragment key={v.id}>
                         {round ? (
                           <tr data-testid="round-header" className="border-b border-rule bg-module/[.08]">
-                            <th scope="colgroup" colSpan={visible} className="px-3 py-1.5 text-left text-[13px] font-semibold text-ink">
+                            <th scope="colgroup" colSpan={visible} className="px-3 py-1.5 text-left text-meta font-semibold text-ink">
                               {roundName(round.name)} · {londonTime(round.first)}{round.last.getTime() !== round.first.getTime() ? ` to ${londonTime(round.last)}` : ""} · {round.count} visit{round.count === 1 ? "" : "s"}
                             </th>
                           </tr>
                         ) : null}
                         <tr data-href={open} data-status={v.status} aria-selected={selected || undefined} className={`border-b border-[#f2f4f7] last:border-0 ${STATUS_STRIPE[v.status]} ${v.status === "CANCELLED" ? STRUCK : ""} ${selected ? "bg-[#eef4ff] outline outline-2 -outline-offset-2 outline-[#84adff]" : ROW_TINT[v.status] ?? ""} hover:bg-[#f9f8fe]`}>
                           {canEdit ? <td className="px-3 py-2"><input type="checkbox" form="bulk" name="visitIds" value={v.id} aria-label={`Select ${v.reference}`} className="h-4 w-4" /></td> : null}
-                          <td className="px-2.5 py-2 text-[15px] font-bold tabular-nums text-ink">{londonTime(v.scheduledStart)}</td>
+                          <td className="px-2.5 py-2 text-lead font-bold tabular-nums text-ink">{londonTime(v.scheduledStart)}</td>
                           {cols.has("end") ? <td className="px-2.5 py-2 tabular-nums">{londonTime(v.scheduledEnd)}</td> : null}
                           <td className="px-2.5 py-2 tabular-nums">{dur(mins(v.scheduledStart, v.scheduledEnd))}</td>
                           <td className="px-2.5 py-2"><Link href={`/rota/service-users/${v.serviceUser.id}`} className="inline-flex items-center gap-1.5 font-semibold text-[#3b1f99] underline decoration-[#c4b5f4] underline-offset-2 hover:decoration-[#3b1f99]"><User size={17} aria-hidden className="text-module" />{suName(v.serviceUser)}</Link></td>
@@ -401,22 +401,22 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                             {carers.length ? carers.map((a, i) => <span key={a.id}>{i ? ", " : ""}<Link href={`/rota/staff/${a.staff.id}`} title={a.reviewReason ? `Needs review: ${a.reviewReason}` : undefined} className={`underline underline-offset-2 ${a.reviewReason ? "text-[#b54708] decoration-[#f5c27a]" : "text-[#14713a] decoration-[#9fd6b2]"}`}>{a.staff.displayName}</Link></span>) : <span className="text-[#b42318]">{v.status === "CANCELLED" ? "—" : "Unassigned"}</span>}
                             </td>
                           <td className="px-2.5 py-2"><Coverage v={v} /></td>
-                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[13px] font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
+                          <td className="px-2.5 py-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-meta font-semibold ${STATUS_BADGE[v.status]}`}>{v.status === "CANCELLED" ? <X size={14} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{VISIT_LABEL[v.status]}{v.status === "CANCELLED" && v.cancellationCharge !== null ? <span className="font-normal">{v.cancellationCharge ? " · charged" : " · not charged"}</span> : null}{v.status === "COMPLETED" && v.completionSource === "OFFICE_CONFIRMED" ? <span className="font-normal" title={`Completed by the office: ${v.completionReason ?? ""} (confirmed by ${v.completionVerifiedBy ?? ""})`}> · office confirmed</span> : null}</span></td>
                           <td className="px-1.5 py-2 text-center">{alerts.length ? <Link href={open} title={alerts.join("\n")} aria-label={`Alerts: ${alerts.join("; ")}`} className="inline-flex text-[#c4320a]"><Bell size={18} weight="fill" aria-hidden /></Link> : <span title="No alerts" className="inline-flex text-[#d0d5dd]"><Bell size={18} aria-hidden /><span className="sr-only">No alerts</span></span>}</td>
-                          <td className="px-1.5 py-2 text-center">{notes ? <Link href={url({ visit: v.id, tab: "notes" })} title={`${notes} note${notes === 1 ? "" : "s"}`} aria-label={`${notes} note${notes === 1 ? "" : "s"}`} className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-[#344054] no-underline"><FileText size={18} weight="fill" aria-hidden />{notes > 1 ? notes : null}</Link> : <span title="No notes" className="inline-flex text-[#d0d5dd]"><FileText size={18} aria-hidden /><span className="sr-only">No notes</span></span>}</td>
+                          <td className="px-1.5 py-2 text-center">{notes ? <Link href={url({ visit: v.id, tab: "notes" })} title={`${notes} note${notes === 1 ? "" : "s"}`} aria-label={`${notes} note${notes === 1 ? "" : "s"}`} className="inline-flex items-center gap-0.5 text-caption font-semibold text-[#344054] no-underline"><FileText size={18} weight="fill" aria-hidden />{notes > 1 ? notes : null}</Link> : <span title="No notes" className="inline-flex text-[#d0d5dd]"><FileText size={18} aria-hidden /><span className="sr-only">No notes</span></span>}</td>
                           <td className="px-2 py-2 text-center"><Checklist v={v} href={url({ visit: v.id, tab: "tasks" })} /></td>
                           <td className="whitespace-nowrap px-2.5 py-2"><Link href={open} className="text-[#101828] no-underline hover:underline" aria-label={`Open details of visit ${v.reference}`}>{v.reference}</Link></td>
                           {cols.has("date") ? <td className="px-2.5 py-2 tabular-nums">{fmtLondonDate(vd, { day: "2-digit", month: "2-digit", year: "numeric" })}</td> : null}
                           {cols.has("week") ? <td className="px-2.5 py-2">{pw ? `Week ${pw}` : <span className="text-[#98a2b3]" title="A one-off visit, not part of the rota pattern">—<span className="sr-only">Not in the rota pattern</span></span>}</td> : null}
                           {cols.has("isoWeek") ? <td className="px-1.5 py-2 text-center tabular-nums" title={`Calendar week ${isoWeek(vd)}`}>{isoWeek(vd)}</td> : null}
                           {cols.has("area") ? <td className="px-2.5 py-2">{v.area ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: v.area.colour }} />{v.area.name}</span> : "—"}</td> : null}
-                          {cols.has("run") ? <td className="px-2.5 py-2">{v.runRoute ? <span className="rounded px-1.5 py-0.5 text-[13px]" style={{ background: v.runRoute.colour, color: v.runRoute.textColour }}>{v.runRoute.name}</span> : "—"}</td> : null}
+                          {cols.has("run") ? <td className="px-2.5 py-2">{v.runRoute ? <span className="rounded px-1.5 py-0.5 text-meta" style={{ background: v.runRoute.colour, color: v.runRoute.textColour }}>{v.runRoute.name}</span> : "—"}</td> : null}
                           {cols.has("risk") ? <td className="px-2.5 py-2">{risk ? <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-2.5 w-2.5 rounded-[2px]" style={{ background: risk.colour }} />{risk.label}</span> : "—"}</td> : null}
                           {cols.has("clockIn") ? <td className="px-2.5 py-2 tabular-nums">{v.actualStart ? londonTime(v.actualStart) : "—"}</td> : null}
                           {cols.has("clockOut") ? <td className="px-2.5 py-2 tabular-nums">{v.actualEnd ? londonTime(v.actualEnd) : "—"}</td> : null}
                           {cols.has("clockDur") ? <td className="px-2.5 py-2 tabular-nums">{v.actualStart && v.actualEnd ? dur(mins(v.actualStart, v.actualEnd)) : "—"}</td> : null}
                           {cols.has("ack") ? <td className="px-2.5 py-2">{carers.length ? (carers.every((a) => a.acknowledgedAt) ? "Yes" : carers.some((a) => a.acknowledgedAt) ? "Partly" : "No") : "—"}</td> : null}
-                          {cols.has("flags") ? <td className="px-2.5 py-2 text-[13px] text-[#475467]">{[v.publishedAt ? "Published" : v.status === "SCHEDULED" ? "Not published" : null, v.timeLocked ? "Time locked" : null].filter(Boolean).join(" · ") || "—"}</td> : null}
+                          {cols.has("flags") ? <td className="px-2.5 py-2 text-meta text-[#475467]">{[v.publishedAt ? "Published" : v.status === "SCHEDULED" ? "Not published" : null, v.timeLocked ? "Time locked" : null].filter(Boolean).join(" · ") || "—"}</td> : null}
                         </tr>
                         </Fragment>
                       );
@@ -428,14 +428,14 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               <div className="border-t border-[#eaecf0] p-4"><Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty></div>
             )}
             <div className="flex flex-wrap items-center gap-3 border-t border-[#eaecf0] px-3.5 py-3">
-              <p data-testid="visit-count" data-total={rows.length} className="text-[14px] text-[#344054]" aria-live="polite">Showing {rows.length ? (page - 1) * per + 1 : 0} to {(page - 1) * per + shown.length} of {rows.length} visit{rows.length === 1 ? "" : "s"}</p>
+              <p data-testid="visit-count" data-total={rows.length} className="text-body text-[#344054]" aria-live="polite">Showing {rows.length ? (page - 1) * per + 1 : 0} to {(page - 1) * per + shown.length} of {rows.length} visit{rows.length === 1 ? "" : "s"}</p>
               {pages > 1 ? (
                 <nav aria-label="Visit pages" className="flex items-center gap-1">
                   {page > 1 ? <Link href={url({ page: String(page - 1) })} aria-label="Previous page" className="flex h-8 w-8 items-center justify-center rounded text-[#344054] hover:bg-slate-100"><CaretLeft size={14} weight="bold" aria-hidden /></Link> : null}
                   {Array.from({ length: pages }, (_, i) => i + 1).filter((n) => n === 1 || n === pages || Math.abs(n - page) <= 1).map((n, i, arr) => (
                     <span key={n} className="flex items-center gap-1">
                       {i && n - arr[i - 1]! > 1 ? <span className="px-0.5 text-[#667085]">…</span> : null}
-                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-[13px] tabular-nums no-underline ${n === page ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
+                      <Link href={url({ page: n === 1 ? undefined : String(n) })} aria-current={n === page ? "page" : undefined} className={`flex h-8 min-w-8 items-center justify-center rounded-[6px] border px-2 text-meta tabular-nums no-underline ${n === page ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</Link>
                     </span>
                   ))}
                   {page < pages ? <Link href={url({ page: String(page + 1) })} aria-label="Next page" className="flex h-8 w-8 items-center justify-center rounded text-[#344054] hover:bg-slate-100"><CaretRight size={14} weight="bold" aria-hidden /></Link> : null}
@@ -443,11 +443,11 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
               ) : null}
               <AutoSubmitForm label="Rows per page" className="ml-auto flex items-center gap-3">
                 {hiddenExcept(["per", "page"])}
-                <label htmlFor="per" className="text-[14px] text-[#344054]">Rows per page</label>
-                <span className="relative"><select id="per" name="per" defaultValue={String(per)} className="h-10 appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-[14px]">{PER_PAGE.map((n) => <option key={n} value={n}>{n}</option>)}</select><CaretDown size={14} aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" /></span>
+                <label htmlFor="per" className="text-body text-[#344054]">Rows per page</label>
+                <span className="relative"><select id="per" name="per" defaultValue={String(per)} className="h-10 appearance-none rounded-[8px] border border-[#d0d5dd] bg-white pl-3 pr-8 text-body">{PER_PAGE.map((n) => <option key={n} value={n}>{n}</option>)}</select><CaretDown size={14} aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" /></span>
               </AutoSubmitForm>
             </div>
-            {truncated ? <p className="px-3.5 pb-3 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
+            {truncated ? <p className="px-3.5 pb-3 text-meta text-[#8a5a00]">Showing the first 1,000 visits of the day. Narrow the filters to see the rest.</p> : null}
             <p className="sr-only">{visible} columns. Visits are grouped by call round when sorted by time. Date, Week (the visit&apos;s place in the rota pattern) and Calendar week can be added under Columns.</p>
           </section>
         ) : (
@@ -464,7 +464,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
                 heading={<>Team members ({timeline.rows.filter((r) => r.id !== "unassigned").length})</>}
               />
             ) : <div className="p-4"><Empty>No visits match these filters on {fmtLondonDate(date)}.</Empty></div>}
-            <p className="border-t border-[#eef0f3] px-3 py-2 text-[12.5px] text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: "list" })}>Back to the list</Link></p>
+            <p className="border-t border-[#eef0f3] px-3 py-2 text-meta text-[#475467]">One row per team member. Choose a visit to see its details. <Link href={url({ layout: "list" })}>Back to the list</Link></p>
           </section>
         )}
 
@@ -472,7 +472,7 @@ export default async function DailyRotaPage({ searchParams }: { searchParams: Pr
           <div className="xl:sticky xl:top-2">
             <VisitInspector data={inspector} tab={sp.tab ?? "details"} back={back} closeHref={url({ visit: undefined, tab: undefined })} nav={panelNav} findCoverHref={coverHref("/rota/visits", { ...params, tab: sp.tab }, { id: inspector.visit.id })} />
           </div>
-        ) : sp.visit ? <p className="text-[13px] text-slate-600">That visit is not available to you, or no longer exists.</p> : null}
+        ) : sp.visit ? <p className="text-meta text-slate-600">That visit is not available to you, or no longer exists.</p> : null}
       </div>
       {sp.cover && hasOrgPermission(ctx, "rota.edit") ? <ReplacementCoverPanel ctx={ctx} sp={sp} basePath="/rota/visits" keep={{ ...params, tab: sp.tab }} /> : null}
     </div>

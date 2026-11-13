@@ -33,10 +33,10 @@ export default async function PasswordsPage({ searchParams }: { searchParams: Pr
               <Table label="Reset links" minWidth={680} head={["Created", "For", "Organisation", "Expires", "State", ""]} align={["left", "left", "left", "left", "left", "right"]}>
                 {links.map((l) => (
                   <tr key={l.id}>
-                    <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(l.createdAt, true)}</td>
-                    <td>{l.userId ? <Link href={`/platform-admin/users/${l.userId}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{l.name ?? l.email}</Link> : l.email}<span className="block text-[12px] text-px-muted">{l.email}</span></td>
-                    <td className="text-[13px]">{l.organisation?.name ?? <span className="text-px-muted">Platform recovery</span>}</td>
-                    <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(l.expiresAt, true)}</td>
+                    <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(l.createdAt, true)}</td>
+                    <td>{l.userId ? <Link href={`/platform-admin/users/${l.userId}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{l.name ?? l.email}</Link> : l.email}<span className="block text-caption text-px-muted">{l.email}</span></td>
+                    <td className="text-meta">{l.organisation?.name ?? <span className="text-px-muted">Platform recovery</span>}</td>
+                    <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(l.expiresAt, true)}</td>
                     <td><Pill value={l.state} /></td>
                     <td className="text-right">{l.state === "active" ? <form action={revokeResetLinkAction}><Back value="/platform-admin/passwords" /><input type="hidden" name="tokenId" value={l.id} /><button className={`${pxSecondary} ${pxSm}`}>Revoke</button></form> : null}</td>
                   </tr>
@@ -47,7 +47,7 @@ export default async function PasswordsPage({ searchParams }: { searchParams: Pr
         </PxPanel>
         <div className="space-y-4">
           <PxPanel title="Password change due" description={`${required.length} ${required.length === 1 ? "person" : "people"}`} flush>
-            {required.length ? <ul className="divide-y divide-px-row text-[13.5px]">{required.map((u) => <li key={u.id} className="px-4 py-2"><Link href={`/platform-admin/users/${u.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{u.name}</Link><span className="block text-[12.5px] text-px-muted">{u.email}</span></li>)}</ul> : <p className="px-4 py-3 text-[13px] text-px-muted">No one.</p>}
+            {required.length ? <ul className="divide-y divide-px-row text-body">{required.map((u) => <li key={u.id} className="px-4 py-2"><Link href={`/platform-admin/users/${u.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{u.name}</Link><span className="block text-meta text-px-muted">{u.email}</span></li>)}</ul> : <p className="px-4 py-3 text-meta text-px-muted">No one.</p>}
           </PxPanel>
           <PxPanel title="Password policy" actions={<Link href="/platform-admin/settings?section=authentication" className={pxLink}>Change</Link>}>
             <DetailRows items={[["Minimum length", `${minLength} characters`], ["Reset link lifetime", `${resetHours} hours`], ["Reset links per hour", `${perHour} per person`], ["Invitation lifetime", `${inviteDays} days`], ["Stored as", "bcrypt hash only"], ["After a reset", "Every session ends"]]} />

@@ -36,8 +36,8 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
             {acks.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3" data-testid={`ack-${a.publication.policy.ref}`}>
                 <div>
-                  <span className="mr-3 text-[14px] text-slate-700">{a.publication.policy.ref.replace(/^CSB-/, "")}</span><Link href={`/policies/${a.publication.policy.id}`} className="row-title text-[15.5px]">{a.publication.policy.title}</Link> <span className="text-[13px] text-slate-600">{a.publication.version.label}</span>
-                  {a.publication.version.changeSummary ? <div className="mt-0.5 text-[13px] text-slate-600">What changed: {a.publication.version.changeSummary}</div> : null}
+                  <span className="mr-3 text-body text-slate-700">{a.publication.policy.ref.replace(/^CSB-/, "")}</span><Link href={`/policies/${a.publication.policy.id}`} className="row-title text-lead">{a.publication.policy.title}</Link> <span className="text-meta text-slate-600">{a.publication.version.label}</span>
+                  {a.publication.version.changeSummary ? <div className="mt-0.5 text-meta text-slate-600">What changed: {a.publication.version.changeSummary}</div> : null}
                   <div className="mt-1.5">{a.state === "ASSESSMENT_REQUIRED" ? <Badge tone="amber">acknowledged {fmtDate(a.acknowledgedAt)}; your manager will check your understanding</Badge> : a.state === "ASSESSMENT_FAILED" ? <Badge tone="rose">acknowledged; follow-up with your manager needed</Badge> : a.acknowledgedAt ? <Badge tone="green">acknowledged {fmtDate(a.acknowledgedAt)}</Badge> : a.dueAt && a.dueAt < now ? <Badge tone="rose">overdue since {fmtDate(a.dueAt)}</Badge> : <Badge tone="amber">due {fmtDate(a.dueAt)}</Badge>}</div>
                 </div>
                 {!a.acknowledgedAt ? (
@@ -57,13 +57,13 @@ export default async function AcknowledgementsPage({ searchParams }: { searchPar
       {saved.length ? (
         <div className="mt-3">
           <Card title="Saved to read later">
-            <p className="mb-2 text-[13px] text-slate-600">Policies you added from the Policy Reader. Saving a policy is a personal reminder: it is not an assignment and does not sign it.</p>
+            <p className="mb-2 text-meta text-slate-600">Policies you added from the Policy Reader. Saving a policy is a personal reminder: it is not an assignment and does not sign it.</p>
             <ul className="rows" data-testid="saved-reading">
               {saved.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
-                    <span className="mr-3 text-[14px] text-slate-700">{s.ref}</span><Link href={`/policies/${s.id}`} className="row-title text-[15.5px]">{s.title}</Link> <span className="text-[13px] text-slate-600">{s.category.name}{s.currentPublishedVersion ? ` · version ${s.currentPublishedVersion.label}` : ""}</span>
-                    <div className="mt-0.5 text-[12.5px] text-slate-500">Saved {fmtDate(s.savedAt)}</div>
+                    <span className="mr-3 text-body text-slate-700">{s.ref}</span><Link href={`/policies/${s.id}`} className="row-title text-lead">{s.title}</Link> <span className="text-meta text-slate-600">{s.category.name}{s.currentPublishedVersion ? ` · version ${s.currentPublishedVersion.label}` : ""}</span>
+                    <div className="mt-0.5 text-meta text-slate-500">Saved {fmtDate(s.savedAt)}</div>
                   </div>
                   <Link className="btn-secondary" href={`/policies/${s.id}`}>Open</Link>
                 </li>

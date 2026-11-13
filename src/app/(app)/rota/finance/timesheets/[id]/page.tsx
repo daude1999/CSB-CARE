@@ -43,8 +43,8 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                     <td className="text-right tabular-nums">{l.deliveredMinutes}m</td>
                     <td className="text-right tabular-nums font-medium">{l.payableMinutes}m</td>
                     <td className="min-w-[200px]">
-                      {l.exception ? <span className="text-[13px]">{l.exception}</span> : null}
-                      {l.exception ? (l.verifiedAt ? <span className="block text-[12.5px] text-[#1f6b3a]">Checked by {who(l.verifiedById)} {fmtDate(l.verifiedAt, true)}{l.verificationNote ? `: ${l.verificationNote}` : ""}</span> : <span className="block text-[12.5px] font-medium text-[#8a5a00]">Not checked yet</span>) : null}
+                      {l.exception ? <span className="text-meta">{l.exception}</span> : null}
+                      {l.exception ? (l.verifiedAt ? <span className="block text-meta text-[#1f6b3a]">Checked by {who(l.verifiedById)} {fmtDate(l.verifiedAt, true)}{l.verificationNote ? `: ${l.verificationNote}` : ""}</span> : <span className="block text-meta font-medium text-[#8a5a00]">Not checked yet</span>) : null}
                       {canPrepare && l.exception && !l.verifiedAt ? (
                         <form action={verifyLinesAction} className="mt-1 flex flex-wrap items-end gap-2">
                           <input type="hidden" name="back" value={back} />
@@ -57,7 +57,7 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                       ) : null}
                       {canPrepare ? (
                         <details className="mt-1">
-                          <summary className="cursor-pointer text-[13px] text-navy-700">Change payable minutes</summary>
+                          <summary className="cursor-pointer text-meta text-navy-700">Change payable minutes</summary>
                           <form action={adjustLineAction} className="mt-1 flex flex-wrap items-end gap-2">
                             <input type="hidden" name="back" value={back} />
                             <input type="hidden" name="timesheetId" value={t.id} />
@@ -84,9 +84,9 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="timesheetId" value={t.id} />
                 <input type="hidden" name="version" value={t.version} />
-                {t.decisionNote ? <p className="text-[13.5px] text-[#a3242c]">Rejected: {t.decisionNote}</p> : null}
-                <p className="text-[14px]">Check the marked lines, change any payable minutes with a reason, then submit.</p>
-                {unchecked ? <p className="text-[13.5px] font-medium text-[#8a5a00]">{unchecked} line{unchecked === 1 ? "" : "s"} with exceptions not checked yet. Submitting is refused until they are.</p> : null}
+                {t.decisionNote ? <p className="text-body text-[#a3242c]">Rejected: {t.decisionNote}</p> : null}
+                <p className="text-body">Check the marked lines, change any payable minutes with a reason, then submit.</p>
+                {unchecked ? <p className="text-body font-medium text-[#8a5a00]">{unchecked} line{unchecked === 1 ? "" : "s"} with exceptions not checked yet. Submitting is refused until they are.</p> : null}
                 <button className="btn-primary">Submit for approval</button>
               </form>
             ) : null}
@@ -105,16 +105,16 @@ export default async function TimesheetPage({ params, searchParams }: { params: 
                   <input type="hidden" name="back" value={back} />
                   <input type="hidden" name="timesheetId" value={t.id} />
                   <input type="hidden" name="version" value={t.version} />
-                  <p className="text-[14px]">Submitted by {who(t.submittedById)}.</p>
+                  <p className="text-body">Submitted by {who(t.submittedById)}.</p>
                   <label className="block"><span className="label">Note (needed to reject)</span><input name="note" className="input" /></label>
                   <div className="flex gap-2"><button className="btn-primary" name="decision" value="APPROVED">Approve</button><button className="btn-secondary" name="decision" value="REJECTED">Reject</button></div>
                 </form>
-              ) : <p className="text-[14px] text-slate-600">Submitted by {who(t.submittedById)}. {t.submittedById === ctx.userId ? "Someone else must approve it." : "A finance approver decides it."}</p>
+              ) : <p className="text-body text-slate-600">Submitted by {who(t.submittedById)}. {t.submittedById === ctx.userId ? "Someone else must approve it." : "A finance approver decides it."}</p>
             ) : null}
-            {t.status === "APPROVED" ? <p className="text-[14px]">Approved by {who(t.decidedById)} on {t.decidedAt ? fmtDate(t.decidedAt, true) : ""}. It can now go into payroll preparation and cannot change.</p> : null}
+            {t.status === "APPROVED" ? <p className="text-body">Approved by {who(t.decidedById)} on {t.decidedAt ? fmtDate(t.decidedAt, true) : ""}. It can now go into payroll preparation and cannot change.</p> : null}
           </Card>
           <Card title="History">
-            <ul className="rows text-[13.5px]">
+            <ul className="rows text-body">
               {history.map((h) => {
                 const d = (h.data ?? {}) as { reason?: string; note?: string; from?: number; to?: number };
                 return <li key={h.id} className="py-1.5"><span className="font-medium">{ACTION[h.action] ?? h.action}</span> · {who(h.actorId)} · {fmtDate(h.createdAt, true)}{d.reason ? <span className="block text-slate-600">{d.from}m → {d.to}m: {d.reason}</span> : null}{d.note ? <span className="block text-slate-600">{d.note}</span> : null}</li>;

@@ -54,19 +54,19 @@ export default async function PolicyFormsPage({
       />
       <form action="/policies/forms" method="get" role="search" className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4">
         <label className="min-w-[220px] flex-1">
-          <span className="mb-1 block text-[13px] font-medium">Search</span>
+          <span className="mb-1 block text-meta font-medium">Search</span>
           <span className="flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2">
             <MagnifyingGlass size={16} aria-hidden="true" />
             <input name="q" aria-label="Search forms" type="search" maxLength={120} defaultValue={q} placeholder="Name or reference" className="min-w-0 w-full bg-transparent outline-none" />
           </span>
         </label>
-        <label><span className="mb-1 block text-[13px] font-medium">Type</span>
+        <label><span className="mb-1 block text-meta font-medium">Type</span>
           <select name="type" defaultValue={type} className="rounded-md border border-slate-300 bg-white px-3 py-2">
             <option value="">All types</option>
             {RESOURCE_DOC_TYPES.map((t) => <option key={t} value={t}>{RESOURCE_TYPE_LABELS[t]}</option>)}
           </select>
         </label>
-        <label><span className="mb-1 block text-[13px] font-medium">Category</span>
+        <label><span className="mb-1 block text-meta font-medium">Category</span>
           <select name="category" defaultValue={category} className="max-w-[225px] rounded-md border border-slate-300 bg-white px-3 py-2">
             <option value="">All categories</option>
             {categories.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -79,11 +79,11 @@ export default async function PolicyFormsPage({
       <section aria-label="Forms and resources" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <h2 className="font-semibold">Resource register</h2>
-          <span className="text-[13px] text-slate-600">{total} matching resources</span>
+          <span className="text-meta text-slate-600">{total} matching resources</span>
         </div>
         {rows.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
+            <table className="w-full text-left text-meta">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                 <tr>
                   <th scope="col" className="px-4 py-3">Reference and title</th>
@@ -143,7 +143,7 @@ export default async function PolicyFormsPage({
           <PcFoot shown={rows.length} total={total} page={currentPage} pages={pageCount} href={href} />
         </div>
       </section>
-      <p className="mt-3 text-[12px] text-slate-600">
+      <p className="mt-3 text-caption text-slate-600">
         This register lists versioned documents to download and print. Only forms marked &ldquo;Fill in on screen&rdquo; can be completed and saved here; more will follow once each has been reviewed.
       </p>
     </div>

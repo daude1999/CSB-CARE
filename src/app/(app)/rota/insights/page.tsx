@@ -19,8 +19,8 @@ function Row({ label, value, href, note, tone }: { label: string; value: ReactNo
   const v = <span className={`tabular-nums ${tone === "bad" ? "text-[#a3242c]" : tone === "warn" ? "text-[#8a5a00]" : "text-navy-900"}`}>{value}</span>;
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-slate-100 py-2 first:border-t-0">
-      <dt className="text-[14px] text-slate-700">{label}{note ? <span className="block text-[12.5px] text-slate-500">{note}</span> : null}</dt>
-      <dd className="text-right text-[15px] font-medium">{href ? <Link href={href} className="no-underline hover:underline">{v}</Link> : v}</dd>
+      <dt className="text-body text-slate-700">{label}{note ? <span className="block text-meta text-slate-500">{note}</span> : null}</dt>
+      <dd className="text-right text-lead font-medium">{href ? <Link href={href} className="no-underline hover:underline">{v}</Link> : v}</dd>
     </div>
   );
 }
@@ -28,7 +28,7 @@ function Row({ label, value, href, note, tone }: { label: string; value: ReactNo
 function Panel({ title, id, children, className = "" }: { title: string; id: string; children: ReactNode; className?: string }) {
   return (
     <section aria-labelledby={id} className={`panel ${className}`}>
-      <h2 id={id} className="mb-1 text-[16px] font-medium text-navy-900">{title}</h2>
+      <h2 id={id} className="mb-1 text-lead font-medium text-navy-900">{title}</h2>
       {children}
     </section>
   );
@@ -41,8 +41,8 @@ function MarginTable({ caption, rows }: { caption: string; rows: Breakdown[] }) 
   if (!rows.length) return null;
   return (
     <div className="overflow-x-auto">
-      <table className="table min-w-[640px] text-[13.5px]">
-        <caption className="pb-1 text-left text-[14px] font-medium text-navy-900">{caption}</caption>
+      <table className="table min-w-[640px] text-body">
+        <caption className="pb-1 text-left text-body font-medium text-navy-900">{caption}</caption>
         <thead><tr><th scope="col">Name</th><th scope="col" className="!text-right">Visits</th><th scope="col" className="!text-right">Care hours</th><th scope="col" className="!text-right">Est. revenue</th><th scope="col" className="!text-right">Est. cost</th><th scope="col" className="!text-right">Est. margin</th><th scope="col" className="!text-right">Not priced</th></tr></thead>
         <tbody>
           {rows.map((r) => (
@@ -92,7 +92,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <button className="btn-secondary">Show</button>
         </form>
-        <p className="ml-auto text-[12.5px] text-slate-500">Worked out at {new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}. Reload for the latest.{r.truncated ? " Only the first 6,000 visits are counted." : ""}</p>
+        <p className="ml-auto text-meta text-slate-500">Worked out at {new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}. Reload for the latest.{r.truncated ? " Only the first 6,000 visits are counted." : ""}</p>
       </section>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -148,7 +148,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
 
       {f ? (
         <Panel title="Money this week (estimate)" id="ins-money" className="mt-3">
-          <p className="mb-2 text-[13px] text-slate-600">
+          <p className="mb-2 text-meta text-slate-600">
             Priced from your rate cards: charge from each person&rsquo;s funded package, pay from each carer&rsquo;s pay card (open slots at the default card){f.onCostPercent ? `, plus ${f.onCostPercent}% employer on-costs` : ", with no employer on-costs added"} (<Link href="/rota/finance/rates?tab=settings" className="underline">change</Link>). Planned times are used. These are projections, not payroll or invoices.
           </p>
           <div className="grid gap-x-8 lg:grid-cols-2">
@@ -164,7 +164,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             </dl>
           </div>
           {f.issues.length ? (
-            <div className="mt-2 rounded-[3px] border-l-4 border-[#e2b65b] bg-[#fdf6e7] px-3 py-2 text-[13.5px]">
+            <div className="mt-2 rounded-[3px] border-l-4 border-[#e2b65b] bg-[#fdf6e7] px-3 py-2 text-body">
               <p className="font-medium text-[#8a5a00]">Missing rates and finance exceptions</p>
               <ul className="mt-1 list-disc pl-5">{f.issues.map((i) => <li key={i.kind}><Link href="/rota/finance/rates" className="underline">{ISSUE[i.kind as keyof typeof ISSUE] ?? i.kind}</Link>: {i.count} visit{i.count === 1 ? "" : "s"}</li>)}</ul>
             </div>
@@ -174,12 +174,12 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             <MarginTable caption="By funder (commissioner or private)" rows={f.byFunder} />
             <MarginTable caption="Lowest margin by service user" rows={f.lowestByServiceUser} />
           </div>
-          <p className="mt-3 text-[13px] text-slate-600">
+          <p className="mt-3 text-meta text-slate-600">
             <strong className="font-medium">Verified figures</strong>, kept separate: {f.verified.invoiceRuns ? `${f.verified.invoiceRuns} approved invoice run${f.verified.invoiceRuns === 1 ? "" : "s"} for this week, ${pounds(f.verified.invoiceRunsPence)}` : "no approved invoice run for this week"}; {f.verified.payRuns ? `${f.verified.payRuns} approved pay run${f.verified.payRuns === 1 ? "" : "s"}, ${pounds(f.verified.payRunsPence)}` : "no approved pay run"}. <Link href="/rota/finance" className="underline">Finance</Link>
           </p>
         </Panel>
       ) : (
-        <p className="mt-3 text-[13px] text-slate-600">Cost, revenue and margin estimates are shown to roles that can see finance.</p>
+        <p className="mt-3 text-meta text-slate-600">Cost, revenue and margin estimates are shown to roles that can see finance.</p>
       )}
     </>
   );

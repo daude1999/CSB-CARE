@@ -85,7 +85,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
                 <input id="audit-title" name="title" className="input" placeholder="For example: Q4 medication audit, Liverpool" />
               </div>
               {templates.some((t) => t.needsReview) ? (
-                <ul className="space-y-1 text-[12.5px] text-[#b54708]">
+                <ul className="space-y-1 text-meta text-[#b54708]">
                   {templates.filter((t) => t.needsReview).map((t) => <li key={t.id}>{t.title}: {t.reviewReason}</li>)}
                 </ul>
               ) : null}

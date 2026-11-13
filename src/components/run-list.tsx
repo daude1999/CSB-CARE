@@ -45,7 +45,7 @@ export function RunList({ kind, rows, canPrepare, weeks, defaultWeek, back }: { 
             <input type="hidden" name="back" value={back} />
             <input type="hidden" name="kind" value={kind} />
             <label className="block"><span className="label">Week</span><select name="week" defaultValue={defaultWeek} className="input">{weeks.map((w) => <option key={w} value={w}>w/c {fmtLondonDate(w)}</option>)}</select></label>
-            <p className="text-[13px] text-slate-600">{kind === "pay" ? "Uses approved timesheets only. Anything not approved is listed as an exception." : "Uses delivered visits and chargeable short-notice cancellations for people with a funded package."}</p>
+            <p className="text-meta text-slate-600">{kind === "pay" ? "Uses approved timesheets only. Anything not approved is listed as an exception." : "Uses delivered visits and chargeable short-notice cancellations for people with a funded package."}</p>
             <button className="btn-primary">Prepare draft</button>
           </form>
         </Card>
@@ -58,7 +58,7 @@ export function RunList({ kind, rows, canPrepare, weeks, defaultWeek, back }: { 
 export function RunActions({ kind, run, ctxUserId, canApprove, canManage, back, who }: { kind: "pay" | "invoice"; run: { id: string; status: string; createdById: string; approvedById: string | null; approvedAt: Date | null }; ctxUserId: string; canApprove: boolean; canManage: boolean; back: string; who: (id: string | null) => string }) {
   return (
     <Card title="Next step">
-      <div className="space-y-3 text-[14px]">
+      <div className="space-y-3 text-body">
         <p>Prepared by {who(run.createdById)}.{run.approvedAt ? ` Approved by ${who(run.approvedById)} on ${fmtLondonDate(run.approvedAt.toISOString().slice(0, 10))}.` : ""}</p>
         {run.status === "DRAFT" ? (
           canApprove && run.createdById !== ctxUserId ? (
@@ -80,11 +80,11 @@ export function RunActions({ kind, run, ctxUserId, canApprove, canManage, back, 
               <input type="hidden" name="runId" value={run.id} />
               <label className="block"><span className="label">Reason</span><input name="reason" required minLength={5} className="input" /></label>
               <button className="btn-danger">Void run</button>
-              <p className="text-[12.5px] text-slate-500">The run stays on record. Prepare a new one for the same week afterwards.</p>
+              <p className="text-meta text-slate-500">The run stays on record. Prepare a new one for the same week afterwards.</p>
             </form>
           </details>
         ) : null}
-        <p className="text-[12.5px] text-slate-500">Nothing is paid, submitted or sent from here.</p>
+        <p className="text-meta text-slate-500">Nothing is paid, submitted or sent from here.</p>
       </div>
     </Card>
   );
@@ -93,7 +93,7 @@ export function RunActions({ kind, run, ctxUserId, canApprove, canManage, back, 
 export function Exceptions({ items }: { items: { kind: string; message: string }[] }) {
   return (
     <Card title={`Exceptions (${items.length})`}>
-      {items.length ? <ul className="rows text-[13.5px]">{items.map((e, i) => <li key={i} className="py-1.5">{e.message}</li>)}</ul> : <Empty>None. Everything in the period was included.</Empty>}
+      {items.length ? <ul className="rows text-body">{items.map((e, i) => <li key={i} className="py-1.5">{e.message}</li>)}</ul> : <Empty>None. Everything in the period was included.</Empty>}
     </Card>
   );
 }
