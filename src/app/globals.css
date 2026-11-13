@@ -98,6 +98,15 @@
   .shell-page { @apply flex min-h-[34px] items-center gap-[8px] rounded-[8px] px-[8px] text-meta leading-none text-cc-neutral hover:bg-white/70 hover:text-ink; transition: background-color var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard); }
   .shell-page-active { background: #fff; color: #16242b; font-weight: 700; box-shadow: 0 1px 2px rgb(22 36 43 / 0.06); }
   /* One marker on the guide line glides to the active page (transform only, so nothing reflows). */
+  /* Night mode for the ClearCare sidebar, written by hand (the generator would turn the mint into plain slate and lose
+   * the brand). A deep teal-slate panel, a lighter teal step for the open module and page, and a teal hairline. */
+  :root[data-mode="dark"] .shell-sidebar { background: #0f1f20; color: #e3eceb; border-right-color: #213536; }
+  :root[data-mode="dark"] .shell-sidebar :focus-visible { outline-color: #4fc2b6; }
+  :root[data-mode="dark"] .shell-portal { color: #e3eceb; }
+  :root[data-mode="dark"] .shell-portal:hover, :root[data-mode="dark"] .shell-page:hover { background: rgb(255 255 255 / 0.06); color: #ffffff; }
+  :root[data-mode="dark"] .shell-portal-current, :root[data-mode="dark"] .shell-portal-current:hover { background: #1b3133; box-shadow: 0 0 0 1px #2c4a4b; }
+  :root[data-mode="dark"] .shell-page { color: #b6c6c7; }
+  :root[data-mode="dark"] .shell-page-active { background: #1b3133; color: #ffffff; box-shadow: none; }
   .shell-marker { position: absolute; left: -2px; top: 0; margin: 0 !important; width: 2px; height: 0; border-radius: 2px; opacity: 0; pointer-events: none; transition: transform var(--motion-base) var(--ease-standard), height var(--motion-base) var(--ease-standard), opacity var(--motion-fast) linear; }
   /* A module's pages open and fold with the grid-rows technique: no measuring, and only during the change. */
   .shell-section { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); }
