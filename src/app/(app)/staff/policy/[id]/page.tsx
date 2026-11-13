@@ -50,17 +50,17 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
               {rows.slice(0, 200).map((r) => (
                 <li key={r.id} className="py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div><Link href={`/staff/person/${personKey(r)}`} className="row-title">{r.person}</Link> <span className="text-meta text-slate-600">{r.staffMember?.jobTitle ?? "Office member"}{r.staffMember?.branch ? ` · ${r.staffMember.branch.name}` : ""} · {r.publication.version.label} · due {fmtDate(r.dueAt)}</span></div>
+                    <div><Link href={`/staff/person/${personKey(r)}`} className="row-title">{r.person}</Link> <span className="text-[13px] text-slate-600">{r.staffMember?.jobTitle ?? "Office member"}{r.staffMember?.branch ? ` · ${r.staffMember.branch.name}` : ""} · {r.publication.version.label} · due {fmtDate(r.dueAt)}</span></div>
                     <AckBadge bucket={r.b.bucket} overdue={r.b.overdue} cannotSign={r.b.cannotSign} />
                   </div>
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-meta text-[#0646b1]">History{canManage ? " and actions" : ""}</summary>
+                    <summary className="cursor-pointer text-[13px] text-[#0646b1]">History{canManage ? " and actions" : ""}</summary>
                     <div className="mt-1.5 space-y-2">
                       <AckTimeline events={events.filter((e) => e.acknowledgementId === r.id)} names={names} />
                       {canManage && r.b.outstanding && !r.acknowledgedAt ? (
                         <form action={exemptAckAction} className="flex flex-wrap gap-2">
                           <input type="hidden" name="back" value={back} /><input type="hidden" name="acknowledgementId" value={r.id} />
-                          <input name="reason" required minLength={5} className="input min-w-0 flex-1 py-1.5 text-body" placeholder="Reason for the exemption" aria-label={`Exemption reason for ${r.person}`} />
+                          <input name="reason" required minLength={5} className="input min-w-0 flex-1 py-1.5 text-[14px]" placeholder="Reason for the exemption" aria-label={`Exemption reason for ${r.person}`} />
                           <button className="btn-secondary py-1">Exempt</button>
                         </form>
                       ) : null}
@@ -78,7 +78,7 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
                       {canManage && r.acknowledgedAt ? (
                         <form action={correctAckAction} className="flex flex-wrap gap-2">
                           <input type="hidden" name="back" value={back} /><input type="hidden" name="acknowledgementId" value={r.id} />
-                          <input name="reason" required minLength={10} className="input min-w-0 flex-1 py-1.5 text-body" placeholder="Why this acknowledgement is being corrected" aria-label={`Correction reason for ${r.person}`} />
+                          <input name="reason" required minLength={10} className="input min-w-0 flex-1 py-1.5 text-[14px]" placeholder="Why this acknowledgement is being corrected" aria-label={`Correction reason for ${r.person}`} />
                           <button className="btn-secondary py-1">Correct (keeps the original)</button>
                         </form>
                       ) : null}
@@ -88,14 +88,14 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
               ))}
             </ul>
           ) : <Empty>{all.length ? "Nobody matches these filters." : "Nobody is assigned this policy yet."}</Empty>}
-          {rows.length > 200 ? <p className="mt-2 text-meta text-slate-600">Showing 200 of {rows.length}. Use the filters or the CSV export.</p> : null}
+          {rows.length > 200 ? <p className="mt-2 text-[13px] text-slate-600">Showing 200 of {rows.length}. Use the filters or the CSV export.</p> : null}
         </Card>
 
         <Card title="Who must read it">
           {rules.length ? (
             <ul className="rows">
               {rules.map((r) => (
-                <li key={r.id} className="py-2 text-body">
+                <li key={r.id} className="py-2 text-[14px]">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{SCOPE_LABEL[r.scope]}{r.scope === "BRANCH" || r.scope === "WORKS_IN_BRANCH" ? `: ${branchName.get(r.branchId ?? "") ?? "another branch"}` : r.scope === "JOB_TITLE" ? `: ${r.jobTitle}` : r.scope === "ROLE" ? `: ${r.orgRole?.replace(/_/g, " ").toLowerCase()}` : r.scope === "STAFF" ? `: ${staffName.get(r.staffMemberId ?? "") ?? "a person"}` : ""}</span>
                     {r.mandatory ? <Badge tone="rose">Mandatory</Badge> : <Badge>Optional</Badge>}
@@ -103,18 +103,18 @@ export default async function PolicySignoffPage({ params, searchParams }: { para
                     {r.requiresAssessment ? <Badge tone="amber">Assessment</Badge> : null}
                     {r.withdrawnAt ? <Badge>Withdrawn</Badge> : null}
                   </div>
-                  <div className="text-meta text-slate-600">Due {r.dueDays} days after publication · owner {names.get(r.ownerId) ?? "a member"}{r.withdrawnAt ? ` · withdrawn ${fmtDate(r.withdrawnAt)}: ${r.withdrawnReason}` : ""}</div>
+                  <div className="text-[12.5px] text-slate-600">Due {r.dueDays} days after publication · owner {names.get(r.ownerId) ?? "a member"}{r.withdrawnAt ? ` · withdrawn ${fmtDate(r.withdrawnAt)}: ${r.withdrawnReason}` : ""}</div>
                   {canManage && !r.withdrawnAt ? (
                     <form action={withdrawRuleAction} className="mt-1 flex gap-2">
                       <input type="hidden" name="back" value={back} /><input type="hidden" name="ruleId" value={r.id} />
-                      <input name="reason" required minLength={3} className="input min-w-0 flex-1 py-1 text-meta" placeholder="Why" aria-label="Why the assignment is withdrawn" />
-                      <button className="btn-secondary py-1 text-meta">Withdraw</button>
+                      <input name="reason" required minLength={3} className="input min-w-0 flex-1 py-1 text-[13px]" placeholder="Why" aria-label="Why the assignment is withdrawn" />
+                      <button className="btn-secondary py-1 text-[13px]">Withdraw</button>
                     </form>
                   ) : null}
                 </li>
               ))}
             </ul>
-          ) : <p className="text-body text-slate-600">No assignment rules: every member of the organisation is asked to read it, as before. Add a rule to target branches, roles or people.</p>}
+          ) : <p className="text-[13.5px] text-slate-600">No assignment rules: every member of the organisation is asked to read it, as before. Add a rule to target branches, roles or people.</p>}
           {canManage ? (
             <RuleForm back={back} policyId={policy.id} branches={lookups.branches} roles={lookups.roles} staff={staff} />
           ) : null}
@@ -141,7 +141,7 @@ async function CentralDocumentSignoff({ id }: { id: string }) {
     <>
       <CompliancePageHeader title={`${central.ref} ${central.title}`} back={`/policies/${central.id}`} subtitle="Assign to Staff" actions={<Link href={`/policies/${central.id}`} className="btn-secondary">Open the policy</Link>} />
       <Card title="This is a CSB central document">
-        <div className="max-w-2xl space-y-3 text-body text-slate-700" data-testid="central-signoff">
+        <div className="max-w-2xl space-y-3 text-[14.5px] text-slate-700" data-testid="central-signoff">
           <p>Staff sign-off is recorded against your organisation&rsquo;s own copy of a policy, so that when CSB updates it your staff are asked to read the new version and their earlier signatures are kept as evidence.</p>
           {copy ? (
             <>

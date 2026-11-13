@@ -96,11 +96,6 @@ Full detail in `UX_RESPONSIVENESS_AUDIT.md`.
 - The DSPT index maps to the 10 data security standards and their themes, not to this year's evidence item numbers; whoever submits the toolkit must match them.
 - No penetration test has been commissioned; `PEN_TEST_SCOPE.md` is only the scope to give a supplier.
 
-## Type scale (11 Nov 2026)
-
-- The HR Hub keeps its own text sizes (prebuilt Tailwind 4 CSS, out of scope). The rest of the platform uses the 11-size scale in `tailwind.config.ts`.
-- Two oversized figures stay outside the scale: 52 px on the Overview and 34 px on the CQC rating. Inline `fontSize` values in charts and PDF and Word exports are not changed.
-
 ## Colour redesign, PR 1 (10 Nov 2026)
 - The header band uses white at 92% for the breadcrumb and description and a white 8% fill for secondary buttons, not
   the mock-up's 78%, 88% and 14%, because those fail WCAG AA on several module colours. See `COLOUR_SYSTEM.md`.

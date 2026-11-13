@@ -35,7 +35,7 @@ test.describe("shared page frame", () => {
       await expect(header, path).toBeVisible();
       const band = header.getByTestId("title-bar");
       expect(await band.evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe(colour);
-      expect(await band.evaluate((el) => getComputedStyle(el).borderRadius), path).toBe("14px");
+      expect(await band.evaluate((el) => getComputedStyle(el).borderRadius), path).toBe("12px");
       const crumbs = header.getByRole("navigation", { name: "Breadcrumb" });
       await expect(crumbs, path).toContainText(module);
       await expect(header.getByRole("heading", { level: 1 }), path).toContainText(title);
@@ -43,7 +43,7 @@ test.describe("shared page frame", () => {
       // Exactly one h1 on the page: no second in-page title repeats the header.
       await expect(page.locator("main h1"), path).toHaveCount(1);
       // The page frame behind the cards.
-      expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(244, 246, 247)");
+      expect(await page.locator("main#main-content").evaluate((el) => getComputedStyle(el).backgroundColor), path).toBe("rgb(246, 247, 250)");
     }
   });
 
@@ -56,18 +56,15 @@ test.describe("shared page frame", () => {
     expect(await create.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(31, 95, 209)");
   });
 
-  test("sub-modules are one button style: white when inactive, filled in the module colour when active", async ({ page }) => {
+  test("tabs are one underline style: grey when inactive, module colour when active", async ({ page }) => {
     await signIn(page);
     await page.goto("/analytics");
     const active = page.locator(".tab-line[aria-current=page], .tab-line[aria-selected=true]").first();
     await expect(active).toBeVisible();
-    // ClearCare (12 Nov 2026): 40px buttons; the active one is filled in the module colour with white text.
-    expect(await active.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(11, 111, 153)");
-    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(255, 255, 255)");
-    expect(await active.evaluate((el) => getComputedStyle(el).height)).toBe("40px");
+    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(11, 111, 153)");
+    expect(await active.evaluate((el) => getComputedStyle(el).height)).toBe("38px");
     const inactive = page.locator(".tab-line:not([aria-current=page]):not([aria-selected=true])").first();
-    expect(await inactive.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
-    expect(await inactive.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(22, 36, 43)");
+    expect(await inactive.evaluate((el) => getComputedStyle(el).color)).toBe("rgb(71, 84, 103)");
   });
 
   test("the AI CSB Coordinator launcher sits in the top bar before the bell and opens the same panel", async ({ page }) => {
@@ -77,9 +74,8 @@ test.describe("shared page frame", () => {
     await expect(launcher).toBeVisible();
     await expect(launcher).toHaveAccessibleName("AI CSB Coordinator");
     expect(await launcher.evaluate((el) => getComputedStyle(el).position)).not.toBe("fixed");
-    // ClearCare (12 Nov 2026): an outlined white 40px button.
-    expect(await launcher.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(255, 255, 255)");
-    expect(await launcher.evaluate((el) => el.getBoundingClientRect().height)).toBe(40);
+    expect(await launcher.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(10, 79, 87)");
+    expect(await launcher.evaluate((el) => el.getBoundingClientRect().height)).toBe(34);
     // To the left of the notifications bell, on the same row.
     const bell = page.getByTestId("notifications-link").first();
     const [l, b] = [await launcher.boundingBox(), await bell.boundingBox()];

@@ -55,11 +55,11 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
     <div className="space-y-3" data-testid="reference-numbers">
       <section aria-labelledby="csb-ref-h" className="card flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 id="csb-ref-h" className="text-meta font-medium uppercase tracking-wide text-slate-500">Permanent CSB reference</h2>
-          <p className="mt-1 font-mono text-figure font-semibold leading-tight text-[#1d2939]" data-testid="csb-reference">{t.csbReference ?? "Not yet assigned"}</p>
-          <p className="text-meta text-slate-600">{t.csbReference ? "Automatically assigned · Read-only · Never reused" : "A number is assigned automatically. Ask an administrator if this record has none."}</p>
+          <h2 id="csb-ref-h" className="text-[13px] font-medium uppercase tracking-wide text-slate-500">Permanent CSB reference</h2>
+          <p className="mt-1 font-mono text-[28px] font-semibold leading-tight text-[#1d2939]" data-testid="csb-reference">{t.csbReference ?? "Not yet assigned"}</p>
+          <p className="text-[13px] text-slate-600">{t.csbReference ? "Automatically assigned · Read-only · Never reused" : "A number is assigned automatically. Ask an administrator if this record has none."}</p>
         </div>
-        <dl className="grid min-w-[220px] gap-2 text-body">
+        <dl className="grid min-w-[220px] gap-2 text-[13.5px]">
           {t.legacyReference ? (
             <div><dt className="text-slate-500">Legacy reference</dt><dd className="font-mono" data-testid="legacy-reference">{t.legacyReference}</dd></div>
           ) : null}
@@ -77,10 +77,10 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
             ) : <Empty>No council, NHS or other external references are recorded yet.</Empty>}
             {superseded.length ? (
               <details className="mt-3 border-t border-slate-200 pt-3">
-                <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Superseded references ({superseded.length})</summary>
+                <summary className="cursor-pointer text-[14px] font-medium text-[#1d4f91]">Superseded references ({superseded.length})</summary>
                 <ul className="mt-2 divide-y divide-slate-100" aria-label="Superseded references">
                   {superseded.map((r) => (
-                    <li key={r.id} className="py-2 text-body text-slate-600">
+                    <li key={r.id} className="py-2 text-[13.5px] text-slate-600">
                       <span className="font-medium text-slate-700">{referenceTitle(r)}</span> <span className="font-mono line-through">{r.value ?? "Restricted"}</span> <Badge>Superseded</Badge>
                       <span className="block">{r.supersededBy ?? "Unknown"} · {fmtDate(r.supersededAt, true)}{r.supersedeReason ? ` · ${r.supersedeReason}` : ""}{r.replacedById ? " · replaced by a corrected number" : " · withdrawn"}</span>
                     </li>
@@ -92,12 +92,12 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
 
           {t.proposals.length ? (
             <Card title="Possible references in older records">
-              <p className="mb-2 text-body text-slate-600">These Frameworki numbers are written in this person&apos;s existing record text. They have not been moved or changed. Add one only after checking what it identifies.</p>
+              <p className="mb-2 text-[13.5px] text-slate-600">These Frameworki numbers are written in this person&apos;s existing record text. They have not been moved or changed. Add one only after checking what it identifies.</p>
               <ul className="space-y-3">
                 {t.proposals.map((p) => (
                   <li key={p.value} className="rounded-md border border-slate-200 p-3">
-                    <div className="text-body"><span className="font-mono font-semibold">{p.value}</span> <span className="text-slate-600">found in {p.where.toLowerCase()}</span> {p.clear ? null : <Badge tone="amber">Type to confirm</Badge>}</div>
-                    <p className="mt-1 text-meta italic text-slate-600">“{p.quote}”</p>
+                    <div className="text-[14px]"><span className="font-mono font-semibold">{p.value}</span> <span className="text-slate-600">found in {p.where.toLowerCase()}</span> {p.clear ? null : <Badge tone="amber">Type to confirm</Badge>}</div>
+                    <p className="mt-1 text-[13px] italic text-slate-600">“{p.quote}”</p>
                     <form action={addReferenceAction} className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
                       <input type="hidden" name="back" value={back} />
                       <input type="hidden" name="serviceUserId" value={serviceUserId} />
@@ -121,21 +121,21 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
         <div className="space-y-3">
           <Card title="Care package references">
             {t.packages.length ? (
-              <ul className="space-y-2 text-body" data-testid="package-references">
+              <ul className="space-y-2 text-[14px]" data-testid="package-references">
                 {t.packages.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-mono">{p.reference}</span>
-                    <span className="text-meta text-slate-600">{p.status === "ACTIVE" ? <Badge tone="green">Active</Badge> : <Badge>{p.status.toLowerCase()}</Badge>} from {fmtDate(p.startDate)}</span>
+                    <span className="text-[12.5px] text-slate-600">{p.status === "ACTIVE" ? <Badge tone="green">Active</Badge> : <Badge>{p.status.toLowerCase()}</Badge>} from {fmtDate(p.startDate)}</span>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-body text-slate-600">No package reference recorded.</p>}
-            <p className="mt-2 text-meta text-slate-500">Managed in <Link href={`${base}?tab=package`}>Care → Care package</Link>. Kept separate from the CSB reference and council numbers.</p>
+            ) : <p className="text-[14px] text-slate-600">No package reference recorded.</p>}
+            <p className="mt-2 text-[12.5px] text-slate-500">Managed in <Link href={`${base}?tab=package`}>Care → Care package</Link>. Kept separate from the CSB reference and council numbers.</p>
           </Card>
 
           <Card title="NHS number">
-            <p className="text-body" data-testid="nhs-check">{NHS_TEXT[t.nhs].tone ? <Badge tone={NHS_TEXT[t.nhs].tone!}>{t.nhs === "MATCH" ? "Matches" : t.nhs === "DIFFERS" ? "Discrepancy" : "Check"}</Badge> : null} {NHS_TEXT[t.nhs].text}</p>
-            <p className="mt-2 text-meta text-slate-500">The NHS number in Personal details is the authoritative value. Only registered managers can see or add NHS numbers.</p>
+            <p className="text-[14px]" data-testid="nhs-check">{NHS_TEXT[t.nhs].tone ? <Badge tone={NHS_TEXT[t.nhs].tone!}>{t.nhs === "MATCH" ? "Matches" : t.nhs === "DIFFERS" ? "Discrepancy" : "Check"}</Badge> : null} {NHS_TEXT[t.nhs].text}</p>
+            <p className="mt-2 text-[12.5px] text-slate-500">The NHS number in Personal details is the authoritative value. Only registered managers can see or add NHS numbers.</p>
           </Card>
 
           {canEdit ? (
@@ -149,7 +149,7 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
                     {types.map((x) => <option key={x} value={x}>{REFERENCE_TYPE_LABEL[x]}</option>)}
                   </select>
                 </label>
-                <ul id="ref-type-help" className="space-y-0.5 text-caption text-slate-500">
+                <ul id="ref-type-help" className="space-y-0.5 text-[12px] text-slate-500">
                   {types.map((x: ReferenceType) => <li key={x}><span className="font-medium text-slate-600">{REFERENCE_TYPE_LABEL[x]}:</span> {REFERENCE_TYPE_HELP[x]}</li>)}
                 </ul>
                 <label><span className="label">Issuing organisation</span><input name="issuer" required minLength={2} maxLength={180} list="ref-issuers" className="input" placeholder={t.defaults.issuer} /></label>
@@ -157,7 +157,7 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
                 <label><span className="label">System or label (optional)</span><input name="systemLabel" maxLength={80} list="ref-systems" className="input" placeholder={`e.g. ${t.defaults.system}`} /></label>
                 <datalist id="ref-systems">{COMMON_SYSTEMS.map((x) => <option key={x} value={x} />)}</datalist>
                 <label><span className="label">Reference number</span><input name="value" required maxLength={120} autoComplete="off" className="input font-mono" /></label>
-                <p className="-mt-1 text-caption text-slate-500">Type it exactly as printed. Leading zeroes are kept.</p>
+                <p className="-mt-1 text-[12px] text-slate-500">Type it exactly as printed. Leading zeroes are kept.</p>
                 <div className="grid grid-cols-[1fr_88px] gap-2">
                   <label><span className="label">Source document (optional)</span>
                     <select name="sourceDocumentId" defaultValue="" className="input"><option value="">None</option>{t.documents.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}</select>
@@ -166,23 +166,23 @@ export async function ServiceUserReferenceNumbers({ ctx, serviceUserId, base }: 
                 </div>
                 <label><span className="label">Verification note</span><textarea name="verificationNote" rows={2} maxLength={500} className="input" placeholder="Where you saw it, and anything a manager should check" /></label>
                 <button className="btn-primary justify-self-start">Add reference</button>
-                <p className="text-caption text-slate-500">Saved as awaiting verification. A manager verifies it separately against the source.</p>
+                <p className="text-[12px] text-slate-500">Saved as awaiting verification. A manager verifies it separately against the source.</p>
               </form>
             </Card>
           ) : null}
 
           <Card title="Reference history">
             {t.history.length ? (
-              <ol className="space-y-2 text-body" data-testid="reference-history">
+              <ol className="space-y-2 text-[13.5px]" data-testid="reference-history">
                 {t.history.map((h) => (
                   <li key={h.id} className="border-l-2 border-slate-200 pl-3">
                     <div className="font-medium">{HISTORY_LABEL[h.action] ?? h.action}{h.action.endsWith(".verified") ? `: ${h.verified ? "verified" : "rejected"}` : ""}{h.type ? <span className="font-normal text-slate-600"> · {h.systemLabel ?? REFERENCE_TYPE_LABEL[h.type as ReferenceType] ?? h.type}</span> : null}</div>
-                    {h.reason ? <div className="text-meta text-slate-600">{h.reason}</div> : null}
-                    <div className="text-meta text-slate-500">{h.actor} · {fmtDate(h.at, true)}</div>
+                    {h.reason ? <div className="text-[13px] text-slate-600">{h.reason}</div> : null}
+                    <div className="text-[12.5px] text-slate-500">{h.actor} · {fmtDate(h.at, true)}</div>
                   </li>
                 ))}
               </ol>
-            ) : <p className="text-body text-slate-600">No reference changes recorded yet.</p>}
+            ) : <p className="text-[14px] text-slate-600">No reference changes recorded yet.</p>}
           </Card>
         </div>
       </div>
@@ -197,30 +197,30 @@ function ReferenceRow({ r, base, back, canEdit, canVerify, canIntake }: { r: Row
     <li className="py-3" data-testid="reference-row">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-lead font-semibold text-[#1d2939]">{referenceTitle(r)}</h3>
-          <p className="font-mono text-title font-semibold leading-snug" data-testid="reference-value">{restricted ? <span className="font-sans text-lead font-normal text-slate-500">Restricted</span> : r.value}</p>
+          <h3 className="text-[15px] font-semibold text-[#1d2939]">{referenceTitle(r)}</h3>
+          <p className="font-mono text-[20px] font-semibold leading-snug" data-testid="reference-value">{restricted ? <span className="font-sans text-[15px] font-normal text-slate-500">Restricted</span> : r.value}</p>
         </div>
         <Badge tone={st.tone}>{st.label}</Badge>
       </div>
-      <dl className="mt-1.5 grid gap-x-6 gap-y-1 text-body sm:grid-cols-2">
+      <dl className="mt-1.5 grid gap-x-6 gap-y-1 text-[13.5px] sm:grid-cols-2">
         <div><dt className="inline text-slate-500">Type: </dt><dd className="inline">{REFERENCE_TYPE_LABEL[r.type]}{isPersonSpecific(r.type) ? "" : " (shared, not proof of identity)"}</dd></div>
         <div><dt className="inline text-slate-500">Issued by: </dt><dd className="inline">{r.issuer}</dd></div>
         <div className="sm:col-span-2"><dt className="inline text-slate-500">Source: </dt><dd className="inline">{sourceLink(base, r.source, canIntake)}{r.sourcePage ? ` · Page ${r.sourcePage}` : ""}</dd></div>
         <div><dt className="inline text-slate-500">Added: </dt><dd className="inline">{r.addedBy} · {fmtDate(r.createdAt)}</dd></div>
         <div><dt className="inline text-slate-500">{r.state === "REJECTED" ? "Rejected" : "Verified"}: </dt><dd className="inline">{r.verifiedAt ? `${r.verifiedBy} · ${fmtDate(r.verifiedAt)}` : "Not yet"}</dd></div>
       </dl>
-      {r.sourceQuote ? <p className="mt-1 text-meta italic text-slate-600">Source wording: “{r.sourceQuote}”</p> : null}
-      {r.verificationNote ? <p className="mt-1 text-meta text-slate-600">Note: {r.verificationNote}</p> : null}
+      {r.sourceQuote ? <p className="mt-1 text-[13px] italic text-slate-600">Source wording: “{r.sourceQuote}”</p> : null}
+      {r.verificationNote ? <p className="mt-1 text-[13px] text-slate-600">Note: {r.verificationNote}</p> : null}
       {canEdit || canVerify ? (
         <div className="mt-2 flex flex-wrap gap-2">
           {canVerify ? (
             <details className="w-full sm:w-auto">
-              <summary className="btn-secondary inline-flex cursor-pointer py-1 text-meta">{r.state === "AWAITING" ? "Verify" : "Change verification"}</summary>
+              <summary className="btn-secondary inline-flex cursor-pointer py-1 text-[13px]">{r.state === "AWAITING" ? "Verify" : "Change verification"}</summary>
               <form action={verifyReferenceAction} className="mt-2 grid gap-2 rounded-md border border-slate-200 p-3 sm:w-[420px]">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="referenceId" value={r.id} />
-                <p className="text-meta text-slate-600">Open the source document and compare the number before deciding.</p>
-                <fieldset className="flex gap-4 text-body">
+                <p className="text-[12.5px] text-slate-600">Open the source document and compare the number before deciding.</p>
+                <fieldset className="flex gap-4 text-[14px]">
                   <legend className="sr-only">Decision</legend>
                   <label className="flex items-center gap-1.5"><input type="radio" name="decision" value="VERIFIED" required /> Matches the source</label>
                   <label className="flex items-center gap-1.5"><input type="radio" name="decision" value="REJECTED" /> Does not match</label>
@@ -232,11 +232,11 @@ function ReferenceRow({ r, base, back, canEdit, canVerify, canIntake }: { r: Row
           ) : null}
           {canEdit ? (
             <details className="w-full sm:w-auto">
-              <summary className="btn-secondary inline-flex cursor-pointer py-1 text-meta">Correct or withdraw</summary>
+              <summary className="btn-secondary inline-flex cursor-pointer py-1 text-[13px]">Correct or withdraw</summary>
               <form action={supersedeReferenceAction} className="mt-2 grid gap-2 rounded-md border border-slate-200 p-3 sm:w-[420px]">
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="referenceId" value={r.id} />
-                <p className="text-meta text-slate-600">The current entry is kept as superseded with its history. Nothing is overwritten.</p>
+                <p className="text-[12.5px] text-slate-600">The current entry is kept as superseded with its history. Nothing is overwritten.</p>
                 <label><span className="label">Corrected number (leave blank to withdraw)</span><input name="value" maxLength={120} autoComplete="off" className="input font-mono" /></label>
                 <label><span className="label">Reason</span><textarea name="reason" required minLength={3} maxLength={500} rows={2} className="input" /></label>
                 <button className="btn-secondary justify-self-start py-1">Save correction</button>

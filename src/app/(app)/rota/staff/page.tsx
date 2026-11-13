@@ -50,7 +50,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <label><span className="label">Roles</span><select name="role" defaultValue={sp.role ?? ""} className="input"><option value="">Care roles</option><option value="all">Everyone</option></select></label>
           <label><span className="label">Employment</span><select name="status" defaultValue={sp.status ?? ""} className="input"><option value="">Current (active, onboarding, suspended)</option><option value="all">Include left and archived</option></select></label>
-          <label className="flex items-center gap-1.5 pb-2 text-body"><input type="checkbox" name="problems" value="1" defaultChecked={sp.problems === "1"} className="h-4 w-4" /> HR checks need attention</label>
+          <label className="flex items-center gap-1.5 pb-2 text-[14px]"><input type="checkbox" name="problems" value="1" defaultChecked={sp.problems === "1"} className="h-4 w-4" /> HR checks need attention</label>
           <button className="btn-primary">Apply</button>
           <Link href="/rota/staff" className="btn-secondary">Clear</Link>
         </form>
@@ -62,8 +62,8 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
             <tbody>
               {rows.map(({ s, c }) => (
                 <tr key={s.id}>
-                  <td><Link href={`/rota/staff/${s.id}`}>{s.displayName}</Link><div className="text-meta text-slate-500">{s.jobTitle} · {s.branch?.name ?? "No branch"}{s.employmentStatus !== "ACTIVE" ? ` · ${s.employmentStatus.toLowerCase()}` : ""}</div></td>
-                  <td className="text-meta">{s.areas.length ? s.areas.map((a) => a.area.name).join(", ") : <span className="text-slate-500">Any</span>}</td>
+                  <td><Link href={`/rota/staff/${s.id}`}>{s.displayName}</Link><div className="text-[12.5px] text-slate-500">{s.jobTitle} · {s.branch?.name ?? "No branch"}{s.employmentStatus !== "ACTIVE" ? ` · ${s.employmentStatus.toLowerCase()}` : ""}</div></td>
+                  <td className="text-[13px]">{s.areas.length ? s.areas.map((a) => a.area.name).join(", ") : <span className="text-slate-500">Any</span>}</td>
                   <td><Check g={c.dbs} /></td>
                   <td><Check g={c.rtw} /></td>
                   <td>{c.training.required ? <span className={c.training.problems.length ? "text-[#a3242c]" : ""} title={c.training.problems.join("; ")}>{c.training.required - c.training.problems.length} of {c.training.required}</span> : <span className="text-slate-500">None</span>}</td>

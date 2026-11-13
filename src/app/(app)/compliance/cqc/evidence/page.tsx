@@ -74,7 +74,7 @@ export default async function CqcEvidencePage({ searchParams }: { searchParams: 
           <PcSelect name="branch" label="Branch" defaultValue={branchId ?? ""} options={[{ value: "", label: ctx.branchIds ? "My branches" : "Organisation-wide" }, ...branches.map((b) => ({ value: b.id, label: b.name }))]} />
           <PcSelect name="kq" label="Key question" defaultValue={kq ?? ""} options={[{ value: "", label: "All five" }, ...KEY_QUESTIONS.map((k) => ({ value: k, label: KQ_LABEL[k] }))]} />
           <button className="pc-btn-secondary pc-btn-sm" type="submit">Apply</button>
-          <span className="ml-auto text-meta text-[#667085]">“Find possible evidence” only suggests. It never verifies anything.</span>
+          <span className="ml-auto text-[12.5px] text-[#667085]">“Find possible evidence” only suggests. It never verifies anything.</span>
         </form>
 
         <section className="pc-panel" data-testid="evidence-list">
@@ -102,7 +102,7 @@ export default async function CqcEvidencePage({ searchParams }: { searchParams: 
                 </table>
               </PcTableWrap>
               {!gaps.length ? <p className="pc-empty">Every area in this scope has verified, in-date evidence.</p> : null}
-              {!latest && gaps.length ? <p className="border-t border-[#eaecf0] px-5 py-3 text-meta text-[#667085]">Start an assessment for this scope to link evidence to each area.</p> : null}
+              {!latest && gaps.length ? <p className="border-t border-[#eaecf0] px-5 py-3 text-[13px] text-[#667085]">Start an assessment for this scope to link evidence to each area.</p> : null}
             </>
           ) : (
             <>
@@ -118,8 +118,8 @@ export default async function CqcEvidencePage({ searchParams }: { searchParams: 
                         </td>
                         <td className="min-w-[180px]"><span className="mr-1 text-[#667085]">{l.criterion.code}</span>{l.criterion.title}</td>
                         <td className="whitespace-nowrap"><PcBadge tone={LINK_TONE[l.effective] ?? "grey"}>{LINK_STATUS[l.effective]}</PcBadge>{l.effective === "VERIFIED" && l.validUntil ? <span className="pc-sub">until {fmtDate(l.validUntil)}</span> : null}</td>
-                        <td className="whitespace-nowrap text-meta">{l.linkedById ? users.get(l.linkedById) : "System"}<span className="pc-sub">{fmtDate(l.createdAt)}</span></td>
-                        <td className="min-w-[250px] text-meta">
+                        <td className="whitespace-nowrap text-[13px]">{l.linkedById ? users.get(l.linkedById) : "System"}<span className="pc-sub">{fmtDate(l.createdAt)}</span></td>
+                        <td className="min-w-[250px] text-[13px]">
                           {l.reviewedById ? <span className="block">{users.get(l.reviewedById)} · {fmtDate(l.reviewedAt)}{l.reviewNote ? <span className="pc-sub">{l.reviewNote}</span> : null}</span> : null}
                           {l.status === "SUGGESTED" && canAssess ? (
                             <form action={proposeSuggestionAction} className="mt-1 inline-block">
@@ -130,14 +130,14 @@ export default async function CqcEvidencePage({ searchParams }: { searchParams: 
                           {canVerify && !l.info.restricted && l.status !== "SUPERSEDED" ? (
                             <form action={reviewEvidenceAction} className="mt-1.5 flex flex-wrap items-center gap-1.5">
                               <input type="hidden" name="back" value={back} /><input type="hidden" name="linkId" value={l.id} /><input type="hidden" name="updatedAt" value={l.updatedAt.toISOString()} />
-                              <select name="to" className="input h-8 w-auto py-0 text-meta" aria-label={`Decision for ${l.info.label}`} defaultValue="">
+                              <select name="to" className="input h-8 w-auto py-0 text-[13px]" aria-label={`Decision for ${l.info.label}`} defaultValue="">
                                 <option value="" disabled>Decision…</option>
                                 {l.status !== "VERIFIED" ? <option value="VERIFIED">Verify</option> : null}
                                 <option value="REJECTED">Reject</option>
                                 <option value="OUTDATED">Mark outdated</option>
                                 <option value="SUPERSEDED">Mark superseded</option>
                               </select>
-                              <input name="note" className="input h-8 w-[140px] py-0 text-meta" placeholder="Reason" aria-label="Reason for the decision" />
+                              <input name="note" className="input h-8 w-[140px] py-0 text-[13px]" placeholder="Reason" aria-label="Reason for the decision" />
                               <button className="pc-btn-secondary pc-btn-sm" type="submit">Save</button>
                             </form>
                           ) : null}

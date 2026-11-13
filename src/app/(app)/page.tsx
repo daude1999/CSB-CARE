@@ -54,7 +54,7 @@ export default async function Dashboard() {
         <PcFigure icon={<CalendarX size={20} />} iconTone="amber" label="Needs review" value={f.needsReview} note={`${f.overdue} overdue · ${f.dueSoon} due in 60 days`} href="/policies?tab=calendar" testId="figure-needs-review" />
         <PcFigure icon={<Stamp size={20} />} iconTone="blue" label="Drafts in progress" value={f.draftsInProgress} note="Not yet published" href={canUseQueue(ctx) ? "/queue" : "/policies?quick=drafts"} testId="figure-drafts" />
       </section>
-      <p className="mt-2.5 flex items-center gap-1.5 text-meta text-[#667085]">
+      <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-[#667085]">
         <Info size={14} aria-hidden="true" className="shrink-0" />
         Counted from your own policy library today ({fmtDate(now)}). CSB central documents you use as published are kept up to date by CSB and are not counted here.{org?.isDemo ? " Sample workspace: records are illustrative." : ""}
       </p>
@@ -70,8 +70,8 @@ export default async function Dashboard() {
                 <li key={x.key} className="flex items-center gap-3 px-5 py-3">
                   <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${x.key === "drafts" ? "bg-[#6941c6]" : x.tone === "rose" ? "bg-[#d92d20]" : "bg-[#f79009]"}`} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-body font-semibold text-[#101828]">{x.label} <span className="font-normal text-[#667085]">· {x.count}</span></span>
-                    <span className="block truncate text-meta text-[#475467]" title={x.detail}>{x.detail}</span>
+                    <span className="block text-[14px] font-semibold text-[#101828]">{x.label} <span className="font-normal text-[#667085]">· {x.count}</span></span>
+                    <span className="block truncate text-[13px] text-[#475467]" title={x.detail}>{x.detail}</span>
                   </span>
                   <Link href={x.href} className="pc-link">{x.action}<span className="sr-only">: {x.label}</span></Link>
                 </li>
@@ -92,8 +92,8 @@ export default async function Dashboard() {
                 return (
                   <li key={c.id} className="flex items-start gap-3 px-5 py-3">
                     <span className="min-w-0 flex-1">
-                      <Link href={`/changes/${c.id}`} className="pc-plain block truncate text-body font-semibold text-[#101828] no-underline hover:text-module">{c.title}</Link>
-                      <span className="block truncate text-meta text-[#475467]">{c.source.name} · {c.officialDate ? `published ${fmtDate(c.officialDate)}` : `detected ${fmtDate(c.detectedAt)}`}</span>
+                      <Link href={`/changes/${c.id}`} className="pc-plain block truncate text-[14px] font-semibold text-[#101828] no-underline hover:text-module">{c.title}</Link>
+                      <span className="block truncate text-[13px] text-[#475467]">{c.source.name} · {c.officialDate ? `published ${fmtDate(c.officialDate)}` : `detected ${fmtDate(c.detectedAt)}`}</span>
                     </span>
                     <span className="flex shrink-0 flex-col items-end gap-1">
                       <PcBadge tone={st.tone}>{st.label}</PcBadge>

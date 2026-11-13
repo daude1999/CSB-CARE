@@ -76,7 +76,7 @@ export default async function BranchConfigurationPage({ searchParams }: { search
                     <td><span className="pc-strong">{b.name}</span><span className="pc-sub">{p?.branchReference ? `Ref ${p.branchReference}` : "No branch reference"}{p?.postcode ? ` · ${p.postcode}` : ""}</span></td>
                     <td>{p?.localAuthority?.name ?? <PcBadge tone="red">Not set</PcBadge>}</td>
                     <td>{p?.regionCode ? regionName(p.regionCode) : <PcBadge tone="red">Not set</PcBadge>}</td>
-                    <td className="max-w-[220px] text-meta">{p?.safeguardingAdultsBoard ?? <span className="text-[#b42318]">Not recorded</span>}</td>
+                    <td className="max-w-[220px] text-[13px]">{p?.safeguardingAdultsBoard ?? <span className="text-[#b42318]">Not recorded</span>}</td>
                     <td>{p?.lastVerifiedAt ? <PcBadge tone="green">Verified {fmtDate(p.lastVerifiedAt)}</PcBadge> : <PcBadge tone="amber">Not verified</PcBadge>}</td>
                     <td>{p?.contactsVerifiedAt ? <PcBadge tone="green">Confirmed</PcBadge> : p?.safeguardingContacts ? <PcBadge tone="amber">Not confirmed</PcBadge> : <PcBadge tone="red">Missing</PcBadge>}</td>
                     <td className="whitespace-nowrap">{p?.nextReviewDate ? <span className={overdue ? "font-semibold text-[#b42318]" : ""}>{fmtDate(p.nextReviewDate)}{overdue ? " (overdue)" : ""}</span> : "Not set"}</td>
@@ -96,13 +96,13 @@ export default async function BranchConfigurationPage({ searchParams }: { search
       {selected?.policyProfile ? (
         <div id="edit" className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <section aria-label={`Configure ${selected.name}`} className="pc-panel">
-            <div className="pc-panel-head"><h2 className="text-lead font-semibold text-[#101828]">{selected.name}: branch details</h2></div>
+            <div className="pc-panel-head"><h2 className="text-[16px] font-semibold text-[#101828]">{selected.name}: branch details</h2></div>
             <form action={saveBranchProfileAction} className="space-y-6 p-5" data-testid="branch-profile-form">
               <input type="hidden" name="back" value={back} />
               <input type="hidden" name="branchId" value={selected.id} />
               <input type="hidden" name="version" value={selected.policyProfile.version} />
               <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <legend className="mb-2 text-meta font-semibold uppercase tracking-[0.04em] text-[#667085]">Location</legend>
+                <legend className="mb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Location</legend>
                 <label className="block"><span className="label">Branch reference</span><input name="branchReference" defaultValue={selected.policyProfile.branchReference ?? ""} maxLength={60} className="input" /></label>
                 <label className="block"><span className="label">Postcode</span><input name="postcode" defaultValue={selected.policyProfile.postcode ?? ""} maxLength={10} className="input" autoComplete="off" /></label>
                 <label className="block md:col-span-2"><span className="label">Branch address</span><textarea name="address" defaultValue={selected.address ?? ""} maxLength={400} rows={2} className="input" /></label>
@@ -122,13 +122,13 @@ export default async function BranchConfigurationPage({ searchParams }: { search
                   <span className="label">Services provided</span>
                   <div className="flex flex-wrap gap-x-5 gap-y-2">
                     {serviceTypes.map((t) => (
-                      <label key={t.code} className="flex items-center gap-2 text-body"><input type="checkbox" name="serviceTypes" value={t.code} defaultChecked={selected.services.some((s) => s.serviceTypeCode === t.code)} className="pc-check" />{t.name}</label>
+                      <label key={t.code} className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="serviceTypes" value={t.code} defaultChecked={selected.services.some((s) => s.serviceTypeCode === t.code)} className="pc-check" />{t.name}</label>
                     ))}
                   </div>
                 </div>
               </fieldset>
               <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <legend className="mb-2 text-meta font-semibold uppercase tracking-[0.04em] text-[#667085]">Safeguarding arrangements</legend>
+                <legend className="mb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Safeguarding arrangements</legend>
                 <label className="block"><span className="label">Safeguarding Adults Board</span><input name="safeguardingAdultsBoard" defaultValue={selected.policyProfile.safeguardingAdultsBoard ?? ""} maxLength={200} className="input" /></label>
                 <label className="block"><span className="label">Safeguarding Children Partnership</span><input name="safeguardingChildrenPartnership" defaultValue={selected.policyProfile.safeguardingChildrenPartnership ?? ""} maxLength={200} className="input" /></label>
                 <label className="block md:col-span-2"><span className="label">Regional multi-agency guidance that applies</span><textarea name="regionalGuidance" defaultValue={selected.policyProfile.regionalGuidance ?? ""} maxLength={2000} rows={2} className="input" /></label>
@@ -136,18 +136,18 @@ export default async function BranchConfigurationPage({ searchParams }: { search
                 <label className="block md:col-span-2"><span className="label">Official referral web page</span><input name="referralUrl" type="url" defaultValue={selected.policyProfile.referralUrl ?? ""} maxLength={400} className="input" placeholder="https://" /></label>
               </fieldset>
               <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <legend className="mb-2 text-meta font-semibold uppercase tracking-[0.04em] text-[#667085]">Local contacts</legend>
+                <legend className="mb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Local contacts</legend>
                 <p className="pc-note md:col-span-2">Enter contact details exactly as published on the council or safeguarding board’s own website. Never use numbers from memory or other providers’ documents. Changing these clears the “confirmed” mark.</p>
                 <label className="block"><span className="label">Safeguarding contacts (office hours)</span><textarea name="safeguardingContacts" defaultValue={selected.policyProfile.safeguardingContacts ?? ""} maxLength={2000} rows={3} className="input" /></label>
                 <label className="block"><span className="label">Out-of-hours contacts</span><textarea name="outOfHoursContacts" defaultValue={selected.policyProfile.outOfHoursContacts ?? ""} maxLength={2000} rows={3} className="input" /></label>
               </fieldset>
               <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <legend className="mb-2 text-meta font-semibold uppercase tracking-[0.04em] text-[#667085]">Health and commissioning</legend>
+                <legend className="mb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Health and commissioning</legend>
                 <label className="block"><span className="label">Integrated Care Board</span><input name="integratedCareBoard" defaultValue={selected.policyProfile.integratedCareBoard ?? ""} maxLength={200} className="input" /></label>
                 <label className="block md:col-span-2"><span className="label">Commissioning arrangements</span><textarea name="commissioningArrangements" defaultValue={selected.policyProfile.commissioningArrangements ?? ""} maxLength={2000} rows={2} className="input" /></label>
               </fieldset>
               <fieldset className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <legend className="mb-2 text-meta font-semibold uppercase tracking-[0.04em] text-[#667085]">Ownership and review</legend>
+                <legend className="mb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[#667085]">Ownership and review</legend>
                 <label className="block"><span className="label">Responsible manager</span>
                   <select name="responsibleManagerId" defaultValue={selected.policyProfile.responsibleManagerId ?? ""} className="input">
                     <option value="">Not set</option>
@@ -172,7 +172,7 @@ export default async function BranchConfigurationPage({ searchParams }: { search
 
           <aside className="space-y-4" aria-label="Verification">
             <section className="pc-panel" aria-label="Verify configuration">
-              <div className="pc-panel-head"><h2 className="text-lead font-semibold text-[#101828]">Verification</h2></div>
+              <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">Verification</h2></div>
               <dl className="grid grid-cols-1 gap-3 p-4">
                 <Fact label="Configuration">{selected.policyProfile.lastVerifiedAt ? `Verified ${fmtDate(selected.policyProfile.lastVerifiedAt)} by ${names.get(selected.policyProfile.lastVerifiedById ?? "") ?? "a manager"}` : "Not verified"}</Fact>
                 <Fact label="Local contacts">{selected.policyProfile.contactsVerifiedAt ? `Confirmed ${fmtDate(selected.policyProfile.contactsVerifiedAt)} by ${names.get(selected.policyProfile.contactsVerifiedById ?? "") ?? "a manager"}` : "Not confirmed"}</Fact>
@@ -195,14 +195,14 @@ export default async function BranchConfigurationPage({ searchParams }: { search
               </form>
             </section>
             <section className="pc-panel" aria-label="History">
-              <div className="pc-panel-head"><h2 className="text-lead font-semibold text-[#101828]">History</h2></div>
+              <div className="pc-panel-head"><h2 className="text-[15px] font-semibold text-[#101828]">History</h2></div>
               {history.length ? (
                 <ul className="divide-y divide-[#f2f4f7]">
                   {history.map((h) => (
-                    <li key={h.id} className="px-4 py-2.5 text-meta"><span className="font-medium text-[#101828]">{HISTORY_LABEL[h.action] ?? h.action}</span><span className="block text-[#667085]">{fmtDate(h.createdAt, true)} · {names.get(h.actorId ?? "") ?? "System"}</span></li>
+                    <li key={h.id} className="px-4 py-2.5 text-[13px]"><span className="font-medium text-[#101828]">{HISTORY_LABEL[h.action] ?? h.action}</span><span className="block text-[#667085]">{fmtDate(h.createdAt, true)} · {names.get(h.actorId ?? "") ?? "System"}</span></li>
                   ))}
                 </ul>
-              ) : <p className="px-4 py-3 text-meta text-[#667085]">No changes recorded yet.</p>}
+              ) : <p className="px-4 py-3 text-[13px] text-[#667085]">No changes recorded yet.</p>}
             </section>
           </aside>
         </div>

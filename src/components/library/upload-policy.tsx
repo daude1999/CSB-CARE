@@ -50,13 +50,13 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
         className={`flex cursor-pointer flex-col items-center rounded-[12px] border-2 border-dashed px-4 py-6 text-center transition-colors focus-within:border-module ${over ? "border-module bg-module/[.06]" : "border-[#d0d5dd] bg-[#f9fafb] hover:border-[#b9a6ea]"}`}
       >
         <CloudArrowUp size={28} aria-hidden="true" className="text-module" />
-        <span className="mt-2 text-body font-semibold text-[#101828]">Drag and drop files here, or <span className="text-module underline">browse</span></span>
-        <span className="mt-1 text-meta text-[#475467]">Word (.docx) or PDF · up to {MAX_FILES} files, 10 MB in total</span>
+        <span className="mt-2 text-[14px] font-semibold text-[#101828]">Drag and drop files here, or <span className="text-module underline">browse</span></span>
+        <span className="mt-1 text-[12.5px] text-[#475467]">Word (.docx) or PDF · up to {MAX_FILES} files, 10 MB in total</span>
         <input ref={input} type="file" name="files" multiple required accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={(e) => take(e.currentTarget.files)} />
       </label>
 
       {files.length ? (
-        <ul className="divide-y divide-[#f2f4f7] rounded-[10px] border border-[#eaecf0] text-meta" aria-label="Chosen files">
+        <ul className="divide-y divide-[#f2f4f7] rounded-[10px] border border-[#eaecf0] text-[13px]" aria-label="Chosen files">
           {files.map((f, i) => (
             <li key={`${f.name}-${i}`} className="flex items-center gap-2.5 px-3 py-2">
               {f.type === "application/pdf" ? <FilePdf size={18} aria-hidden="true" className="text-[#b42318]" /> : <FileDoc size={18} aria-hidden="true" className="text-[#175cd3]" />}
@@ -67,7 +67,7 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
           ))}
         </ul>
       ) : null}
-      {problem ? <p role="alert" className="text-meta text-[#b42318]">{problem}</p> : null}
+      {problem ? <p role="alert" className="text-[13px] text-[#b42318]">{problem}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -84,12 +84,12 @@ export function UploadPolicyForm({ categories, owners, defaultOwner, back }: { c
           </select>
         </div>
       </div>
-      <fieldset className="space-y-2 text-body text-[#344054]">
+      <fieldset className="space-y-2 text-[13.5px] text-[#344054]">
         <legend className="sr-only">Upload options</legend>
         <label className="flex items-start gap-2"><input type="checkbox" name="duplicateCheck" defaultChecked className="pc-check mt-0.5" />Skip files whose title matches a policy already in the library</label>
         <label className="flex items-start gap-2"><input type="checkbox" name="extractText" defaultChecked className="pc-check mt-0.5" />Take editable text from Word files (you check it in the draft before publishing)</label>
       </fieldset>
-      <p className="flex gap-2 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2.5 text-meta leading-5 text-[#b54708]">
+      <p className="flex gap-2 rounded-[10px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2.5 text-[13px] leading-5 text-[#b54708]">
         <Warning size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
         <span>Uploads are never published automatically. Each file becomes a Draft v1 with version history, and the original file is stored securely with the policy.</span>
       </p>

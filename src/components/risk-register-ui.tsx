@@ -8,7 +8,7 @@ const CELL: Record<RiskBand, string> = { LOW: "bg-[#dff3e7] text-[#1c5e37]", MOD
 /** A rating as "12 High", coloured by band. */
 export function RatingChip({ score }: { score: number }) {
   const band = riskBand(score);
-  return <span className={`inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-[4px] px-[7px] text-caption font-medium ${CELL[band]}`}><span className="tabular-nums">{score}</span> {BAND_LABEL[band]}</span>;
+  return <span className={`inline-flex h-[22px] items-center gap-1 whitespace-nowrap rounded-[4px] px-[7px] text-[12px] font-medium ${CELL[band]}`}><span className="tabular-nums">{score}</span> {BAND_LABEL[band]}</span>;
 }
 
 /**
@@ -17,12 +17,12 @@ export function RatingChip({ score }: { score: number }) {
  */
 export function RiskMatrix({ cells }: { cells: Map<string, number> }) {
   return (
-    <figure className="max-w-full overflow-x-auto">
-      <table className="w-full border-separate border-spacing-[3px] text-center text-caption" aria-label="Open risks by residual likelihood and impact">
+    <figure>
+      <table className="w-full border-separate border-spacing-[3px] text-center text-[12px]" aria-label="Open risks by residual likelihood and impact">
         <tbody>
           {[5, 4, 3, 2, 1].map((l) => (
             <tr key={l}>
-              <th scope="row" className="w-[76px] pr-1 text-right font-normal text-slate-600">{LIKELIHOOD[l - 1]} ({l})</th>
+              <th scope="row" className="w-[86px] pr-1 text-right font-normal text-slate-600">{LIKELIHOOD[l - 1]} ({l})</th>
               {[1, 2, 3, 4, 5].map((i) => {
                 const n = cells.get(`${l}:${i}`) ?? 0;
                 const band = riskBand(l * i);
@@ -32,11 +32,11 @@ export function RiskMatrix({ cells }: { cells: Map<string, number> }) {
           ))}
           <tr>
             <td />
-            {[1, 2, 3, 4, 5].map((i) => <th key={i} scope="col" className="hyphens-auto break-words pt-1 align-top text-micro font-normal leading-tight text-slate-600" lang="en-GB">{IMPACT[i - 1]} ({i})</th>)}
+            {[1, 2, 3, 4, 5].map((i) => <th key={i} scope="col" className="pt-1 align-top text-[11px] font-normal leading-tight text-slate-600">{IMPACT[i - 1]} ({i})</th>)}
           </tr>
         </tbody>
       </table>
-      <figcaption className="mt-2 text-caption leading-5 text-slate-600">Rating = likelihood x impact. Low 1 to 3, Moderate 4 to 6, High 8 to 12, Extreme 15 to 25. Review at least every {REVIEW_MONTHS.LOW} months (Low), {REVIEW_MONTHS.MODERATE} (Moderate), {REVIEW_MONTHS.HIGH} (High) or monthly (Extreme). An internal management tool, not a regulatory rating.</figcaption>
+      <figcaption className="mt-2 text-[12px] leading-5 text-slate-600">Rating = likelihood x impact. Low 1 to 3, Moderate 4 to 6, High 8 to 12, Extreme 15 to 25. Review at least every {REVIEW_MONTHS.LOW} months (Low), {REVIEW_MONTHS.MODERATE} (Moderate), {REVIEW_MONTHS.HIGH} (High) or monthly (Extreme). An internal management tool, not a regulatory rating.</figcaption>
     </figure>
   );
 }
@@ -69,7 +69,7 @@ export function RiskFormFields({ risk, branches, members, branchRequired }: { ri
         </select>
       </label>
       <fieldset className="rounded-[4px] border border-slate-200 p-3 md:col-span-2">
-        <legend className="px-1 text-meta font-medium text-slate-800">Inherent risk (before any controls)</legend>
+        <legend className="px-1 text-[13px] font-medium text-slate-800">Inherent risk (before any controls)</legend>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ScoreSelect name="likelihood" label="Likelihood" scale={LIKELIHOOD} value={risk?.likelihood} />
           <ScoreSelect name="impact" label="Impact" scale={IMPACT} value={risk?.impact} />
@@ -81,7 +81,7 @@ export function RiskFormFields({ risk, branches, members, branchRequired }: { ri
       </label>
       <span className="hidden md:block" />
       <fieldset className="rounded-[4px] border border-slate-200 p-3 md:col-span-2">
-        <legend className="px-1 text-meta font-medium text-slate-800">Residual risk (with the existing controls)</legend>
+        <legend className="px-1 text-[13px] font-medium text-slate-800">Residual risk (with the existing controls)</legend>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ScoreSelect name="residualLikelihood" label="Likelihood" scale={LIKELIHOOD} value={risk?.residualLikelihood} />
           <ScoreSelect name="residualImpact" label="Impact" scale={IMPACT} value={risk?.residualImpact} />

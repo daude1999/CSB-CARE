@@ -138,19 +138,19 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
       <section aria-label="Board controls" className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <form method="get" className="grid grid-cols-1 items-end gap-2 sm:grid-cols-3">
           <input type="hidden" name="date" value={date} />
-          <label><span className="label text-caption">View</span>
+          <label><span className="label text-[12px]">View</span>
             <select name="view" defaultValue={view} className="input">{Object.entries(VIEWS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
           </label>
-          <label><span className="label text-caption">Cancelled</span>
+          <label><span className="label text-[12px]">Cancelled</span>
             <select name="cancelled" defaultValue={cancelled} className="input">{Object.entries(FILTER).map(([k, l]) => <option key={k} value={k}>{l} cancelled</option>)}</select>
           </label>
-          <label><span className="label text-caption">Uncovered</span>
+          <label><span className="label text-[12px]">Uncovered</span>
             <select name="uncovered" defaultValue={uncovered} className="input">{Object.entries(FILTER).map(([k, l]) => <option key={k} value={k}>{l} uncovered</option>)}</select>
           </label>
-          <label><span className="label text-caption">Area</span>
+          <label><span className="label text-[12px]">Area</span>
             <select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
           </label>
-          <span className="flex items-center gap-3 pb-1"><label className="flex items-center gap-2 text-body"><input type="checkbox" name="refresh" value="1" defaultChecked={sp.refresh === "1"} className="h-4 w-4" /> Auto refresh</label>
+          <span className="flex items-center gap-3 pb-1"><label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name="refresh" value="1" defaultChecked={sp.refresh === "1"} className="h-4 w-4" /> Auto refresh</label>
           <button className="btn-primary">Show</button></span>
         </form>
         <div className="flex flex-col items-end gap-2">
@@ -164,7 +164,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
           </form>
           <details className="relative">
             <summary className="btn-primary cursor-pointer list-none">Actions ▾</summary>
-            <ul className="absolute right-0 z-30 mt-1 w-[220px] rounded border border-slate-200 bg-white py-1 text-body shadow-lg">
+            <ul className="absolute right-0 z-30 mt-1 w-[220px] rounded border border-slate-200 bg-white py-1 text-[14px] shadow-lg">
               {canEdit ? <li><Link href={`/rota/visits/new?date=${date}`} className="block px-3 py-2 hover:bg-slate-50">Add visit</Link></li> : null}
               <li><Link href={`/rota/visits?date=${date}`} className="block px-3 py-2 hover:bg-slate-50">To Daily Rota</Link></li>
               <li><Link href="/workforce/absences" className="block px-3 py-2 hover:bg-slate-50">View holidays</Link></li>
@@ -175,9 +175,9 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
       </section>
 
       {move && sp.error?.startsWith("Needs your confirmation") && canEdit ? <MoveConfirm move={move} back={back} /> : null}
-      <h2 className="mb-2 text-heading font-semibold text-[#2f6b3a]">{longDate(date)} · {VIEWS[view]}</h2>
+      <h2 className="mb-2 text-[22px] font-semibold text-[#2f6b3a]">{longDate(date)} · {VIEWS[view]}</h2>
       <TimelineBoard rows={rows} fromMin={fromMin} toMin={toMin} nowMin={nowMin} caption={view.startsWith("su") ? "Service user" : view === "route-day" ? "Run route" : "Team member"} action={canEdit && (view === "staff-day" || view === "staff-area") ? assignCarerAction : undefined} back={back} />
-      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-meta text-slate-600">
+      <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-slate-600">
         <span><span className="mr-1 inline-block h-3 w-3 border border-[#b9cbe6] bg-[#e8eff9] align-middle" />Due</span>
         <span><span className="mr-1 inline-block h-3 w-3 border border-[#e2c25b] bg-[#fff3c9] align-middle" />Late</span>
         <span><span className="mr-1 inline-block h-3 w-3 border border-[#7cc4e4] bg-[#d6f0fa] align-middle" />In progress</span>
@@ -186,7 +186,7 @@ export default async function AdvancedRotaPage({ searchParams }: { searchParams:
         <span><span className="mr-1 inline-block h-3 w-3 border border-dashed border-[#d9473f] align-middle" />No carer</span>
         <span>The red line is the time now. Each card&apos;s state is also read out to screen readers.</span>
       </p>
-      {truncated ? <p className="mt-2 text-meta text-[#8a5a00]">Showing the first 1,000 visits. Choose an area to see the rest.</p> : null}
+      {truncated ? <p className="mt-2 text-[13px] text-[#8a5a00]">Showing the first 1,000 visits. Choose an area to see the rest.</p> : null}
     </>
   );
 }

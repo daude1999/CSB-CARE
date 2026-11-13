@@ -26,7 +26,7 @@ export default async function NewRiskPage({ searchParams }: { searchParams: Prom
       <CompliancePageHeader back="/compliance/risks" title="Add a risk" subtitle="Score the risk before controls (inherent) and with the controls already in place (residual). Ratings use the 5 x 5 matrix on the register and are an internal management tool." />
       <Flash searchParams={sp} />
       <Card>
-        {finding ? <p className="mb-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-body text-slate-700">Raised from a finding in <strong>{finding.audit.title}</strong>: {finding.description}</p> : null}
+        {finding ? <p className="mb-3 rounded-[3px] bg-[#f5f9fc] px-3 py-2 text-[13.5px] text-slate-700">Raised from a finding in <strong>{finding.audit.title}</strong>: {finding.description}</p> : null}
         <form action={createRiskAction} className="space-y-4">
           <input type="hidden" name="back" value={back} />
           <RiskFormFields branches={branches} members={members.map((m) => ({ userId: m.userId, name: m.user.name }))} branchRequired={Boolean(ctx.branchIds)} risk={finding ? { title: "", description: finding.description, category: "", branchId: finding.audit.branchId, likelihood: 0, impact: 0, existingControls: "", controlEffectiveness: "NOT_ASSESSED", residualLikelihood: 0, residualImpact: 0, ownerId: "", reviewDate: new Date(Date.now() + 90 * 86400_000), findingId: finding.id } : undefined} />

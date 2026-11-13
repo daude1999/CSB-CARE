@@ -12,7 +12,7 @@ import type { Confidence, GroupScore } from "@/server/cqc/scoring";
 /** The label the owner's spec requires wherever a readiness score appears. */
 export function NotOfficialBanner({ children }: { children?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-module/[.22] bg-module/[.08] px-4 py-2.5 text-body text-[#3e1c96]" role="note" data-testid="not-official">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-module/[.22] bg-module/[.08] px-4 py-2.5 text-[13.5px] text-[#3e1c96]" role="note" data-testid="not-official">
       <Info size={18} weight="fill" aria-hidden="true" className="shrink-0" />
       <strong className="font-semibold">Internal CQC Readiness Assessment – Not an Official CQC Rating</strong>
       {children ? <span className="text-module">{children}</span> : null}
@@ -29,8 +29,8 @@ const CONF_LABEL: Record<Confidence, string> = { HIGH: "High confidence", LOW: "
 
 /** A score, or the reason it is held back. */
 export function ScoreValue({ g, big = false }: { g: GroupScore; big?: boolean }) {
-  if (g.score !== null) return <span className={`${big ? "text-[34px] leading-[40px]" : "text-title leading-7"} font-semibold tabular-nums ${g.score >= 80 ? "text-[#067647]" : g.score >= 60 ? "text-[#b54708]" : "text-[#b42318]"}`}>{g.score}<span className={`${big ? "text-lead" : "text-meta"} font-medium text-[#667085]`}>/100</span></span>;
-  return <span className={`${big ? "text-subtitle" : "text-body"} font-semibold text-[#475467]`}>{CONF_LABEL[g.confidence]}</span>;
+  if (g.score !== null) return <span className={`${big ? "text-[34px] leading-[40px]" : "text-[20px] leading-7"} font-semibold tabular-nums ${g.score >= 80 ? "text-[#067647]" : g.score >= 60 ? "text-[#b54708]" : "text-[#b42318]"}`}>{g.score}<span className={`${big ? "text-[16px]" : "text-[13px]"} font-medium text-[#667085]`}>/100</span></span>;
+  return <span className={`${big ? "text-[18px]" : "text-[14px]"} font-semibold text-[#475467]`}>{CONF_LABEL[g.confidence]}</span>;
 }
 
 export function ConfidenceNote({ g }: { g: GroupScore }) {
@@ -51,11 +51,11 @@ export function Meter({ value, tone }: { value: number | null; tone: PcTone }) {
 export interface WarningItem { level: "critical" | "high"; text: string; href: string | null }
 
 export function WarningList({ items }: { items: WarningItem[] }) {
-  if (!items.length) return <p className="px-5 py-4 text-body text-[#067647]" data-testid="no-warnings">No critical warnings from current records.</p>;
+  if (!items.length) return <p className="px-5 py-4 text-[13.5px] text-[#067647]" data-testid="no-warnings">No critical warnings from current records.</p>;
   return (
     <ul className="divide-y divide-[#eaecf0]" data-testid="cqc-warnings">
       {items.map((w, i) => (
-        <li key={i} className="flex items-start gap-3 px-5 py-2.5 text-body">
+        <li key={i} className="flex items-start gap-3 px-5 py-2.5 text-[14px]">
           {w.level === "critical" ? <WarningOctagon size={18} weight="fill" aria-hidden="true" className="mt-0.5 shrink-0 text-[#d92d20]" /> : <WarningIcon size={18} weight="fill" aria-hidden="true" className="mt-0.5 shrink-0 text-[#dc6803]" />}
           <span className="sr-only">{w.level === "critical" ? "Critical: " : "High: "}</span>
           {w.href ? <Link href={w.href} className="pc-link flex-1">{w.text}</Link> : <span className="flex-1 text-[#101828]">{w.text}</span>}
@@ -72,10 +72,10 @@ export function FigureRow({ label, value, href, tone, note, testId }: { label: s
   const body = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="block text-body text-[#344054]">{label}</span>
-        {note ? <span className="block text-caption text-[#667085]">{note}</span> : null}
+        <span className="block text-[13.5px] text-[#344054]">{label}</span>
+        {note ? <span className="block text-[12px] text-[#667085]">{note}</span> : null}
       </span>
-      <span className={`text-subtitle font-semibold tabular-nums ${colour}`}>{value ?? "—"}</span>
+      <span className={`text-[17px] font-semibold tabular-nums ${colour}`}>{value ?? "—"}</span>
     </>
   );
   return href ? (

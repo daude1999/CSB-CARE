@@ -342,15 +342,3 @@ Feedback times measured by `feedback-200ms.spec.ts` (server held back 1.5 s; lim
 | Policies | Upload policy 41 ms; Create policy 147 ms; grid view 147 ms; CSB Central Library tab 146 ms |
 
 The 145 to 147 ms figures are the progress bar, which is held back 120 ms on purpose so quick pages never flash it.
-
-## Type scale (11 Nov 2026)
-
-Local, production build, PostgreSQL 16, `csb_e2e` reset and seeded by the suite. Never the live site.
-
-| Command | Result |
-|---|---|
-| `npm run typecheck`, `npm run lint`, `npm run build` | pass |
-| `npx playwright test` (whole browser suite, 287 tests) | 284 passed, 1 failed, 2 did not run (they follow the failed one in the same file) |
-| `npx playwright test tests/e2e/care-coordinator.spec.ts` re-run | 3 passed. The failure above was a one-off React hydration warning on the upload page; class names cannot cause it, and it did not come back |
-
-`rota.spec.ts` checked the Daily Rota visit time at 15 px; it now expects 16 px, which is the scale step for 15 px.

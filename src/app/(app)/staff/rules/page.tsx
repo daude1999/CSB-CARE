@@ -59,9 +59,9 @@ export default async function AssignmentRulesPage({ searchParams }: { searchPara
                 <tbody>
                   {rules.map((r) => (
                     <tr key={r.id}>
-                      <td><Link href={`/staff/policy/${r.policy.id}`} className="row-title">{r.policy.ref} {r.policy.title}</Link><div className="text-meta text-slate-600">Set by {names.get(r.ownerId) ?? "a member"} on {fmtDate(r.createdAt)}</div></td>
-                      <td className="text-body">{target(r)}{r.withdrawnAt ? <div className="text-meta text-slate-600">Withdrawn {fmtDate(r.withdrawnAt)}: {r.withdrawnReason}</div> : null}</td>
-                      <td className="whitespace-nowrap text-body">{r.dueDays} days after publication</td>
+                      <td><Link href={`/staff/policy/${r.policy.id}`} className="row-title">{r.policy.ref} {r.policy.title}</Link><div className="text-[12.5px] text-slate-600">Set by {names.get(r.ownerId) ?? "a member"} on {fmtDate(r.createdAt)}</div></td>
+                      <td className="text-[14px]">{target(r)}{r.withdrawnAt ? <div className="text-[12.5px] text-slate-600">Withdrawn {fmtDate(r.withdrawnAt)}: {r.withdrawnReason}</div> : null}</td>
+                      <td className="whitespace-nowrap text-[14px]">{r.dueDays} days after publication</td>
                       <td><span className="inline-flex flex-wrap gap-1">{r.mandatory ? <Badge tone="rose">Mandatory</Badge> : <Badge>Optional</Badge>}{r.priority === 1 ? <Badge tone="rose">High risk</Badge> : null}{r.requiresAssessment ? <Badge tone="amber">Knowledge check</Badge> : null}{r.withdrawnAt ? <Badge>Withdrawn</Badge> : null}</span></td>
                       <td className="text-right tabular-nums">{r._count.acknowledgements}</td>
                       {canManage && show !== "withdrawn" ? (
@@ -69,8 +69,8 @@ export default async function AssignmentRulesPage({ searchParams }: { searchPara
                           {!r.withdrawnAt ? (
                             <form action={withdrawRuleAction} className="flex min-w-[220px] gap-2">
                               <input type="hidden" name="back" value={back} /><input type="hidden" name="ruleId" value={r.id} />
-                              <input name="reason" required minLength={3} className="input min-w-0 flex-1 py-1 text-meta" placeholder="Reason" aria-label={`Why the assignment of ${r.policy.ref} is withdrawn`} />
-                              <button className="btn-secondary py-1 text-meta">Withdraw</button>
+                              <input name="reason" required minLength={3} className="input min-w-0 flex-1 py-1 text-[13px]" placeholder="Reason" aria-label={`Why the assignment of ${r.policy.ref} is withdrawn`} />
+                              <button className="btn-secondary py-1 text-[13px]">Withdraw</button>
                             </form>
                           ) : null}
                         </td>
@@ -86,7 +86,7 @@ export default async function AssignmentRulesPage({ searchParams }: { searchPara
         </div>
         {canManage ? (
           <Card title="Add an assignment rule">
-            <p className="text-meta text-slate-600">Choose a published policy and who must read it. Acknowledging a policy is not training and does not show competence.</p>
+            <p className="text-[13px] text-slate-600">Choose a published policy and who must read it. Acknowledging a policy is not training and does not show competence.</p>
             {lookups.policies.length ? <RuleForm back={back} policies={lookups.policies} branches={lookups.branches} roles={lookups.roles} staff={staff} /> : <Empty>No policy has been published yet.</Empty>}
           </Card>
         ) : null}

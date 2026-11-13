@@ -37,9 +37,9 @@ function DetailFields({ section, doc, canSensitive }: { section: ServiceUserDocu
       <label><span className="label">Date received</span><input type="date" name="receivedOn" defaultValue={isoDay(doc?.receivedOn)} className="input" /></label>
       <label><span className="label">Effective from (if applicable)</span><input type="date" name="effectiveFrom" defaultValue={isoDay(doc?.effectiveFrom)} className="input" /></label>
       <label><span className="label">Expires (if applicable)</span><input type="date" name="expiresOn" defaultValue={isoDay(doc?.expiresOn)} className="input" /></label>
-      <label className="flex items-center gap-2 pt-6 text-body">
+      <label className="flex items-center gap-2 pt-6 text-[14px]">
         <input type="checkbox" name="markSensitive" defaultChecked={doc?.sensitive} disabled={!canSensitive} className="h-4 w-4" /> Restrict to managers
-        {!canSensitive ? <span className="text-meta text-slate-500">(managers only)</span> : null}
+        {!canSensitive ? <span className="text-[12.5px] text-slate-500">(managers only)</span> : null}
       </label>
       <label className="md:col-span-2"><span className="label">Notes</span><textarea name="notes" rows={2} maxLength={4000} defaultValue={doc?.notes ?? ""} className="input" /></label>
     </>
@@ -92,8 +92,8 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
       <section className="card" aria-labelledby="docs-h">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 id="docs-h" className="text-subtitle">{DOCUMENT_SECTIONS[section]}</h2>
-            <p className="mt-0.5 text-body text-slate-600">
+            <h2 id="docs-h" className="text-[17px]">{DOCUMENT_SECTIONS[section]}</h2>
+            <p className="mt-0.5 text-[13.5px] text-slate-600">
               {section === "COUNCIL" ? "Documents from the commissioning council or local authority." : "Consent, identification, medical letters and other supporting documents."}{" "}
               Files are private: they open only for signed-in staff allowed to see them, and every view is recorded.
             </p>
@@ -108,13 +108,13 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                 <div className="md:col-span-2"><PrivateFileInput name="file" required accept={ACCEPT_DOCUMENTS} maxBytes={MAX_DOCUMENT_BYTES} label="File" hint="PDF, Word, or an image or scan (JPG, PNG, GIF, WebP, TIFF). Up to 4 MB." /></div>
                 <DetailFields section={section} canSensitive={canSensitive} />
                 <button className="btn-primary md:col-span-2">Upload</button>
-                <p className="text-meta text-slate-500 md:col-span-2">Identity, medical and financial documents are restricted automatically: only the registered manager and administrators can open them.</p>
+                <p className="text-[12.5px] text-slate-500 md:col-span-2">Identity, medical and financial documents are restricted automatically: only the registered manager and administrators can open them.</p>
               </form>
             </details>
           ) : null}
         </div>
         {required.length ? (
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-body" data-testid="required-council-docs">
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-[13.5px]" data-testid="required-council-docs">
             <span className="font-medium">Required for every person:</span>
             {required.map((r) => <Badge key={r.key} tone={r.held ? "green" : "rose"}>{r.label}: {r.held ? "held" : "missing"}</Badge>)}
           </p>
@@ -125,8 +125,8 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
         <section className="card" aria-label={`${DOCUMENT_SECTIONS[section]} list`}>
           {current.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-body">
-                <thead className="text-left text-meta text-slate-600"><tr><th className="px-3 py-2">Document</th><th className="px-2 py-2">Category</th><th className="px-2 py-2">Received</th><th className="px-2 py-2">Expires</th><th className="px-2 py-2">Version</th><th className="px-2 py-2">Uploaded</th></tr></thead>
+              <table className="w-full text-[13.5px]">
+                <thead className="text-left text-[12.5px] text-slate-600"><tr><th className="px-3 py-2">Document</th><th className="px-2 py-2">Category</th><th className="px-2 py-2">Received</th><th className="px-2 py-2">Expires</th><th className="px-2 py-2">Version</th><th className="px-2 py-2">Uploaded</th></tr></thead>
                 <tbody>
                   {current.map((r) => (
                     <tr key={r.id} className={`border-t border-slate-100 ${r.id === selectedRow?.id ? "bg-[#eef4fb]" : ""}`}>
@@ -135,7 +135,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                       <td className="whitespace-nowrap px-2 py-2">{fmtDate(r.receivedOn)}</td>
                       <td className={`whitespace-nowrap px-2 py-2 ${r.expired ? "font-medium text-[#a3242c]" : ""}`}>{fmtDate(r.expiresOn)}</td>
                       <td className="px-2 py-2">{r.restricted ? "—" : `v${r.currentVersion}`}</td>
-                      <td className="whitespace-nowrap px-2 py-2 text-slate-600">{r.latest ? <>{fmtDate(r.latest.uploadedAt)}<span className="block text-caption">{names.get(r.latest.uploadedById) ?? "Former member"}</span></> : "—"}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-slate-600">{r.latest ? <>{fmtDate(r.latest.uploadedAt)}<span className="block text-[12px]">{names.get(r.latest.uploadedById) ?? "Former member"}</span></> : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -144,10 +144,10 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
           ) : <Empty>No {DOCUMENT_SECTIONS[section].toLowerCase()} yet.{canManage ? " Use Upload Document to add the first one." : ""}</Empty>}
           {historical.length ? (
             <details className="mt-3 border-t border-slate-200 pt-2" open={selectedRow?.archivedAt ? true : undefined}>
-              <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Historical documents ({historical.length})</summary>
+              <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Historical documents ({historical.length})</summary>
               <ul className="rows mt-2">
                 {historical.map((r) => (
-                  <li key={r.id} className="py-2 text-body"><Link href={`${here}&doc=${r.id}`} className="row-title">{r.name}</Link> <span className="text-slate-600">· {r.categoryLabel} · archived {fmtDate(r.archivedAt)}{r.archiveReason ? ` · ${r.archiveReason}` : ""}</span></li>
+                  <li key={r.id} className="py-2 text-[13.5px]"><Link href={`${here}&doc=${r.id}`} className="row-title">{r.name}</Link> <span className="text-slate-600">· {r.categoryLabel} · archived {fmtDate(r.archivedAt)}{r.archiveReason ? ` · ${r.archiveReason}` : ""}</span></li>
                 ))}
               </ul>
             </details>
@@ -158,14 +158,14 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
           {!selectedRow ? (
             <Empty>Choose a document to preview it, see its versions and history{canManage ? ", or replace it" : ""}.</Empty>
           ) : selectedRow.restricted || detailError ? (
-            <div className="px-1 py-4 text-body">
-              <h3 className="text-lead font-semibold">Restricted document</h3>
+            <div className="px-1 py-4 text-[14px]">
+              <h3 className="text-[16px] font-semibold">Restricted document</h3>
               <p className="mt-1 text-slate-600">{detailError ?? `This document (${selectedRow.categoryLabel}) is restricted. Only the registered manager and administrators can open it.`}</p>
             </div>
           ) : detail ? (
-            <div className="space-y-4 text-body">
+            <div className="space-y-4 text-[14px]">
               <div>
-                <div className="flex flex-wrap items-center gap-2"><h3 className="text-lead font-semibold">{detail.doc.name}</h3><StatusBadges d={selectedRow} /></div>
+                <div className="flex flex-wrap items-center gap-2"><h3 className="text-[16px] font-semibold">{detail.doc.name}</h3><StatusBadges d={selectedRow} /></div>
                 <p className="text-slate-600">{detail.doc.categoryLabel}{detail.doc.issuingAuthority ? ` · ${detail.doc.issuingAuthority}` : ""}</p>
               </div>
               {(() => {
@@ -178,13 +178,13 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={fileUrl(detail.doc.id, { preview: true })} alt={`Preview of ${detail.doc.name}`} className="max-h-[360px] w-full rounded-[4px] border border-slate-200 object-contain" />
                     ) : (
-                      <p className="rounded-[4px] border border-dashed border-slate-300 bg-[#f8fafc] px-3 py-4 text-center text-body text-slate-600">{previewable(v.contentType) ? "PDF document. Preview opens in a new tab." : "Word and TIFF files cannot be shown in the browser. Download to open."}</p>
+                      <p className="rounded-[4px] border border-dashed border-slate-300 bg-[#f8fafc] px-3 py-4 text-center text-[13.5px] text-slate-600">{previewable(v.contentType) ? "PDF document. Preview opens in a new tab." : "Word and TIFF files cannot be shown in the browser. Download to open."}</p>
                     )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       {previewable(v.contentType) ? <a href={fileUrl(detail.doc.id, { preview: true })} target="_blank" rel="noopener" className="btn-secondary">Preview</a> : null}
                       <a href={fileUrl(detail.doc.id)} className="btn-secondary">Download</a>
                     </div>
-                    <p className="mt-1 text-meta text-slate-500">{v.filename} · {fileSize(v.sizeBytes)} · version {v.version}</p>
+                    <p className="mt-1 text-[12.5px] text-slate-500">{v.filename} · {fileSize(v.sizeBytes)} · version {v.version}</p>
                   </div>
                 );
               })()}
@@ -199,15 +199,15 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
 
               {versionHistory ? (
                 <div>
-                  <h4 className="mb-1 text-body font-semibold">Document history</h4>
+                  <h4 className="mb-1 text-[14px] font-semibold">Document history</h4>
                   <ul className="rows" data-testid="document-versions">
                     {versionHistory.versions.map((v) => (
-                      <li key={v.id} className="py-2 text-body">
+                      <li key={v.id} className="py-2 text-[13.5px]">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{v.label}</span><Badge tone={VERSION_TONE[v.status]}>{VERSION_STATUS[v.status]}</Badge></span>
-                          <span className="flex gap-3">{previewable(detail!.versions.find((x) => x.version === v.version)?.contentType ?? "") ? <a href={fileUrl(detail!.doc.id, { v: v.version, preview: true })} target="_blank" rel="noopener" className="text-meta">Preview</a> : null}<a href={fileUrl(detail!.doc.id, { v: v.version })} className="text-meta">Download</a>{v.version > 1 ? <Link href={`${back}&compare=${v.version}#compare`} className="text-meta">Compare previous version</Link> : null}</span>
+                          <span className="flex gap-3">{previewable(detail!.versions.find((x) => x.version === v.version)?.contentType ?? "") ? <a href={fileUrl(detail!.doc.id, { v: v.version, preview: true })} target="_blank" rel="noopener" className="text-[13px]">Preview</a> : null}<a href={fileUrl(detail!.doc.id, { v: v.version })} className="text-[13px]">Download</a>{v.version > 1 ? <Link href={`${back}&compare=${v.version}#compare`} className="text-[13px]">Compare previous version</Link> : null}</span>
                         </div>
-                        <dl className="mt-1 grid grid-cols-2 gap-x-4 text-meta text-slate-600 sm:grid-cols-3">
+                        <dl className="mt-1 grid grid-cols-2 gap-x-4 text-[12.5px] text-slate-600 sm:grid-cols-3">
                           <div><dt className="inline">On the document: </dt><dd className="inline">{v.documentDate ? fmtDate(v.documentDate) : "Not given"}</dd></div>
                           <div><dt className="inline">Received: </dt><dd className="inline">{v.receivedOn ? fmtDate(v.receivedOn) : "Not given"}</dd></div>
                           <div><dt className="inline">Uploaded: </dt><dd className="inline">{fmtDate(v.uploadedAt, true)} · {names.get(v.uploadedById) ?? "Former member"}</dd></div>
@@ -215,13 +215,13 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                           <div><dt className="inline">Approved: </dt><dd className="inline">{v.approvedAt ? `${fmtDate(v.approvedAt, true)}${v.approvedById ? ` · ${names.get(v.approvedById) ?? "Former member"}` : ""}` : "Not yet"}</dd></div>
                           {v.intakeId ? <div><dt className="inline">From: </dt><dd className="inline"><Link href={`/rota/coordinator/${v.intakeId}?step=facts`}>Care Coordinator intake</Link></dd></div> : null}
                         </dl>
-                        {v.changeNote ? <p className="mt-1 text-meta text-slate-600">{v.changeNote}</p> : null}
+                        {v.changeNote ? <p className="mt-1 text-[12.5px] text-slate-600">{v.changeNote}</p> : null}
                         {canManage && !detail!.doc.archivedAt && (v.status === "PENDING_REVIEW" || v.status === "CURRENT") ? (
                           <form action={decideSuDocumentVersionAction} className="mt-2 flex flex-wrap items-center gap-2">
                             <input type="hidden" name="back" value={back} />
                             <input type="hidden" name="documentId" value={detail!.doc.id} />
                             <input type="hidden" name="version" value={v.version} />
-                            <input name="note" className="input w-auto min-w-[220px] flex-1 py-1 text-meta" placeholder={v.status === "PENDING_REVIEW" ? "Note (required to reject)" : "Why it is withdrawn"} aria-label={`Note for ${v.label}`} />
+                            <input name="note" className="input w-auto min-w-[220px] flex-1 py-1 text-[13px]" placeholder={v.status === "PENDING_REVIEW" ? "Note (required to reject)" : "Why it is withdrawn"} aria-label={`Note for ${v.label}`} />
                             {v.status === "PENDING_REVIEW" ? <><button name="decision" value="APPROVE" className="btn-primary py-1">Approve {v.label}</button><button name="decision" value="REJECT" className="btn-secondary py-1">Reject</button></> : null}
                             <button name="decision" value="WITHDRAW" className="btn-secondary py-1">Withdraw</button>
                           </form>
@@ -236,15 +236,15 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                     <label><span className="label">Which version was in force on</span><input type="date" name="inforce" defaultValue={inForceDate ?? ""} className="input py-1" /></label>
                     <button className="btn-secondary py-1">Check</button>
                   </form>
-                  {inForceDate ? <p className="mt-1 text-body" role="status">{inForceVersion ? <>On {fmtDate(inForceVersion.effectiveFrom ?? inForceDate)}{" "}the version in force was <strong>{inForceVersion.label}</strong> ({VERSION_STATUS[inForceVersion.status].toLowerCase()} now).</> : <>No approved version was in force on {fmtDate(inForceDate)}.</>}</p> : null}
+                  {inForceDate ? <p className="mt-1 text-[13.5px]" role="status">{inForceVersion ? <>On {fmtDate(inForceVersion.effectiveFrom ?? inForceDate)}{" "}the version in force was <strong>{inForceVersion.label}</strong> ({VERSION_STATUS[inForceVersion.status].toLowerCase()} now).</> : <>No approved version was in force on {fmtDate(inForceDate)}.</>}</p> : null}
                   {comparison ? (
                     <div id="compare" className="mt-3 rounded-[4px] border border-slate-200 p-3">
-                      <h5 className="text-body font-semibold">{comparison.version.label} compared with {comparison.previous ? comparison.previous.label : "nothing (first version)"}</h5>
+                      <h5 className="text-[14px] font-semibold">{comparison.version.label} compared with {comparison.previous ? comparison.previous.label : "nothing (first version)"}</h5>
                       {comparison.fields.length ? (
-                        <table className="mt-1 w-full text-left text-meta"><thead className="text-slate-500"><tr><th className="py-1 pr-2">Detail</th><th className="py-1 pr-2">{comparison.previous?.label}</th><th className="py-1">{comparison.version.label}</th></tr></thead>
+                        <table className="mt-1 w-full text-left text-[13px]"><thead className="text-slate-500"><tr><th className="py-1 pr-2">Detail</th><th className="py-1 pr-2">{comparison.previous?.label}</th><th className="py-1">{comparison.version.label}</th></tr></thead>
                           <tbody>{comparison.fields.map((f) => <tr key={f.label} className={`border-t border-slate-200 ${f.changed ? "font-medium" : "text-slate-600"}`}><td className="py-1 pr-2">{f.label}{f.changed ? " (changed)" : ""}</td><td className="py-1 pr-2">{f.previous ?? "Not given"}</td><td className="py-1">{f.this ?? "Not given"}</td></tr>)}</tbody></table>
                       ) : null}
-                      {comparison.version.intakeId ? <p className="mt-1 text-meta">The content was compared detail by detail in its <Link href={`/rota/coordinator/${comparison.version.intakeId}?step=facts`}>Care Coordinator intake</Link> (What the revised plan changes).</p> : <p className="mt-1 text-meta text-slate-600">This version was uploaded by hand, so its content was not compared automatically. Open both files to compare them.</p>}
+                      {comparison.version.intakeId ? <p className="mt-1 text-[13px]">The content was compared detail by detail in its <Link href={`/rota/coordinator/${comparison.version.intakeId}?step=facts`}>Care Coordinator intake</Link> (What the revised plan changes).</p> : <p className="mt-1 text-[13px] text-slate-600">This version was uploaded by hand, so its content was not compared automatically. Open both files to compare them.</p>}
                     </div>
                   ) : null}
                 </div>
@@ -254,7 +254,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                 <div className="space-y-2 border-t border-slate-200 pt-3">
                   {!detail.doc.archivedAt ? (
                     <details>
-                      <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Replace with a new version</summary>
+                      <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Replace with a new version</summary>
                       <form action={replaceSuDocumentAction} className="mt-2 space-y-2">
                         <input type="hidden" name="back" value={back} />
                         <input type="hidden" name="documentId" value={detail.doc.id} />
@@ -266,7 +266,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                     </details>
                   ) : null}
                   <details>
-                    <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Edit details</summary>
+                    <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Edit details</summary>
                     <form action={updateSuDocumentAction} className="mt-2 grid gap-2 md:grid-cols-2">
                       <input type="hidden" name="back" value={back} />
                       <input type="hidden" name="documentId" value={detail.doc.id} />
@@ -276,7 +276,7 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                     </form>
                   </details>
                   <details>
-                    <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">{detail.doc.archivedAt ? "Restore to current documents" : "Move to historical documents"}</summary>
+                    <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">{detail.doc.archivedAt ? "Restore to current documents" : "Move to historical documents"}</summary>
                     <form action={archiveSuDocumentAction} className="mt-2 space-y-2">
                       <input type="hidden" name="back" value={back} />
                       <input type="hidden" name="documentId" value={detail.doc.id} />
@@ -284,15 +284,15 @@ export async function ServiceUserDocuments({ ctx, serviceUserId, section, select
                       <input type="hidden" name="archive" value={detail.doc.archivedAt ? "false" : "true"} />
                       {!detail.doc.archivedAt ? <label className="block"><span className="label">Why</span><input name="reason" required minLength={3} maxLength={500} className="input" placeholder="e.g. Superseded by the new support plan" /></label> : null}
                       <button className="btn-secondary">{detail.doc.archivedAt ? "Restore" : "Move to historical"}</button>
-                      <p className="text-meta text-slate-500">Nothing is deleted. Historical documents stay available here.</p>
+                      <p className="text-[12.5px] text-slate-500">Nothing is deleted. Historical documents stay available here.</p>
                     </form>
                   </details>
                 </div>
               ) : null}
 
               <div>
-                <h4 className="mb-1 text-body font-semibold">History</h4>
-                <ol className="space-y-1 text-meta" data-testid="document-history">
+                <h4 className="mb-1 text-[14px] font-semibold">History</h4>
+                <ol className="space-y-1 text-[13px]" data-testid="document-history">
                   {detail.history.map((h) => {
                     const data = (h.data ?? {}) as { version?: number; changes?: Record<string, unknown>; reason?: string };
                     return (

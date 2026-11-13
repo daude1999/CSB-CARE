@@ -89,8 +89,8 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
                 {on ? <span className="h-2 w-2 rounded-full bg-module" /> : null}
               </span>
               <span className="min-w-0">
-                <span className="block text-body font-semibold text-[#101828]">{r.title}</span>
-                <span className="mt-1 block text-meta leading-[18px] text-[#475467]">{r.blurb}</span>
+                <span className="block text-[14px] font-semibold text-[#101828]">{r.title}</span>
+                <span className="mt-1 block text-[12.5px] leading-[18px] text-[#475467]">{r.blurb}</span>
               </span>
             </Link>
           );
@@ -100,9 +100,9 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
       <section aria-label="Report filters" className="pc-panel mt-4">
         <form method="get" action="/compliance/reports" className="flex flex-wrap items-end gap-3 px-5 py-4">
           <input type="hidden" name="kind" value={kind} />
-          <label className="flex flex-col text-meta font-medium text-[#344054]">From<input type="date" name="from" defaultValue={f.from} className="input mt-1 h-[38px] w-[160px] py-0" /></label>
-          <label className="flex flex-col text-meta font-medium text-[#344054]">To<input type="date" name="to" defaultValue={f.to} className="input mt-1 h-[38px] w-[160px] py-0" /></label>
-          <label className="flex flex-col text-meta font-medium text-[#344054]">
+          <label className="flex flex-col text-[13px] font-medium text-[#344054]">From<input type="date" name="from" defaultValue={f.from} className="input mt-1 h-[38px] w-[160px] py-0" /></label>
+          <label className="flex flex-col text-[13px] font-medium text-[#344054]">To<input type="date" name="to" defaultValue={f.to} className="input mt-1 h-[38px] w-[160px] py-0" /></label>
+          <label className="flex flex-col text-[13px] font-medium text-[#344054]">
             Branch
             <select name="branch" defaultValue={f.branch ?? ""} className="input mt-1 h-[38px] w-[160px] py-0">
               <option value="">{ctx.branchIds ? "All my branches" : "All branches"}</option>
@@ -110,7 +110,7 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
             </select>
           </label>
           {statusOptions.length ? (
-            <label className="flex flex-col text-meta font-medium text-[#344054]">
+            <label className="flex flex-col text-[13px] font-medium text-[#344054]">
               Status
               <select name="status" defaultValue={status ?? ""} className="input mt-1 h-[38px] w-[160px] py-0">
                 <option value="">Any</option>
@@ -119,7 +119,7 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
             </label>
           ) : null}
           {categories.length ? (
-            <label className="flex flex-col text-meta font-medium text-[#344054]">
+            <label className="flex flex-col text-[13px] font-medium text-[#344054]">
               Category
               <select name="category" defaultValue={category ?? ""} className="input mt-1 h-[38px] w-[200px] py-0">
                 <option value="">All</option>
@@ -138,8 +138,8 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
             </span>
           ) : null}
         </form>
-        {error ? <p role="alert" className="px-5 pb-3 text-body text-[#b42318]">{error}. Showing the last 12 months instead.</p> : null}
-        <p className="flex items-start gap-1.5 border-t border-[#f2f4f7] px-5 py-2.5 text-meta text-[#667085]">
+        {error ? <p role="alert" className="px-5 pb-3 text-[13.5px] text-[#b42318]">{error}. Showing the last 12 months instead.</p> : null}
+        <p className="flex items-start gap-1.5 border-t border-[#f2f4f7] px-5 py-2.5 text-[12.5px] text-[#667085]">
           <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
           <span>
             {report.periodBasis ? `The period applies to each record's ${report.periodBasis}.` : "This report shows the current position; the period does not apply."}{" "}
@@ -151,7 +151,7 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
       <section aria-labelledby="report-title" className="pc-panel mt-4">
         <div className="pc-panel-head flex-wrap">
           <h2 id="report-title" className="pc-panel-title">{report.title}</h2>
-          <dl className="flex flex-wrap gap-x-5 gap-y-1 text-meta" data-testid="report-summary">
+          <dl className="flex flex-wrap gap-x-5 gap-y-1 text-[13px]" data-testid="report-summary">
             {(report.summary ?? []).map(([label, value]) => (
               <div key={label} className="flex items-baseline gap-1.5">
                 <dt className="text-[#475467]">{label}</dt>
@@ -174,13 +174,13 @@ export default async function ComplianceReportsPage({ searchParams }: { searchPa
         ) : <p className="pc-empty">No records for this report with these filters.</p>}
         <div className="pc-foot">
           <span>Showing {Math.min(report.rows.length, PREVIEW)} of {report.rows.length} rows{report.rows.length > PREVIEW ? ". Export for the full report." : ""}</span>
-          <ul className="list-none space-y-0.5 text-meta">{report.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+          <ul className="list-none space-y-0.5 text-[12.5px]">{report.notes.map((n) => <li key={n}>{n}</li>)}</ul>
         </div>
       </section>
 
       {more.length ? (
         <section aria-labelledby="more-reports" className="pc-panel mt-4 px-5 py-4">
-          <h2 id="more-reports" className="text-body font-semibold text-[#101828]">More reports</h2>
+          <h2 id="more-reports" className="text-[14px] font-semibold text-[#101828]">More reports</h2>
           <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
             {more.map((k) => (
               <li key={k}><Link href={`/compliance/reports?${qs({ kind: k, status: undefined, category: undefined })}`} aria-current={k === kind ? "page" : undefined} className="pc-link">{REPORT_TITLES[k]}</Link></li>

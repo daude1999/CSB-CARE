@@ -23,7 +23,7 @@ export function PxHeader({ title, description, actions, crumbs, meta }: { title:
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="min-w-0 flex-1 basis-[20rem]">
         {crumbs?.length ? (
-          <nav aria-label="Breadcrumb" className="mb-1.5 flex flex-wrap items-center gap-1 text-meta text-px-muted">
+          <nav aria-label="Breadcrumb" className="mb-1.5 flex flex-wrap items-center gap-1 text-[12.5px] text-px-muted">
             {crumbs.map((c) => (
               <span key={c.href} className="flex items-center gap-1">
                 <Link href={c.href} className="text-px-muted no-underline hover:text-px-accent hover:underline">{c.label}</Link>
@@ -32,9 +32,9 @@ export function PxHeader({ title, description, actions, crumbs, meta }: { title:
             ))}
           </nav>
         ) : null}
-        <h1 className="text-title font-semibold leading-7 tracking-[-0.01em] text-px-ink">{title}</h1>
-        {description ? <p className="mt-0.5 max-w-3xl text-body leading-5 text-px-muted">{description}</p> : null}
-        {meta ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-px-muted">{meta}</div> : null}
+        <h1 className="text-[20px] font-semibold leading-7 tracking-[-0.01em] text-px-ink">{title}</h1>
+        {description ? <p className="mt-0.5 max-w-3xl text-[13.5px] leading-5 text-px-muted">{description}</p> : null}
+        {meta ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-px-muted">{meta}</div> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
@@ -48,10 +48,10 @@ export function PxPanel({ title, actions, children, className = "", id, descript
       {title || actions ? (
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-px-divider px-4 py-3">
           <div className="min-w-0">
-            {title ? <h2 className="text-body font-semibold leading-5 text-px-ink">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-meta leading-[18px] text-px-muted">{description}</p> : null}
+            {title ? <h2 className="text-[14px] font-semibold leading-5 text-px-ink">{title}</h2> : null}
+            {description ? <p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{description}</p> : null}
           </div>
-          {actions ? <div className="flex flex-wrap items-center gap-2 text-meta">{actions}</div> : null}
+          {actions ? <div className="flex flex-wrap items-center gap-2 text-[13px]">{actions}</div> : null}
         </div>
       ) : null}
       <div className={flush ? "" : "px-4 py-3"}>{children}</div>
@@ -88,7 +88,7 @@ export function Pill({ value, label }: { value: string; label?: string }) {
   const tone = (PILL[value] ?? "neutral") as ToneKey;
   const text = label ?? PILL_TEXT[value] ?? value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, " ");
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-[2px] text-caption font-medium leading-4 ${TONE_CLS[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-[2px] text-[12px] font-medium leading-4 ${TONE_CLS[tone]}`}>
       <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${DOT_CLS[tone]}`} />
       {text}
     </span>
@@ -98,12 +98,12 @@ export function Pill({ value, label }: { value: string; label?: string }) {
 const TONE_MAP = { rose: "danger", amber: "warn", slate: "neutral", green: "ok", violet: "accent", blue: "info" } as const;
 /** A small label in one of the semantic tones (for events and flags that are not record states). */
 export function Tone({ tone, children }: { tone: keyof typeof TONE_MAP; children: ReactNode }) {
-  return <span className={`inline-flex items-center whitespace-nowrap rounded-[5px] px-1.5 py-[1px] text-caption font-medium leading-[18px] ${TONE_CLS[TONE_MAP[tone]]}`}>{children}</span>;
+  return <span className={`inline-flex items-center whitespace-nowrap rounded-[5px] px-1.5 py-[1px] text-[12px] font-medium leading-[18px] ${TONE_CLS[TONE_MAP[tone]]}`}>{children}</span>;
 }
 
 /** Labels a figure that is not measured from records. */
 export function NotConfigured({ children = "Not configured" }: { children?: ReactNode }) {
-  return <span className="inline-flex items-center rounded-[5px] border border-dashed border-[#c9cedb] px-1.5 py-[1px] text-caption font-medium text-px-muted">{children}</span>;
+  return <span className="inline-flex items-center rounded-[5px] border border-dashed border-[#c9cedb] px-1.5 py-[1px] text-[12px] font-medium text-px-muted">{children}</span>;
 }
 
 // ───────────────────────────── Figures
@@ -118,9 +118,9 @@ export function MetricStrip({ children, label, cols = 4 }: { children: ReactNode
 export function Indicator({ label, value, note, href, alert, className = "" }: { label: string; value: ReactNode; note?: ReactNode; href?: string; alert?: boolean; className?: string }) {
   const body = (
     <>
-      <span className="block text-meta font-medium text-px-muted">{label}</span>
-      <span className={`mt-1 block text-title font-semibold leading-7 tabular-nums tracking-[-0.01em] ${alert ? "text-px-danger" : "text-px-ink"}`}>{value}</span>
-      {note ? <span className="mt-0.5 block text-caption leading-4 text-px-subtle">{note}</span> : null}
+      <span className="block text-[12.5px] font-medium text-px-muted">{label}</span>
+      <span className={`mt-1 block text-[20px] font-semibold leading-7 tabular-nums tracking-[-0.01em] ${alert ? "text-px-danger" : "text-px-ink"}`}>{value}</span>
+      {note ? <span className="mt-0.5 block text-[12px] leading-4 text-px-subtle">{note}</span> : null}
     </>
   );
   return href ? (
@@ -137,9 +137,9 @@ export const Metric = Indicator;
 export function Table({ head, children, empty, label, minWidth = 640, align }: { head: ReactNode[]; children: ReactNode; empty?: ReactNode; label?: string; minWidth?: number; align?: ("left" | "right")[] }) {
   return (
     <div className="-mx-4 overflow-x-auto">
-      <table className="w-full border-collapse text-left text-body" style={{ minWidth }} aria-label={label}>
+      <table className="w-full border-collapse text-left text-[13.5px]" style={{ minWidth }} aria-label={label}>
         <thead>
-          <tr className="border-b border-px-divider bg-px-field text-caption font-medium uppercase tracking-[0.04em] text-px-muted">
+          <tr className="border-b border-px-divider bg-px-field text-[11.5px] font-medium uppercase tracking-[0.04em] text-px-muted">
             {head.map((h, i) => <th key={i} scope="col" className={`whitespace-nowrap px-4 py-2 font-medium first:pl-4 ${align?.[i] === "right" ? "text-right" : ""}`}>{h}</th>)}
           </tr>
         </thead>
@@ -151,15 +151,15 @@ export function Table({ head, children, empty, label, minWidth = 640, align }: {
 }
 
 export function EmptyRow({ children }: { children: ReactNode }) {
-  return <p className="px-4 py-8 text-center text-body text-px-muted">{children}</p>;
+  return <p className="px-4 py-8 text-center text-[13.5px] text-px-muted">{children}</p>;
 }
 
 /** An empty state that says what the area is for and what to do next. */
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="px-4 py-8 text-center">
-      <p className="text-body font-medium text-px-ink">{title}</p>
-      {children ? <p className="mx-auto mt-1 max-w-md text-meta leading-5 text-px-muted">{children}</p> : null}
+      <p className="text-[14px] font-medium text-px-ink">{title}</p>
+      {children ? <p className="mx-auto mt-1 max-w-md text-[13px] leading-5 text-px-muted">{children}</p> : null}
       {action ? <div className="mt-3 flex justify-center gap-2">{action}</div> : null}
     </div>
   );
@@ -182,7 +182,7 @@ export function Toolbar({ children, label, clearHref, active }: { children: Reac
 export function Filter({ label, children, grow = false }: { label: string; children: ReactNode; grow?: boolean }) {
   return (
     <label className={grow ? "min-w-[200px] flex-1 basis-[220px]" : "min-w-[140px] basis-[160px]"}>
-      <span className="mb-1 block text-caption font-medium uppercase tracking-[0.04em] text-px-muted">{label}</span>
+      <span className="mb-1 block text-[11.5px] font-medium uppercase tracking-[0.04em] text-px-muted">{label}</span>
       {children}
     </label>
   );
@@ -195,9 +195,9 @@ export function Tabs({ items, label = "Client sections" }: { items: { href: stri
   return (
     <nav aria-label={label} className="-mx-1 mb-5 flex gap-1 overflow-x-auto border-b border-px-line px-1 [scrollbar-width:none]">
       {items.map((t) => (
-        <Link key={t.href} href={t.href} aria-current={t.active ? "page" : undefined} className={`relative -mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-body no-underline transition-colors ${t.active ? "border-px-accent font-medium text-px-ink" : "border-transparent text-px-muted hover:border-px-line hover:text-px-ink"}`}>
+        <Link key={t.href} href={t.href} aria-current={t.active ? "page" : undefined} className={`relative -mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-[13.5px] no-underline transition-colors ${t.active ? "border-px-accent font-medium text-px-ink" : "border-transparent text-px-muted hover:border-px-line hover:text-px-ink"}`}>
           {t.label}
-          {t.count !== undefined ? <span className="ml-1.5 rounded-full bg-px-row px-1.5 text-caption tabular-nums text-px-muted">{t.count}</span> : null}
+          {t.count !== undefined ? <span className="ml-1.5 rounded-full bg-px-row px-1.5 text-[11.5px] tabular-nums text-px-muted">{t.count}</span> : null}
         </Link>
       ))}
     </nav>
@@ -212,8 +212,8 @@ export function KeyValues({ items, cols = 2 }: { items: [string, ReactNode][]; c
     <dl className={`grid grid-cols-1 gap-x-6 gap-y-3 ${c}`}>
       {items.map(([k, v]) => (
         <div key={k} className="min-w-0">
-          <dt className="text-caption font-medium text-px-muted">{k}</dt>
-          <dd className="mt-0.5 break-words text-body text-px-ink">{v}</dd>
+          <dt className="text-[12px] font-medium text-px-muted">{k}</dt>
+          <dd className="mt-0.5 break-words text-[13.5px] text-px-ink">{v}</dd>
         </div>
       ))}
     </dl>
@@ -225,7 +225,7 @@ export function DetailRows({ items }: { items: [string, ReactNode][] }) {
   return (
     <dl className="-my-1 divide-y divide-px-row">
       {items.map(([k, v]) => (
-        <div key={k} className="flex items-baseline justify-between gap-4 py-2 text-body">
+        <div key={k} className="flex items-baseline justify-between gap-4 py-2 text-[13.5px]">
           <dt className="shrink-0 text-px-muted">{k}</dt>
           <dd className="min-w-0 text-right text-px-ink">{v}</dd>
         </div>
@@ -239,8 +239,8 @@ export function SettingsRow({ label, help, children, htmlFor }: { label: ReactNo
   return (
     <div className="grid grid-cols-1 gap-2 border-b border-px-row py-4 last:border-0 md:grid-cols-[minmax(0,1fr)_minmax(0,320px)] md:gap-8">
       <div className="min-w-0">
-        {htmlFor ? <label htmlFor={htmlFor} className="text-body font-medium text-px-ink">{label}</label> : <p className="text-body font-medium text-px-ink">{label}</p>}
-        {help ? <p className="mt-0.5 text-meta leading-[18px] text-px-muted">{help}</p> : null}
+        {htmlFor ? <label htmlFor={htmlFor} className="text-[13.5px] font-medium text-px-ink">{label}</label> : <p className="text-[13.5px] font-medium text-px-ink">{label}</p>}
+        {help ? <p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{help}</p> : null}
       </div>
       <div className="min-w-0">{children}</div>
     </div>
@@ -266,8 +266,8 @@ export function PxDrawer({ closeHref, title, description, children, id = "px-dra
       <div className="px-scope flex h-full flex-col">
         <div className="flex items-start justify-between gap-3 border-b border-px-line px-5 py-4">
           <div className="min-w-0">
-            <h2 id={id} tabIndex={-1} data-autofocus className="text-lead font-semibold text-px-ink outline-none">{title}</h2>
-            {description ? <p className="mt-0.5 text-meta leading-[18px] text-px-muted">{description}</p> : null}
+            <h2 id={id} tabIndex={-1} data-autofocus className="text-[16px] font-semibold text-px-ink outline-none">{title}</h2>
+            {description ? <p className="mt-0.5 text-[12.5px] leading-[18px] text-px-muted">{description}</p> : null}
           </div>
           <Link href={closeHref} scroll={false} aria-label="Close" className="rounded-[6px] p-1.5 text-px-muted hover:bg-px-row hover:text-px-ink"><X size={16} aria-hidden="true" /></Link>
         </div>
@@ -331,7 +331,7 @@ export function PxFlash({ searchParams }: { searchParams: Record<string, string 
   const ok = typeof searchParams.ok === "string" ? searchParams.ok : null;
   if (!error && !ok) return null;
   return (
-    <div role={error ? "alert" : "status"} className={`flash mb-4 flex items-start gap-2.5 rounded-[8px] border px-3.5 py-2.5 text-body ${error ? "border-[#f2c4c9] bg-px-danger-bg text-px-danger" : "border-[#bfe3cd] bg-px-ok-bg text-px-ok"}`}>
+    <div role={error ? "alert" : "status"} className={`flash mb-4 flex items-start gap-2.5 rounded-[8px] border px-3.5 py-2.5 text-[13.5px] ${error ? "border-[#f2c4c9] bg-px-danger-bg text-px-danger" : "border-[#bfe3cd] bg-px-ok-bg text-px-ok"}`}>
       <span aria-hidden="true" className={`mt-[6px] h-2 w-2 shrink-0 rounded-full ${error ? "bg-px-danger-strong" : "bg-[#1f9254]"}`} />
       <span>{error ?? ok}</span>
     </div>
@@ -349,7 +349,7 @@ export function PxPagination({ page, pageSize, total, base, params = {}, noun = 
   const from = total ? (page - 1) * pageSize + 1 : 0;
   const to = Math.min(total, page * pageSize);
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-px-divider px-4 py-2.5 text-meta text-px-muted">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-px-divider px-4 py-2.5 text-[12.5px] text-px-muted">
       <span className="tabular-nums">{total ? `${from}–${to} of ${total} ${noun}${total === 1 ? "" : "s"}` : `No ${noun}s`}</span>
       {pages > 1 ? (
         <nav aria-label="Pages" className="flex items-center gap-1.5">

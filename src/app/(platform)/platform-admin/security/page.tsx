@@ -26,7 +26,7 @@ export default async function SecurityAuditPage({ searchParams }: { searchParams
         <Toolbar label="Filter security events" clearHref="/platform-admin/security" active={Boolean(sp.action || sp.org || sp.logins)}>
           <Filter label="Event" grow><select name="action" defaultValue={sp.action ?? ""} className="input">{FILTERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Filter>
           <Filter label="Organisation" grow><select name="org" defaultValue={sp.org ?? ""} className="input"><option value="">All organisations</option>{orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select></Filter>
-          <label className="flex h-9 items-center gap-2 text-body"><input type="checkbox" name="logins" value="1" defaultChecked={sp.logins === "1"} />Include sign-ins</label>
+          <label className="flex h-9 items-center gap-2 text-[13.5px]"><input type="checkbox" name="logins" value="1" defaultChecked={sp.logins === "1"} />Include sign-ins</label>
         </Toolbar>
         <div className="px-4"><AuditTable entries={entries} /></div>
         <PxPagination page={page} pageSize={ACTIVITY_PAGE} total={total} base="/platform-admin/security" params={params} noun="event" />

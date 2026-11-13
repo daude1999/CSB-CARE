@@ -28,7 +28,7 @@ export default async function TemplateRoutePage({ params, searchParams }: { para
           {templates.length ? (
             <ol className="rows">
               {templates.map((t, i) => (
-                <li key={t.id} className="flex flex-wrap items-center gap-2 py-2 text-body">
+                <li key={t.id} className="flex flex-wrap items-center gap-2 py-2 text-[14px]">
                   <span className="w-6 text-right font-semibold tabular-nums">{i + 1}.</span>
                   <span className="font-medium tabular-nums">{hhmm(t.startMinute)}</span>
                   <span>{suName(t.serviceUser)}</span>
@@ -41,7 +41,7 @@ export default async function TemplateRoutePage({ params, searchParams }: { para
                       {others.length ? (
                         <form action={moveToRouteAction} className="flex gap-1">
                           {hidden(t.id)}
-                          <select name="toRouteId" required className="input py-0.5 text-meta" aria-label={`Move ${suName(t.serviceUser)} at ${hhmm(t.startMinute)} to another route`}>
+                          <select name="toRouteId" required className="input py-0.5 text-[13px]" aria-label={`Move ${suName(t.serviceUser)} at ${hhmm(t.startMinute)} to another route`}>
                             <option value="">Move to…</option>
                             {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                           </select>
@@ -61,7 +61,7 @@ export default async function TemplateRoutePage({ params, searchParams }: { para
               {candidates.length ? (
                 <form action={addToRouteAction} className="space-y-2">
                   <input type="hidden" name="back" value={back} /><input type="hidden" name="kind" value="TEMPLATE" /><input type="hidden" name="routeId" value={route.id} />
-                  <ul className="max-h-[420px] space-y-1 overflow-y-auto text-body">
+                  <ul className="max-h-[420px] space-y-1 overflow-y-auto text-[13.5px]">
                     {candidates.map((t) => <li key={t.id}><label className="flex items-center gap-2"><input type="checkbox" name="ids" value={t.id} />{hhmm(t.startMinute)} {suName(t.serviceUser)} · {days(t.weekdays)}</label></li>)}
                   </ul>
                   <button className="btn-primary">Add to route</button>
@@ -71,7 +71,7 @@ export default async function TemplateRoutePage({ params, searchParams }: { para
             <Card title="Switch off">
               <form action={removeRouteAction} className="space-y-2">
                 <input type="hidden" name="back" value="/rota/routes/templates" /><input type="hidden" name="kind" value="TEMPLATE" /><input type="hidden" name="routeId" value={route.id} />
-                <p className="text-body text-slate-600">Templates come off the route; weeks already built keep their live routes.</p>
+                <p className="text-[13.5px] text-slate-600">Templates come off the route; weeks already built keep their live routes.</p>
                 <button className="btn-danger">Switch off this route</button>
               </form>
             </Card>

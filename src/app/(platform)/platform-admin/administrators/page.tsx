@@ -20,11 +20,11 @@ export default async function AdministratorsPage() {
             <Table label="Client administrators" minWidth={760} head={["Administrator", "Client", "Email", "Status", "Last active"]}>
               {admins.map((a) => (
                 <tr key={a.id}>
-                  <td><Link href={`/platform-admin/users/${a.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{a.user.name}</Link>{a.jobTitle ? <span className="block text-caption text-px-muted">{a.jobTitle}</span> : null}</td>
-                  <td><Link href={`/platform-admin/clients/${a.organisation.id}?tab=users`} className="text-px-ink no-underline hover:text-px-accent hover:underline">{a.organisation.name}</Link><span className="block font-mono text-caption text-px-subtle">{a.organisation.customerAccount?.reference ?? ""}</span></td>
+                  <td><Link href={`/platform-admin/users/${a.user.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{a.user.name}</Link>{a.jobTitle ? <span className="block text-[12px] text-px-muted">{a.jobTitle}</span> : null}</td>
+                  <td><Link href={`/platform-admin/clients/${a.organisation.id}?tab=users`} className="text-px-ink no-underline hover:text-px-accent hover:underline">{a.organisation.name}</Link><span className="block font-mono text-[11.5px] text-px-subtle">{a.organisation.customerAccount?.reference ?? ""}</span></td>
                   <td className="text-px-body">{a.user.email}</td>
                   <td>{a.user.deactivatedAt ? <Pill value="SUSPENDED" label="Account deactivated" /> : a.deactivatedAt ? <Pill value="CLOSED" label="Removed" /> : <Pill value="ACTIVE" />}</td>
-                  <td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(a.user.sessions[0]?.lastSeenAt, true)}</td>
+                  <td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(a.user.sessions[0]?.lastSeenAt, true)}</td>
                 </tr>
               ))}
             </Table>
@@ -35,10 +35,10 @@ export default async function AdministratorsPage() {
         {invites.length ? (
           <div className="px-4">
             <Table label="Administrator invitations" minWidth={620} head={["Invited", "Client", "Sent", "Valid until"]}>
-              {invites.map((i) => <tr key={i.id}><td><span className="font-medium">{i.name ?? i.email}</span><span className="block text-caption text-px-muted">{i.email}</span></td><td>{i.organisation ? <Link href={`/platform-admin/clients/${i.organisation.id}?tab=users`} className={pxLink}>{i.organisation.name}</Link> : "—"}</td><td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(i.createdAt, true)}</td><td className="whitespace-nowrap text-meta tabular-nums">{fmtDate(i.expiresAt, true)}</td></tr>)}
+              {invites.map((i) => <tr key={i.id}><td><span className="font-medium">{i.name ?? i.email}</span><span className="block text-[12px] text-px-muted">{i.email}</span></td><td>{i.organisation ? <Link href={`/platform-admin/clients/${i.organisation.id}?tab=users`} className={pxLink}>{i.organisation.name}</Link> : "—"}</td><td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(i.createdAt, true)}</td><td className="whitespace-nowrap text-[13px] tabular-nums">{fmtDate(i.expiresAt, true)}</td></tr>)}
             </Table>
           </div>
-        ) : <p className="px-4 py-3 text-meta text-px-muted">None waiting.</p>}
+        ) : <p className="px-4 py-3 text-[13px] text-px-muted">None waiting.</p>}
       </PxPanel>
     </>
   );

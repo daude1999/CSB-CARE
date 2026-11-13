@@ -31,7 +31,7 @@ const RELATED: Partial<Record<SettingGroup, [string, string][]>> = {
 };
 
 function Fixed({ children }: { children: React.ReactNode }) {
-  return <p className="text-body text-px-body md:pt-0.5">{children}</p>;
+  return <p className="text-[13.5px] text-px-body md:pt-0.5">{children}</p>;
 }
 
 /** Platform-wide settings, one category at a time. Secrets stay in the hosting environment and are never shown. */
@@ -76,7 +76,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
             {SETTING_GROUPS.map((g) => (
               <li key={g.id} className="shrink-0">
-                <Link href={`/platform-admin/settings?section=${g.id}`} aria-current={g.id === section ? "page" : undefined} className={`block rounded-[6px] px-3 py-2 text-body no-underline ${g.id === section ? "bg-px-accent-soft font-medium text-px-accent-strong" : "text-px-body hover:bg-px-hover hover:text-px-ink"}`}>{SECTIONS[g.id].name}</Link>
+                <Link href={`/platform-admin/settings?section=${g.id}`} aria-current={g.id === section ? "page" : undefined} className={`block rounded-[6px] px-3 py-2 text-[13.5px] no-underline ${g.id === section ? "bg-px-accent-soft font-medium text-px-accent-strong" : "text-px-body hover:bg-px-hover hover:text-px-ink"}`}>{SECTIONS[g.id].name}</Link>
               </li>
             ))}
           </ul>
@@ -92,16 +92,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 if (s.kind === "modules") {
                   return (
                     <fieldset key={s.key} className="border-b border-px-row py-4 last:border-0">
-                      <legend className="float-left w-full text-body font-medium text-px-ink">{s.label}</legend>
-                      <p className="clear-both pt-0.5 text-meta leading-[18px] text-px-muted">{help}</p>
-                      <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3">{MODULES.map((m) => <label key={m.key} className="flex items-center gap-2 text-body"><input type="checkbox" name={s.key} value={m.key} defaultChecked={(s.value as string[]).includes(m.key)} />{m.name}</label>)}</div>
+                      <legend className="float-left w-full text-[13.5px] font-medium text-px-ink">{s.label}</legend>
+                      <p className="clear-both pt-0.5 text-[12.5px] leading-[18px] text-px-muted">{help}</p>
+                      <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3">{MODULES.map((m) => <label key={m.key} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name={s.key} value={m.key} defaultChecked={(s.value as string[]).includes(m.key)} />{m.name}</label>)}</div>
                     </fieldset>
                   );
                 }
                 return (
                   <SettingsRow key={s.key} label={s.label} help={help} htmlFor={id}>
                     {s.kind === "bool" ? (
-                      <label className="flex items-center gap-2 text-body md:pt-0.5"><input id={id} type="checkbox" name={s.key} defaultChecked={Boolean(s.value)} />On</label>
+                      <label className="flex items-center gap-2 text-[13.5px] md:pt-0.5"><input id={id} type="checkbox" name={s.key} defaultChecked={Boolean(s.value)} />On</label>
                     ) : s.kind === "longtext" ? (
                       <textarea id={id} name={s.key} rows={3} defaultValue={String(s.value ?? "")} maxLength={300} className="input" />
                     ) : (
@@ -111,7 +111,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 );
               })}
               <div className="mt-2 flex flex-col gap-3 border-t border-px-divider pt-4 sm:flex-row sm:items-end sm:justify-between">
-                {sensitive ? <div className="w-full max-w-sm"><PasswordField label="Your password, to confirm these changes" /></div> : <span className="text-meta text-px-muted">Every change is recorded in the audit log.</span>}
+                {sensitive ? <div className="w-full max-w-sm"><PasswordField label="Your password, to confirm these changes" /></div> : <span className="text-[12.5px] text-px-muted">Every change is recorded in the audit log.</span>}
                 <button className={pxPrimary}>Save changes</button>
               </div>
             </form>
@@ -122,7 +122,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </PxPanel>
           ) : null}
           {RELATED[section] ? (
-            <p className="text-meta text-px-muted">Related: {RELATED[section]!.map(([href, label], i) => <span key={href}>{i ? " · " : ""}<Link href={href}>{label}</Link></span>)}</p>
+            <p className="text-[13px] text-px-muted">Related: {RELATED[section]!.map(([href, label], i) => <span key={href}>{i ? " · " : ""}<Link href={href}>{label}</Link></span>)}</p>
           ) : null}
         </div>
       </div>

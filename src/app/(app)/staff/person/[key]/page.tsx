@@ -34,10 +34,10 @@ export default async function PersonSignoffPage({ params }: { params: Promise<{ 
             {rows.map((r) => (
               <li key={r.id} className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><Link href={`/staff/policy/${r.publication.policyId}`} className="row-title">{r.publication.policy.ref} {r.publication.policy.title}</Link> <span className="text-meta text-slate-600">{r.publication.version.label} · {r.mandatory ? "mandatory" : "optional"} · due {fmtDate(r.dueAt)}</span></div>
+                  <div><Link href={`/staff/policy/${r.publication.policyId}`} className="row-title">{r.publication.policy.ref} {r.publication.policy.title}</Link> <span className="text-[13px] text-slate-600">{r.publication.version.label} · {r.mandatory ? "mandatory" : "optional"} · due {fmtDate(r.dueAt)}</span></div>
                   <AckBadge bucket={r.b.bucket} overdue={r.b.overdue} cannotSign={r.b.cannotSign} />
                 </div>
-                {r.wording ? <p className="mt-1 text-meta text-slate-700">Agreed {fmtDate(r.acknowledgedAt, true)}: “{r.wording}”</p> : null}
+                {r.wording ? <p className="mt-1 text-[13px] text-slate-700">Agreed {fmtDate(r.acknowledgedAt, true)}: “{r.wording}”</p> : null}
                 <div className="mt-1.5"><AckTimeline events={events.filter((e) => e.acknowledgementId === r.id)} names={names} /></div>
               </li>
             ))}

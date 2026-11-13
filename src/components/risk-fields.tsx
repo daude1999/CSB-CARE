@@ -20,7 +20,7 @@ export function RiskFields({ risk }: { risk?: Pick<RiskAssessment, "type" | "tit
       <label className="md:col-span-3"><span className="label">Hazards: what could go wrong, and who could be hurt</span><textarea name="hazards" rows={4} required minLength={10} defaultValue={risk?.hazards ?? ""} className="input" /></label>
       <label className="md:col-span-3"><span className="label">Controls: what carers do to reduce the risk</span><textarea name="controls" rows={5} required minLength={10} defaultValue={risk?.controls ?? ""} className="input" /></label>
       <label className="md:col-span-2"><span className="label">Actions still required (optional)</span><textarea name="requiredActions" rows={3} maxLength={4000} defaultValue={risk?.requiredActions ?? ""} placeholder="e.g. Ask the OT to assess for a raised toilet seat" className="input" /></label>
-      <label><span className="label">Responsible for the actions</span><input name="responsiblePerson" maxLength={160} defaultValue={risk?.responsiblePerson ?? ""} placeholder="Name or role" className="input" /><span className="mt-1 block text-caption text-slate-500">Needed when actions are listed.</span></label>
+      <label><span className="label">Responsible for the actions</span><input name="responsiblePerson" maxLength={160} defaultValue={risk?.responsiblePerson ?? ""} placeholder="Name or role" className="input" /><span className="mt-1 block text-[12px] text-slate-500">Needed when actions are listed.</span></label>
     </div>
   );
 }

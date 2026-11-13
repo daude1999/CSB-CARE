@@ -50,7 +50,7 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
           {status ? <input type="hidden" name="status" value={status} /> : null}
           <label><span className="label">Search</span><input name="q" defaultValue={sp.q ?? ""} placeholder="Name, staff number, role" className="input w-56" /></label>
           <label><span className="label">Branch</span><select name="branch" defaultValue={sp.branch ?? ""} className="input"><option value="">All my branches</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-          <label className="flex items-center gap-1.5 pb-2 text-body"><input type="checkbox" name="due" value="1" defaultChecked={sp.due === "1"} className="h-4 w-4" /> Something due soon</label>
+          <label className="flex items-center gap-1.5 pb-2 text-[14px]"><input type="checkbox" name="due" value="1" defaultChecked={sp.due === "1"} className="h-4 w-4" /> Something due soon</label>
           <button className="btn-primary">Apply</button>
           <Link href="/rota/readiness" className="btn-secondary">Clear</Link>
         </form>
@@ -63,12 +63,12 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
               <tbody>
                 {queue.rows.map((r) => (
                   <tr key={r.id}>
-                    <td><Link href={`/rota/staff/${r.id}`} className="row-title">{r.displayName}</Link>{r.userId ? null : <span className="block text-caption text-slate-500">No sign-in linked</span>}</td>
+                    <td><Link href={`/rota/staff/${r.id}`} className="row-title">{r.displayName}</Link>{r.userId ? null : <span className="block text-[12px] text-slate-500">No sign-in linked</span>}</td>
                     <td>{r.jobTitle}</td>
                     <td>{r.branch?.name ?? "—"}</td>
                     <td><ReadinessBadge status={r.result.status} /></td>
-                    <td className="max-w-[360px] text-meta text-slate-700">{r.result.reasons.slice(0, 2).join("; ") || "—"}{r.result.reasons.length > 2 ? ` and ${r.result.reasons.length - 2} more` : ""}</td>
-                    <td className="text-meta">{r.dueSoon.length ? r.dueSoon.map((d) => `${d.name}${d.dueDate ? ` (${fmtDate(new Date(`${d.dueDate}T12:00:00Z`))})` : ""}`).join("; ") : "—"}</td>
+                    <td className="max-w-[360px] text-[13px] text-slate-700">{r.result.reasons.slice(0, 2).join("; ") || "—"}{r.result.reasons.length > 2 ? ` and ${r.result.reasons.length - 2} more` : ""}</td>
+                    <td className="text-[13px]">{r.dueSoon.length ? r.dueSoon.map((d) => `${d.name}${d.dueDate ? ` (${fmtDate(new Date(`${d.dueDate}T12:00:00Z`))})` : ""}`).join("; ") : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -79,9 +79,9 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
           {pending.length ? (
             <ul className="rows">
               {pending.map((p) => (
-                <li key={p.id} className="py-2 text-body">
+                <li key={p.id} className="py-2 text-[14px]">
                   <Link href={`/rota/staff/${p.staff.id}`} className="row-title">{p.staff.displayName}</Link>
-                  <div className="text-meta text-slate-600">{p.requirement.name} · completed {fmtDate(p.completedAt)} · entered {fmtDate(p.createdAt, true)}</div>
+                  <div className="text-[13px] text-slate-600">{p.requirement.name} · completed {fmtDate(p.completedAt)} · entered {fmtDate(p.createdAt, true)}</div>
                 </li>
               ))}
             </ul>

@@ -34,12 +34,12 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             <tbody>
               {jobs.map((j) => (
                 <tr key={j.id}>
-                  <td className="text-meta">{fmtDate(j.createdAt, true)}</td>
-                  <td className="text-meta">{j.type}</td>
+                  <td className="text-[13px]">{fmtDate(j.createdAt, true)}</td>
+                  <td className="text-[13px]">{j.type}</td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>{j.attempts}/{j.maxAttempts}</td>
-                  <td className="text-meta">{fmtDate(j.runAfter, true)}</td>
-                  <td className="max-w-sm text-meta text-[#a3242c]">{j.lastError}</td>
+                  <td className="text-[13px]">{fmtDate(j.runAfter, true)}</td>
+                  <td className="max-w-sm text-[13px] text-[#a3242c]">{j.lastError}</td>
                   <td><div className="flex justify-end gap-1">
                     {["FAILED", "DEAD", "CANCELLED"].includes(j.status) ? (
                       <form action={retryJobAction}><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="back" value={back} /><button className="btn-secondary py-1 text-xs" type="submit">Retry</button></form>

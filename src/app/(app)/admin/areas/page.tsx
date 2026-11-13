@@ -40,10 +40,10 @@ export default async function AreasPage({ searchParams }: { searchParams: Promis
                     <label><span className="label">Branch</span><select name="branchId" defaultValue={a.branchId ?? ""} className="input"><option value="">None</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
                     <button className="btn-secondary">Save</button>
                   </form>
-                  <div className="mt-1.5 flex items-center gap-2 text-meta text-slate-600">
+                  <div className="mt-1.5 flex items-center gap-2 text-[13px] text-slate-600">
                     {a.active ? null : <Badge>Switched off</Badge>}
                     <span>{a._count.serviceUsers} service users · {a._count.staff} carers</span>
-                    <form action={areaActiveAction} className="ml-auto"><input type="hidden" name="back" value={back} /><input type="hidden" name="areaId" value={a.id} /><input type="hidden" name="active" value={a.active ? "0" : "1"} /><button className="btn-secondary px-2 py-0.5 text-meta">{a.active ? "Switch off" : "Switch on"}</button></form>
+                    <form action={areaActiveAction} className="ml-auto"><input type="hidden" name="back" value={back} /><input type="hidden" name="areaId" value={a.id} /><input type="hidden" name="active" value={a.active ? "0" : "1"} /><button className="btn-secondary px-2 py-0.5 text-[13px]">{a.active ? "Switch off" : "Switch on"}</button></form>
                   </div>
                 </li>
               ))}
@@ -62,15 +62,15 @@ export default async function AreasPage({ searchParams }: { searchParams: Promis
             <ul className="rows">
               {members.map((m) => (
                 <li key={m.id} className="py-3">
-                  <div className="text-body font-medium">{m.user.name} <span className="font-normal text-slate-500">· {m.roles.filter((r) => COORD_ROLES.includes(r)).map((r) => r.replace("CARE_", "").toLowerCase()).join(", ")}</span></div>
+                  <div className="text-[14.5px] font-medium">{m.user.name} <span className="font-normal text-slate-500">· {m.roles.filter((r) => COORD_ROLES.includes(r)).map((r) => r.replace("CARE_", "").toLowerCase()).join(", ")}</span></div>
                   <form action={memberAreasAction} className="mt-1.5 flex flex-wrap items-center gap-3">
                     <fieldset disabled={!canMembers} className="flex flex-wrap gap-3">
                       <input type="hidden" name="back" value={back} />
                       <input type="hidden" name="membershipId" value={m.id} />
-                      {areas.filter((a) => a.active).map((a) => <label key={a.id} className="flex items-center gap-1.5 text-body"><input type="checkbox" name="areaIds" value={a.id} defaultChecked={m.areas.some((x) => x.areaId === a.id)} className="h-4 w-4" /> {a.name}</label>)}
+                      {areas.filter((a) => a.active).map((a) => <label key={a.id} className="flex items-center gap-1.5 text-[14px]"><input type="checkbox" name="areaIds" value={a.id} defaultChecked={m.areas.some((x) => x.areaId === a.id)} className="h-4 w-4" /> {a.name}</label>)}
                       {canMembers ? <button className="btn-secondary py-1">Save</button> : null}
                     </fieldset>
-                    {!m.areas.length ? <span className="text-meta text-slate-500">Whole organisation</span> : null}
+                    {!m.areas.length ? <span className="text-[12.5px] text-slate-500">Whole organisation</span> : null}
                   </form>
                 </li>
               ))}

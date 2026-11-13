@@ -19,7 +19,7 @@ export function PrivateFileInput({ name, accept, maxBytes, required = false, lab
         accept={accept}
         required={required}
         aria-describedby={`${id}-hint`}
-        className="block w-full text-body file:mr-3 file:rounded-[6px] file:border-[1.5px] file:border-slate-500 file:bg-white file:px-3 file:py-1.5 file:text-body file:text-slate-800"
+        className="block w-full text-[14px] file:mr-3 file:rounded-[6px] file:border-[1.5px] file:border-slate-500 file:bg-white file:px-3 file:py-1.5 file:text-[14px] file:text-slate-800"
         onChange={(e) => {
           const f = e.currentTarget.files?.[0];
           const msg = f && f.size > maxBytes ? `This file is ${(f.size / 1048576).toFixed(1)} MB. Files must be ${Math.round(maxBytes / 1048576)} MB or smaller.` : "";
@@ -27,7 +27,7 @@ export function PrivateFileInput({ name, accept, maxBytes, required = false, lab
           setError(msg || null);
         }}
       />
-      <span id={`${id}-hint`} className={`mt-1 block text-meta ${error ? "font-medium text-[#a3242c]" : "text-slate-500"}`} role={error ? "alert" : undefined}>{error ?? hint}</span>
+      <span id={`${id}-hint`} className={`mt-1 block text-[12.5px] ${error ? "font-medium text-[#a3242c]" : "text-slate-500"}`} role={error ? "alert" : undefined}>{error ?? hint}</span>
     </label>
   );
 }

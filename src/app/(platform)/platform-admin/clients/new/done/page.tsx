@@ -33,8 +33,8 @@ export default async function ClientCreated({ searchParams }: { searchParams: Pr
           <DetailRows items={[["Plan", c.subscription?.plan.name ?? "—"], [c.subscription?.status === "TRIAL" ? "Trial ends" : "Renews", fmtDate(c.subscription?.status === "TRIAL" ? c.subscription.trialEndsAt : c.subscription?.renewsAt)], ["Modules on", c.modules.filter((m) => m.enabled).map((m) => m.name).join(", ")]]} />
         </PxPanel>
         <PxPanel title="First administrator">
-          {invite ? <DetailRows items={[["Invited", `${invite.name ?? ""} ${invite.email}`], ["Invitation", invite.usedAt ? "Accepted" : `Waiting, valid until ${fmtDate(invite.expiresAt, true)}`]]} /> : <p className="text-body">No invitation found.</p>}
-          {!invite?.usedAt ? <p className="mt-2 text-meta text-px-muted">Lost the link? Create a new one from <Link href={`${base}?tab=users`}>Users &amp; Permissions</Link>; the old one stops working.</p> : null}
+          {invite ? <DetailRows items={[["Invited", `${invite.name ?? ""} ${invite.email}`], ["Invitation", invite.usedAt ? "Accepted" : `Waiting, valid until ${fmtDate(invite.expiresAt, true)}`]]} /> : <p className="text-[13.5px]">No invitation found.</p>}
+          {!invite?.usedAt ? <p className="mt-2 text-[12.5px] text-px-muted">Lost the link? Create a new one from <Link href={`${base}?tab=users`}>Users &amp; Permissions</Link>; the old one stops working.</p> : null}
         </PxPanel>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">

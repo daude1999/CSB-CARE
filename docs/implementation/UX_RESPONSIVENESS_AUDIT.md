@@ -95,7 +95,11 @@ and what was deliberately left alone.
 - **Page background and padding.** Done by the approved colour redesign (pull requests #134 to #137, merged into
   `main` on 10 November and into this branch): one `#f6f7fa` page frame with one set of padding tokens in
   `tailwind.config.ts`. Nothing further was needed here.
-- **Type scale.** Done in its own pull request after the five enterprise readiness pull requests were merged (owner's decision, 10 November). One scale of 11 sizes in `tailwind.config.ts`: `micro` 11, `caption` 12, `meta` 13, `body` 14, `lead` 16, `subtitle` 18, `title` 20, `heading` 22, `display` 24, `figure` 28 and `figure-lg` 36 px. The tokens set the size only, so no line height or spacing changed. About 3,100 fixed sizes in 268 files and 66 in `globals.css` were moved to the nearest step: half sizes round up (12.5 to 13, 13.5 to 14, 15 to 16), with 14.5 rounding down to 14. The exceptions are the sidebar, which rounds down (13 for sections, 12 for pages) so menu names still fit, and two oversized figures that are left as they were (52 px on the Overview, 34 px on the CQC rating). The HR Hub is not touched: its CSS is prebuilt and out of scope.
+- **Type scale.** Not changed in this pull request. The app uses about 2,600 fixed text sizes in some 200 files,
+  most of them half sizes (12.5, 13.5 and 14.5 px), and the redesign's own approved header uses 22 px and 13.5 px.
+  Rounding them to 12/13/14/16/18/24 moves text on every screen, including the Overview and the screens the owner
+  has just approved, so the owner decided (10 November) that it will be its own pull request, with its own before and after
+  pictures, once the five enterprise readiness pull requests are merged. The app already uses Inter throughout; the display and label faces appear in 7 places.
 - **The HR Hub's two large files** (`src/hr/components/hub.tsx`, `workspace-widgets.tsx`). `CLAUDE.md` says not to
   restructure the HR Hub; the brief says to split them. The owner has been asked which applies.
 - **The eligibility check running once per week or visit** (finding 2). It is the rota's core safety rule; batching

@@ -36,7 +36,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
     const replaceable = canEdit && v.status === "SCHEDULED" && v.scheduledEnd > new Date() && item.slot !== "SHADOW";
     return (
       <li className="py-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px]">
           <TimeSpan start={v.scheduledStart} end={v.scheduledEnd} />
           <span className="text-slate-600">{fmtLondonDate(londonDate(v.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</span>
           <Link href={`/rota/visits/${v.id}`} className="row-title">{suName(v.serviceUser)}</Link>
@@ -44,10 +44,10 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
           <AreaDot area={v.area} />
           <CarerSlots assignments={v.assignments} carersRequired={v.carersRequired} />
         </div>
-        <p className="mt-1 text-meta text-[#8a5a00]">{SLOT_LABEL(item.slot)}: {item.reason}</p>
-        {replaceable && !v.timeLocked && v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={londonTime(v.scheduledStart)} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} label="Adjust time" className="mt-1.5 mr-2 inline-flex items-center gap-1.5 rounded-[6px] border border-[#d0d5dd] bg-white px-3 py-1.5 text-body font-semibold text-[#101828] hover:bg-slate-50" /> : null}
+        <p className="mt-1 text-[13px] text-[#8a5a00]">{SLOT_LABEL(item.slot)}: {item.reason}</p>
+        {replaceable && !v.timeLocked && v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={londonTime(v.scheduledStart)} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} label="Adjust time" className="mt-1.5 mr-2 inline-flex items-center gap-1.5 rounded-[6px] border border-[#d0d5dd] bg-white px-3 py-1.5 text-[13.5px] font-semibold text-[#101828] hover:bg-slate-50" /> : null}
         {replaceable ? (
-          <Link href={coverHref("/rota/cover", Object.fromEntries(params), { id: v.id, mode: "replace", slot: item.slot })} scroll={false} className="mt-1.5 inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-body font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" aria-label={`Find replacement cover for ${item.staffName} on ${suName(v.serviceUser)}'s visit at ${londonTime(v.scheduledStart)}`}>Find replacement</Link>
+          <Link href={coverHref("/rota/cover", Object.fromEntries(params), { id: v.id, mode: "replace", slot: item.slot })} scroll={false} className="mt-1.5 inline-flex items-center rounded-[6px] bg-[#6b46c9] px-3 py-1.5 text-[13.5px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white" aria-label={`Find replacement cover for ${item.staffName} on ${suName(v.serviceUser)}'s visit at ${londonTime(v.scheduledStart)}`}>Find replacement</Link>
         ) : null}
       </li>
     );
@@ -69,7 +69,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
           <label><span className="label">Absence type</span><select name="kind" defaultValue={board.kind ?? ""} className="input"><option value="">All, and HR flags</option>{COVER_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></label>
           <label><span className="label">Area</span><select name="area" defaultValue={board.area ?? ""} className="input"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
           <button className="btn-primary">Show</button>
-          <p className="ml-auto pb-2 text-body text-slate-600" aria-live="polite">
+          <p className="ml-auto pb-2 text-[13.5px] text-slate-600" aria-live="polite">
             <span className="tabular-nums">{c.absences}</span> absence{c.absences === 1 ? "" : "s"} · <span className="tabular-nums">{c.bookings}</span> booking{c.bookings === 1 ? "" : "s"} to cover on <span className="tabular-nums">{c.visits}</span> visit{c.visits === 1 ? "" : "s"}
             {c.doubleUps ? <> · <span className="tabular-nums">{c.doubleUps}</span> double-up{c.doubleUps === 1 ? "" : "s"}</> : null}
             {" "}· {fmtLondonDate(board.from, { day: "numeric", month: "short" })} to {fmtLondonDate(board.to, { day: "numeric", month: "short" })}
@@ -83,10 +83,10 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
             <Card
               key={a.id}
               className="mb-3"
-              title={<span className="flex flex-wrap items-center gap-2">{a.staffName} <Badge tone={a.kind === "SICKNESS" ? "rose" : "amber"}>{KIND_LABEL[a.kind]}</Badge>{a.status === "REQUESTED" ? <Badge tone="slate">Requested</Badge> : null}<span className="text-meta font-normal text-slate-600">{when(a.startsAt, a.endsAt)}</span></span>}
-              actions={<Link href={`/rota/staff/${a.staffId}`} className="text-meta underline">Team member</Link>}
+              title={<span className="flex flex-wrap items-center gap-2">{a.staffName} <Badge tone={a.kind === "SICKNESS" ? "rose" : "amber"}>{KIND_LABEL[a.kind]}</Badge>{a.status === "REQUESTED" ? <Badge tone="slate">Requested</Badge> : null}<span className="text-[13px] font-normal text-slate-600">{when(a.startsAt, a.endsAt)}</span></span>}
+              actions={<Link href={`/rota/staff/${a.staffId}`} className="text-[13px] underline">Team member</Link>}
             >
-              {a.items.length ? <ul className="rows">{a.items.map((i) => <Row key={`${i.visit.id}:${i.slot}`} item={i} />)}</ul> : <p className="text-body text-slate-600">No bookings to cover in these dates.</p>}
+              {a.items.length ? <ul className="rows">{a.items.map((i) => <Row key={`${i.visit.id}:${i.slot}`} item={i} />)}</ul> : <p className="text-[13.5px] text-slate-600">No bookings to cover in these dates.</p>}
             </Card>
           ))}
           {board.flagged.length ? (
@@ -94,7 +94,7 @@ export default async function CoverPage({ searchParams }: { searchParams: Promis
               <ul className="rows">{board.flagged.map((i) => <Row key={`${i.visit.id}:${i.slot}`} item={i} />)}</ul>
             </Card>
           ) : null}
-          {canEdit ? <p className="text-meta text-slate-500">Find replacement opens Find Replacement Cover: recommended and manual choices, the full eligibility check, and the service user&apos;s contacts. The other carer on a double-up stays booked.</p> : null}
+          {canEdit ? <p className="text-[12.5px] text-slate-500">Find replacement opens Find Replacement Cover: recommended and manual choices, the full eligibility check, and the service user&apos;s contacts. The other carer on a double-up stays booked.</p> : null}
         </>
       ) : (
         <Card><Empty>No absences or flagged bookings in these dates.</Empty></Card>

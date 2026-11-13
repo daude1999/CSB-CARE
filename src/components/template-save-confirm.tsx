@@ -20,7 +20,7 @@ const RESULT: Record<Result, { label: string; cls: string }> = {
 };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fmtDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const BTN = "inline-flex h-10 items-center justify-center rounded-[8px] px-4 text-body font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module disabled:cursor-not-allowed disabled:opacity-60";
+const BTN = "inline-flex h-10 items-center justify-center rounded-[8px] px-4 text-[14.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-module disabled:cursor-not-allowed disabled:opacity-60";
 const PRIMARY = `${BTN} bg-[#4b1f9e] text-white hover:bg-[#3d1880]`;
 const SECONDARY = `${BTN} border border-[#d0d5dd] bg-white text-[#101828] hover:bg-slate-50`;
 
@@ -135,7 +135,7 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
       <input type="hidden" name="fingerprint" value={final?.fingerprint ?? ""} />
       {final?.applyTo === "future" ? cancelIds.map((id) => <input key={id} type="hidden" name="cancelVisitIds" value={id} />) : null}
       {final?.applyTo === "future" ? <input type="hidden" name="cancelReason" value={cancelReason} /> : null}
-      {notice ? <p role="alert" className="rounded-[8px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-body text-[#93370d]" data-testid="template-save-notice">{notice}</p> : null}
+      {notice ? <p role="alert" className="rounded-[8px] border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-[14px] text-[#93370d]" data-testid="template-save-notice">{notice}</p> : null}
       <button className="btn-primary" disabled={phase === "checking" || phase === "saving"} aria-haspopup="dialog">{phase === "checking" ? "Checking…" : submit}</button>
 
       <dialog
@@ -151,18 +151,18 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
         {edit ? (
           <div className="flex max-h-[calc(100vh-32px)] flex-col">
             <header className="border-b border-[#eaecf0] px-5 py-4">
-              <h2 id="tpl-confirm-title" className="text-title font-bold">
+              <h2 id="tpl-confirm-title" className="text-[19px] font-bold">
                 {phase === "review" || phase === "loadingReview" ? "Review Changes to Future Rota" : phase === "final" || (phase === "saving" && final?.applyTo === "future") ? "Confirm Future Rota Changes" : "Confirm Template Changes"}
               </h2>
-              <p className="mt-0.5 text-lead font-semibold text-[#344054]">{edit.serviceUser} – {edit.callType}</p>
+              <p className="mt-0.5 text-[15px] font-semibold text-[#344054]">{edit.serviceUser} – {edit.callType}</p>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-body text-[#b42318]">{error}</p> : null}
+              {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#b42318]">{error}</p> : null}
 
               {phase === "confirm" || phase === "loadingReview" || (phase === "saving" && final?.applyTo === "template") ? (
                 <>
-                  <p className="text-lead">Are you sure you want to save these changes to this template?</p>
-                  <table className="mt-3 w-full border-collapse text-body" data-testid="template-changes">
+                  <p className="text-[15px]">Are you sure you want to save these changes to this template?</p>
+                  <table className="mt-3 w-full border-collapse text-[14.5px]" data-testid="template-changes">
                     <caption className="sr-only">Changed settings</caption>
                     <thead><tr className="border-b border-[#eaecf0] text-left"><th scope="col" className="py-2 pr-3 font-semibold">Field</th><th scope="col" className="py-2 pr-3 font-semibold">Previous</th><th scope="col" className="py-2 font-semibold">New</th></tr></thead>
                     <tbody>
@@ -176,15 +176,15 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
                     </tbody>
                   </table>
                   <fieldset className="mt-4">
-                    <legend className="text-lead font-semibold">Where should these changes apply?</legend>
+                    <legend className="text-[15px] font-semibold">Where should these changes apply?</legend>
                     <div className="mt-2 grid gap-2">
                       <label className="flex cursor-pointer items-start gap-3 rounded-[10px] border border-[#d0d5dd] p-3 has-[:checked]:border-[#4b1f9e] has-[:checked]:bg-[#f7f4fe]">
                         <input type="radio" name="tplApply" value="template" checked={applyTo === "template"} onChange={() => setApplyTo("template")} className="mt-1 h-4 w-4" />
-                        <span><span className="block font-semibold">Template only</span><span className="block text-body text-[#475467]">Save changes to the recurring template. Existing scheduled visits will not be changed.</span></span>
+                        <span><span className="block font-semibold">Template only</span><span className="block text-[14px] text-[#475467]">Save changes to the recurring template. Existing scheduled visits will not be changed.</span></span>
                       </label>
                       <label className="flex cursor-pointer items-start gap-3 rounded-[10px] border border-[#d0d5dd] p-3 has-[:checked]:border-[#4b1f9e] has-[:checked]:bg-[#f7f4fe]">
                         <input type="radio" name="tplApply" value="future" checked={applyTo === "future"} onChange={() => setApplyTo("future")} className="mt-1 h-4 w-4" />
-                        <span><span className="block font-semibold">Template + future rota</span><span className="block text-body text-[#475467]">Save the template and review eligible future scheduled visits that could be updated{edit.futureVisits ? ` (${plural(edit.futureVisits, "scheduled visit")} built)` : ""}.</span></span>
+                        <span><span className="block font-semibold">Template + future rota</span><span className="block text-[14px] text-[#475467]">Save the template and review eligible future scheduled visits that could be updated{edit.futureVisits ? ` (${plural(edit.futureVisits, "scheduled visit")} built)` : ""}.</span></span>
                       </label>
                     </div>
                   </fieldset>
@@ -194,7 +194,7 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
               {(phase === "review" || phase === "final" || (phase === "saving" && final?.applyTo === "future")) && impact ? (
                 <>
                   {phase === "review" ? (
-                    <ul className="mb-3 grid gap-0.5 text-body" data-testid="impact-summary">
+                    <ul className="mb-3 grid gap-0.5 text-[14.5px]" data-testid="impact-summary">
                       <li><strong className="text-[#067647]">{plural(impact.summary.update, "future visit")}</strong> eligible for updating.</li>
                       <li><strong className={impact.summary.review ? "text-[#93370d]" : ""}>{plural(impact.summary.review, "visit")}</strong> {impact.summary.review === 1 ? "requires" : "require"} review.</li>
                       <li><strong>{plural(impact.summary.protected, "visit")}</strong> protected (manual changes, time locks, started or finished).</li>
@@ -202,25 +202,25 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
                       <li><strong>0</strong> past visits affected.</li>
                     </ul>
                   ) : (
-                    <p className="text-lead" data-testid="final-confirm">You&apos;re about to update {plural(impact.summary.update, "eligible future visit")} for this service user{cancelIds.length ? ` and cancel ${plural(cancelIds.length, "visit")} you ticked` : ""}. Existing protected visits will remain unchanged ({impact.summary.protected} protected, {impact.summary.review} needing review{impact.summary.removed - cancelIds.length > 0 ? `, ${impact.summary.removed - cancelIds.length} kept outside the template` : ""}).</p>
+                    <p className="text-[15px]" data-testid="final-confirm">You&apos;re about to update {plural(impact.summary.update, "eligible future visit")} for this service user{cancelIds.length ? ` and cancel ${plural(cancelIds.length, "visit")} you ticked` : ""}. Existing protected visits will remain unchanged ({impact.summary.protected} protected, {impact.summary.review} needing review{impact.summary.removed - cancelIds.length > 0 ? `, ${impact.summary.removed - cancelIds.length} kept outside the template` : ""}).</p>
                   )}
                   {phase === "review" ? (
                     rows.length ? (
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse text-body" data-testid="impact-table">
+                        <table className="w-full border-collapse text-[14px]" data-testid="impact-table">
                           <caption className="sr-only">Future visits and what would happen to each</caption>
                           <thead><tr className="border-b border-[#eaecf0] text-left"><th scope="col" className="py-2 pr-3 font-semibold">Date</th><th scope="col" className="py-2 pr-3 font-semibold">Previous</th><th scope="col" className="py-2 pr-3 font-semibold">Proposed</th><th scope="col" className="py-2 font-semibold">Result</th></tr></thead>
                           <tbody>
                             {rows.map((r) => (
                               <tr key={r.visitId} className="border-b border-[#f2f4f7] align-top" data-result={r.result}>
-                                <td className="whitespace-nowrap py-2 pr-3">{fmtDate(r.date)}<span className="block text-caption text-[#667085]">{r.reference}{r.published ? " · published" : ""}</span></td>
+                                <td className="whitespace-nowrap py-2 pr-3">{fmtDate(r.date)}<span className="block text-[12px] text-[#667085]">{r.reference}{r.published ? " · published" : ""}</span></td>
                                 <td className="whitespace-nowrap py-2 pr-3 tabular-nums text-[#667085]">{r.previous}</td>
-                                <td className="whitespace-nowrap py-2 pr-3 tabular-nums">{r.proposed}{r.changes.length && r.result !== "removed" ? <span className="block text-caption text-[#667085]">{r.changes.join(", ")}</span> : null}</td>
+                                <td className="whitespace-nowrap py-2 pr-3 tabular-nums">{r.proposed}{r.changes.length && r.result !== "removed" ? <span className="block text-[12px] text-[#667085]">{r.changes.join(", ")}</span> : null}</td>
                                 <td className="py-2">
-                                  <span className={`inline-block rounded-full px-2 py-0.5 text-meta font-semibold ${RESULT[r.result].cls}`}>{RESULT[r.result].label}</span>
-                                  {r.reason && r.result !== "update" ? <span className="mt-0.5 block text-meta text-[#475467]">{r.reason}</span> : null}
+                                  <span className={`inline-block rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${RESULT[r.result].cls}`}>{RESULT[r.result].label}</span>
+                                  {r.reason && r.result !== "update" ? <span className="mt-0.5 block text-[12.5px] text-[#475467]">{r.reason}</span> : null}
                                   {r.result === "removed" ? (
-                                    <label className="mt-1 flex items-center gap-1.5 text-meta"><input type="checkbox" checked={cancelIds.includes(r.visitId)} onChange={(e) => setCancelIds((ids) => (e.target.checked ? [...ids, r.visitId] : ids.filter((x) => x !== r.visitId)))} className="h-4 w-4" />Cancel this visit</label>
+                                    <label className="mt-1 flex items-center gap-1.5 text-[13px]"><input type="checkbox" checked={cancelIds.includes(r.visitId)} onChange={(e) => setCancelIds((ids) => (e.target.checked ? [...ids, r.visitId] : ids.filter((x) => x !== r.visitId)))} className="h-4 w-4" />Cancel this visit</label>
                                   ) : null}
                                 </td>
                               </tr>
@@ -228,21 +228,21 @@ export function TemplateEditForm({ action, children, submit }: { action: (fd: Fo
                           </tbody>
                         </table>
                       </div>
-                    ) : <p className="text-body text-[#475467]">No future visits of this template would change.</p>
+                    ) : <p className="text-[14.5px] text-[#475467]">No future visits of this template would change.</p>
                   ) : null}
                   {phase === "review" && cancelIds.length ? (
-                    <label className="mt-3 block text-body"><span className="font-semibold">Why cancel the ticked visits?</span><input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="input mt-1" placeholder="For example: Wednesday visits stop from next week" /></label>
+                    <label className="mt-3 block text-[14px]"><span className="font-semibold">Why cancel the ticked visits?</span><input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="input mt-1" placeholder="For example: Wednesday visits stop from next week" /></label>
                   ) : null}
                   {phase === "review" && impact.newDates.length ? (
-                    <p className="mt-3 rounded-[8px] bg-[#eef4ff] px-3 py-2 text-body text-[#1d3c6e]" data-testid="new-dates">{plural(impact.newDates.length, "new visit")} would be needed in weeks already built ({impact.newDates.slice(0, 6).map(fmtDate).join(", ")}{impact.newDates.length > 6 ? "…" : ""}). They are <strong>not</strong> added now: after saving, use Create Future Rota on the service user&apos;s Rota tab.</p>
+                    <p className="mt-3 rounded-[8px] bg-[#eef4ff] px-3 py-2 text-[14px] text-[#1d3c6e]" data-testid="new-dates">{plural(impact.newDates.length, "new visit")} would be needed in weeks already built ({impact.newDates.slice(0, 6).map(fmtDate).join(", ")}{impact.newDates.length > 6 ? "…" : ""}). They are <strong>not</strong> added now: after saving, use Create Future Rota on the service user&apos;s Rota tab.</p>
                   ) : null}
                   {phase === "review" && impact.manualActions.length ? (
-                    <ul className="mt-3 list-disc pl-5 text-body text-[#475467]">{impact.manualActions.map((m) => <li key={m}>{m}</li>)}</ul>
+                    <ul className="mt-3 list-disc pl-5 text-[14px] text-[#475467]">{impact.manualActions.map((m) => <li key={m}>{m}</li>)}</ul>
                   ) : null}
                 </>
               ) : null}
-              {phase === "loadingReview" ? <p className="mt-3 text-body text-[#475467]" role="status">Checking future visits…</p> : null}
-              {phase === "saving" ? <p className="mt-3 text-body text-[#475467]" role="status">Saving…</p> : null}
+              {phase === "loadingReview" ? <p className="mt-3 text-[14px] text-[#475467]" role="status">Checking future visits…</p> : null}
+              {phase === "saving" ? <p className="mt-3 text-[14px] text-[#475467]" role="status">Saving…</p> : null}
             </div>
             <footer className="flex flex-wrap justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
               {phase === "confirm" || phase === "loadingReview" ? (

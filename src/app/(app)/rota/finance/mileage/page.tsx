@@ -23,16 +23,16 @@ export default async function MileagePage({ searchParams }: { searchParams: Prom
         {rows.length ? (
           <ul className="rows">
             {rows.map((c) => (
-              <li key={c.id} className="py-3 text-body">
+              <li key={c.id} className="py-3 text-[14px]">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{names.get(c.staffId) ?? "Former staff member"}</span>
                   <span className="tabular-nums">{fmtLondonDate(fromDbDate(c.date))}</span>
                   <span className="font-semibold tabular-nums">{c.miles} miles</span>
                   <Badge tone={c.status === "SUBMITTED" ? "amber" : c.status === "APPROVED" ? "green" : "slate"}>{c.status === "SUBMITTED" ? "Waiting" : c.status === "APPROVED" ? "Approved" : "Rejected"}</Badge>
-                  {c.visitId ? <Link href={`/rota/visits/${c.visitId}`} className="text-meta">Visit</Link> : null}
-                  <span className="ml-auto text-meta text-slate-500">claimed {fmtDate(c.submittedAt, true)}</span>
+                  {c.visitId ? <Link href={`/rota/visits/${c.visitId}`} className="text-[13px]">Visit</Link> : null}
+                  <span className="ml-auto text-[12.5px] text-slate-500">claimed {fmtDate(c.submittedAt, true)}</span>
                 </div>
-                <p className="text-body text-slate-700">{c.reason}{c.decisionNote ? ` · decision: ${c.decisionNote}` : ""}</p>
+                <p className="text-[13.5px] text-slate-700">{c.reason}{c.decisionNote ? ` · decision: ${c.decisionNote}` : ""}</p>
                 {c.status === "SUBMITTED" && c.submittedById !== ctx.userId ? (
                   <form action={decideMileageAction} className="mt-1 flex flex-wrap items-end gap-2">
                     <input type="hidden" name="back" value={back} /><input type="hidden" name="claimId" value={c.id} />

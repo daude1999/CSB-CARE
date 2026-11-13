@@ -31,7 +31,7 @@ export function PersonForms({ rows, startable, about, back, personName, testId }
       </div>
       {rows.length ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-meta">
+          <table className="w-full min-w-[520px] text-left text-[13px]">
             <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
               <tr>
                 <th scope="col" className="px-4 py-2.5">Form</th>
@@ -53,7 +53,7 @@ export function PersonForms({ rows, startable, about, back, personName, testId }
           </table>
         </div>
       ) : (
-        <p className="px-4 py-5 text-meta text-slate-600">No on-screen forms you can open are linked to {personName}. Forms are shown only to the person who filled them in and the form&apos;s reviewers.</p>
+        <p className="px-4 py-5 text-[13px] text-slate-600">No on-screen forms you can open are linked to {personName}. Forms are shown only to the person who filled them in and the form&apos;s reviewers.</p>
       )}
     </section>
   );

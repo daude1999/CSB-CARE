@@ -21,14 +21,14 @@ const KIND_LABEL: Record<TimelineEntry["kind"], string> = { SYSTEM: "System reco
 const KIND_CLASS: Record<TimelineEntry["kind"], string> = { SYSTEM: "bg-[#eef2f6] text-[#344054]", OFFICE: "bg-[#e3effb] text-[#1d4f91]", CARER_REPORTED: "bg-[#fdf0d8] text-[#7a5200]" };
 
 function KindTag({ kind }: { kind: TimelineEntry["kind"] }) {
-  return <span className={`inline-flex whitespace-nowrap rounded px-1.5 py-px text-caption font-semibold ${KIND_CLASS[kind]}`}>{KIND_LABEL[kind]}</span>;
+  return <span className={`inline-flex whitespace-nowrap rounded px-1.5 py-px text-[11.5px] font-semibold ${KIND_CLASS[kind]}`}>{KIND_LABEL[kind]}</span>;
 }
 
 const hm = (iso: string) => londonTime(new Date(iso));
 const dayOf = (iso: string) => fmtLondonDate(londonDate(new Date(iso)), { day: "numeric", month: "short" });
 
 export function EvidenceTimeline({ entries, names }: { entries: TimelineEntry[]; names?: Map<string, string> }) {
-  if (!entries.length) return <p className="text-body text-slate-600">No events recorded yet.</p>;
+  if (!entries.length) return <p className="text-[14px] text-slate-600">No events recorded yet.</p>;
   let lastDay = "";
   return (
     <ol className="relative space-y-0 border-l-2 border-[#e3dff0] pl-4" aria-label="Investigation timeline">
@@ -39,12 +39,12 @@ export function EvidenceTimeline({ entries, names }: { entries: TimelineEntry[];
         return (
           <li key={`${e.sourceId ?? e.source}-${i}`} className="py-1.5">
             <span aria-hidden className="absolute -left-[5px] mt-[7px] h-2 w-2 rounded-full bg-module" />
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-body">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px]">
               <time dateTime={e.at} className="w-[3.2rem] shrink-0 font-semibold tabular-nums text-[#1b1340]">{hm(e.at)}</time>
               <span className="min-w-0 flex-1 text-[#101828]">{e.href ? <Link href={e.href} className="text-[#101828] underline decoration-[#d0d5dd] underline-offset-2 hover:decoration-module">{e.text}</Link> : e.text}{e.staffId && names?.get(e.staffId) && !e.text.includes(names.get(e.staffId)!) ? ` · ${names.get(e.staffId)}` : ""}</span>
               <KindTag kind={e.kind} />
             </div>
-            <p className="ml-[3.7rem] text-meta text-[#475467]">{showDay ? `${day}. ` : ""}{e.recordedAt ? `Entered at ${hm(e.recordedAt)}${dayOf(e.recordedAt) !== day ? ` on ${dayOf(e.recordedAt)}` : ""}.` : ""}</p>
+            <p className="ml-[3.7rem] text-[12.5px] text-[#475467]">{showDay ? `${day}. ` : ""}{e.recordedAt ? `Entered at ${hm(e.recordedAt)}${dayOf(e.recordedAt) !== day ? ` on ${dayOf(e.recordedAt)}` : ""}.` : ""}</p>
           </li>
         );
       })}
@@ -63,19 +63,19 @@ export function EvidenceTable({ items }: { items: EvidenceItem[] }) {
   const groups = (Object.keys(GROUP_LABEL) as EvidenceItem["group"][]).map((g) => [g, items.filter((i) => i.group === g)] as const).filter(([, xs]) => xs.length);
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-left text-body">
+      <table className="w-full min-w-[560px] text-left text-[13.5px]">
         <caption className="sr-only">Evidence collected for this missed call</caption>
-        <thead className="text-caption uppercase tracking-wide text-[#475467]">
+        <thead className="text-[12px] uppercase tracking-wide text-[#475467]">
           <tr className="border-b border-slate-200"><th scope="col" className="py-1.5 pr-3 font-semibold">Check</th><th scope="col" className="py-1.5 pr-3 font-semibold">What the record says</th><th scope="col" className="py-1.5 pr-3 font-semibold">Result</th><th scope="col" className="py-1.5 font-semibold">Source</th></tr>
         </thead>
         {groups.map(([g, xs]) => (
           <tbody key={g}>
-            <tr><th scope="rowgroup" colSpan={4} className="bg-[#f9fafb] px-1 pb-1 pt-2 text-meta font-bold text-[#1b1340]">{GROUP_LABEL[g]}</th></tr>
+            <tr><th scope="rowgroup" colSpan={4} className="bg-[#f9fafb] px-1 pb-1 pt-2 text-[12.5px] font-bold text-[#1b1340]">{GROUP_LABEL[g]}</th></tr>
             {xs.map((i) => (
               <tr key={i.key} className="border-b border-slate-100 align-top">
                 <td className="py-1.5 pr-3 text-[#344054]">{i.label}</td>
-                <td className="py-1.5 pr-3 text-[#101828]">{i.href ? <Link href={i.href}>{i.value}</Link> : i.value}{i.recordedAt ? <span className="block text-caption text-[#475467]">Entered at {hm(i.recordedAt)}</span> : null}</td>
-                <td className={`py-1.5 pr-3 font-semibold ${AVAIL[i.availability].cls}`}>{AVAIL[i.availability].text}{i.kind === "CARER_REPORTED" && i.availability === "PRESENT" ? <span className="block text-caption font-normal text-[#7a5200]">Not verified</span> : null}</td>
+                <td className="py-1.5 pr-3 text-[#101828]">{i.href ? <Link href={i.href}>{i.value}</Link> : i.value}{i.recordedAt ? <span className="block text-[12px] text-[#475467]">Entered at {hm(i.recordedAt)}</span> : null}</td>
+                <td className={`py-1.5 pr-3 font-semibold ${AVAIL[i.availability].cls}`}>{AVAIL[i.availability].text}{i.kind === "CARER_REPORTED" && i.availability === "PRESENT" ? <span className="block text-[12px] font-normal text-[#7a5200]">Not verified</span> : null}</td>
                 <td className="py-1.5"><KindTag kind={i.kind} /></td>
               </tr>
             ))}
@@ -90,8 +90,8 @@ function List({ title, items, tone = "default" }: { title: string; items: string
   if (!items.length) return null;
   return (
     <div>
-      <h4 className="mb-1 text-body font-bold text-[#1b1340]">{title}</h4>
-      <ul className={`list-disc space-y-0.5 pl-5 text-body ${tone === "warn" ? "text-[#912018]" : "text-[#344054]"}`}>{items.map((x) => <li key={x}>{x}</li>)}</ul>
+      <h4 className="mb-1 text-[13.5px] font-bold text-[#1b1340]">{title}</h4>
+      <ul className={`list-disc space-y-0.5 pl-5 text-[14px] ${tone === "warn" ? "text-[#912018]" : "text-[#344054]"}`}>{items.map((x) => <li key={x}>{x}</li>)}</ul>
     </div>
   );
 }
@@ -114,31 +114,31 @@ export function AutomatedInvestigation({ d, caseId, back, lockVersion, reasonRec
   if (d.status === "off" && !d.runCount) {
     return (
       <section className="panel mb-3" aria-labelledby="auto-heading">
-        <h2 id="auto-heading" className="text-lead font-semibold text-[#1b1340]">Automated investigation</h2>
-        <p className="mt-1 text-body text-slate-600">Switched off. An organisation admin can switch on evidence collection, carer confirmation and suggested reasons in {d.canConfigure ? <Link href="/rota/settings#missed-automation">Rostering settings</Link> : "Rostering settings"}. The investigation steps below work the same either way.</p>
+        <h2 id="auto-heading" className="text-[16px] font-semibold text-[#1b1340]">Automated investigation</h2>
+        <p className="mt-1 text-[14px] text-slate-600">Switched off. An organisation admin can switch on evidence collection, carer confirmation and suggested reasons in {d.canConfigure ? <Link href="/rota/settings#missed-automation">Rostering settings</Link> : "Rostering settings"}. The investigation steps below work the same either way.</p>
       </section>
     );
   }
   return (
     <section className="panel mb-3" aria-labelledby="auto-heading" data-testid="automated-investigation">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h2 id="auto-heading" className="mr-auto text-lead font-semibold text-[#1b1340]">Automated investigation</h2>
+        <h2 id="auto-heading" className="mr-auto text-[16px] font-semibold text-[#1b1340]">Automated investigation</h2>
         <AutoStatusBadge status={d.status} label={d.label} />
-        {d.canRefresh ? <form action={missedRefreshEvidenceAction}>{hidden()}<button className="btn-secondary py-1 text-body">Refresh evidence</button></form> : null}
+        {d.canRefresh ? <form action={missedRefreshEvidenceAction}>{hidden()}<button className="btn-secondary py-1 text-[13.5px]">Refresh evidence</button></form> : null}
       </div>
-      <p className="mb-3 text-meta text-[#475467]">
+      <p className="mb-3 text-[13px] text-[#475467]">
         Gathered automatically from the system&apos;s own records{d.lastChecked?.finishedAt ? `; last checked ${fmtDate(d.lastChecked.finishedAt, true)}` : ""}{d.snapshotRun?.finishedAt && d.lastChecked && d.snapshotRun.id !== d.lastChecked.id ? `, no change since ${fmtDate(d.snapshotRun.finishedAt, true)}` : ""}. Nothing here changes the visit, its clock times or this case: the steps below are still recorded and signed off by people.
       </p>
-      {d.failedRun ? <p role="alert" className="mb-3 rounded-[8px] border border-[#f3c1bd] bg-[#fef3f2] px-3 py-2 text-body text-[#912018]">The last evidence check failed at {fmtDate(d.failedRun.startedAt, true)}. It is retried automatically{d.canRefresh ? ", or use Refresh evidence" : ""}. The case and its alert are not affected.</p> : null}
+      {d.failedRun ? <p role="alert" className="mb-3 rounded-[8px] border border-[#f3c1bd] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#912018]">The last evidence check failed at {fmtDate(d.failedRun.startedAt, true)}. It is retried automatically{d.canRefresh ? ", or use Refresh evidence" : ""}. The case and its alert are not affected.</p> : null}
 
       {s ? (
         <div className="mb-3 rounded-[10px] border border-[#e3dff0] bg-module/[.04] p-3" data-testid="auto-suggestion">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h3 className="text-lead font-bold text-[#1b1340]">{CLASSIFICATION_LABEL[s.classification]}</h3>
+            <h3 className="text-[15px] font-bold text-[#1b1340]">{CLASSIFICATION_LABEL[s.classification]}</h3>
             <Badge tone={s.support === "SUPPORTED" ? "green" : s.support === "WEAK" ? "amber" : "slate"}>{SUPPORT_LABEL[s.support]}</Badge>
             {s.urgent ? <Badge tone="rose">Urgent review</Badge> : null}
           </div>
-          <p className="mb-2 text-body text-[#344054]">Suggested reason: <b className="text-[#101828]">{s.suggestedReason ? MISSED_REASONS[s.suggestedReason]?.label ?? s.suggestedReason : "none: the evidence does not support one yet"}</b>. This is a suggestion made by fixed rules, not a finding.</p>
+          <p className="mb-2 text-[14px] text-[#344054]">Suggested reason: <b className="text-[#101828]">{s.suggestedReason ? MISSED_REASONS[s.suggestedReason]?.label ?? s.suggestedReason : "none: the evidence does not support one yet"}</b>. This is a suggestion made by fixed rules, not a finding.</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <List title="What the system found" items={s.found} />
             <List title="What the carer reported" items={s.reported.length ? s.reported : ["No carer statement yet."]} />
@@ -165,44 +165,44 @@ export function AutomatedInvestigation({ d, caseId, back, lockVersion, reasonRec
               </div>
             </div>
           ) : d.draft && d.draft.reviewStatus !== "PENDING" ? (
-            <p className="mt-2 text-meta text-[#475467]">{d.draft.reviewStatus === "ACCEPTED" ? "Accepted" : d.draft.reviewStatus === "DIFFERENT_REASON" ? "A different reason was recorded" : d.draft.reviewStatus === "DISMISSED" ? `Dismissed${d.draft.reviewNote ? `: ${d.draft.reviewNote}` : ""}` : "Replaced by a newer check"}{d.reviewerName ? ` by ${d.reviewerName}` : ""}{d.draft.reviewedAt ? `, ${fmtDate(d.draft.reviewedAt, true)}` : ""}.</p>
-          ) : reasonRecorded ? <p className="mt-2 text-meta text-[#475467]">A reason is already recorded in step 1.</p> : null}
+            <p className="mt-2 text-[13px] text-[#475467]">{d.draft.reviewStatus === "ACCEPTED" ? "Accepted" : d.draft.reviewStatus === "DIFFERENT_REASON" ? "A different reason was recorded" : d.draft.reviewStatus === "DISMISSED" ? `Dismissed${d.draft.reviewNote ? `: ${d.draft.reviewNote}` : ""}` : "Replaced by a newer check"}{d.reviewerName ? ` by ${d.reviewerName}` : ""}{d.draft.reviewedAt ? `, ${fmtDate(d.draft.reviewedAt, true)}` : ""}.</p>
+          ) : reasonRecorded ? <p className="mt-2 text-[13px] text-[#475467]">A reason is already recorded in step 1.</p> : null}
         </div>
-      ) : d.switches.summary ? null : <p className="mb-3 text-body text-[#475467]">Suggested reasons are switched off, so only the evidence is shown.</p>}
+      ) : d.switches.summary ? null : <p className="mb-3 text-[13.5px] text-[#475467]">Suggested reasons are switched off, so only the evidence is shown.</p>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.1fr]">
         <div>
-          <h3 className="mb-1 text-body font-bold text-[#1b1340]">Carer confirmation</h3>
+          <h3 className="mb-1 text-[14.5px] font-bold text-[#1b1340]">Carer confirmation</h3>
           {d.confirmations.length ? (
             <ul className="space-y-2" aria-label="Carer confirmation">
               {d.confirmations.map((c) => (
-                <li key={c.id} className="rounded-[8px] border border-slate-200 p-2.5 text-body">
+                <li key={c.id} className="rounded-[8px] border border-slate-200 p-2.5 text-[14px]">
                   <div className="flex flex-wrap items-center gap-2"><b className="mr-auto">{c.staff.displayName}</b><Badge tone={c.status === "RESPONDED" ? "green" : c.status === "REQUESTED" ? "amber" : c.status === "NO_RESPONSE" || c.status === "NO_LOGIN" ? "rose" : "slate"}>{CONFIRMATION_LABEL[c.status] ?? c.status}</Badge></div>
-                  <p className="text-meta text-[#475467]">{c.requestedAt ? `Asked ${fmtDate(c.requestedAt, true)}` : "Not asked in the app"}{c.responseDueAt && c.status === "REQUESTED" ? ` · answer due ${londonTime(c.responseDueAt)}` : ""}{c.remindersSent ? ` · ${c.remindersSent} reminder${c.remindersSent === 1 ? "" : "s"}` : ""}{c.notificationOpenedAt ? ` · notification opened ${londonTime(c.notificationOpenedAt)}` : c.requestedAt ? " · notification not opened yet" : ""}</p>
+                  <p className="text-[12.5px] text-[#475467]">{c.requestedAt ? `Asked ${fmtDate(c.requestedAt, true)}` : "Not asked in the app"}{c.responseDueAt && c.status === "REQUESTED" ? ` · answer due ${londonTime(c.responseDueAt)}` : ""}{c.remindersSent ? ` · ${c.remindersSent} reminder${c.remindersSent === 1 ? "" : "s"}` : ""}{c.notificationOpenedAt ? ` · notification opened ${londonTime(c.notificationOpenedAt)}` : c.requestedAt ? " · notification not opened yet" : ""}</p>
                   {c.responses.map((r) => (
                     <div key={r.id} className="mt-1.5 border-l-2 border-[#fdf0d8] pl-2">
-                      <p><span className="text-caption font-semibold uppercase tracking-wide text-[#7a5200]">{r.supplementsId ? "Further statement" : "Statement"} · {fmtDate(r.submittedAt, true)}</span></p>
+                      <p><span className="text-[12px] font-semibold uppercase tracking-wide text-[#7a5200]">{r.supplementsId ? "Further statement" : "Statement"} · {fmtDate(r.submittedAt, true)}</span></p>
                       <p className="font-semibold">“{ANSWER_LABEL[r.answer] ?? r.answer}”</p>
-                      <p className="text-body text-[#344054]">{[r.reportedArrival ? `Arrived ${londonTime(r.reportedArrival)}` : null, r.reportedDeparture ? `left ${londonTime(r.reportedDeparture)}` : null, r.careDelivered ? `care delivered: ${r.careDelivered.toLowerCase()}` : null, r.unableReason ? `reason: ${r.unableReason.toLowerCase()}` : null, r.notifiedSomeone !== null ? (r.notifiedSomeone ? `told ${r.notifiedWho ?? "someone"}${r.notifiedAt ? ` at ${londonTime(r.notifiedAt)}` : ""}` : "told nobody") : null, r.attemptedAt ? `tried to get in at ${londonTime(r.attemptedAt)}` : null, r.contacted ? `contacted ${r.contacted}` : null].filter(Boolean).join(", ")}</p>
-                      {r.explanation ? <p className="whitespace-pre-wrap text-body text-[#101828]">{r.explanation}</p> : null}
+                      <p className="text-[13.5px] text-[#344054]">{[r.reportedArrival ? `Arrived ${londonTime(r.reportedArrival)}` : null, r.reportedDeparture ? `left ${londonTime(r.reportedDeparture)}` : null, r.careDelivered ? `care delivered: ${r.careDelivered.toLowerCase()}` : null, r.unableReason ? `reason: ${r.unableReason.toLowerCase()}` : null, r.notifiedSomeone !== null ? (r.notifiedSomeone ? `told ${r.notifiedWho ?? "someone"}${r.notifiedAt ? ` at ${londonTime(r.notifiedAt)}` : ""}` : "told nobody") : null, r.attemptedAt ? `tried to get in at ${londonTime(r.attemptedAt)}` : null, r.contacted ? `contacted ${r.contacted}` : null].filter(Boolean).join(", ")}</p>
+                      {r.explanation ? <p className="whitespace-pre-wrap text-[13.5px] text-[#101828]">{r.explanation}</p> : null}
                     </div>
                   ))}
                 </li>
               ))}
             </ul>
-          ) : <p className="text-body text-slate-600">Nobody was booked on the visit, so there is no carer to ask.</p>}
-          {!d.switches.confirm ? <p className="mt-2 text-meta text-[#475467]">Carer confirmation in the app is switched off.</p> : null}
-          <p className="mt-2 text-meta text-[#475467]">A carer&apos;s statement is their own account. It does not record attendance or change any clock time; a missing clock time still needs a clock correction, decided by someone else.</p>
+          ) : <p className="text-[14px] text-slate-600">Nobody was booked on the visit, so there is no carer to ask.</p>}
+          {!d.switches.confirm ? <p className="mt-2 text-[12.5px] text-[#475467]">Carer confirmation in the app is switched off.</p> : null}
+          <p className="mt-2 text-[12.5px] text-[#475467]">A carer&apos;s statement is their own account. It does not record attendance or change any clock time; a missing clock time still needs a clock correction, decided by someone else.</p>
         </div>
         <div>
-          <h3 className="mb-1 text-body font-bold text-[#1b1340]">Timeline</h3>
+          <h3 className="mb-1 text-[14.5px] font-bold text-[#1b1340]">Timeline</h3>
           <EvidenceTimeline entries={d.timeline} names={names} />
         </div>
       </div>
 
       {d.items.length ? (
         <details className="mt-3">
-          <summary className="cursor-pointer text-body font-semibold text-module">View all evidence checked ({d.items.length})</summary>
+          <summary className="cursor-pointer text-[14px] font-semibold text-module">View all evidence checked ({d.items.length})</summary>
           <div className="mt-2"><EvidenceTable items={d.items} /></div>
         </details>
       ) : null}

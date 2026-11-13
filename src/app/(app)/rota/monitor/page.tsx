@@ -67,35 +67,35 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
 
       <section className="panel mb-3" aria-labelledby="alerts-title" data-testid="monitor-alerts">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="alerts-title" className="text-subtitle font-semibold text-navy-900">Today&apos;s alerts <span className="ml-1 text-body font-normal text-slate-500">{alerts.length} open</span></h2>
-          <Link href="/rota/exceptions" className="text-body">{older ? `${older} open from earlier days in Exceptions` : "All exceptions"}</Link>
+          <h2 id="alerts-title" className="text-[17px] font-semibold text-navy-900">Today&apos;s alerts <span className="ml-1 text-[14px] font-normal text-slate-500">{alerts.length} open</span></h2>
+          <Link href="/rota/exceptions" className="text-[13.5px]">{older ? `${older} open from earlier days in Exceptions` : "All exceptions"}</Link>
         </div>
         {alerts.length ? (
           <div className="relative min-w-0 overflow-x-auto">
-            <table className="table text-body">
+            <table className="table text-[14px]">
               <thead><tr><th>What</th><th>Who</th><th>When</th><th>Why</th><th>Visit now</th><th>Owner</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {alerts.slice(0, 6).map((a) => (
                   <tr key={a.id}>
-                    <td className="whitespace-nowrap"><Badge tone={a.severity === "CRITICAL" ? "rose" : a.severity === "WARNING" ? "amber" : "slate"}>{a.what}</Badge>{a.overdue ? <div className="mt-0.5 text-meta font-medium text-[#a3242c]">Past its deadline</div> : null}</td>
-                    <td>{a.person ? <Link href={`/rota/service-users/${a.person.id}`}>{a.person.name}</Link> : "—"}{a.carers.length ? <div className="text-meta text-slate-600">{a.carers.join(", ")}</div> : a.visit ? <div className="text-meta text-[#a3242c]">No carer booked</div> : null}</td>
-                    <td className="whitespace-nowrap tabular-nums">{a.visit ? <>Call {londonTime(a.visit.scheduledStart)}</> : null}<div className="text-meta text-slate-600">Raised {fmtDate(a.raisedAt, true)}</div></td>
-                    <td className="max-w-[340px] text-body">{a.why}</td>
+                    <td className="whitespace-nowrap"><Badge tone={a.severity === "CRITICAL" ? "rose" : a.severity === "WARNING" ? "amber" : "slate"}>{a.what}</Badge>{a.overdue ? <div className="mt-0.5 text-[12.5px] font-medium text-[#a3242c]">Past its deadline</div> : null}</td>
+                    <td>{a.person ? <Link href={`/rota/service-users/${a.person.id}`}>{a.person.name}</Link> : "—"}{a.carers.length ? <div className="text-[12.5px] text-slate-600">{a.carers.join(", ")}</div> : a.visit ? <div className="text-[12.5px] text-[#a3242c]">No carer booked</div> : null}</td>
+                    <td className="whitespace-nowrap tabular-nums">{a.visit ? <>Call {londonTime(a.visit.scheduledStart)}</> : null}<div className="text-[12.5px] text-slate-600">Raised {fmtDate(a.raisedAt, true)}</div></td>
+                    <td className="max-w-[340px] text-[13.5px]">{a.why}</td>
                     <td>{a.visit ? <><Link href={`/rota/visits/${a.visit.id}#attendance`} className="font-semibold">{a.visit.reference}</Link><div><Badge tone={a.visit.state.tone}>{a.visit.state.label}</Badge></div></> : "—"}</td>
-                    <td className="text-body">{a.reviewer}{a.deadline ? <div className="text-meta text-slate-600">due by {londonTime(a.deadline)}</div> : null}</td>
-                    <td><span className="flex flex-wrap gap-1.5">{a.actions.map((x) => <Link key={x.label} href={x.href} className="btn-secondary whitespace-nowrap px-2 py-0.5 text-meta">{x.label}</Link>)}</span></td>
+                    <td className="text-[13.5px]">{a.reviewer}{a.deadline ? <div className="text-[12.5px] text-slate-600">due by {londonTime(a.deadline)}</div> : null}</td>
+                    <td><span className="flex flex-wrap gap-1.5">{a.actions.map((x) => <Link key={x.label} href={x.href} className="btn-secondary whitespace-nowrap px-2 py-0.5 text-[13px]">{x.label}</Link>)}</span></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        ) : <p className="py-3 text-body text-slate-600">No open alerts for today&apos;s calls.</p>}
-        <p className="mt-2 text-meta text-slate-500">{alerts.length > 6 ? `Showing the 6 most urgent of ${alerts.length}; the rest are in Exceptions. ` : ""}{folded ? `${folded} older ${folded === 1 ? "alert is" : "alerts are"} folded in because the same visit has a newer alert. ` : ""}Each alert is listed once. Alerts are shown in the app only; nothing is sent by text or email.</p>
+        ) : <p className="py-3 text-[14px] text-slate-600">No open alerts for today&apos;s calls.</p>}
+        <p className="mt-2 text-[12.5px] text-slate-500">{alerts.length > 6 ? `Showing the 6 most urgent of ${alerts.length}; the rest are in Exceptions. ` : ""}{folded ? `${folded} older ${folded === 1 ? "alert is" : "alerts are"} folded in because the same visit has a newer alert. ` : ""}Each alert is listed once. Alerts are shown in the app only; nothing is sent by text or email.</p>
       </section>
 
       <section className="panel" aria-labelledby="monitor-title">
-        <h2 id="monitor-title" className="mb-2 text-subtitle font-semibold text-ink">Today&apos;s calls</h2>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-meta">
+        <h2 id="monitor-title" className="mb-2 text-[17px] font-semibold text-ink">Today&apos;s calls</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-[13px]">
           <p className={stale ? "font-medium text-[#8a5a00]" : "text-slate-600"}>
             {b.lastRun ? <>Last checked at <span className="tabular-nums">{londonTime(b.lastRun.startedAt)}</span>.</> : "Not checked yet today."}
             {stale ? " Automatic checks look behind; press Check now." : ""}{" "}
@@ -104,14 +104,14 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
           <form method="get" className="flex flex-wrap items-center gap-2" role="search">
             <label className="sr-only" htmlFor="mon-area">Area</label>
             <select id="mon-area" name="area" defaultValue={sp.area ?? ""} className="input w-40 py-1.5"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-            <label htmlFor="mon-q" className="text-body font-semibold">Search:</label>
+            <label htmlFor="mon-q" className="text-[14px] font-semibold">Search:</label>
             <input id="mon-q" name="q" type="search" defaultValue={sp.q ?? ""} className="input w-full max-w-48 py-1.5 sm:w-48" />
           </form>
         </div>
 
         {rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
-            <table className="table text-body">
+            <table className="table text-[14.5px]">
               <thead><tr><th>Ref</th><th>Team member</th><th>Area</th><th>In</th><th>Out</th><th>Client</th><th>Service call</th></tr></thead>
               <tbody>
                 {rows.map((v) => {
@@ -121,20 +121,20 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
                   const outState = outAt ? <span className="text-[#2e7d32]">« Out: {londonTime(outAt.at)}</span> : inAt ? <span className={v.state === "overrun" ? "text-[#8a5a00]" : "text-[#1d6f9e]"}>« {v.state === "overrun" ? "Not clocked out" : "Out:"}</span> : v.state === "late" || v.state === "missed" ? <span className="text-[#8a5a00]">« Late</span> : <span>« Due</span>;
                   return (
                     <tr key={v.id} className={TINT[v.state] ?? ""}>
-                      <td><Link href={`/rota/visits/${v.id}#attendance`} className="font-semibold">{v.reference}</Link><div className="text-meta text-[#a3242c]">{fmtLondonDate(b.today)}</div><div className="mt-0.5"><Badge tone={visitStateLabel(v, b.now, b.settings.lateAfterMin).tone}>{visitStateLabel(v, b.now, b.settings.lateAfterMin).label}</Badge></div></td>
+                      <td><Link href={`/rota/visits/${v.id}#attendance`} className="font-semibold">{v.reference}</Link><div className="text-[13px] text-[#a3242c]">{fmtLondonDate(b.today)}</div><div className="mt-0.5"><Badge tone={visitStateLabel(v, b.now, b.settings.lateAfterMin).tone}>{visitStateLabel(v, b.now, b.settings.lateAfterMin).label}</Badge></div></td>
                       <td>
                         {v.assignments.length ? v.assignments.map((a) => (
                           <div key={a.id} className="whitespace-nowrap">
                             <Link href={`/rota/staff/${a.staff.id}`}>{a.staff.displayName}</Link>{a.slot === "SHADOW" ? " (shadow)" : ""}
-                            <span className={`ml-1.5 text-meta ${a.acknowledgedAt ? "text-[#2e7d32]" : "text-slate-500"}`}>{a.acknowledgedAt ? "✓ seen" : "not seen"}</span>
-                            {a.staff.workPhone ? <a href={`tel:${a.staff.workPhone}`} className="ml-1.5 text-meta tabular-nums">{a.staff.workPhone}</a> : null}
+                            <span className={`ml-1.5 text-[12.5px] ${a.acknowledgedAt ? "text-[#2e7d32]" : "text-slate-500"}`}>{a.acknowledgedAt ? "✓ seen" : "not seen"}</span>
+                            {a.staff.workPhone ? <a href={`tel:${a.staff.workPhone}`} className="ml-1.5 text-[12.5px] tabular-nums">{a.staff.workPhone}</a> : null}
                           </div>
                         )) : <span className="font-medium text-[#b42a23]">No carer booked</span>}
                       </td>
                       <td className="font-medium">{v.area?.name ?? "No area"}</td>
                       <td className="whitespace-nowrap"><span className="font-semibold underline decoration-slate-400 tabular-nums">{londonTime(v.scheduledStart)}</span><div className="tabular-nums">{inState}</div></td>
                       <td className="whitespace-nowrap"><span className="font-semibold underline decoration-slate-400 tabular-nums">{londonTime(v.scheduledEnd)}</span><div className="tabular-nums">{outState}</div></td>
-                      <td><Link href={`/rota/service-users/${v.serviceUser.id}`}>{suName(v.serviceUser)}</Link>{v.serviceUser.phone ? <div className="text-meta"><a href={`tel:${v.serviceUser.phone}`}>{v.serviceUser.phone}</a></div> : null}</td>
+                      <td><Link href={`/rota/service-users/${v.serviceUser.id}`}>{suName(v.serviceUser)}</Link>{v.serviceUser.phone ? <div className="text-[12.5px]"><a href={`tel:${v.serviceUser.phone}`}>{v.serviceUser.phone}</a></div> : null}</td>
                       <td className="font-medium">{v.callType.name}</td>
                     </tr>
                   );
@@ -142,8 +142,8 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
               </tbody>
             </table>
           </div>
-        ) : <p className="py-6 text-center text-body text-slate-500">{q ? "No calls match your search." : "No calls today."}</p>}
-        <details className="mt-3 text-body">
+        ) : <p className="py-6 text-center text-[14px] text-slate-500">{q ? "No calls match your search." : "No calls today."}</p>}
+        <details className="mt-3 text-[13.5px]">
           <summary className="cursor-pointer font-medium">What the words mean and how the monitor works</summary>
           <dl className="mt-2 grid gap-x-4 gap-y-1 text-slate-700 sm:grid-cols-[150px_1fr]" data-testid="monitor-terms">
             <dt className="font-medium">Late</dt><dd>Nobody has clocked in {b.settings.lateAfterMin} minutes after the planned start.</dd>

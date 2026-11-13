@@ -67,36 +67,36 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={sev[1]}>{sev[0]}</Badge>
-                        <span className="text-meta text-slate-600">{EXCEPTION_KINDS[r.kind] ?? r.kind.replace(/_/g, " ").toLowerCase()}</span>
+                        <span className="text-[13px] text-slate-600">{EXCEPTION_KINDS[r.kind] ?? r.kind.replace(/_/g, " ").toLowerCase()}</span>
                         {r.overdue ? <Badge tone="rose">Past deadline</Badge> : null}
                         {r.escalatedAt ? <Badge tone="violet">Escalated {fmtDate(r.escalatedAt, true)}</Badge> : null}
                         {r.resolvedAt ? <Badge tone="green">Resolved</Badge> : null}
                       </div>
-                      <p className="mt-1 text-body">{r.visit ? <Link href={`/rota/visits/${r.visit.id}`} className="row-title">{r.message}</Link> : r.message}</p>
-                      <p className="text-meta text-slate-600">Raised {fmtDate(r.raisedAt, true)}{r.deadline ? ` · deadline ${londonTime(r.deadline)} ${fmtDate(r.deadline)}` : " · no deadline"}{r.visit?.area ? ` · ${r.visit.area.name}` : ""} · owner {r.ownerId ? names.get(r.ownerId) ?? "a member" : "nobody yet"}</p>
-                      {r.escalationNote ? <p className="text-meta text-slate-600">Escalation: {r.escalationNote}</p> : null}
-                      {r.kind === "MISSED" && r.visit ? <p className="text-meta"><Link href={`/rota/missed?period=custom&from=${londonDate(r.visit.scheduledStart)}&to=${londonDate(r.visit.scheduledStart)}&q=${encodeURIComponent(r.visit.reference)}`}>Investigate in Missed Calls →</Link> <span className="text-slate-500">(the case there escalates and closes this one)</span></p> : null}
-                      {r.resolvedAt ? <p className="text-meta text-slate-700">Resolved by {r.resolvedById ? names.get(r.resolvedById) ?? "a member" : "the system"} {fmtDate(r.resolvedAt, true)}: {r.resolution}{r.evidenceNote ? ` · evidence: ${r.evidenceNote}` : ""}</p> : null}
+                      <p className="mt-1 text-[14.5px]">{r.visit ? <Link href={`/rota/visits/${r.visit.id}`} className="row-title">{r.message}</Link> : r.message}</p>
+                      <p className="text-[12.5px] text-slate-600">Raised {fmtDate(r.raisedAt, true)}{r.deadline ? ` · deadline ${londonTime(r.deadline)} ${fmtDate(r.deadline)}` : " · no deadline"}{r.visit?.area ? ` · ${r.visit.area.name}` : ""} · owner {r.ownerId ? names.get(r.ownerId) ?? "a member" : "nobody yet"}</p>
+                      {r.escalationNote ? <p className="text-[12.5px] text-slate-600">Escalation: {r.escalationNote}</p> : null}
+                      {r.kind === "MISSED" && r.visit ? <p className="text-[13px]"><Link href={`/rota/missed?period=custom&from=${londonDate(r.visit.scheduledStart)}&to=${londonDate(r.visit.scheduledStart)}&q=${encodeURIComponent(r.visit.reference)}`}>Investigate in Missed Calls →</Link> <span className="text-slate-500">(the case there escalates and closes this one)</span></p> : null}
+                      {r.resolvedAt ? <p className="text-[13px] text-slate-700">Resolved by {r.resolvedById ? names.get(r.resolvedById) ?? "a member" : "the system"} {fmtDate(r.resolvedAt, true)}: {r.resolution}{r.evidenceNote ? ` · evidence: ${r.evidenceNote}` : ""}</p> : null}
                     </div>
                   </div>
                   {canWork && !r.resolvedAt ? (
                     <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3">
                       <form action={assignExceptionOwnerAction} className="flex gap-2">
                         <input type="hidden" name="back" value={back} /><input type="hidden" name="alertId" value={r.id} />
-                        <select name="ownerId" defaultValue={r.ownerId ?? ""} required className="input min-w-0 flex-1 py-1.5 text-body" aria-label="Owner"><option value="">Give to…</option>{owners.map((o) => <option key={o.userId} value={o.userId}>{o.name}</option>)}</select>
+                        <select name="ownerId" defaultValue={r.ownerId ?? ""} required className="input min-w-0 flex-1 py-1.5 text-[14px]" aria-label="Owner"><option value="">Give to…</option>{owners.map((o) => <option key={o.userId} value={o.userId}>{o.name}</option>)}</select>
                         <button className="btn-secondary py-1">Assign</button>
                       </form>
                       {!r.escalatedAt ? (
                         <form action={escalateExceptionAction} className="flex gap-2">
                           <input type="hidden" name="back" value={back} /><input type="hidden" name="alertId" value={r.id} />
-                          <input name="note" required minLength={5} className="input min-w-0 flex-1 py-1.5 text-body" placeholder="Why a manager is needed" aria-label="Why a manager is needed" />
+                          <input name="note" required minLength={5} className="input min-w-0 flex-1 py-1.5 text-[14px]" placeholder="Why a manager is needed" aria-label="Why a manager is needed" />
                           <button className="btn-secondary py-1">Escalate</button>
                         </form>
                       ) : <span />}
                       <form action={resolveExceptionAction} className="flex flex-wrap gap-2">
                         <input type="hidden" name="back" value={back} /><input type="hidden" name="alertId" value={r.id} />
-                        <input name="resolution" required minLength={3} className="input min-w-0 flex-1 py-1.5 text-body" placeholder="What was done" aria-label="What was done" />
-                        <input name="evidenceNote" className="input min-w-0 flex-1 py-1.5 text-body" placeholder="Evidence (optional)" aria-label="Evidence" />
+                        <input name="resolution" required minLength={3} className="input min-w-0 flex-1 py-1.5 text-[14px]" placeholder="What was done" aria-label="What was done" />
+                        <input name="evidenceNote" className="input min-w-0 flex-1 py-1.5 text-[14px]" placeholder="Evidence (optional)" aria-label="Evidence" />
                         <button className="btn-primary py-1">Resolve</button>
                       </form>
                     </div>

@@ -22,7 +22,7 @@ export default async function AccountLinkPage({ params, searchParams }: { params
               {t.needsName ? <div><label className="label" htmlFor="name">Your name</label><input className="input" id="name" name="name" defaultValue={t.name ?? ""} required minLength={2} autoComplete="name" /></div> : null}
               <div><label className="label" htmlFor="password">Password</label><input className="input" id="password" name="password" type="password" required minLength={12} autoComplete="new-password" /></div>
               <div><label className="label" htmlFor="confirm">Type it again</label><input className="input" id="confirm" name="confirm" type="password" required minLength={12} autoComplete="new-password" /></div>
-              <p className="text-meta text-slate-600">At least 12 characters. A short sentence you will remember works well.</p>
+              <p className="text-[12.5px] text-slate-600">At least 12 characters. A short sentence you will remember works well.</p>
               <button className="btn-primary w-full">{t.kind === "RESET" ? "Save password" : "Create my account"}</button>
             </form>
           </>

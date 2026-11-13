@@ -27,15 +27,15 @@ export async function ServiceUserAiAudit({ ctx, serviceUserId, base, sp }: { ctx
               <li key={s.id} className="border-l-2 border-slate-200 pl-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link href={`/rota/coordinator/${s.id}?step=setup`} className="font-medium">{s.reference}</Link>
-                  <span className="text-body">{s.title}</span>
+                  <span className="text-[14px]">{s.title}</span>
                   <Badge tone={s.setupStatus ? (SETUP_TONE[s.setupStatus as keyof typeof SETUP_TONE] ?? "slate") : "slate"}>{s.setupLabel}</Badge>
                 </div>
-                <p className="text-meta text-slate-600">
+                <p className="text-[13px] text-slate-600">
                   {s.documents.length} source document{s.documents.length === 1 ? "" : "s"} ({s.documents.map((d) => d.name).join(", ") || "none"}). {s.finishedAt ? `Processed ${fmtDate(s.finishedAt, true)}` : "Not processed automatically"}{s.startedBy ? `, started by ${s.startedBy}` : ""}.
                 </p>
-                {s.summary.length ? <ul className="mt-1 list-disc pl-5 text-body">{s.summary.map((l) => <li key={l}>{l}</li>)}</ul> : null}
-                <p className="mt-1 text-meta text-slate-600">Saved automatically by CSB AI: {s.counts.automatic} · Decided by a person: {s.counts.human} · Repeats consolidated: {s.counts.consolidated} · Still waiting: {s.counts.waiting}{s.report?.sections.some((x) => x.status === "FAILED") ? ` · Failed: ${s.report.sections.filter((x) => x.status === "FAILED").map((x) => x.label).join(", ")}` : ""}</p>
-                {s.failures.map((f) => <p key={f} className="text-meta text-[#a3242c]">{f}</p>)}
+                {s.summary.length ? <ul className="mt-1 list-disc pl-5 text-[14px]">{s.summary.map((l) => <li key={l}>{l}</li>)}</ul> : null}
+                <p className="mt-1 text-[13px] text-slate-600">Saved automatically by CSB AI: {s.counts.automatic} · Decided by a person: {s.counts.human} · Repeats consolidated: {s.counts.consolidated} · Still waiting: {s.counts.waiting}{s.report?.sections.some((x) => x.status === "FAILED") ? ` · Failed: ${s.report.sections.filter((x) => x.status === "FAILED").map((x) => x.label).join(", ")}` : ""}</p>
+                {s.failures.map((f) => <p key={f} className="text-[13px] text-[#a3242c]">{f}</p>)}
               </li>
             ))}
           </ul>
@@ -60,7 +60,7 @@ export async function ServiceUserAiAudit({ ctx, serviceUserId, base, sp }: { ctx
           <div className="overflow-x-auto">
             <table className="table">
               <thead><tr><th scope="col">Field</th><th scope="col">Saved from the documents</th><th scope="col">On the record now</th><th scope="col">Changed by</th><th scope="col">Original source</th></tr></thead>
-              <tbody>{a.corrections.map((c, i) => <tr key={i}><td>{c.field}</td><td>{c.saved}</td><td>{c.now}</td><td>{c.changedBy ? `${c.changedBy}, ${fmtDate(c.changedAt, true)}` : "Not recorded"}</td><td className="text-meta">{c.source}</td></tr>)}</tbody>
+              <tbody>{a.corrections.map((c, i) => <tr key={i}><td>{c.field}</td><td>{c.saved}</td><td>{c.now}</td><td>{c.changedBy ? `${c.changedBy}, ${fmtDate(c.changedAt, true)}` : "Not recorded"}</td><td className="text-[13px]">{c.source}</td></tr>)}</tbody>
             </table>
           </div>
         ) : <Empty>Nothing CSB AI saved has been changed since. Correct any detail on its own tab (Personal details, Contacts, Care package, Template and so on); the change is recorded there with your name and time.</Empty>}
@@ -69,7 +69,7 @@ export async function ServiceUserAiAudit({ ctx, serviceUserId, base, sp }: { ctx
       <Card title={`What CSB AI saved, with its source (${a.saved.length})`}>
         {a.saved.length ? (
           <details>
-            <summary className="cursor-pointer text-body">Show every saved item</summary>
+            <summary className="cursor-pointer text-[14px]">Show every saved item</summary>
             <div className="mt-2 overflow-x-auto">
               <table className="table">
                 <thead><tr><th scope="col">Section</th><th scope="col">Information</th><th scope="col">Source</th><th scope="col">Decided</th><th scope="col"><span className="sr-only">Record</span></th></tr></thead>
@@ -77,9 +77,9 @@ export async function ServiceUserAiAudit({ ctx, serviceUserId, base, sp }: { ctx
                   {a.saved.map((x) => (
                     <tr key={x.id}>
                       <td>{x.section}</td>
-                      <td><span className="font-medium">{x.label}</span><span className="block text-meta text-slate-700">{x.value}{x.existing ? " (already on the record, not added twice)" : ""}</span></td>
-                      <td className="text-meta">{x.source}<span className="block text-slate-600">{x.verification}</span></td>
-                      <td className="text-meta">{x.provenance}<span className="block text-slate-600">{fmtDate(x.savedAt, true)}</span></td>
+                      <td><span className="font-medium">{x.label}</span><span className="block text-[13px] text-slate-700">{x.value}{x.existing ? " (already on the record, not added twice)" : ""}</span></td>
+                      <td className="text-[13px]">{x.source}<span className="block text-slate-600">{x.verification}</span></td>
+                      <td className="text-[13px]">{x.provenance}<span className="block text-slate-600">{fmtDate(x.savedAt, true)}</span></td>
                       <td>{x.recordTab ? <Link href={`${base}?tab=${x.recordTab}`} className="whitespace-nowrap">Open</Link> : null}</td>
                     </tr>
                   ))}
@@ -91,12 +91,12 @@ export async function ServiceUserAiAudit({ ctx, serviceUserId, base, sp }: { ctx
       </Card>
 
       <Card title="Audit history">
-        <ol id="audit-trail" className="space-y-1.5 text-body" aria-label="Audit history, newest first">
+        <ol id="audit-trail" className="space-y-1.5 text-[14px]" aria-label="Audit history, newest first">
           {a.trail.length ? a.trail.map((t) => (
             <li key={t.id} className="border-l-2 border-slate-200 pl-3">
               <span className="font-medium">{t.action.replace(/^(coordinator|serviceUser)\./, "").replace(/[.-]/g, " ")}</span>
               {t.automated ? <> <Badge tone="violet">CSB AI</Badge></> : null}
-              <span className="block text-meta text-slate-600">{t.by} · {fmtDate(t.at, true)}</span>
+              <span className="block text-[13px] text-slate-600">{t.by} · {fmtDate(t.at, true)}</span>
             </li>
           )) : <li><Empty>No history yet.</Empty></li>}
         </ol>

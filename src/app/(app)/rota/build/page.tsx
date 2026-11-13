@@ -34,7 +34,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
       <>
       <ModuleHeader title="Build Rota" />
       <section className="panel max-w-2xl" aria-label="Build Rota">
-        <p className="mt-2 text-body text-slate-700">Your role can view the rota but not build or publish it. Building is open to administrators, care managers and care coordinators. Ask an administrator to change your role if you need it.</p>
+        <p className="mt-2 text-[14.5px] text-slate-700">Your role can view the rota but not build or publish it. Building is open to administrators, care managers and care coordinators. Ask an administrator to change your role if you need it.</p>
       </section>
       </>
     );
@@ -128,31 +128,31 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
         b.current ? "Yes" : "No",
         <Link key="w" href={`/rota/visits?date=${b.weekStart}`}>Week {b.cycleWeek} Rota</Link>,
         areas,
-        <span key="c"><span className="tabular-nums">{built}</span><span className="block text-meta text-slate-500">{names.get(b.builtById) ?? "A former member"}</span></span>,
+        <span key="c"><span className="tabular-nums">{built}</span><span className="block text-[12.5px] text-slate-500">{names.get(b.builtById) ?? "A former member"}</span></span>,
         b.status === "DELETED" ? (
-          <span key="st" className="text-meta">Deleted{b.deletedAt ? ` ${fmtDate(b.deletedAt)}` : ""}</span>
+          <span key="st" className="text-[13px]">Deleted{b.deletedAt ? ` ${fmtDate(b.deletedAt)}` : ""}</span>
         ) : b.unpublished ? (
-          <span key="st" className="text-meta font-medium text-[#8a5a00]">{b.unpublished} not published</span>
+          <span key="st" className="text-[13px] font-medium text-[#8a5a00]">{b.unpublished} not published</span>
         ) : (
-          <span key="st" className="inline-flex items-center gap-1 text-meta text-[#2e7d32]"><CheckCircle size={18} weight="fill" aria-hidden />Published</span>
+          <span key="st" className="inline-flex items-center gap-1 text-[13px] text-[#2e7d32]"><CheckCircle size={18} weight="fill" aria-hidden />Published</span>
         ),
         b.status === "BUILT" ? (
           <span key="a" className="flex flex-wrap items-start gap-1.5">
-            <Link href={`/rota/build?roll=1&from=${b.weekStart}`} className="rounded-[3px] border border-slate-300 px-2.5 py-1 text-meta font-medium text-navy-900 no-underline hover:bg-slate-50">Roll forward</Link>
+            <Link href={`/rota/build?roll=1&from=${b.weekStart}`} className="rounded-[3px] border border-slate-300 px-2.5 py-1 text-[13px] font-medium text-navy-900 no-underline hover:bg-slate-50">Roll forward</Link>
             {b.unpublished ? (
               <form action={publishBuildAction}>
                 <input type="hidden" name="back" value={back} />
                 <input type="hidden" name="buildId" value={b.id} />
-                <button className="btn-primary py-1 text-meta">Publish</button>
+                <button className="btn-primary py-1 text-[13px]">Publish</button>
               </form>
             ) : null}
             {b.future && !b.otherAreas ? (
               <details className="relative">
-                <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-[3px] bg-[#d9473f] px-2.5 py-1 text-meta font-medium text-white hover:bg-[#b93a33]"><ProhibitInset size={15} aria-hidden />Delete</summary>
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-[3px] bg-[#d9473f] px-2.5 py-1 text-[13px] font-medium text-white hover:bg-[#b93a33]"><ProhibitInset size={15} aria-hidden />Delete</summary>
                 <form action={deleteBuildAction} className="absolute right-0 z-10 mt-1 w-64 space-y-2 rounded border border-slate-300 bg-white p-2.5 shadow-lg">
                   <input type="hidden" name="back" value={back} />
                   <input type="hidden" name="buildId" value={b.id} />
-                  <label className="block text-meta"><span className="label">Reason for deleting Week {b.cycleWeek} ({dmy(b.weekStart)})</span><input name="reason" required minLength={3} className="input py-1.5" /></label>
+                  <label className="block text-[13px]"><span className="label">Reason for deleting Week {b.cycleWeek} ({dmy(b.weekStart)})</span><input name="reason" required minLength={3} className="input py-1.5" /></label>
                   <button className="btn-secondary w-full py-1">Delete {b.visitCount} visits</button>
                 </form>
               </details>
@@ -178,7 +178,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
       {rolling ? null : <Flash searchParams={sp as Record<string, string | undefined>} />}
       <div inert={adding || rolling}>
         <section className="panel" aria-labelledby="all-rotas">
-          <h2 id="all-rotas" className="mb-3 border-b border-slate-200 pb-2 text-subtitle font-semibold text-ink">All Rotas</h2>
+          <h2 id="all-rotas" className="mb-3 border-b border-slate-200 pb-2 text-[17px] font-semibold text-ink">All Rotas</h2>
           <SearchTable
             label="All rotas"
             tall
@@ -186,7 +186,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
             rows={rows}
             empty="No rota has been built yet. Press Build Rota to build the first week from your templates."
           />
-          <p className="mt-2 text-meta text-slate-500">Only weeks that have not started can be deleted, and only while none of their visits has started, been changed by hand or had anything recorded.</p>
+          <p className="mt-2 text-[12.5px] text-slate-500">Only weeks that have not started can be deleted, and only while none of their visits has started, been changed by hand or had anything recorded.</p>
         </section>
       </div>
 
@@ -194,27 +194,27 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/45 px-4 py-8">
           <div role="dialog" aria-modal="true" aria-labelledby="add-rota" className="mx-auto max-w-[680px] overflow-hidden rounded-[4px] bg-[#13a05a] text-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/25 bg-[#0f8a4c] px-4 py-3">
-              <h2 id="add-rota" className="text-title font-normal">Add New Rota</h2>
-              <Link href="/rota/build" aria-label="Close" className="text-heading leading-none text-white/80 no-underline hover:text-white">×</Link>
+              <h2 id="add-rota" className="text-[20px] font-normal">Add New Rota</h2>
+              <Link href="/rota/build" aria-label="Close" className="text-[22px] leading-none text-white/80 no-underline hover:text-white">×</Link>
             </div>
-            <div className="space-y-3 px-4 py-4 text-lead">
+            <div className="space-y-3 px-4 py-4 text-[15px]">
               <p>You have chosen to build a new rota. The system builds a one week rota, Monday to Sunday, from the week you choose.</p>
               <p>Before you build a rota, please double check the following:</p>
               {plan ? (
                 <ul className="list-disc space-y-1 pl-6">
                   {plan.checklist.map((c) => (
                     <li key={c.label}>
-                      <span className="font-medium">{c.label}</span> <span className={c.ok ? "text-white/85" : "rounded-[3px] bg-white px-1 text-meta font-medium text-[#8a5a00]"}>{c.ok ? "(done)" : "(check)"}</span>
-                      <span className="block text-body text-white/85">{c.detail}</span>
+                      <span className="font-medium">{c.label}</span> <span className={c.ok ? "text-white/85" : "rounded-[3px] bg-white px-1 text-[13px] font-medium text-[#8a5a00]"}>{c.ok ? "(done)" : "(check)"}</span>
+                      <span className="block text-[13.5px] text-white/85">{c.detail}</span>
                     </li>
                   ))}
                   <li>Holidays are recorded (<Link href="/workforce/absences" className="text-white underline">check here</Link>), and the templates are right (<Link href="/rota/templates" className="text-white underline">check here</Link>).</li>
                 </ul>
               ) : null}
               {!one("week") && suggested.builtThrough ? (
-                <p className="rounded-[3px] bg-white/15 px-3 py-2 text-body">Your rota is already built up to {fmtLondonDate(suggested.builtThrough, { weekday: "long", day: "numeric", month: "long" })}, so the form has opened on the next week that still needs building.</p>
+                <p className="rounded-[3px] bg-white/15 px-3 py-2 text-[14px]">Your rota is already built up to {fmtLondonDate(suggested.builtThrough, { weekday: "long", day: "numeric", month: "long" })}, so the form has opened on the next week that still needs building.</p>
               ) : null}
-              {planError ? <p role="alert" className="rounded-[3px] bg-white px-3 py-2 text-body text-[#a3242c]">{planError}</p> : null}
+              {planError ? <p role="alert" className="rounded-[3px] bg-white px-3 py-2 text-[14px] text-[#a3242c]">{planError}</p> : null}
 
               <form method="get" className="space-y-2.5 rounded-[3px] bg-white/10 p-3">
                 <div className="grid grid-cols-1 items-center gap-x-3 gap-y-2 sm:grid-cols-[150px_1fr]">
@@ -229,28 +229,28 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                   <fieldset className="flex flex-wrap gap-x-4 gap-y-1">
                     <legend className="sr-only">Areas (none ticked means all yours)</legend>
                     {lk.areas.map((a) => (
-                      <label key={a.id} className="flex items-center gap-1.5 text-body"><input type="checkbox" name="areas" value={a.id} defaultChecked={areaIds.includes(a.id)} className="h-4 w-4" /> {a.name}</label>
+                      <label key={a.id} className="flex items-center gap-1.5 text-[14px]"><input type="checkbox" name="areas" value={a.id} defaultChecked={areaIds.includes(a.id)} className="h-4 w-4" /> {a.name}</label>
                     ))}
                   </fieldset>
                 </div>
-                <p className="text-meta text-white/85">The start is moved to the Monday of the week you pick. No areas ticked means all your areas.</p>
-                <button className="rounded-[3px] border border-white px-3 py-1.5 text-body hover:bg-white/10">Check this week</button>
+                <p className="text-[13px] text-white/85">The start is moved to the Monday of the week you pick. No areas ticked means all your areas.</p>
+                <button className="rounded-[3px] border border-white px-3 py-1.5 text-[14px] hover:bg-white/10">Check this week</button>
               </form>
 
               {plan ? (
                 <div className="rounded-[3px] bg-white p-3 text-navy-900">
-                  <p className="text-body">
+                  <p className="text-[14.5px]">
                     Week {plan.cycleWeek} rota for <span className="font-semibold">{fmtLondonDate(week, { day: "numeric", month: "long", year: "numeric" })}</span>: <span className="font-semibold">{plan.visits.length}</span> visits to create ({(plan.forecastMinutes / 60).toFixed(1)} care hours)
                     {plan.alreadyBuilt ? `, ${plan.alreadyBuilt} already built` : ""}{plan.skipped.length ? `, ${plan.skipped.length} skipped` : ""}.
                     {plan.unassignedSlots ? <span className="text-[#a3242c]"> {plan.unassignedSlots} carer slots will be left empty because nobody eligible was found.</span> : null}
                     {plan.flaggedSlots ? ` ${plan.flaggedSlots} are allocated with warnings.` : ""}
                   </p>
                   {plan.visits.length || plan.skipped.length ? (
-                    <details className="mt-2 text-body">
+                    <details className="mt-2 text-[14px]">
                       <summary className="cursor-pointer font-medium">See what will be created</summary>
                       <div className="mt-2 max-h-[340px] space-y-3 overflow-auto">
                         {days.map((d) => (
-                          <table key={d} className="table text-meta">
+                          <table key={d} className="table text-[13px]">
                             <caption className="py-1 text-left font-semibold">{fmtLondonDate(d, { weekday: "long", day: "numeric", month: "short" })}</caption>
                             <thead><tr><th>Time</th><th>Service user</th><th>Call</th><th>Carers</th></tr></thead>
                             <tbody>
@@ -266,7 +266,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                           </table>
                         ))}
                         {plan.skipped.length ? (
-                          <ul className="space-y-1 text-meta">
+                          <ul className="space-y-1 text-[13px]">
                             {plan.skipped.map((s) => <li key={`${s.templateId}-${s.date}`}>Skipped {fmtLondonDate(s.date)} · {s.serviceUserName}: {s.reason}</li>)}
                           </ul>
                         ) : null}
@@ -277,7 +277,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
               ) : null}
 
               {plan && past ? (
-                <div role="alert" className="rounded-[3px] bg-white px-3 py-2 text-body text-navy-900">
+                <div role="alert" className="rounded-[3px] bg-white px-3 py-2 text-[14px] text-navy-900">
                   <p className="font-medium text-[#a3242c]">This week has already finished, so it cannot be built.</p>
                   <Link href={`/rota/build?week=${suggested.weekStart}`} className="mt-1 inline-block font-medium text-[#0f6e3b] underline">Go to the next week that needs building ({dmy(suggested.weekStart)})</Link>
                 </div>
@@ -287,11 +287,11 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
                   <input type="hidden" name="weekStart" value={week} />
                   {cycle ? <input type="hidden" name="cycleWeek" value={cycle} /> : null}
                   {areaIds.map((a) => <input key={a} type="hidden" name="areaIds" value={a} />)}
-                  <button className="inline-flex items-center gap-1.5 rounded-[3px] border border-white bg-white px-3 py-1.5 text-body font-medium text-[#0f6e3b] hover:bg-[#eafbf0]"><Hammer size={15} weight="fill" aria-hidden />Build New Rota</button>
-                  <p className="mt-1.5 text-meta text-white/85">Visits are saved unpublished. Carers see them only after you publish the rota from the list.</p>
+                  <button className="inline-flex items-center gap-1.5 rounded-[3px] border border-white bg-white px-3 py-1.5 text-[14.5px] font-medium text-[#0f6e3b] hover:bg-[#eafbf0]"><Hammer size={15} weight="fill" aria-hidden />Build New Rota</button>
+                  <p className="mt-1.5 text-[13px] text-white/85">Visits are saved unpublished. Carers see them only after you publish the rota from the list.</p>
                 </form>
               ) : plan ? (
-                <div role="alert" className="space-y-1.5 rounded-[3px] bg-white px-3 py-2 text-body text-navy-900">
+                <div role="alert" className="space-y-1.5 rounded-[3px] bg-white px-3 py-2 text-[14px] text-navy-900">
                   <p className="font-semibold text-[#a3242c]">Nothing can be built for this week</p>
                   {(plan.blockers.length ? plan.blockers : [{ code: "NONE", message: "There are no visits to create for this week." }]).map((b) => (
                     <p key={b.code}>
@@ -306,7 +306,7 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
               ) : null}
             </div>
             <div className="flex justify-end border-t border-white/25 bg-[#0f8a4c] px-4 py-3">
-              <Link href="/rota/build" className="rounded-[3px] border border-white px-3 py-1.5 text-body text-white no-underline hover:bg-white/10">No, cancel for now</Link>
+              <Link href="/rota/build" className="rounded-[3px] border border-white px-3 py-1.5 text-[14px] text-white no-underline hover:bg-white/10">No, cancel for now</Link>
             </div>
           </div>
         </div>
@@ -317,12 +317,12 @@ export default async function BuildRotaPage({ searchParams }: { searchParams: Pr
           <div role="dialog" aria-modal="true" aria-labelledby="roll-forward" className="mx-auto max-w-[1080px] overflow-hidden rounded-[6px] bg-white text-navy-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div>
-                <h2 id="roll-forward" className="text-title font-medium">Roll Forward Rota</h2>
-                <p className="text-body text-slate-600">Copies a built week, with every change made to it, into the next week as a draft. Each carer is checked again for the new dates, and nothing is saved until you press Save as Draft.</p>
+                <h2 id="roll-forward" className="text-[20px] font-medium">Roll Forward Rota</h2>
+                <p className="text-[13.5px] text-slate-600">Copies a built week, with every change made to it, into the next week as a draft. Each carer is checked again for the new dates, and nothing is saved until you press Save as Draft.</p>
               </div>
-              <Link href="/rota/build" aria-label="Close" className="text-heading leading-none text-slate-500 no-underline hover:text-navy-900">×</Link>
+              <Link href="/rota/build" aria-label="Close" className="text-[22px] leading-none text-slate-500 no-underline hover:text-navy-900">×</Link>
             </div>
-            <div className="space-y-3 px-4 py-4 text-body">
+            <div className="space-y-3 px-4 py-4 text-[14.5px]">
               <RollForwardPreview
                 weekOptions={[...new Set([...builtWeeks, rollFrom])].sort().reverse().map((w) => ({ value: w, label: `${dmy(w)} – ${dmy(addDays(w, 6))}${w === thisMonday ? " (this week)" : ""}` }))}
                 areas={lk.areas.map((a) => ({ id: a.id, name: a.name }))}

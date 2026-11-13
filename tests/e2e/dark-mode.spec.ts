@@ -37,7 +37,7 @@ test.describe("Dark and light appearance", () => {
 
     // Back to normal.
     await page.getByTestId("colour-mode-menu").locator("summary").click();
-    await page.getByTestId("colour-mode-menu").getByTestId("colour-mode-light").click();
+    await page.getByTestId("colour-mode-light").click();
     expect(await mode(page)).toBe("light");
     expect(await background(page, "body")).toBe(lightPanel);
     await page.reload();
@@ -51,7 +51,7 @@ test.describe("Dark and light appearance", () => {
     await page.goto("/rota");
     expect(await mode(page)).toBe("light");
     await page.getByTestId("colour-mode-menu").locator("summary").click();
-    await page.getByTestId("colour-mode-menu").getByTestId("colour-mode-system").click();
+    await page.getByTestId("colour-mode-system").click();
     expect(await mode(page)).toBe("dark");
     await page.reload();
     expect(await mode(page)).toBe("dark");
@@ -60,11 +60,10 @@ test.describe("Dark and light appearance", () => {
     await context.close();
   });
 
-  test("the Overview offers the same choice in the account menu as well as the top bar", async ({ page }) => {
+  test("the Overview offers the same choice in the account menu, without changing its header", async ({ page }) => {
     await signIn(page, "manager@care-solution.demo");
     await page.goto("/overview");
-    // ClearCare (12 Nov 2026): the Overview uses the same top bar as every page, so the appearance button is there too.
-    await expect(page.getByTestId("app-topbar").getByTestId("colour-mode-menu")).toHaveCount(1);
+    await expect(page.getByTestId("overview-header").getByTestId("colour-mode-menu")).toHaveCount(0);
     await page.getByTestId("account-menu").locator("summary").click();
     await page.getByTestId("account-menu").getByTestId("colour-mode-dark").click();
     expect(await mode(page)).toBe("dark");

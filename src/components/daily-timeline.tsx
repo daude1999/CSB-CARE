@@ -79,16 +79,16 @@ export function DailyTimeline({ rows, axisStart, axisEnd, nowMinute, selected, f
   const showNow = nowMinute != null && nowMinute >= axisStart && nowMinute <= axisEnd;
   return (
     <ScrollIntoNow fraction={(NAME_W + Math.max(0, focus - axisStart) * PX) / width}>
-      <table className="border-separate border-spacing-0 text-meta" style={{ width, minWidth: "100%" }}>
+      <table className="border-separate border-spacing-0 text-[13px]" style={{ width, minWidth: "100%" }}>
         <thead>
           <tr>
-            <th scope="col" className="sticky left-0 top-0 z-30 border-b border-[#e4e7ec] bg-white px-3 py-2.5 text-left text-body font-semibold text-[#0b1530]" style={{ width: NAME_W, minWidth: NAME_W }}>{heading}</th>
+            <th scope="col" className="sticky left-0 top-0 z-30 border-b border-[#e4e7ec] bg-white px-3 py-2.5 text-left text-[14px] font-semibold text-[#0b1530]" style={{ width: NAME_W, minWidth: NAME_W }}>{heading}</th>
             <th scope="col" className="relative h-11 border-b border-[#e4e7ec] bg-white p-0" style={{ width: span * PX }}>
               <span className="sr-only">Timeline from {hhmm(axisStart)} to {hhmm(axisEnd)}</span>
               {ticks.map((t) => (
-                <span key={t} aria-hidden className="absolute top-3 -translate-x-1/2 text-meta font-normal tabular-nums text-[#344054]" style={{ left: x(t) }}>{hhmm(t)}</span>
+                <span key={t} aria-hidden className="absolute top-3 -translate-x-1/2 text-[12.5px] font-normal tabular-nums text-[#344054]" style={{ left: x(t) }}>{hhmm(t)}</span>
               ))}
-              {showNow ? <span aria-hidden className="absolute top-2 z-10 -translate-x-1/2 rounded-[6px] bg-[#6b3fd0] px-1.5 py-0.5 text-meta font-semibold tabular-nums text-white" style={{ left: x(nowMinute) }}>{hhmm(nowMinute)}</span> : null}
+              {showNow ? <span aria-hidden className="absolute top-2 z-10 -translate-x-1/2 rounded-[6px] bg-[#6b3fd0] px-1.5 py-0.5 text-[12.5px] font-semibold tabular-nums text-white" style={{ left: x(nowMinute) }}>{hhmm(nowMinute)}</span> : null}
             </th>
           </tr>
         </thead>
@@ -101,11 +101,11 @@ export function DailyTimeline({ rows, axisStart, axisEnd, nowMinute, selected, f
               <tr key={r.id}>
                 <th scope="row" className={`sticky left-0 z-20 border-b border-[#eef0f3] px-3 py-2 text-left align-top font-normal ${open ? "bg-[#fffaf1]" : "bg-white"}`}>
                   <span className="flex items-start gap-2.5">
-                    <span aria-hidden className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-meta font-semibold ${open ? "bg-[#fdf3e2] text-[#c27a06]" : "bg-[#eef0f6] text-[#344054]"}`}>{open ? <UsersThree size={18} /> : initials(r.name)}</span>
+                    <span aria-hidden className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold ${open ? "bg-[#fdf3e2] text-[#c27a06]" : "bg-[#eef0f6] text-[#344054]"}`}>{open ? <UsersThree size={18} /> : initials(r.name)}</span>
                     <span className="min-w-0">
-                      {r.href ? <a href={r.href} className="block truncate text-body font-semibold text-[#0b1530] no-underline hover:underline">{r.name}</a> : <span className={`block truncate text-body font-semibold ${open ? "text-[#8a5a00]" : "text-[#0b1530]"}`}>{r.name}</span>}
-                      <span className="block truncate text-meta text-slate-600">{r.run ? `${r.run} · ` : ""}{r.sub}</span>
-                      {r.shade ? <span className={`block text-caption font-medium ${SHADE_TEXT[r.shade.tone]}`}>{r.shade.label}</span> : null}
+                      {r.href ? <a href={r.href} className="block truncate text-[14px] font-semibold text-[#0b1530] no-underline hover:underline">{r.name}</a> : <span className={`block truncate text-[14px] font-semibold ${open ? "text-[#8a5a00]" : "text-[#0b1530]"}`}>{r.name}</span>}
+                      <span className="block truncate text-[12.5px] text-slate-600">{r.run ? `${r.run} · ` : ""}{r.sub}</span>
+                      {r.shade ? <span className={`block text-[12px] font-medium ${SHADE_TEXT[r.shade.tone]}`}>{r.shade.label}</span> : null}
                     </span>
                   </span>
                 </th>
@@ -129,11 +129,11 @@ export function DailyTimeline({ rows, axisStart, axisEnd, nowMinute, selected, f
                         <span className="mt-0.5 shrink-0"><CallIcon b={b} /></span>
                         <span className="min-w-0 flex-1 leading-[16px]">
                           <span className="flex items-center gap-1.5">
-                            <span className="truncate text-meta font-semibold text-[#0b1530]">{b.label.replace(/ \((\d+|shadow)\)$/, "")}</span>
-                            {b.slot === "SHADOW" ? <span className="shrink-0 text-micro text-slate-600">shadow</span> : null}
+                            <span className="truncate text-[13px] font-semibold text-[#0b1530]">{b.label.replace(/ \((\d+|shadow)\)$/, "")}</span>
+                            {b.slot === "SHADOW" ? <span className="shrink-0 text-[10.5px] text-slate-600">shadow</span> : null}
                           </span>
-                          <span className="block truncate text-caption text-[#344054]">{b.call} {b.span} ({dur(b.end - b.start)})</span>
-                          {b.double ? <span className="mt-0.5 inline-block rounded-full border border-[#b9a8ee] bg-white px-1.5 text-micro font-semibold leading-[14px] text-[#5a3aa8]">{carersNeededLabel(b.carers)}{b.slot === "OPEN" && b.status !== "CANCELLED" ? ` · ${b.sub.split(" · ").pop()}` : ""}</span> : b.slot === "OPEN" && b.status !== "CANCELLED" ? <span className="block truncate text-caption font-medium text-[#8a5a00]">{b.sub.split(" · ").pop()}</span> : b.tone === "draft" ? <span className="block truncate text-caption text-slate-500">Not published</span> : b.tone === "review" ? <span className="block truncate text-caption font-medium text-[#7a4b00]">Needs review</span> : null}
+                          <span className="block truncate text-[12px] text-[#344054]">{b.call} {b.span} ({dur(b.end - b.start)})</span>
+                          {b.double ? <span className="mt-0.5 inline-block rounded-full border border-[#b9a8ee] bg-white px-1.5 text-[10.5px] font-semibold leading-[14px] text-[#5a3aa8]">{carersNeededLabel(b.carers)}{b.slot === "OPEN" && b.status !== "CANCELLED" ? ` · ${b.sub.split(" · ").pop()}` : ""}</span> : b.slot === "OPEN" && b.status !== "CANCELLED" ? <span className="block truncate text-[11.5px] font-medium text-[#8a5a00]">{b.sub.split(" · ").pop()}</span> : b.tone === "draft" ? <span className="block truncate text-[11.5px] text-slate-500">Not published</span> : b.tone === "review" ? <span className="block truncate text-[11.5px] font-medium text-[#7a4b00]">Needs review</span> : null}
                         </span>
                       </a>
                     );

@@ -52,7 +52,7 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Search {label}</span>
           <MagnifyingGlass size={16} aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#667085]" />
-          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={`Search ${label}…`} className="h-9 w-full rounded-[7px] border border-[#d0d5dd] bg-white pl-8 pr-2 text-body text-[#101828] placeholder:text-[#667085]" />
+          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder={`Search ${label}…`} className="h-9 w-full rounded-[7px] border border-[#d0d5dd] bg-white pl-8 pr-2 text-[13.5px] text-[#101828] placeholder:text-[#667085]" />
         </label>
         {filters?.length ? (
           <label className="relative">
@@ -67,21 +67,21 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
         {menu?.length ? (
           <details className="relative">
             <summary aria-label={`More options for ${label}`} className="flex h-9 w-7 cursor-pointer list-none items-center justify-center rounded-[7px] text-[#344054] hover:bg-slate-100 [&::-webkit-details-marker]:hidden"><DotsThreeVertical size={20} weight="bold" aria-hidden /></summary>
-            <ul className="absolute right-0 z-30 mt-1 w-[200px] rounded-[8px] border border-[#e4e7ec] bg-white py-1 text-body shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
+            <ul className="absolute right-0 z-30 mt-1 w-[200px] rounded-[8px] border border-[#e4e7ec] bg-white py-1 text-[13.5px] shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
               {menu.map((m) => <li key={m.href}><Link href={m.href} className="block px-3 py-1.5 text-[#101828] no-underline hover:bg-slate-50">{m.label}</Link></li>)}
             </ul>
           </details>
         ) : null}
       </div>
       <div className="min-w-0 flex-1 overflow-x-auto">
-        <table className="w-full border-collapse text-body" aria-describedby={`${id}-n`}>
+        <table className="w-full border-collapse text-[13.5px]" aria-describedby={`${id}-n`}>
           <caption className="sr-only">{label}</caption>
           <thead>
             <tr className="border-y border-[#eaecf0] bg-[#f9fafb] text-left">
               {columns.map((c) => {
                 const active = sort?.key === c.key;
                 return (
-                  <th key={c.key} scope="col" aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-1.5 py-[7px] text-meta font-semibold text-[#101828] first:pl-3.5 ${c.className ?? ""}`}>
+                  <th key={c.key} scope="col" aria-sort={active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined} className={`whitespace-nowrap px-1.5 py-[7px] text-[12.5px] font-semibold text-[#101828] first:pl-3.5 ${c.className ?? ""}`}>
                     {c.sortable ? (
                       <button type="button" onClick={() => setSort(active && sort!.dir === "asc" ? { key: c.key, dir: "desc" } : { key: c.key, dir: "asc" })} className="inline-flex items-center gap-1 hover:text-module">
                         {c.label}
@@ -104,15 +104,15 @@ export function DashTable({ label, columns, rows, empty, filterLabel, filters, m
             ))}
           </tbody>
         </table>
-        {!slice.length ? <p className="px-3.5 py-6 text-center text-body text-[#667085]">{q || filter ? "Nothing matches." : empty}</p> : null}
+        {!slice.length ? <p className="px-3.5 py-6 text-center text-[13.5px] text-[#667085]">{q || filter ? "Nothing matches." : empty}</p> : null}
       </div>
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-[#f2f4f7] px-3.5 py-2">
-        <p id={`${id}-n`} className="text-meta text-[#344054]" aria-live="polite">Showing {from} to {from ? from + slice.length - 1 : 0} of {shown.length} entries</p>
+        <p id={`${id}-n`} className="text-[12.5px] text-[#344054]" aria-live="polite">Showing {from} to {from ? from + slice.length - 1 : 0} of {shown.length} entries</p>
         {pages > 1 ? (
           <nav aria-label={`${label} pages`} className="flex items-center gap-1">
             <button type="button" onClick={() => setPage(current - 1)} disabled={current === 1} aria-label="Previous page" className="flex h-7 w-7 items-center justify-center rounded text-[#344054] hover:bg-slate-100 disabled:opacity-40"><CaretLeft size={14} weight="bold" aria-hidden /></button>
-            {nums.map((n, i) => n === null ? <span key={`gap-${i}`} className="px-1 text-meta text-[#667085]">…</span> : (
-              <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === current ? "page" : undefined} className={`h-7 min-w-7 rounded-[6px] border px-1.5 text-meta tabular-nums ${n === current ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</button>
+            {nums.map((n, i) => n === null ? <span key={`gap-${i}`} className="px-1 text-[12.5px] text-[#667085]">…</span> : (
+              <button key={n} type="button" onClick={() => setPage(n)} aria-current={n === current ? "page" : undefined} className={`h-7 min-w-7 rounded-[6px] border px-1.5 text-[12.5px] tabular-nums ${n === current ? "border-module bg-module font-semibold text-white" : "border-[#e4e7ec] bg-white text-[#101828] hover:bg-slate-50"}`}>{n}</button>
             ))}
             <button type="button" onClick={() => setPage(current + 1)} disabled={current === pages} aria-label="Next page" className="flex h-7 w-7 items-center justify-center rounded text-[#344054] hover:bg-slate-100 disabled:opacity-40"><CaretRight size={14} weight="bold" aria-hidden /></button>
           </nav>

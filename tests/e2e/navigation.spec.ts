@@ -46,8 +46,7 @@ test.describe("Portal switching", () => {
       await expect(portal(page, m.id)).toHaveClass(/shell-portal-current/);
       await expect(page).toHaveURL(new RegExp(`${m.home === "/" ? "/$" : m.home + "$"}`));
       await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(m.title);
-      // ClearCare: the current module is a white row whose icon tile carries the module colour.
-      await expect(portal(page, m.id).locator(".shell-portal-icon")).toHaveCSS("background-color", m.colour);
+      await expect(portal(page, m.id)).toHaveCSS("background-color", m.colour);
       await expect(page.getByTestId("portal-pages")).toHaveCount(1);
       // Once inside, the module's own name leads back to the Overview; its dashboard is the page marked current.
       await expect(portal(page, m.id)).toHaveAttribute("href", "/overview");
@@ -72,10 +71,9 @@ test.describe("Portal switching", () => {
     await expect(currentPage(page)).toHaveText("HR Dashboard");
     await expect(page.locator('link[href="/hr/hr-hub.css"]')).toHaveCount(1);
     await expect(page.locator("header.h-top, aside.h-side")).toHaveCount(0);
-    // The HR Hub's styles stop at its own root. ClearCare (12 Nov 2026): the platform is in Figtree; the HR Hub keeps
-    // its own Inter until its restyle (Phase 6), which waits for the owner's approval.
-    expect(rotaTitleFont.split(",")[0]).toBe('"Figtree Variable"');
-    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toMatch(/^"(Figtree|Inter) Variable"$/);
+    // The HR Hub's styles stop at its own root: the HR heading uses exactly the platform's typeface, as on Rostering.
+    expect(rotaTitleFont.split(",")[0]).toBe('"Inter Variable"');
+    expect((await page.getByTestId("hr-heading").locator("h1").evaluate((el) => getComputedStyle(el).fontFamily)).split(",")[0]).toBe('"Inter Variable"');
 
     // Between HR screens the page is not reloaded.
     await page.evaluate(() => ((window as unknown as { stay: number }).stay = 1));

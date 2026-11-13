@@ -42,10 +42,10 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
   const coverCell = (id: string, compact = false) => {
     const s: CoverState | undefined = covers.get(id);
     if (!s) return null;
-    if (s.canFind && canWork) return <Link href={href({ cover: id })} scroll={false} className={`inline-flex items-center rounded-[6px] bg-[#6b46c9] px-2.5 py-1 text-meta font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white ${compact ? "mt-2" : ""}`} aria-label={`Find Cover for ${rows.find((r) => r.id === id)?.visit.reference ?? "this call"}`}>Find Cover{s.kind === "partial" ? ` (${s.booked}/${s.required})` : ""}</Link>;
+    if (s.canFind && canWork) return <Link href={href({ cover: id })} scroll={false} className={`inline-flex items-center rounded-[6px] bg-[#6b46c9] px-2.5 py-1 text-[13px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white ${compact ? "mt-2" : ""}`} aria-label={`Find Cover for ${rows.find((r) => r.id === id)?.visit.reference ?? "this call"}`}>Find Cover{s.kind === "partial" ? ` (${s.booked}/${s.required})` : ""}</Link>;
     if (s.kind === "booked") return <Link href={canWork ? href({ cover: id, fcStep: "done" }) : `/rota/missed/${id}`} scroll={false} className="no-underline"><Badge tone="green">Cover booked{s.recovery ? ` · ${londonTime(s.recovery.scheduledStart)}` : ""}</Badge></Link>;
     if (s.kind === "partial") return <Badge tone="amber">{s.booked}/{s.required} carers booked</Badge>;
-    return <span className="text-meta text-slate-500">{s.kind === "late-arrival" ? "Carer arrived late" : s.kind === "recorded" ? "Recorded on case" : "—"}</span>;
+    return <span className="text-[12.5px] text-slate-500">{s.kind === "late-arrival" ? "Carer arrived late" : s.kind === "recorded" ? "Recorded on case" : "—"}</span>;
   };
   const exportHref = (format: string) => `/api/rota/missed/export?${new URLSearchParams(Object.entries({ ...keep, format }).filter((e): e is [string, string] => !!e[1]))}`;
   const anchor = f.date ?? reg.today;
@@ -61,15 +61,15 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
   const pct = (n: number | null) => (rings.total && n !== null ? ((n / rings.total) * 100).toFixed(1) : "0.0");
   const hours = rows.reduce((n, r) => n + (r.visit.scheduledEnd.getTime() - r.visit.scheduledStart.getTime()) / 3600000, 0);
   const smart = (key: "repeat" | "highrisk" | "uninvestigated", text: string, n: number) => (
-    <Link href={href({ smart: f.smart === key ? undefined : key })} aria-pressed={f.smart === key} className={`rounded-full border px-3 py-1 text-meta no-underline ${f.smart === key ? "border-[#3a2470] bg-[#3a2470] text-white" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}`}>
+    <Link href={href({ smart: f.smart === key ? undefined : key })} aria-pressed={f.smart === key} className={`rounded-full border px-3 py-1 text-[13px] no-underline ${f.smart === key ? "border-[#3a2470] bg-[#3a2470] text-white" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}`}>
       {text} <b className="ml-0.5">{n}</b>
     </Link>
   );
   const kpi = (n: number, title: string, note: string, to: string, colour = "text-slate-900") => (
     <Link href={to} className="block border-b border-slate-100 px-3 py-2.5 no-underline hover:bg-slate-50 sm:border-b-0 sm:border-r last:border-r-0">
-      <b className={`block text-heading leading-7 ${colour}`}>{n}</b>
-      <span className="block text-meta font-medium text-slate-800">{title}</span>
-      <span className="block text-caption text-slate-500">{note}</span>
+      <b className={`block text-[22px] leading-7 ${colour}`}>{n}</b>
+      <span className="block text-[13px] font-medium text-slate-800">{title}</span>
+      <span className="block text-[12px] text-slate-500">{note}</span>
     </Link>
   );
 
@@ -83,7 +83,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
             <a href={exportHref("xlsx")} className="mh-btn">Export Excel</a>
             <a href={exportHref("pdf")} className="mh-btn">Export PDF</a>
           </>
-        ) : <span className="text-meta text-white/88">Exports are for managers</span>}
+        ) : <span className="text-[12.5px] text-white/88">Exports are for managers</span>}
       />
       <Flash searchParams={sp as Record<string, string | undefined>} />
       <section aria-label="Calls in this period" className="panel mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -94,23 +94,23 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
       </section>
 
       <section className="panel" aria-labelledby="missed-title">
-        <h2 id="missed-title" className="mb-2 text-subtitle font-semibold text-ink">Missed calls in this period</h2>
-        <p className="mb-3 rounded bg-[#fde8e8] px-3 py-2 text-body text-[#8a1f1a]">You are looking at missed calls only. A call is missed when nobody has clocked in {settings.missedAfterMin} minutes after its start time (Rota Settings). Every missed call opens a case to investigate. A missed call means no attendance was recorded, not that the carer did not go: check with the carer and the person first.</p>
+        <h2 id="missed-title" className="mb-2 text-[17px] font-semibold text-ink">Missed calls in this period</h2>
+        <p className="mb-3 rounded bg-[#fde8e8] px-3 py-2 text-[13.5px] text-[#8a1f1a]">You are looking at missed calls only. A call is missed when nobody has clocked in {settings.missedAfterMin} minutes after its start time (Rota Settings). Every missed call opens a case to investigate. A missed call means no attendance was recorded, not that the carer did not go: check with the carer and the person first.</p>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <nav aria-label="Period" className="inline-flex overflow-hidden rounded-md border border-slate-300">
             {(["day", "week", "month", "custom"] as const).map((p) => (
-              <Link key={p} href={href({ period: p, from: undefined, to: undefined })} aria-current={f.period === p ? "page" : undefined} className={`border-r border-slate-300 px-3 py-1.5 text-body no-underline last:border-r-0 ${f.period === p ? "bg-[#6b46c9] text-white" : "bg-white text-slate-800 hover:bg-slate-50"}`}>{p[0]!.toUpperCase() + p.slice(1)}</Link>
+              <Link key={p} href={href({ period: p, from: undefined, to: undefined })} aria-current={f.period === p ? "page" : undefined} className={`border-r border-slate-300 px-3 py-1.5 text-[13.5px] no-underline last:border-r-0 ${f.period === p ? "bg-[#6b46c9] text-white" : "bg-white text-slate-800 hover:bg-slate-50"}`}>{p[0]!.toUpperCase() + p.slice(1)}</Link>
             ))}
           </nav>
           {f.period !== "custom" ? (
             <>
               <Link href={step(-1)!} className="btn-secondary px-2.5" aria-label="Previous period">‹</Link>
-              <b className="text-lead">{label}</b>
+              <b className="text-[15px]">{label}</b>
               <Link href={step(1)!} className="btn-secondary px-2.5" aria-label="Next period">›</Link>
               <Link href={href({ date: undefined })} className="btn-secondary">{f.period === "day" ? "Today" : f.period === "week" ? "This week" : "This month"}</Link>
             </>
-          ) : <b className="text-lead">{label}</b>}
+          ) : <b className="text-[15px]">{label}</b>}
         </div>
 
         <section aria-label="Management figures" className="mb-3 grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white sm:grid-cols-3 xl:grid-cols-6">
@@ -147,9 +147,9 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
               <Link href={`/rota/missed?period=${f.period}`} className="btn-secondary">Clear</Link>
             </div>
           </div>
-          {f.period !== "custom" ? <p className="mt-2 text-meta text-slate-500">For a date range, choose <Link href={href({ period: "custom" })}>Custom</Link>.</p> : null}
+          {f.period !== "custom" ? <p className="mt-2 text-[12.5px] text-slate-500">For a date range, choose <Link href={href({ period: "custom" })}>Custom</Link>.</p> : null}
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-meta text-slate-600">Smart filters:</span>
+            <span className="text-[13px] text-slate-600">Smart filters:</span>
             {smart("repeat", "Repeat offenders", kpis.repeatOffenders)}
             {smart("highrisk", "High-risk service users", kpis.highRisk)}
             {smart("uninvestigated", "Uninvestigated", kpis.uninvestigated)}
@@ -160,24 +160,24 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
           <input type="hidden" name="back" value={back} />
           {canWork ? (
             <details className="mb-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-              <summary className="cursor-pointer text-body font-medium">Bulk Actions <span className="font-normal text-slate-500">(tick missed calls in the list first)</span></summary>
+              <summary className="cursor-pointer text-[14px] font-medium">Bulk Actions <span className="font-normal text-slate-500">(tick missed calls in the list first)</span></summary>
               <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr_1fr_auto] md:items-end">
                 <label><span className="label">Action</span><select name="bulk" className="input w-full" required defaultValue=""><option value="" disabled>Choose…</option><option value="assign">Assign coordinator</option><option value="escalate">Escalate to the care managers</option></select></label>
                 <label><span className="label">Coordinator (assign)</span><select name="coordinatorId" className="input w-full" defaultValue=""><option value="">Choose…</option>{lk.workers.map((w) => <option key={w.userId} value={w.userId}>{w.name}</option>)}</select></label>
                 <label><span className="label">Why a manager is needed (escalate)</span><input name="note" className="input w-full" /></label>
                 <button className="btn-primary">Apply to ticked</button>
               </div>
-              {canExport ? <p className="mt-2 text-meta text-slate-600">To export only the ticked calls, use <button formAction={`/api/rota/missed/export`} formMethod="get" name="format" value="xlsx" className="text-[#1d5f9e] underline">Excel</button> or <button formAction={`/api/rota/missed/export`} formMethod="get" name="format" value="pdf" className="text-[#1d5f9e] underline">PDF</button> for the ticked rows.</p> : null}
+              {canExport ? <p className="mt-2 text-[12.5px] text-slate-600">To export only the ticked calls, use <button formAction={`/api/rota/missed/export`} formMethod="get" name="format" value="xlsx" className="text-[#1d5f9e] underline">Excel</button> or <button formAction={`/api/rota/missed/export`} formMethod="get" name="format" value="pdf" className="text-[#1d5f9e] underline">PDF</button> for the ticked rows.</p> : null}
             </details>
           ) : null}
           {canExport ? Object.entries(keep).map(([k, v]) => (v && k !== "back" ? <input key={k} type="hidden" name={k} value={v} /> : null)) : null}
 
-          <p className="mb-1 text-right text-meta text-slate-600">{rows.length} {rows.length === 1 ? "call" : "calls"} · {hours.toFixed(2)} scheduled hours</p>
+          <p className="mb-1 text-right text-[13px] text-slate-600">{rows.length} {rows.length === 1 ? "call" : "calls"} · {hours.toFixed(2)} scheduled hours</p>
           {rows.length ? (
             <>
               <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
-                <table className="w-full bg-white text-body">
-                  <thead className="bg-slate-50 text-left text-meta text-slate-600">
+                <table className="w-full bg-white text-[13.5px]">
+                  <thead className="bg-slate-50 text-left text-[12.5px] text-slate-600">
                     <tr>
                       {canWork ? <th className="px-2 py-2"><span className="sr-only">Select</span></th> : null}
                       <th className="px-2 py-2">Ref</th><th className="px-2 py-2">Care worker</th><th className="px-2 py-2">Service user</th><th className="px-2 py-2">Branch</th><th className="px-2 py-2">Scheduled</th><th className="px-2 py-2">Visit type</th><th className="px-2 py-2">Reason</th><th className="px-2 py-2">Status</th><th className="px-2 py-2">Coordinator</th><th className="px-2 py-2">Deadline</th><th className="px-2 py-2">Cover</th>
@@ -187,11 +187,11 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
                     {rows.map((r) => (
                       <tr key={r.id} className={`border-t border-slate-100 align-top ${r.stage === "CLOSED" ? "" : "[&>td]:bg-[#fdf1f1]"}`}>
                         {canWork ? <td className="px-2 py-2"><input type="checkbox" name="ids" value={r.id} className="h-4 w-4" aria-label={`Select ${r.visit.reference}`} /></td> : null}
-                        <td className="px-2 py-2"><Link href={`/rota/missed/${r.id}`} className="font-medium">{r.visit.reference}</Link><span className="block text-caption text-slate-500">{fmtLondonDate(londonDate(r.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</span></td>
+                        <td className="px-2 py-2"><Link href={`/rota/missed/${r.id}`} className="font-medium">{r.visit.reference}</Link><span className="block text-[12px] text-slate-500">{fmtLondonDate(londonDate(r.scheduledStart), { weekday: "short", day: "numeric", month: "short" })}</span></td>
                         <td className="px-2 py-2">{r.staffId ? <Link href={`/rota/staff/${r.staffId}#missed`}>{r.carerName}</Link> : <span className="text-slate-500">Unassigned</span>}{r.repeatCount >= settings.repeatOffenderCount ? <span className="ml-1"><Badge tone="rose" title={`${r.repeatCount} missed calls in ${settings.repeatWindowDays} days`}>Repeat · {r.repeatCount}</Badge></span> : null}</td>
                         <td className="px-2 py-2"><Link href={`/rota/service-users/${r.serviceUserId}?tab=missed`}>{r.serviceUserName}</Link>{r.highRisk ? <span className="ml-1"><Badge tone="rose">High risk</Badge></span> : null}{r.clientRepeatCount >= settings.repeatClientCount ? <span className="ml-1"><Badge tone="amber" title={`${r.clientRepeatCount} missed calls in ${settings.repeatWindowDays} days`}>{r.clientRepeatCount} in {settings.repeatWindowDays} days</Badge></span> : null}</td>
-                        <td className="px-2 py-2">{r.visit.area ? `${r.visit.area.branch?.name ?? r.visit.area.name}` : "—"}<span className="block text-caption text-slate-500">{r.visit.area?.branch ? r.visit.area.name : ""}</span></td>
-                        <td className="px-2 py-2 whitespace-nowrap">{londonTime(r.visit.scheduledStart)}–{londonTime(r.visit.scheduledEnd)}{r.visit.status !== "MISSED" ? <span className="block text-caption text-slate-500">now {VISIT_LABEL[r.visit.status].toLowerCase()}</span> : null}</td>
+                        <td className="px-2 py-2">{r.visit.area ? `${r.visit.area.branch?.name ?? r.visit.area.name}` : "—"}<span className="block text-[12px] text-slate-500">{r.visit.area?.branch ? r.visit.area.name : ""}</span></td>
+                        <td className="px-2 py-2 whitespace-nowrap">{londonTime(r.visit.scheduledStart)}–{londonTime(r.visit.scheduledEnd)}{r.visit.status !== "MISSED" ? <span className="block text-[12px] text-slate-500">now {VISIT_LABEL[r.visit.status].toLowerCase()}</span> : null}</td>
                         <td className="px-2 py-2">{r.visit.callType.name}</td>
                         <td className="px-2 py-2">{r.reasonCode ? reasonLabel(r.reasonCode) : <Badge tone="slate">Not recorded</Badge>}</td>
                         <td className="px-2 py-2"><Badge tone={STAGE_TONE[r.stage]}>{STAGE_LABEL[r.stage]}</Badge>{r.escalatedAt && r.stage !== "CLOSED" ? <span className="ml-1"><Badge tone="violet">Escalated</Badge></span> : null}</td>
@@ -206,14 +206,14 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
               <ul className="space-y-2 md:hidden">
                 {rows.map((r) => (
                   <li key={r.id} className={`rounded-lg border p-3 ${r.stage === "CLOSED" ? "border-slate-200 bg-white" : "border-[#f1d4d2] bg-[#fdf1f1]"}`}>
-                    <div className="flex items-center justify-between gap-2 text-meta text-slate-600">
+                    <div className="flex items-center justify-between gap-2 text-[12.5px] text-slate-600">
                       <span className="flex items-center gap-2">{canWork ? <input type="checkbox" name="ids" value={r.id} className="h-4 w-4" aria-label={`Select ${r.visit.reference}`} /> : null}{fmtLondonDate(londonDate(r.scheduledStart), { weekday: "short", day: "numeric", month: "short" })} · {londonTime(r.scheduledStart)}</span>
                       <Badge tone={STAGE_TONE[r.stage]}>{STAGE_LABEL[r.stage]}{r.overdue ? " · overdue" : ""}</Badge>
                     </div>
-                    <Link href={`/rota/missed/${r.id}`} className="mt-1 block text-lead font-semibold">{r.serviceUserName}</Link>
+                    <Link href={`/rota/missed/${r.id}`} className="mt-1 block text-[15px] font-semibold">{r.serviceUserName}</Link>
                     {r.highRisk ? <Badge tone="rose">High risk</Badge> : null}
-                    <p className="text-body">{r.carerName ?? "Unassigned"}{r.repeatCount >= settings.repeatOffenderCount ? ` · repeat ${r.repeatCount}` : ""} · {r.visit.callType.name} · {r.visit.area?.name ?? "No area"}</p>
-                    <p className="text-meta text-slate-600">{reasonLabel(r.reasonCode) ?? "Reason not recorded"} · {r.coordinatorName ?? "no coordinator"}</p>
+                    <p className="text-[13.5px]">{r.carerName ?? "Unassigned"}{r.repeatCount >= settings.repeatOffenderCount ? ` · repeat ${r.repeatCount}` : ""} · {r.visit.callType.name} · {r.visit.area?.name ?? "No area"}</p>
+                    <p className="text-[12.5px] text-slate-600">{reasonLabel(r.reasonCode) ?? "Reason not recorded"} · {r.coordinatorName ?? "no coordinator"}</p>
                     {coverCell(r.id, true)}
                   </li>
                 ))}
@@ -222,7 +222,7 @@ export default async function MissedCallsPage({ searchParams }: { searchParams: 
           ) : <div className="rounded-lg border border-slate-200 bg-white"><Empty>{kpis.total ? "No missed calls match these filters." : "No missed calls in this period."}</Empty></div>}
         </form>
         {coverId ? <ReplacementCoverPanel ctx={ctx} sp={{ ...flat, cover: coverId }} basePath="/rota/missed" keep={keep} fallback="recovery" /> : null}
-        <p className="mt-2 text-meta text-slate-500">Rows stay pale red until the case is closed; the status is always written out too. A row opens its case. Repeat counts look back {settings.repeatWindowDays} days from {fmtLondonDate(reg.repeatWindow.to)} and leave out calls the investigation found were delivered or were not the care worker&apos;s doing.</p>
+        <p className="mt-2 text-[12.5px] text-slate-500">Rows stay pale red until the case is closed; the status is always written out too. A row opens its case. Repeat counts look back {settings.repeatWindowDays} days from {fmtLondonDate(reg.repeatWindow.to)} and leave out calls the investigation found were delivered or were not the care worker&apos;s doing.</p>
       </section>
     </>
   );

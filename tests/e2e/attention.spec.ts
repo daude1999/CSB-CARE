@@ -6,7 +6,7 @@ async function signIn(page: Page, email = "coordinator@care-solution.demo") {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("DemoPassword!2026");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByTestId("current-user")).toBeAttached(); // below 1024px the name sits in the menu, not on screen
+  await expect(page.getByTestId("current-user")).toBeVisible();
 }
 
 test.describe("Visits Needing Attention", () => {

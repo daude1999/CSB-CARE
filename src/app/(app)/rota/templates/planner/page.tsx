@@ -57,14 +57,14 @@ export default async function TemplatePlannerPage({ searchParams }: { searchPara
   return (
     <>
       <TemplatesHeader title="Advanced Templates" subtitle="Repeating visits by carer for one cycle week. Drag a visit to another carer to change who it is planned for." active="advanced" canBuild={hasOrgPermission(ctx, "rota.build")} />
-      <p className="mb-3 text-body text-[#475467]">The change applies to every day and week that template runs. Weeks already built keep their carers. Each carer’s round order is set in <Link href="/rota/routes/templates">Template Run Routes</Link>.</p>
+      <p className="mb-3 text-[13.5px] text-[#475467]">The change applies to every day and week that template runs. Weeks already built keep their carers. Each carer’s round order is set in <Link href="/rota/routes/templates">Template Run Routes</Link>.</p>
       <Flash searchParams={sp} />
       <div className="mb-3"><ChoiceGroup label="Cycle week" items={Array.from({ length: settings.cycleLength }, (_, i) => ({ href: q(i + 1), label: `Week ${i + 1}`, active: week === i + 1 }))} /></div>
       <section className="panel" aria-label="Template planner">
         <form method="get" className="mb-3 flex flex-wrap items-end gap-2">
           <input type="hidden" name="week" value={week} />
           <label><span className="label">Area</span><select name="area" defaultValue={sp.area ?? ""} className="input"><option value="">All areas</option>{lk.areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-          <label className="flex items-center gap-1.5 pb-2 text-body"><input type="checkbox" name="all" value="1" defaultChecked={sp.all === "1"} className="h-4 w-4" /> Show carers with no visits</label>
+          <label className="flex items-center gap-1.5 pb-2 text-[14px]"><input type="checkbox" name="all" value="1" defaultChecked={sp.all === "1"} className="h-4 w-4" /> Show carers with no visits</label>
           <button className="btn-primary">Show</button>
         </form>
         <PlannerBoard days={WEEKDAYS.map((d) => ({ date: d, label: d, today: false }))} rows={rows} action={templateCarerAction} back={q(week)} canEdit={hasOrgPermission(ctx, "rota.edit")} idName="templateId" versionName="version" confirmTemplate />

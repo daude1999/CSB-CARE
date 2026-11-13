@@ -50,7 +50,7 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
       <span aria-hidden className="mt-[1px] shrink-0 text-[#344054]">{icon}</span>
       <div className="min-w-0 flex-1">
         <dt className="sr-only">{label}</dt>
-        <dd className="text-body text-[#101828]">{children}</dd>
+        <dd className="text-[14.5px] text-[#101828]">{children}</dd>
       </div>
     </div>
   );
@@ -67,10 +67,10 @@ function ActionPop({ label, icon, tone = "secondary", children, align = "left", 
   }[tone];
   return (
     <details className={`group relative ${className}`}>
-      <summary className={`flex ${size === "lg" ? "h-11 text-lead" : "h-9 text-body"} cursor-pointer list-none items-center justify-center gap-2 rounded-[8px] border px-3 font-semibold [&::-webkit-details-marker]:hidden ${cls}`}>
+      <summary className={`flex ${size === "lg" ? "h-11 text-[15px]" : "h-9 text-[14px]"} cursor-pointer list-none items-center justify-center gap-2 rounded-[8px] border px-3 font-semibold [&::-webkit-details-marker]:hidden ${cls}`}>
         <span aria-hidden>{icon}</span>{label}
       </summary>
-      <div className={`absolute bottom-12 z-40 rounded-[10px] border border-[#e4e7ec] bg-white p-3 text-body shadow-[0_8px_24px_rgba(16,24,40,0.18)] ${size === "lg" ? "inset-x-0" : `w-[340px] max-w-[85vw] ${align === "right" ? "right-0" : "left-0"}`}`}>{children}</div>
+      <div className={`absolute bottom-12 z-40 rounded-[10px] border border-[#e4e7ec] bg-white p-3 text-[14px] shadow-[0_8px_24px_rgba(16,24,40,0.18)] ${size === "lg" ? "inset-x-0" : `w-[340px] max-w-[85vw] ${align === "right" ? "right-0" : "left-0"}`}`}>{children}</div>
     </details>
   );
 }
@@ -121,7 +121,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
     <aside aria-labelledby="vi-title" className="flex min-w-0 flex-col rounded-[10px] border border-[#e4e7ec] bg-white shadow-[0_1px_3px_rgba(16,24,40,0.08)] xl:max-h-[calc(100vh-210px)]">
       <div className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
         <CalendarBlank size={22} weight="duotone" className="text-module" aria-hidden />
-        <h2 id="vi-title" className="text-subtitle font-bold text-[#101828]">Visit Details</h2>
+        <h2 id="vi-title" className="text-[18px] font-bold text-[#101828]">Visit Details</h2>
         <PanelLink href={closeHref} aria-label="Close visit details" title="Close (Esc)" className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[#344054] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-module"><X size={19} weight="bold" aria-hidden /></PanelLink>
       </div>
       <PanelSaved />
@@ -130,15 +130,15 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
       <div className="flex items-start gap-3 px-4 pb-2.5 pt-1.5">
         <User size={24} aria-hidden className="mt-0.5 shrink-0 text-module" />
         <div className="min-w-0 flex-1">
-          <p className={`truncate text-lead font-bold text-[#101828] ${v.status === "CANCELLED" ? "line-through decoration-[#b42318] decoration-2" : ""}`}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
-          <p className="text-meta text-[#475467]">Ref: <span>{v.reference}</span></p>
+          <p className={`truncate text-[16px] font-bold text-[#101828] ${v.status === "CANCELLED" ? "line-through decoration-[#b42318] decoration-2" : ""}`}><Link href={`/rota/service-users/${v.serviceUser.id}`} className="text-inherit no-underline hover:underline">{suName(v.serviceUser)}</Link></p>
+          <p className="text-[13px] text-[#475467]">Ref: <span>{v.reference}</span></p>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-meta font-semibold ${st.cls}`}>{v.status === "CANCELLED" ? <X size={13} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{st.label}</span>
+        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[13px] font-semibold ${st.cls}`}>{v.status === "CANCELLED" ? <X size={13} weight="bold" aria-hidden /> : <span aria-hidden className="h-2 w-2 rounded-full bg-current" />}{st.label}</span>
       </div>
 
       <nav aria-label="Visit details sections" className="flex border-b border-[#e4e7ec] px-3">
         {TABS.map(([k, label]) => (
-          <PanelLink key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-body no-underline ${activeTab === k ? "border-module font-semibold text-module" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
+          <PanelLink key={k} href={tabHref(k)} aria-current={activeTab === k ? "page" : undefined} className={`-mb-px flex-1 whitespace-nowrap border-b-2 px-1.5 py-1.5 text-center text-[13.5px] no-underline ${activeTab === k ? "border-module font-semibold text-module" : "border-transparent text-[#344054] hover:text-[#101828]"}`}>
             {label}{k === "notes" && v.visitNotes.length ? ` (${v.visitNotes.length})` : k === "tasks" && v.tasks.length ? ` (${v.tasks.length})` : ""}
           </PanelLink>
         ))}
@@ -149,7 +149,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
         {activeTab === "details" ? (
           <>
             {flags.review.length || flags.late ? (
-              <ul className="mb-1.5 mt-1 space-y-1 rounded-[8px] bg-[#fdf4e3] px-3 py-2 text-meta text-[#7a4b00]">
+              <ul className="mb-1.5 mt-1 space-y-1 rounded-[8px] bg-[#fdf4e3] px-3 py-2 text-[13px] text-[#7a4b00]">
                 {flags.late ? <li>Late: {v.actualStart ? "started" : "not started"} more than the late threshold after {londonTime(v.scheduledStart)}.</li> : null}
                 {flags.review.map((r) => <li key={r}>Needs review: {r}</li>)}
               </ul>
@@ -168,11 +168,11 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
                 ) : (
                   <>
                     <span className="mt-1.5 flex flex-wrap gap-1.5">
-                      {carers.map((a) => <span key={a.id} className="inline-flex items-center rounded-full bg-[#eef0f4] px-2.5 py-0.5 text-meta text-[#101828]"><Link href={`/rota/staff/${a.staff.id}`} className="text-inherit no-underline hover:underline">{a.staff.displayName}</Link></span>)}
-                      {!carers.length ? <span className="text-meta font-medium text-[#b42318]">No carer assigned</span> : null}
+                      {carers.map((a) => <span key={a.id} className="inline-flex items-center rounded-full bg-[#eef0f4] px-2.5 py-0.5 text-[13px] text-[#101828]"><Link href={`/rota/staff/${a.staff.id}`} className="text-inherit no-underline hover:underline">{a.staff.displayName}</Link></span>)}
+                      {!carers.length ? <span className="text-[13px] font-medium text-[#b42318]">No carer assigned</span> : null}
                     </span>
                     {canEdit && lockedReason ? (
-                      <span data-testid="staffing-locked" className="mt-1.5 block rounded-[8px] bg-[#f7f8fa] px-2.5 py-1.5 text-meta text-[#344054]">
+                      <span data-testid="staffing-locked" className="mt-1.5 block rounded-[8px] bg-[#f7f8fa] px-2.5 py-1.5 text-[12.5px] text-[#344054]">
                         {lockedReason}, so its carers cannot be changed here. {v.status === "CANCELLED" || v.status === "NOT_DELIVERED" ? <>Reinstate the visit first if it is going ahead.</> : <>To correct who attended or the times, use <Link href={`/rota/visits/${v.id}#corrections`}>office corrections on the full visit page</Link>.</>}
                       </span>
                     ) : null}
@@ -183,9 +183,9 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
               <Row icon={<Circle size={19} />} label="Acknowledged">{carers.length ? (acked ? "Acknowledged by the carer" + (carers.length > 1 ? "s" : "") : carers.some((a) => a.acknowledgedAt) ? "Partly acknowledged" : "Not acknowledged yet") : <span className="text-[#475467]">Nobody to acknowledge</span>}</Row>
               {v.tasks.length ? <Row icon={<FirstAidKit size={19} />} label="Care tasks"><Link href={tabHref("tasks")} className="text-inherit">{done} of {v.tasks.length} care tasks done</Link></Row> : null}
             </dl>
-            {v.notes ? <p className="mt-1.5 rounded-[8px] bg-[#f7f8fa] px-3 py-2 text-body text-[#344054]"><span className="font-semibold">Office notes: </span>{v.notes}</p> : null}
-            {v.cancelReason ? <p className="mt-1.5 rounded-[8px] bg-[#fdecec] px-3 py-2 text-body text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
-            {!v.publishedAt && v.status === "SCHEDULED" ? <p className="mt-1.5 text-meta text-slate-600">Not yet published to carers.</p> : null}
+            {v.notes ? <p className="mt-1.5 rounded-[8px] bg-[#f7f8fa] px-3 py-2 text-[13.5px] text-[#344054]"><span className="font-semibold">Office notes: </span>{v.notes}</p> : null}
+            {v.cancelReason ? <p className="mt-1.5 rounded-[8px] bg-[#fdecec] px-3 py-2 text-[13.5px] text-[#a3242c]">Cancelled: {v.cancelReason} · <strong>{cancellationChargeLabel(v.cancellationCharge)}</strong></p> : null}
+            {!v.publishedAt && v.status === "SCHEDULED" ? <p className="mt-1.5 text-[12.5px] text-slate-600">Not yet published to carers.</p> : null}
           </>
         ) : null}
 
@@ -193,34 +193,34 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
           v.visitNotes.length ? (
             <ul className="divide-y divide-[#eef0f3]">
               {v.visitNotes.map((n) => (
-                <li key={n.id} className="py-2 text-body">
-                  <span className="text-meta text-slate-600">{NOTE_LABEL[n.category] ?? "Note"} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
+                <li key={n.id} className="py-2 text-[14px]">
+                  <span className="text-[12.5px] text-slate-600">{NOTE_LABEL[n.category] ?? "Note"} · {who(n.authorUserId)} · {fmtDate(n.createdAt, true)}</span>
                   <p className="text-[#101828]">{n.text}</p>
                 </li>
               ))}
             </ul>
-          ) : <p className="py-4 text-body text-slate-600">No notes on this visit yet.</p>
+          ) : <p className="py-4 text-[14px] text-slate-600">No notes on this visit yet.</p>
         ) : null}
 
         {activeTab === "tasks" ? (
           v.tasks.length ? (
             <>
-              <p className="pt-2 text-meta text-[#475467]">{done} of {v.tasks.length} done · {v.tasks.filter((t) => !t.outcomes[0]).length} not recorded</p>
+              <p className="pt-2 text-[13px] text-[#475467]">{done} of {v.tasks.length} done · {v.tasks.filter((t) => !t.outcomes[0]).length} not recorded</p>
               <ul className="divide-y divide-[#eef0f3]">
                 {v.tasks.map((t) => (
-                  <li key={t.id} className="flex items-start justify-between gap-3 py-2 text-body">
+                  <li key={t.id} className="flex items-start justify-between gap-3 py-2 text-[14px]">
                     <span className="text-[#101828]">{t.name}</span>
-                    <span className={`text-right text-meta ${t.outcomes[0]?.outcome === "DONE" ? "text-[#14713a]" : t.outcomes[0] ? "text-[#8a5a00]" : "text-slate-600"}`}>{t.outcomes[0] ? `${OUTCOME_LABEL[t.outcomes[0].outcome]} · ${fmtDate(t.outcomes[0].at, true)}` : "Not recorded"}</span>
+                    <span className={`text-right text-[13px] ${t.outcomes[0]?.outcome === "DONE" ? "text-[#14713a]" : t.outcomes[0] ? "text-[#8a5a00]" : "text-slate-600"}`}>{t.outcomes[0] ? `${OUTCOME_LABEL[t.outcomes[0].outcome]} · ${fmtDate(t.outcomes[0].at, true)}` : "Not recorded"}</span>
                   </li>
                 ))}
               </ul>
             </>
-          ) : <p className="py-4 text-body text-slate-600">No care tasks on this visit.</p>
+          ) : <p className="py-4 text-[14px] text-slate-600">No care tasks on this visit.</p>
         ) : null}
 
         {activeTab === "history" ? (
           v.events.length ? (
-            <ol className="space-y-2 py-2 text-body">
+            <ol className="space-y-2 py-2 text-[13.5px]">
               {v.events.map((e) => (
                 <li key={e.id} className="border-l-2 border-[#ddd6f6] pl-3">
                   <div className="font-semibold text-[#101828]">{EVENT[e.type] ?? e.type.toLowerCase()}{e.toStatus ? ` → ${(STATUS[e.toStatus]?.label ?? e.toStatus).toLowerCase()}` : ""}</div>
@@ -229,7 +229,7 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
                 </li>
               ))}
             </ol>
-          ) : <p className="py-4 text-body text-slate-600">No history yet.</p>
+          ) : <p className="py-4 text-[14px] text-slate-600">No history yet.</p>
         ) : null}
         </PanelBody>
       </div>
@@ -249,85 +249,85 @@ export function VisitInspector({ data, tab, back, closeHref, findCoverHref, nav 
                 {v.medicationRequired ? <input type="hidden" name="medicationRequired" value="on" /> : null}
                 {v.alertOnLate ? <input type="hidden" name="alertOnLate" value="on" /> : null}
                 <p className="font-semibold">Change the day, time or length</p>
-                <label className="block"><span className="text-meta text-slate-600">Date</span><input type="date" name="date" required defaultValue={date} className="input py-1.5" /></label>
+                <label className="block"><span className="text-[12.5px] text-slate-600">Date</span><input type="date" name="date" required defaultValue={date} className="input py-1.5" /></label>
                 <div className="grid grid-cols-2 gap-2">
-                  <label><span className="text-meta text-slate-600">Start</span><input type="time" name="start" required defaultValue={hhmm(londonMinute(v.scheduledStart))} className="input py-1.5" /></label>
-                  <label><span className="text-meta text-slate-600">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={planned} className="input py-1.5" /></label>
+                  <label><span className="text-[12.5px] text-slate-600">Start</span><input type="time" name="start" required defaultValue={hhmm(londonMinute(v.scheduledStart))} className="input py-1.5" /></label>
+                  <label><span className="text-[12.5px] text-slate-600">Minutes</span><input type="number" name="durationMin" min={5} max={1440} required defaultValue={planned} className="input py-1.5" /></label>
                 </div>
-                <label className="block"><span className="text-meta text-slate-600">Office notes</span><textarea name="notes" defaultValue={v.notes ?? ""} rows={2} className="input py-1.5" /></label>
-                {v.timeLocked ? <p className="text-meta text-[#8a5a00]">This visit’s time is locked. Unlock it on the full visit page first.</p> : null}
-                <button className="btn-primary py-1 text-body">Save visit</button>
-                <p className="text-caption text-slate-500">Every carer on the visit is checked for the new time. If one cannot do it, nothing changes. <Link href={`/rota/visits/${v.id}`}>All visit settings</Link></p>
+                <label className="block"><span className="text-[12.5px] text-slate-600">Office notes</span><textarea name="notes" defaultValue={v.notes ?? ""} rows={2} className="input py-1.5" /></label>
+                {v.timeLocked ? <p className="text-[12.5px] text-[#8a5a00]">This visit’s time is locked. Unlock it on the full visit page first.</p> : null}
+                <button className="btn-primary py-1 text-[13.5px]">Save visit</button>
+                <p className="text-[12px] text-slate-500">Every carer on the visit is checked for the new time. If one cannot do it, nothing changes. <Link href={`/rota/visits/${v.id}`}>All visit settings</Link></p>
               </form>
             </ActionPop>
-          ) : <Link href={`/rota/visits/${v.id}`} className="flex h-9 items-center justify-center gap-2 rounded-[8px] border border-module text-body font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={18} aria-hidden />View Visit</Link>}
+          ) : <Link href={`/rota/visits/${v.id}`} className="flex h-9 items-center justify-center gap-2 rounded-[8px] border border-module text-[14px] font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={18} aria-hidden />View Visit</Link>}
           {canEdit ? (
             <ActionPop label="Add Note" icon={<NotePencil size={18} />} tone="outline" align="right">
               <form action={addVisitNoteAction} className="space-y-2">
                 {hidden}
                 <p className="font-semibold">Add a note to this visit</p>
-                <label className="block"><span className="text-meta text-slate-600">Type</span>
+                <label className="block"><span className="text-[12.5px] text-slate-600">Type</span>
                   <select name="category" className="input py-1.5"><option value="GENERAL">Note</option><option value="HANDOVER">Handover</option><option value="CONCERN">Concern (raises an exception)</option></select>
                 </label>
-                <label className="block"><span className="text-meta text-slate-600">Note</span><textarea name="text" required minLength={2} rows={3} className="input py-1.5" /></label>
-                <button className="btn-primary py-1 text-body">Add note</button>
+                <label className="block"><span className="text-[12.5px] text-slate-600">Note</span><textarea name="text" required minLength={2} rows={3} className="input py-1.5" /></label>
+                <button className="btn-primary py-1 text-[13.5px]">Add note</button>
               </form>
             </ActionPop>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1">
-          <Link href={`/rota/visits/${v.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-meta font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={16} aria-hidden />Full visit</Link>
-          {findCoverHref && assignable && v.scheduledEnd > new Date() ? <Link href={findCoverHref} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-meta font-semibold text-module no-underline hover:bg-[#f6f2fd]" title="Find Replacement Cover: fill an empty place or replace a booked carer, and record communication with the service user"><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
+          <Link href={`/rota/visits/${v.id}`} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module no-underline hover:bg-[#f6f2fd]"><ArrowSquareOut size={16} aria-hidden />Full visit</Link>
+          {findCoverHref && assignable && v.scheduledEnd > new Date() ? <Link href={findCoverHref} scroll={false} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module no-underline hover:bg-[#f6f2fd]" title="Find Replacement Cover: fill an empty place or replace a booked carer, and record communication with the service user"><UserPlus size={16} aria-hidden />Find Cover</Link> : null}
           {editable && v.scheduledStart > new Date() ? <AdjustVisitTime visitId={v.id} lockVersion={v.lockVersion} start={hhmm(londonMinute(v.scheduledStart))} durationMin={Math.round((v.scheduledEnd.getTime() - v.scheduledStart.getTime()) / 60000)} label="Adjust time" /> : null}
           {editable && swaps.length ? (
-            <ActionPop label="Swap shift" icon={<ArrowsLeftRight size={16} />} tone="link" className="[&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-meta">
+            <ActionPop label="Swap shift" icon={<ArrowsLeftRight size={16} />} tone="link" className="[&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-[13px]">
               {swaps.map(({ slot, list }) => {
                 const current = live.find((a) => placeKey(a) === slot);
                 return list.length ? (
                   <form key={slot} action={swapCarersAction} className="mb-3 space-y-1.5 last:mb-0">
                     {hidden}
                     <input type="hidden" name="slot" value={slot} />
-                    <label className="block"><span className="text-meta text-slate-600">Swap {current?.staff.displayName ?? placeLabel(slot)} with</span>
-                      <select name="with" required className="input py-1.5 text-body">
+                    <label className="block"><span className="text-[12.5px] text-slate-600">Swap {current?.staff.displayName ?? placeLabel(slot)} with</span>
+                      <select name="with" required className="input py-1.5 text-[13.5px]">
                         <option value="">Choose a visit…</option>
                         {list.map((c) => <option key={`${c.visitId}-${c.slot}`} value={`${c.visitId}|${c.slot}|${c.lockVersion}`}>{londonTime(c.start)}–{londonTime(c.end)} {c.serviceUser} · {c.carer}</option>)}
                       </select>
                     </label>
-                    <input name="reason" required minLength={3} placeholder="Reason" aria-label="Reason for the swap" className="input py-1.5 text-body" />
-                    <label className="flex items-center gap-1.5 text-meta"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
-                    <button className="btn-primary py-1 text-body">Swap</button>
+                    <input name="reason" required minLength={3} placeholder="Reason" aria-label="Reason for the swap" className="input py-1.5 text-[13.5px]" />
+                    <label className="flex items-center gap-1.5 text-[12.5px]"><input type="checkbox" name="acceptWarnings" className="h-4 w-4" /> I have read the warnings</label>
+                    <button className="btn-primary py-1 text-[13.5px]">Swap</button>
                   </form>
-                ) : <p key={slot} className="mb-2 text-meta text-slate-600">No other visit with a carer within 12 hours to swap {current?.staff.displayName ?? "this carer"} with.</p>;
+                ) : <p key={slot} className="mb-2 text-[13px] text-slate-600">No other visit with a carer within 12 hours to swap {current?.staff.displayName ?? "this carer"} with.</p>;
               })}
-              <p className="text-caption text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
+              <p className="text-[12px] text-slate-500">Both carers are checked for each other’s visit. If either cannot take it, nothing changes.</p>
             </ActionPop>
           ) : null}
           {editable && v.carersRequired > 1 && carers.length < v.carersRequired && (v.carersRequired === 2 || lastPlaceEmpty) ? (
             <form action={doubleUpAction}>
               {hidden}
               <input type="hidden" name="carersRequired" value={v.carersRequired - 1} />
-              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-meta font-semibold text-module hover:bg-[#f6f2fd]" title={v.carersRequired === 2 ? "Change this visit back to one carer" : `Remove the empty carer ${v.carersRequired} place`}>{v.carersRequired === 2 ? "Make single" : "Remove empty place"}</button>
+              <button className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd]" title={v.carersRequired === 2 ? "Change this visit back to one carer" : `Remove the empty carer ${v.carersRequired} place`}>{v.carersRequired === 2 ? "Make single" : "Remove empty place"}</button>
             </form>
           ) : null}
           {editable ? (
-            <ActionPop label="Cancel visit" icon={<Trash size={16} />} tone="danger" align="right" className="ml-auto [&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-meta">
+            <ActionPop label="Cancel visit" icon={<Trash size={16} />} tone="danger" align="right" className="ml-auto [&>summary]:h-8 [&>summary]:px-2 [&>summary]:text-[13px]">
               <form action={cancelVisitAction} className="space-y-2">
                 {hidden}
                 <p className="font-semibold">Cancel this visit</p>
-                <label className="block"><span className="text-meta text-slate-600">Reason</span><input name="reason" required minLength={3} placeholder="e.g. In hospital" className="input py-1.5" /></label>
+                <label className="block"><span className="text-[12.5px] text-slate-600">Reason</span><input name="reason" required minLength={3} placeholder="e.g. In hospital" className="input py-1.5" /></label>
                 <CancelChargeChoice compact />
-                <button className="btn-danger py-1 text-body">Cancel visit</button>
+                <button className="btn-danger py-1 text-[13.5px]">Cancel visit</button>
               </form>
             </ActionPop>
           ) : null}
           {canEdit && ["CANCELLED", "NOT_DELIVERED"].includes(v.status) && v.scheduledStart > new Date() ? (
             <form action={reinstateVisitAction} className="ml-auto">
               {hidden}
-              <button className="inline-flex h-8 items-center rounded-[8px] px-2 text-meta font-semibold text-module hover:bg-[#f6f2fd]">Reinstate visit</button>
+              <button className="inline-flex h-8 items-center rounded-[8px] px-2 text-[13px] font-semibold text-module hover:bg-[#f6f2fd]">Reinstate visit</button>
             </form>
           ) : null}
         </div>
-        {canEdit && !assignable && !editable && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) ? <p className="text-meta text-slate-600">{st.label} visits cannot be moved or re-staffed. Clock corrections are on the full visit page.</p> : null}
+        {canEdit && !assignable && !editable && !["CANCELLED", "NOT_DELIVERED"].includes(v.status) ? <p className="text-[12.5px] text-slate-600">{st.label} visits cannot be moved or re-staffed. Clock corrections are on the full visit page.</p> : null}
         </PanelFooter>
       </div>
     </aside>

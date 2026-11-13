@@ -22,7 +22,7 @@ export default async function ImportServiceUserPage({ searchParams }: { searchPa
     <>
       <PageHeader title="Set up from support plan" back="/rota/service-users" subtitle="Upload the council support plan, check what was read from it, correct anything wrong, then confirm. The person, their contacts, care package, repeating visits and documents are created together, ready for Build Rota." />
       <Flash searchParams={sp} />
-      <p className="mb-3 rounded-[3px] border border-[#cfe3f7] bg-[#f1f7fd] px-3 py-2 text-body text-[#1d4f7a]">Support plans are now uploaded through the <Link href="/rota/coordinator?mode=NEW#start">Care Coordinator</Link>, which keeps the original safely, reads it in the background and drafts everything for you to check. This quick form stays available for typing a plan in by hand.</p>
+      <p className="mb-3 rounded-[3px] border border-[#cfe3f7] bg-[#f1f7fd] px-3 py-2 text-[14px] text-[#1d4f7a]">Support plans are now uploaded through the <Link href="/rota/coordinator?mode=NEW#start">Care Coordinator</Link>, which keeps the original safely, reads it in the background and drafts everything for you to check. This quick form stays available for typing a plan in by hand.</p>
       <SuImportWizard
         areas={lk.areas.map((a) => ({ id: a.id, name: a.name }))}
         callTypes={lk.callTypes.map((c) => ({ id: c.id, name: c.name }))}

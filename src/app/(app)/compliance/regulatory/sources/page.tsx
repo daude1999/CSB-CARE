@@ -46,7 +46,7 @@ export default async function SourceStatusPage() {
       />
       <section aria-label="Regulatory sources" className="pc-panel">
         <div className="pc-panel-head">
-          <p className="text-body text-[#344054]" data-testid="monitoring-summary">
+          <p className="text-[14px] text-[#344054]" data-testid="monitoring-summary">
             {live.length ? <><strong className="tabular-nums">{ok}</strong> of {live.length} monitored sources checked successfully within their window · <span className={failing ? "text-[#b42318]" : ""}><strong className="tabular-nums">{failing}</strong> with failing checks</span> · <strong className="tabular-nums">{manual}</strong> reviewed by hand only</> : "No real sources are being monitored yet."}
           </p>
         </div>
@@ -67,7 +67,7 @@ export default async function SourceStatusPage() {
                       <td className="whitespace-nowrap">{s.lastAttemptedAt ? fmtDate(s.lastAttemptedAt, true) : "Never"}</td>
                       <td className="whitespace-nowrap">{s.lastSuccessAt ? fmtDate(s.lastSuccessAt, true) : "Never"}</td>
                       <td><PcBadge tone={health.tone}>{health.label}</PcBadge></td>
-                      <td className="max-w-[340px] text-meta text-[#475467]">
+                      <td className="max-w-[340px] text-[13px] text-[#475467]">
                         {s.coverage === "MANUAL_REVIEW_ONLY" ? "Reviewed by hand; not automatically monitored." : `Checked automatically every ${s.frequencyMinutes >= 1440 ? `${Math.round(s.frequencyMinutes / 1440)} day(s)` : `${Math.round(s.frequencyMinutes / 60)} hour(s)`}. ${s.fresh.label}.`}
                         {s.consecutiveFailures ? <span className="block text-[#b42318]">{s.consecutiveFailures} failed check{s.consecutiveFailures === 1 ? "" : "s"} in a row{isAdmin && s.lastError ? `: ${s.lastError.slice(0, 160)}` : ""}</span> : null}
                       </td>

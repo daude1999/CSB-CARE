@@ -46,10 +46,10 @@ export default async function PlatformOverview() {
                 <Link href={r.href} className="group flex items-center gap-3 px-4 py-3 no-underline hover:bg-px-hover">
                   <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${r.count ? DOT[r.severity] : "bg-[#cfd4de]"}`} />
                   <span className="min-w-0 flex-1">
-                    <span className={`block text-body ${r.count ? "font-medium text-px-ink" : "text-px-body"}`}>{r.label}</span>
-                    <span className="block truncate text-meta text-px-muted">{r.detail}</span>
+                    <span className={`block text-[13.5px] ${r.count ? "font-medium text-px-ink" : "text-px-body"}`}>{r.label}</span>
+                    <span className="block truncate text-[12.5px] text-px-muted">{r.detail}</span>
                   </span>
-                  <span className={`min-w-[2.5rem] text-right text-lead font-semibold tabular-nums ${r.count ? (r.severity === "critical" ? "text-px-danger" : "text-px-ink") : "text-px-faint"}`}>{r.count || "–"}</span>
+                  <span className={`min-w-[2.5rem] text-right text-[15px] font-semibold tabular-nums ${r.count ? (r.severity === "critical" ? "text-px-danger" : "text-px-ink") : "text-px-faint"}`}>{r.count || "–"}</span>
                   <CaretRight size={14} className="shrink-0 text-px-faint group-hover:text-px-accent" aria-hidden="true" />
                 </Link>
               </li>
@@ -65,8 +65,8 @@ export default async function PlatformOverview() {
                 <Link href={s.href} className="flex items-start gap-2.5 px-4 py-[7px] no-underline hover:bg-px-hover" title={s.detail}>
                   {s.done ? <CheckCircle size={16} weight="fill" className="mt-[2px] shrink-0 text-[#1f9254]" aria-hidden="true" /> : s.external ? <Plugs size={16} className="mt-[2px] shrink-0 text-px-subtle" aria-hidden="true" /> : <Circle size={16} className="mt-[2px] shrink-0 text-px-faint" aria-hidden="true" />}
                   <span className="min-w-0">
-                    <span className={`block text-meta leading-5 ${s.done ? "text-px-muted line-through decoration-px-faint" : "text-px-ink"}`}><span className="sr-only">{s.done ? "Done: " : "To do: "}</span>{s.label}</span>
-                    {s.key === nextStep ? <span className="block text-caption leading-4 text-px-subtle">{s.detail}</span> : s.external && !s.done ? <span className="block text-caption leading-4 text-px-subtle">Needs a developer</span> : null}
+                    <span className={`block text-[13px] leading-5 ${s.done ? "text-px-muted line-through decoration-px-faint" : "text-px-ink"}`}><span className="sr-only">{s.done ? "Done: " : "To do: "}</span>{s.label}</span>
+                    {s.key === nextStep ? <span className="block text-[12px] leading-4 text-px-subtle">{s.detail}</span> : s.external && !s.done ? <span className="block text-[12px] leading-4 text-px-subtle">Needs a developer</span> : null}
                   </span>
                 </Link>
               </li>
@@ -82,16 +82,16 @@ export default async function PlatformOverview() {
               <Table label="Customers" minWidth={620} head={["Organisation", "Subscription", "Status", "Users", "Renewal", ""]} align={["left", "left", "left", "right", "left", "right"]}>
                 {clients.rows.slice(0, 8).map((c) => (
                   <tr key={c.id}>
-                    <td><Link href={`/platform-admin/clients/${c.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{c.name}</Link><span className="block font-mono text-caption text-px-subtle">{c.reference}</span></td>
+                    <td><Link href={`/platform-admin/clients/${c.id}`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{c.name}</Link><span className="block font-mono text-[11.5px] text-px-subtle">{c.reference}</span></td>
                     <td>{c.plan ?? <span className="text-px-subtle">None</span>}</td>
                     <td><Pill value={c.status} /></td>
                     <td className="text-right tabular-nums">{fmtNumber(c.users)}</td>
-                    <td className="whitespace-nowrap tabular-nums">{c.renewal ? <>{fmtDate(c.renewal)} <span className="text-caption text-px-subtle">{c.renewalKind}</span></> : <span className="text-px-subtle">—</span>}</td>
+                    <td className="whitespace-nowrap tabular-nums">{c.renewal ? <>{fmtDate(c.renewal)} <span className="text-[12px] text-px-subtle">{c.renewalKind}</span></> : <span className="text-px-subtle">—</span>}</td>
                     <td className="text-right"><Link href={`/platform-admin/clients/${c.id}`} className={`${pxSecondary} ${pxSm}`} aria-label={`Manage ${c.name}`}>Manage</Link></td>
                   </tr>
                 ))}
               </Table>
-              {clients.total > 8 ? <p className="border-t border-px-row py-2.5 text-meta"><Link href="/platform-admin/clients" className={pxLink}>See all {clients.total} clients</Link></p> : null}
+              {clients.total > 8 ? <p className="border-t border-px-row py-2.5 text-[13px]"><Link href="/platform-admin/clients" className={pxLink}>See all {clients.total} clients</Link></p> : null}
             </div>
           ) : <EmptyState title="No clients yet" action={<Link href="/platform-admin/clients/new" className={pxPrimary}>Add the first client</Link>}>Each customer organisation you set up appears here with its plan, status and renewal.</EmptyState>}
         </PxPanel>
@@ -103,17 +103,17 @@ export default async function PlatformOverview() {
                 <li key={a.id} className="relative pb-3.5 pl-5 last:pb-0">
                   {i < all.length - 1 ? <span aria-hidden="true" className="absolute bottom-0 left-[3.5px] top-[14px] w-px bg-px-line" /> : null}
                   <span aria-hidden="true" className={`absolute left-0 top-[6px] h-2 w-2 rounded-full ${a.tone === "rose" ? "bg-px-danger-strong" : a.tone === "amber" ? "bg-[#d48806]" : a.tone === "green" ? "bg-[#1f9254]" : "bg-px-focus"}`} />
-                  <p className="text-meta font-medium leading-5 text-px-ink">{a.label}</p>
-                  <p className="text-caption leading-[17px] text-px-muted">
+                  <p className="text-[13px] font-medium leading-5 text-px-ink">{a.label}</p>
+                  <p className="text-[12px] leading-[17px] text-px-muted">
                     {a.organisationId ? <Link href={`/platform-admin/clients/${a.organisationId}`} className="text-px-muted hover:text-px-accent">{a.organisation}</Link> : null}
                     {a.subject ? <>{a.organisationId ? " · " : ""}<Link href={`/platform-admin/users/${a.subjectId}`} className="text-px-muted hover:text-px-accent">{a.subject}</Link></> : null}
                     {a.organisationId || a.subject ? " · " : ""}{a.actor}
                   </p>
-                  <time className="text-caption tabular-nums text-px-subtle" dateTime={a.at.toISOString()}>{fmtDate(a.at, true)}</time>
+                  <time className="text-[11.5px] tabular-nums text-px-subtle" dateTime={a.at.toISOString()}>{fmtDate(a.at, true)}</time>
                 </li>
               ))}
             </ol>
-          ) : <p className="py-3 text-meta text-px-muted">No changes yet. Client, account, subscription and settings changes appear here.</p>}
+          ) : <p className="py-3 text-[13px] text-px-muted">No changes yet. Client, account, subscription and settings changes appear here.</p>}
         </PxPanel>
       </div>
 

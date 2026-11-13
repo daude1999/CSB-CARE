@@ -47,8 +47,8 @@ export function SignoffSummary({ c, base, f }: { c: ReturnType<typeof signoffCou
   ];
   return (
     <section aria-label="Sign-off figures" className="panel mb-3">
-      <p className="mb-2 text-body text-slate-700">{c.completion === null ? "Nothing assigned in this view." : <>Completion <strong className="tabular-nums">{c.completion}%</strong>: acknowledged out of everyone still required to read (exempted people are not counted).</>}</p>
-      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-body">
+      <p className="mb-2 text-[13.5px] text-slate-700">{c.completion === null ? "Nothing assigned in this view." : <>Completion <strong className="tabular-nums">{c.completion}%</strong>: acknowledged out of everyone still required to read (exempted people are not counted).</>}</p>
+      <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[14px]">
         {items.map(([label, n, status]) => (
           <li key={label}>
             <Link href={signoffHref(base, { ...f, view: "rows" }, { status })} aria-current={f.status === status && f.view === "rows" ? "page" : undefined} className={`no-underline ${f.status === status ? "font-semibold" : ""} ${status === "overdue" && n ? "text-[#a3242c]" : ""}`}>
@@ -64,9 +64,9 @@ export function SignoffSummary({ c, base, f }: { c: ReturnType<typeof signoffCou
 const EVENT_LABEL: Record<string, string> = { ASSIGNED: "Assigned", OPENED: "Opened", ACKNOWLEDGED: "Acknowledged", REMINDED: "Reminder sent", ESCALATED: "Escalated", EXEMPTED: "Exempted", WITHDRAWN: "Withdrawn", CORRECTED: "Corrected", ASSESSMENT_PASSED: "Assessment passed", ASSESSMENT_FAILED: "Assessment failed" };
 
 export function AckTimeline({ events, names }: { events: AcknowledgementEvent[]; names: Map<string, string> }) {
-  if (!events.length) return <p className="text-meta text-slate-500">No events recorded.</p>;
+  if (!events.length) return <p className="text-[13px] text-slate-500">No events recorded.</p>;
   return (
-    <ol className="space-y-1 border-l border-slate-300 pl-3 text-meta">
+    <ol className="space-y-1 border-l border-slate-300 pl-3 text-[13px]">
       {events.map((e) => (
         <li key={e.id}>
           <span className="tabular-nums text-slate-600">{fmtDate(e.at, true)}</span> · <span className="font-medium">{EVENT_LABEL[e.type] ?? e.type}</span>
@@ -117,10 +117,10 @@ export function RuleForm({ back, policyId, policies, branches, roles, staff }: {
       <label><span className="label">Due after (days)</span><input type="number" name="dueDays" min={1} max={180} defaultValue={14} className="input" /></label>
       <label><span className="label">Priority</span><select name="priority" defaultValue="2" className="input"><option value="1">High risk</option><option value="2">Standard</option><option value="3">Routine</option></select></label>
       <div className="space-y-1 pt-5">
-        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="mandatory" defaultChecked className="h-4 w-4" /> Mandatory</label>
-        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="requiresAssessment" className="h-4 w-4" /> Needs an assessment</label>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="mandatory" defaultChecked className="h-4 w-4" /> Mandatory</label>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="requiresAssessment" className="h-4 w-4" /> Needs an assessment</label>
       </div>
-      <div className="col-span-2"><button className="btn-primary">Add assignment</button> <span className="text-meta text-slate-500">The current version is assigned at once.</span></div>
+      <div className="col-span-2"><button className="btn-primary">Add assignment</button> <span className="text-[13px] text-slate-500">The current version is assigned at once.</span></div>
     </form>
   );
 }

@@ -64,18 +64,18 @@ export function RecentReports({ userId, options }: { userId: string; options: Re
   if (!shown.length) return null;
 
   return (
-    <section aria-labelledby="recent-reports-title" data-testid="recent-reports" className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 text-body">
-      <h2 id="recent-reports-title" className="text-body font-semibold text-slate-700">Recently viewed reports</h2>
+    <section aria-labelledby="recent-reports-title" data-testid="recent-reports" className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-1 text-[13.5px]">
+      <h2 id="recent-reports-title" className="text-[13.5px] font-semibold text-slate-700">Recently viewed reports</h2>
       <ul className="flex flex-wrap gap-2">
         {shown.map((r) => (
           <li key={r.key}>
             <Link href={r.href} className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-navy-900 no-underline hover:border-slate-400">
-              {r.name}<span className="text-caption text-slate-500">{r.area}</span>
+              {r.name}<span className="text-[12px] text-slate-500">{r.area}</span>
             </Link>
           </li>
         ))}
       </ul>
-      <button type="button" onClick={clear} className="text-meta text-slate-600 underline">Clear</button>
+      <button type="button" onClick={clear} className="text-[12.5px] text-slate-600 underline">Clear</button>
     </section>
   );
 }

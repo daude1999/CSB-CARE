@@ -9,8 +9,8 @@ import type { Candidate } from "@/server/rota/queries";
  * Nothing here decides eligibility: it only shows what `slotCandidates` and `coverChecks` returned.
  */
 
-export const PURPLE = "inline-flex items-center justify-center rounded-[6px] bg-[#6b46c9] px-4 py-2 text-body font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6b46c9] disabled:cursor-not-allowed disabled:opacity-50";
-export const QUIET = "inline-flex items-center justify-center rounded-[6px] border border-slate-300 bg-white px-3 py-2 text-body font-medium text-slate-800 no-underline hover:border-[#6b46c9] hover:text-[#4b2f9a]";
+export const PURPLE = "inline-flex items-center justify-center rounded-[6px] bg-[#6b46c9] px-4 py-2 text-[14px] font-semibold text-white no-underline hover:bg-[#5935b6] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6b46c9] disabled:cursor-not-allowed disabled:opacity-50";
+export const QUIET = "inline-flex items-center justify-center rounded-[6px] border border-slate-300 bg-white px-3 py-2 text-[14px] font-medium text-slate-800 no-underline hover:border-[#6b46c9] hover:text-[#4b2f9a]";
 export const CHECK_TONE: Record<CheckState, { mark: string; cls: string; sr: string }> = {
   ok: { mark: "✓", cls: "bg-[#e6f4ea] text-[#1e6b2c]", sr: "Passed" },
   info: { mark: "i", cls: "bg-slate-100 text-slate-600", sr: "For information" },
@@ -22,10 +22,10 @@ export function CoverHeader({ close, title = "Find Replacement Cover", subtitle 
   return (
     <header className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
       <div className="min-w-0 flex-1">
-        <h2 id="fc-title" className="text-subtitle font-semibold text-[#2a1a5e]">{title}</h2>
-        <p className="text-body text-slate-600">{subtitle}</p>
+        <h2 id="fc-title" className="text-[18px] font-semibold text-[#2a1a5e]">{title}</h2>
+        <p className="text-[13.5px] text-slate-600">{subtitle}</p>
       </div>
-      <Link href={close} scroll={false} className="inline-flex h-9 w-9 items-center justify-center rounded-[6px] text-title leading-none text-slate-600 no-underline hover:bg-slate-100 hover:text-slate-900" aria-label="Close Find Cover">×</Link>
+      <Link href={close} scroll={false} className="inline-flex h-9 w-9 items-center justify-center rounded-[6px] text-[20px] leading-none text-slate-600 no-underline hover:bg-slate-100 hover:text-slate-900" aria-label="Close Find Cover">×</Link>
     </header>
   );
 }
@@ -51,20 +51,20 @@ export function CarerOption({ c, rank, name }: { c: Candidate & { areas?: string
         <input id={id} type="radio" name="fcStaff" value={c.id} disabled={disabled} required className="mt-1 h-4 w-4 accent-[#6b46c9]" aria-describedby={`${id}-why`} />
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <b className="text-body text-slate-900">{c.name}</b>
-            {rank !== null ? <span className={`rounded-full px-2 py-0.5 text-caption font-semibold ${rank === 0 ? "bg-module/[.14] text-[#4b2f9a]" : "bg-slate-100 text-slate-700"}`}>{RANK_LABEL[rank]}</span> : null}
+            <b className="text-[14.5px] text-slate-900">{c.name}</b>
+            {rank !== null ? <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${rank === 0 ? "bg-module/[.14] text-[#4b2f9a]" : "bg-slate-100 text-slate-700"}`}>{RANK_LABEL[rank]}</span> : null}
             {c.state === "REQUIRES_REVIEW" ? <Badge tone="amber">Check first</Badge> : c.state === "NOT_ELIGIBLE" ? <Badge tone="rose">Not eligible</Badge> : <Badge tone="green">Eligible</Badge>}
           </span>
           <span id={`${id}-why`} className="block">
             {disabled ? (
-              <span className="mt-1 block text-meta text-[#8a1f1a]">{c.reasons.slice(0, 3).join("; ")}</span>
+              <span className="mt-1 block text-[13px] text-[#8a1f1a]">{c.reasons.slice(0, 3).join("; ")}</span>
             ) : (
               <>
-                <ul className="mt-1 list-disc pl-4 text-meta text-slate-700">{bullets(c).map((b) => <li key={b}>{b}</li>)}</ul>
-                {c.reasons.length ? <span className="mt-1 block text-meta text-[#8a5a00]">Check: {c.reasons.slice(0, 3).join("; ")}</span> : null}
+                <ul className="mt-1 list-disc pl-4 text-[13px] text-slate-700">{bullets(c).map((b) => <li key={b}>{b}</li>)}</ul>
+                {c.reasons.length ? <span className="mt-1 block text-[13px] text-[#8a5a00]">Check: {c.reasons.slice(0, 3).join("; ")}</span> : null}
               </>
             )}
-            {c.areas?.length ? <span className="mt-0.5 block text-meta text-slate-500">Areas: {c.areas.join(", ")}</span> : null}
+            {c.areas?.length ? <span className="mt-0.5 block text-[12.5px] text-slate-500">Areas: {c.areas.join(", ")}</span> : null}
           </span>
         </span>
       </label>
@@ -75,10 +75,10 @@ export function CarerOption({ c, rank, name }: { c: Candidate & { areas?: string
 
 export function SafetyChecks({ checks }: { checks: CoverCheck[] }) {
   return (
-    <ul className="divide-y divide-slate-100 rounded-[8px] border border-slate-200 text-body" aria-label="Safety checks">
+    <ul className="divide-y divide-slate-100 rounded-[8px] border border-slate-200 text-[13.5px]" aria-label="Safety checks">
       {checks.map((k) => (
         <li key={k.label} className="flex gap-2.5 px-3 py-2">
-          <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-caption font-bold ${CHECK_TONE[k.state].cls}`}>{CHECK_TONE[k.state].mark}</span>
+          <span aria-hidden className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11.5px] font-bold ${CHECK_TONE[k.state].cls}`}>{CHECK_TONE[k.state].mark}</span>
           <span><span className="sr-only">{CHECK_TONE[k.state].sr}: </span><b className="font-medium">{k.label}</b>: {k.text}</span>
         </li>
       ))}

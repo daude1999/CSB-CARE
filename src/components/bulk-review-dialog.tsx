@@ -149,24 +149,24 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
     >
       <div className="flex max-h-[calc(100vh-48px)] flex-col">
         <header className="border-b border-[#eaecf0] px-5 py-4">
-          <h2 id="bulk-review-title" className="text-subtitle font-semibold">{title}</h2>
-          {phase === "loading" ? <p className="mt-1 text-body text-[#475467]" role="status">Checking {plural(request.fields.getAll(itemName).length, "visit")}…</p> : null}
+          <h2 id="bulk-review-title" className="text-[18px] font-semibold">{title}</h2>
+          {phase === "loading" ? <p className="mt-1 text-[14px] text-[#475467]" role="status">Checking {plural(request.fields.getAll(itemName).length, "visit")}…</p> : null}
           {phase === "review" && !error ? (
-            <p className="mt-1 text-body text-[#475467]" role="status" data-testid="bulk-review-summary">
+            <p className="mt-1 text-[14px] text-[#475467]" role="status" data-testid="bulk-review-summary">
               {plural(rows.length, "visit")} selected: <strong className="text-[#067647]">{will.length} will change</strong>
               {already.length ? <>, {already.length} already as asked</> : null}
               {refused.length ? <>, <strong className="text-[#b42318]">{refused.length} cannot be changed</strong></> : null}.
             </p>
           ) : null}
-          {phase === "running" ? <p className="mt-1 text-body text-[#475467]" role="status">Applying to {plural(will.length, "visit")}. Keep this window open…</p> : null}
+          {phase === "running" ? <p className="mt-1 text-[14px] text-[#475467]" role="status">Applying to {plural(will.length, "visit")}. Keep this window open…</p> : null}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-body text-[#b42318]">{error}</p> : null}
+          {error ? <p role="alert" className="mb-3 rounded-[8px] border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-[14px] text-[#b42318]">{error}</p> : null}
 
           {phase === "results" ? (
             <>
-              <ul className="mb-4 grid gap-1 text-body" data-testid="bulk-results-summary">
+              <ul className="mb-4 grid gap-1 text-[14.5px]" data-testid="bulk-results-summary">
                 <li><strong className="text-[#067647]">{plural(done.length, "visit")}</strong> {complete ? "completed" : "updated"}.</li>
                 <li><strong>{plural(same.length, "visit")}</strong> already as asked (not changed again).</li>
                 <li><strong className={notChanged.length ? "text-[#b42318]" : ""}>{plural(failed.length + refused.length, "visit")}</strong> could not be {complete ? "completed" : "changed"}.</li>
@@ -178,14 +178,14 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
             </>
           ) : phase !== "loading" && rows.length ? (
             <>
-              <dl className="mb-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-body">
+              <dl className="mb-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
                 <dt className="text-[#475467]">Action</dt><dd className="font-semibold">{request.label}</dd>
                 {request.details.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#475467]">{k}</dt><dd className="break-words">{v}</dd></div>)}
               </dl>
-              {NOTES[request.kind] ? <p className="mb-3 rounded-[8px] bg-[#f9fafb] px-3 py-2 text-body text-[#344054]">{NOTES[request.kind]}</p> : null}
-              {common.length ? <ul className="mb-3 list-disc rounded-[8px] border border-[#fedf89] bg-[#fffaeb] py-2 pl-7 pr-3 text-body text-[#93370d]" aria-label="Applies to every visit that will change">{common.map((w) => <li key={w}>{w} (all {plural(will.length, "visit")})</li>)}</ul> : null}
+              {NOTES[request.kind] ? <p className="mb-3 rounded-[8px] bg-[#f9fafb] px-3 py-2 text-[13.5px] text-[#344054]">{NOTES[request.kind]}</p> : null}
+              {common.length ? <ul className="mb-3 list-disc rounded-[8px] border border-[#fedf89] bg-[#fffaeb] py-2 pl-7 pr-3 text-[13.5px] text-[#93370d]" aria-label="Applies to every visit that will change">{common.map((w) => <li key={w}>{w} (all {plural(will.length, "visit")})</li>)}</ul> : null}
               <div className="overflow-x-auto rounded-[8px] border border-[#eaecf0]">
-                <table className="w-full border-collapse text-body">
+                <table className="w-full border-collapse text-[13.5px]">
                   <caption className="sr-only">Selected visits and what will happen to each</caption>
                   <thead className="bg-[#f9fafb] text-left">
                     <tr className="border-b border-[#eaecf0]">
@@ -208,15 +208,15 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                         <td className="px-3 py-2 tabular-nums">{r.carers}</td>
                         <td className="px-3 py-2">
                           {r.outcome === "updated" ? <span className="font-semibold text-[#067647]">Will change</span> : r.outcome === "unchanged" ? <span className="text-[#475467]">No change: {r.message}</span> : <span className="text-[#b42318]"><span className="font-semibold">Cannot change:</span> {r.message}</span>}
-                          {r.warnings?.some((w) => !common.includes(w)) ? <ul className="mt-1 list-disc pl-4 text-meta text-[#93370d]">{r.warnings.filter((w) => !common.includes(w)).map((w) => <li key={w}>{w}</li>)}</ul> : null}
+                          {r.warnings?.some((w) => !common.includes(w)) ? <ul className="mt-1 list-disc pl-4 text-[12.5px] text-[#93370d]">{r.warnings.filter((w) => !common.includes(w)).map((w) => <li key={w}>{w}</li>)}</ul> : null}
                         </td>
                         {complete ? (
                           <td className="whitespace-nowrap px-3 py-2">
                             {r.outcome === "updated" ? (
                               <span className="flex items-center gap-1">
-                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-meta" />
+                                <input type="time" aria-label={`Actual start for ${r.reference}`} value={times[r.visitId]?.actualStart ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualStart: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                                 <span aria-hidden>–</span>
-                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-meta" />
+                                <input type="time" aria-label={`Actual end for ${r.reference}`} value={times[r.visitId]?.actualEnd ?? ""} onChange={(e) => setTimes((t) => ({ ...t, [r.visitId]: { ...t[r.visitId], actualEnd: e.target.value } }))} className="h-8 w-[124px] rounded-[6px] border border-[#d0d5dd] px-1.5 text-[13px]" />
                               </span>
                             ) : null}
                           </td>
@@ -227,7 +227,7 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
                 </table>
               </div>
               {complete && will.length ? (
-                <label className="mt-3 flex items-start gap-2 rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-body">
+                <label className="mt-3 flex items-start gap-2 rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-[14px]">
                   <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4" />
                   <span>I confirm the care on {will.length === 1 ? "this visit was" : `these ${will.length} visits was`} delivered, as confirmed by the person named above.</span>
                 </label>
@@ -239,17 +239,17 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
         <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-[#eaecf0] px-5 py-3">
           {phase === "results" ? (
             <>
-              {notChanged.length ? <button type="button" onClick={() => finish(true)} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold">Keep the {plural(notChanged.length, "visit")} not changed ticked</button> : null}
-              <button type="button" autoFocus onClick={() => finish(false)} className="h-10 rounded-[8px] bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398]">Close</button>
+              {notChanged.length ? <button type="button" onClick={() => finish(true)} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14px] font-semibold">Keep the {plural(notChanged.length, "visit")} not changed ticked</button> : null}
+              <button type="button" autoFocus onClick={() => finish(false)} className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398]">Close</button>
             </>
           ) : (
             <>
-              <button type="button" onClick={() => dialog.current?.close()} disabled={phase === "running"} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-body font-semibold disabled:opacity-50">Back</button>
+              <button type="button" onClick={() => dialog.current?.close()} disabled={phase === "running"} className="h-10 rounded-[8px] border border-[#d0d5dd] bg-white px-4 text-[14px] font-semibold disabled:opacity-50">Back</button>
               <button
                 type="button"
                 onClick={confirm}
                 disabled={phase !== "review" || !will.length || (complete && !confirmed)}
-                className="h-10 rounded-[8px] bg-module px-4 text-body font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]"
+                className="h-10 rounded-[8px] bg-module px-4 text-[14px] font-semibold text-white hover:bg-[#4c2398] disabled:cursor-not-allowed disabled:bg-[#c9b8ea]"
               >
                 {phase === "running" ? "Applying…" : !will.length && phase === "review" ? "Nothing to change" : complete ? `Confirm Completion (${will.length})` : `Confirm: ${request.label} (${will.length})`}
               </button>
@@ -264,8 +264,8 @@ export function BulkReviewDialog({ form, itemName, request, onClose }: { form: s
 function ResultTable({ caption, rows, tone, showWarnings = false }: { caption: string; rows: Row[]; tone: "bad" | "plain"; showWarnings?: boolean }) {
   return (
     <div className="mb-3 overflow-x-auto rounded-[8px] border border-[#eaecf0]">
-      <table className="w-full border-collapse text-body">
-        <caption className={`px-3 py-2 text-left text-body font-semibold ${tone === "bad" ? "text-[#b42318]" : "text-[#344054]"}`}>{caption}</caption>
+      <table className="w-full border-collapse text-[13.5px]">
+        <caption className={`px-3 py-2 text-left text-[14px] font-semibold ${tone === "bad" ? "text-[#b42318]" : "text-[#344054]"}`}>{caption}</caption>
         <tbody>
           {rows.map((r) => (
             <tr key={r.visitId} className="border-t border-[#f2f4f7] align-top" data-testid={tone === "bad" ? "bulk-failed-row" : "bulk-result-row"}>

@@ -70,10 +70,10 @@ export function HrPageHeader(props: ModuleHeaderProps) {
 
 /** A module's primary action button: filled in the module colour. Use only for an action the person may take. */
 export const MODULE_PRIMARY =
-  "module-primary inline-flex h-9 items-center gap-1.5 rounded-[6px] bg-[var(--module,#1f5fd1)] px-3.5 text-body font-semibold text-white no-underline hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
+  "module-primary inline-flex h-9 items-center gap-1.5 rounded-[6px] bg-[var(--module,#1f5fd1)] px-3.5 text-[14px] font-semibold text-white no-underline hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
 /** A secondary action: white with a grey border. */
 export const MODULE_SECONDARY =
-  "module-secondary inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-slate-300 bg-white px-3.5 text-body font-medium text-slate-800 no-underline hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
+  "module-secondary inline-flex h-9 items-center gap-1.5 rounded-[6px] border border-slate-300 bg-white px-3.5 text-[14px] font-medium text-slate-800 no-underline hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--module,#1f5fd1)]";
 
 const FIGURE_TONE = {
   navy: "text-slate-900",
@@ -92,9 +92,9 @@ const FIGURE_TONE = {
 export function ModuleStat({ label, value, href, tone = "navy", hint }: { label: string; value: number | string; href?: string; tone?: keyof typeof FIGURE_TONE; hint?: string }) {
   const body = (
     <span className="min-w-0">
-      <span className="block text-body font-medium text-slate-700">{label}</span>
-      <span className={`block text-display font-semibold leading-8 tabular-nums ${FIGURE_TONE[tone]}`}>{value}</span>
-      {hint ? <span className="block truncate text-caption text-slate-500">{hint}</span> : null}
+      <span className="block text-[14px] font-medium text-slate-700">{label}</span>
+      <span className={`block text-[24px] font-semibold leading-8 tabular-nums ${FIGURE_TONE[tone]}`}>{value}</span>
+      {hint ? <span className="block truncate text-[12px] text-slate-500">{hint}</span> : null}
     </span>
   );
   const cls = "flex min-w-0 items-center rounded-[8px] border border-slate-200 bg-white px-4 py-2.5 no-underline";

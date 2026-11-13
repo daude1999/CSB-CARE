@@ -29,8 +29,8 @@ export async function CallNotesSection({ ctx, serviceUserId, personName, base, s
     <section className="card" aria-labelledby="call-notes-h" data-testid="call-notes">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="call-notes-h" className="text-subtitle">Call Notes</h2>
-          <p className="mt-0.5 text-body text-slate-600">Record conversations, communications and follow-up information relating to this service user.</p>
+          <h2 id="call-notes-h" className="text-[17px]">Call Notes</h2>
+          <p className="mt-0.5 text-[13.5px] text-slate-600">Record conversations, communications and follow-up information relating to this service user.</p>
         </div>
         {list.access.record && !adding ? <Link href={`${back}&new=1`} className="btn-primary">Add Call Note</Link> : null}
       </div>
@@ -49,7 +49,7 @@ export async function CallNotesSection({ ctx, serviceUserId, personName, base, s
           {filtered ? <Link href={back} className="btn-secondary">Clear</Link> : null}
         </div>
         <details className="col-span-2 md:col-span-4 xl:col-span-5" open={!!(filters.from || filters.to || filters.contact || filters.by)}>
-          <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">More filters</summary>
+          <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">More filters</summary>
           <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
             <label><span className="label">From</span><input type="date" name="from" defaultValue={filters.from ?? ""} className="input" /></label>
             <label><span className="label">To</span><input type="date" name="to" defaultValue={filters.to ?? ""} className="input" /></label>
@@ -59,7 +59,7 @@ export async function CallNotesSection({ ctx, serviceUserId, personName, base, s
         </details>
       </form>
 
-      {list.hidden ? <p className="mb-2 text-meta text-slate-600">{list.hidden} restricted {list.hidden === 1 ? "note is" : "notes are"} hidden. A registered manager can open {list.hidden === 1 ? "it" : "them"}.</p> : null}
+      {list.hidden ? <p className="mb-2 text-[13px] text-slate-600">{list.hidden} restricted {list.hidden === 1 ? "note is" : "notes are"} hidden. A registered manager can open {list.hidden === 1 ? "it" : "them"}.</p> : null}
 
       {list.notes.length ? (
         <ol className="space-y-2.5" aria-label="Call Notes, newest first">
@@ -69,7 +69,7 @@ export async function CallNotesSection({ ctx, serviceUserId, personName, base, s
         <Empty>{filtered ? "No Call Notes match these filters." : `No Call Notes have been recorded for ${personName}.`}</Empty>
       )}
       <Pagination page={list.page} pageSize={20} total={list.total} base={base} params={{ tab: "call-notes", q: filters.q, method: filters.method, status: filters.status, followUp: filters.followUp, from: filters.from, to: filters.to, contact: filters.contact, by: filters.by }} />
-      <p className="mt-2 text-meta text-slate-500">Call Notes keep general communication only. Care needs, risks, medication, rota requests, incidents, contacts and documents are sent to their own records for review. Visit Notes are under Visits.</p>
+      <p className="mt-2 text-[12.5px] text-slate-500">Call Notes keep general communication only. Care needs, risks, medication, rota requests, incidents, contacts and documents are sent to their own records for review. Visit Notes are under Visits.</p>
     </section>
   );
 }
@@ -80,7 +80,7 @@ function NewNoteForm({ serviceUserId, back, form }: { serviceUserId: string; bac
   const now = new Date();
   return (
     <form action={createCallNoteAction} className="mb-4 rounded-[6px] border border-[#c9d6e6] bg-[#f5f9fc] p-3" aria-labelledby="new-note-h" data-testid="new-call-note">
-      <h3 id="new-note-h" className="mb-2 text-lead font-semibold">Add Call Note</h3>
+      <h3 id="new-note-h" className="mb-2 text-[15px] font-semibold">Add Call Note</h3>
       <input type="hidden" name="back" value={`${back}&new=1`} />
       <input type="hidden" name="serviceUserId" value={serviceUserId} />
       <input type="hidden" name="submissionKey" value={randomUUID()} />
@@ -97,21 +97,21 @@ function NewNoteForm({ serviceUserId, back, form }: { serviceUserId: string; bac
         <label className="col-span-2"><span className="label">Related source / document (optional)</span><select name="sourceDocumentId" defaultValue="" className="input"><option value="">None</option>{form.documents.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
       </div>
       <fieldset className="mt-2 rounded-[4px] border border-slate-200 bg-white p-2">
-        <legend className="px-1 text-meta font-medium">Follow-up</legend>
-        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="followUpRequired" className="h-4 w-4" /> Follow-up required</label>
+        <legend className="px-1 text-[13px] font-medium">Follow-up</legend>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="followUpRequired" className="h-4 w-4" /> Follow-up required</label>
         <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
           <label className="col-span-2"><span className="label">What needs doing</span><input name="followUpText" maxLength={500} className="input" /></label>
           <label><span className="label">Follow-up owner</span><select name="followUpOwnerId" defaultValue="" className="input"><option value="">Choose</option>{form.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <label><span className="label">Due date</span><input type="date" name="followUpDueOn" min={londonDate(now)} className="input" /></label>
         </div>
       </fieldset>
-      <label className="mt-2 flex items-center gap-2 text-body"><input type="checkbox" name="restricted" className="h-4 w-4" /> Restricted: only a registered manager (and you) can open this note</label>
+      <label className="mt-2 flex items-center gap-2 text-[14px]"><input type="checkbox" name="restricted" className="h-4 w-4" /> Restricted: only a registered manager (and you) can open this note</label>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button name="intent" value="organise" className="btn-primary">{form.ai ? "Organise with AI" : "Organise into bullet points"}</button>
         <button name="intent" value="save" className="btn-secondary">Save note as written</button>
         <Link href={back} className="btn-secondary">Cancel</Link>
       </div>
-      <p className="mt-2 text-meta text-slate-600">
+      <p className="mt-2 text-[12.5px] text-slate-600">
         {form.ai ? "Organise sends only the notes, the method and the relationship to the AI service (no names). " : "AI is switched off for this organisation, so notes are organised on CSB's own server by keyword rules (no AI). "}
         You check every bullet point before anything is saved. Your original text is kept unchanged.
       </p>
@@ -127,14 +127,14 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
   return (
     <section className="mb-4 rounded-[6px] border border-[#c9d6e6] bg-[#f5f9fc] p-3" aria-labelledby="draft-h" data-testid="call-note-draft">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h3 id="draft-h" className="text-lead font-semibold">Check the organised note · {note.reference}</h3>
+        <h3 id="draft-h" className="text-[15px] font-semibold">Check the organised note · {note.reference}</h3>
         <Badge tone={ai ? "violet" : "slate"}>{ai ? `Proposed by AI (${note.reader})` : "Organised by keyword rules, no AI"}</Badge>
         <Badge>Draft</Badge>
       </div>
       {draft.urgent.length ? <UrgentBanner kinds={draft.urgent.map((u) => u.kind)} lines={draft.urgent.map((u) => u.text)} serviceUserId={serviceUserId} /> : null}
       <details className="mb-2 rounded-[4px] border border-slate-200 bg-white p-2" open>
-        <summary className="cursor-pointer text-body font-medium">Original text (kept as the source, never changed)</summary>
-        <blockquote className="mt-1 whitespace-pre-line border-l-2 border-slate-300 pl-3 text-body text-slate-800">{note.originalText}</blockquote>
+        <summary className="cursor-pointer text-[13.5px] font-medium">Original text (kept as the source, never changed)</summary>
+        <blockquote className="mt-1 whitespace-pre-line border-l-2 border-slate-300 pl-3 text-[14px] text-slate-800">{note.originalText}</blockquote>
       </details>
       <form action={submitOrganisedAction} className="space-y-3">
         <input type="hidden" name="back" value={`${back}&draft=${note.id}`} />
@@ -143,7 +143,7 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
         <input type="hidden" name="lockVersion" value={note.lockVersion} />
         <label className="block"><span className="label">Communication summary</span><input name="summary" required defaultValue={note.summary} maxLength={2000} className="input" /></label>
         <div>
-          <h4 className="mb-1 text-body font-semibold">Information received</h4>
+          <h4 className="mb-1 text-[14px] font-semibold">Information received</h4>
           {items.length ? (
             <ol className="space-y-2">
               {items.map((i) => (
@@ -155,7 +155,7 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
                     <label><span className="label">Belongs in</span><select name={`dest_${i.id}`} defaultValue={i.destination} className="input">{DESTINATION_KEYS.map((d) => <option key={d} value={d}>{DESTINATIONS[d].label}</option>)}</select></label>
                     <label><span className="label">Decision</span><select name={`decision_${i.id}`} defaultValue={i.decision} className="input">{(Object.keys(DECISIONS) as (keyof typeof DECISIONS)[]).filter((k) => k !== "LINK" || i.duplicateRef).map((k) => <option key={k} value={k}>{DECISIONS[k]}</option>)}</select></label>
                   </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-slate-600">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-slate-600">
                     <Badge tone={DUP_TONE[i.duplicate as DuplicateKind] ?? "slate"}>{DUPLICATES[i.duplicate as DuplicateKind] ?? i.duplicate}</Badge>
                     {i.duplicateLabel ? (i.dupHref ? <Link href={i.dupHref} target="_blank">{i.duplicateLabel}</Link> : <span>{i.duplicateLabel}</span>) : null}
                     {i.destination === "MEDICATION" ? <span className="font-medium text-[#8a5a00]">Needs authorised verification. No medication change is made from a Call Note.</span> : null}
@@ -168,13 +168,13 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
           ) : <Empty>Nothing was found to organise. Save the note as written instead.</Empty>}
         </div>
         <div>
-          <h4 className="mb-1 text-body font-semibold">Follow-up required</h4>
+          <h4 className="mb-1 text-[14px] font-semibold">Follow-up required</h4>
           {draft.followUps.length ? (
             <ul className="space-y-1.5">
               {draft.followUps.map((f, n) => (
                 <li key={n} className="grid grid-cols-1 items-end gap-2 rounded-[4px] border border-slate-200 bg-white p-2 md:grid-cols-[auto_minmax(0,1fr)_180px_150px_120px]">
                   <input type="hidden" name="fu" value={n} />
-                  <label className="flex items-center gap-2 text-body"><input type="checkbox" name={`fu_on_${n}`} className="h-4 w-4" /> Create task</label>
+                  <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" name={`fu_on_${n}`} className="h-4 w-4" /> Create task</label>
                   <label><span className="sr-only">Follow-up</span><input name={`fu_text_${n}`} defaultValue={f} maxLength={500} className="input" /></label>
                   <label><span className="label">Assign to</span><select name={`fu_who_${n}`} defaultValue="" className="input"><option value="">Choose</option>{draft.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                   <label><span className="label">Due</span><input type="date" name={`fu_due_${n}`} defaultValue={draft.defaultDue} min={londonDate()} className="input" /></label>
@@ -182,14 +182,14 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
                 </li>
               ))}
             </ul>
-          ) : <p className="text-body text-slate-600">No follow-up was suggested. You can add one after saving.</p>}
+          ) : <p className="text-[13.5px] text-slate-600">No follow-up was suggested. You can add one after saving.</p>}
         </div>
         <label className="block"><span className="label">Information requiring clarification</span><textarea name="clarification" rows={2} maxLength={2000} defaultValue={[note.clarification, ...draft.clarifications].filter(Boolean).join("\n")} className="input" /></label>
-        <label className="flex items-center gap-2 text-body"><input type="checkbox" name="restricted" defaultChecked={note.restricted} className="h-4 w-4" /> Restricted note</label>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="restricted" defaultChecked={note.restricted} className="h-4 w-4" /> Restricted note</label>
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary">Save and send for review</button>
         </div>
-        <p className="text-meta text-slate-600">A manager who did not write this note reviews it. Items sent to another record become review items there; nothing in the care plan, risks, medication or rota changes until someone does it through that record.</p>
+        <p className="text-[12.5px] text-slate-600">A manager who did not write this note reviews it. Items sent to another record become review items there; nothing in the care plan, risks, medication or rota changes until someone does it through that record.</p>
       </form>
       <form action={withdrawDraftAction} className="mt-2">
         <input type="hidden" name="back" value={`${back}&draft=${note.id}`} />
@@ -204,7 +204,7 @@ function DraftReview({ serviceUserId, back, draft }: { serviceUserId: string; ba
 function UrgentBanner({ kinds, lines, serviceUserId }: { kinds: string[]; lines?: string[]; serviceUserId: string }) {
   const unique = [...new Set(kinds)];
   return (
-    <div role="alert" className="mb-2 rounded-[4px] border border-[#e4a7ab] bg-[#fdf1f2] p-2.5 text-body text-[#7c1d23]" data-testid="urgent-banner">
+    <div role="alert" className="mb-2 rounded-[4px] border border-[#e4a7ab] bg-[#fdf1f2] p-2.5 text-[14px] text-[#7c1d23]" data-testid="urgent-banner">
       <p className="font-semibold">Urgent: {unique.map((k) => URGENT_KINDS[k as UrgentKind] ?? k).join(", ")} flagged. Reported, not verified.</p>
       {lines?.length ? <ul className="ml-5 mt-1 list-disc">{lines.map((l, n) => <li key={n}>{l}</li>)}</ul> : null}
       <p className="mt-1">Use the existing workflow now: <Link href={`/rota/incidents/new?su=${serviceUserId}`} className="font-medium text-[#7c1d23] underline">report an incident or safeguarding concern</Link>{unique.includes("MEDICATION") ? <>, and check medication with an authorised professional before anything changes</> : null}. Managers are notified when the note is saved.</p>
@@ -224,23 +224,23 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
       <summary className="flex cursor-pointer list-none flex-wrap items-start gap-x-3 gap-y-1 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="mt-[3px] text-slate-400 transition-transform group-open:rotate-90">›</span>
         <span className="min-w-0 flex-1">
-          <span className="block text-lead font-semibold text-[#1d2939]">{METHOD_TITLE[n.method as Method] ?? n.method} – {date}<span className="ml-2 text-meta font-normal tabular-nums text-slate-500">{londonTime(n.communicationAt)}</span></span>
-          <span className="mt-0.5 block text-body text-slate-600"><span className="font-medium text-slate-700">Spoke with:</span> {n.contactName}{n.contactRole ? ` (${n.contactRole})` : ""} · <span className="font-medium text-slate-700">Recorded by:</span> {n.recordedBy}</span>
-          <span className="mt-0.5 block truncate text-body text-slate-800">{n.summary}</span>
+          <span className="block text-[15px] font-semibold text-[#1d2939]">{METHOD_TITLE[n.method as Method] ?? n.method} – {date}<span className="ml-2 text-[13px] font-normal tabular-nums text-slate-500">{londonTime(n.communicationAt)}</span></span>
+          <span className="mt-0.5 block text-[13.5px] text-slate-600"><span className="font-medium text-slate-700">Spoke with:</span> {n.contactName}{n.contactRole ? ` (${n.contactRole})` : ""} · <span className="font-medium text-slate-700">Recorded by:</span> {n.recordedBy}</span>
+          <span className="mt-0.5 block truncate text-[14px] text-slate-800">{n.summary}</span>
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           {n.urgentKinds.length ? <Badge tone="rose">Urgent</Badge> : null}
           {n.restricted ? <Badge tone="violet">Restricted</Badge> : null}
           <Badge tone={st.tone === "blue" ? "teal" : st.tone}>{st.label}</Badge>
-          <span className="text-meta tabular-nums text-slate-500">{n.reference}</span>
+          <span className="text-[12.5px] tabular-nums text-slate-500">{n.reference}</span>
         </span>
       </summary>
-      <div className="space-y-3 border-t border-slate-100 px-3 pb-3 pt-2.5 text-body">
+      <div className="space-y-3 border-t border-slate-100 px-3 pb-3 pt-2.5 text-[14px]">
         {n.urgentKinds.length ? <UrgentBanner kinds={n.urgentKinds} lines={n.items.filter((i) => i.urgent).map((i) => i.text)} serviceUserId={serviceUserId} /> : null}
-        {n.escalationNote ? <p className="rounded-[4px] bg-[#fdf6e7] p-2 text-body"><span className="font-medium">Action taken:</span> {n.escalationNote} <span className="text-slate-500">({n.escalatedBy}, {fmtDate(n.escalatedAt, true)})</span></p> : null}
+        {n.escalationNote ? <p className="rounded-[4px] bg-[#fdf6e7] p-2 text-[13.5px]"><span className="font-medium">Action taken:</span> {n.escalationNote} <span className="text-slate-500">({n.escalatedBy}, {fmtDate(n.escalatedAt, true)})</span></p> : null}
         <Block title="Summary"><p>{n.summary}</p></Block>
         <Block title="Key information">
-          {kept.length ? <ul className="ml-5 list-disc space-y-0.5">{kept.map((i) => <li key={i.id}>{i.text} <span className="text-meta text-slate-500">({KINDS[i.kind as Kind] ?? i.kind})</span></li>)}</ul>
+          {kept.length ? <ul className="ml-5 list-disc space-y-0.5">{kept.map((i) => <li key={i.id}>{i.text} <span className="text-[12.5px] text-slate-500">({KINDS[i.kind as Kind] ?? i.kind})</span></li>)}</ul>
             : n.details ? <p className="whitespace-pre-line">{n.details}</p>
             : n.items.length ? <p className="text-slate-600">Everything in this note was sent to its own record (below).</p>
             : <p className="whitespace-pre-line">{n.originalText}</p>}
@@ -253,14 +253,14 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="teal">{DESTINATIONS[i.destination as Destination]?.label ?? i.destination}</Badge>
                     <span>{i.text}</span>
-                    <span className="text-meta text-slate-500">{KINDS[i.kind as Kind] ?? i.kind}</span>
+                    <span className="text-[12.5px] text-slate-500">{KINDS[i.kind as Kind] ?? i.kind}</span>
                   </div>
-                  {i.destination === "MEDICATION" ? <p className="mt-1 text-meta font-medium text-[#8a5a00]">Information requiring clinical verification; no medication change authorised.</p> : null}
+                  {i.destination === "MEDICATION" ? <p className="mt-1 text-[12.5px] font-medium text-[#8a5a00]">Information requiring clinical verification; no medication change authorised.</p> : null}
                   {i.review ? (
                     i.review.status === "OPEN" ? (
                       <div className="mt-1.5 flex flex-wrap items-end gap-2">
                         <Badge tone="amber">Waiting in the {DESTINATIONS[i.destination as Destination]?.label ?? ""} review queue</Badge>
-                        {DESTINATIONS[i.destination as Destination]?.tab ? <Link href={`/rota/service-users/${serviceUserId}?tab=${DESTINATIONS[i.destination as Destination].tab}`} className="text-body">Open {DESTINATIONS[i.destination as Destination].label}</Link> : null}
+                        {DESTINATIONS[i.destination as Destination]?.tab ? <Link href={`/rota/service-users/${serviceUserId}?tab=${DESTINATIONS[i.destination as Destination].tab}`} className="text-[13.5px]">Open {DESTINATIONS[i.destination as Destination].label}</Link> : null}
                         {i.review.canResolve ? (
                           <form action={resolveRoutedItemAction} className="flex flex-wrap items-end gap-2">
                             <Hidden v={{ ...hidden, reviewItemId: i.review.id }} />
@@ -269,8 +269,8 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
                           </form>
                         ) : null}
                       </div>
-                    ) : <p className="mt-1 text-meta text-slate-600">Closed by {i.review.resolvedBy} on {fmtDate(i.review.resolvedAt)}: {i.review.resolution}</p>
-                  ) : n.status === "APPROVED" ? null : <p className="mt-1 text-meta text-slate-500">Sent for review when the note is approved.</p>}
+                    ) : <p className="mt-1 text-[13px] text-slate-600">Closed by {i.review.resolvedBy} on {fmtDate(i.review.resolvedAt)}: {i.review.resolution}</p>
+                  ) : n.status === "APPROVED" ? null : <p className="mt-1 text-[12.5px] text-slate-500">Sent for review when the note is approved.</p>}
                 </li>
               ))}
             </ul>
@@ -290,12 +290,12 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
                     <span className="font-medium">{t.description}</span>
                     <Badge tone={PRI_TONE[t.priority as keyof typeof PRI_TONE] ?? "slate"}>{PRIORITIES[t.priority as keyof typeof PRIORITIES] ?? t.priority}</Badge>
                     <Badge tone={t.status === "OPEN" ? (t.overdue ? "rose" : "amber") : t.status === "DONE" ? "green" : "slate"}>{t.status === "OPEN" ? (t.overdue ? "Overdue" : "Open") : t.status === "DONE" ? "Done" : "Cancelled"}</Badge>
-                    <span className="text-meta text-slate-600">Assigned to {t.assignee} · due {fmtDate(t.dueOn)}{t.evidenceRequired ? " · evidence required" : ""}</span>
+                    <span className="text-[13px] text-slate-600">Assigned to {t.assignee} · due {fmtDate(t.dueOn)}{t.evidenceRequired ? " · evidence required" : ""}</span>
                   </div>
-                  {t.status !== "OPEN" ? <p className="mt-1 text-meta text-slate-600">{t.closedBy}, {fmtDate(t.closedAt, true)}: {t.completionNote}</p> : null}
+                  {t.status !== "OPEN" ? <p className="mt-1 text-[13px] text-slate-600">{t.closedBy}, {fmtDate(t.closedAt, true)}: {t.completionNote}</p> : null}
                   {t.canClose ? (
                     <details className="mt-1">
-                      <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Complete this follow-up</summary>
+                      <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Complete this follow-up</summary>
                       <form action={closeFollowUpAction} className="mt-1.5 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_220px_auto]">
                         <Hidden v={{ ...hidden, taskId: t.id, version: String(t.version) }} />
                         <label><span className="label">Completion notes</span><input name="completionNote" required minLength={3} maxLength={2000} className="input" /></label>
@@ -308,17 +308,17 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
               ))}
             </ul>
           ) : <p className="text-slate-600">No follow-up tasks.</p>}
-          {n.clarification ? <p className="mt-1.5 whitespace-pre-line text-body"><span className="font-medium">To clarify:</span> {n.clarification}</p> : null}
+          {n.clarification ? <p className="mt-1.5 whitespace-pre-line text-[13.5px]"><span className="font-medium">To clarify:</span> {n.clarification}</p> : null}
           {n.can.followUp && people.length ? (
             <details className="mt-1.5">
-              <summary className="cursor-pointer text-body font-medium text-[#1d4f91]">Add a follow-up task</summary>
+              <summary className="cursor-pointer text-[13.5px] font-medium text-[#1d4f91]">Add a follow-up task</summary>
               <form action={createFollowUpAction} className="mt-1.5 grid grid-cols-2 gap-2 md:grid-cols-[minmax(0,1fr)_180px_150px_120px_auto]">
                 <Hidden v={hidden} />
                 <label className="col-span-2 md:col-span-1"><span className="label">Task</span><input name="description" required minLength={3} maxLength={500} className="input" /></label>
                 <label><span className="label">Assign to</span><select name="assigneeId" required defaultValue="" className="input"><option value="">Choose</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                 <label><span className="label">Due</span><input type="date" name="dueOn" required min={londonDate()} className="input" /></label>
                 <label><span className="label">Priority</span><select name="priority" defaultValue="MEDIUM" className="input">{Object.entries(PRIORITIES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-                <div className="col-span-2 flex flex-wrap items-end gap-2 md:col-span-1"><label className="flex items-center gap-1.5 text-meta"><input type="checkbox" name="evidenceRequired" className="h-4 w-4" /> Evidence</label><button className="btn-secondary">Create</button></div>
+                <div className="col-span-2 flex flex-wrap items-end gap-2 md:col-span-1"><label className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" name="evidenceRequired" className="h-4 w-4" /> Evidence</label><button className="btn-secondary">Create</button></div>
               </form>
             </details>
           ) : null}
@@ -334,8 +334,8 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
           ) : null}
         </Block>
         <details className="rounded-[4px] border border-slate-200 p-2">
-          <summary className="cursor-pointer text-body font-medium">Source and original text</summary>
-          <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-body sm:grid-cols-2">
+          <summary className="cursor-pointer text-[13.5px] font-medium">Source and original text</summary>
+          <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-[13.5px] sm:grid-cols-2">
             <div><dt className="inline font-medium">How it was entered: </dt><dd className="inline">{n.origin === "MANUAL" ? "Typed by hand" : n.origin === "INTAKE" ? "From a Care Coordinator intake" : n.origin === "AI_ASSISTED" ? `Organised with AI (${n.reader})` : "Organised by keyword rules (no AI)"}</dd></div>
             <div><dt className="inline font-medium">Entered: </dt><dd className="inline">{fmtDate(n.createdAt, true)}</dd></div>
             {n.sourceLabel ? <div className="sm:col-span-2"><dt className="inline font-medium">Source: </dt><dd className="inline">{n.sourceLabel}</dd></div> : null}
@@ -347,7 +347,7 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
         {n.can.review ? (
           <form action={reviewCallNoteAction} className="rounded-[4px] border border-[#c9d6e6] bg-[#f5f9fc] p-2" aria-label={`Review ${n.reference}`}>
             <Hidden v={{ ...hidden, lockVersion: String(n.lockVersion) }} />
-            <p className="mb-1 text-body font-medium">Manager review</p>
+            <p className="mb-1 text-[13.5px] font-medium">Manager review</p>
             <label className="block"><span className="label">Note to the author (needed to return or reject)</span><input name="reviewNote" maxLength={2000} className="input" /></label>
             <div className="mt-2 flex flex-wrap gap-2">
               <button name="decision" value="APPROVE" className="btn-primary">Approve</button>
@@ -355,11 +355,11 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
               <button name="decision" value="REJECT" className="btn-secondary">Reject</button>
             </div>
           </form>
-        ) : n.status === "AWAITING_REVIEW" ? <p className="text-meta text-slate-600">Waiting for a manager who did not write this note.</p> : null}
-        {n.status === "CLARIFICATION_REQUESTED" && n.reviewNote ? <p className="rounded-[4px] bg-violet-50 p-2 text-body text-violet-800"><span className="font-medium">Clarification requested:</span> {n.reviewNote}</p> : null}
+        ) : n.status === "AWAITING_REVIEW" ? <p className="text-[13px] text-slate-600">Waiting for a manager who did not write this note.</p> : null}
+        {n.status === "CLARIFICATION_REQUESTED" && n.reviewNote ? <p className="rounded-[4px] bg-violet-50 p-2 text-[13.5px] text-violet-800"><span className="font-medium">Clarification requested:</span> {n.reviewNote}</p> : null}
         {n.can.escalate ? (
           <details className="rounded-[4px] border border-slate-200 p-2">
-            <summary className="cursor-pointer text-body font-medium">Record the action taken on the urgent concern</summary>
+            <summary className="cursor-pointer text-[13.5px] font-medium">Record the action taken on the urgent concern</summary>
             <form action={recordEscalationAction} className="mt-1.5 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_260px_auto]">
               <Hidden v={hidden} />
               <label><span className="label">Action taken</span><input name="action" required minLength={5} maxLength={2000} className="input" /></label>
@@ -371,7 +371,7 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
         <div className="flex flex-wrap gap-2">
           {n.can.correct ? (
             <details className="w-full rounded-[4px] border border-slate-200 p-2">
-              <summary className="cursor-pointer text-body font-medium">Correct this note</summary>
+              <summary className="cursor-pointer text-[13.5px] font-medium">Correct this note</summary>
               <form action={correctCallNoteAction} className="mt-1.5 space-y-2">
                 <Hidden v={{ ...hidden, lockVersion: String(n.lockVersion) }} />
                 <label className="block"><span className="label">Summary</span><input name="summary" required defaultValue={n.summary} maxLength={2000} className="input" /></label>
@@ -379,13 +379,13 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
                 <label className="block"><span className="label">Information requiring clarification</span><textarea name="clarification" rows={2} defaultValue={n.clarification ?? ""} maxLength={2000} className="input" /></label>
                 <label className="block"><span className="label">Reason for the correction</span><input name="reason" required minLength={5} maxLength={500} className="input" /></label>
                 <button className="btn-secondary">Save correction</button>
-                <p className="text-meta text-slate-600">The previous version is kept in the history and the original text does not change. The corrected note goes back for review.</p>
+                <p className="text-[12.5px] text-slate-600">The previous version is kept in the history and the original text does not change. The corrected note goes back for review.</p>
               </form>
             </details>
           ) : null}
           {n.can.supersede ? (
             <details className="w-full rounded-[4px] border border-slate-200 p-2">
-              <summary className="cursor-pointer text-body font-medium">Mark as superseded</summary>
+              <summary className="cursor-pointer text-[13.5px] font-medium">Mark as superseded</summary>
               <form action={supersedeCallNoteAction} className="mt-1.5 flex flex-wrap items-end gap-2">
                 <Hidden v={hidden} />
                 <label><span className="label">Replaced by (reference)</span><input name="byReference" required placeholder="CALL-2026-000002" className="input w-[200px]" /></label>
@@ -396,8 +396,8 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
           ) : null}
         </div>
         <details className="rounded-[4px] border border-slate-200 p-2">
-          <summary className="cursor-pointer text-body font-medium">History ({n.history.length + n.revisions.length})</summary>
-          <ol className="mt-1.5 space-y-1 text-meta">
+          <summary className="cursor-pointer text-[13.5px] font-medium">History ({n.history.length + n.revisions.length})</summary>
+          <ol className="mt-1.5 space-y-1 text-[13px]">
             {n.history.map((h) => <li key={h.id} className="border-l-2 border-slate-200 pl-2"><span className="font-medium">{h.action.replace("callNote.", "").replace(/([A-Z])/g, " $1").toLowerCase()}</span> · {h.by} · {fmtDate(h.at, true)}</li>)}
             {n.revisions.map((v) => <li key={v.id} className="border-l-2 border-amber-300 pl-2"><span className="font-medium">Version {v.version} kept</span> · {v.by} · {fmtDate(v.createdAt, true)} · {v.reason}<span className="block text-slate-600">Summary was: {(v.snapshot as { summary?: string }).summary}</span></li>)}
           </ol>
@@ -410,7 +410,7 @@ function NoteCard({ n, open, serviceUserId, back, list, people, documents, links
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="mb-0.5 text-meta font-semibold uppercase tracking-[0.02em] text-slate-600">{title}</h4>
+      <h4 className="mb-0.5 text-[13px] font-semibold uppercase tracking-[0.02em] text-slate-600">{title}</h4>
       {children}
     </div>
   );

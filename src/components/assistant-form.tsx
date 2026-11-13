@@ -12,12 +12,12 @@ export function AssistantForm() {
   return (
     <div className="space-y-3">
       <div className="panel space-y-3">
-      <h2 className="text-subtitle">Ask a question</h2>
+      <h2 className="text-[17px]">Ask a question</h2>
       <form action={action} className="flex gap-2" data-no-progress>
         <input name="question" className="input" defaultValue={state.question} placeholder="Ask about your policies, requirements or recent changes" aria-label="Question" maxLength={1000} />
         <button className="btn-primary" type="submit" disabled={pending}>{pending ? "Searching…" : "Ask"}</button>
       </form>
-      <div className="flex flex-wrap items-center gap-2 text-meta text-slate-600">
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
         Try: {EXAMPLES.map((e) => <span key={e} className="rounded-full bg-[#e3effb] px-2.5 py-0.5 text-[#1d4f91]">{e}</span>)}
       </div>
       </div>

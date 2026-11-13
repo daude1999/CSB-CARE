@@ -15,12 +15,12 @@ export function CarerRecommendations({ list, visitId, slot, lockVersion, back, r
   return (
     <ol className="mt-1.5 space-y-1.5">
       {top.map((c) => (
-        <li key={c.id} className="flex flex-wrap items-start gap-2 rounded-[4px] border border-slate-200 px-2.5 py-2 text-body">
+        <li key={c.id} className="flex flex-wrap items-start gap-2 rounded-[4px] border border-slate-200 px-2.5 py-2 text-[13.5px]">
           <span className="inline-flex h-7 w-9 items-center justify-center rounded-[4px] bg-[#e8f0fb] font-semibold tabular-nums text-[#1d4f91]" aria-label={`Suitability ${c.score} out of 100`}>{c.score}</span>
           <span className="min-w-0 flex-1">
             <span className="font-medium">{c.name}</span> <span className="text-slate-600">· {STATE_LABEL[c.state]} · {c.weekHours} h booked this week</span>
-            <span className="block text-meta text-slate-600">{c.explain.map((e) => `${e.points > 0 ? "+" : ""}${e.points} ${e.text}`).join(" · ")}</span>
-            {c.reasons.length ? <span className="block text-meta text-[#8a5a00]">Check: {c.reasons.slice(0, 3).join("; ")}</span> : null}
+            <span className="block text-[12.5px] text-slate-600">{c.explain.map((e) => `${e.points > 0 ? "+" : ""}${e.points} ${e.text}`).join(" · ")}</span>
+            {c.reasons.length ? <span className="block text-[12.5px] text-[#8a5a00]">Check: {c.reasons.slice(0, 3).join("; ")}</span> : null}
           </span>
           <form action={assignCarerAction}>
             <input type="hidden" name="back" value={back} />

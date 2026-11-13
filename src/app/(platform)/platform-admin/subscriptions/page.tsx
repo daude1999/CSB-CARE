@@ -36,13 +36,13 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                 const price = s.billingPeriod === "ANNUAL" ? s.plan.annualPricePence : s.plan.monthlyPricePence;
                 return (
                   <tr key={s.id}>
-                    <td><Link href={`/platform-admin/clients/${s.organisation.id}?tab=subscription`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{s.organisation.name}</Link><span className="block font-mono text-caption text-px-subtle">{s.organisation.customerAccount?.reference}</span></td>
+                    <td><Link href={`/platform-admin/clients/${s.organisation.id}?tab=subscription`} className="font-medium text-px-ink no-underline hover:text-px-accent hover:underline">{s.organisation.name}</Link><span className="block font-mono text-[11.5px] text-px-subtle">{s.organisation.customerAccount?.reference}</span></td>
                     <td>{s.plan.name}</td>
                     <td><Pill value={s.status} /></td>
                     <td>{s.billingPeriod === "ANNUAL" ? "Annual" : "Monthly"}</td>
                     <td className="tabular-nums">{fmtMoney(price) ?? <NotConfigured>Not set</NotConfigured>}</td>
                     <td className="whitespace-nowrap tabular-nums">{fmtDate(s.status === "TRIAL" ? s.trialEndsAt : s.renewsAt)}</td>
-                    <td className="text-meta text-px-body">{s.userAllowance ?? "∞"} users · {s.storageMb ?? "∞"} MB · {s.aiRequestsPerMonth ?? "—"} AI</td>
+                    <td className="text-[12.5px] text-px-body">{s.userAllowance ?? "∞"} users · {s.storageMb ?? "∞"} MB · {s.aiRequestsPerMonth ?? "—"} AI</td>
                     <td className="whitespace-nowrap tabular-nums">{fmtDate(s.startsAt)}</td>
                   </tr>
                 );

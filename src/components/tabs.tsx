@@ -61,7 +61,7 @@ export function TileTab({ value, icon, children, count }: { value: string; icon:
     >
       <span aria-hidden="true" className="flex">{icon}</span>
       {children}
-      {count ? <span className="min-w-[20px] rounded-full bg-[#fde1e3] px-1.5 text-center text-caption font-semibold leading-[18px] text-[#a3242c]">{count}</span> : null}
+      {count ? <span className="min-w-[20px] rounded-full bg-[#fde1e3] px-1.5 text-center text-[11.5px] font-semibold leading-[18px] text-[#a3242c]">{count}</span> : null}
     </TabsPrimitive.Trigger>
   );
 }
