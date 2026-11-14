@@ -657,3 +657,6 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
   .hb-ov .hb-pn-h { flex-wrap: wrap; row-gap: 4px; padding-top: 6px; padding-bottom: 6px; }
   .hb-ov .hb-pn-h :is(h2, .hb-pn-act, .hb-ov-open) { white-space: nowrap; }
 }
+/* Every page fills the screen width beside the side panel, with page padding only (owner's decision of 14 Nov 2026):
+   the HR Hub's own 1440px cap is lifted inside the platform shell. Styling only. */
+.hb-shell .cs :is(.h-wrap, .h-prof__in) { max-width: none; }

@@ -89,9 +89,10 @@ test.describe("Overview", () => {
     }
   });
 
-  // On wide screens the content stays capped at 1320px and centred beside the side panel (owner's fix of 11 Nov 2026).
+  // The content fills the width beside the side panel at every size, with page padding only (owner's decision of 14 Nov 2026,
+  // replacing the 1320px cap of 11 Nov).
   for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
-    test(`at ${width} by ${height} nothing is wider than 1320px and the page does not scroll sideways`, async ({ page }, testInfo) => {
+    test(`at ${width} by ${height} the content fills the screen width and the page does not scroll sideways`, async ({ page }, testInfo) => {
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height });
       await page.goto("/overview");
@@ -109,9 +110,8 @@ test.describe("Overview", () => {
       });
       await testInfo.attach(`overview-${width}x${height}`, { body: await page.screenshot(), contentType: "image/png" });
       expect(layout.sideways, "no sideways scroll").toBeLessThanOrEqual(0);
-      expect(layout.widest, "nothing wider than 1320px").toBeLessThanOrEqual(1320);
       expect(Math.abs(layout.content.left - layout.main.left - (layout.main.right - layout.content.right))).toBeLessThanOrEqual(2);
-      if (width === 1920) expect(layout.content.width).toBe(1320);
+      expect(layout.main.width - layout.content.width, "only page padding either side").toBeLessThanOrEqual(40);
       expect(layout.rounds).toBeGreaterThan(0);
     });
   }

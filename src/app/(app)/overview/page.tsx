@@ -238,9 +238,9 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   return (
     <div className="ov-root hb-ov">
-      {/* Capped at 1320px and centred in the space beside the side panel; narrower screens use the full width. */}
+      {/* Full width beside the side panel at every screen size, with the page padding only (owner's decision of 14 Nov 2026, replacing the 1320px cap). */}
       <div className="px-4 pb-6 pt-5">
-        <div className="mx-auto w-full max-w-[1320px] space-y-[16px]" data-testid="overview-content">
+        <div className="w-full space-y-[16px]" data-testid="overview-content">
           <Flash searchParams={sp} />
           <AutoRefresh seconds={60} />
           <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
