@@ -43,7 +43,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
         </div>
         {!ended ? <p className="w-full text-[13px] text-slate-600">This week has not finished yet. Timesheets are prepared once it has.</p> : null}
       </section>
-      <Card>
+      <Card colour="green" title={<>Timesheets for the week <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">

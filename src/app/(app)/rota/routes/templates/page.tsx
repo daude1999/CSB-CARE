@@ -21,7 +21,7 @@ export default async function TemplateRoutesPage({ searchParams }: { searchParam
       <PageHeader tabs={<RotaTabs ctx={ctx} ws="templates" active="routes" />} title="Template Run Routes" back="/rota/templates" subtitle="Put templates on a route and set their order here. Each Build Rota carries the route into the built week as a live run route." actions={<Link href="/rota/routes" className="btn-secondary">Live Run Routes</Link>} />
       <Flash searchParams={sp} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card>
+        <Card colour="navy" title={<>Template run routes <span className="hb-pn-cnt">{rows.length}</span></>}>
           {rows.length ? (
             <table className="table">
               <thead><tr><th>Run route</th><th>Run type</th><th className="text-right">Templates</th><th>State</th><th /></tr></thead>

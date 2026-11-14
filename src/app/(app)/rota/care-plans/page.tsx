@@ -31,7 +31,7 @@ export default async function CarePlansPage({ searchParams }: { searchParams: Pr
           <button className="btn-secondary">Search</button>
         </form>
       </div>
-      <Card>
+      <Card colour="teal" title={<>Care plan register <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">

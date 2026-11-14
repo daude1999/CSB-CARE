@@ -56,7 +56,7 @@ export default async function ReadinessQueuePage({ searchParams }: { searchParam
         </form>
       </section>
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <Card>
+        <Card colour="purple" title={<>Readiness queue <span className="hb-pn-cnt">{queue.rows.length}</span></>}>
           {queue.rows.length ? (
             <table className="table">
               <thead><tr><th>Name</th><th>Role</th><th>Branch</th><th>Status</th><th>Why</th><th>Due soon</th></tr></thead>

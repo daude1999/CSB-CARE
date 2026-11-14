@@ -56,7 +56,7 @@ export default async function ExceptionsPage({ searchParams }: { searchParams: P
           <Link href="/rota/exceptions" className="btn-secondary">Clear</Link>
         </form>
       </section>
-      <Card>
+      <Card colour="amber" title={<>Exceptions list <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <ul className="rows">
             {rows.map((r) => {

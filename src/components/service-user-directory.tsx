@@ -77,8 +77,10 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
   const canUpdate = perms.edit || perms.upload;
   const showing = dir.total ? <>Showing {first} to {last} of {dir.total.toLocaleString("en-GB")} service {dir.total === 1 ? "user" : "users"}{sp.status === "ARCHIVED" ? " (archived)" : sp.status ? "" : " (not ended)"}</> : null;
   return (
-    <section aria-label="All Service Users" className="rounded-[8px] bg-white px-4 pb-5 pt-5 sm:px-6" data-testid="su-directory">
-      {/* The page's title and description are in the module header band; the two management menus open the card. */}
+    <section aria-label="All Service Users" className="hb-pn hb-c-purple" data-testid="su-directory">
+      {/* The page's title and description are in the module header band; the panel's title bar names the list. */}
+      <div className="hb-pn-h"><h2>Service user list <span className="hb-pn-cnt">{dir.total.toLocaleString("en-GB")}</span></h2></div>
+      <div className="px-4 pb-5 pt-4 sm:px-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-end">
         {perms.create || perms.upload || perms.edit ? (
           <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:flex-nowrap lg:justify-end" data-testid="su-actions">
@@ -128,14 +130,14 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           <table className="w-full min-w-[640px] border-collapse text-left text-[14.5px] text-[#101828]">
             <thead>
               <tr className="whitespace-nowrap bg-[#f6f7f9] text-[13.5px] font-semibold text-[#101828]">
-                <th scope="col" className="rounded-l-[8px] px-2.5 py-3 2xl:px-3 font-semibold">Service User</th>
+                <th scope="col" className="px-2.5 py-3 2xl:px-3 font-semibold">Service User</th>
                 <th scope="col" className="px-2.5 py-3 2xl:px-3 font-semibold">CSB Reference</th>
                 <th scope="col" className={`${WIDEST} px-2.5 py-3 2xl:px-3 font-semibold`}>Council / Frameworki Ref</th>
                 <th scope="col" className={`${WIDE} px-2.5 py-3 2xl:px-3 font-semibold`}>Area</th>
                 <th scope="col" className={`${WIDE} px-2.5 py-3 2xl:px-3 font-semibold`}>Care Package</th>
                 <th scope="col" className="px-2.5 py-3 2xl:px-3 font-semibold">Status</th>
                 <th scope="col" className={`${WIDER} px-2.5 py-3 2xl:px-3 font-semibold`}>Next Visit</th>
-                <th scope="col" className="rounded-r-[8px] px-2.5 py-3 2xl:px-3 font-semibold">Actions</th>
+                <th scope="col" className="px-2.5 py-3 2xl:px-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -210,6 +212,7 @@ export function ServiceUserDirectory({ dir, sp, areas, branches, basePath, perms
           ) : null}
         </div>
       ) : null}
+      </div>
     </section>
   );
 }
