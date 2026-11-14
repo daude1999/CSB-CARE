@@ -33,7 +33,7 @@ export default async function VisitNotesPage({ searchParams }: { searchParams: P
           <Link href="/rota/notes" className="btn-secondary">Clear</Link>
         </form>
       </section>
-      <Card>
+      <Card colour="blue" title={<>Visit notes list <span className="hb-pn-cnt">{notes.length}</span></>}>
         {notes.length ? (
           <ul className="rows">
             {notes.map((n) => (

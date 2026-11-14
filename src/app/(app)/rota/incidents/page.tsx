@@ -35,7 +35,7 @@ export default async function IncidentsPage({ searchParams }: { searchParams: Pr
           </div>
         </form>
       </section>
-      <Card>
+      <Card colour="red" title={<>Incident register <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">

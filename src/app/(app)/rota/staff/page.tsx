@@ -55,7 +55,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
           <Link href="/rota/staff" className="btn-secondary">Clear</Link>
         </form>
       </section>
-      <Card>
+      <Card colour="purple" title={<>Staff list <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <table className="table">
             <thead><tr><th>Name</th><th>Areas</th><th>DBS</th><th>Right to work</th><th>Training</th>{readiness ? <th>Readiness</th> : null}<th>Rota</th><th>Visits this week</th><th>Sign-in</th></tr></thead>

@@ -622,3 +622,24 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 .hb-rail-b[data-hb-module][data-on] { background: var(--hb-mod-50); color: var(--hb-mod-ink); box-shadow: inset 3px 0 0 var(--hb-mod); }
 .hb-rail-b[data-hb-module]:focus-visible { outline: 2px solid var(--hb-mod); outline-offset: 1px; }
 :root[data-mode="dark"] .hb-rail-b[data-hb-module] .hb-rail-i { background: color-mix(in srgb, var(--hb-mod) 70%, #000); }
+
+/* ---------- Bordered panels and gridded tables (owner's request, 14 Nov 2026) ----------
+   An enterprise care-system look: panels with a clear outline and rounded corners, a taller solid title bar with a
+   round "open full screen" button, a tool row of dark icons, and tables ruled into a grid (a line between every
+   column and every row, a grey header row). Styling only: no markup, data or behaviour.
+   Calendar-style boards that draw their own cells (border-separate) and the week grid keep their look. */
+:root { --hb-grid: #d5dbe4; --hb-grid-h: #eceff4; --hb-panel-edge: #c9d0db; }
+.hb-pn, .hb-shell :is(.card, .panel).hb-card, .hb-shell .pc-panel { border: 1px solid var(--hb-panel-edge); border-radius: 6px; box-shadow: 0 1px 2px rgb(16 24 40 / 0.06); }
+.hb-pn-h, .hb-card > .hb-pn-h { min-height: 40px; padding-left: 16px; font-size: 14px; }
+.hb-pn-h h2, .hb-card > .hb-pn-h h2 { font-size: 14px !important; line-height: 20px !important; }
+.hb-shell .pc-panel > .pc-panel-head:has(> :is(h2, h3)) { min-height: 40px; padding-left: 16px; }
+.hb-pn-x { width: 26px; height: 26px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 999px; }
+.hb-pn-tools { gap: 4px; padding: 6px 10px; border-bottom-color: var(--hb-grid); }
+.hb-pn-tools > :is(a, button) { width: 32px; height: 30px; color: var(--hb-ink); }
+.hb-pn-tools > :is(a, button) svg { width: 18px; height: 18px; }
+
+.hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) { border-collapse: collapse; }
+.hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > thead > tr > th { height: 34px; background: var(--hb-grid-h); border-bottom: 1px solid var(--hb-grid); font-size: 12.5px; font-weight: 700; color: var(--hb-ink); }
+.hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > tbody > tr > td { height: 40px; border-bottom: 1px solid var(--hb-grid); }
+.hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > :is(thead, tbody) > tr > :is(th, td):not(:last-child) { border-right: 1px solid var(--hb-grid); }
+.hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > tbody > tr:last-child > td { border-bottom: 0; }

@@ -19,7 +19,7 @@ export default async function MileagePage({ searchParams }: { searchParams: Prom
       <PageHeader tabs={<RotaTabs ctx={ctx} ws="finance" active="mileage" />} title="Mileage" back="/rota/finance" subtitle="Business miles claimed by carers. Distances are what the carer states; they are not worked out from a map. Approved claims are paid through the next pay run at the rate in Tariffs & Funders." actions={<Link href="/rota/finance/payroll" className="btn-secondary">Wages</Link>} />
       <Flash searchParams={sp} />
       <SegmentNav label="Claim status" items={[["SUBMITTED", "Waiting"], ["APPROVED", "Approved"], ["REJECTED", "Rejected"], ["ALL", "All"]].map(([k, l]) => ({ href: `/rota/finance/mileage?status=${k}`, label: l!, active: status === k }))} />
-      <Card>
+      <Card colour="orange" title={<>Mileage claims <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <ul className="rows">
             {rows.map((c) => (

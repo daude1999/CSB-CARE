@@ -39,7 +39,7 @@ export default async function RisksPage({ searchParams }: { searchParams: Promis
           </div>
         </form>
       </section>
-      <Card>
+      <Card colour="red" title={<>Risk assessment register <span className="hb-pn-cnt">{rows.length}</span></>}>
         {rows.length ? (
           <div className="relative min-w-0 overflow-x-auto">
             <table className="table">
