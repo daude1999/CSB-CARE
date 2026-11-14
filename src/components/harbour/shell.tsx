@@ -227,6 +227,9 @@ export function MenuFlyout(props: HarbourShellProps) {
   const modules = ORDER.map((id) => portals.find((p) => p.id === id)).filter((p): p is ShellPortal => Boolean(p));
   const pageCount = modules.reduce((n, p) => n + Math.max(1, (items[p.id] ?? []).filter((i) => !i.planned).length), 0);
   const overview = portals.find((p) => p.id === "overview");
+  // A module picked on the icon rail shows that module's pages on their own (owner's request, 14 Nov 2026); "All pages",
+  // the phone's menu button and the closed menu keep the full list.
+  const focused = open && menu.expanded && menu.expanded !== "all" ? modules.find((p) => p.id === menu.expanded) ?? null : null;
   return (
     <>
       {/* Clicking outside closes the menu; keyboard users have Escape and the menu's own Close button. */}
@@ -242,6 +245,23 @@ export function MenuFlyout(props: HarbourShellProps) {
           </button>
         </div>
         <nav aria-label="Main" className="hb-fly-nav">
+          {focused ? (
+            <div data-testid="module-menu" data-hb-module={focused.id}>
+              <Link href={focused.home} className="hb-fly-mod" data-module-toggle={focused.id} data-portal-home="" data-portal={focused.id}>
+                <span className="hb-mt" style={{ "--mc": focused.colour } as React.CSSProperties} aria-hidden="true">{focused.icon}</span>
+                <span className="min-w-0 flex-1"><b className="block truncate">{MODULE_NAME[focused.id]}</b><small className="block">Open the module home</small></span>
+                <CaretRight size={14} aria-hidden="true" />
+              </Link>
+              {(items[focused.id] ?? []).filter((i) => !i.planned).length ? (
+                <PageTree id={`hb-tree-${focused.id}`} testId="portal-pages" pages={items[focused.id] ?? []} activeHref={active.href} shownHref={activeEntryHref(active.entries, active.shownPath, new URLSearchParams())} />
+              ) : (
+                <ul id={`hb-tree-${focused.id}`} className="hb-tree" data-testid="portal-pages">
+                  <li><Link href={focused.home} className="hb-ti" data-on={active.path === focused.home ? "" : undefined}>{MODULE_NAME[focused.id]} home</Link></li>
+                </ul>
+              )}
+              <button type="button" className="hb-sbi mt-2" onClick={(e) => menu.show("all", e.currentTarget)} data-testid="menu-show-all"><SquaresFour size={16} aria-hidden="true" />Show all modules</button>
+            </div>
+          ) : (
           <ul data-testid="portal-switcher" className="space-y-[1px]">
             {overview ? (
               <li><Link href="/overview" className="hb-sbi" data-portal-home="" data-portal="overview" data-on={active.path === "/overview" ? "" : undefined} aria-current={active.shownPath === "/overview" ? "page" : undefined}><House size={16} aria-hidden="true" />Overview</Link></li>
@@ -278,6 +298,7 @@ export function MenuFlyout(props: HarbourShellProps) {
               );
             })}
           </ul>
+          )}
         </nav>
         <div className="hb-fly-foot space-y-2">
           {coordinator ? (

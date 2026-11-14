@@ -70,6 +70,10 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
   const input = useRef<HTMLTextAreaElement>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
+  // The floating button at the bottom right (restored 14 Nov 2026, owner couldn't find the Coordinator): the clearest
+  // way in on every page and at every width. Focus goes back to whichever button opened the panel.
+  const floater = useRef<HTMLButtonElement>(null);
+  const openedFrom = useRef<"rail" | "float">("rail");
   // The launcher is the icon rail's AI button (Harbour, 13 Nov 2026). The panel and its conversation live here, outside
   // the rail, so they survive moving between pages; only the button is drawn into the rail's slot, which is found again
   // whenever the page changes. Below 1024px the rail hides and the menu's own AI CSB Coordinator button opens the panel.
@@ -96,7 +100,11 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
       setAttachedIntakeId(null);
       setUploadTarget("new");
     }
-    requestAnimationFrame(() => launcher.current?.focus());
+    // Two frames: the floating button is drawn again once the panel has closed.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const back = openedFrom.current === "float" || !launcher.current?.offsetParent ? floater.current : launcher.current;
+      back?.focus();
+    }));
   }, []);
 
   /** opts.intakeId/attached: a question about a document just attached in this conversation (asked automatically). */
@@ -332,12 +340,26 @@ export function AiCsbCoordinatorLauncher({ access, aiOn = false }: { access: Coo
           </form>
         </section>
       ) : null}
+      {!open ? (
+        <button
+          ref={floater}
+          type="button"
+          onClick={() => { openedFrom.current = "float"; setOpen(true); }}
+          aria-haspopup="dialog"
+          aria-expanded={false}
+          data-testid="ai-float-button"
+          className="ai-csb-fab print:hidden"
+        >
+          <Sparkle size={18} weight="fill" aria-hidden="true" />
+          <span>AI CSB Coordinator</span>
+        </button>
+      ) : null}
       {slot
         ? createPortal(
             <button
               ref={launcher}
               type="button"
-              onClick={() => setOpen((o) => !o)}
+              onClick={() => { openedFrom.current = "rail"; setOpen((o) => !o); }}
               aria-haspopup="dialog"
               aria-expanded={open}
               aria-label="AI CSB Coordinator"

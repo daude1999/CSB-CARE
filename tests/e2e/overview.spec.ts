@@ -41,7 +41,12 @@ test.describe("Overview", () => {
 
     const rota = page.getByTestId("tile-rota");
     await expect(rota.getByTestId("rota-headline")).toHaveText(/^\d+of \d+ visits? done today$/);
-    await expect(rota.getByRole("list", { name: "Today's call rounds" }).getByRole("listitem").first()).toBeVisible();
+    // Call rounds are one ruled table row each (14 Nov 2026), never tall columns.
+    const rounds = rota.getByRole("table", { name: "Today's call rounds" });
+    await expect(rounds.getByRole("columnheader")).toHaveText(["Call round", "Times", "Visits", "Done", "Needs a carer", "Progress", "Status"]);
+    await expect(rounds.locator('tbody tr[data-testid^="round-"]').first()).toBeVisible();
+    await expect(rounds.locator("tbody tr").first().getByRole("cell").first()).toHaveText(/^\d{2}:\d{2} to \d{2}:\d{2}$/);
+    for (const row of await rounds.locator("tbody tr").all()) expect((await row.boundingBox())!.height).toBeLessThanOrEqual(48);
     await expect(rota.getByTestId("rota-cover")).toContainText(/still needs? a carer|All visits covered/);
     await expect(rota.getByRole("link", { name: /Open Daily Rota/ })).toHaveAttribute("href", "/rota/visits");
     await expect(rota.getByRole("link", { name: "The Monitor" })).toHaveAttribute("href", "/rota/monitor");

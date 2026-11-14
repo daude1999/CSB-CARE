@@ -431,6 +431,14 @@
   .ai-csb-panel-expanded { width: min(760px, calc(100vw - 40px)); height: calc(100dvh - 40px); }
   .ai-csb-input { padding-bottom: 0; }
 }
+.ai-csb-fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 34; display: inline-flex; height: 44px; align-items: center; gap: 8px;
+  padding: 0 18px 0 14px; border-radius: 999px; background: #0b6b74; color: #fff; font: 600 14px/1 var(--font-ui, var(--font-sans));
+  box-shadow: 0 2px 6px rgb(16 42 52 / 0.12), 0 10px 24px rgb(11 107 116 / 0.28);
+}
+.ai-csb-fab:hover { background: #08545b; }
+.ai-csb-fab:focus-visible { outline: 3px solid #f5b83d; outline-offset: 2px; }
+@media (max-width: 639px) { .ai-csb-fab { right: 12px; bottom: 12px; height: 48px; width: 48px; justify-content: center; padding: 0; } .ai-csb-fab > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 .ai-csb-icon-btn { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 10px; color: #4b6470; }
 .ai-csb-icon-btn:hover { background: #eef4f5; color: #0b6b74; }
 .ai-csb-icon-btn:focus-visible, .ai-csb-action:focus-visible { outline: 2px solid #0b6b74; outline-offset: 2px; }

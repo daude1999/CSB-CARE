@@ -109,6 +109,47 @@ test.describe("shared page frame", () => {
   });
 });
 
+test.describe("menu and AI Coordinator", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("a module picked on the rail shows only that module's pages, and Show all modules brings the rest back", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/overview");
+    await page.locator('[data-rail="rota"]').click();
+    const menu = page.getByTestId("harbour-menu");
+    await expect(menu).toHaveAttribute("data-open", "");
+    await expect(menu.getByTestId("module-menu")).toContainText("Care & Rostering");
+    await expect(menu.getByTestId("portal-pages").getByRole("link", { name: "Daily Rota", exact: true })).toBeVisible();
+    await expect(menu.getByTestId("portal-switcher")).toHaveCount(0);
+    await expect(menu.locator('[data-module-toggle="policy"]')).toHaveCount(0);
+    // Another module on the rail swaps the list for that module's pages.
+    await page.locator('[data-rail="policy"]').click();
+    await expect(menu.getByTestId("module-menu")).toContainText("Policy & Compliance");
+    await expect(menu.getByTestId("portal-pages").getByRole("link", { name: "Daily Rota", exact: true })).toHaveCount(0);
+    await menu.getByTestId("menu-show-all").click();
+    await expect(menu.getByTestId("portal-switcher")).toBeVisible();
+    await expect(menu.locator('[data-module-toggle="rota"]')).toBeVisible();
+  });
+
+  test("a floating AI CSB Coordinator button sits at the bottom right of every page and opens the panel", async ({ page }) => {
+    await signIn(page);
+    for (const path of ["/overview", "/rota", "/policies"]) {
+      await page.goto(path);
+      const fab = page.getByTestId("ai-float-button");
+      await expect(fab, path).toBeVisible();
+      await expect(fab).toHaveAccessibleName("AI CSB Coordinator");
+      const box = (await fab.boundingBox())!;
+      expect(1440 - (box.x + box.width)).toBeLessThanOrEqual(24);
+      expect(900 - (box.y + box.height)).toBeLessThanOrEqual(24);
+    }
+    await page.getByTestId("ai-float-button").click();
+    await expect(page.getByRole("dialog", { name: /AI CSB Coordinator/ })).toBeVisible();
+    await expect(page.getByTestId("ai-float-button")).toHaveCount(0);
+    await page.getByTestId("ai-minimise").click();
+    await expect(page.getByTestId("ai-float-button")).toBeFocused();
+  });
+});
+
 test.describe("icon rail", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
