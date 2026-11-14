@@ -86,6 +86,14 @@
 .hb-mt { display: grid; place-items: center; width: 20px; height: 20px; flex: none; border-radius: 5px; background: var(--mc, var(--hb-brand)); color: #fff; }
 .hb-cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; border-radius: 999px; background: var(--hb-sunken); color: var(--hb-ink-2); font-size: 11.5px; font-weight: 600; }
 .hb-cnt[data-bad] { background: var(--hb-bad); color: #fff; }
+/* A module picked on the rail: its name as a heading link to the module home, then only its pages. */
+.hb-fly-mod { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; padding: 10px; border: 1px solid var(--hb-line); border-radius: 8px; background: #fff; color: var(--hb-ink); text-decoration: none; box-shadow: var(--hb-sh1); }
+.hb-fly-mod:hover { border-color: var(--hb-ctl-h); }
+.hb-fly-mod .hb-mt { width: 32px; height: 32px; border-radius: 7px; }
+.hb-fly-mod b { font-size: 14.5px; font-weight: 600; }
+.hb-fly-mod small { font-size: 12px; color: var(--hb-ink-3); }
+.hb-fly-mod > svg { color: var(--hb-ink-3); }
+[data-testid="module-menu"] .hb-tree { margin-left: 6px; }
 .hb-tree { margin: 2px 0 6px 18px; padding-left: 10px; border-left: 1px solid var(--hb-line); }
 .hb-tg { padding: 8px 8px 2px; font-size: 11px; font-weight: 600; color: var(--hb-ink-4); }
 .hb-ti { display: flex; width: 100%; min-height: 28px; align-items: center; gap: 8px; padding: 0 8px; border-radius: 6px; color: var(--hb-ink-2); font-size: 13px; text-decoration: none; }
@@ -532,35 +540,37 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 .hb-ov { font-family: var(--font-ui); }
 .hb-ov-open { display: inline-flex; height: 24px; align-items: center; gap: 4px; margin-left: 6px; padding: 0 10px; border-radius: 4px; background: #fff; color: var(--hb-ink) !important; font-size: 12.5px; font-weight: 600; text-decoration: none; }
 .hb-ov-open:hover { background: var(--hb-brand-50); }
-.hb-ov-cd { display: grid; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 900px) { .hb-ov-cd { grid-template-columns: 250px minmax(0, 1fr); } }
-.hb-ov-cd-l { padding: 18px 20px; border-bottom: 1px solid var(--hb-line-2); }
-@media (min-width: 900px) { .hb-ov-cd-l { border-bottom: 0; border-right: 1px solid var(--hb-line-2); } }
-.hb-ov-meter { display: flex; height: 8px; margin: 12px 0 10px; overflow: hidden; border-radius: 999px; background: #dfe5ee; }
+.hb-ov-cd { display: block; }
+.hb-ov-cd-l { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 14px 20px; border-bottom: 1px solid var(--hb-grid, var(--hb-line-2)); }
+.hb-ov-meter { display: flex; height: 8px; margin: 10px 0 0; overflow: hidden; border-radius: 999px; background: #dfe5ee; }
 .hb-ov-meter i { display: block; height: 100%; }
-.hb-ov-legend { margin: 0; padding: 0; list-style: none; }
+.hb-ov-legend { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 4px 22px; margin: 0; padding: 0; list-style: none; }
 .hb-ov-legend li { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13.5px; color: var(--hb-ink-2); }
 .hb-ov-legend li i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(21, 24, 29, 0.15); }
-.hb-ov-legend li b { margin-left: auto; font-weight: 600; color: var(--hb-ink); }
-.hb-ov-cd-r { padding: 14px 18px 10px; min-width: 0; overflow-x: auto; }
-.hb-ov-rounds { display: flex; align-items: stretch; gap: 14px; height: 100%; min-height: 200px; margin: 0; padding: 0; list-style: none; }
-.hb-ov-rounds > li { display: flex; flex: 1; min-width: 72px; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 6px; background: #f7f8fa; }
-.hb-ov-rounds > li[data-state="now"] { background: var(--hb-sun-50); box-shadow: inset 0 0 0 1px #f3d7a4; }
-.hb-ov-rh { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 13px; color: var(--hb-ink); }
-.hb-ov-now { padding: 0 7px; border: 1px solid #f3d7a4; border-radius: 999px; background: #fff; color: var(--hb-sun-ink); font-size: 11px; font-weight: 700; }
-.hb-ov-done { display: inline-flex; align-items: center; gap: 2px; color: var(--hb-ok); font-size: 11.5px; font-weight: 600; }
-.hb-ov-col { position: relative; display: flex; flex-direction: column-reverse; align-self: center; width: 46px; min-height: 8px; margin-top: auto; border-radius: 3px 3px 0 0; background: #dfe5ee; overflow: hidden; }
-.hb-ov-col i { display: block; width: 100%; }
-.hb-ov-col i[data-s="done"] { background: var(--hb-ok-fill); }
-.hb-ov-col i[data-s="bad"] { position: absolute; top: 0; left: 0; background: var(--hb-bad-fill); }
-.hb-ov-rn { text-align: center; font-size: 17px; font-weight: 700; color: var(--hb-ink); }
-.hb-ov-rn > span:not(.sr-only) { font-size: 12.5px; font-weight: 500; color: var(--hb-ink-3); }
+.hb-ov-legend li b { margin-left: 2px; font-weight: 700; color: var(--hb-ink); }
+.hb-ov-legend li.hb-ov-legend-x { margin-left: auto; color: var(--hb-ink-3); }
+.hb-ov-cd-r { min-width: 0; overflow-x: auto; }
+/* Today's call rounds: one ruled row per round (14 Nov 2026), in place of the tall columns that looked broken with few visits. */
+.hb-ov-rt { width: 100%; min-width: 620px; font-size: 13.5px; color: var(--hb-ink); }
+.hb-ov-rt :is(th, td) { padding: 0 12px; text-align: left; vertical-align: middle; white-space: nowrap; }
+.hb-ov-rt tbody th { font-weight: 600; }
+.hb-ov-rt .hb-num { text-align: right; }
+.hb-ov-rt .hb-ov-rt-p { width: 26%; }
+.hb-ov-rt tbody tr[data-state="now"] > * { background: var(--hb-sun-50); }
+.hb-ov-bar { display: flex; height: 8px; overflow: hidden; border-radius: 999px; background: #dfe5ee; }
+.hb-ov-bar i { display: block; height: 100%; }
+.hb-ov-bar i[data-s="done"] { background: var(--hb-ok-fill); }
+.hb-ov-bar i[data-s="bad"] { background: var(--hb-bad-fill); }
+.hb-ov-pill { display: inline-flex; height: 22px; align-items: center; gap: 3px; padding: 0 8px; border-radius: 999px; background: #eef1f5; color: var(--hb-ink-2); font-size: 12px; font-weight: 600; }
+.hb-ov-pill[data-tone="bad"] { background: #fdecea; color: #a1231b; }
+.hb-ov-pill[data-tone="now"] { background: #fff1d6; color: var(--hb-sun-ink); }
+.hb-ov-pill[data-tone="ok"] { background: #e3f4ea; color: #146c43; }
+.hb-ov-pill[data-tone="open"] { background: #fff4e0; color: #8c5200; }
 .hb-ov-cover { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; border-top: 1px solid var(--hb-line-2); background: #fff; }
 .hb-ov-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (min-width: 1100px) { .hb-ov-grid { grid-template-columns: minmax(0, 1fr) 360px; } }
 .hb-ov-act { margin: 0; padding: 0; list-style: none; }
 .hb-ov-act > li { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 16px; border-bottom: 1px solid var(--hb-line-2); }
-.hb-ov-act > li[data-first] { background: linear-gradient(90deg, #fdf0ef, #fff 70%); }
 .hb-ov-ai { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 6px; color: #fff; }
 .hb-ov-area { align-items: center; gap: 6px; flex: none; font-size: 12.5px; color: var(--hb-ink-2); white-space: nowrap; }
 .hb-ov-area i { width: 8px; height: 8px; border-radius: 2px; }
@@ -587,7 +597,6 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 .hb-gol-i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; color: #fff; }
 .hb-ov-tile span.flex { display: flex; }
 .hb-ov-tile .hb-tile-ic { display: grid; }
-.hb-ov-rounds { min-height: 170px; }
 
 /* ---------- Policy & Compliance panels (.pc-panel) ----------
    A panel head that holds a heading becomes a Harbour title bar in the module's colour; a head that is only a
@@ -643,3 +652,11 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 .hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > tbody > tr > td { height: 40px; border-bottom: 1px solid var(--hb-grid); }
 .hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > :is(thead, tbody) > tr > :is(th, td):not(:last-child) { border-right: 1px solid var(--hb-grid); }
 .hb-shell :is(.hb-pn, .hb-card, .card, .panel, .pc-panel) table:where(:not(.border-separate):not(.hb-wk)):where(:not(.cs *)) > tbody > tr:last-child > td { border-bottom: 0; }
+/* Phones: a panel title with two actions wraps them onto their own line instead of squeezing the words. */
+@media (max-width: 520px) {
+  .hb-ov .hb-pn-h { flex-wrap: wrap; row-gap: 4px; padding-top: 6px; padding-bottom: 6px; }
+  .hb-ov .hb-pn-h :is(h2, .hb-pn-act, .hb-ov-open) { white-space: nowrap; }
+}
+/* Every page fills the screen width beside the side panel, with page padding only (owner's decision of 14 Nov 2026):
+   the HR Hub's own 1440px cap is lifted inside the platform shell. Styling only. */
+.hb-shell .cs :is(.h-wrap, .h-prof__in) { max-width: none; }

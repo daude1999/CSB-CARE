@@ -41,7 +41,12 @@ test.describe("Overview", () => {
 
     const rota = page.getByTestId("tile-rota");
     await expect(rota.getByTestId("rota-headline")).toHaveText(/^\d+of \d+ visits? done today$/);
-    await expect(rota.getByRole("list", { name: "Today's call rounds" }).getByRole("listitem").first()).toBeVisible();
+    // Call rounds are one ruled table row each (14 Nov 2026), never tall columns.
+    const rounds = rota.getByRole("table", { name: "Today's call rounds" });
+    await expect(rounds.getByRole("columnheader")).toHaveText(["Call round", "Times", "Visits", "Done", "Needs a carer", "Progress", "Status"]);
+    await expect(rounds.locator('tbody tr[data-testid^="round-"]').first()).toBeVisible();
+    await expect(rounds.locator("tbody tr").first().getByRole("cell").first()).toHaveText(/^\d{2}:\d{2} to \d{2}:\d{2}$/);
+    for (const row of await rounds.locator("tbody tr").all()) expect((await row.boundingBox())!.height).toBeLessThanOrEqual(48);
     await expect(rota.getByTestId("rota-cover")).toContainText(/still needs? a carer|All visits covered/);
     await expect(rota.getByRole("link", { name: /Open Daily Rota/ })).toHaveAttribute("href", "/rota/visits");
     await expect(rota.getByRole("link", { name: "The Monitor" })).toHaveAttribute("href", "/rota/monitor");
@@ -84,9 +89,10 @@ test.describe("Overview", () => {
     }
   });
 
-  // On wide screens the content stays capped at 1320px and centred beside the side panel (owner's fix of 11 Nov 2026).
+  // The content fills the width beside the side panel at every size, with page padding only (owner's decision of 14 Nov 2026,
+  // replacing the 1320px cap of 11 Nov).
   for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
-    test(`at ${width} by ${height} nothing is wider than 1320px and the page does not scroll sideways`, async ({ page }, testInfo) => {
+    test(`at ${width} by ${height} the content fills the screen width and the page does not scroll sideways`, async ({ page }, testInfo) => {
       await signIn(page, "manager@care-solution.demo");
       await page.setViewportSize({ width, height });
       await page.goto("/overview");
@@ -104,9 +110,8 @@ test.describe("Overview", () => {
       });
       await testInfo.attach(`overview-${width}x${height}`, { body: await page.screenshot(), contentType: "image/png" });
       expect(layout.sideways, "no sideways scroll").toBeLessThanOrEqual(0);
-      expect(layout.widest, "nothing wider than 1320px").toBeLessThanOrEqual(1320);
       expect(Math.abs(layout.content.left - layout.main.left - (layout.main.right - layout.content.right))).toBeLessThanOrEqual(2);
-      if (width === 1920) expect(layout.content.width).toBe(1320);
+      expect(layout.main.width - layout.content.width, "only page padding either side").toBeLessThanOrEqual(40);
       expect(layout.rounds).toBeGreaterThan(0);
     });
   }

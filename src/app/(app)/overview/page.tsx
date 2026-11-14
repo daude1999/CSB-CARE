@@ -1,6 +1,6 @@
 import Link from "@/components/link";
 import { db } from "@/lib/db";
-import { fmtLondonDate, londonDate, londonMinute } from "@/lib/london";
+import { fmtLondonDate, hhmm, londonDate, londonMinute } from "@/lib/london";
 import { coverAlert, greeting, policySummary, type CallRound } from "@/lib/overview-rounds";
 import { requirePortal, portalsFor } from "@/server/auth/portals";
 import { hasOrgPermission } from "@/server/auth/rbac";
@@ -31,7 +31,6 @@ function CareDelivery({ done, total, pending, missed, carers, rounds }: { done: 
   const other = Math.max(0, total - done - pending - missed);
   const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`;
   const legend: [string, number, string][] = [["Completed", done, "#2e9a63"], ["In progress or other", other, "#7b5fda"], ["Needs a carer", needsCarer, "#d14336"], ["Still to come", pending, "#d6dde8"], ["Missed", missed, "#ffffff"]];
-  const max = Math.max(1, ...rounds.map((r) => r.total));
   return (
     <HbPanel
       id="care-delivery"
@@ -44,32 +43,46 @@ function CareDelivery({ done, total, pending, missed, carers, rounds }: { done: 
     >
       <div className="hb-ov-cd">
         <div className="hb-ov-cd-l">
-          <p className="flex items-baseline gap-2.5" data-testid="rota-headline">
-            <span className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums">{done}</span>
-            <span className="text-[14.5px] text-[var(--hb-ink-2)]">of {total} {plural(total, "visit", "visits")} done today</span>
-          </p>
-          <span className="hb-ov-meter" aria-hidden="true">
-            <i style={{ width: pct(done), background: "#2e9a63" }} /><i style={{ width: pct(other), background: "#7b5fda" }} /><i style={{ width: pct(missed), background: "#d14336" }} />
-          </span>
+          <div className="min-w-[220px]">
+            <p className="flex items-baseline gap-2.5" data-testid="rota-headline">
+              <span className="text-[36px] font-semibold leading-none tracking-[-0.02em] tabular-nums">{done}</span>
+              <span className="text-[14.5px] text-[var(--hb-ink-2)]">of {total} {plural(total, "visit", "visits")} done today</span>
+            </p>
+            <span className="hb-ov-meter" aria-hidden="true">
+              <i style={{ width: pct(done), background: "#2e9a63" }} /><i style={{ width: pct(other), background: "#7b5fda" }} /><i style={{ width: pct(missed), background: "#d14336" }} />
+            </span>
+          </div>
           <ul className="hb-ov-legend">
             {legend.map(([label, n, c]) => <li key={label}><i style={{ background: c }} aria-hidden="true" />{label}<b className="tabular-nums">{n}</b></li>)}
+            <li className="hb-ov-legend-x">{carers} {plural(carers, "carer", "carers")} working</li>
           </ul>
-          <p className="mt-3 text-[13px] text-[var(--hb-ink-3)]">{carers} {plural(carers, "carer", "carers")} working · {missed} missed</p>
         </div>
         <div className="hb-ov-cd-r">
           {rounds.length ? (
-            <ul className="hb-ov-rounds" aria-label="Today's call rounds">
-              {rounds.map((r) => (
-                <li key={r.name} data-state={r.state} data-testid={`round-${r.label.toLowerCase()}`}>
-                  <span className="hb-ov-rh"><b>{r.label}</b>{r.state === "now" ? <span className="hb-ov-now">Now</span> : r.state === "done" ? <span className="hb-ov-done"><Check size={11} weight="bold" aria-hidden="true" />Done</span> : null}</span>
-                  <span className="hb-ov-col" aria-hidden="true" style={{ height: `${(r.total / max) * 100}%` }}>
-                    {r.needsCarer ? <i data-s="bad" style={{ height: `${(r.needsCarer / r.total) * 100}%` }} /> : null}
-                    <i data-s="done" style={{ height: `${(r.done / r.total) * 100}%` }} />
-                  </span>
-                  <span className="hb-ov-rn tabular-nums">{r.done}<span> / {r.total}</span><span className="sr-only"> visits done{r.state === "now" ? ", in progress now" : r.state === "done" ? ", round finished" : ""}{r.needsCarer ? `, ${r.needsCarer} need a carer` : ""}</span></span>
-                </li>
-              ))}
-            </ul>
+            <table className="hb-ov-rt" aria-label="Today's call rounds">
+              <thead>
+                <tr><th scope="col">Call round</th><th scope="col">Times</th><th scope="col" className="hb-num">Visits</th><th scope="col" className="hb-num">Done</th><th scope="col">Needs a carer</th><th scope="col" className="hb-ov-rt-p">Progress</th><th scope="col">Status</th></tr>
+              </thead>
+              <tbody>
+                {rounds.map((r) => {
+                  const share = (n: number) => `${r.total ? (n / r.total) * 100 : 0}%`;
+                  return (
+                    <tr key={r.name} data-state={r.state} data-testid={`round-${r.label.toLowerCase()}`}>
+                      <th scope="row">{r.label}</th>
+                      <td className="tabular-nums">{hhmm(r.start)} to {hhmm(r.end)}</td>
+                      <td className="hb-num tabular-nums">{r.total}</td>
+                      <td className="hb-num tabular-nums">{r.done}</td>
+                      <td>{r.needsCarer ? <span className="hb-ov-pill" data-tone="bad">{r.needsCarer} {plural(r.needsCarer, "visit", "visits")}</span> : <span className="text-[var(--hb-ink-3)]">None</span>}</td>
+                      <td className="hb-ov-rt-p">
+                        <span className="hb-ov-bar" aria-hidden="true"><i data-s="done" style={{ width: share(r.done) }} /><i data-s="bad" style={{ width: share(r.needsCarer) }} /></span>
+                        <span className="sr-only">{r.done} of {r.total} done</span>
+                      </td>
+                      <td>{r.state === "now" ? <span className="hb-ov-pill" data-tone="now">Now</span> : r.state === "done" ? <span className="hb-ov-pill" data-tone="ok"><Check size={11} weight="bold" aria-hidden="true" />Done</span> : r.state === "open" ? <span className="hb-ov-pill" data-tone="open">Still open</span> : <span className="hb-ov-pill">To come</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           ) : <p className="py-10 text-center text-[14px] text-[var(--hb-ink-3)]">No visits are booked for today.</p>}
         </div>
       </div>
@@ -225,9 +238,9 @@ export default async function Overview({ searchParams }: { searchParams: Promise
 
   return (
     <div className="ov-root hb-ov">
-      {/* Capped at 1320px and centred in the space beside the side panel; narrower screens use the full width. */}
+      {/* Full width beside the side panel at every screen size, with the page padding only (owner's decision of 14 Nov 2026, replacing the 1320px cap). */}
       <div className="px-4 pb-6 pt-5">
-        <div className="mx-auto w-full max-w-[1320px] space-y-[16px]" data-testid="overview-content">
+        <div className="w-full space-y-[16px]" data-testid="overview-content">
           <Flash searchParams={sp} />
           <AutoRefresh seconds={60} />
           <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
@@ -249,6 +262,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           {rotaPortal && rota ? <CareDelivery done={rota.completedToday} total={rota.visitsToday} pending={rota.pendingToday} missed={rota.missedToday} carers={rota.staffOnRota} rounds={rota.rounds} /> : null}
 
           <div className="hb-ov-grid">
+            <div className="flex min-w-0 flex-col gap-4">
             <HbPanel id="needs-action" title="Needs action" icon={<WarningCircle size={15} weight="bold" />} colour="red" count={attention.length} testId="needs-attention" flush
               action={attention.length ? <PanelAction href="/notifications">View all</PanelAction> : undefined}
               footer={<span className="mr-auto text-[12.5px] text-[var(--hb-ink-3)]">Showing what your role can act on, most urgent first.</span>}>
@@ -258,7 +272,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                     const label = <>{a.action}<span className="sr-only">: {a.count} {a.text.toLowerCase()}</span></>;
                     const cls = i === 0 ? "hb-btn hb-btn-p" : "hb-btn";
                     return (
-                      <li key={a.key} data-testid={`attention-${a.key}`} data-first={i === 0 ? "" : undefined}>
+                      <li key={a.key} data-testid={`attention-${a.key}`}>
                         <span aria-hidden="true" className="hb-ov-ai" style={{ background: a.colour }}>{a.icon}</span>
                         <span className="min-w-0 flex-1"><b className="block text-[14px] font-semibold"><span className="tabular-nums">{a.count}</span> {/^[A-Z][a-z]/.test(a.text) ? a.text.charAt(0).toLowerCase() + a.text.slice(1) : a.text}</b></span>
                         <span className="hb-ov-area hidden sm:inline-flex"><i style={{ background: a.colour }} aria-hidden="true" />{areaOf(a)}</span>
@@ -271,6 +285,13 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                 <p className="px-4 py-6 text-[14px] text-[var(--hb-ink-3)]">Nothing needs your attention right now.</p>
               )}
             </HbPanel>
+            {rota ? (
+              <HbPanel id="this-week" title="This week" icon={<ChartBar size={15} weight="bold" />} colour="green" testId="overview-week">
+                <p className="-mt-1 mb-2 text-[12.5px] text-[var(--hb-ink-3)]">Visits completed each day, the last seven days</p>
+                <WeekBars days={days} />
+              </HbPanel>
+            ) : null}
+            </div>
             <div className="flex min-w-0 flex-col gap-4">
               <HbPanel id="notifications" title="Notifications" icon={<Bell size={15} weight="bold" />} colour="blue" count={unread} flush testId="overview-notifications"
                 action={unread ? <form action={markNotificationsReadAction}><input type="hidden" name="back" value="/overview" /><button className="hb-pn-act" type="submit">Mark all read</button></form> : <PanelAction href="/notifications">All</PanelAction>}>
@@ -291,12 +312,6 @@ export default async function Overview({ searchParams }: { searchParams: Promise
                   </ul>
                 ) : <p className="px-4 py-5 text-[13.5px] text-[var(--hb-ink-3)]">No notifications.</p>}
               </HbPanel>
-              {rota ? (
-                <HbPanel id="this-week" title="This week" icon={<ChartBar size={15} weight="bold" />} colour="green" testId="overview-week">
-                  <p className="-mt-1 mb-2 text-[12.5px] text-[var(--hb-ink-3)]">Visits completed each day, the last seven days</p>
-                  <WeekBars days={days} />
-                </HbPanel>
-              ) : null}
               {goTo.length ? (
                 <HbPanel id="go-to" title="Go to" colour="teal" flush testId="overview-go-to">
                   <nav aria-label="Go to">

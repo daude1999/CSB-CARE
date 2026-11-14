@@ -85,7 +85,7 @@ export function OverviewSkeleton() {
     <Busy label="Loading the overview">
       <div className="ov-root">
         <div className="skeleton-pulse px-4 pb-6 pt-5">
-          <div className="mx-auto w-full max-w-[1320px] space-y-[16px]">
+          <div className="w-full space-y-[16px]">
             <div>
               <Bar className="h-[30px] w-[min(320px,70%)]" />
               <Bar className="mt-2 h-[16px] w-[min(460px,90%)]" />
