@@ -109,6 +109,29 @@ test.describe("shared page frame", () => {
   });
 });
 
+test.describe("icon rail", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("each module in the rail has its own colour, the same as its page header tile", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/overview");
+    const rail = page.getByTestId("icon-rail");
+    const tiles: Record<string, string> = {};
+    for (const [id, path] of [["rota", "/rota/service-users"], ["hr", "/workforce/absences"], ["policy", "/"], ["reporting", "/analytics"], ["admin", "/settings"]] as const) {
+      tiles[id] = await rail.locator(`[data-rail="${id}"] .hb-rail-i`).evaluate((el) => getComputedStyle(el).backgroundColor);
+      await page.goto(path);
+      const chip = await page.locator(".mh-chip").first().evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(tiles[id], `${id} rail tile matches its page header`).toBe(chip);
+      await page.goto("/overview");
+    }
+    // Five different colours, and the icon on each is white.
+    expect(new Set(Object.values(tiles)).size).toBe(5);
+    await expect(rail.locator('[data-rail="policy"] .hb-rail-i')).toHaveCSS("color", "rgb(255, 255, 255)");
+    // Alerts and All pages are not modules, so they stay plain.
+    expect(await rail.locator('[data-rail="all"] .hb-rail-i').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
+  });
+});
+
 test.describe("phone width", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 

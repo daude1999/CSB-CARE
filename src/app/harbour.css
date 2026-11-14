@@ -610,3 +610,15 @@ main[data-module="policy"] .table tbody td { height: 40px; border-bottom: 1px so
 :root[data-mode="dark"] :is(.hb-btn-p, .hb-btn-p:hover),
 :root[data-mode="dark"] .hb-shell .mh:not([data-variant="plain"]) .mh-band :is(.btn-primary, .btn-teal, .pc-btn, .pl-btn-primary, .hx-btn--primary, .cs-btn--primary, .module-primary, .mh-btn-primary) { border-color: color-mix(in srgb, var(--hb-brand) 62%, #000); background: color-mix(in srgb, var(--hb-brand) 62%, #000); color: #fff !important; }
 :root[data-mode="dark"] .cs :is(.hb-hr-rec, .hb-cl) .hb-btn-p { border-color: color-mix(in srgb, var(--hb-brand) 62%, #000); background: color-mix(in srgb, var(--hb-brand) 62%, #000); color: #fff; }
+
+/* ---------- Icon rail: module colours (owner's request, 13 Nov 2026) ----------
+   Home and each module show their icon on a tile in the module colour (the same colour as the module's page header
+   tile and Overview tile); the label and the open state take the module's tint. Alerts, All pages, AI and Settings stay
+   neutral because they are not modules. */
+.hb-rail-b[data-hb-module] .hb-rail-i { width: 32px; height: 28px; border-radius: 8px; background: var(--hb-mod); color: #fff; box-shadow: 0 3px 8px -4px var(--hb-mod); }
+.hb-rail-b[data-hb-module] .hb-rail-i svg { width: 18px; height: 18px; }
+.hb-rail-b[data-hb-module] { color: var(--hb-mod-ink); }
+.hb-rail-b[data-hb-module]:hover { background: var(--hb-mod-50); color: var(--hb-mod-ink); }
+.hb-rail-b[data-hb-module][data-on] { background: var(--hb-mod-50); color: var(--hb-mod-ink); box-shadow: inset 3px 0 0 var(--hb-mod); }
+.hb-rail-b[data-hb-module]:focus-visible { outline: 2px solid var(--hb-mod); outline-offset: 1px; }
+:root[data-mode="dark"] .hb-rail-b[data-hb-module] .hb-rail-i { background: color-mix(in srgb, var(--hb-mod) 70%, #000); }

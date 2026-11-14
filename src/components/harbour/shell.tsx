@@ -104,7 +104,7 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
       {/* The ClearCare mark from the approved reference (a navy 40px square with "CC"). */}
       <Link href="/overview" className="hb-rail-logo" aria-label="Overview" title="ClearCare home" data-testid="rail-logo">CC</Link>
       {overview ? (
-        <Link href="/overview" className="hb-rail-b" data-on={on === "overview" && !menu.open ? "" : undefined} aria-current={path === "/overview" ? "page" : undefined} title="Home" onClick={() => menu.open && menu.close()}>
+        <Link href="/overview" className="hb-rail-b" data-hb-module="overview" data-on={on === "overview" && !menu.open ? "" : undefined} aria-current={path === "/overview" ? "page" : undefined} title="Home" onClick={() => menu.open && menu.close()}>
           <span className="hb-rail-i"><House size={20} aria-hidden="true" /></span><span className="hb-rail-t">Home</span>
         </Link>
       ) : null}
@@ -125,6 +125,8 @@ export function IconRail({ portals, unread, coordinator, settingsHref }: Harbour
           title={MODULE_NAME[r.id]}
           aria-label={`${MODULE_NAME[r.id]} menu`}
           data-rail={r.id}
+          // Each module's button carries its colour (owner's request, 13 Nov 2026): a tile in the module colour.
+          data-hb-module={r.id}
           // With scripts on, the click opens the menu rather than the page, so the page-loading signal must not start.
           data-no-progress=""
           onKeyDown={(e) => {
